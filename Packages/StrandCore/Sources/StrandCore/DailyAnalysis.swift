@@ -1053,13 +1053,15 @@ public final class DailyAnalysis {
 
         let maxHR = maxHeartRateToday.bpm
         let restingHR = existing?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-        let effortMethod = host.analysisSettings().effortMethod
-        let sex = profile.sex
         let ticksPerStep = profile.stepTicksPerStep
+        // Today's recorded workouts. The bouts the daily pass detects are not known here, so their time
+        // below 50 % HRR reaches today's Effort with the next pass (`LiveEffort` shows the larger value).
+        let spans = await Self.workoutSpans(store: store, deviceId: deviceId, from: dayStart - 86_400,
+                                            to: dayEnd + 1)
 
         let activity = await Task.detached(priority: .userInitiated) {
             let strain = StrainScorer.strain(
-                hr, maxHR: maxHR, restingHR: restingHR, method: effortMethod, sex: sex)
+                hr, maxHR: maxHR, restingHR: restingHR, lowIntensity: .countedIn(spans))
             let steps: Int? = {
                 guard let ticks = StepsCounter.stepsInWindow(stepSamples) else { return nil }
                 let value = Int((Double(ticks) / max(ticksPerStep, 0.5)).rounded())
@@ -1112,8 +1114,6 @@ public final class DailyAnalysis {
         }
 
         let offset = TimeZone.current.secondsFromGMT()
-        let age = profile.age
-        let sex = profile.sex
         let maxHR = maxHeartRateToday.bpm
         let fallbackId = deviceId
         let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
@@ -1136,7 +1136,10 @@ public final class DailyAnalysis {
                                                      to: dayStart + 86_400 - 1,
                                                      limit: Int.max)) ?? []
                 let resting = row.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-                let strain = StrainScorer.strain(hr, maxHR: maxHR, restingHR: resting, sex: sex)
+                let spans = await Self.workoutSpans(store: store, deviceId: fallbackId, from: dayStart - 86_400,
+                                                    to: dayStart + 2 * 86_400)
+                let strain = StrainScorer.strain(hr, maxHR: maxHR, restingHR: resting,
+                                                 lowIntensity: .countedIn(spans))
                 result.append((row.day, strain))
             }
             return result
@@ -1339,6 +1342,16 @@ public final class DailyAnalysis {
     /// level the last pass measured, else Gellish (`MaxHeartRate`).
     var maxHeartRateToday: MaxHeartRate.Resolved {
         MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(profile.age), measured: measuredMaxHeartRate)
+    }
+
+    /// Recorded and imported workouts `[start, end)` in `[from, to]`: the strap's rows, NOOP's own and
+    /// Apple Health's. Inside them heart rate below 50 % HRR counts toward the day's Effort (#2438).
+    nonisolated static func workoutSpans(store: WhoopStore, deviceId: String, from: Int, to: Int) async -> [Range<Int>] {
+        var rows: [WorkoutRow] = []
+        for source in [deviceId, deviceId + "-noop", MetricResolver.appleHealthSource] {
+            rows += (try? await store.workouts(deviceId: source, from: from, to: to, limit: 100_000)) ?? []
+        }
+        return rows.filter { $0.endTs > $0.startTs }.map { $0.startTs ..< $0.endTs }
     }
 
     /// Which max-HR override each day was — and stays — scored with: the newest entry dated at or
@@ -1710,9 +1723,6 @@ public final class DailyAnalysis {
         // surface it as a "strap estimate (unverified)" fallback. Default OFF per the derived-biosignal
         // rule (CLAUDE.md) — neither candidate is a validated calibration.
         let spo2CandidateDisplayOn = settings.spo2CandidateDisplay
-        // Read once per pass and include in the persisted semantic signature: changing the recipe must
-        // invalidate every reused day whose Effort was computed with the previous method.
-        let effortMethodGlobal = settings.effortMethod
         // Deliberate semantic invalidation seam. Bump only when unchanged inputs intentionally produce a
         // different score. Profile/toggle values are stored separately in a stable textual signature.
         let scoringVersion = 1
@@ -1787,6 +1797,11 @@ public final class DailyAnalysis {
         }
         // Today's level for the readers outside the pass (profile, zones, live Effort, coach, Settings).
         host.store(measuredByDay[newestScanDay]?.stored, forKey: MaxHeartRate.measuredLevelKey)
+        // #2438 step 1: the recorded and imported workouts of the window, read once. Each day's Effort
+        // counts heart rate below 50 % HRR only inside them and inside the bouts that day detects.
+        let effortWorkoutSpans = await Self.workoutSpans(
+            store: store, deviceId: deviceId, from: nowLocalMidnight - (maxDays + 2) * 86_400,
+            to: nowLocalMidnight + 2 * 86_400)
         // `weight` and `hrmax` are deliberately NOT in these two lists — both are per DAY, spliced in by
         // `semanticSignature(forDay:)` below. Everything that remains is genuinely pass-global: it holds
         // for every day in the window or for none, which is what makes a single miss on one of these
@@ -1807,7 +1822,8 @@ public final class DailyAnalysis {
             "tz=\(tzOffset)",
             "deepHrv=\(deepHrvWindow ? 1 : 0)",
             "spo2Candidate=\(spo2CandidateDisplayOn ? 1 : 0)",
-            "effortMethod=\(String(describing: effortMethodGlobal))",
+            // One Effort curve since #2438 step 1 (AI-32); the word stays so a future curve can change it.
+            "effortMethod=curve2438",
             "hrvEpoch=\(settings.hrvBaselineEpoch)",
             "recoveryEpoch=\(settings.recoveryBaselineEpoch)",
         ].joined(separator: "|")
@@ -2277,7 +2293,10 @@ public final class DailyAnalysis {
                                                      // ring buffer isn't flooded; every night keeps the summary.
                                                      hrvWindowDetail: dayStart == nowLocalMidnight,
                                                      deepHrvWindow: deepHrvWindow,
-                                                     effortMethod: effortMethodGlobal,
+                                                     workoutSpans: effortWorkoutSpans.filter {
+                                                         $0.lowerBound < dayStart + 2 * 86_400
+                                                             && dayStart - 86_400 < $0.upperBound
+                                                     },
                                                      workoutPeakMET: EnergyModelRefresh.peakMET(
                                                         on: day, in: workoutPeakByDay))
                 await Task.yield()
@@ -2942,7 +2961,6 @@ public final class DailyAnalysis {
             // narrower correctness is the one this fix was for. Naming the gap rather than hiding it.
             // The value is already resolved (`maxHRByDay`), so it reaches the cycle path as given.
             maxHROverride: maxHRByDay[newestScanDay]?.bpm,
-            effortMethod: effortMethodGlobal,
             trace: cycleTraceSink) else { return }
         guard !Task.isCancelled else { return }
         for line in cycleTrace.lines { host.diagnostic(line, domain: .steps) }
@@ -3845,7 +3863,7 @@ public final class DailyAnalysis {
         // The analytics profile, so a rescored session's basal share is the wearer's chosen formula,
         // as the live save and the day model price it.
         await rescoreManualWorkouts(store: store, profile: profile.analyticsProfile(),
-                                    restingHR: measuredResting, effortMethod: effortMethodGlobal)
+                                    restingHR: measuredResting)
 
         // Fork: healthspan age, experimental and off by default (DailyAnalysis+Healthspan.swift). Here, after
         // this pass stored its sleep sessions and step estimates, so the newest night's consistency and a WHOOP
@@ -4043,13 +4061,7 @@ public final class DailyAnalysis {
     /// (negligible calories), and only when the recompute is a genuine improvement , so a well-scored
     /// 4.0 workout is never touched and a still-sparse window is a no-op.
     private func rescoreManualWorkouts(store: WhoopStore, profile up: UserProfile,
-                                       restingHR: Double? = nil,
-                                       // #1545: the recipe THIS PASS scored its days with, threaded in
-                                       // rather than re-read. Re-reading would let a toggle flipped
-                                       // mid-pass score a manual workout by one recipe and the day it
-                                       // sits in by the other — the exact day-vs-bout contradiction the
-                                       // threading exists to prevent. Twin of the Kotlin parameter.
-                                       effortMethod: StrainScorer.Method = .edwards) async {
+                                       restingHR: Double? = nil) async {
         let now = Int(Date().timeIntervalSince1970)
         let since = now - 14 * 86_400
         guard let rows = try? await store.workouts(deviceId: deviceId, from: since, to: now, limit: 200)
@@ -4071,7 +4083,7 @@ public final class DailyAnalysis {
                                                            to: row.endTs, limit: 20_000),
                   let s = ManualWorkoutRescore.scored(windowSamples: samples, profile: up, hrMax: hrMax,
                                                       restingHR: restingHR,
-                                                      effortMethod: effortMethod, sport: row.sport,
+                                                      sport: row.sport,
                                                       distanceM: row.distanceM,
                                                       peakMET: EnergyModelRefresh.peakMET(
                                                         on: StoreReader.localDayKey(Date(

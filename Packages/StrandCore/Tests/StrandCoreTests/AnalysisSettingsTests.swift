@@ -5,7 +5,7 @@ import StrandCore
 final class AnalysisSettingsTests: XCTestCase {
     private func settings(hrvEpoch: Double = 0, recoveryEpoch: Double = 0,
                           traces: Set<TestDomain> = []) -> AnalysisSettings {
-        AnalysisSettings(effortMethod: .edwards, spo2CandidateDisplay: false, sleepStagerV2: false,
+        AnalysisSettings(spo2CandidateDisplay: false, sleepStagerV2: false,
                          motionAwareWake: false, deepHrvWindow: false, dayCycleMode: .persisted(nil),
                          rhythmAge: false, healthspan: false, hrvBaselineEpoch: hrvEpoch,
                          recoveryBaselineEpoch: recoveryEpoch, traces: traces)

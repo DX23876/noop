@@ -98,8 +98,7 @@ final class StrengthLiveEffort: ObservableObject {
                 let pauses = (current.pauseIntervals ?? []).map { ($0.startedAtTs, $0.endedAtTs ?? now) }
                 let samples = StrengthSessionHeartRate.activeSamples(
                     await repo.hrSamples(from: current.startedAt, to: now, limit: 20_000), pauses: pauses)
-                let value = StrainScorer.strain(samples, maxHR: Double(profile.hrMax),
-                                                method: PuffinExperiment.effortMethod, sex: profile.sex)
+                let value = StrainScorer.strain(samples, maxHR: Double(profile.hrMax), lowIntensity: .counted)
                 self?.strain = value
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
             }

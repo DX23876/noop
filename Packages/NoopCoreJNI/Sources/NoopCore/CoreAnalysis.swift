@@ -34,10 +34,12 @@ public enum CoreAnalysis {
     }
 
     /// The wearer's analysis choices as the Android app holds them (the same keys the Apple `AppAnalysisHost` reads):
-    /// the Effort model, the sleep stager, the wake check, the nightly HRV window, the day start and the two Lab
+    /// the sleep stager, the wake check, the nightly HRV window, the day start and the two Lab
     /// passes, AgeLess and the daily rhythm. `standard` is what an install that never touched them gets on either
     /// platform.
     public struct Settings: Sendable, Equatable {
+        /// The Android Banister switch. The core ignores it since #2438 step 1 (one Effort curve); kept so the
+        /// Kotlin bridge keeps its signature while the Kotlin engine, which still reads it, is in use.
         public var effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool
         public var dayCycleMode: String?
         public var healthspan: Bool, rhythmAge: Bool
@@ -80,7 +82,7 @@ public enum CoreAnalysis {
 
         /// What the pass reads, the experiments the Android app has no switch for left off.
         public var analysisSettings: AnalysisSettings {
-            AnalysisSettings(effortMethod: effortBanister ? .banister : .edwards, spo2CandidateDisplay: spo2CandidateDisplay,
+            AnalysisSettings(spo2CandidateDisplay: spo2CandidateDisplay,
                              sleepStagerV2: sleepStagerV2, motionAwareWake: motionAwareWake,
                              deepHrvWindow: deepHrvWindow, dayCycleMode: .persisted(dayCycleMode),
                              rhythmAge: rhythmAge, healthspan: healthspan,
@@ -168,7 +170,6 @@ public enum CoreAnalysis {
 
         private var maxHR: Double { profile().maxHR ?? Double(StrainScorer.defaultMaxHR()) }
         private var sex: String { profile().sex }
-        private var effortMethod: StrainScorer.Method { settings.analysisSettings.effortMethod }
 
         func storeHandle() async -> WhoopStore? { reader.store }
         func refresh(days nDays: Int) async {
@@ -221,12 +222,12 @@ public enum CoreAnalysis {
             return await WorkoutHeartRateFills.overlay(deduped.sorted { $0.startTs > $1.startTs }, store: reader.store)
         }
         func fillRecordedWorkoutHeartRate(from: Int, to: Int) async throws -> Int {
-            try await WorkoutHeartRateFills.fillRecorded(reader: reader, from: from, to: to, maxHR: maxHR, sex: sex,
-                                                         method: effortMethod).filled
+            try await WorkoutHeartRateFills.fillRecorded(reader: reader, from: from, to: to, maxHR: maxHR,
+                                                         sex: sex).filled
         }
         func fillAppleWorkoutHeartRate(from: Int, to: Int) async throws -> Int {
-            try await WorkoutHeartRateFills.fillApple(reader: reader, from: from, to: to, maxHR: maxHR, sex: sex,
-                                                      method: effortMethod).filled
+            try await WorkoutHeartRateFills.fillApple(reader: reader, from: from, to: to, maxHR: maxHR,
+                                                      sex: sex).filled
         }
 
         // MARK: Sleep (Apple: Repository.selfHealEditedStages, dismissedSleepWindows)

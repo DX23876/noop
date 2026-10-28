@@ -145,7 +145,7 @@ public actor DayCycleIntelligenceIntegration {
                         workouts: [WorkoutRow], windowStart: Int,
                         now: Int, offsetSec: Int, habitualMidsleepSec: Int?, ticksPerStep: Double,
                         mode: DayCycleMode,
-                        profile: UserProfile, maxHROverride: Double?, effortMethod: StrainScorer.Method,
+                        profile: UserProfile, maxHROverride: Double?,
                         recoveryReader: BoundaryRecoveryReader? = nil,
                         trace: (@Sendable (String) -> Void)? = nil) async throws -> Result {
         await acquire()
@@ -283,8 +283,15 @@ public actor DayCycleIntelligenceIntegration {
                         hrWitness.append("\(owner)=\(fp.map { "\($0.count):\($0.maxTs)" } ?? "unread")")
                     }
                 }
+                // Below 50 % HRR only workout time counts toward Effort (#2438): the stored workouts and
+                // the bouts detected for these nights, clipped to the cycle.
+                let effortSpans = (workouts.map { $0.startTs ..< $0.endTs }
+                                   + nights.flatMap(\.workouts).map { $0.start ..< $0.end })
+                    .filter { $0.lowerBound < window.endExclusive && window.onset < $0.upperBound }
+                let spanKey = effortSpans.map { "\($0.lowerBound)-\($0.upperBound)" }.sorted().joined(separator: ",")
                 let loadKey = "\(window.onset)-\(window.endExclusive)|\(hrWitness.joined(separator: ","))"
-                    + "|rhr=\(restingHR)|max=\(effectiveMaxHR.map { "\($0)" } ?? "nil")|\(effortMethod)|\(profile.cacheKey)"
+                    + "|rhr=\(restingHR)|max=\(effectiveMaxHR.map { "\($0)" } ?? "nil")|curve2438|\(spanKey)"
+                    + "|\(profile.cacheKey)"
                 let load: CachedLoad
                 if let hit = cache.loads[window.sleepId], hit.key == loadKey,
                    !hrWitness.contains(where: { $0.hasSuffix("=unread") }) {
@@ -303,7 +310,7 @@ public actor DayCycleIntelligenceIntegration {
                     load = CachedLoad(
                         key: loadKey,
                         strain: StrainScorer.strain(cycleHR, maxHR: effectiveMaxHR, restingHR: restingHR,
-                                                    method: effortMethod, sex: profile.sex),
+                                                    lowIntensity: .countedIn(effortSpans)),
                         calories: cycleHR.isEmpty ? nil : Calories.estimateDayCalories(
                             cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: restingHR))
                     cache.loads[window.sleepId] = load

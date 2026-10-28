@@ -23,7 +23,6 @@ final class AppAnalysisHost: AnalysisHost {
 
     func analysisSettings() -> AnalysisSettings {
         AnalysisSettings(
-            effortMethod: PuffinExperiment.effortMethod,
             spo2CandidateDisplay: PuffinExperiment.spo2CandidateDisplayEnabled,
             sleepStagerV2: PuffinExperiment.experimentalSleepV2Enabled,
             motionAwareWake: PuffinExperiment.motionAwareWakeEnabled,

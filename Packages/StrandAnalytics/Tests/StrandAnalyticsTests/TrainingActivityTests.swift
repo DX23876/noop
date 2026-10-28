@@ -21,13 +21,4 @@ final class TrainingActivityTests: XCTestCase {
         XCTAssertEqual(TrainingActivityClassifier.kind(forStoredName: "Mind and body"), .mobilityRecovery)
         XCTAssertEqual(TrainingActivityClassifier.kind(forStoredName: "Equestrian sports"), .outdoorRecreation)
     }
-
-    func testCardioLoadExposesAdditiveTRIMPSeparatelyFromEffort() throws {
-        let hr = (0..<601).map { HRSample(ts: $0, bpm: 150) }
-        let one = try XCTUnwrap(StrainScorer.cardioLoad(hr, maxHR: 190, restingHR: 60))
-        XCTAssertGreaterThan(one.trimp, 0)
-        XCTAssertEqual(one.effort, StrainScorer.trimpToStrain(one.trimp), accuracy: 0.0001)
-        XCTAssertNotEqual(one.effort * 2, StrainScorer.trimpToStrain(one.trimp * 2),
-                          "the compressed Effort axis must never be treated as additive")
-    }
 }

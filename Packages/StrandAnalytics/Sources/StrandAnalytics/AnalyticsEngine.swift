@@ -487,14 +487,10 @@ public enum AnalyticsEngine {
                                   // (WHOOP-style), instead of the whole-night mean. Threaded from the caller
                                   // (UnitPrefs.hrvWindowKey). Default false = byte-identical whole-night value.
                                   deepHrvWindow: Bool = false,
-                                  // #1545: which TRIMP recipe scores Effort. Edwards (the default) is
-                                  // time-in-zone and pays NOTHING below 50% HRR, so intermittent work —
-                                  // a lifting session, once the sets are averaged against the rests —
-                                  // can score near zero however long it lasts. Banister is exponential in
-                                  // %HRR with no floor. Threaded rather than read from a global so this
-                                  // stays a pure function, and defaulted so every existing caller and
-                                  // test is byte-identical.
-                                  effortMethod: StrainScorer.Method = .edwards,
+                                  // The day's recorded and imported workouts (`[start, end)`, unix
+                                  // seconds). Inside them and inside the bouts detected here, heart rate
+                                  // below 50 % HRR counts toward the day's Effort (#2438); elsewhere not.
+                                  workoutSpans: [Range<Int>] = [],
                                   // The day's aerobic ceiling (stored by the energy model), so a detected
                                   // bout's calories are priced on the same curve as the day's workouts.
                                   // Nil prices bouts from the table MET of an unnamed session.
@@ -931,35 +927,6 @@ public enum AnalyticsEngine {
         let resolvedMaxHR = maxHR ?? MaxHeartRate.resolve(override: maxHROverride, age: profile.age)
         let effMaxHR: Double? = resolvedMaxHR.bpm
         let restForStrain = restingHRDaily.map(Double.init) ?? StrainScorer.defaultRestingHR
-        // The Effort ring's own funnel. A nil sink builds nothing at all, so a caller that does not want
-        // diagnostics pays nothing; IntelligenceEngine passes its per-day recorder, the same one the
-        // `workout detect` and `sleep-detect` lines beside it already use.
-        let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
-                                         method: effortMethod, sex: profile.sex,
-                                         diag: strainDiag, day: day)
-        // #2438 step 0 asks two things of a contributed log: whether the day was scored against the
-        // user's own setting or against the age formula, and how far the day's own heart rate ran above
-        // that. The `effort score` line above answers neither — it collapses override and Tanaka into
-        // one word, and never reports what the day reached. The branch is only visible HERE, because
-        // `strain` is handed an HRmax with its provenance already gone. Built only when a sink is
-        // attached, and it changes no score.
-        if let strainDiag {
-            let hrForPeak = dayHr ?? hr
-            strainDiag(StrainScorer.dayCalibrationLine(
-                // The value the day was actually scored against, which for an age-less profile is the
-                // one `strain` substitutes internally rather than nil. Reporting nil there would put
-                // this line in direct contradiction with the `effort score` line above it, which prints
-                // that substituted number, about the same day.
-                day: day, hrmax: effMaxHR ?? Double(StrainScorer.defaultMaxHR()),
-                hrmaxSource: resolvedMaxHR.source.rawValue,
-                formula: MaxHeartRate.gellish(age: profile.age),
-                observedPeak: hrForPeak.max(by: { $0.bpm < $1.bpm }).map { Double($0.bpm) },
-                restingHR: restForStrain)
-                // The raw peak is usually one isolated sample on a ring; this is the value held (#2438).
-                + StrainScorer.sustainedPeakField(StrainScorer.sustainedPeak(hrForPeak))
-                + StrainScorer.sustainedPeakSpanField(StrainScorer.sustainedPeakSpan(hrForPeak)))
-        }
-
         // ── Workouts ──────────────────────────────────────────────────────────
         // Detect over the full CALENDAR day (dayHr/dayGravity) when the caller supplies it, so a
         // current-day afternoon/evening workout is caught on its own day rather than lagging until
@@ -986,12 +953,39 @@ public enum AnalyticsEngine {
             maxHR: effMaxHR,
             age: profile.age > 0 ? profile.age : nil,
             profile: profile,
-            // #1545: the bouts inside a day MUST be scored by the same recipe as the day itself.
-            // A day on Banister whose workouts were still on Edwards would show a session scoring
-            // less than the day it sits inside, which is a worse inconsistency than either method.
-            effortMethod: effortMethod,
             peakMET: workoutPeakMET,
             funnel: { detectionFunnel = $0 })
+
+        // The Effort ring's own funnel. A nil sink builds nothing at all, so a caller that does not want
+        // diagnostics pays nothing; IntelligenceEngine passes its per-day recorder, the same one the
+        // `workout detect` and `sleep-detect` lines beside it already use.
+        // Scored after the workouts are known: below 50 % HRR only their time counts (#2438).
+        let effortSpans = workoutSpans + workouts.map { $0.start ..< $0.end }
+        let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
+                                         lowIntensity: .countedIn(effortSpans),
+                                         diag: strainDiag, day: day)
+        // #2438 step 0 asks two things of a contributed log: whether the day was scored against the
+        // user's own setting or against the age formula, and how far the day's own heart rate ran above
+        // that. The `effort score` line above answers neither — it collapses override and Tanaka into
+        // one word, and never reports what the day reached. The branch is only visible HERE, because
+        // `strain` is handed an HRmax with its provenance already gone. Built only when a sink is
+        // attached, and it changes no score.
+        if let strainDiag {
+            let hrForPeak = dayHr ?? hr
+            strainDiag(StrainScorer.dayCalibrationLine(
+                // The value the day was actually scored against, which for an age-less profile is the
+                // one `strain` substitutes internally rather than nil. Reporting nil there would put
+                // this line in direct contradiction with the `effort score` line above it, which prints
+                // that substituted number, about the same day.
+                day: day, hrmax: effMaxHR ?? Double(StrainScorer.defaultMaxHR()),
+                hrmaxSource: resolvedMaxHR.source.rawValue,
+                formula: MaxHeartRate.gellish(age: profile.age),
+                observedPeak: hrForPeak.max(by: { $0.bpm < $1.bpm }).map { Double($0.bpm) },
+                restingHR: restForStrain)
+                // The raw peak is usually one isolated sample on a ring; this is the value held (#2438).
+                + StrainScorer.sustainedPeakField(StrainScorer.sustainedPeak(hrForPeak))
+                + StrainScorer.sustainedPeakSpanField(StrainScorer.sustainedPeakSpan(hrForPeak)))
+        }
 
         // ── Steps (APPROXIMATE) ───────────────────────────────────────────────
         // step_motion_counter@57 is a CUMULATIVE u16 running counter (it climbs while you move, holds

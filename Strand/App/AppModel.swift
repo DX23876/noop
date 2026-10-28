@@ -1410,8 +1410,7 @@ final class AppModel: ObservableObject {
         let restingHR = repo.today?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
         let strain = samples.count >= 2
             ? StrainScorer.strain(samples, maxHR: Double(profile.hrMax),
-                                  restingHR: restingHR,
-                                  method: PuffinExperiment.effortMethod, sex: profile.sex) : nil
+                                  restingHR: restingHR, lowIntensity: .counted) : nil
         // Estimate calories from the captured HR window so a manual session shows energy too, not just
         // duration/strain (#117). Through `boutKcal`, the session price the day model uses — the figure
         // stored here is later shown as the session's own. The analytics profile, so the basal share is
@@ -1629,7 +1628,7 @@ final class AppModel: ObservableObject {
         if now - lastLiveStrainTs >= Self.liveStrainIntervalSeconds {
             lastLiveStrainTs = now
             w.liveStrain = StrainScorer.strain(w.samples, maxHR: Double(profile.hrMax),
-                                               method: PuffinExperiment.effortMethod, sex: profile.sex) ?? 0
+                                               lowIntensity: .counted) ?? 0
         }
         activeWorkout = w
         // Re-snapshot the durable session so a kill keeps the accumulated HR window (#529). Encoding every

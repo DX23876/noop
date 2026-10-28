@@ -440,11 +440,6 @@ public enum WorkoutDetector {
                               maxHR: Double? = nil,
                               age: Double? = nil,
                               profile: UserProfile? = nil,
-                              // #1545: TRIMP recipe for each bout's Effort. Defaults to Edwards so every
-                              // existing caller and test is byte-identical; the app threads the user's
-                              // choice so a bout and the day it sits in are never scored by different
-                              // recipes, which would be worse than either one being "wrong".
-                              effortMethod: StrainScorer.Method = .edwards,
                               // The day's aerobic ceiling (`PeakMETResolver`), so a detected bout is
                               // priced on the curve the day's energy model uses. Nil prices it from the
                               // table MET of an unnamed session.
@@ -571,8 +566,9 @@ public enum WorkoutDetector {
             guard !bpms.isEmpty else { f.droppedNoHR += 1; continue }   // degenerate bout, no HR samples
             let avg = bpms.reduce(0, +) / Double(bpms.count)
             let peak = Int(bpms.max()!.rounded())
+            // A bout is a workout: its time below 50 % HRR counts too (#2438).
             let strain = StrainScorer.strain(hrSamples, maxHR: effMaxHR, restingHR: restHR,
-                                             method: effortMethod, sex: profile?.sex ?? "male")
+                                             lowIntensity: .counted)
 
             sessions.append(ExerciseSession(
                 start: effStart, end: end, avgHR: avg, peakHR: peak, strain: strain,

@@ -68,12 +68,10 @@ final class EffortHRmaxOverrideTests: XCTestCase {
         withProfile(age: 30, hrMaxOverride: 195) { p in
             let hr = dayHR()
             let live = StrainScorer.strain(hr, maxHR: p.effortHRmax,
-                                           restingHR: StrainScorer.defaultRestingHR,
-                                           method: .edwards, sex: p.sex)
+                                           restingHR: StrainScorer.defaultRestingHR)
             let stored = AnalyticsEngine.analyzeDay(day: Self.day, hr: hr, dayHr: hr,
                                                     profile: engineProfile(p),
-                                                    maxHROverride: Double(p.hrMaxOverride),
-                                                    effortMethod: .edwards).daily.strain
+                                                    maxHROverride: Double(p.hrMaxOverride)).daily.strain
 
             XCTAssertNotNil(live, "fixture must score, or this test proves nothing")
             XCTAssertEqual(live ?? -1, stored ?? -2, accuracy: 1e-9)
@@ -86,12 +84,10 @@ final class EffortHRmaxOverrideTests: XCTestCase {
         withProfile(age: 30, hrMaxOverride: 0) { p in
             let hr = dayHR()
             let live = StrainScorer.strain(hr, maxHR: p.effortHRmax,
-                                           restingHR: StrainScorer.defaultRestingHR,
-                                           method: .edwards, sex: p.sex)
+                                           restingHR: StrainScorer.defaultRestingHR)
             let stored = AnalyticsEngine.analyzeDay(day: Self.day, hr: hr, dayHr: hr,
                                                     profile: engineProfile(p),
-                                                    maxHROverride: nil,
-                                                    effortMethod: .edwards).daily.strain
+                                                    maxHROverride: nil).daily.strain
 
             XCTAssertNotNil(live)
             XCTAssertEqual(live ?? -1, stored ?? -2, accuracy: 1e-9)
@@ -110,12 +106,10 @@ final class EffortHRmaxOverrideTests: XCTestCase {
             let hr = dayHR()
             // Exactly what both views used to compute.
             let oldLive = StrainScorer.strain(hr, maxHR: StrainScorer.tanakaHRmax(age: Double(p.age)),
-                                              restingHR: StrainScorer.defaultRestingHR,
-                                              method: .edwards, sex: p.sex)
+                                              restingHR: StrainScorer.defaultRestingHR)
             let stored = AnalyticsEngine.analyzeDay(day: Self.day, hr: hr, dayHr: hr,
                                                     profile: engineProfile(p),
-                                                    maxHROverride: Double(p.hrMaxOverride),
-                                                    effortMethod: .edwards).daily.strain
+                                                    maxHROverride: Double(p.hrMaxOverride)).daily.strain
 
             XCTAssertGreaterThan(oldLive ?? -1, stored ?? -1, "the fixture must exercise the divergence")
             XCTAssertEqual(StrainScorer.effectiveEffort(live: oldLive, stored: stored) ?? -1,
@@ -123,8 +117,7 @@ final class EffortHRmaxOverrideTests: XCTestCase {
 
             // With the fix the same call is a no-op: both sides are the day's own number.
             let newLive = StrainScorer.strain(hr, maxHR: p.effortHRmax,
-                                              restingHR: StrainScorer.defaultRestingHR,
-                                              method: .edwards, sex: p.sex)
+                                              restingHR: StrainScorer.defaultRestingHR)
             XCTAssertEqual(StrainScorer.effectiveEffort(live: newLive, stored: stored) ?? -1,
                            stored ?? -2, accuracy: 1e-9)
         }

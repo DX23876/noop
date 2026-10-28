@@ -7,8 +7,6 @@ import StrandAnalytics
 /// while it ran. A snapshot keeps one pass on one set of choices and lets each platform supply them from its
 /// own settings store (Android plan B3 step 3).
 public struct AnalysisSettings: Equatable, Sendable {
-    /// TRIMP method behind Effort.
-    public var effortMethod: StrainScorer.Method
     /// Whether the experimental SpO2 candidate is shown, which decides whether it is computed.
     public var spo2CandidateDisplay: Bool
     /// Experimental sleep stager v2 instead of the default stager.
@@ -30,11 +28,10 @@ public struct AnalysisSettings: Equatable, Sendable {
     /// Test Centre domains whose trace lines the pass builds.
     public var traces: Set<TestDomain>
 
-    public init(effortMethod: StrainScorer.Method, spo2CandidateDisplay: Bool, sleepStagerV2: Bool,
+    public init(spo2CandidateDisplay: Bool, sleepStagerV2: Bool,
                 motionAwareWake: Bool, deepHrvWindow: Bool, dayCycleMode: DayCycleMode, rhythmAge: Bool,
                 healthspan: Bool, hrvBaselineEpoch: Double, recoveryBaselineEpoch: Double,
                 traces: Set<TestDomain>) {
-        self.effortMethod = effortMethod
         self.spo2CandidateDisplay = spo2CandidateDisplay
         self.sleepStagerV2 = sleepStagerV2
         self.motionAwareWake = motionAwareWake

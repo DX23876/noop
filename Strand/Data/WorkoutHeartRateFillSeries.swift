@@ -19,7 +19,7 @@ extension Repository {
         guard let store = await storeHandle() else { return 0 }
         let outcome = try await WorkoutHeartRateFills.fillApple(
             reader: storeReader(store), from: from, to: to, maxHR: Self.cardioLoadMaxHR(strainProfile),
-            sex: strainProfile?.sex ?? "", method: PuffinExperiment.effortMethod)
+            sex: strainProfile?.sex ?? "")
         if outcome.wrote { noteWorkoutAnnotationsChanged() }
         return outcome.filled
     }
@@ -34,7 +34,7 @@ extension Repository {
         guard let store = await storeHandle() else { return 0 }
         let outcome = try await WorkoutHeartRateFills.fillRecorded(
             reader: storeReader(store), from: from, to: to, maxHR: Self.cardioLoadMaxHR(strainProfile),
-            sex: strainProfile?.sex ?? "", method: PuffinExperiment.effortMethod)
+            sex: strainProfile?.sex ?? "")
         if outcome.wrote { noteWorkoutAnnotationsChanged() }
         return outcome.filled
     }

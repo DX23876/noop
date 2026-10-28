@@ -11,31 +11,30 @@ import Foundation
 //
 //   * DISPLAY zones (`HRZones`) are % of HRmax. They are what the wearer sees, what the live readout
 //     colours, and what a coach means by "Zone 2". They are also now user-definable.
-//   * EFFORT zones (`StrainScorer`, Edwards) are % of heart-rate RESERVE — (HR − resting) / (max −
-//     resting) — with fixed 50/60/70/80/90 thresholds that are part of the published method.
+//   * EFFORT (`StrainScorer`, #2438) weighs each minute by its % of heart-rate RESERVE — (HR − resting)
+//     / (max − resting) — on a continuous exponential curve (`StrainScorer.effortWeight`).
 //
-// Those two disagree, and the gap is not small: with HRmax 190 and a resting HR of 50, the bottom of
-// display Zone 2 (60 % HRmax = 114 bpm) is only 46 % HRR, which Edwards weights ZERO, while the top
-// (70 % HRmax = 133 bpm) is 59 % HRR and weights 1. So a session prescribed in display zones lands on
-// an Edwards weight the model has no way to guess.
+// Those two disagree: with HRmax 190 and a resting HR of 50, the bottom of display Zone 2 (60 % HRmax =
+// 114 bpm) is only 46 % HRR, while the top (70 % HRmax = 133 bpm) is 59 % HRR, and the weight at the top
+// is about twice the weight at the bottom. So a session prescribed in display zones lands on a weight
+// the model has no way to guess.
 //
 // This file closes that gap by evaluating the SHIPPED maths at the planned intensity rather than
-// modelling it again: Edwards weight × minutes → `StrainScorer.trimpToStrain`. Same weights, same
-// log map, same denominator. It is deliberately NOT done by synthesising a fake HR stream and calling
+// modelling it again: `StrainScorer.effortWeight` × minutes → `StrainScorer.effortValue`. A planned
+// session is a workout, so its time below 50 % HRR counts as it would in the recorded one. It is
+// deliberately NOT done by synthesising a fake HR stream and calling
 // `StrainScorer.strain`, because that path refuses anything under ~10 minutes of data — a sensible
 // guard against trusting a thin real stream, and meaningless for a hypothetical.
 public enum EffortFeasibility {
 
     /// What a session held inside one zone would score.
     ///
-    /// Three figures rather than two, because the honest span is too wide to prescribe against. A
-    /// DISPLAY band can straddle an Edwards threshold: with HRmax 190 and resting 50, the floor of
-    /// Zone 2 is 46 % HRR — below Edwards' 50 % cut-off — so a session pinned to the very bottom edge
-    /// scores a true zero, while the same session a few beats higher scores in the thirties. Both are
-    /// real. Quoting the zero as "what Zone 2 is worth" would be as misleading as the 15 that started
-    /// this, so `typical` is what gets prescribed and `low`/`high` are there to explain the spread.
+    /// Three figures rather than two, because the honest span is too wide to prescribe against: the
+    /// weight grows exponentially across a band, so a session pinned to its bottom edge scores well
+    /// below one at its top. Both are real. `typical` is what gets prescribed and `low`/`high` are there
+    /// to explain the spread.
     public struct Range: Equatable, Sendable {
-        /// Effort if the whole session sat at the very BOTTOM of the zone. Can be 0 — see above.
+        /// Effort if the whole session sat at the very BOTTOM of the zone.
         public let low: Double
         /// Effort for a session spread ACROSS the band, which is how sessions are actually ridden.
         /// What a plan should target.
@@ -61,9 +60,8 @@ public enum EffortFeasibility {
 
     /// How far a model-supplied target may sit from `typical` before the app overrides it. Generous on
     /// purpose: the point is to catch "15 for a session worth 34", not to police a coach's judgement
-    /// about a wearer riding the easy end of a band. Five points is well inside one Edwards step at
-    /// any realistic duration, so a deliberate lean stays intact while an arithmetic impossibility
-    /// does not.
+    /// about a wearer riding the easy end of a band. A deliberate lean stays intact while an arithmetic
+    /// impossibility does not.
     public static let targetTolerance: Double = 5.0
 
     /// The Effort a session of `minutes` spent between `zoneLowerBpm` and `zoneUpperBpm` would earn.
@@ -76,8 +74,8 @@ public enum EffortFeasibility {
     /// check from the session they will actually ride.
     ///
     /// Note the range is usually wide, and honestly so — a zone is a band, not a heart rate, and where
-    /// you sit inside it can be the difference between one Edwards weight and the next. Quoting a
-    /// single number would be false precision.
+    /// you sit inside it moves the weight considerably. Quoting a single number would be false
+    /// precision.
     public static func sessionEffortRange(zoneLowerBpm: Double,
                                           zoneUpperBpm: Double,
                                           minutes: Double,
@@ -90,18 +88,15 @@ public enum EffortFeasibility {
         let topInside = Swift.max(zoneLowerBpm, zoneUpperBpm - 1)
 
         func effort(atWeight weight: Double) -> Double {
-            StrainScorer.trimpToStrain(weight * minutes)
+            StrainScorer.effortValue(load: weight * minutes)
         }
         func weight(at bpm: Double) -> Double {
-            Double(StrainScorer.zoneWeight(bpm, restingHR: restingHR, hrReserve: reserve))
+            StrainScorer.effortWeight(pctHRR: StrainScorer.pctHRR(bpm, restingHR: restingHR, hrReserve: reserve))
         }
 
-        // `typical` uses the MEAN Edwards weight across the band, not the weight at its midpoint.
-        // Sampling one point puts the whole answer on the wrong side of a step function whenever the
-        // band spans an Edwards threshold — with HRmax 187 and resting 60, the midpoint of display
-        // Zone 2 is 48 % HRR, so a midpoint reading called a 20-minute ride worth exactly nothing.
-        // Averaging models what actually happens instead: nobody holds one heart rate for 20 minutes,
-        // they range across the band, and the score follows the share of time above each threshold.
+        // `typical` uses the MEAN weight across the band, not the weight at its midpoint. The weight is
+        // convex in heart rate, so the midpoint understates a session that ranges across the band, which
+        // is how sessions are actually ridden: nobody holds one heart rate for 20 minutes.
         var weightSum = 0.0
         for i in 0..<Self.bandSamples {
             let t = (Double(i) + 0.5) / Double(Self.bandSamples)   // midpoints, so neither edge dominates
@@ -114,10 +109,8 @@ public enum EffortFeasibility {
                      high: effort(atWeight: weight(at: topInside)))
     }
 
-    /// How finely the band is sampled for the mean weight. The Edwards weight is a step function of
-    /// %HRR, so this only has to resolve where the steps fall inside one band — 256 slices puts that
-    /// error far below a tenth of an Effort point at any realistic band width, and the whole loop is a
-    /// few hundred nanoseconds.
+    /// How finely the band is sampled for the mean weight. 256 slices put the error far below a tenth
+    /// of an Effort point at any realistic band width, and the whole loop is a few hundred nanoseconds.
     static let bandSamples = 256
 
     /// The same question asked in the wearer's own zone numbering. `zone` is 1...5 against `zoneSet`.

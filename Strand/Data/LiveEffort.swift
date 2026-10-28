@@ -47,8 +47,6 @@ enum LiveEffort {
         // formula's yardstick would outvote an override set because the real maximum is above it.
         let maxHR = profile.effortHRmax
         let restHR = restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-        let method = PuffinExperiment.effortMethod
-        let sex = profile.sex
         // An EXPLICIT limit, not the 8000 default: that default is chart-sized and this read is
         // whole-window. `hrSamples` is `ORDER BY ts ASC LIMIT`, so truncation drops the NEWEST rows — at
         // the ~18k HR rows a real day banks, the default covered roughly the first ten hours and the live
@@ -56,9 +54,14 @@ enum LiveEffort {
         // the stored row simply won), which is why it went unnoticed. 200_000 is what every other
         // whole-window HR consumer passes. Found while merging upstream's inline twin of this read.
         let hr = await repo.hrSamples(from: from, to: to, limit: 200_000)
+        // Below 50 % HRR only workout time counts (#2438). The recorded and imported workouts are known
+        // here; the bouts the daily pass detects reach the stored value, which `effectiveEffort` prefers
+        // when it is larger.
+        let spans = await repo.rawWorkoutRows(from: from - 86_400, to: to + 1)
+            .filter { $0.endTs > $0.startTs }.map { $0.startTs ..< $0.endTs }
         guard !Task.isCancelled else { return nil }
         return await runUnescalated {
-            StrainScorer.strain(hr, maxHR: maxHR, restingHR: restHR, method: method, sex: sex)
+            StrainScorer.strain(hr, maxHR: maxHR, restingHR: restHR, lowIntensity: .countedIn(spans))
         }
     }
 }

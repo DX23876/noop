@@ -195,6 +195,11 @@ public enum AnalysisRecipe {
     // else Gellish (192 − 0.007 × age²) instead of Tanaka, all in whole bpm. Effort, workout detection and
     // scores, zones, workout energy, AgeLess, the VO₂max fallback and the coach read it. The workout peaks
     // are banked over the whole raw history first (`RebuildStep.workoutPeaks`), then the full rebuild runs.
+    // AI-32 also carries #2438 step 1, the new Effort curve: each reading weighs e^(0.5646 (x − 55) / 10) per
+    // minute (x in % HRR, faded out below 20 %), the load maps to a × ln(1 + load / k) on 0–21 with a soft cap
+    // (a 5.4591, k 12.2245, fitted on WHOOP's Strain of the contributed workouts). Below 50 % HRR only workout
+    // time counts. Edwards' zones and the Banister option for Effort are gone (the Training Load lane keeps its
+    // own Banister TRIMP); every day, workout and detected bout is scored again by the rebuild.
     // Its own number although AI-31 has not shipped in a release: the testing build of 2026-10-26 carries
     // AI-31, so a store that ran it would otherwise keep its history on the old maximum (decisions.md).
     public static let currentVersion = 32

@@ -66,10 +66,8 @@ final class DayCycleWorkerTests: XCTestCase {
                 editedRows: [], store: store, candidates: [(owner: "strap", priority: 0)],
                 physiologyOwners: ["strap"], workouts: [], windowStart: start, now: start + 10 * 3600,
                 offsetSec: 0, habitualMidsleepSec: nil, ticksPerStep: 1, mode: .sleepOnset,
-                profile: profile, maxHROverride: 190, effortMethod: .edwards,
-                recoveryReader: .init(sleepSessions: { _, _, _ in [] }, markers: { _, _, _ in [] }))
-            let expectedStrain = StrainScorer.strain(samples, maxHR: 190, restingHR: 52,
-                                                    method: .edwards, sex: profile.sex)
+                profile: profile, maxHROverride: 190, recoveryReader: .init(sleepSessions: { _, _, _ in [] }, markers: { _, _, _ in [] }))
+            let expectedStrain = StrainScorer.strain(samples, maxHR: 190, restingHR: 52)
             XCTAssertEqual(result.strainByWakeDay[day], expectedStrain)
             XCTAssertEqual(result.caloriesByWakeDay[day], Calories.estimateDayCalories(samples,
                 profile: profile, hrmax: 190, restingHR: 52))
@@ -97,8 +95,7 @@ final class DayCycleWorkerTests: XCTestCase {
             physiologyOwners: ["strap"], workouts: [], windowStart: start,
             now: start + 10 * 3600, offsetSec: 0, habitualMidsleepSec: nil,
             ticksPerStep: 1, mode: .sleepOnset, profile: UserProfile(),
-            maxHROverride: 190, effortMethod: .edwards,
-            recoveryReader: .init(sleepSessions: { _, _, _ in [] }, markers: { _, _, _ in [] }))
+            maxHROverride: 190, recoveryReader: .init(sleepSessions: { _, _, _ in [] }, markers: { _, _, _ in [] }))
 
         XCTAssertEqual(result.strainByWakeDay[day], 12.5)
         XCTAssertEqual(result.caloriesByWakeDay[day], 1_845)
@@ -111,6 +108,6 @@ final class DayCycleWorkerTests: XCTestCase {
             candidates: [(owner: "strap", priority: 0)], physiologyOwners: ["strap"], workouts: [],
             windowStart: 1_700_000_000, now: 1_700_086_400, offsetSec: 0, habitualMidsleepSec: nil,
             ticksPerStep: 1, mode: .sleepOnset, profile: UserProfile(),
-            maxHROverride: nil, effortMethod: .edwards, recoveryReader: reader)
+            maxHROverride: nil, recoveryReader: reader)
     }
 }

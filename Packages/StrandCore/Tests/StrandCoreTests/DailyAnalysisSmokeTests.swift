@@ -81,7 +81,7 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         var bools: [String: Bool] = [:]
         var strings: [String: String] = [:]
         func analysisSettings() -> AnalysisSettings {
-            AnalysisSettings(effortMethod: .banister, spo2CandidateDisplay: false, sleepStagerV2: false,
+            AnalysisSettings(spo2CandidateDisplay: false, sleepStagerV2: false,
                              motionAwareWake: false, deepHrvWindow: false, dayCycleMode: .persisted(nil),
                              rhythmAge: false, healthspan: false, hrvBaselineEpoch: 0, recoveryBaselineEpoch: 0,
                              traces: [])

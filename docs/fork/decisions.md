@@ -754,3 +754,29 @@ Analysis migration required: yes. AI-32: the workout peaks are banked over the w
 (`RebuildStep.workoutPeaks`), then the full rebuild scores every day again with the maximum in force on it.
 Energy, AgeLess, the VO₂max fallback and the coach read today's value for the whole history, as they read
 the setting before.
+
+### 2026-10-28 — Effort on one fitted curve; low intensity counts only in workouts (AI-32)
+
+Step 1 of [#2438](https://github.com/ryanbr/noop/issues/2438). Effort is no longer Edwards' five zones on a
+logarithm (or Banister's exponential as a setting). Every heart-rate reading weighs
+e^(0.5646 (x − 55) / 10) per minute, x in % of heart-rate reserve, faded out below 20 % HRR; the summed load
+maps to a × ln(1 + load / k) on WHOOP's 0–21 axis with a soft cap at 21 (exponent 8), shown on 0–100.
+a 5.4591, k 12.2245 and beta 0.5646 are the fit of the fit tool's `PROPOSED` spec (DX23876/effort-calibration
+f8e1304) rerun on 2026-10-28 on the 15 contributed exports (3,760 workouts); the published rounded values were
+a 5.48, k 12.4, beta 0.567 on very nearly the same data. Example days on 0–21: a 30-minute brisk walk 6.8, an
+hour in zone 4 17.5, a 3:30 marathon 20.4, 24 hours at the top 20.97. `EffortCurveTests` rebuilds the tool's
+example days as heart-rate series and matches them within 0.1.
+
+Below 50 % HRR a reading counts only inside a workout (recorded, imported or detected that day); outside, the
+day counts from 50 % HRR as Edwards' zone 1 did. The fit is made on workouts, and over a whole day the low
+weights would turn ten hours on one's feet into a hard day; how a whole day should count is step 2, still
+open. A workout's own score, a detected bout, the coach's planned-session check (`EffortFeasibility`) and the
+live workout count everything.
+
+The Banister choice for Effort is removed on Apple and in the shared core. The Android switch stays for now:
+the Kotlin engine still reads it, and Android shows the core's daily values only with the Lab switch *Shared
+core reads daily values*. The Training Load cardio lane keeps its own Banister TRIMP. The coach's high-strain
+threshold and the hydration goal are unchanged.
+
+Analysis migration required: yes. Rides on AI-32 with step 0: the rebuild scores every day, workout and bout
+again on the new curve.

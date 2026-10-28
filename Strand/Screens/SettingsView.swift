@@ -105,13 +105,8 @@ struct SettingsView: View {
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
     /// [PuffinExperiment.exerciseVO2maxKey].
     @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
-    /// A measured maximum the wearer declined; the suggestion returns only for a higher one.
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
     @AppStorage(RhythmAgeFeature.defaultsKey) private var rhythmAgeEnabled = false
-    /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
-    /// Default OFF — it re-scores the whole window against a different recipe. See
-    /// [PuffinExperiment.banisterEffortKey].
-    @AppStorage(PuffinExperiment.banisterEffortKey) private var banisterEffortEnabled = false
 
     /// Opt-in WHOOP 5/MG protocol experiments (off by default). See [PuffinExperiment].
     @AppStorage(PuffinExperiment.defaultsKey) private var puffinExperiments = false
@@ -3558,27 +3553,6 @@ struct SettingsView: View {
                 Text(dayCycleModeRaw == DayCycleMode.midnight.rawValue
                      ? "Uses a conventional local calendar day from 00:00 to 00:00."
                      : "Default. Steps and in-progress Effort restart at the beginning of detected main sleep. Naps do not start a new day; missing sleep falls back to local midnight.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                rowDivider
-                // #1545 Effort model — Banister exponential TRIMP instead of Edwards zones. The display
-                // AXIS (0-100 / 0-21) stays under Units; this is the computation RECIPE.
-                FormRow(label: "Effort model") {
-                    Picker("Effort model", selection: $banisterEffortEnabled) {
-                        Text("Heart-rate zones").tag(false)
-                        Text("Exponential").tag(true)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("Effort model")
-                }
-                .onChangeCompat(of: banisterEffortEnabled) { _ in
-                    // Re-score immediately: the recipe changes stored Effort for every day in the window.
-                    Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                }
-                Text("Heart-rate zones is the default and counts nothing below half your heart-rate reserve, so lifting with long rests can score near zero. Exponential also counts light effort and weights short hard efforts more. Switching recalculates your history.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
