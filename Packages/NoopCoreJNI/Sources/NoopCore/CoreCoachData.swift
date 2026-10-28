@@ -127,6 +127,15 @@ final class CoreCoachData: CoachDataReading {
     func journalEntries(days: Int) async -> [JournalEntry] { await goals.goalJournalEntries(days: days) }
     func logWeight(kg: Double, at: Date, note: String?, source: WeightSource) async -> BodyWeightRow? { nil }
 
+    /// From the energy profile Android supplies; without one, `UserProfile`'s defaults and the population
+    /// maximum heart rate, so zone and energy answers stay explicit estimates rather than blanks.
+    func coachProfile() -> CoachProfile {
+        var p = settings.energyProfile ?? UserProfile(sex: settings.profileSex)
+        if p.sex.isEmpty { p.sex = settings.profileSex }
+        let hrMax = Int(cardioLoadMaxHR.rounded())
+        return CoachProfile(sex: p.sex, age: Int(p.age), heightCm: p.heightCm, weightKg: p.weightKg, hrMax: hrMax,
+                            hrZoneSet: HRZones.zones(age: p.age, maxHROverride: p.maxHR), analytics: p)
+    }
     func refreshCoachCheckIn() async {}
     func trainingLoadBrief() async -> String { "" }
 

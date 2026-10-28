@@ -73,7 +73,7 @@ extension AICoachEngine {
         if let cleanZone, let cleanDuration,
            let range = EffortFeasibility.sessionEffortRange(
                zone: cleanZone, minutes: Double(cleanDuration),
-               zoneSet: ProfileStore().hrZoneSet, restingHR: await recentRestingHR()) {
+               zoneSet: repo.coachProfile().hrZoneSet, restingHR: await recentRestingHR()) {
             let computed = (range.typical * 10).rounded() / 10
             if let given = effort, range.distanceFromTypical(given) <= EffortFeasibility.targetTolerance {
                 // Close enough to be the coach's judgement about where in the band to sit — leave it.

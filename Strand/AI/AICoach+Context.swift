@@ -56,7 +56,7 @@ extension AICoachEngine {
         // Profile + goal (NOOP Forge): the same values the app's HR zones and calorie math use, so the
         // coach can prescribe zones/loads for THIS user. Consent-gated like the rest — buildContext()
         // is only reached with data access on.
-        let profile = ProfileStore()
+        let profile = repo.coachProfile()
         var profileParts = ["age \(profile.age)", profile.sex,
                             "\(Int(profile.weightKg.rounded())) kg",
                             "\(Int(profile.heightCm.rounded())) cm",
@@ -122,7 +122,7 @@ extension AICoachEngine {
     func buildCompactContext() -> String {
         let days = repo.days
         var lines: [String] = [clockLine(), "", "USER BIOMETRIC SNAPSHOT (derived local summary):"]
-        let profile = ProfileStore()
+        let profile = repo.coachProfile()
         lines.append("Profile: age \(profile.age), \(profile.sex), \(Int(profile.weightKg.rounded())) kg, "
                      + "\(Int(profile.heightCm.rounded())) cm, HRmax \(profile.hrMax) bpm")
         guard !days.isEmpty else {
@@ -201,8 +201,8 @@ extension AICoachEngine {
         // The quoted sessions' own resting rates, for the ones that recorded no energy. Bounded by
         // the sessions actually quoted, so this is one small read rather than a history-wide one.
         let quoted = Array(rows.prefix(limit))
-        let profileStore = ProfileStore()
-        let analyticsProfile = Repository.analyticsProfile(profileStore)
+        let profileStore = repo.coachProfile()
+        let analyticsProfile = profileStore.analytics
         var restingHrByDay: [String: Double] = [:]
         var peakMETByDay: [String: Double] = [:]
         if let oldest = quoted.map(\.startTs).min(), let newest = quoted.map(\.startTs).max() {
@@ -261,7 +261,7 @@ extension AICoachEngine {
                      ? "Body: nothing recorded."
                      : "Body: " + body.joined(separator: "; "))
 
-        let profile = Repository.analyticsProfile(ProfileStore())
+        let profile = repo.coachProfile().analytics
         let summaries = await repo.energySummaries(days: 30, profile: profile)
         let days = summaries.filter { $0.day < today }.compactMap { summary -> BurnDay? in
             guard let total = summary.totalBurnedSoFar else { return nil }

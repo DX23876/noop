@@ -150,9 +150,10 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   Kotlin.
   Inventur dieser App-Typen (2026-10-28, Probebau von `AICoach` mit 27 Coach-Dateien im Kern, in drei Runden,
   bis keine neuen fehlenden Namen dazukamen; ein Fehler kann weitere verdecken, die Liste ist ein Arbeitsstand):
-  - Datentypen in SwiftUI-Dateien, die eine reine Datenhälfte brauchen: `ProfileStore`
-    (`Strand/Data/Profile.swift`) und `TabRoute`. Erledigt (2026-10-28): Diagramm und Karte, deren Datenhälften
-    in `CoachChartData.swift` und `CoachCardData.swift` liegen und im Kern verlinkt sind.
+  - Datentypen in SwiftUI-Dateien, die eine reine Datenhälfte brauchen: `TabRoute`. Erledigt (2026-10-28):
+    Diagramm und Karte, deren Datenhälften in `CoachChartData.swift` und `CoachCardData.swift` liegen und im Kern
+    verlinkt sind, und das Profil, das `AICoach` als Wert `CoachProfile` über `CoachDataReading.coachProfile()`
+    liest statt über `ProfileStore`.
   - App-Dienste, die hinter Host-Haken gehören wie `refreshCoachCheckIn`: `CoachNotifier`, `PlanReminder`
     (UserNotifications), `TrainingLoadModel` (Screens), `CoachFeaturePrefs` (`Screens/CoachEntry.swift`), der
     Schlüsselbund über `Security` in `AICoach.swift`, und `Repository` in `LongTermGoalCoach.swift`.

@@ -61,6 +61,9 @@ protocol CoachDataReading: AnyObject {
     func journalEntries(days: Int) async -> [JournalEntry]
     func logWeight(kg: Double, at: Date, note: String?, source: WeightSource) async -> BodyWeightRow?
 
+    /// The wearer's profile as the coach reads it (Apple's `ProfileStore`, Android's preferences).
+    func coachProfile() -> CoachProfile
+
     /// Host hooks: work the coach starts that the host still owns (the check-in notification schedule, and
     /// the Training Load screen's reading rendered through `CoachTrainingLoadBrief`).
     func refreshCoachCheckIn() async
@@ -120,4 +123,16 @@ extension CoachDataReading {
     func saveJournalNumeric(day: String, question: String, value: Double) async {
         await saveJournalNumeric(day: day, question: question, value: value, notes: nil)
     }
+}
+
+/// What the coach reads from the wearer's profile: a value, so it links without Apple's `ProfileStore`.
+struct CoachProfile {
+    var sex: String
+    var age: Int
+    var heightCm: Double
+    var weightKg: Double
+    var hrMax: Int
+    var hrZoneSet: HRZoneSet
+    /// The profile as the energy and analytics paths take it (`Repository.analyticsProfile`).
+    var analytics: UserProfile
 }

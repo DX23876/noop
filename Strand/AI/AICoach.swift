@@ -2056,8 +2056,8 @@ final class AICoachEngine: ObservableObject {
     /// `get_energy_balance`: today's wearable expenditure plus an optional, clearly separate
     /// retrospective energy-balance estimate when imported nutrition and weight history support it.
     func energyBalanceTool() async -> String {
-        let profile = ProfileStore()
-        guard let summary = await repo.todayEnergy(profile: Repository.analyticsProfile(profile)) else {
+        let profile = repo.coachProfile()
+        guard let summary = await repo.todayEnergy(profile: profile.analytics) else {
             return "No energy data for today yet. Don't estimate one — say there's nothing recorded."
         }
         func kcal(_ value: Double?) -> String { value.map { "\(Int($0.rounded())) kcal" } ?? "unknown" }
@@ -2214,7 +2214,7 @@ final class AICoachEngine: ObservableObject {
             let history = await repo.hydrationHistory(days: days)
             let logged = history.filter { $0.value > 0 }
             guard !logged.isEmpty else { return "No hydration logged in the last \(days) days." }
-            let goal = repo.hydrationGoalML(profileSex: ProfileStore().sex)
+            let goal = repo.hydrationGoalML(profileSex: repo.coachProfile().sex)
             var lines = ["HYDRATION LOG (ml per day, today's goal \(goal) ml, last \(days) days):"]
             for (day, ml) in history.reversed() where ml > 0 {
                 lines.append("  • \(day): \(Int(ml.rounded())) ml")
@@ -2249,7 +2249,7 @@ final class AICoachEngine: ObservableObject {
     func zoneMinutesTool(days: Int) async -> String {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - days * 86_400
-        let zoneSet = ProfileStore().hrZoneSet
+        let zoneSet = repo.coachProfile().hrZoneSet
         guard let minutes = await workoutZoneMinutesTotal(from: from, to: now, zoneSet: zoneSet) else {
             return "No workout heart-rate data in the last \(days) days to compute zone minutes."
         }
@@ -2298,7 +2298,7 @@ final class AICoachEngine: ObservableObject {
             return "Name how long the session lasts, in minutes."
         }
         let minutes = Double(min(durationMin, 600))
-        let zoneSet = ProfileStore().hrZoneSet
+        let zoneSet = repo.coachProfile().hrZoneSet
         let resting = await recentRestingHR()
         guard let range = EffortFeasibility.sessionEffortRange(
             zone: zone, minutes: minutes, zoneSet: zoneSet, restingHR: resting) else {
@@ -3415,7 +3415,7 @@ final class AICoachEngine: ObservableObject {
             categories.append(.bodyMetrics)
         }
         if sections.contains(.planning), toolConsent.allows(.planAdherence) {
-            let profile = ProfileStore()
+            let profile = repo.coachProfile()
             if let goals = goalsBlock(profile: profile) { blocks.append(goals) }
             if let plan = planContextBlock() { blocks.append(plan) }
             blocks.append(await planAdherenceBlock())
@@ -3678,7 +3678,7 @@ final class AICoachEngine: ObservableObject {
     /// closed goals doesn't accumulate as context noise — `CoachGoal` has no dedicated `closedAt` field,
     /// so the closing history event's own date stands in for it). When more than one goal is active, an
     /// explicit instruction tells the model to weigh across all of them rather than address just one.
-    func goalsBlock(profile: ProfileStore) -> String? {
+    func goalsBlock(profile: CoachProfile) -> String? {
         let store = CoachGoalStore.shared
         let recencyCutoff = Date().addingTimeInterval(-14 * 24 * 3600)
         let recentlyClosed = store.goals.filter { g in
@@ -3743,7 +3743,7 @@ final class AICoachEngine: ObservableObject {
     ///
     /// `motivation` is included ONLY when the user explicitly opted in (`shareMotivation`). It is the
     /// most personal line in the app and it stays on the device by default.
-    private func goalBlock(for goal: CoachGoal, profile: ProfileStore) -> String? {
+    private func goalBlock(for goal: CoachGoal, profile: CoachProfile) -> String? {
         let title = goal.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return nil }
 

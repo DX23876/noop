@@ -67,5 +67,8 @@ final class CoreCoachDataTests: XCTestCase {
         XCTAssertEqual(coach.strainProfileSex, "female")
         XCTAssertEqual(coach.cardioLoadMaxHR, Double(StrainScorer.defaultMaxHR()))
         XCTAssertEqual(coach.deviceId, "owned-strap")
+        let profile = coach.coachProfile()
+        XCTAssertEqual(profile.sex, "female")
+        XCTAssertEqual(profile.hrZoneSet.zones.count, 5)
     }
 }
