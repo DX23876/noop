@@ -1453,9 +1453,19 @@ public enum SleepStager {
         let runsBeforeBridge = traceSink == nil ? 0 : runs.filter { $0.stage == "sleep" }.count
         // #737: capture the per-pair reasons BEFORE the merge mutates `runs`, so a bridge that changed
         // nothing still says why (gapTooLong / hrOutOfBand / overlap) instead of only before==after.
+        let onsetRuns = bridgeEnabled
+            ? onsetEvidenceRuns(buildRuns(grav, flags), hr: hrS, baseline: baseline)
+            : runs
         let bridgeResult = bridgeSparseSleepTraced(runs, sparse: bridgeEnabled, hr: hrS, baseline: baseline)
         let bridgeAttempts = bridgeResult.1
-        runs = bridgeResult.0
+        runs = bridgeResult.0.map { period in
+            let onset = conservativeOnset(for: period, evidence: onsetRuns)
+            guard onset > period.start else { return period }
+            traceSink?(GateTrace.runLine(index: -1, startTs: onset, endTs: period.end,
+                verdict: .kept, gate: "conservativeOnset",
+                detail: "leadingMin=\((onset - period.start) / 60) previousStartTs=\(period.start) anchorStartTs=\(onset)"))
+            return Period(stage: period.stage, start: onset, end: period.end)
+        }
         // Sleep & Rest test mode (E3): record the bridge result, so a night rescued from fragmentation
         // is visible. Emitted whenever the bridge was ENABLED (sparse, or #1937's fragmented-to-nothing
         // night) and only when tracing. Side-effect-only.

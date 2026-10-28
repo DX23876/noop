@@ -683,6 +683,10 @@ just the most recent (step through earlier nights to compare):
 - **Stages vs typical** — Deep / REM / Light as horizontal bars, last-night minutes with a marker
   at your personal mean, so highs and lows pop.
 - **Asleep duration** — a trailing-30-night hours trend with avg / min / max.
+- **Conservative estimated onset** — short leading rest bouts separated by movement do not extend a later
+  sleep run that already clears the normal session-duration floor. Interruptions within an established
+  night and the rescue for a night made entirely of short fragments remain available. This can omit a
+  genuine short initial sleep; it adds no fixed bedtime or wake-time rule.
 
 If no sleep sessions are imported, NOOP points you to Data Sources.
 
