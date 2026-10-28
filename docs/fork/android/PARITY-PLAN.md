@@ -139,7 +139,11 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   `CoachDataReading`, die Antwort auf verpasste Ziel-Fragen über `CoachDataReading & GoalInputReading`, und
   `GoalTrackingStore.refresh` nimmt jeden `GoalInputReading`-Host. Das Protokoll ist als Symlink im
   Kern verlinkt (`NoopCore/Shared`), die Apple-Umsetzung liegt getrennt in `CoachDataReading+Repository.swift`.
-  Als Nächstes der Kern-Host für Android über `StoreReader`, wie `CoreGoals` für `GoalInputReading`.
+  Schritt 4 erledigt (2026-10-28): `NoopCore/CoreCoachData.swift` erfüllt `CoachDataReading` über `StoreReader`
+  und liest gemeinsame Bahnen (Training, Tagebuch, Wasser, Kraft, Körper, Tage) über `CoreGoals.Host`, damit Coach
+  und Ziele nicht auseinanderlaufen. Noch ohne Kern-Leser und deshalb leer: Energiezusammenfassungen, der
+  Cardio-Spielraum, Stimmung, die Belastungsübersicht und alle Schreibwege. Als Nächstes der Umzug des Coaches
+  selbst (`AICoach` ohne `StrandDesign` und ohne `SemanticMemory`) und die Brücke nach Kotlin.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.
