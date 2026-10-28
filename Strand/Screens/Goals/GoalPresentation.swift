@@ -14,13 +14,6 @@ struct GoalStatusStyle {
     var color: Color { tone.color }
     var foreground: Color { tone.foregroundColor }
 
-    init(_ shared: GoalStatusWord) {
-        word = LocalizedStringKey(shared.key)
-        wordText = shared.text
-        symbol = shared.symbol
-        tone = StrandTone(shared.tone)
-    }
-
     static func of(_ state: PeriodGoalState) -> GoalStatusStyle { .init(GoalStatusWord.of(state)) }
 
     static func of(_ outcome: PeriodOutcome) -> GoalStatusStyle { .init(GoalStatusWord.of(outcome)) }
@@ -94,6 +87,16 @@ extension PeriodGoalSnapshot {
 /// The identity colour of a metric (its icon), from the same Apple-inspired table as the long-term kinds.
 func goalIdentityColor(_ metric: PeriodMetric, appleColors: Bool) -> Color {
     appleColors ? CoachIconColors.color(for: metric.colorKey) : StrandPalette.accent
+}
+
+extension GoalStatusStyle {
+    /// The shared state word (`GoalStatusWord`) in Apple's palette. In an extension, so the memberwise init stays.
+    init(_ shared: GoalStatusWord) {
+        word = LocalizedStringKey(shared.key)
+        wordText = shared.text
+        symbol = shared.symbol
+        tone = StrandTone(shared.tone)
+    }
 }
 
 extension StrandTone {
