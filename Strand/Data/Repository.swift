@@ -1827,8 +1827,12 @@ final class Repository: ObservableObject {
     /// re-detect + re-insert it; a user-created/edited (`userEdited`) night is deleted WITHOUT a tombstone
     /// (it is never re-detected, so it needs no suppression). The undo re-inserts the snapshot into its
     /// ORIGINAL namespace and lifts the tombstone.
+    ///
+    /// `suppressesWakeDay` is false for a nap: hiding the wake day's sleep values is right when the day's
+    /// night itself is deleted, but a nap shares its day with the main night, which must keep its numbers.
     @discardableResult
-    func deleteSleepSession(detectedStartTs: Int, endTs: Int) async -> SleepDeletionSnapshot? {
+    func deleteSleepSession(detectedStartTs: Int, endTs: Int,
+                            suppressesWakeDay: Bool = true) async -> SleepDeletionSnapshot? {
         guard let store = await ensureStore() else { return nil }
         // Snapshot the owning row BEFORE deleting, resolving the owner exactly as the delete does below:
         // computed source first, imported deviceId as the fallback. A one-second-wide window around the
@@ -1857,9 +1861,11 @@ final class Repository: ObservableObject {
             dismissedSleepSpans = priorTombstones
             return nil
         }
-        let wakeDay = Self.sleepEndDayKey(endTs)
-        suppressedSleepWakeDays.insert(wakeDay)
-        snapshot.suppressedWakeDay = wakeDay
+        if suppressesWakeDay {
+            let wakeDay = Self.sleepEndDayKey(endTs)
+            suppressedSleepWakeDays.insert(wakeDay)
+            snapshot.suppressedWakeDay = wakeDay
+        }
         sleepPresentationRevision &+= 1
         await refresh()
         return snapshot
