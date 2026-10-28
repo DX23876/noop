@@ -50,6 +50,16 @@ enum CoreCoach {
         case "coach.stop":
             coach.stop()
             return CoreRead.json(State(coach))
+        case "coach.regenerate":
+            coach.regenerate()
+            return CoreRead.json(State(coach))
+        case "coach.deeper":
+            coach.regenerateDeeply()
+            return CoreRead.json(State(coach))
+        case "coach.reclaim":
+            // "Edit and ask again": the last question back into the composer, its exchange removed.
+            let question = coach.reclaimLastQuestion()
+            return CoreRead.json(Reclaim(question: question, state: State(coach)))
         case "coach.conversations":
             return CoreRead.json(Conversations(coach))
         case "coach.switch":
@@ -133,9 +143,29 @@ enum CoreCoach {
         if key.isEmpty { AIKeyStore.clear() } else { AIKeyStore.save(key, owner: coach.provider.rawValue) }
     }
 
+    /// "Edit and ask again": the question taken back, and the chat after its exchange was removed.
+    struct Reclaim: Encodable {
+        var question: String?
+        var state: State
+    }
+
     /// What the chat screen draws: the active conversation's turns, whether a reply is streaming, and the error.
     struct State: Encodable {
-        struct Message: Encodable { var id: String, role: String, text: String }
+        struct Point: Encodable { var date: Double, value: Double }
+        struct Chart: Encodable { var title: String, kind: String, points: [Point], lo: Double, hi: Double }
+        struct Row: Encodable { var label: String, value: String }
+        struct Card: Encodable { var kind: String, title: String, value: String, caption: String?, rows: [Row], tint: String }
+        struct Message: Encodable {
+            var id: String, role: String, text: String
+            var date: Double = 0
+            /// "Your daily brief — the coach got in touch" and the like, for a message the coach started.
+            var gotInTouch: String?
+            /// The evidence chain: its header and the name of each source the reply read.
+            var evidenceHeader: String?
+            var evidence: [String] = []
+            var chart: Chart?
+            var card: Card?
+        }
         var messages: [Message]
         var sending: Bool
         var error: String?
@@ -143,8 +173,40 @@ enum CoreCoach {
         /// The coach's name, as the iOS chat header and greeting show it (the default identity on Android).
         var name = CoreCoachIdentity.load().name
 
+        /// "reauthenticate", "retry" or "none", from the typed error behind `error`, and how long a retry waits.
+        var recovery: String?
+        var retryAfter: Int?
+        var canDeepen = false
+
         @MainActor init(_ coach: AICoachEngine) {
-            messages = coach.messages.map { Message(id: $0.id.uuidString, role: $0.role.rawValue, text: $0.text) }
+            messages = coach.messages.map { m in
+                var out = Message(id: m.id.uuidString, role: m.role.rawValue, text: m.text)
+                out.date = m.date.timeIntervalSince1970
+                out.gotInTouch = m.origin.gotInTouchLine?.localizedCatalogValue
+                let tools = ChatMessage.uniqueTools(from: m.toolsUsed)
+                if !tools.isEmpty {
+                    out.evidenceHeader = String(localized: "Grounded in \(tools.count) of your data sources")
+                    out.evidence = tools.map { $0.evidenceTitle.localizedCatalogValue }
+                }
+                if let chart = coach.chartsByMessage[m.id] {
+                    out.chart = Chart(title: chart.title, kind: chart.kind.rawValue,
+                                      points: chart.values.map { Point(date: $0.date.timeIntervalSince1970, value: $0.value) },
+                                      lo: chart.valueRange.lowerBound, hi: chart.valueRange.upperBound)
+                }
+                if let card = coach.cardsByMessage[m.id] {
+                    out.card = Card(kind: card.kind.rawValue, title: card.title, value: card.value, caption: card.caption,
+                                    rows: card.rows.map { Row(label: $0.label, value: $0.value) }, tint: card.tintName)
+                }
+                return out
+            }
+            if let r = coach.lastError?.recovery {
+                switch r {
+                case .reauthenticate: recovery = "reauthenticate"
+                case .retry(let after): recovery = "retry"; retryAfter = after
+                case AICoachError.Recovery.none: recovery = "none"
+                }
+            }
+            canDeepen = coach.hasDeepAnalysisModel
             sending = coach.sending
             error = coach.errorText
             configured = coach.isConfigured

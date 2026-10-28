@@ -4496,4 +4496,10 @@
     <string name="coach_settings_emoji">Emoji w odpowiedziach</string>
     <string name="coach_settings_summarise">Podsumowuj wcześniejsze rozmowy</string>
     <string name="coach_settings_privacy_level">Poziom prywatności</string>
+    <string name="coach_regenerate">Wygeneruj ponownie</string>
+    <string name="coach_look_closer">Przyjrzyj się dokładniej</string>
+    <string name="coach_edit_ask_again">Popraw i zapytaj ponownie</string>
+    <string name="coach_retry">Ponów</string>
+    <string name="coach_retry_in">Ponów za %1$d s</string>
+    <string name="coach_enter_key_again">Wprowadź klucz ponownie</string>
 </resources>

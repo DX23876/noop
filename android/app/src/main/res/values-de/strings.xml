@@ -4493,4 +4493,10 @@
     <string name="coach_settings_emoji">Emoji in Antworten</string>
     <string name="coach_settings_summarise">Vergangene Chats zusammenfassen</string>
     <string name="coach_settings_privacy_level">Datenschutzstufe</string>
+    <string name="coach_regenerate">Neu generieren</string>
+    <string name="coach_look_closer">Genauer ansehen</string>
+    <string name="coach_edit_ask_again">Bearbeiten und erneut fragen</string>
+    <string name="coach_retry">Erneut versuchen</string>
+    <string name="coach_retry_in">Erneut in %1$d s</string>
+    <string name="coach_enter_key_again">Schlüssel erneut eingeben</string>
 </resources>

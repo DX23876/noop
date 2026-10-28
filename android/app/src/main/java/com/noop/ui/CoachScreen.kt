@@ -23,6 +23,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -293,6 +297,8 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
     val model by vm.model.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
     val coachName by vm.coachName.collectAsStateWithLifecycle()
+    val recovery by vm.recovery.collectAsStateWithLifecycle()
+    val canDeepen by vm.canDeepen.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.loadCoachName() }
     // K15: the composer draft is persisted to SharedPreferences so it survives an app relaunch.
     // Restored on first composition, saved on every change. Keyed identically to the iOS twin.
@@ -400,11 +406,22 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
             SuggestedPrompts(prompts = suggestions, onPick = { input = it })
         } else {
             Column(Modifier.fillMaxWidth()) {
+                val lastAssistant = messages.lastOrNull { it.role == "assistant" }?.id
+                val lastUser = messages.lastOrNull { it.role == "user" }?.id
                 messages.forEachIndexed { index, msg ->
                     val previous = messages.getOrNull(index - 1)
                     val continuation = msg.role == "assistant" && previous?.role == "assistant"
                     if (index > 0) Spacer(Modifier.height(if (continuation) 6.dp else 16.dp))
-                    ChatBubble(msg, vm, groupStart = msg.role == "assistant" && !continuation)
+                    // A time stamp before the first turn and wherever more than half an hour passed (`timeSeparator`).
+                    if (msg.date > 0 && (previous == null || previous.date <= 0 || msg.date - previous.date > 30 * 60)) {
+                        TimeSeparator(msg.date)
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    ChatBubble(
+                        msg, vm, groupStart = msg.role == "assistant" && !continuation,
+                        isLastAssistant = msg.id == lastAssistant, isLastUser = msg.id == lastUser,
+                        sending = sending, canDeepen = canDeepen, onReclaim = { q -> input = q },
+                    )
                 }
                 // The typing indicator only until the reply's first words arrive; then the reply itself streams.
                 if (sending && messages.lastOrNull()?.role != "assistant") {
@@ -426,12 +443,26 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
         // under it.
         val errorMsg = error
         if (errorMsg != null) {
-            Text(
-                errorMsg,
-                style = NoopType.subhead,
-                color = Palette.statusCritical,
-                modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_coach_screen_coach_error_error_ad9c8c46, errorMsg) },
-            )
+            // As the iOS error banner: what went wrong, then the way forward the typed error offers.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Palette.statusCritical, modifier = Modifier.size(18.dp))
+                    Text(
+                        errorMsg,
+                        style = NoopType.subhead,
+                        color = Palette.statusCritical,
+                        modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_coach_screen_coach_error_error_ad9c8c46, errorMsg) },
+                    )
+                }
+                when (recovery?.first) {
+                    "reauthenticate" -> Text(
+                        stringResource(R.string.coach_enter_key_again), style = NoopType.footnote, color = Palette.statusCritical,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).clickable { showKeyEditor = true }.padding(vertical = 4.dp),
+                    )
+                    "retry", null -> RetryButton(recovery?.second, enabled = !sending) { vm.regenerate() }
+                    else -> Unit
+                }
+            }
         }
         if (keyRejected || showKeyEditor) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -622,7 +653,9 @@ private fun CoachHeaderRow(
  */
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = true) {
+private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = true, isLastAssistant: Boolean = false,
+                       isLastUser: Boolean = false, sending: Boolean = false, canDeepen: Boolean = false,
+                       onReclaim: (String) -> Unit = {}) {
     val isUser = msg.role == "user"
     val context = LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -657,6 +690,20 @@ private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = t
                     onClick = { vm.saveAdviceToJournal(msg.text); showMenu = false },
                 )
             }
+            // Only the last reply can be regenerated and only the last question taken back, as on iOS: doing
+            // either further up would silently drop every exchange after it.
+            if (!isUser && isLastAssistant && !sending) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.coach_regenerate)) },
+                                 onClick = { showMenu = false; vm.regenerate() })
+                if (canDeepen) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.coach_look_closer)) },
+                                     onClick = { showMenu = false; vm.regenerate(deeper = true) })
+                }
+            }
+            if (isUser && isLastUser && !sending) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.coach_edit_ask_again)) },
+                                 onClick = { showMenu = false; vm.reclaimLastQuestion(onReclaim) })
+            }
         }
     }
     if (isUser) {
@@ -677,14 +724,136 @@ private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = t
             }
         }
     } else {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (groupStart) CoachAvatar(size = 26.dp) else Spacer(Modifier.width(26.dp))
-            Box(Modifier.weight(1f).widthIn(max = 640.dp).then(longPress).padding(vertical = 2.dp)) {
-                // Render the Coach's Markdown (bold/lists/headings) instead of raw symbols (#149).
-                CoachMarkdown(msg.text, color = Palette.textPrimary)
-                menu()
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // "The coach got in touch": an unprompted message would otherwise read as a reply to nothing.
+            msg.gotInTouch?.let {
+                Text(it, style = NoopType.caption, color = Palette.textTertiary, modifier = Modifier.padding(start = 34.dp))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (groupStart) CoachAvatar(size = 26.dp) else Spacer(Modifier.width(26.dp))
+                Box(Modifier.weight(1f).widthIn(max = 640.dp).then(longPress).padding(vertical = 2.dp)) {
+                    when {
+                        msg.chart != null -> ChatChart(msg.chart)
+                        msg.card != null -> ChatCard(msg.card)
+                        // Render the Coach's Markdown (bold/lists/headings) instead of raw symbols (#149).
+                        else -> CoachMarkdown(msg.text, color = Palette.textPrimary)
+                    }
+                    menu()
+                }
+            }
+            if (msg.evidence.isNotEmpty()) EvidenceChain(msg, Modifier.padding(start = 34.dp))
+        }
+    }
+}
+
+/** A time stamp between turns, as the iOS chat's `timeSeparator`: the time today, the date before. */
+@Composable
+private fun TimeSeparator(epochSeconds: Double) {
+    val instant = java.time.Instant.ofEpochSecond(epochSeconds.toLong())
+    val zone = java.time.ZoneId.systemDefault()
+    val day = instant.atZone(zone).toLocalDate()
+    val text = if (day == java.time.LocalDate.now(zone))
+        java.time.format.DateTimeFormatter.ofLocalizedTime(java.time.format.FormatStyle.SHORT).format(instant.atZone(zone))
+    else java.time.format.DateTimeFormatter.ofLocalizedDateTime(java.time.format.FormatStyle.MEDIUM, java.time.format.FormatStyle.SHORT)
+        .format(instant.atZone(zone))
+    Text(text, style = NoopType.caption, color = Palette.textTertiary, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+         modifier = Modifier.fillMaxWidth())
+}
+
+/** "Grounded in N of your data sources", expanding to the sources the reply read (`evidenceChain`). */
+@Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+private fun EvidenceChain(msg: ChatMsg, modifier: Modifier = Modifier) {
+    var open by remember(msg.id) { mutableStateOf(false) }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            Modifier.clip(RoundedCornerShape(50)).clickable { open = !open }.padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(Icons.Filled.Verified, contentDescription = null, tint = Palette.textTertiary, modifier = Modifier.size(14.dp))
+            Text(msg.evidenceHeader.orEmpty(), style = NoopType.caption, color = Palette.textTertiary)
+            Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, contentDescription = null,
+                 tint = Palette.textTertiary, modifier = Modifier.size(14.dp))
+        }
+        if (open) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                       verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                msg.evidence.forEach {
+                    Text(it, style = NoopType.caption, color = Palette.textSecondary,
+                         modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.surfaceBase.copy(alpha = 0.55f))
+                             .padding(horizontal = 10.dp, vertical = 5.dp))
+                }
             }
         }
+    }
+}
+
+/** A chart the coach drew (`CoachChartBubble`): the metric's line over its days, on the card surface. */
+@Composable
+private fun ChatChart(chart: ChatMsg.Chart) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).frostedCardSurface(tint = Palette.accent, cornerRadius = 18.dp)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(chart.title, style = NoopType.headline, color = Palette.textPrimary)
+        val pts = chart.points
+        if (pts.size >= 2) {
+            val lineColor = Palette.accent
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(140.dp)) {
+                val x0 = pts.first().first; val x1 = pts.last().first
+                val span = (chart.hi - chart.lo).takeIf { it > 0 } ?: 1.0
+                fun x(t: Double) = ((t - x0) / (x1 - x0).coerceAtLeast(1.0) * size.width).toFloat()
+                fun y(v: Double) = (size.height - (v - chart.lo) / span * size.height).toFloat()
+                val path = androidx.compose.ui.graphics.Path()
+                pts.forEachIndexed { i, p -> if (i == 0) path.moveTo(x(p.first), y(p.second)) else path.lineTo(x(p.first), y(p.second)) }
+                drawPath(path, lineColor, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(),
+                         cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                drawCircle(lineColor, radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x(pts.last().first), y(pts.last().second)))
+            }
+        }
+    }
+}
+
+/** A card the coach chose (`CoachCardBubble`): title, the app's own value, a caption and up to four rows. */
+@Composable
+private fun ChatCard(card: ChatMsg.Card) {
+    val tint = when (card.tint) {
+        "charge" -> Palette.chargeColor
+        "effort" -> Palette.effortColor
+        "rest" -> Palette.restColor
+        else -> Palette.accent
+    }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).frostedCardSurface(tint = tint, cornerRadius = 18.dp).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Overline(card.title.uppercase(), color = tint)
+        Text(card.value, style = NoopType.title2, color = Palette.textPrimary)
+        card.caption?.let { Text(it, style = NoopType.footnote, color = Palette.textSecondary) }
+        card.rows.forEach { (label, value) ->
+            Row(Modifier.fillMaxWidth()) {
+                Text(label, style = NoopType.footnote, color = Palette.textSecondary, modifier = Modifier.weight(1f))
+                Text(value, style = NoopType.footnote, color = Palette.textPrimary)
+            }
+        }
+    }
+}
+
+/** Retry, held back for the wait the provider asked for (`retryButton`). */
+@Composable
+private fun RetryButton(waitSeconds: Int?, enabled: Boolean, onRetry: () -> Unit) {
+    var left by remember(waitSeconds) { mutableStateOf(waitSeconds ?: 0) }
+    LaunchedEffect(waitSeconds) { while (left > 0) { kotlinx.coroutines.delay(1000); left -= 1 } }
+    val ready = left <= 0
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).clickable(enabled = enabled && ready, onClick = onRetry).padding(vertical = 4.dp)
+            .graphicsLayer { alpha = if (ready) 1f else 0.6f },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(Icons.Filled.Refresh, contentDescription = null, tint = Palette.statusCritical, modifier = Modifier.size(16.dp))
+        Text(if (ready) stringResource(R.string.coach_retry) else stringResource(R.string.coach_retry_in, left),
+             style = NoopType.footnote, color = Palette.statusCritical)
     }
 }
 

@@ -4511,4 +4511,10 @@
     <string name="coach_settings_emoji">Emoji in replies</string>
     <string name="coach_settings_summarise">Summarise past chats</string>
     <string name="coach_settings_privacy_level">Privacy level</string>
+    <string name="coach_regenerate">Regenerate</string>
+    <string name="coach_look_closer">Look at this more closely</string>
+    <string name="coach_edit_ask_again">Edit and ask again</string>
+    <string name="coach_retry">Retry</string>
+    <string name="coach_retry_in">Retry in %1$ds</string>
+    <string name="coach_enter_key_again">Enter your key again</string>
 </resources>

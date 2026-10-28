@@ -13,7 +13,8 @@ import org.json.JSONObject
  */
 object CoreCoach {
     data class State(val messages: List<ChatMsg>, val sending: Boolean, val error: String?, val configured: Boolean,
-                     val name: String = "")
+                     val name: String = "", val recovery: String? = null, val retryAfter: Int? = null,
+                     val canDeepen: Boolean = false)
 
     data class Settings(
         val provider: AiProvider, val model: String, val key: String, val consent: Boolean,
@@ -38,6 +39,16 @@ object CoreCoach {
     fun newConversation(): State? = call("coach.new", "{}")?.let(::parse)
 
     fun stop(): State? = call("coach.stop", "{}")?.let(::parse)
+
+    fun regenerate(): State? = call("coach.regenerate", "{}")?.let(::parse)
+
+    /** Asks the deep-analysis model to look at the last answer again. */
+    fun deeper(): State? = call("coach.deeper", "{}")?.let(::parse)
+
+    /** "Edit and ask again": the last question, with its exchange removed from the chat. */
+    fun reclaim(): Pair<String?, State?> = call("coach.reclaim", "{}")?.let { o ->
+        (if (o.isNull("question")) null else o.optString("question")) to o.optJSONObject("state")?.let(::parse)
+    } ?: (null to null)
 
     /** The coach's identity (`CoachIdentity`): name, picture and tone, edited on Android as on iOS. */
     data class Identity(val name: String, val avatarKind: String, val avatarValue: String, val voice: String,
@@ -176,12 +187,30 @@ object CoreCoach {
     internal fun parse(o: JSONObject): State? {
         if (o.has("error") && !o.has("messages")) return null
         val list = o.optJSONArray("messages")
+        fun opt(x: JSONObject, k: String) = if (!x.has(k) || x.isNull(k)) null else x.optString(k).takeIf { it.isNotEmpty() }
         val messages = (0 until (list?.length() ?: 0)).map { i ->
             val m = list!!.getJSONObject(i)
-            ChatMsg(id = m.getString("id"), role = m.getString("role"), text = m.getString("text"))
+            val ev = m.optJSONArray("evidence")
+            val chart = m.optJSONObject("chart")?.let { c ->
+                val pts = c.optJSONArray("points")
+                ChatMsg.Chart(c.getString("title"), c.optString("kind"),
+                    (0 until (pts?.length() ?: 0)).map { pts!!.getJSONObject(it).let { p -> p.getDouble("date") to p.getDouble("value") } },
+                    c.optDouble("lo"), c.optDouble("hi"))
+            }
+            val card = m.optJSONObject("card")?.let { c ->
+                val rows = c.optJSONArray("rows")
+                ChatMsg.Card(c.optString("kind"), c.getString("title"), c.optString("value"), opt(c, "caption"),
+                    (0 until (rows?.length() ?: 0)).map { rows!!.getJSONObject(it).let { r -> r.getString("label") to r.getString("value") } },
+                    c.optString("tint"))
+            }
+            ChatMsg(id = m.getString("id"), role = m.getString("role"), text = m.getString("text"),
+                    date = m.optDouble("date", 0.0), gotInTouch = opt(m, "gotInTouch"), evidenceHeader = opt(m, "evidenceHeader"),
+                    evidence = (0 until (ev?.length() ?: 0)).map { ev!!.getString(it) }, chart = chart, card = card)
         }
         val error = if (o.isNull("error")) null else o.optString("error").takeIf { it.isNotEmpty() }
-        return State(messages, o.optBoolean("sending"), error, o.optBoolean("configured"), o.optString("name"))
+        return State(messages, o.optBoolean("sending"), error, o.optBoolean("configured"), o.optString("name"),
+                     opt(o, "recovery"), if (o.has("retryAfter") && !o.isNull("retryAfter")) o.optInt("retryAfter") else null,
+                     o.optBoolean("canDeepen"))
     }
 
     private fun call(op: String, args: String): JSONObject? {

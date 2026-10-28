@@ -536,15 +536,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
                     _error.value = getApplication<Application>().getString(R.string.coach_no_reply)
                     return@launch
                 }
-                while (true) {
-                    val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: break
-                    _messages.value = state.messages.takeLast(MAX_STORED_MESSAGES)
-                    if (!state.sending) {
-                        _error.value = state.error
-                        break
-                    }
-                    delay(STREAM_POLL_MS)
-                }
+                followReply()
             } catch (e: Exception) {
                 _error.value = e.message ?: "Something went wrong. Please try again."
             } finally {
@@ -632,11 +624,62 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { runCatching { coachDao.clearCoachMessages() } }
     }
 
+    /** How the last failure can be answered (`AICoachError.Recovery`): "reauthenticate", "retry" or "none". */
+    private val _recovery = MutableStateFlow<Pair<String, Int?>?>(null)
+    val recovery: StateFlow<Pair<String, Int?>?> = _recovery.asStateFlow()
+    private val _canDeepen = MutableStateFlow(false)
+    val canDeepen: StateFlow<Boolean> = _canDeepen.asStateFlow()
+
+    private fun apply(state: CoreCoach.State) {
+        _messages.value = state.messages.takeLast(MAX_STORED_MESSAGES)
+        _canDeepen.value = state.canDeepen
+        _recovery.value = state.recovery?.let { it to state.retryAfter }
+    }
+
+    /** Mirrors the shared coach's transcript while a reply streams, then its error if it ended in one. */
+    private suspend fun followReply() {
+        while (true) {
+            val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: break
+            apply(state)
+            if (!state.sending) {
+                _error.value = state.error
+                break
+            }
+            delay(STREAM_POLL_MS)
+        }
+    }
+
+    /** Regenerate, or with [deeper] look at the last answer again with the deep-analysis model. */
+    fun regenerate(deeper: Boolean = false) {
+        if (_sending.value) return
+        _error.value = null
+        _sending.value = true
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { if (deeper) CoreCoach.deeper() else CoreCoach.regenerate() }
+                followReply()
+            } finally {
+                _sending.value = false
+                persistMessages()
+            }
+        }
+    }
+
+    /** "Edit and ask again": hands the last question back for the composer and removes its exchange. */
+    fun reclaimLastQuestion(onQuestion: (String) -> Unit) {
+        if (_sending.value) return
+        viewModelScope.launch {
+            val (question, state) = withContext(Dispatchers.IO) { CoreCoach.reclaim() }
+            state?.let(::apply)
+            question?.let(onQuestion)
+        }
+    }
+
     /** Shows the shared coach's active conversation, after the history switched or deleted one. */
     fun showCoreConversation() {
         viewModelScope.launch {
             val state = withContext(Dispatchers.IO) { CoreCoach.state() } ?: return@launch
-            _messages.value = state.messages.takeLast(MAX_STORED_MESSAGES)
+            apply(state)
             _error.value = null
         }
     }

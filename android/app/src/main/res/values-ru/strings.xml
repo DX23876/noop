@@ -4375,4 +4375,10 @@
     <string name="coach_settings_emoji">Эмодзи в ответах</string>
     <string name="coach_settings_summarise">Сводки прошлых чатов</string>
     <string name="coach_settings_privacy_level">Уровень конфиденциальности</string>
+    <string name="coach_regenerate">Сгенерировать заново</string>
+    <string name="coach_look_closer">Посмотреть подробнее</string>
+    <string name="coach_edit_ask_again">Изменить и спросить снова</string>
+    <string name="coach_retry">Повторить</string>
+    <string name="coach_retry_in">Повторить через %1$d с</string>
+    <string name="coach_enter_key_again">Ввести ключ ещё раз</string>
 </resources>

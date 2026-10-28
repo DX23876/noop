@@ -4480,4 +4480,10 @@
     <string name="coach_settings_emoji">Emojis en las respuestas</string>
     <string name="coach_settings_summarise">Resumir chats anteriores</string>
     <string name="coach_settings_privacy_level">Nivel de privacidad</string>
+    <string name="coach_regenerate">Regenerar</string>
+    <string name="coach_look_closer">Analizar con más detalle</string>
+    <string name="coach_edit_ask_again">Editar y preguntar de nuevo</string>
+    <string name="coach_retry">Reintentar</string>
+    <string name="coach_retry_in">Reintentar en %1$d s</string>
+    <string name="coach_enter_key_again">Introduce tu clave otra vez</string>
 </resources>
