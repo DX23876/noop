@@ -148,6 +148,21 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   mit `NoCoachMemoryIndex` für einen Host ohne Modell). Das Paket `SemanticMemory` selbst hängt nur an GRDB und
   darf bleiben. Als Nächstes die übrigen App-Typen, die `AICoach` noch erreicht, dann der Umzug und die Brücke nach
   Kotlin.
+  Inventur dieser App-Typen (2026-10-28, Probebau von `AICoach` mit 27 Coach-Dateien im Kern, in drei Runden,
+  bis keine neuen fehlenden Namen dazukamen; ein Fehler kann weitere verdecken, die Liste ist ein Arbeitsstand):
+  - Datentypen in SwiftUI-Dateien, die eine reine Datenhälfte brauchen: `CoachChartArtifact` und
+    `CoachChartSnapshot` (`CoachChart.swift`), `CoachCardArtifact` und `CoachCardSnapshot`
+    (`CoachCardArtifact.swift`), `ProfileStore` (`Strand/Data/Profile.swift`), `TabRoute`.
+  - App-Dienste, die hinter Host-Haken gehören wie `refreshCoachCheckIn`: `CoachNotifier`, `PlanReminder`
+    (UserNotifications), `TrainingLoadModel` (Screens), `CoachFeaturePrefs` (`Screens/CoachEntry.swift`), der
+    Schlüsselbund über `Security` in `AICoach.swift`, und `Repository` in `LongTermGoalCoach.swift`.
+  - Hevy: `HevyCredentials` (`Strand/Hevy`), `HevyWorkoutProposal` und seine Stores sowie `HevyApiParser`.
+  - Das Paket `SemanticMemory` (nur GRDB) muss in den Kern aufgenommen werden, oder `SemanticConsentScope` zieht
+    um.
+  Ohne SwiftUI- und Apple-Bindung und damit verlinkbar sind schon jetzt unter anderem `CoachTranscriptStore`,
+  `ToolConsent`, `CoachCardContext`, `AIProvider`, `OpenRouter`, `CoachTools`, `CoachQuestionRouting`,
+  `CoachPersona`, `ProactiveCoach`, `CoachMemory`, `CoachLocalQueryRouter`, `CoachPlanStore` und
+  `PlanWorkoutMatcher`, abgesehen von den Typen oben.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.
