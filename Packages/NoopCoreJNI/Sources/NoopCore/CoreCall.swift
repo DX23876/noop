@@ -243,6 +243,11 @@ public enum CoreCall {
             return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,
                 activity: ActivityLevel(rawValue: string("activity")) ?? .light,
                 targetKgPerWeek: (args["targetKgPerWeek"] as? NSNumber)?.doubleValue ?? 0))
+        case "sleep.debt":
+            return CoreRead.json(await CoreSleepDebt.read(reader: reader))
+        case "energy.today":
+            guard let s = await CoreEnergyDetail.today(reader: reader, settings: CoreGoalEnergy.settings(args)) else { return "null" }
+            return CoreRead.json(s)
         case "energy.detail":
             return CoreRead.json(await CoreEnergyDetail.read(reader: reader, settings: CoreGoalEnergy.settings(args),
                                                              day: string("day"), comparison: string("comparison")))

@@ -2,6 +2,7 @@ package com.noop.ui.forge
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -160,12 +161,18 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
     var loaded by remember { mutableStateOf(false) }
     var skipping by remember { mutableStateOf<CoreCoach.PlanRow?>(null) }
     var rating by remember { mutableStateOf<CoreCoach.PlanRow?>(null) }
+    var timing by remember { mutableStateOf<Pair<CoreCoach.PlanRow, Boolean>?>(null) }
+    var moving by remember { mutableStateOf<CoreCoach.PlanRow?>(null) }
+    var swapping by remember { mutableStateOf<CoreCoach.PlanRow?>(null) }
     LaunchedEffect(Unit) {
         plan = withContext(Dispatchers.IO) { CoreRead.open(context); CoreCoach.plan(scale) }
         loaded = true
     }
-    fun act(op: String, row: CoreCoach.PlanRow, reason: String? = null, feedback: String? = null) {
-        scope.launch { withContext(Dispatchers.IO) { CoreCoach.plan(scale, op, row.id, reason, feedback) }?.let { plan = it } }
+    fun act(op: String, row: CoreCoach.PlanRow, reason: String? = null, feedback: String? = null, time: Long? = null,
+            day: String? = null, sport: String? = null, intent: String? = null) {
+        scope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.plan(scale, op, row.id, reason, feedback, time, day, sport, intent) }?.let { plan = it }
+        }
     }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_cp_title), onBack)
@@ -182,7 +189,8 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
                         Text(row.rationale, style = Forge.type.footnote, color = Forge.colors.textSecondary)
                     }
                     Row {
-                        TextButton(onClick = { act("accept", row) }) { Text(stringResource(R.string.forge_cp_accept)) }
+                        TextButton(onClick = { timing = row to true }) { Text(stringResource(R.string.forge_cp_accept)) }
+                        TextButton(onClick = { swapping = row }) { Text(stringResource(R.string.forge_cp_change)) }
                         TextButton(onClick = { act("decline", row) }) { Text(stringResource(R.string.forge_cp_not_this)) }
                     }
                     if (i < p.pending.lastIndex) RowDivider()
@@ -199,6 +207,13 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
                     if (row.status == "completed") {
                         FeedbackButton(row) { rating = row }
                     } else {
+                        Row {
+                            TextButton(onClick = { timing = row to false }) {
+                                Text(stringResource(if (row.time == null) R.string.forge_cp_set_time else R.string.forge_cp_change_time))
+                            }
+                            TextButton(onClick = { moving = row }) { Text(stringResource(R.string.forge_cp_move_day)) }
+                            TextButton(onClick = { swapping = row }) { Text(stringResource(R.string.forge_cp_swap)) }
+                        }
                         Row {
                             TextButton(onClick = { act("complete", row) }) { Text(stringResource(R.string.forge_cp_done)) }
                             TextButton(onClick = { skipping = row }) {
@@ -232,6 +247,19 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
     skipping?.let { row ->
         ChoiceDialog(stringResource(R.string.forge_cp_why), plan?.skipReasons.orEmpty(), onDismiss = { skipping = null }) { reason ->
             skipping = null; act("skip", row, reason = reason)
+        }
+    }
+    timing?.let { (row, accepting) ->
+        TimeDialog(row, accepting, onDismiss = { timing = null },
+                   onSet = { ts -> timing = null; act(if (accepting) "accept" else "setTime", row, time = ts) },
+                   onUntimed = { timing = null; act(if (accepting) "accept" else "clearTime", row) })
+    }
+    moving?.let { row ->
+        MoveDialog(row, onDismiss = { moving = null }) { day -> moving = null; act("reschedule", row, day = day, time = row.time) }
+    }
+    swapping?.let { row ->
+        SwapDialog(row, plan?.intents.orEmpty(), onDismiss = { swapping = null }) { sport, intent ->
+            swapping = null; act("swap", row, sport = sport, intent = intent)
         }
     }
     rating?.let { row ->
@@ -274,3 +302,84 @@ private fun ChoiceDialog(title: String, choices: List<Pair<String, String>>, onD
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_ch_cancel)) } },
     )
 }
+
+/** `PlanTimeSheet`: a time on the session's day, or none (accepting untimed, or removing the time). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDialog(row: CoreCoach.PlanRow, accepting: Boolean, onDismiss: () -> Unit, onSet: (Long) -> Unit, onUntimed: () -> Unit) {
+    val zone = java.time.ZoneId.systemDefault()
+    val start = row.time?.let { java.time.Instant.ofEpochSecond(it).atZone(zone).toLocalTime() } ?: java.time.LocalTime.of(18, 0)
+    val state = androidx.compose.material3.rememberTimePickerState(start.hour, start.minute, android.text.format.DateFormat.is24HourFormat(LocalContext.current))
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(row.summary) },
+        text = { androidx.compose.material3.TimePicker(state) },
+        confirmButton = {
+            TextButton(onClick = {
+                val day = runCatching { java.time.LocalDate.parse(row.day) }.getOrDefault(java.time.LocalDate.now())
+                onSet(day.atTime(state.hour, state.minute).atZone(zone).toEpochSecond())
+            }) { Text(stringResource(R.string.forge_cp_set)) }
+        },
+        dismissButton = {
+            Row {
+                if (accepting) TextButton(onClick = onUntimed) { Text(stringResource(R.string.forge_cp_accept_untimed)) }
+                else if (row.time != null) TextButton(onClick = onUntimed) { Text(stringResource(R.string.forge_cp_remove_time)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_ch_cancel)) }
+            }
+        },
+    )
+}
+
+/** `PlanRescheduleSheet`: another day from today on; the time stays. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun MoveDialog(row: CoreCoach.PlanRow, onDismiss: () -> Unit, onMove: (String) -> Unit) {
+    val today = java.time.LocalDate.now()
+    val initial = runCatching { java.time.LocalDate.parse(row.day) }.getOrDefault(today).let { if (it.isBefore(today)) today else it }
+    val utc = java.time.ZoneOffset.UTC
+    val state = androidx.compose.material3.rememberDatePickerState(
+        initialSelectedDateMillis = initial.atStartOfDay(utc).toInstant().toEpochMilli(),
+        selectableDates = object : androidx.compose.material3.SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) =
+                !java.time.Instant.ofEpochMilli(utcTimeMillis).atZone(utc).toLocalDate().isBefore(today)
+        })
+    androidx.compose.material3.DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { onMove(java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate().toString()) }
+            }) { Text(stringResource(R.string.forge_cp_move)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_ch_cancel)) } },
+    ) { androidx.compose.material3.DatePicker(state) }
+}
+
+/** `PlanSwapSheet`: another activity in the same slot, with how hard. */
+@Composable
+private fun SwapDialog(row: CoreCoach.PlanRow, intents: List<Pair<String, String>>, onDismiss: () -> Unit,
+                       onSwap: (String, String) -> Unit) {
+    var sport by remember(row.id) { mutableStateOf("") }
+    var intent by remember(row.id) { mutableStateOf(row.intent.ifEmpty { "moderate" }) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.forge_cp_instead, row.sport)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                OutlinedTextField(value = sport, onValueChange = { sport = it }, singleLine = true,
+                                  placeholder = { Text(stringResource(R.string.forge_cp_eg)) })
+                Text(stringResource(R.string.forge_cp_how_hard), style = Forge.type.caption, color = Forge.colors.textSecondary)
+                intents.forEach { (id, label) ->
+                    Row(Modifier.fillMaxWidth().clickable { intent = id }, verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.RadioButton(selected = intent == id, onClick = { intent = id })
+                        Text(label)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = sport.isNotBlank(), onClick = { onSwap(sport.trim(), intent) }) { Text(stringResource(R.string.forge_cp_swap)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_ch_cancel)) } },
+    )
+}
+

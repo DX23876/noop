@@ -139,18 +139,30 @@ enum CorePlan {
         var empty: Bool
         var skipReasons: [Choice]
         var feedbacks: [Choice]
+        var intents: [Choice]
     }
     struct Row: Encodable {
         var id: String, summary: String, rationale: String, day: String, dayLabel: String, status: String
         var swappedFrom: String?, statusLine: String, feedback: String?, feedbackLabel: String?
+        var sport: String, intent: String, time: Double?
     }
     struct Choice: Encodable { var id: String, label: String }
 
     static func run(_ op: String, args: [String: Any]) -> String {
         let store = CoachPlanStore.shared
         let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
+        let time = (args["time"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
         switch (op, id) {
-        case ("coach.plan.accept", let id?): store.accept(id)
+        case ("coach.plan.accept", let id?): store.accept(id, at: time)
+        case ("coach.plan.setTime", let id?): store.setTime(id, at: time)
+        case ("coach.plan.clearTime", let id?): store.clearTime(id)
+        case ("coach.plan.reschedule", let id?):
+            if let day = args["day"] as? String, !day.isEmpty { store.reschedule(id, toDay: day, at: time) }
+        case ("coach.plan.swap", let id?):
+            let sport = (args["sport"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !sport.isEmpty {
+                store.swap(id, toSport: sport, intent: (args["intent"] as? String).flatMap(PlanProposal.Intent.init(rawValue:)))
+            }
         case ("coach.plan.decline", let id?): store.decline(id)
         case ("coach.plan.complete", let id?): store.complete(id)
         case ("coach.plan.skip", let id?):
@@ -173,7 +185,8 @@ enum CorePlan {
             Row(id: p.id.uuidString, summary: p.summary(effortScale: scale), rationale: p.rationale, day: p.day,
                 dayLabel: dayLabel(p.day, now: now), status: p.status.rawValue, swappedFrom: p.swappedFrom,
                 statusLine: statusLine(p, now: now), feedback: p.effectFeedback?.rawValue,
-                feedbackLabel: p.effectFeedback?.label.localizedCatalogValue)
+                feedbackLabel: p.effectFeedback?.label.localizedCatalogValue, sport: p.sport, intent: p.intent.rawValue,
+                time: p.time?.timeIntervalSince1970)
         }
         return Output(
             pending: store.pending.map(row),
@@ -181,7 +194,8 @@ enum CorePlan {
             recent: store.proposals.filter { $0.day < today && $0.status.isDecided }.prefix(10).map(row),
             empty: store.proposals.isEmpty,
             skipReasons: PlanProposal.SkipReason.allCases.map { Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue) },
-            feedbacks: PlanProposal.EffectFeedback.allCases.map { Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue) })
+            feedbacks: PlanProposal.EffectFeedback.allCases.map { Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue) },
+            intents: PlanProposal.Intent.allCases.map { Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue) })
     }
 
     /// `CoachPlanView.statusLine`: neutral wording, a skip states its reason.

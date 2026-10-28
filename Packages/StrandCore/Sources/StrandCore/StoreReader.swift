@@ -490,6 +490,78 @@ public struct StoreReader: Sendable {
         )
     }
 
+    // Edited sleep (H5, #509): moved from `Repository` so the shared core merges a corrected night as the iPhone does.
+
+    /// The set of LOCAL wake-days that carry a user-edited sleep session , keyed exactly as
+    /// `DailyMetric.day` is (the engine's cached-offset local-day keyer, matching `mergeSleep.endDay`).
+    /// Drives the H5 edit-merge precedence in `mergeDaily`.
+    public static func userEditedDays(_ sessions: [CachedSleepSession]) -> Set<String> {
+        var days = Set<String>()
+        for s in sessions where s.userEdited {
+            days.insert(sleepEndDayKey(s.endTs))
+        }
+        return days
+    }
+
+    /// Local wake-day key for a sleep endpoint. Resolve the GMT offset at the endpoint itself so an edit
+    /// across a daylight-saving boundary is filed under the same day as the session and daily metric.
+    public static func sleepEndDayKey(_ endTs: Int) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(endTs))
+        let offsetSec = TimeZone.current.secondsFromGMT(for: date)
+        return AnalyticsEngine.dayString(endTs, offsetSec: offsetSec)
+    }
+
+    /// Rebuild the sleep-only fields for days with a manually corrected session. Historical imports have no
+    /// raw streams, so `IntelligenceEngine` cannot always create a computed daily row after an edit; deriving
+    /// this overlay from the stored, re-clipped stages makes the edited duration immediately authoritative.
+    public static func applyingEditedSleepSessions(_ sessions: [CachedSleepSession],
+                                                        to days: [DailyMetric]) -> [DailyMetric] {
+        guard sessions.contains(where: \.userEdited) else { return days }
+        let habitualBlocks = sessions.compactMap { session -> SleepStageTotals.HistoryBlock? in
+            let start = session.effectiveStartTs, end = session.endTs
+            guard end > start else { return nil }
+            let midpoint = start + (end - start) / 2
+            let offsetSec = TimeZone.current.secondsFromGMT(
+                for: Date(timeIntervalSince1970: TimeInterval(midpoint)))
+            return SleepStageTotals.HistoryBlock(
+                start: start,
+                end: end,
+                dayKey: AnalyticsEngine.dayString(midpoint, offsetSec: offsetSec)
+            )
+        }
+        let currentOffsetSec = TimeZone.current.secondsFromGMT()
+        let habitualMidsleepSec = SleepStageTotals.habitualMidsleepSec(
+            habitualBlocks, offsetSec: currentOffsetSec)
+        let sessionsByDay = Dictionary(grouping: sessions) { session in
+            sleepEndDayKey(session.endTs)
+        }
+
+        return days.map { daily in
+            guard let daySessions = sessionsByDay[daily.day], daySessions.contains(where: \.userEdited) else {
+                return daily
+            }
+            let editedStages = Dictionary(
+                daySessions.filter(\.userEdited).map { ($0.startTs, $0.stagesJSON) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            let onsets = Dictionary(
+                daySessions.map { ($0.startTs, $0.effectiveStartTs) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            guard let aggregate = SleepStageTotals.dailyAggregateHonoringEdits(
+                detected: daySessions.map { (startTs: $0.startTs, stagesJSON: $0.stagesJSON) },
+                edited: editedStages,
+                onsetByStart: onsets,
+                offsetSec: TimeZone.current.secondsFromGMT(
+                    for: Date(timeIntervalSince1970: TimeInterval(daySessions[0].endTs))),
+                habitualMidsleepSec: habitualMidsleepSec
+            ), aggregate.editApplied else {
+                return daily
+            }
+            return daily.takingEditedSleepFields(from: aggregate.sleep)
+        }
+    }
+
     /// Imported daily values win field-by-field; computed rows fill only nil imported fields.
     /// This preserves official export/import values while allowing fresh local analysis to populate
     /// Charge, skin temperature deviation, activity totals, or other fields missing from that row.

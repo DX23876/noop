@@ -28,7 +28,7 @@ enum CoreEnergyDetail {
     struct Summary: Encodable {
         var day: String
         var total: Double?, active: Double?, basal: Double?, bmr24h: Double?
-        var projectedLow: Double?, projectedHigh: Double?
+        var projectedLow: Double?, projectedHigh: Double?, projected: Double?
         var source: String, sourceLabel: String
         var confidence: String, confidenceLabel: String
         var compactLine: String?
@@ -80,10 +80,20 @@ enum CoreEnergyDetail {
                       comparisonPoints: points(compare), comparisonCaption: caption, comparisonUnavailable: unavailable)
     }
 
+    /// Today's summary alone, for the Today card (`EnergyCard`): the same 30-day read, without the day's curve.
+    @MainActor
+    static func today(reader: StoreReader, settings: CoreGoals.Settings, now: Date = Date()) async -> Summary? {
+        guard let profile = settings.energyProfile else { return nil }
+        let prior = await NutritionReads.adaptiveEstimate(reader: reader, asOf: now)?.estimatedDailyKcal
+        let today = StoreReader.localDayKey(now)
+        return await CoreEnergyPlan.summaries(reader: reader, settings: settings, profile: profile, days: historyDays,
+                                              now: now, adaptivePrior: prior).last { $0.day == today }.map(summary)
+    }
+
     static func summary(_ s: DailyEnergySummary) -> Summary {
         Summary(day: s.day, total: s.totalBurnedSoFar, active: s.activeBurnedSoFar, basal: s.basalBurnedSoFar,
                 bmr24h: s.estimatedBMR24h, projectedLow: s.projectedRangeKcal?.lowerBound,
-                projectedHigh: s.projectedRangeKcal?.upperBound, source: s.source.rawValue, sourceLabel: sourceLabel(s.source),
+                projectedHigh: s.projectedRangeKcal?.upperBound, projected: s.projectedTotalBurn, source: s.source.rawValue, sourceLabel: sourceLabel(s.source),
                 confidence: "\(s.confidence)", confidenceLabel: confidenceLabel(s.confidence), compactLine: compactLine(s))
     }
 

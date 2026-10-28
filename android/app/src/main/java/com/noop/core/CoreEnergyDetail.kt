@@ -13,7 +13,7 @@ import org.json.JSONObject
 object CoreEnergyDetail {
     data class Summary(
         val day: String, val total: Double?, val active: Double?, val basal: Double?, val bmr24h: Double?,
-        val projectedLow: Double?, val projectedHigh: Double?, val source: String, val sourceLabel: String,
+        val projectedLow: Double?, val projectedHigh: Double?, val projected: Double? = null, val source: String, val sourceLabel: String,
         val confidence: String, val confidenceLabel: String, val compactLine: String?,
     )
     data class Point(val start: Double, val duration: Double, val kcalPerMinute: Double)
@@ -34,6 +34,19 @@ object CoreEnergyDetail {
         return parse(SwiftCore.call("energy.detail", args.toString()) ?: return null)
     }
 
+    /** Today's summary for the Today card; null without a profile or a figure. */
+    fun today(context: Context, dismissedWorkouts: List<String>): Summary? {
+        if (!SwiftCore.available) return null
+        CoreUserInputs.ensure(context)
+        val profile = ProfileStore.from(context)
+        val args = JSONObject().withGoalProfile(profile).withGoalHostSettings(context).put("sex", profile.sex)
+            .put("lastSync", goalLastSync(context)).put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+        val json = SwiftCore.call("energy.today", args.toString()) ?: return null
+        if (json == "null") return null
+        return parse(JSONObject().put("today", "").put("day", "").put("summaries", JSONArray())
+                         .put("selected", JSONObject(json)).toString())?.selected
+    }
+
     internal fun parse(json: String): Detail? {
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return null
         if (!o.has("summaries")) return null
@@ -42,7 +55,7 @@ object CoreEnergyDetail {
         fun JSONArray?.objects() = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
         fun summary(s: JSONObject) = Summary(
             s.getString("day"), s.dbl("total"), s.dbl("active"), s.dbl("basal"), s.dbl("bmr24h"), s.dbl("projectedLow"),
-            s.dbl("projectedHigh"), s.optString("source"), s.optString("sourceLabel"), s.optString("confidence"),
+            s.dbl("projectedHigh"), s.dbl("projected"), s.optString("source"), s.optString("sourceLabel"), s.optString("confidence"),
             s.optString("confidenceLabel"), s.str("compactLine"))
         fun points(a: JSONArray?) = a.objects().map { Point(it.getDouble("start"), it.getDouble("duration"), it.getDouble("kcalPerMinute")) }
         return Detail(

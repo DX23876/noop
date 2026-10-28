@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -150,6 +151,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         if (shown == today) { ForgeTodayMomentum(); TodayGoals() }
         HeartCard(viewModel, shown, live = shown == today)
         KeyMetrics(model, columns = if (width == ForgeWidth.Compact) 2 else 3)
+        if (shown == today) TodayEnergy()
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
 }
@@ -359,6 +361,54 @@ object HeroRingLayout {
 
     fun diameter(rowWidth: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
         (rowWidth / 3 * OVERDRAW).coerceIn(minDiameter, maxDiameter)
+}
+
+/** The Energy card after `EnergyCard`: today's total so far, resting, active and projected; tap opens the detail. */
+@Composable
+private fun TodayEnergy() {
+    val context = LocalContext.current
+    var summary by remember { mutableStateOf<com.noop.core.CoreEnergyDetail.Summary?>(null) }
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        summary = withContext(Dispatchers.IO) {
+            CoreRead.open(context); com.noop.core.CoreEnergyDetail.today(context, dismissedTrainingWorkouts(context))
+        }
+    }
+    val s = summary ?: return
+    val whole = java.text.NumberFormat.getIntegerInstance(Locale.getDefault())
+    fun kcal(v: Double?) = v?.let { whole.format(kotlin.math.round(it).toLong()) } ?: "—"
+    ForgeCard(Modifier.fillMaxWidth().clickable { open = true }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_ed_title).uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
+                 modifier = Modifier.weight(1f))
+            Text(stringResource(when (s.confidence) {
+                "solid" -> R.string.forge_et_measured
+                "building" -> R.string.forge_et_partly
+                else -> R.string.forge_et_estimated
+            }), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+        }
+        if (s.total != null) {
+            Text(stringResource(R.string.forge_ed_kcal, kcal(s.total)), style = Forge.type.title1, color = Forge.colors.text)
+            Text(stringResource(R.string.forge_ed_so_far), style = Forge.type.caption, color = Forge.colors.textSecondary)
+        }
+        Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2)) {
+            listOf(
+                stringResource(if (s.basal == null) R.string.forge_ed_basal_day else R.string.forge_et_resting) to kcal(s.basal ?: s.bmr24h),
+                stringResource(R.string.forge_ed_active) to kcal(s.active),
+                stringResource(R.string.forge_et_projected) to kcal(s.projected),
+            ).forEach { (label, value) ->
+                Column(Modifier.weight(1f)) {
+                    Text(label, style = Forge.type.caption, color = Forge.colors.textSecondary)
+                    Text(value, style = Forge.type.headline, color = Forge.colors.text)
+                }
+            }
+        }
+    }
+    if (open) {
+        ForgeOverlayPage(onDismiss = { open = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { open = false }) }
+        }
+    }
 }
 
 /** Today's goals card, read from the shared core; it opens the goals page over the tabs. */

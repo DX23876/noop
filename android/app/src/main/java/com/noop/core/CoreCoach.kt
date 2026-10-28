@@ -68,15 +68,22 @@ object CoreCoach {
     data class Plan(
         val pending: List<PlanRow>, val agreed: List<PlanRow>, val recent: List<PlanRow>, val empty: Boolean,
         val skipReasons: List<Pair<String, String>>, val feedbacks: List<Pair<String, String>>,
+        val intents: List<Pair<String, String>> = emptyList(),
     )
     data class PlanRow(
         val id: String, val summary: String, val rationale: String, val day: String, val dayLabel: String,
         val status: String, val swappedFrom: String?, val statusLine: String, val feedback: String?, val feedbackLabel: String?,
+        val sport: String = "", val intent: String = "", val time: Long? = null,
     )
 
     /** Reads the plan, or applies [op] (`accept`, `decline`, `complete`, `skip`, `feedback`) to one proposal first. */
-    fun plan(effortScale: String, op: String? = null, id: String? = null, reason: String? = null, feedback: String? = null): Plan? {
+    fun plan(effortScale: String, op: String? = null, id: String? = null, reason: String? = null, feedback: String? = null,
+             time: Long? = null, day: String? = null, sport: String? = null, intent: String? = null): Plan? {
         val args = JSONObject().put("effortScale", effortScale)
+        time?.let { args.put("time", it) }
+        day?.let { args.put("day", it) }
+        sport?.let { args.put("sport", it) }
+        intent?.let { args.put("intent", it) }
         id?.let { args.put("id", it) }
         reason?.let { args.put("reason", it) }
         feedback?.let { args.put("feedback", it) }
@@ -91,14 +98,15 @@ object CoreCoach {
                 fun opt(k: String) = if (r.isNull(k)) null else r.optString(k).takeIf { it.isNotEmpty() }
                 PlanRow(r.getString("id"), r.getString("summary"), r.optString("rationale"), r.getString("day"),
                         r.optString("dayLabel"), r.getString("status"), opt("swappedFrom"), r.optString("statusLine"),
-                        opt("feedback"), opt("feedbackLabel"))
+                        opt("feedback"), opt("feedbackLabel"), r.optString("sport"), r.optString("intent"),
+                        if (r.isNull("time") || !r.has("time")) null else r.getDouble("time").toLong())
             }
         }
         fun choices(key: String) = o.optJSONArray(key).let { a ->
             (0 until (a?.length() ?: 0)).map { i -> a!!.getJSONObject(i).let { it.getString("id") to it.getString("label") } }
         }
         return Plan(rows("pending"), rows("agreed"), rows("recent"), o.optBoolean("empty"),
-                    choices("skipReasons"), choices("feedbacks"))
+                    choices("skipReasons"), choices("feedbacks"), choices("intents"))
     }
 
     /** The Swift `AIProvider` raw value for a Kotlin provider. */
