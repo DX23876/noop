@@ -31,6 +31,8 @@ enum CoreCoach {
     private static func perform(_ op: String, args: [String: Any], reader: StoreReader) async -> String {
         // The plan book needs no engine: it is the shared store the coach's tools write into.
         if op.hasPrefix("coach.plan") { return CorePlan.run(op, args: args) }
+        // The daily check-in needs no engine either: the learned wake time and its words.
+        if op == "coach.checkin" { return CoreRead.json(await CheckInState(reader: reader, fixedMinutes: args["fixedMinutes"] as? Int ?? 480)) }
         let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
         let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
         switch op {
@@ -85,6 +87,21 @@ enum CoreCoach {
             if let raw = args["proactive"] as? String, let v = ProactiveLevel(rawValue: raw) { coach.proactiveLevel = v }
             if let v = args["emoji"] as? Bool { coach.allowEmoji = v }
             if let v = args["autoSummarize"] as? Bool { coach.autoSummarize = v }
+            if let v = args["memoryModel"] as? String { coach.memoryModel = v }
+            if let v = args["cardModel"] as? String { coach.cardModel = v }
+            if let v = args["deepModel"] as? String { coach.deepModel = v }
+            // A quick preset writes its bundle where each control reads it (`CoachPreset.apply`); the voice
+            // lives in the identity the core stores.
+            if let raw = args["preset"] as? String, let preset = CoachPreset(rawValue: raw) {
+                let v = preset.values
+                coach.persona = v.persona
+                coach.allowEmoji = v.allowEmoji
+                coach.proactiveLevel = v.proactiveLevel
+                coach.verbosity = v.verbosity
+                var identity = CoreCoachIdentity.load()
+                identity.voice = v.voice
+                CoreCoachIdentity.save(identity)
+            }
             if let raw = args["accessMode"] as? String, let mode = CoachDataAccessMode(rawValue: raw),
                let purposes = mode.purposes {
                 coach.toolConsent.enabled = purposes
@@ -94,7 +111,7 @@ enum CoreCoach {
             }
             return CoreRead.json(SettingsState(coach))
         case "coach.memory", "coach.memory.add", "coach.memory.update", "coach.memory.remove", "coach.memory.expire",
-             "coach.memory.unexpire", "coach.memory.clear":
+             "coach.memory.unexpire", "coach.memory.clear", "coach.memory.confirm":
             let memory = CoachMemory.shared
             let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
             switch op {
@@ -108,6 +125,7 @@ enum CoreCoach {
             case "coach.memory.expire": if let id { memory.setValidUntil(id, Date()) }
             case "coach.memory.unexpire": if let id { memory.setValidUntil(id, nil) }
             case "coach.memory.clear": memory.clearAll()
+            case "coach.memory.confirm": if let id { memory.confirm(id) }
             default: break
             }
             return CoreRead.json(MemoryState(memory))
@@ -115,6 +133,21 @@ enum CoreCoach {
             // The coach instructions the editor shows and changes (`customSystemPrompt`); blank restores the default.
             if op == "coach.prompt.set", let prompt = args["prompt"] as? String { coach.customSystemPrompt = prompt }
             return CoreRead.json(["prompt": coach.customSystemPrompt, "custom": coach.hasCustomSystemPrompt ? "1" : ""])
+        case "coach.test":
+            // "Test connection" (`connectionTestRow`): the coach's own wire format, no health data read.
+            await coach.testConnection()
+            let line: String
+            var ok = false
+            switch coach.connectionTest {
+            case .ok(let model): line = String(localized: "Works — \(model) replied."); ok = true
+            case .failed(let message): line = message
+            default: line = ""
+            }
+            return CoreRead.json(["ok": ok ? "1" : "", "line": line])
+        case "coach.info", "coach.info.ack":
+            // The first-use note and "How Coach works" (`CoachFirstUseSheet`, `CoachInfoView`).
+            if op == "coach.info.ack" { UserDefaults.standard.set(true, forKey: CoachInfoState.acknowledgedKey) }
+            return CoreRead.json(CoachInfoState(coach))
         case "coach.identity":
             return CoreRead.json(IdentityState(CoreCoachIdentity.load()))
         case "coach.identity.set":
@@ -187,7 +220,15 @@ enum CoreCoach {
             var evidence: [String] = []
             var chart: Chart?
             var card: Card?
+            /// The memory receipt (`memoryReceipt`): what this reply saved, looked up by id so a forgotten
+            /// fact drops out and an edited one shows its new text.
+            var saved: [Saved] = []
         }
+        struct Saved: Encodable { var id: String, line: String, text: String, confirmed: Bool }
+        /// The receipt's controls, worded by the iOS catalogue: confirm, edit, forget and the edit dialog's title.
+        var receiptLabels = ["confirm": "That's right".localizedCatalogValue, "edit": "Edit".localizedCatalogValue,
+                             "forget": "Forget".localizedCatalogValue, "editTitle": "Edit fact".localizedCatalogValue,
+                             "cancel": "Cancel".localizedCatalogValue, "save": "Save".localizedCatalogValue]
         var messages: [Message]
         var sending: Bool
         var error: String?
@@ -199,6 +240,18 @@ enum CoreCoach {
         var recovery: String?
         var retryAfter: Int?
         var canDeepen = false
+        /// Plan suggestions waiting for the wearer's answer: the dot on the header's plan button and its label.
+        var planWaiting = 0
+        var planLabel = ""
+        /// Off: the chat keeps the iOS hint that answers are generic, with its way to the settings.
+        var dataConsent = true
+        var consentOff = "Data access is off — Coach can't see your numbers.".localizedCatalogValue
+        var turnOn = "Turn on".localizedCatalogValue
+        /// The follow-ups the engine offers right after a card read, ahead of the general set.
+        var cardSuggestions: [String] = []
+        /// The action row under the last reply (`actionRow`).
+        var actionLabels = ["breathe": "Breathe".localizedCatalogValue, "live": "Live Session".localizedCatalogValue,
+                            "schedule": "Schedule a session".localizedCatalogValue]
 
         @MainActor init(_ coach: AICoachEngine) {
             messages = coach.messages.map { m in
@@ -209,6 +262,13 @@ enum CoreCoach {
                 if !tools.isEmpty {
                     out.evidenceHeader = String(localized: "Grounded in \(tools.count) of your data sources")
                     out.evidence = tools.map { $0.evidenceTitle.localizedCatalogValue }
+                }
+                out.saved = m.memoryWrites.compactMap { id in CoachMemory.shared.facts.first(where: { $0.id == id }) }.map { f in
+                    Saved(id: f.id.uuidString,
+                          line: f.verification == .pendingConfirmation
+                              ? String(localized: "Saved, pending your confirmation: \(f.text)")
+                              : String(localized: "Saved to memory: \(f.text)"),
+                          text: f.text, confirmed: f.verification == .confirmed)
                 }
                 if let chart = coach.chartsByMessage[m.id] {
                     out.chart = Chart(title: chart.title, kind: chart.kind.rawValue,
@@ -229,6 +289,11 @@ enum CoreCoach {
                 }
             }
             canDeepen = coach.hasDeepAnalysisModel
+            planWaiting = CoachPlanStore.shared.pending.count
+            planLabel = planWaiting == 0 ? "Your plan".localizedCatalogValue
+                : String(localized: "Your plan, \(planWaiting) waiting for your decision")
+            dataConsent = coach.dataConsent
+            cardSuggestions = coach.cardSuggestions
             sending = coach.sending
             error = coach.errorText
             configured = coach.isConfigured
@@ -259,6 +324,7 @@ enum CoreCoach {
 /// with every line worded as the Apple page words it.
 @MainActor
 enum CorePlan {
+    struct Reminder: Encodable { var id: String, at: Double, title: String, body: String }
     struct Output: Encodable {
         var pending: [Row]
         var agreed: [Row]
@@ -277,6 +343,10 @@ enum CorePlan {
 
     static func run(_ op: String, args: [String: Any]) -> String {
         let store = CoachPlanStore.shared
+        if op == "coach.plan.reminders" {
+            let scale = EffortScale(rawValue: args["effortScale"] as? String ?? "") ?? .hundred
+            return CoreRead.json(["reminders": reminders(store.proposals, scale: scale, now: Date())])
+        }
         let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
         let time = (args["time"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
         switch (op, id) {
@@ -304,6 +374,15 @@ enum CorePlan {
         }
         let scale = EffortScale(rawValue: args["effortScale"] as? String ?? "") ?? .hundred
         return CoreRead.json(output(store: store, scale: scale))
+    }
+
+    /// What `PlanReminder.schedule` posts: every agreed, not yet done session with a time still ahead.
+    static func reminders(_ proposals: [PlanProposal], scale: EffortScale, now: Date) -> [Reminder] {
+        let title = "Time for your planned session".localizedCatalogValue
+        return proposals.compactMap { p in
+            guard p.status.isCommitment, p.status != .completed, let time = p.time, time > now else { return nil }
+            return Reminder(id: p.id.uuidString, at: time.timeIntervalSince1970, title: title, body: p.summary(effortScale: scale))
+        }
     }
 
     static func output(store: CoachPlanStore, scale: EffortScale, now: Date = Date()) -> Output {
@@ -405,8 +484,53 @@ struct SettingsState: Encodable {
     var emoji: Bool, autoSummarize: Bool, autoSummarizeDetail: String
     var accessMode: String, accessModes: [Choice]
     var purposes: [Purpose]
+    /// Quick presets, the background models per role and the usage counters, as the iOS Coaching and Connection
+    /// pages hold them. The master switch is Android's own (`NoopPrefs.coachEnabled`), handed in by `configure`.
+    var presets: [Choice]
+    var memoryModel: String, cardModel: String, deepModel: String
+    var usage: [Usage] = []
+    struct Usage: Encodable { var title: String, line: String, detail: String? }
+    /// The words of those cards, from the iOS catalogue.
+    var labels: [String: String] = [:]
 
     @MainActor init(_ coach: AICoachEngine) {
+        presets = CoachPreset.allCases.map {
+            Choice(id: $0.rawValue, label: $0.title.localizedCatalogValue, detail: $0.subtitle.localizedCatalogValue)
+        }
+        memoryModel = coach.memoryModel; cardModel = coach.cardModel; deepModel = coach.deepModel
+        let words: [String: String] = [
+            "presets": "Quick presets",
+            "presetsDetail": "Sets persona, voice, emoji, proactive messages, and reply length together — tweak any of them below afterward.",
+            "models": "Background models",
+            "modelsDetail": "Optional cheaper models for chat summaries or a manually requested card read. You do not need to choose one for normal coaching, tools or saved facts.",
+            "summary": "Chat summaries", "summaryDetail": "Distils a finished chat so the coach can recall it later.",
+            "card": "Card analyses", "cardDetail": "A short read when you ask the coach about one health card.",
+            "deep": "Closer look",
+            "deepDetail": "An optional heavier model for \"Look at this more closely\" on a reply. Leave unset to hide that option.",
+            "deepOff": "Off — no closer-look option",
+            "feature": "Enable AI Coach",
+            "featureOn": "Coach entry points and optional check-ins are available. Data sharing is still a separate choice.",
+            "featureOff": "Off by default. Turn this on after you choose to use a provider; chats and local data stay saved.",
+            "usage": "Usage so far",
+            "usageNote": "Counted on-device from what your provider reports back — not every request format reports usage, so this may undercount rather than overcount.",
+            "info": "How Coach works",
+            "test": "Test connection", "testing": "Checking…",
+        ]
+        labels = words.mapValues { $0.localizedCatalogValue }
+        let log = CoachUsageLog.shared
+        if let turn = log.lastTurn, !turn.rounds.isEmpty {
+            usage.append(Usage(title: "Last question".localizedCatalogValue, line: CoachUsageLog.summaryLine(for: turn),
+                               detail: CoachUsageLog.cacheVerdict(for: turn)))
+        }
+        if log.dayQuestionCount > 0 {
+            usage.append(Usage(title: "Today".localizedCatalogValue,
+                               line: CoachUsageLog.cumulativeSummaryLine(for: log.dayTotal, questionCount: log.dayQuestionCount),
+                               detail: nil))
+            usage.append(Usage(title: "This session".localizedCatalogValue,
+                               line: CoachUsageLog.cumulativeSummaryLine(for: log.sessionTotal,
+                                                                         questionCount: log.sessionQuestionCount),
+                               detail: nil))
+        }
         persona = coach.persona.rawValue
         personas = CoachPersona.allCases.map {
             Choice(id: $0.rawValue, label: $0.title.localizedCatalogValue, detail: $0.subtitle.localizedCatalogValue)
@@ -480,3 +604,103 @@ struct MemoryState: Encodable {
     }
 }
 
+
+/// The first-use note shown once before the first conversation, and the fuller "How Coach works" page, in the iOS
+/// words. Android leaves out the two paragraphs about the iPhone's on-device semantic search, which it does not have.
+struct CoachInfoState: Encodable {
+    /// `CoachFirstUse.acknowledgedKey` on Apple.
+    static let acknowledgedKey = "coach.firstUseAcknowledged"
+    struct Point: Encodable { var title: String, body: String }
+    struct Section: Encodable { var title: String, paras: [String] }
+    var acknowledged: Bool
+    var firstTitle: String, firstSubtitle: String, more: String, gotIt: String
+    var points: [Point]
+    var infoTitle: String, done: String
+    var sections: [Section]
+
+    @MainActor init(_ coach: AICoachEngine) {
+        func l(_ key: String) -> String { key.localizedCatalogValue }
+        acknowledged = UserDefaults.standard.bool(forKey: Self.acknowledgedKey)
+        firstTitle = l("Before you talk to your coach")
+        firstSubtitle = l("A quick, honest heads-up — not fine print.")
+        more = l("How it works, and exactly what's shared")
+        gotIt = l("Got it")
+        points = [
+            Point(title: l("It's only as good as its model"),
+                  body: l("The coach's judgement is the model's judgement. A small or cheap model gives shallow, generic answers; a capable one reasons well over your numbers.")),
+            Point(title: l("It's support, not the last word"),
+                  body: l("Treat its answers as a helpful second opinion. Don't follow them blindly — keep using your own judgement.")),
+            Point(title: l("It's not a doctor, therapist or trainer"),
+                  body: l("For anything medical, or anything that really matters, talk to a qualified professional. The coach can be wrong and can miss context you didn't share.")),
+            coach.dataConsent
+                ? Point(title: l("It works with your data"),
+                        body: l("To answer well, it sends a short summary of your relevant metrics to the provider you chose — using your own key, and only when you ask. Nothing is sent otherwise."))
+                : Point(title: l("It needs your data, off by default"),
+                        body: l("Data sharing is OFF right now, so answers stay generic. Turn on \"Let the coach use my data\" in Settings → Privacy & data to have it answer from your real metrics — using your own key, and only when you ask.")),
+        ]
+        infoTitle = l("How Coach works")
+        done = l("Done")
+        let device = String(localized: "this \(l("phone"))")
+        let provider = coach.provider.displayName
+        sections = [
+            Section(title: l("How it works"), paras: [
+                l("NOOP first interprets your question locally. Its local data planner checks which categories you allowed and prepares only the relevant compact context — for example recovery, workouts, a journal pattern or a long-term aggregate. The provider never gets direct access to your database."),
+                l("The model then writes the answer in plain language. When a specific number is needed, it can use a permitted tool; NOOP checks that tool locally before returning a result."),
+            ]),
+            Section(title: l("What stays here, what's sent"), paras: [
+                String(localized: "Everything is computed on \(device). The coach is the ONE feature in NOOP that talks to the internet."),
+                l("When you ask a question with data sharing on, it sends a short text summary or a permitted tool result to your chosen provider — never raw sensor streams or unrestricted database access. With data sharing off, it sends only your question. Nothing leaves until you ask or opt into a Coach automation."),
+                l("Deep historical questions use on-device aggregates, not years of daily rows. Sensitive journal information is excluded unless you separately allow it in Data access for an explicitly sensitive question."),
+            ]),
+            Section(title: l("Provider & model"), paras: [
+                String(localized: "You bring your own API key. The provider — right now \(provider) — is who actually receives your data, so it's the real privacy choice: pick one you trust, and check how they handle it."),
+                l("The coaching model runs the conversation. Background models for chat summaries or card reads are optional and off unless you set them up (Settings → Connection & model). NOOP never sends more personal data than a request needs."),
+            ]),
+            Section(title: l("Why the model matters"), paras: [
+                l("The coach is only as sharp as the model behind it. A stronger model reasons better over your data and gives advice worth acting on; a weak or very cheap one tends to be shallow or generic. That's why the default coaching model is a capable one, not a mini one — a bad first answer is a bad first impression for no reason you chose."),
+            ]),
+            Section(title: l("Its limits"), paras: [
+                l("It's a support tool, not a medical or clinical authority. It can be wrong, it can miss context you didn't tell it, and it never replaces professional advice. Use it to think — not to obey."),
+            ]),
+            Section(title: l("Turn it off any time"), paras: [
+                l("More → AI Coach lets you disable the whole feature. Its buttons, Today entries and check-ins disappear, while your on-device chats and health data remain saved unless you remove them yourself."),
+            ]),
+        ]
+    }
+}
+
+/// The daily check-in as the iOS card words it (`checkInBar`), with the wake time it follows in its "When I wake
+/// up" mode, learned from the last nights by the shared rule (`CoachCheckInWake`) over the core's sleep.
+struct CheckInState: Encodable {
+    var wakeMinutes: Int?
+    var labels: [String: String]
+
+    init(reader: StoreReader, fixedMinutes: Int) async {
+        let now = Int(Date().timeIntervalSince1970)
+        let offset = TimeZone.current.secondsFromGMT()
+        let sessions = await reader.allSleepSessions(from: now - (CoachCheckInWake.nights + 5) * 86_400, to: now + 86_400)
+        let midsleep = await reader.habitualMidsleepSec(from: now - 4000 * 86_400, to: now + 86_400, offsetSec: offset)
+        let minutes = CoachCheckInWake.mainNightWakeMinutes(
+            blocks: sessions.map { (start: $0.effectiveStartTs, end: $0.endTs) }, nights: CoachCheckInWake.nights,
+            habitualMidsleepSec: midsleep)
+        wakeMinutes = CoachCheckInWake.habitualWakeMinutes(fromLocalMinutes: minutes)
+        func clock(_ m: Int) -> String { String(format: "%02d:%02d", m / 60, m % 60) }
+        let words: [String: String] = [
+            "title": "Daily check-in", "on": "On: a daily reminder to open your coaching brief.",
+            "off": "Off: the coach only responds when you ask.", "fixed": "Fixed time", "wake": "When I wake up",
+            "time": "Time", "denied": "Notifications are off. Enable them for NOOP in Settings to use check-ins.",
+            "notifTitle": "Your coach has today's brief", "notifBody": "Open NOOP for your readiness and today's plan.",
+            "planTitle": "Plan reminders", "planOn": "On: a reminder at the time you set for a planned session.",
+            "planOff": "Off: sessions with a time don't remind you.",
+            "planDenied": "Notifications are off. Enable them for NOOP in Settings to use reminders.",
+        ]
+        labels = words.mapValues { $0.localizedCatalogValue }
+        if let wake = wakeMinutes {
+            let at = clock(wake)
+            labels["wakeReadout"] = String(localized: "Tracks your wake time — around \(at) lately. Refreshes each time you open NOOP.")
+        } else {
+            let fallback = clock(fixedMinutes)
+            labels["wakeReadout"] = String(localized: "Learning your wake time from your sleep. Until there's enough, it uses your fixed time (\(fallback)).")
+        }
+    }
+}

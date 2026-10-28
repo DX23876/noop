@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.CompareArrows
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Favorite
@@ -132,6 +133,8 @@ internal fun MoreDest.shown(context: android.content.Context): Boolean =
     when (this) {
         MoreDest.AgeLess -> com.noop.core.CoreFeatures.healthspan(context)
         MoreDest.RhythmAge -> com.noop.core.CoreFeatures.rhythmAge(context)
+        // "Enable AI Coach" off hides the coach, as on iOS; Settings → AI Coach keeps the switch to bring it back.
+        MoreDest.Coach -> com.noop.ui.BottomBarStyleStore.coachEnabled
         else -> true
     }
 
@@ -296,7 +299,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         return
     }
     if (dest == MoreDest.Coach) {
-        ForgeCoachDestination(title, onBack)
+        ForgeCoachDestination(title, onBack, onOpen)
         return
     }
     if (dest == MoreDest.Energy) {
@@ -350,23 +353,28 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
 
 /** The coach chat with its history and plan book a tap away, as the chat header offers them on iOS. */
 @Composable
-private fun ForgeCoachDestination(title: String, onBack: () -> Unit) {
+private fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (MoreDest) -> Unit) {
     val vm = viewModel<CoachViewModel>()
     var sub by remember { mutableStateOf<String?>(null) }
-    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity" || sub == "memory") "settings" else null }
+    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity" || sub == "memory" || sub == "info") "settings" else null }
     when (sub) {
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
         "settings" -> Hosted(stringResource(R.string.coach_settings), { sub = null }) {
-            CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" })
+            CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
+                                onOpenInfo = { sub = "info" })
         }
         "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = "settings" }) { CoachIdentityEditor(vm) }
         "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = "settings" }) { com.noop.ui.CoachMemoryPage() }
+        "info" -> Hosted(vm.info.collectAsStateWithLifecycle().value?.infoTitle.orEmpty(), { sub = "settings" }) {
+            com.noop.ui.CoachInfoPage(vm)
+        }
         // As the iOS chat: only a way back up here; the plan book sits in the chat's own header row and the
         // history in its overflow menu.
         else -> Hosted("", onBack) {
             CoachScreen(vm, onOpenSettings = { sub = "settings" }, onOpenPlan = { sub = "plan" },
-                        onOpenHistory = { sub = "history" })
+                        onOpenHistory = { sub = "history" }, onOpenBreathe = { onOpen(MoreDest.Breathe) },
+                        onOpenLive = { onOpen(MoreDest.Live) })
         }
     }
 }

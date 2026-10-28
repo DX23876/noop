@@ -173,7 +173,11 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
     fun act(op: String, row: CoreCoach.PlanRow, reason: String? = null, feedback: String? = null, time: Long? = null,
             day: String? = null, sport: String? = null, intent: String? = null) {
         scope.launch {
-            withContext(Dispatchers.IO) { CoreCoach.plan(scale, op, row.id, reason, feedback, time, day, sport, intent) }?.let { plan = it }
+            withContext(Dispatchers.IO) {
+                CoreCoach.plan(scale, op, row.id, reason, feedback, time, day, sport, intent)
+                    // A changed time, day or status moves or drops its reminder (`PlanReminder.schedule`).
+                    .also { com.noop.ui.CoachReminders.reschedulePlan(context, scale) }
+            }?.let { plan = it }
         }
     }
     SettingsColumn {

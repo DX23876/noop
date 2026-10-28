@@ -34,6 +34,20 @@ final class CorePlanTests: XCTestCase {
         p.rescheduledFrom = day(-1)
         XCTAssertEqual(CorePlan.statusLine(p, now: now), "moved from Yesterday")
     }
+
+    /// Only an agreed session with a time still ahead reminds; a suggestion, a past time or a done one never does.
+    func testRemindersOnlyForAgreedTimedSessionsAhead() {
+        let ahead = now.addingTimeInterval(3600)
+        let agreed = PlanProposal(day: day(1), time: ahead, sport: "Run", intent: .easy, status: .accepted)
+        let past = PlanProposal(day: day(1), time: now.addingTimeInterval(-60), sport: "Run", intent: .easy, status: .accepted)
+        let done = PlanProposal(day: day(1), time: ahead, sport: "Run", intent: .easy, status: .completed)
+        let waiting = PlanProposal(day: day(1), time: ahead, sport: "Run", intent: .easy, status: .proposed)
+        let untimed = PlanProposal(day: day(1), sport: "Ride", intent: .easy, status: .accepted)
+        let out = CorePlan.reminders([agreed, past, done, waiting, untimed], scale: .hundred, now: now)
+        XCTAssertEqual(out.map(\.id), [agreed.id.uuidString])
+        XCTAssertEqual(out.first?.title, "Time for your planned session")
+        XCTAssertEqual(out.first?.body, agreed.summary(effortScale: .hundred))
+    }
 }
 
 /// The Lab's training-based VO₂max reaches Training Load with what it rests on, as `exerciseVO2maxRow` reads it.

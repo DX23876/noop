@@ -132,6 +132,10 @@ class MainActivity : ComponentActivity() {
         // K5: self-heal the scheduled Coach morning-brief job (no-op when off / already scheduled).
         runCatching { CoachBriefScheduler.reschedule(applicationContext) }
 
+        // The coach's daily check-in and plan reminders (`CoachCheckIn`, `PlanReminder`): re-armed after a reboot
+        // or update, and in "When I wake up" mode the wake time is learned again on every launch, as iOS does.
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { CoachReminders.refreshOnLaunch(applicationContext) } }
+
         // Backup & Sync (#791): self-heal the daily auto-backup schedule (no-op when off / no folder),
         // and run a DEFERRED on-launch catch-up backup. Must-fix #4: the catch-up is gated on the toggle
         // being ON, runs fully off the main thread on Dispatchers.IO, and is launched AFTER the

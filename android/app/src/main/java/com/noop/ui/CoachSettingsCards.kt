@@ -14,9 +14,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -38,7 +40,22 @@ internal fun CoachSharedSettingsCards(vm: CoachViewModel) {
     LaunchedEffect(Unit) { vm.loadCoachSettings() }
     val s = settings ?: return
     fun set(key: String, value: Any) = vm.updateCoachSettings(JSONObject().put(key, value))
+    val l = s.labels
 
+    // Quick presets (`presetBar`): one tap sets style, voice, emoji, proactive messages and reply length.
+    if (s.presets.isNotEmpty()) NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(l["presets"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+            Text(l["presetsDetail"].orEmpty(), style = NoopType.footnote, color = Palette.textSecondary)
+            s.presets.forEach { p ->
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { set("preset", p.id) }
+                        .padding(vertical = 4.dp)) {
+                    Text(p.label, style = NoopType.subhead, color = Palette.textPrimary)
+                    Text(p.detail, style = NoopType.footnote, color = Palette.textSecondary)
+                }
+            }
+        }
+    }
     ChoiceCard(uiString(R.string.coach_settings_style), s.personas, s.persona) { set("persona", it) }
     ChoiceCard(uiString(R.string.coach_settings_length), s.verbosities, s.verbosity) { set("verbosity", it) }
     ChoiceCard(uiString(R.string.coach_settings_proactive), s.proactives, s.proactive) { set("proactive", it) }
@@ -57,6 +74,86 @@ internal fun CoachSharedSettingsCards(vm: CoachViewModel) {
             s.purposes.forEach { p ->
                 ToggleRow(p.label, p.detail, p.on) { vm.updateCoachSettings(JSONObject().put("purpose", p.id).put("on", it)) }
             }
+        }
+    }
+}
+
+/** "Enable AI Coach" (`coachFeatureBar`): off hides the coach and its check-ins; chats and data stay saved. */
+@Composable
+internal fun CoachFeatureCard(vm: CoachViewModel) {
+    val settings by vm.coachSettings.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.loadCoachSettings() }
+    val s = settings ?: return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val on = BottomBarStyleStore.coachEnabled
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        ToggleRow(s.labels["feature"].orEmpty(), s.labels[if (on) "featureOn" else "featureOff"], on) {
+            vm.setCoachFeature(context, it)
+        }
+    }
+}
+
+/**
+ * The background models per role (`backgroundModelsSection`): chat summaries, card analyses and the closer look,
+ * each empty to fall back as on iOS. A model name is saved when the field loses focus or Done is pressed.
+ */
+@Composable
+internal fun CoachBackgroundModelsCard(vm: CoachViewModel) {
+    val settings by vm.coachSettings.collectAsStateWithLifecycle()
+    val s = settings ?: return
+    val l = s.labels
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(l["models"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+                Text(l["modelsDetail"].orEmpty(), style = NoopType.footnote, color = Palette.textSecondary)
+            }
+            RoleModelField(l["summary"], l["summaryDetail"], s.memoryModel, null) {
+                vm.updateCoachSettings(JSONObject().put("memoryModel", it))
+            }
+            RoleModelField(l["card"], l["cardDetail"], s.cardModel, null) {
+                vm.updateCoachSettings(JSONObject().put("cardModel", it))
+            }
+            RoleModelField(l["deep"], l["deepDetail"], s.deepModel, l["deepOff"]) {
+                vm.updateCoachSettings(JSONObject().put("deepModel", it))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoleModelField(title: String?, caption: String?, value: String, emptyLabel: String?, onSave: (String) -> Unit) {
+    var draft by androidx.compose.runtime.saveable.rememberSaveable(value) { androidx.compose.runtime.mutableStateOf(value) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title.orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+        Text(caption.orEmpty(), style = NoopType.footnote, color = Palette.textSecondary)
+        androidx.compose.material3.OutlinedTextField(
+            value = draft, onValueChange = { draft = it }, singleLine = true, colors = noopFieldColors(),
+            placeholder = emptyLabel?.let { { Text(it, color = Palette.textTertiary) } },
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (draft != value) onSave(draft.trim()) }),
+            modifier = Modifier.fillMaxWidth().onFocusChanged { if (!it.isFocused && draft != value) onSave(draft.trim()) },
+        )
+    }
+}
+
+/** What the questions cost (`tokenUsageBar`, `cumulativeUsageBar`), shown once a question was counted. */
+@Composable
+internal fun CoachUsageCard(vm: CoachViewModel) {
+    val settings by vm.coachSettings.collectAsStateWithLifecycle()
+    val s = settings ?: return
+    if (s.usage.isEmpty()) return
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(s.labels["usage"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+            s.usage.forEach { u ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(u.title, style = NoopType.caption, color = Palette.textTertiary)
+                    Text(u.line, style = NoopType.footnote, color = Palette.textSecondary)
+                    u.detail?.let { Text(it, style = NoopType.footnote, color = Palette.textTertiary) }
+                }
+            }
+            Text(s.labels["usageNote"].orEmpty(), style = NoopType.caption, color = Palette.textSecondary)
         }
     }
 }

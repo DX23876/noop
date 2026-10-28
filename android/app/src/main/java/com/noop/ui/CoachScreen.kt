@@ -34,6 +34,14 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Air
+import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.offset
+import com.noop.core.CoreCoach
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.graphicsLayer
@@ -94,7 +102,8 @@ import com.noop.ai.CustomAiAuthHeader
 @Composable
 fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {},
                 trailing: (@Composable () -> Unit)? = null, onOpenPlan: (() -> Unit)? = null,
-                onOpenHistory: (() -> Unit)? = null) {
+                onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
+                onOpenLive: (() -> Unit)? = null) {
     val context = LocalContext.current
     val keyVersion by vm.keyVersion.collectAsStateWithLifecycle()
     val provider by vm.provider.collectAsStateWithLifecycle()
@@ -128,7 +137,8 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
         if (!configured) {
             CoachSetup(vm = vm)
         } else {
-            CoachChat(vm = vm, onOpenSettings = onOpenSettings, onOpenPlan = onOpenPlan, onOpenHistory = onOpenHistory)
+            CoachChat(vm = vm, onOpenSettings = onOpenSettings, onOpenPlan = onOpenPlan, onOpenHistory = onOpenHistory,
+                      onOpenBreathe = onOpenBreathe, onOpenLive = onOpenLive)
         }
     }
 }
@@ -286,7 +296,8 @@ private fun CoachSetup(vm: CoachViewModel) {
 
 @Composable
 private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan: (() -> Unit)? = null,
-                      onOpenHistory: (() -> Unit)? = null) {
+                      onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
+                      onOpenLive: (() -> Unit)? = null) {
     val context = LocalContext.current
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
@@ -299,7 +310,28 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
     val coachName by vm.coachName.collectAsStateWithLifecycle()
     val recovery by vm.recovery.collectAsStateWithLifecycle()
     val canDeepen by vm.canDeepen.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { vm.loadCoachName() }
+    val chrome by vm.chrome.collectAsStateWithLifecycle()
+    // The first-use note, once, before the first conversation (`CoachFirstUseSheet`); "more" opens the full page.
+    val info by vm.info.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.loadInfo() }
+    var infoOpen by remember { mutableStateOf(false) }
+    info?.takeIf { !it.acknowledged }?.let { i ->
+        if (infoOpen) {
+            androidx.compose.ui.window.Dialog(onDismissRequest = { infoOpen = false }) {
+                // Done stays below the scrolling text, so it is reachable without reading to the end.
+                Column(Modifier.clip(RoundedCornerShape(18.dp)).background(Palette.surfaceBase).padding(20.dp)) {
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                        CoachInfoPage(vm)
+                    }
+                    TextButton(onClick = { infoOpen = false }, modifier = Modifier.align(Alignment.End)) { Text(i.done) }
+                }
+            }
+        } else {
+            CoachFirstUseNote(i, onMore = { infoOpen = true }, onGotIt = { vm.loadInfo(acknowledge = true) })
+        }
+    }
+    // The plan dot and the consent hint change on the pages this chat opens, so read them again on every return.
+    LaunchedEffect(Unit) { vm.loadCoachName(); vm.refreshChrome() }
     // K15: the composer draft is persisted to SharedPreferences so it survives an app relaunch.
     // Restored on first composition, saved on every change. Keyed identically to the iOS twin.
     val draftPrefs = remember { context.getSharedPreferences("noop_coach_draft", android.content.Context.MODE_PRIVATE) }
@@ -365,6 +397,8 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
             providerLine = stringResource(R.string.coach_your_coach),
             canStartNew = messages.isNotEmpty() && !sending,
             onPlan = onOpenPlan,
+            planWaiting = chrome.planWaiting,
+            planLabel = chrome.planLabel,
             onHistory = onOpenHistory,
             onNew = { vm.clearConversation() },
             onSettings = onOpenSettings,
@@ -421,6 +455,7 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
                         msg, vm, groupStart = msg.role == "assistant" && !continuation,
                         isLastAssistant = msg.id == lastAssistant, isLastUser = msg.id == lastUser,
                         sending = sending, canDeepen = canDeepen, onReclaim = { q -> input = q },
+                        receiptLabels = chrome.receiptLabels,
                     )
                 }
                 // The typing indicator only until the reply's first words arrive; then the reply itself streams.
@@ -429,9 +464,12 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
                     ThinkingBubble()
                 }
                 Spacer(Modifier.height(10.dp))
-                // K7: follow-up suggestion chips after each assistant reply (when not mid-send).
+                // K7: follow-up suggestion chips after each assistant reply (when not mid-send); right after a
+                // card read the engine's metric-specific ones come first, as on iOS.
                 if (!sending && messages.isNotEmpty() && messages.last().role == "assistant") {
-                    SuggestedPrompts(prompts = vm.followUpSuggestions, onPick = { input = it })
+                    ActionRow(chrome.actionLabels, onBreathe = onOpenBreathe, onLive = onOpenLive, onSchedule = onOpenPlan)
+                    Spacer(Modifier.height(10.dp))
+                    SuggestedPrompts(prompts = chrome.cardSuggestions.ifEmpty { vm.followUpSuggestions }, onPick = { input = it })
                 }
             }
         }
@@ -441,6 +479,9 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
         // pass — by then a recomposition can have cleared `error`, so `error!!` inside the lambda would
         // NPE (#1074). The local `errorMsg` is a fixed non-null snapshot the lambda can't null out from
         // under it.
+        // The standing hint that answers are generic while data access is off (`consentOffBanner`).
+        if (!chrome.dataConsent && chrome.consentOff.isNotEmpty()) ConsentOffBanner(chrome, onOpenSettings)
+
         val errorMsg = error
         if (errorMsg != null) {
             // As the iOS error banner: what went wrong, then the way forward the typed error offers.
@@ -556,7 +597,7 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
 
 /** The coach's face, breathing while a reply is written, from the identity the chat provides. */
 @Composable
-private fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = false) {
+internal fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = false) {
     // Held still under battery saver or reduced motion, as iOS holds the avatar still under Reduce Motion.
     val pulse = if (breathing && !rememberPoseStill()) {
         val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "coachBreath")
@@ -580,6 +621,8 @@ private fun CoachHeaderRow(
     providerLine: String,
     canStartNew: Boolean,
     onPlan: (() -> Unit)?,
+    planWaiting: Int = 0,
+    planLabel: String = "",
     onHistory: (() -> Unit)?,
     onNew: () -> Unit,
     onSettings: () -> Unit,
@@ -612,12 +655,16 @@ private fun CoachHeaderRow(
                  maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         if (onPlan != null) {
-            Icon(
-                Icons.Filled.CalendarMonth,
-                contentDescription = stringResource(R.string.forge_cp_title),
-                tint = Palette.textSecondary,
-                modifier = Modifier.clip(CircleShape).clickable(onClick = onPlan).padding(6.dp).size(22.dp),
-            )
+            // The dot means a suggestion waits for the wearer's answer, as on iOS.
+            Box(Modifier.clip(CircleShape).clickable(onClick = onPlan).padding(6.dp)
+                    .semantics { contentDescription = planLabel.ifEmpty { uiString(R.string.forge_cp_title) } }) {
+                Icon(Icons.Filled.CalendarMonth, contentDescription = null,
+                     tint = if (planWaiting > 0) Palette.accent else Palette.textSecondary, modifier = Modifier.size(22.dp))
+                if (planWaiting > 0) {
+                    Box(Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp).size(6.dp).clip(CircleShape)
+                            .background(Palette.accent))
+                }
+            }
         }
         Icon(
             Icons.Filled.EditNote,
@@ -655,7 +702,7 @@ private fun CoachHeaderRow(
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = true, isLastAssistant: Boolean = false,
                        isLastUser: Boolean = false, sending: Boolean = false, canDeepen: Boolean = false,
-                       onReclaim: (String) -> Unit = {}) {
+                       onReclaim: (String) -> Unit = {}, receiptLabels: Map<String, String> = emptyMap()) {
     val isUser = msg.role == "user"
     val context = LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -735,15 +782,32 @@ private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = t
                     when {
                         msg.chart != null -> ChatChart(msg.chart)
                         msg.card != null -> ChatCard(msg.card)
-                        // Render the Coach's Markdown (bold/lists/headings) instead of raw symbols (#149).
-                        else -> CoachMarkdown(msg.text, color = Palette.textPrimary)
+                        // Render the Coach's Markdown (bold/lists/headings) instead of raw symbols (#149), with the
+                        // caret under the reply while it is still being written (`CoachStreamCaret`).
+                        else -> Column {
+                            CoachMarkdown(msg.text, color = Palette.textPrimary)
+                            if (sending && isLastAssistant) StreamCaret()
+                        }
                     }
                     menu()
                 }
             }
             if (msg.evidence.isNotEmpty()) EvidenceChain(msg, Modifier.padding(start = 34.dp))
+            if (msg.saved.isNotEmpty()) MemoryReceipt(msg, vm, receiptLabels, Modifier.padding(start = 34.dp))
         }
     }
+}
+
+/** The blinking accent bar under a reply being written; it holds still under battery saver or reduced motion. */
+@Composable
+private fun StreamCaret() {
+    val still = rememberPoseStill()
+    val alpha = if (still) 1f else androidx.compose.animation.core.rememberInfiniteTransition(label = "caret").animateFloat(
+        1f, 0.15f, androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(600), androidx.compose.animation.core.RepeatMode.Reverse), label = "caret",
+    ).value
+    Box(Modifier.padding(top = 4.dp).size(width = 2.dp, height = 15.dp).graphicsLayer { this.alpha = alpha }
+            .clip(RoundedCornerShape(1.dp)).background(Palette.accent))
 }
 
 /** A time stamp between turns, as the iOS chat's `timeSeparator`: the time today, the date before. */
@@ -758,6 +822,89 @@ private fun TimeSeparator(epochSeconds: Double) {
         .format(instant.atZone(zone))
     Text(text, style = NoopType.caption, color = Palette.textTertiary, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
          modifier = Modifier.fillMaxWidth())
+}
+
+/**
+ * What this reply saved to memory, with the iOS receipt's controls: confirm a fact that waits for it, correct it
+ * (which confirms it too) or forget it. Facts are looked up by id in the core, so a forgotten one drops out.
+ */
+@Composable
+private fun MemoryReceipt(msg: ChatMsg, vm: CoachViewModel, labels: Map<String, String>, modifier: Modifier = Modifier) {
+    var editing by remember(msg.id) { mutableStateOf<ChatMsg.Saved?>(null) }
+    var draft by remember(msg.id) { mutableStateOf("") }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        msg.saved.forEach { fact ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Filled.Psychology, contentDescription = null, tint = Palette.textTertiary, modifier = Modifier.size(14.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(fact.line, style = NoopType.caption, color = Palette.textTertiary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (!fact.confirmed) ReceiptControl(labels["confirm"], Palette.accent) { vm.receipt("confirm", fact.id) }
+                        ReceiptControl(labels["edit"], Palette.textTertiary) { draft = fact.text; editing = fact }
+                        ReceiptControl(labels["forget"], Palette.textTertiary) { vm.receipt("remove", fact.id) }
+                    }
+                }
+            }
+        }
+    }
+    editing?.let { fact ->
+        AlertDialog(
+            onDismissRequest = { editing = null },
+            title = { Text(labels["editTitle"].orEmpty()) },
+            text = { OutlinedTextField(draft, { draft = it }, colors = noopFieldColors()) },
+            confirmButton = {
+                TextButton(onClick = { vm.receipt("update", fact.id, draft); editing = null }) { Text(labels["save"].orEmpty()) }
+            },
+            dismissButton = { TextButton(onClick = { editing = null }) { Text(labels["cancel"].orEmpty()) } },
+        )
+    }
+}
+
+@Composable
+private fun ReceiptControl(label: String?, color: Color, onClick: () -> Unit) {
+    Text(label.orEmpty(), style = NoopType.caption, color = color,
+         modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick).padding(vertical = 4.dp))
+}
+
+/** The standing fast paths from advice to doing something (`actionRow`): Breathe, Live Session, Schedule a session. */
+@Composable
+private fun ActionRow(labels: Map<String, String>, onBreathe: (() -> Unit)?, onLive: (() -> Unit)?, onSchedule: (() -> Unit)?) {
+    val context = LocalContext.current
+    // Hidden while Live Sessions are switched off, as on iOS, so the chip never opens nothing.
+    val live = onLive?.takeIf { LiveSessionPrefs.enabled(context) }
+    val chips = listOfNotNull(
+        onBreathe?.let { Triple(Icons.Filled.Air, labels["breathe"], it) },
+        live?.let { Triple(Icons.Filled.MonitorHeart, labels["live"], it) },
+        onSchedule?.let { Triple(Icons.Filled.EditCalendar, labels["schedule"], it) },
+    ).filter { !it.second.isNullOrEmpty() }
+    if (chips.isEmpty()) return
+    Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(start = 34.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        chips.forEach { (icon, label, action) ->
+            Row(
+                Modifier.clip(RoundedCornerShape(50)).background(Palette.surfaceInset).clickable(onClick = action)
+                    .padding(horizontal = 9.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Icon(icon, contentDescription = null, tint = Palette.textSecondary, modifier = Modifier.size(14.dp))
+                Text(label.orEmpty(), style = NoopType.caption, color = Palette.textSecondary)
+            }
+        }
+    }
+}
+
+/** Data access is off: answers are generic, and "Turn on" leads to the coach settings (`consentOffBanner`). */
+@Composable
+private fun ConsentOffBanner(chrome: CoreCoach.Chrome, onOpenSettings: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Palette.surfaceOverlay).padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Filled.Lock, contentDescription = null, tint = Palette.accent, modifier = Modifier.size(18.dp))
+        Text(chrome.consentOff, style = NoopType.subhead, color = Palette.textSecondary, modifier = Modifier.weight(1f))
+        Text(chrome.turnOn, style = NoopType.footnote, color = Palette.accent,
+             modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onOpenSettings).padding(vertical = 2.dp))
+    }
 }
 
 /** "Grounded in N of your data sources", expanding to the sources the reply read (`evidenceChain`). */

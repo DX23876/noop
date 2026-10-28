@@ -24,7 +24,10 @@ data class ChatMsg(
     /** A chart (`plot_metric`) or a card (`show_card`) the coach showed in place of text. */
     val chart: Chart? = null,
     val card: Card? = null,
+    /** The memory receipt: what this reply saved (`memoryReceipt`). */
+    val saved: List<Saved> = emptyList(),
 ) {
+    data class Saved(val id: String, val line: String, val text: String, val confirmed: Boolean)
     data class Chart(val title: String, val kind: String, val points: List<Pair<Double, Double>>, val lo: Double, val hi: Double)
     data class Card(val kind: String, val title: String, val value: String, val caption: String?,
                     val rows: List<Pair<String, String>>, val tint: String)

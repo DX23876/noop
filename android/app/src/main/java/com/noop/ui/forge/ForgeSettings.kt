@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.runtime.CompositionLocalProvider
 import com.noop.ui.LightTokens
@@ -494,8 +495,12 @@ private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack:
             when (sub) {
                 "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = null }) { com.noop.ui.CoachIdentityEditor(vm) }
                 "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = null }) { com.noop.ui.CoachMemoryPage() }
+                "info" -> Hosted(vm.info.collectAsStateWithLifecycle().value?.infoTitle.orEmpty(), { sub = null }) {
+                    com.noop.ui.CoachInfoPage(vm)
+                }
                 else -> Hosted(stringResource(page.titleRes), onBack) {
-                    CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" })
+                    CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
+                                        onOpenInfo = { sub = "info" })
                 }
             }
         }

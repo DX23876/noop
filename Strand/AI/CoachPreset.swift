@@ -62,6 +62,7 @@ enum CoachPreset: String, CaseIterable, Identifiable {
 
     /// Write this preset's bundle into the live stores. Each value lands exactly where its own settings
     /// control already reads from, so the picker rows update immediately and stay individually editable.
+    #if !NOOP_CORE
     @MainActor
     func apply(to engine: AICoachEngine, identity: CoachIdentityStore = .shared) {
         let v = values
@@ -71,4 +72,5 @@ enum CoachPreset: String, CaseIterable, Identifiable {
         engine.proactiveLevel = v.proactiveLevel
         engine.verbosity = v.verbosity
     }
+    #endif
 }

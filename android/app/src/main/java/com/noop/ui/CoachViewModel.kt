@@ -98,13 +98,57 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     val coachSettings: StateFlow<CoreCoach.CoachSettings?> = _coachSettings.asStateFlow()
 
     fun loadCoachSettings() {
-        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.settings() }?.let { _coachSettings.value = it } }
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.settings() }?.let(::showSettings) }
     }
 
     fun updateCoachSettings(change: org.json.JSONObject) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { CoreCoach.updateSettings(change) }?.let { _coachSettings.value = it }
+            withContext(Dispatchers.IO) { CoreCoach.updateSettings(change) }?.let(::showSettings)
         }
+    }
+
+    /** The Android settings in the shared coach's terms, with the consent read fresh from its store. */
+    private fun coreSettings(appCtx: Context): CoreCoach.Settings {
+        val consentNow = AiKeyStore.readConsent(appCtx)
+        _consent.value = consentNow
+        val provider = _provider.value
+        return CoreCoach.Settings(
+            provider = provider, model = _model.value, key = AiKeyStore.read(appCtx, provider).orEmpty(),
+            consent = consentNow, customBaseUrl = _customBaseUrl.value,
+            customAuthHeader = _customAuthHeader.value, customConnected = _customConnected.value,
+        )
+    }
+
+    private val _connectionTest = MutableStateFlow<Pair<Boolean, String>?>(null)
+    /** The last "Test connection" result; an empty line while it runs. */
+    val connectionTest: StateFlow<Pair<Boolean, String>?> = _connectionTest.asStateFlow()
+
+    fun testConnection(ctx: Context) {
+        val appCtx = ctx.applicationContext
+        _connectionTest.value = false to ""
+        viewModelScope.launch {
+            _connectionTest.value = withContext(Dispatchers.IO) {
+                CoreCoach.testConnection(appCtx, coreSettings(appCtx), com.noop.ui.forge.dismissedTrainingWorkouts(appCtx))
+            } ?: (false to getApplication<Application>().getString(R.string.coach_no_reply))
+        }
+    }
+
+    private fun showSettings(s: CoreCoach.CoachSettings) {
+        _coachSettings.value = s
+    }
+
+    /**
+     * "Enable AI Coach": Android's one master switch (`NoopPrefs.coachEnabled`, through the bar store so the brief
+     * and More follow). The shared coach receives it with its next `configure`, as `CoachFeaturePrefs`.
+     */
+    fun setCoachFeature(ctx: Context, on: Boolean) = BottomBarStyleStore.setCoachEnabled(ctx, on)
+
+    private val _info = MutableStateFlow<CoreCoach.Info?>(null)
+    /** The first-use note and "How Coach works", from the shared coach. */
+    val info: StateFlow<CoreCoach.Info?> = _info.asStateFlow()
+
+    fun loadInfo(acknowledge: Boolean = false) {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.info(acknowledge) }?.let { _info.value = it } }
     }
 
     private fun applyIdentity(identity: CoreCoach.Identity) {
@@ -532,14 +576,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 // Re-read the stored grant rather than trusting the copy this instance was built with: a
                 // revoked grant must not survive in memory on the one call that egresses data.
-                val consentNow = AiKeyStore.readConsent(appCtx)
-                _consent.value = consentNow
-                val provider = _provider.value
-                val settings = CoreCoach.Settings(
-                    provider = provider, model = _model.value, key = AiKeyStore.read(appCtx, provider).orEmpty(),
-                    consent = consentNow, customBaseUrl = _customBaseUrl.value,
-                    customAuthHeader = _customAuthHeader.value, customConnected = _customConnected.value,
-                )
+                val settings = coreSettings(appCtx)
                 val dismissed = com.noop.ui.forge.dismissedTrainingWorkouts(appCtx)
                 val started = withContext(Dispatchers.IO) {
                     CoreCoach.configure(appCtx, settings, dismissed) && CoreCoach.send(question)
@@ -641,10 +678,26 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     val recovery: StateFlow<Pair<String, Int?>?> = _recovery.asStateFlow()
     private val _canDeepen = MutableStateFlow(false)
     val canDeepen: StateFlow<Boolean> = _canDeepen.asStateFlow()
+    private val _chrome = MutableStateFlow(CoreCoach.Chrome())
+    val chrome: StateFlow<CoreCoach.Chrome> = _chrome.asStateFlow()
+
+    /** A memory receipt's control (`confirm`, `update`, `remove`) on the fact [id], then the chat again. */
+    fun receipt(op: String, id: String, text: String? = null) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.memory(op, id = id, text = text) }
+            withContext(Dispatchers.IO) { CoreCoach.state() }?.let(::apply)
+        }
+    }
+
+    /** Re-reads the chat's surroundings (the plan dot after the plan book, consent after settings). */
+    fun refreshChrome() {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.state() }?.let(::apply) }
+    }
 
     private fun apply(state: CoreCoach.State) {
         _messages.value = state.messages.takeLast(MAX_STORED_MESSAGES)
         _canDeepen.value = state.canDeepen
+        _chrome.value = state.chrome
         _recovery.value = state.recovery?.let { it to state.retryAfter }
     }
 

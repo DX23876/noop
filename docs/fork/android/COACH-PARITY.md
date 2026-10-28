@@ -11,30 +11,30 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | iOS | Android | Note |
 |---|---|---|
 | Header row: coach avatar (breathing while writing), name, "Your coach" / "Thinking…" | ✅ | avatar and name follow the identity |
-| Header: plan book with "waiting" dot, New chat, overflow (history, goal, settings, goal setup) | 🟡 | plan, new chat, history, settings; no waiting dot, no goal entries |
+| Header: plan book with "waiting" dot, New chat, overflow (history, goal, settings, goal setup) | 🟡 | plan with its dot, new chat, history, settings; no goal entries |
 | Empty state: portrait, "Hi, I'm …", what the coach reads, suggestion cloud | ✅ | |
 | Question bubble (accent, tight sender corner), long-press Copy, Share, Edit and ask again | ✅ | |
-| Reply without bubble beside avatar, Markdown, streaming word by word with caret | 🟡 | Markdown; no streaming animation or caret |
+| Reply without bubble beside avatar, Markdown, streaming word by word with caret | 🟡 | Markdown and the caret while it is written; the text arrives in polled chunks rather than word by word |
 | Reply long-press: Copy, Share, Regenerate, Look at this more closely | ✅ | plus Save to journal |
 | Charts in chat (`plot_metric`), cards in chat (`show_card`) | ✅ | |
 | Evidence chain under a reply (tools used, local context) | ✅ | wording in the shared `CoachChatLabels.swift` |
-| Memory receipt (what this reply saved, undo) | ❌ | |
+| Memory receipt (what this reply saved, undo) | ✅ | confirm, edit, forget |
 | "The coach got in touch" label on brief, nudge, weekly review | ✅ | |
-| Action row: Review draft goal, Review routine, Review workout, Schedule a session | ❌ | |
+| Action row: Review draft goal, Review routine, Review workout, Schedule a session | 🟡 | Breathe, Live Session, Schedule a session; the three review chips wait for their drafts on Android |
 | Time separators | ✅ | |
 | Typing indicator | ✅ | |
-| Error banner with Retry (wait seconds), consent-off banner | 🟡 | Retry waits, re-enter key; no consent-off banner |
-| Card follow-up chips | ❌ | |
+| Error banner with Retry (wait seconds), consent-off banner | ✅ | |
+| Card follow-up chips | 🟡 | shown when the engine has them; Android has no card read that opens the chat yet |
 | Composer: glass capsule, mic, send/stop | ✅ | |
-| First-use sheet, goal onboarding sheet | ❌ | |
+| First-use sheet, goal onboarding sheet | 🟡 | first-use note; no goal onboarding |
 
 ## Settings (`CoachSettingsView`)
 
 | iOS | Android | Note |
 |---|---|---|
-| Connection & model: provider, key, custom URL and header, model picker, Custom model, check connection, forget key, reconnect | 🟡 | Kotlin setup screen covers provider, key, URL, model; no connection check, no forget/reconnect page |
-| Background models (summary, card analysis, deep analysis) per role | ❌ | |
-| Quick presets | ❌ | |
+| Connection & model: provider, key, custom URL and header, model picker, Custom model, check connection, forget key, reconnect | 🟡 | provider, key, URL, model, test connection; Update key and Disconnect sit in the chat's menu |
+| Background models (summary, card analysis, deep analysis) per role | ✅ | typed model names, no picker per role |
+| Quick presets | ✅ | their titles are not in the iOS catalogue, so they read in English on both |
 | Coach identity: name, avatar (Svea, Marv, symbol, own photo), voice | ✅ | |
 | Emoji in replies | ✅ | |
 | Reply length | ✅ | |
@@ -43,14 +43,14 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Coach instructions (system prompt) | ✅ | the editor reads and writes the shared coach's (`coach.prompt`) |
 | Morning suggestion on Today | ❌ | |
 | Morning brief with time | 🟡 | Kotlin brief, not the shared coach's |
-| Daily check-in (fixed time or after waking) | ❌ | |
-| Plan reminders | ❌ | |
+| Daily check-in (fixed time or after waking) | ✅ | wake time learned at every launch by the shared rule (`CoachCheckInWake`); no snooze or skip action on the notification |
+| Plan reminders | ✅ | without the weekly-goal line iOS adds |
 | Goal & Journey (`CoachGoalView`, `CoachGoalJourneyView`, setup review) | ❌ | |
 | Memory: facts list with category, edit, expiry, source, add fact, forget all, summarise past chats | ✅ | |
 | Semantic memory switch and status | ❌ | no embedding model on Android (plan decision) |
-| Privacy & data: Enable AI Coach, privacy level, data access purposes (8 switches), share patterns & Lab Book, let the coach use my data | 🟡 | all but Enable AI Coach |
-| How Coach works (`CoachInfoView`) | ❌ | |
-| Usage: last question, today, this session | ❌ | |
+| Privacy & data: Enable AI Coach, privacy level, data access purposes (8 switches), share patterns & Lab Book, let the coach use my data | ✅ | Enable AI Coach is Android's own switch (`NoopPrefs.coachEnabled`) |
+| How Coach works (`CoachInfoView`) | ✅ | without the two paragraphs on the iPhone's on-device search |
+| Usage: last question, today, this session | ✅ | |
 | Coach on Today: show coach, avatar, banner, floating button, position, lock | ❌ | |
 
 ## Elsewhere

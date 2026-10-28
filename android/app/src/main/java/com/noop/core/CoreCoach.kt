@@ -14,7 +14,14 @@ import org.json.JSONObject
 object CoreCoach {
     data class State(val messages: List<ChatMsg>, val sending: Boolean, val error: String?, val configured: Boolean,
                      val name: String = "", val recovery: String? = null, val retryAfter: Int? = null,
-                     val canDeepen: Boolean = false)
+                     val canDeepen: Boolean = false, val chrome: Chrome = Chrome())
+
+    /** What the chat shows around the turns: the plan dot, the consent hint, card follow-ups, receipt and action labels. */
+    data class Chrome(
+        val planWaiting: Int = 0, val planLabel: String = "", val dataConsent: Boolean = true,
+        val consentOff: String = "", val turnOn: String = "", val cardSuggestions: List<String> = emptyList(),
+        val receiptLabels: Map<String, String> = emptyMap(), val actionLabels: Map<String, String> = emptyMap(),
+    )
 
     data class Settings(
         val provider: AiProvider, val model: String, val key: String, val consent: Boolean,
@@ -82,7 +89,32 @@ object CoreCoach {
         val proactive: String, val proactives: List<Choice>, val emoji: Boolean, val autoSummarize: Boolean,
         val autoSummarizeDetail: String,
         val accessMode: String, val accessModes: List<Choice>, val purposes: List<Purpose>,
+        val presets: List<Choice> = emptyList(), val memoryModel: String = "", val cardModel: String = "",
+        val deepModel: String = "", val usage: List<Usage> = emptyList(),
+        val labels: Map<String, String> = emptyMap(),
     )
+    /** One usage line of the settings (`tokenUsageBar`, `cumulativeUsageBar`). */
+    data class Usage(val title: String, val line: String, val detail: String?)
+
+    /** The first-use note and "How Coach works" (`CoachFirstUseSheet`, `CoachInfoView`). */
+    data class Info(
+        val acknowledged: Boolean, val firstTitle: String, val firstSubtitle: String, val more: String, val gotIt: String,
+        val points: List<Pair<String, String>>, val infoTitle: String, val done: String,
+        val sections: List<Pair<String, List<String>>>,
+    )
+
+    /** Reads the note and the page, or with [acknowledge] first records that the note was read. */
+    fun info(acknowledge: Boolean = false): Info? {
+        val o = call(if (acknowledge) "coach.info.ack" else "coach.info", "{}") ?: return null
+        if (!o.has("points")) return null
+        val p = o.getJSONArray("points"); val s = o.getJSONArray("sections")
+        return Info(o.optBoolean("acknowledged"), o.optString("firstTitle"), o.optString("firstSubtitle"), o.optString("more"),
+            o.optString("gotIt"),
+            (0 until p.length()).map { p.getJSONObject(it).let { x -> x.getString("title") to x.getString("body") } },
+            o.optString("infoTitle"), o.optString("done"),
+            (0 until s.length()).map { s.getJSONObject(it).let { x ->
+                val a = x.getJSONArray("paras"); x.getString("title") to (0 until a.length()).map { i -> a.getString(i) } } })
+    }
 
     fun settings(): CoachSettings? = call("coach.settings", "{}")?.let(::parseSettings)
 
@@ -102,7 +134,38 @@ object CoreCoach {
             o.getString("accessMode"), choices("accessModes"),
             (0 until (p?.length() ?: 0)).map { p!!.getJSONObject(it).let { c ->
                 Purpose(c.getString("id"), c.getString("label"), c.optString("detail"), c.optBoolean("on")) } },
+            choices("presets"), o.optString("memoryModel"), o.optString("cardModel"), o.optString("deepModel"),
+            o.optJSONArray("usage").let { a -> (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it).let { u ->
+                Usage(u.getString("title"), u.getString("line"), if (u.isNull("detail") || !u.has("detail")) null else u.getString("detail")) } } },
+            o.optJSONObject("labels")?.let { j -> j.keys().asSequence().associateWith { j.getString(it) } }.orEmpty(),
         )
+    }
+
+    /** "Test connection": whether the provider answered, and the line saying so (`connectionTestRow`). */
+    fun testConnection(context: Context, settings: Settings, dismissedWorkouts: List<String>): Pair<Boolean, String>? {
+        configure(context, settings, dismissedWorkouts)
+        val o = call("coach.test", "{}") ?: return null
+        return o.optString("ok").isNotEmpty() to o.optString("line")
+    }
+
+    /** An agreed session with a time still ahead, and the words of its reminder (`PlanReminder`). */
+    data class PlanReminder(val id: String, val at: Double, val title: String, val body: String)
+
+    fun planReminders(effortScale: String): List<PlanReminder> {
+        val a = call("coach.plan.reminders", JSONObject().put("effortScale", effortScale).toString())?.optJSONArray("reminders")
+            ?: return emptyList()
+        return (0 until a.length()).map { a.getJSONObject(it).let { r ->
+            PlanReminder(r.getString("id"), r.getDouble("at"), r.getString("title"), r.getString("body")) } }
+    }
+
+    /** The daily check-in's words and the wake time it follows in its "When I wake up" mode (`checkInBar`). */
+    data class CheckIn(val wakeMinutes: Int?, val labels: Map<String, String>)
+
+    fun checkIn(fixedMinutes: Int): CheckIn? {
+        val o = call("coach.checkin", JSONObject().put("fixedMinutes", fixedMinutes).toString()) ?: return null
+        val l = o.optJSONObject("labels") ?: return null
+        return CheckIn(if (o.has("wakeMinutes") && !o.isNull("wakeMinutes")) o.getInt("wakeMinutes") else null,
+                       l.keys().asSequence().associateWith { l.getString(it) })
     }
 
     /** The coach's memory (`CoachMemory`): facts with category, origin and expiry, and the categories. */
@@ -232,14 +295,25 @@ object CoreCoach {
                     (0 until (rows?.length() ?: 0)).map { rows!!.getJSONObject(it).let { r -> r.getString("label") to r.getString("value") } },
                     c.optString("tint"))
             }
-            ChatMsg(id = m.getString("id"), role = m.getString("role"), text = m.getString("text"),
+            val sv = m.optJSONArray("saved")
+            val saved = (0 until (sv?.length() ?: 0)).map { sv!!.getJSONObject(it).let { f ->
+                ChatMsg.Saved(f.getString("id"), f.getString("line"), f.optString("text"), f.optBoolean("confirmed")) } }
+            ChatMsg(id = m.getString("id"), role = m.getString("role"), text = m.getString("text"), saved = saved,
                     date = m.optDouble("date", 0.0), gotInTouch = opt(m, "gotInTouch"), evidenceHeader = opt(m, "evidenceHeader"),
                     evidence = (0 until (ev?.length() ?: 0)).map { ev!!.getString(it) }, chart = chart, card = card)
         }
         val error = if (o.isNull("error")) null else o.optString("error").takeIf { it.isNotEmpty() }
         return State(messages, o.optBoolean("sending"), error, o.optBoolean("configured"), o.optString("name"),
                      opt(o, "recovery"), if (o.has("retryAfter") && !o.isNull("retryAfter")) o.optInt("retryAfter") else null,
-                     o.optBoolean("canDeepen"))
+                     o.optBoolean("canDeepen"), parseChrome(o))
+    }
+
+    private fun parseChrome(o: JSONObject): Chrome {
+        fun labels(k: String) = o.optJSONObject(k)?.let { j -> j.keys().asSequence().associateWith { j.getString(it) } }.orEmpty()
+        val cs = o.optJSONArray("cardSuggestions")
+        return Chrome(o.optInt("planWaiting"), o.optString("planLabel"), o.optBoolean("dataConsent", true),
+                      o.optString("consentOff"), o.optString("turnOn"),
+                      (0 until (cs?.length() ?: 0)).map { cs!!.getString(it) }, labels("receiptLabels"), labels("actionLabels"))
     }
 
     private fun call(op: String, args: String): JSONObject? {
