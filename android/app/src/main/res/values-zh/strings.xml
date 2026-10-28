@@ -4265,4 +4265,16 @@
     <string name="forge_cp_swapped">从 %1$s 交换</string>
     <string name="forge_cp_feel">感觉如何？</string>
     <string name="forge_cp_afterwards">后来发生了什么？</string>
+    <string name="forge_tl_xvo2_title">基于训练的 VO₂max（实验性）</string>
+    <string name="forge_tl_xvo2_week">%1$s ml/kg/min（%2$s 当周）· 步行/跑步训练可用 %3$d / %4$d</string>
+    <string name="forge_tl_xvo2_none">尚无可用的训练：需要速度超过 8 km/h 的跑步或 3–6 km/h 的步行，至少 20 分钟，并有距离和实测心率记录。</string>
+    <string name="forge_tl_xvo2_flat">坡度按平地计算。不作为表现依据。</string>
+    <string name="forge_tl_xvo2_climbs">已计入实测爬升。不作为表现依据。</string>
+    <string name="forge_tl_xvo2_some_climbs">%2$d 次训练中有 %1$d 次计入了实测爬升，其余按平地计算。不作为表现依据。</string>
+    <string name="forge_tl_xvo2_rough">粗略估算：实验室核查中，步行时它几乎不随实测最大摄氧量变化，药物或进食导致的心率升高会被当作用力。AgeLess 和目标不使用它。</string>
+    <string name="forge_tl_xvo2_pairs">与 Apple Watch 对比：已有 %1$d / 所需 %2$d 个周配对。</string>
+    <string name="forge_tl_xvo2_passes">与 Apple Watch 对比 %1$d 周：平均相差 %2$s ml/kg/min，方向一致率 %3$d %%。符合事先确定的规则。</string>
+    <string name="forge_tl_xvo2_fails">与 Apple Watch 对比 %1$d 周：平均相差 %2$s ml/kg/min，方向一致率 %3$d %%。不符合事先确定的规则。</string>
+    <string name="forge_lab_xvo2">基于训练的 VO₂max</string>
+    <string name="forge_lab_xvo2_detail">根据带有距离和心率的跑步与步行估算 VO₂max，包含测得的爬升。显示在训练负荷中每周估算旁边，并与 Apple Watch 比较。在比较通过之前不作为依据。</string>
 </resources>

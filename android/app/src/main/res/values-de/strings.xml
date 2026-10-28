@@ -4308,4 +4308,16 @@
     <string name="forge_cp_swapped">getauscht von %1$s</string>
     <string name="forge_cp_feel">Wie hat es sich angefühlt?</string>
     <string name="forge_cp_afterwards">Was geschah danach?</string>
+    <string name="forge_tl_xvo2_title">Trainingsbasierte VO₂max (experimentell)</string>
+    <string name="forge_tl_xvo2_week">%1$s ml/kg/min in der Woche vom %2$s · %3$d von %4$d Einheiten zu Fuß verwertbar</string>
+    <string name="forge_tl_xvo2_none">Noch keine verwertbare Einheit: ein Lauf über 8 km/h oder ein Spaziergang mit 3–6 km/h, mindestens 20 Minuten, mit Distanz und gemessenem Pulsverlauf.</string>
+    <string name="forge_tl_xvo2_flat">Steigung als flach angenommen. Zählt nicht als Leistungsnachweis.</string>
+    <string name="forge_tl_xvo2_climbs">Gemessene Anstiege einbezogen. Zählt nicht als Leistungsnachweis.</string>
+    <string name="forge_tl_xvo2_some_climbs">Gemessener Anstieg in %1$d von %2$d Einheiten, der Rest als flach gerechnet. Zählt nicht als Leistungsnachweis.</string>
+    <string name="forge_tl_xvo2_rough">Eine grobe Schätzung: Beim Gehen folgte sie in einer Laborprüfung kaum der gemessenen VO₂max, und ein durch Medikamente oder Essen erhöhter Puls zählt als Anstrengung. AgeLess und Ziele nutzen sie nicht.</string>
+    <string name="forge_tl_xvo2_pairs">Vergleich mit der Apple Watch: %1$d von %2$d nötigen Wochenpaaren.</string>
+    <string name="forge_tl_xvo2_passes">Vergleich mit der Apple Watch über %1$d Wochen: im Mittel %2$s ml/kg/min Abstand, Richtung stimmt zu %3$d %% überein. Erfüllt die vorab festgelegte Regel.</string>
+    <string name="forge_tl_xvo2_fails">Vergleich mit der Apple Watch über %1$d Wochen: im Mittel %2$s ml/kg/min Abstand, Richtung stimmt zu %3$d %% überein. Erfüllt die vorab festgelegte Regel nicht.</string>
+    <string name="forge_lab_xvo2">Trainingsbasierte VO₂max</string>
+    <string name="forge_lab_xvo2_detail">Schätzt die VO₂max aus Läufen und Spaziergängen mit Distanz und Puls, gemessene Anstiege eingeschlossen. Erscheint unter Trainingslast neben der Wochenschätzung, verglichen mit der Apple Watch. Zählt erst als Beleg, wenn dieser Vergleich besteht.</string>
 </resources>

@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import StrandCore
+import StrandAnalytics
 @testable import NoopCore
 
 /// The plan book's wording on Android is `CoachPlanView`'s: relative day names and neutral status lines.
@@ -32,5 +33,18 @@ final class CorePlanTests: XCTestCase {
         p.status = .rescheduled
         p.rescheduledFrom = day(-1)
         XCTAssertEqual(CorePlan.statusLine(p, now: now), "moved from Yesterday")
+    }
+}
+
+/// The Lab's training-based VO₂max reaches Training Load with what it rests on, as `exerciseVO2maxRow` reads it.
+final class CoreExerciseVO2maxTests: XCTestCase {
+    func testNoSessionStillCarriesTheValidationRule() {
+        let out = CoreTrainingLoad.exerciseOutput([], used: 0, onFoot: 3, apple: [])
+        XCTAssertNil(out.value)
+        XCTAssertNil(out.mondayKey)
+        XCTAssertEqual(out.sessionsOnFoot, 3)
+        XCTAssertEqual(out.pairs, 0)
+        XCTAssertEqual(out.pairsNeeded, ExerciseVO2max.validationMinimumPairs)
+        XCTAssertFalse(out.passes)
     }
 }

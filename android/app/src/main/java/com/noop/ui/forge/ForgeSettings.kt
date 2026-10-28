@@ -1008,6 +1008,12 @@ private fun LabSection(onOpen: (ForgeSettingsSub) -> Unit) {
             rhythm = it
             com.noop.core.CoreFeatures.setRhythmAge(context, it)
         }
+        RowDivider()
+        var exerciseVO2max by remember { mutableStateOf(com.noop.core.CoreFeatures.exerciseVO2max(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_xvo2), stringResource(R.string.forge_lab_xvo2_detail), exerciseVO2max) {
+            exerciseVO2max = it
+            com.noop.core.CoreFeatures.setExerciseVO2max(context, it)
+        }
     }
     SettingsCard(title = null, blurb = null) {
         LinkRow(stringResource(R.string.l10n_settings_screen_health_wellness_93475778),

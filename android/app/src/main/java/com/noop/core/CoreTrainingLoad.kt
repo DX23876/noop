@@ -35,12 +35,22 @@ object CoreTrainingLoad {
         val vo2Primary: Reading?, val vo2Line: List<Reading>, val vo2Apple: Reading?,
         val evidence: String, val evidenceSource: String?, val evidenceSport: String?, val evidenceSessions: Int?,
         val provisionalBand: String?, val cardioMeasured: Boolean, val appleSource: String, val trustedShare: Double,
+        /** The Lab's training-based estimate; null while its switch is off. */
+        val exerciseVO2max: ExerciseVO2max? = null,
+    )
+
+    /** `ExerciseVO2maxOut`: the latest weekly estimate, what it rests on and how it compares with Apple Watch. */
+    data class ExerciseVO2max(
+        val value: Double?, val mondayKey: String?, val weekSessions: Int?, val weekSessionsWithGrade: Int?,
+        val sessionsUsed: Int, val sessionsOnFoot: Int, val pairs: Int, val pairsNeeded: Int,
+        val meanAbsoluteError: Double?, val directionAgreement: Double?, val passes: Boolean,
     )
 
     /** The readings for the wearer's maximum heart rate and sex, the inputs the cardio load is priced with. */
-    fun read(maxHR: Double?, sex: String, dismissedWorkouts: List<String> = emptyList()): Output? {
+    fun read(maxHR: Double?, sex: String, dismissedWorkouts: List<String> = emptyList(), exerciseVO2max: Boolean = false): Output? {
         if (!SwiftCore.available) return null
         val args = JSONObject().put("sex", sex).put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+            .put("exerciseVO2max", exerciseVO2max)
             .apply { if (maxHR != null) put("maxHR", maxHR) }
         return SwiftCore.call("training.load", args.toString())?.let(::parse)
     }
@@ -79,6 +89,11 @@ object CoreTrainingLoad {
             evidenceSport = o.str("evidenceSport"), evidenceSessions = o.int("evidenceSessions"),
             provisionalBand = o.str("provisionalBand"), cardioMeasured = o.optBoolean("cardioMeasured"),
             appleSource = o.optString("appleSource", "apple-health"), trustedShare = o.optDouble("trustedShare", 0.6),
+            exerciseVO2max = o.optJSONObject("exerciseVO2max")?.let { x ->
+                ExerciseVO2max(x.dbl("value"), x.str("mondayKey"), x.int("weekSessions"), x.int("weekSessionsWithGrade"),
+                               x.optInt("sessionsUsed"), x.optInt("sessionsOnFoot"), x.optInt("pairs"), x.optInt("pairsNeeded"),
+                               x.dbl("meanAbsoluteError"), x.dbl("directionAgreement"), x.optBoolean("passes"))
+            },
         )
     }
 

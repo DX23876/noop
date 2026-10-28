@@ -4287,4 +4287,16 @@
     <string name="forge_cp_swapped">trocado de %1$s</string>
     <string name="forge_cp_feel">Como te sentiste?</string>
     <string name="forge_cp_afterwards">O que aconteceu depois?</string>
+    <string name="forge_tl_xvo2_title">VO₂max baseado no treino (experimental)</string>
+    <string name="forge_tl_xvo2_week">%1$s ml/kg/min na semana de %2$s · %3$d de %4$d sessões a pé utilizáveis</string>
+    <string name="forge_tl_xvo2_none">Ainda não há nenhuma sessão utilizável: uma corrida acima de 8 km/h ou uma caminhada a 3–6 km/h, de pelo menos 20 minutos, com distância e registo de frequência cardíaca medido.</string>
+    <string name="forge_tl_xvo2_flat">Inclinação assumida como plana. Não conta como prova de desempenho.</string>
+    <string name="forge_tl_xvo2_climbs">Desníveis medidos incluídos. Não é usado como prova de desempenho.</string>
+    <string name="forge_tl_xvo2_some_climbs">Desnível medido em %1$d de %2$d sessões, o resto contado como plano. Não é usado como prova de desempenho.</string>
+    <string name="forge_tl_xvo2_rough">Uma estimativa aproximada: a caminhar mal acompanhou o VO₂máx medido num teste de laboratório, e um pulso elevado por medicação ou uma refeição conta como esforço. O AgeLess e os objetivos não a usam.</string>
+    <string name="forge_tl_xvo2_pairs">Comparação com o Apple Watch: %1$d de %2$d pares de semanas necessários.</string>
+    <string name="forge_tl_xvo2_passes">Comparação com o Apple Watch em %1$d semanas: %2$s ml/kg/min de diferença média, a direção coincide em %3$d %%. Cumpre a regra fixada antecipadamente.</string>
+    <string name="forge_tl_xvo2_fails">Comparação com o Apple Watch em %1$d semanas: %2$s ml/kg/min de diferença média, a direção coincide em %3$d %%. Não cumpre a regra fixada antecipadamente.</string>
+    <string name="forge_lab_xvo2">VO₂max baseado no treino</string>
+    <string name="forge_lab_xvo2_detail">Estima o VO₂max a partir de corridas e caminhadas com distância e pulso, incluindo subidas medidas. Aparece em Carga de treino ao lado da estimativa semanal, comparado com o Apple Watch. Não conta como prova até essa comparação passar.</string>
 </resources>

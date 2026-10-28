@@ -94,6 +94,16 @@ public enum CoreTrainingLoad {
         public var cardioMeasured: Bool
         public var appleSource: String
         public var trustedShare: Double
+        /// The Lab's training-based estimate (`PuffinExperiment.exerciseVO2maxKey`); nil while the switch is off.
+        public var exerciseVO2max: ExerciseVO2maxOut?
+    }
+
+    /// `TrainingLoadModel.ExerciseVO2maxReading`: the latest weekly estimate, what it rests on and how it compares
+    /// with Apple Watch so far.
+    public struct ExerciseVO2maxOut: Encodable {
+        public var value: Double?, mondayKey: String?, weekSessions: Int?, weekSessionsWithGrade: Int?
+        public var sessionsUsed: Int, sessionsOnFoot: Int
+        public var pairs: Int, pairsNeeded: Int, meanAbsoluteError: Double?, directionAgreement: Double?, passes: Bool
     }
 
     public struct Ratio: Encodable {
@@ -107,6 +117,7 @@ public enum CoreTrainingLoad {
     /// Reads what `TrainingLoadModel.snapshot` reads and runs the shared computation. `maxHR` and `sex` are the
     /// wearer's, as the cardio load is priced on the iPhone (`Repository.cardioLoadMaxHR`).
     public static func read(reader: StoreReader, maxHR: Double, sex: String, dismissedWorkoutSpans: [String],
+                            exerciseVO2max: Bool = false,
                             now: Int = Int(Date().timeIntervalSince1970)) async -> Output {
         let store = reader.store
         let cache = CardioLoadCache()
@@ -129,7 +140,34 @@ public enum CoreTrainingLoad {
             strengthHistory: strengthHistory, unified: fusion.sessions, cardioResolution: resolution,
             rpeEntries: ratings, dailyRows: dailyRows, vo2Estimates: vo2.estimates, vo2Apple: vo2.apple,
             today: today, now: now, offset: offset)
-        return output(prepared)
+        var out = output(prepared)
+        if exerciseVO2max {
+            // As `TrainingLoadModel.snapshot`: the cardio load's resting rates and maximum, measured climbs, and
+            // Apple Watch's readings of the whole window to compare against.
+            let resting = await reader.restingHrByDay(fromDay: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(from))),
+                                                      toDay: today)
+            let elevations = (try? await store.workoutElevations(from: from - 86_400, to: now)) ?? [:]
+            let apple = ((try? await store.metricSeries(deviceId: MetricResolver.appleHealthSource, key: "vo2max",
+                    from: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(from))), to: today)) ?? [])
+                .map { VO2maxReading(day: $0.day, value: $0.value, segment: MetricResolver.appleHealthSource) }
+            let (estimates, onFoot) = TrainingVO2max.estimates(sessions: fusion.sessions, resolution: resolution,
+                                                               restingByDay: resting, maxHR: maxHR, offset: offset,
+                                                               elevations: elevations)
+            out.exerciseVO2max = exerciseOutput(ExerciseVO2max.weekly(estimates), used: estimates.count, onFoot: onFoot,
+                                                apple: apple)
+        }
+        return out
+    }
+
+    static func exerciseOutput(_ weekly: [ExerciseVO2max.WeeklyEstimate], used: Int, onFoot: Int,
+                               apple: [VO2maxReading]) -> ExerciseVO2maxOut {
+        let report = ExerciseVO2max.validate(weekly: weekly, apple: apple)
+        let latest = weekly.last
+        return ExerciseVO2maxOut(value: latest?.value, mondayKey: latest?.mondayKey, weekSessions: latest?.sessions,
+                                 weekSessionsWithGrade: latest?.sessionsWithGrade, sessionsUsed: used, sessionsOnFoot: onFoot,
+                                 pairs: report.pairs, pairsNeeded: ExerciseVO2max.validationMinimumPairs,
+                                 meanAbsoluteError: report.meanAbsoluteError, directionAgreement: report.directionAgreement,
+                                 passes: report.passes)
     }
 
     /// Both VO2max series as `TrainingLoadModel.vo2maxReadings` reads them: NOOP's weekly estimate tagged with its

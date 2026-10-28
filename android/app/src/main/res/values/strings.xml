@@ -4326,4 +4326,16 @@
     <string name="forge_cp_swapped">swapped from %1$s</string>
     <string name="forge_cp_feel">How did it feel?</string>
     <string name="forge_cp_afterwards">What happened afterwards?</string>
+    <string name="forge_tl_xvo2_title">Training-based VO₂max (experimental)</string>
+    <string name="forge_tl_xvo2_week">%1$s ml/kg/min in the week of %2$s · %3$d of %4$d sessions on foot usable</string>
+    <string name="forge_tl_xvo2_none">No usable session yet: a run above 8 km/h or a walk of 3–6 km/h, at least 20 minutes, with distance and a measured heart-rate trace.</string>
+    <string name="forge_tl_xvo2_flat">Grade assumed flat. Not used as performance evidence.</string>
+    <string name="forge_tl_xvo2_climbs">Measured climbs included. Not used as performance evidence.</string>
+    <string name="forge_tl_xvo2_some_climbs">Measured climb in %1$d of %2$d sessions, the rest counted as flat. Not used as performance evidence.</string>
+    <string name="forge_tl_xvo2_rough">A rough estimate: at walking pace it barely followed measured VO₂max in a lab check, and a pulse raised by medication or a meal reads as effort. AgeLess and goals do not use it.</string>
+    <string name="forge_tl_xvo2_pairs">Compared with Apple Watch: %1$d of %2$d week pairs needed.</string>
+    <string name="forge_tl_xvo2_passes">Compared with Apple Watch over %1$d weeks: %2$s ml/kg/min apart on average, direction agrees %3$d %%. Meets the rule fixed in advance.</string>
+    <string name="forge_tl_xvo2_fails">Compared with Apple Watch over %1$d weeks: %2$s ml/kg/min apart on average, direction agrees %3$d %%. Does not meet the rule fixed in advance.</string>
+    <string name="forge_lab_xvo2">Training-based VO₂max</string>
+    <string name="forge_lab_xvo2_detail">Estimates VO₂max from runs and walks with distance and heart rate, including measured climbs. Shown on Training Load beside the weekly estimate, compared with Apple Watch. Not counted as evidence until that comparison passes.</string>
 </resources>

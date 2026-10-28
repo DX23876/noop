@@ -4311,4 +4311,16 @@
     <string name="forge_cp_swapped">zamieniono z %1$s</string>
     <string name="forge_cp_feel">Jak było?</string>
     <string name="forge_cp_afterwards">Co było potem?</string>
+    <string name="forge_tl_xvo2_title">VO₂max na podstawie treningów (eksperymentalne)</string>
+    <string name="forge_tl_xvo2_week">%1$s ml/kg/min w tygodniu od %2$s · użyteczne sesje piesze: %3$d z %4$d</string>
+    <string name="forge_tl_xvo2_none">Brak jeszcze użytecznej sesji: bieg powyżej 8 km/h lub marsz 3–6 km/h, co najmniej 20 minut, z dystansem i zmierzonym przebiegiem tętna.</string>
+    <string name="forge_tl_xvo2_flat">Przyjęto płaski teren. Nie liczy się jako dowód wyników.</string>
+    <string name="forge_tl_xvo2_climbs">Uwzględniono zmierzone przewyższenia. Nie służy jako dowód wyników.</string>
+    <string name="forge_tl_xvo2_some_climbs">Zmierzone przewyższenie w %1$d z %2$d sesji, reszta liczona jako płaski teren. Nie służy jako dowód wyników.</string>
+    <string name="forge_tl_xvo2_rough">Przybliżony szacunek: przy chodzeniu w teście laboratoryjnym ledwo podążał za zmierzonym VO₂max, a tętno podniesione lekiem lub posiłkiem liczy się jako wysiłek. AgeLess i cele go nie używają.</string>
+    <string name="forge_tl_xvo2_pairs">Porównanie z Apple Watch: pary tygodni %1$d z wymaganych %2$d.</string>
+    <string name="forge_tl_xvo2_passes">Porównanie z Apple Watch, liczba tygodni: %1$d: średnio %2$s ml/kg/min różnicy, kierunek zgodny w %3$d %%. Spełnia regułę ustaloną z góry.</string>
+    <string name="forge_tl_xvo2_fails">Porównanie z Apple Watch, liczba tygodni: %1$d: średnio %2$s ml/kg/min różnicy, kierunek zgodny w %3$d %%. Nie spełnia reguły ustalonej z góry.</string>
+    <string name="forge_lab_xvo2">VO₂max na podstawie treningów</string>
+    <string name="forge_lab_xvo2_detail">Szacuje VO₂max z biegów i spacerów z dystansem i tętnem, łącznie ze zmierzonymi podejściami. Widoczne w Obciążeniu treningowym obok tygodniowej oceny, w porównaniu z Apple Watch. Nie liczy się jako dowód, dopóki porównanie nie przejdzie.</string>
 </resources>

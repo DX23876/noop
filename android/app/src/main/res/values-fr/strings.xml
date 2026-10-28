@@ -4294,4 +4294,16 @@
     <string name="forge_cp_swapped">échangé depuis %1$s</string>
     <string name="forge_cp_feel">Comment c\'était ?</string>
     <string name="forge_cp_afterwards">Que s\'est-il passé ensuite ?</string>
+    <string name="forge_tl_xvo2_title">VO₂max issue de l’entraînement (expérimental)</string>
+    <string name="forge_tl_xvo2_week">%1$s ml/kg/min la semaine du %2$s · %3$d séances à pied exploitables sur %4$d</string>
+    <string name="forge_tl_xvo2_none">Pas encore de séance exploitable : une course au-dessus de 8 km/h ou une marche à 3–6 km/h, d’au moins 20 minutes, avec distance et tracé de fréquence cardiaque mesuré.</string>
+    <string name="forge_tl_xvo2_flat">Pente supposée nulle. Ne compte pas comme preuve de performance.</string>
+    <string name="forge_tl_xvo2_climbs">Dénivelés mesurés inclus. Pas utilisé comme preuve de performance.</string>
+    <string name="forge_tl_xvo2_some_climbs">Dénivelé mesuré pour %1$d séances sur %2$d, le reste compté comme plat. Pas utilisé comme preuve de performance.</string>
+    <string name="forge_tl_xvo2_rough">Une estimation grossière : à la marche, elle a à peine suivi la VO₂max mesurée lors d\'un contrôle en laboratoire, et un pouls élevé par un médicament ou un repas compte comme effort. AgeLess et les objectifs ne l\'utilisent pas.</string>
+    <string name="forge_tl_xvo2_pairs">Comparaison avec l’Apple Watch : %1$d paires de semaines sur %2$d nécessaires.</string>
+    <string name="forge_tl_xvo2_passes">Comparaison avec l’Apple Watch sur %1$d semaines : %2$s ml/kg/min d’écart moyen, direction concordante à %3$d %%. Respecte la règle fixée à l’avance.</string>
+    <string name="forge_tl_xvo2_fails">Comparaison avec l’Apple Watch sur %1$d semaines : %2$s ml/kg/min d’écart moyen, direction concordante à %3$d %%. Ne respecte pas la règle fixée à l’avance.</string>
+    <string name="forge_lab_xvo2">VO₂max issue de l’entraînement</string>
+    <string name="forge_lab_xvo2_detail">Estime la VO₂max à partir des courses et marches avec distance et pouls, montées mesurées comprises. Affichée dans Charge d\'entraînement à côté de l\'estimation hebdomadaire, comparée à l\'Apple Watch. Ne compte comme preuve qu\'une fois cette comparaison réussie.</string>
 </resources>

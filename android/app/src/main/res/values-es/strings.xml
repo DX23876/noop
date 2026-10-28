@@ -4295,4 +4295,16 @@
     <string name="forge_cp_swapped">cambiado desde %1$s</string>
     <string name="forge_cp_feel">¿Qué tal te sentó?</string>
     <string name="forge_cp_afterwards">¿Qué pasó después?</string>
+    <string name="forge_tl_xvo2_title">VO₂max basado en el entrenamiento (experimental)</string>
+    <string name="forge_tl_xvo2_week">%1$s ml/kg/min en la semana del %2$s · %3$d de %4$d sesiones a pie utilizables</string>
+    <string name="forge_tl_xvo2_none">Aún no hay ninguna sesión utilizable: una carrera a más de 8 km/h o una caminata a 3–6 km/h, de al menos 20 minutos, con distancia y registro de pulso medido.</string>
+    <string name="forge_tl_xvo2_flat">Pendiente supuesta llana. No cuenta como prueba de rendimiento.</string>
+    <string name="forge_tl_xvo2_climbs">Desnivel medido incluido. No se usa como prueba de rendimiento.</string>
+    <string name="forge_tl_xvo2_some_climbs">Desnivel medido en %1$d de %2$d sesiones; el resto se cuenta como llano. No se usa como prueba de rendimiento.</string>
+    <string name="forge_tl_xvo2_rough">Una estimación aproximada: al caminar apenas siguió el VO₂máx medido en una prueba de laboratorio, y un pulso elevado por medicación o una comida cuenta como esfuerzo. AgeLess y los objetivos no la usan.</string>
+    <string name="forge_tl_xvo2_pairs">Comparación con el Apple Watch: %1$d de %2$d pares de semanas necesarios.</string>
+    <string name="forge_tl_xvo2_passes">Comparación con el Apple Watch en %1$d semanas: %2$s ml/kg/min de diferencia media, la dirección coincide en un %3$d %%. Cumple la regla fijada de antemano.</string>
+    <string name="forge_tl_xvo2_fails">Comparación con el Apple Watch en %1$d semanas: %2$s ml/kg/min de diferencia media, la dirección coincide en un %3$d %%. No cumple la regla fijada de antemano.</string>
+    <string name="forge_lab_xvo2">VO₂max basado en el entrenamiento</string>
+    <string name="forge_lab_xvo2_detail">Estima el VO₂max a partir de carreras y caminatas con distancia y pulso, incluidas las subidas medidas. Se muestra en Carga de entrenamiento junto a la estimación semanal, comparado con el Apple Watch. No cuenta como prueba hasta que esa comparación se supere.</string>
 </resources>
