@@ -1366,6 +1366,23 @@ struct MetricDetailView: View {
                                 .buttonStyle(.plain)
                             }
                         }
+                    } else if metric.key == "vo2max", metric.source == Repository.appleHealthSource,
+                              let estimate = MetricCatalog.metric(key: "vo2max_est", source: "my-whoop") {
+                        // Apple Health's VO₂ Max is only ever filled from Apple Health (an Apple Watch,
+                        // a Health import); a WHOOP export never writes it, so the generic copy sent
+                        // wearers to an import that could not help. Point at NOOP's own estimate instead,
+                        // which is the page they were usually looking for.
+                        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                            ComingSoon(what: "This page shows VO₂ Max readings from Apple Health, for example from an Apple Watch. NOOP's own estimate from your heart rate and workouts has its own page.",
+                                       symbol: "lungs.fill",
+                                       title: "No Apple Health readings yet")
+                            NavigationLink {
+                                MetricDetailView(metric: estimate)
+                            } label: {
+                                Text("Open VO₂ Max (estimated)")
+                            }
+                            .buttonStyle(NoopButtonStyle(.secondary))
+                        }
                     } else {
                         ComingSoon(what: "Import your history first. A WHOOP export in Data Sources fills every metric you can explore here in about a minute.",
                                    action: ("Open Data Sources", { router.openDataSources() }))
