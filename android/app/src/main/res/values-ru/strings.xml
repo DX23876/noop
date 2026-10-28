@@ -4105,4 +4105,21 @@
     <string name="forge_ltp_all">Все</string>
     <string name="forge_ltp_up_next">Следующая</string>
     <string name="forge_ltp_first_week">Первая неделя появится здесь, когда закончится.</string>
+    <string name="forge_lj_title">Ваше путешествие</string>
+    <string name="forge_lj_open">Подробности и история</string>
+    <string name="forge_lj_made_it">Ты сделал это</string>
+    <string name="forge_lj_made_it_text">Данная цель закрывается как достигнутая. Все, что ниже, — это его история — создайте новую, когда будете готовы.</string>
+    <string name="forge_lj_set_aside">Эта цель была отложена</string>
+    <string name="forge_lj_set_aside_text">Его история ниже останется вашей. Новая цель — одним касанием в настройках Coach.</string>
+    <string name="forge_lj_appears">Your measured target appears reached</string>
+    <string name="forge_lj_appears_text">NOOP will not close the goal for you. Confirm it only if this measurement means the goal is complete to you.</string>
+    <string name="forge_lj_mark">Отметить как достигнутое</string>
+    <string name="forge_lj_keep_working">Keep working</string>
+    <string name="forge_lj_date_passed">Ваша целевая дата прошла</string>
+    <string name="forge_lj_date_passed_text">Как все прошло? Закройте его, дайте ему больше времени или отложите в сторону — ваш выбор.</string>
+    <string name="forge_lj_reached_it">Я достиг этого</string>
+    <string name="forge_lj_activities">Supporting activities</string>
+    <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
+    <string name="forge_lj_changes">Изменения этой цели</string>
+    <string name="forge_lj_pace_ack">Пейс подтвердил: «%1$s»</string>
 </resources>

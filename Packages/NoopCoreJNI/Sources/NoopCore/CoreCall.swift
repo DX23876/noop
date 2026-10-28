@@ -180,6 +180,13 @@ public enum CoreCall {
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
                                                                 reason: args["reason"] as? String,
                                                                 value: (args["value"] as? NSNumber)?.doubleValue))
+        case "goals.journey":
+            do {
+                return CoreRead.json(try await CoreLongTermGoals.journey(reader: reader, settings: CoreGoalEnergy.settings(args),
+                                                                         id: string("id")))
+            } catch {
+                return #"{"error":"goalState"}"#
+            }
         case "goals.longTermPage":
             do {
                 return CoreRead.json(try await CoreLongTermGoals.page(reader: reader, settings: CoreGoalEnergy.settings(args),

@@ -223,6 +223,41 @@ public enum CoreLongTermGoals {
         }
     }
 
+    /// A goal's journey page as Apple's `JourneyView` shows a catalog goal (its catalog page already carries the
+    /// measure): how it ended or whether its date passed or its target appears reached, the countdown, the
+    /// workouts confirmed toward it and the changes to it. The coach's plans are not on Android.
+    public struct Journey: Encodable {
+        public struct Activity: Encodable { public var sport: String, startTs: Int }
+        public struct Change: Encodable { public var ts: Double, what: String }
+        public var id: String, title: String, status: String
+        public var timeSummary: String?, acknowledgedReason: String?
+        public var appearsReached: Bool, datePassed: Bool
+        public var activities: [Activity], history: [Change]
+    }
+
+    @MainActor
+    public static func journey(reader: StoreReader, settings: CoreGoals.Settings, id: String,
+                               now: Date = Date()) async throws -> Journey? {
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        let source = try await CoreGoals.source(reader: reader, settings: settings, now: now)
+        return try await CoreGoalState.read(store: reader.store) { context -> Journey? in
+            guard let goal = context.goals.goal(id: uuid) else { return nil }
+            let model = CoreGoals.evaluate(source: source, context: context, now: now)
+            let current = model.snapshot(for: uuid)?.measurement?.value
+            let activities = context.contributions.contributions.filter { $0.goalIds.contains(uuid) }
+                .sorted { $0.workout.startTs > $1.workout.startTs }.prefix(8)
+                .map { Journey.Activity(sport: $0.workout.sport, startTs: $0.workout.startTs) }
+            return Journey(id: id, title: goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title,
+                           status: goal.status.rawValue, timeSummary: GoalJourney.timeSummary(goal, now: now),
+                           acknowledgedReason: goal.acknowledgedRisk?.reason,
+                           appearsReached: goal.status == .active && GoalJourney.appearsReached(goal, current: current),
+                           datePassed: goal.status == .active && (goal.daysPastTarget(now: now) ?? 0) >= 1,
+                           activities: Array(activities),
+                           history: goal.history.reversed().prefix(10)
+                               .map { Journey.Change(ts: $0.date.timeIntervalSince1970, what: $0.what) })
+        }
+    }
+
     /// The long-term page's lifecycle actions: "pause" (with a `CoachGoal.PauseReason`), "resume", "setAside" and
     /// "remove"; the weekly and monthly goals that serve it follow, as on Apple. A reached goal can be closed
     /// ("close"), get a higher target ("raise" with `value`) or, a weight loss, turn into holding the weight it reached

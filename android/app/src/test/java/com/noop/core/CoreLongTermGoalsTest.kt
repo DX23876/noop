@@ -33,4 +33,13 @@ class CoreLongTermGoalsTest {
         assertEquals(page.raise.map { it.value }.sorted(), page.raise.map { it.value })
         assertFalse(page.reached)
     }
+
+    @Test fun theSwiftJourneyKeepsItsStateAndNewestChangeFirst() {
+        val json = javaClass.getResource("/goals/long-term-journey.json")!!.readText()
+        val journey = CoreLongTermGoals.parseJourney(json)!!
+        assertEquals("active", journey.status)
+        assertFalse(journey.datePassed)
+        assertTrue(journey.history.isNotEmpty())
+        assertEquals(journey.history.map { it.ts }.sortedDescending(), journey.history.map { it.ts })
+    }
 }

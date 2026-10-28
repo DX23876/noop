@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.Insights
@@ -511,6 +513,7 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
     var choosingPause by remember { mutableStateOf(false) }
     var raising by remember { mutableStateOf(false) }
     var allMilestones by remember { mutableStateOf(false) }
+    var journeyOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(goal?.id, revision) {
         val id = goal?.id ?: return@LaunchedEffect
         page = withContext(Dispatchers.IO) { CoreLongTermGoals.page(context, dismissedTrainingWorkouts(context), id) }
@@ -522,6 +525,11 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
             revision++
             after()
         }
+    }
+    if (journeyOpen && goal != null) {
+        BackHandler { journeyOpen = false }
+        LongTermJourneyPage(goal.id, onBack = { journeyOpen = false }, onChanged = { revision++; onChanged() })
+        return
     }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_goals_long_term), onBack)
@@ -572,6 +580,8 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
         }
         LongTermSectionHeader(stringResource(R.string.forge_ltp_manage))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            LinkRow(stringResource(R.string.forge_lj_open), detail = null) { journeyOpen = true }
+            RowDivider()
             if (p != null) {
                 ToggleRow(stringResource(R.string.forge_ltp_keep_on_today), detail = null, checked = p.pinned) {
                     change(if (it) "pin" else "unpin")
@@ -684,6 +694,113 @@ private fun LongTermHero(p: CoreLongTermGoals.Page) {
         }
     }
 }
+
+/**
+ * A goal's journey as Apple shows it for a catalog goal (`JourneyView`): how it ended, or a passed date or an
+ * apparently reached target with the wearer's choice; the countdown; the workouts confirmed toward it; the changes.
+ * NOOP never closes a goal by itself. "Extend the date" needs the goal editor, which Android does not have yet.
+ */
+@Composable
+private fun LongTermJourneyPage(id: String, onBack: () -> Unit, onChanged: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var journey by remember { mutableStateOf<CoreLongTermGoals.Journey?>(null) }
+    var revision by remember { mutableIntStateOf(0) }
+    var keepWorking by rememberSaveable { mutableStateOf(false) }
+    var choosingAside by remember { mutableStateOf(false) }
+    LaunchedEffect(id, revision) {
+        journey = withContext(Dispatchers.IO) { CoreLongTermGoals.journey(context, dismissedTrainingWorkouts(context), id) }
+    }
+    fun change(action: String, reason: String? = null) = scope.launch {
+        withContext(Dispatchers.IO) { CoreLongTermGoals.change(id, action, reason) }
+        revision++
+        onChanged()
+    }
+    val colors = Forge.colors
+    SettingsColumn {
+        PageTitle(stringResource(R.string.forge_lj_title), onBack)
+        val j = journey ?: return@SettingsColumn
+        when {
+            j.status == "achieved" -> JourneyCard(stringResource(R.string.forge_lj_made_it),
+                                                  stringResource(R.string.forge_lj_made_it_text))
+            j.status == "abandoned" -> JourneyCard(stringResource(R.string.forge_lj_set_aside),
+                                                   stringResource(R.string.forge_lj_set_aside_text))
+            j.appearsReached && !keepWorking -> JourneyCard(stringResource(R.string.forge_lj_appears),
+                                                            stringResource(R.string.forge_lj_appears_text)) {
+                TextButton(onClick = { change("close") }) { Text(stringResource(R.string.forge_lj_mark)) }
+                TextButton(onClick = { keepWorking = true }) {
+                    Text(stringResource(R.string.forge_lj_keep_working), color = colors.textSecondary)
+                }
+            }
+            j.datePassed -> JourneyCard(stringResource(R.string.forge_lj_date_passed),
+                                        stringResource(R.string.forge_lj_date_passed_text)) {
+                TextButton(onClick = { change("close") }) { Text(stringResource(R.string.forge_lj_reached_it)) }
+                TextButton(onClick = { choosingAside = true }) {
+                    Text(stringResource(R.string.forge_lt_set_aside), color = colors.textSecondary)
+                }
+            }
+        }
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(j.title, style = Forge.type.headline, color = colors.text)
+            j.timeSummary?.let { Text(it, style = Forge.type.footnote, color = colors.textTertiary) }
+            j.acknowledgedReason?.let {
+                Text(stringResource(R.string.forge_lj_pace_ack, it), style = Forge.type.caption, color = colors.textTertiary)
+            }
+        }
+        if (j.activities.isNotEmpty()) {
+            SectionHeader(stringResource(R.string.forge_lj_activities))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+                Text(stringResource(R.string.forge_lj_activities_text), style = Forge.type.caption, color = colors.textTertiary)
+                j.activities.forEach { a ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.CheckCircleOutline, contentDescription = null, tint = colors.accent,
+                             modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(ForgeMetrics.space2))
+                        Text(a.sport, style = Forge.type.footnote, color = colors.text, modifier = Modifier.weight(1f))
+                        Text(journeyDate(a.startTs.toDouble()), style = Forge.type.caption, color = colors.textTertiary)
+                    }
+                }
+            }
+        }
+        if (j.history.isNotEmpty()) {
+            SectionHeader(stringResource(R.string.forge_lj_changes))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+                j.history.forEach { h ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(journeyDate(h.ts), style = Forge.type.caption, color = colors.textTertiary)
+                        Spacer(Modifier.width(ForgeMetrics.space2))
+                        Text(h.what, style = Forge.type.footnote, color = colors.textSecondary)
+                    }
+                }
+            }
+        }
+    }
+    if (choosingAside) {
+        AlertDialog(
+            onDismissRequest = { choosingAside = false },
+            title = { Text(stringResource(R.string.forge_lt_set_aside)) },
+            confirmButton = {
+                TextButton(onClick = { choosingAside = false; change("setAside", "") }) {
+                    Text(stringResource(R.string.forge_lt_set_aside))
+                }
+            },
+            dismissButton = { TextButton(onClick = { choosingAside = false }) { Text(stringResource(R.string.forge_cancel)) } },
+        )
+    }
+}
+
+@Composable
+private fun JourneyCard(title: String, text: String, actions: (@Composable () -> Unit)? = null) {
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Text(title, style = Forge.type.headline, color = Forge.colors.text)
+        Text(text, style = Forge.type.footnote, color = Forge.colors.textTertiary)
+        if (actions != null) Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) { actions() }
+    }
+}
+
+private fun journeyDate(ts: Double): String =
+    java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).withLocale(Locale.getDefault())
+        .format(Instant.ofEpochSecond(ts.toLong()).atZone(ZoneId.systemDefault()))
 
 /** A one-line note under the hero (the AgeLess worth, a conflicting goal), as Apple's small cards show them. */
 @Composable

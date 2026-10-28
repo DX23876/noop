@@ -4180,4 +4180,21 @@
     <string name="forge_ltp_all">全部</string>
     <string name="forge_ltp_up_next">下一个</string>
     <string name="forge_ltp_first_week">第一周结束后会显示在这里。</string>
+    <string name="forge_lj_title">你的旅程</string>
+    <string name="forge_lj_open">详情与历史</string>
+    <string name="forge_lj_made_it">你做到了</string>
+    <string name="forge_lj_made_it_text">该目标已实现。下面的一切都是它的故事——只要你准备好了，就可以设置一个新的故事。</string>
+    <string name="forge_lj_set_aside">这个目标被搁置了</string>
+    <string name="forge_lj_set_aside_text">下面的故事就留给你了。只需在 Coach 设置中轻按一下即可设定新目标。</string>
+    <string name="forge_lj_appears">Your measured target appears reached</string>
+    <string name="forge_lj_appears_text">NOOP will not close the goal for you. Confirm it only if this measurement means the goal is complete to you.</string>
+    <string name="forge_lj_mark">标记为已实现</string>
+    <string name="forge_lj_keep_working">Keep working</string>
+    <string name="forge_lj_date_passed">您的目标日期已过</string>
+    <string name="forge_lj_date_passed_text">进展如何？关闭它，给它更多时间，或者把它放在一边——你的决定。</string>
+    <string name="forge_lj_reached_it">我达到了</string>
+    <string name="forge_lj_activities">Supporting activities</string>
+    <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
+    <string name="forge_lj_changes">此目标的改变</string>
+    <string name="forge_lj_pace_ack">佩斯确认：“%1$s”</string>
 </resources>

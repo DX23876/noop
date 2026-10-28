@@ -88,6 +88,32 @@ object CoreLongTermGoals {
         )
     }
 
+    /** A goal's journey (`GoalJourney`, Apple's `JourneyView` for a catalog goal). Times are seconds since 1970. */
+    data class Activity(val sport: String, val startTs: Long)
+    data class HistoryLine(val ts: Double, val what: String)
+    data class Journey(
+        val id: String, val title: String, val status: String, val timeSummary: String?, val acknowledgedReason: String?,
+        val appearsReached: Boolean, val datePassed: Boolean, val activities: List<Activity>, val history: List<HistoryLine>,
+    )
+
+    fun journey(context: Context, dismissedWorkouts: List<String>, id: String): Journey? {
+        if (!SwiftCore.available) return null
+        if (!CoreUserInputs.ensure(context)) return null
+        return SwiftCore.call("goals.journey", args(context, dismissedWorkouts).put("id", id).toString())?.let(::parseJourney)
+    }
+
+    internal fun parseJourney(json: String): Journey? {
+        if (json == "null" || json.contains("\"error\"")) return null
+        val o = JSONObject(json)
+        return Journey(
+            id = o.getString("id"), title = o.getString("title"), status = o.getString("status"),
+            timeSummary = o.str("timeSummary"), acknowledgedReason = o.str("acknowledgedReason"),
+            appearsReached = o.optBoolean("appearsReached"), datePassed = o.optBoolean("datePassed"),
+            activities = o.optJSONArray("activities").objects().map { Activity(it.getString("sport"), it.getLong("startTs")) },
+            history = o.optJSONArray("history").objects().map { HistoryLine(it.getDouble("ts"), it.getString("what")) },
+        )
+    }
+
     fun catalog(context: Context, dismissedWorkouts: List<String>): Catalog? {
         if (!SwiftCore.available) return null
         if (!CoreUserInputs.ensure(context)) return null

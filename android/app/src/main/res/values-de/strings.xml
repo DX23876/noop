@@ -4223,4 +4223,21 @@
     <string name="forge_ltp_all">Alle</string>
     <string name="forge_ltp_up_next">Als Nächstes</string>
     <string name="forge_ltp_first_week">Die erste Woche erscheint hier, sobald sie vorbei ist.</string>
+    <string name="forge_lj_title">Deine Reise</string>
+    <string name="forge_lj_open">Details und Verlauf</string>
+    <string name="forge_lj_made_it">Du hast es geschafft</string>
+    <string name="forge_lj_made_it_text">Dieses Ziel ist als erreicht abgeschlossen. Alles unten ist seine Geschichte — setz ein neues, wann immer du bereit bist.</string>
+    <string name="forge_lj_set_aside">Dieses Ziel wurde beiseitegelegt</string>
+    <string name="forge_lj_set_aside_text">Seine Geschichte unten bleibt deine. Ein neues Ziel ist in den Coach-Einstellungen einen Tipp entfernt.</string>
+    <string name="forge_lj_appears">Your measured target appears reached</string>
+    <string name="forge_lj_appears_text">NOOP will not close the goal for you. Confirm it only if this measurement means the goal is complete to you.</string>
+    <string name="forge_lj_mark">Als erreicht markieren</string>
+    <string name="forge_lj_keep_working">Keep working</string>
+    <string name="forge_lj_date_passed">Dein Zieldatum ist verstrichen</string>
+    <string name="forge_lj_date_passed_text">Wie ist es gelaufen? Schließ es ab, gib ihm mehr Zeit oder leg es beiseite — deine Entscheidung.</string>
+    <string name="forge_lj_reached_it">Ich habe es erreicht</string>
+    <string name="forge_lj_activities">Supporting activities</string>
+    <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
+    <string name="forge_lj_changes">Änderungen an diesem Ziel</string>
+    <string name="forge_lj_pace_ack">Tempo bestätigt: „%1$s“</string>
 </resources>

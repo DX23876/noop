@@ -4202,4 +4202,21 @@
     <string name="forge_ltp_all">Tudo</string>
     <string name="forge_ltp_up_next">Próximo</string>
     <string name="forge_ltp_first_week">A primeira semana aparece aqui quando terminar.</string>
+    <string name="forge_lj_title">Sua jornada</string>
+    <string name="forge_lj_open">Detalhes e histórico</string>
+    <string name="forge_lj_made_it">Você conseguiu</string>
+    <string name="forge_lj_made_it_text">Este objetivo é fechado como alcançado. Tudo abaixo é a sua história – defina uma nova quando estiver pronto.</string>
+    <string name="forge_lj_set_aside">Este objetivo foi deixado de lado</string>
+    <string name="forge_lj_set_aside_text">A história abaixo permanece sua. Uma nova meta está a um toque de distância nas configurações de Coach.</string>
+    <string name="forge_lj_appears">Your measured target appears reached</string>
+    <string name="forge_lj_appears_text">NOOP will not close the goal for you. Confirm it only if this measurement means the goal is complete to you.</string>
+    <string name="forge_lj_mark">Marcar como alcançado</string>
+    <string name="forge_lj_keep_working">Keep working</string>
+    <string name="forge_lj_date_passed">Sua data prevista já passou</string>
+    <string name="forge_lj_date_passed_text">Como foi? Encerre, dê mais tempo ou deixe de lado - você decide.</string>
+    <string name="forge_lj_reached_it">eu alcancei</string>
+    <string name="forge_lj_activities">Supporting activities</string>
+    <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
+    <string name="forge_lj_changes">Mudanças nesta meta</string>
+    <string name="forge_lj_pace_ack">Ritmo reconhecido: \"%1$s\"</string>
 </resources>

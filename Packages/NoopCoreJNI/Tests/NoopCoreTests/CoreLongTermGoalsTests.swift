@@ -82,6 +82,20 @@ final class CoreLongTermGoalsTests: XCTestCase {
         XCTAssertTrue(changed.pinned)
         XCTAssertEqual(changed.raise.first.map { $0.value > higher }, true)
 
+        // The journey of a goal just created and raised: running, no date passed, its history newest first.
+        let journeyRead = try await CoreLongTermGoals.journey(reader: reader, settings: settings, id: id)
+        let journey = try XCTUnwrap(journeyRead)
+        XCTAssertEqual(journey.status, "active")
+        XCTAssertFalse(journey.datePassed)
+        XCTAssertFalse(journey.history.isEmpty)
+        XCTAssertEqual(journey.history.map(\.ts), journey.history.map(\.ts).sorted(by: >))
+        let journeyFile = file.deletingLastPathComponent().appendingPathComponent("long-term-journey.json")
+        let journeyData = try encoder.encode(journey)
+        if ProcessInfo.processInfo.environment["NOOP_UPDATE_TRAINING_FIXTURES"] == "1" { try journeyData.write(to: journeyFile) }
+        let pinnedJourney = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: journeyFile)) as? [String: Any])
+        let freshJourney = try XCTUnwrap(JSONSerialization.jsonObject(with: journeyData) as? [String: Any])
+        XCTAssertEqual(Set(pinnedJourney.keys), Set(freshJourney.keys))
+
         let paused = await CoreLongTermGoals.change(store: store, id: id, action: "pause", reason: "travel")
         XCTAssertTrue(paused.ok)
         output = try await CoreGoals.snapshot(reader: reader, settings: settings)

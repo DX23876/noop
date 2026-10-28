@@ -4226,4 +4226,21 @@
     <string name="forge_ltp_all">Wszystko</string>
     <string name="forge_ltp_up_next">Następny</string>
     <string name="forge_ltp_first_week">Pierwszy tydzień pojawi się tu po jego zakończeniu.</string>
+    <string name="forge_lj_title">Twoja droga</string>
+    <string name="forge_lj_open">Szczegóły i historia</string>
+    <string name="forge_lj_made_it">Udało się</string>
+    <string name="forge_lj_made_it_text">Ten cel jest zamknięty jako osiągnięty. Wszystko poniżej to jego historia — nowy cel ustaw, kiedy zechcesz.</string>
+    <string name="forge_lj_set_aside">Ten cel został odłożony na bok</string>
+    <string name="forge_lj_set_aside_text">Jego historia poniżej pozostaje Twoja. Nowy cel dzieli jedno dotknięcie w ustawieniach trenera.</string>
+    <string name="forge_lj_appears">Zmierzona wartość docelowa wygląda na osiągniętą</string>
+    <string name="forge_lj_appears_text">NOOP nie zamknie celu za Ciebie. Potwierdź tylko wtedy, gdy ten pomiar oznacza dla Ciebie ukończenie celu.</string>
+    <string name="forge_lj_mark">Oznacz jako osiągnięty</string>
+    <string name="forge_lj_keep_working">Pracuj dalej</string>
+    <string name="forge_lj_date_passed">Twoja data docelowa minęła</string>
+    <string name="forge_lj_date_passed_text">Jak poszło? Zamknij, daj więcej czasu albo odłóż na bok — decyzja należy do Ciebie.</string>
+    <string name="forge_lj_reached_it">Osiągnąłem go</string>
+    <string name="forge_lj_activities">Aktywności wspierające</string>
+    <string name="forge_lj_activities_text">Pokazują wykonanie, a nie dowód na osiągnięcie samego wyniku.</string>
+    <string name="forge_lj_changes">Zmiany w tym celu</string>
+    <string name="forge_lj_pace_ack">Tempo przyjęte do wiadomości: „%1$s”</string>
 </resources>
