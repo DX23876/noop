@@ -1039,7 +1039,7 @@ private fun PastGoalsCard(past: List<CoreGoals.Past>) {
             verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.forge_goals_past), style = Forge.type.headline, color = Forge.colors.text,
                  modifier = Modifier.weight(1f))
-            Text("${past.size}", style = Forge.type.caption, color = Forge.colors.textTertiary)
+            Text(past.size.toString(), style = Forge.type.caption, color = Forge.colors.textTertiary)
             Spacer(Modifier.width(ForgeMetrics.space1))
             Icon(if (open) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown, contentDescription = null,
                  tint = Forge.colors.textTertiary, modifier = Modifier.size(18.dp))

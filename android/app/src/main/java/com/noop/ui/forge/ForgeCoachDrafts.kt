@@ -91,7 +91,7 @@ private fun ExerciseCard(e: CoreCoachDrafts.Exercise, numbered: Boolean) {
             }
             e.sets.forEachIndexed { i, set ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (numbered) Text("${i + 1}", style = Forge.type.caption, color = Forge.colors.textTertiary, modifier = Modifier.width(16.dp))
+                    if (numbered) Text((i + 1).toString(), style = Forge.type.caption, color = Forge.colors.textTertiary, modifier = Modifier.width(16.dp))
                     Text(set, style = Forge.type.subhead, color = Forge.colors.textSecondary)
                 }
             }
@@ -538,8 +538,10 @@ private fun RoutineEditorDialog(
                         OutlinedTextField(sports, { sports = it }, Modifier.fillMaxWidth(), label = { Text(l["activities"].orEmpty()) },
                                           singleLine = true, colors = noopFieldColors())
                         ToggleLine(l["minimum"].orEmpty(), hasMinimum) { hasMinimum = it }
+                        // The core's "%lld minutes", filled in here as the count moves.
+                        val minutesText = l["minutes"].orEmpty().replace("%lld", minutes.toString())
                         if (hasMinimum) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("$minutes min", style = Forge.type.subhead, modifier = Modifier.weight(1f))
+                            Text(minutesText, style = Forge.type.subhead, modifier = Modifier.weight(1f))
                             Pill("−", false) { minutes = (minutes - 5).coerceAtLeast(5) }
                             Pill("+", false) { minutes = (minutes + 5).coerceAtMost(240) }
                         }

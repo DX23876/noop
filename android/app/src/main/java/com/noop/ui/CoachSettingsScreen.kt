@@ -482,7 +482,7 @@ private fun CoachRemindersCard() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(l["planTitle"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
-                    Text(l[if (planOn) "planOn" else "planOff"].orEmpty(), style = NoopType.footnote, color = Palette.textTertiary)
+                    Text((if (planOn) l["planOn"] else l["planOff"]).orEmpty(), style = NoopType.footnote, color = Palette.textTertiary)
                 }
                 androidx.compose.material3.Switch(checked = planOn, onCheckedChange = { on ->
                     if (on) askPermission()

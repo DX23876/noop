@@ -320,7 +320,7 @@ enum CoreGoalReview {
             "errorTitle": "Can't apply this draft", "ok": "OK",
             "editRoutine": "Edit routine", "routine": "Routine", "name": "Name", "steps": "Steps", "workout": "Workout",
             "manual": "Manual", "activities": "Activities", "minimum": "Minimum duration", "schedule": "Schedule",
-            "everyDay": "Every day", "supports": "Supports goals", "save": "Save",
+            "everyDay": "Every day", "supports": "Supports goals", "save": "Save", "minutes": "%lld minutes",
             "reviewDraft": "Review draft",
         ].mapValues(\.localizedCatalogValue)
     }
