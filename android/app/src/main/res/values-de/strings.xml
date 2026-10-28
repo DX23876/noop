@@ -3877,6 +3877,8 @@
     <string name="forge_goals_average_so_far">Bisheriger Schnitt · Ziel %1$s</string>
     <string name="forge_goals_to_go_last_day">Noch %1$s · letzter Tag</string>
     <string name="forge_goals_to_go">Noch %1$s · %2$d Tage übrig</string>
+    <string name="forge_goals_first_week_prorated">Erste Woche, anteilig: noch %1$s</string>
+    <string name="forge_goals_first_month_prorated">Erster Monat, anteilig: noch %1$s</string>
     <string name="forge_goals_streak_weeks">%1$d Wochen in Folge</string>
     <string name="forge_goals_streak_months">%1$d Monate in Folge</string>
     <string name="forge_goals_streak_weeks_best">%1$d Wochen in Folge · Bestwert %2$d</string>

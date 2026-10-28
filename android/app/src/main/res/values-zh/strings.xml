@@ -3834,6 +3834,8 @@
     <string name="forge_goals_average_so_far">目前平均 · 目标 %1$s</string>
     <string name="forge_goals_to_go_last_day">还差 %1$s · 最后一天</string>
     <string name="forge_goals_to_go">还差 %1$s · 剩 %2$d 天</string>
+    <string name="forge_goals_first_week_prorated">首周按比例计：还差 %1$s</string>
+    <string name="forge_goals_first_month_prorated">首月按比例计：还差 %1$s</string>
     <string name="forge_goals_streak_weeks">连续 %1$d 周</string>
     <string name="forge_goals_streak_months">连续 %1$d 个月</string>
     <string name="forge_goals_streak_weeks_best">连续 %1$d 周 · 最佳 %2$d</string>

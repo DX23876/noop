@@ -29,6 +29,8 @@ object CoreGoals {
         val habitKey: String? = null, val habitWantsYes: Boolean = true,
         /** The screens this goal shows on (`GoalContext`): "training", "sleep" or none. */
         val contexts: List<String> = emptyList(),
+        /** The target is scaled to the days left because the goal began mid-period. */
+        val isProrated: Boolean = false,
     )
     data class LongTerm(
         val id: String, val title: String, val status: String, val targetDate: String?, val health: String,
@@ -235,6 +237,7 @@ object CoreGoals {
                     rangeLow = p.optDouble("rangeLow", 0.0), rangeHigh = p.optDouble("rangeHigh", 100.0),
                     habitKey = p.str("habitKey"), habitWantsYes = p.optBoolean("habitWantsYes", true),
                     contexts = p.optJSONArray("contexts").strings(),
+                    isProrated = p.optBoolean("isProrated"),
                 )
             },
             longTerm = o.optJSONArray("longTerm").objects().map { g ->

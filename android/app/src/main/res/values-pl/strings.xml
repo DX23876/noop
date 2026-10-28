@@ -3880,6 +3880,8 @@
     <string name="forge_goals_average_so_far">Średnia dotąd · cel %1$s</string>
     <string name="forge_goals_to_go_last_day">Zostało %1$s · ostatni dzień</string>
     <string name="forge_goals_to_go">Zostało %1$s · %2$d dni</string>
+    <string name="forge_goals_first_week_prorated">Pierwszy tydzień, proporcjonalnie: zostało %1$s</string>
+    <string name="forge_goals_first_month_prorated">Pierwszy miesiąc, proporcjonalnie: zostało %1$s</string>
     <string name="forge_goals_streak_weeks">%1$d tyg. z rzędu</string>
     <string name="forge_goals_streak_months">%1$d mies. z rzędu</string>
     <string name="forge_goals_streak_weeks_best">%1$d tygodni z rzędu · najlepiej %2$d</string>

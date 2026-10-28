@@ -1168,6 +1168,9 @@ private fun remainingLine(goal: CoreGoals.Period): String {
                     stringResource(R.string.forge_goals_needs_nightly, number(needed, goal.metric))
                 else stringResource(R.string.forge_goals_average_so_far, amount(goal.periodTarget, goal.metric))
             }
+            goal.isProrated && goal.history.isEmpty() ->
+                stringResource(if (week) R.string.forge_goals_first_week_prorated else R.string.forge_goals_first_month_prorated,
+                               amount(goal.remaining, goal.metric))
             goal.daysLeft == 1 -> stringResource(R.string.forge_goals_to_go_last_day, amount(goal.remaining, goal.metric))
             else -> stringResource(R.string.forge_goals_to_go, amount(goal.remaining, goal.metric), goal.daysLeft)
         }

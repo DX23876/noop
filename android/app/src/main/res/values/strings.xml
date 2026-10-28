@@ -3895,6 +3895,8 @@
     <string name="forge_goals_average_so_far">Average so far · target %1$s</string>
     <string name="forge_goals_to_go_last_day">%1$s to go · last day</string>
     <string name="forge_goals_to_go">%1$s to go · %2$d days left</string>
+    <string name="forge_goals_first_week_prorated">First week, pro-rated: %1$s to go</string>
+    <string name="forge_goals_first_month_prorated">First month, pro-rated: %1$s to go</string>
     <string name="forge_goals_streak_weeks">%1$d weeks in a row</string>
     <string name="forge_goals_streak_months">%1$d months in a row</string>
     <string name="forge_goals_streak_weeks_best">%1$d weeks in a row · best %2$d</string>

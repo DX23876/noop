@@ -50,6 +50,8 @@ public enum CoreGoals {
         public var habitKey: String? = nil, habitWantsYes = true
         /// The screens this goal shows on (`GoalContext`): "training", "sleep" or none.
         public var contexts: [String] = []
+        /// The period's target is scaled to the days left when the goal began mid-period (`PeriodPaceResult`).
+        public var isProrated = false
     }
 
     /// A long-term goal as `GoalTrackingSnapshot` reads it.
@@ -412,7 +414,7 @@ public enum CoreGoals {
             suggestedDays: s.suggestedDays, aggregation: "\(goal.metric.aggregation)",
             step: goal.metric.step(for: goal.period), rangeLow: range.lowerBound, rangeHigh: range.upperBound,
             habitKey: goal.habitKey, habitWantsYes: goal.habitWantsYes,
-            contexts: GoalContext.contexts(of: goal).map(\.rawValue))
+            contexts: GoalContext.contexts(of: goal).map(\.rawValue), isProrated: s.result.isProrated)
     }
 
     @MainActor

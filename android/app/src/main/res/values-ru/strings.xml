@@ -3759,6 +3759,8 @@
     <string name="forge_goals_average_so_far">Среднее пока · цель %1$s</string>
     <string name="forge_goals_to_go_last_day">Осталось %1$s · последний день</string>
     <string name="forge_goals_to_go">Осталось %1$s · ещё %2$d дн.</string>
+    <string name="forge_goals_first_week_prorated">Первая неделя, пропорционально: осталось %1$s</string>
+    <string name="forge_goals_first_month_prorated">Первый месяц, пропорционально: осталось %1$s</string>
     <string name="forge_goals_streak_weeks">%1$d недель подряд</string>
     <string name="forge_goals_streak_months">%1$d месяцев подряд</string>
     <string name="forge_goals_streak_weeks_best">%1$d недель подряд · лучшее %2$d</string>
