@@ -28,13 +28,6 @@ struct CoachCardContext: Equatable {
         self.requiredPurposes = requiredPurposes
     }
 
-    /// The purposes behind a Today dashboard row's one-line summary. Stress has its own switch in Data
-    /// access; every other row there states a core biometric.
-    static func purposes(forDashboard route: TabRoute) -> Set<CoachPurpose> {
-        if case .stress = route { return [.coreBiometrics, .stress] }
-        return [.coreBiometrics]
-    }
-
     /// The purposes behind an Explore chart's summary. A window beyond a month is the long-term trend
     /// Data access describes as "across months or years"; mood is a logged entry, not a sensor reading.
     static func purposes(forExplore source: String, windowDays: Int?) -> Set<CoachPurpose> {

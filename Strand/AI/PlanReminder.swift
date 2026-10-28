@@ -98,3 +98,15 @@ enum PlanReminder {
         }
     }
 }
+
+/// The app's plan effects: the local reminder and the semantic memory's view of the recommendations.
+struct AppCoachPlanEffects: CoachPlanEffects {
+    func scheduleReminder(for proposal: PlanProposal) { PlanReminder.schedule(for: proposal) }
+    func cancelReminder(for id: UUID) { PlanReminder.cancel(for: id) }
+    func proposalsSaved(_ proposals: [PlanProposal]) {
+        Task { await CoachSemanticMemory.shared.recommendationsChanged(proposals) }
+    }
+}
+
+@MainActor
+func coachPlanEffects() -> any CoachPlanEffects { AppCoachPlanEffects() }

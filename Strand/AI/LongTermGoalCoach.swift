@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import StrandAnalytics
 
 /// What the coach learns about a catalog goal, and what it may draft from one. English and in code,
@@ -30,7 +31,7 @@ extension GoalShapeReading {
     /// One line of facts for the coach: the numbers of this goal's page, nothing interpreted.
     func coachFacts() -> String {
         func n(_ value: Double) -> String { String(format: "%g", (value * 10).rounded() / 10) }
-        func day(_ date: Date?) -> String? { date.map { Repository.localDayKey($0) } }
+        func day(_ date: Date?) -> String? { date.map { StoreReader.localDayKey($0) } }
         switch self {
         case .sum(let d):
             let r = d.reading
@@ -251,7 +252,7 @@ final class LongTermGoalTipStore: ObservableObject {
 
     /// The tip to show now: today's, for the state the goal is in.
     func current(for goalId: UUID, state: String) -> Tip? {
-        guard let tip = tips[goalId], tip.day == Repository.localDayKey(Date()), tip.state == state else { return nil }
+        guard let tip = tips[goalId], tip.day == StoreReader.localDayKey(Date()), tip.state == state else { return nil }
         return tip
     }
 
@@ -269,7 +270,7 @@ final class LongTermGoalTipStore: ObservableObject {
         let user = Self.userTurn(goal: goal, reading: reading)
         guard let reply = await coach.cheapComplete(system: Self.system(coach: coach), user: user, role: .cardAnalysis)?
             .trimmingCharacters(in: .whitespacesAndNewlines), !reply.isEmpty else { return }
-        tips[goal.id] = Tip(text: reply, day: Repository.localDayKey(Date()), state: state)
+        tips[goal.id] = Tip(text: reply, day: StoreReader.localDayKey(Date()), state: state)
         persist()
     }
 

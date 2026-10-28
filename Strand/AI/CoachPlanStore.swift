@@ -3,10 +3,21 @@ import Foundation
 /// The plan book: what was proposed, what you agreed to, and what actually happened.
 ///
 /// On-device JSON in Application Support, same pattern and location as `CoachConversationStore`.
+/// What a plan change sets off outside the store: on Apple the reminder notification and the semantic memory
+/// (`PlanReminder.swift`). Each target that links the store defines `coachPlanEffects()`, so the store itself
+/// names no notification or memory type (Android parity plan, Coach extraction).
+@MainActor
+protocol CoachPlanEffects {
+    func scheduleReminder(for proposal: PlanProposal)
+    func cancelReminder(for id: UUID)
+    func proposalsSaved(_ proposals: [PlanProposal])
+}
+
 @MainActor
 final class CoachPlanStore: ObservableObject {
 
     static let shared = CoachPlanStore()
+    private let effects: any CoachPlanEffects = coachPlanEffects()
 
     /// Newest first. Capped — this is a working plan, not an archive.
     @Published private(set) var proposals: [PlanProposal] = [] { didSet { save() } }
@@ -282,7 +293,7 @@ final class CoachPlanStore: ObservableObject {
         p.decidedAt = Date()
         proposals.insert(p, at: 0)
         trim()
-        PlanReminder.schedule(for: p)
+        effects.scheduleReminder(for: p)
     }
 
     /// Sessions the user actually COMPLETED for a given goal, from `since` onward.
@@ -297,12 +308,12 @@ final class CoachPlanStore: ObservableObject {
     }
 
     func remove(_ id: UUID) {
-        PlanReminder.cancel(for: id)
+        effects.cancelReminder(for: id)
         proposals.removeAll { $0.id == id }
     }
 
     func clearAll() {
-        for p in proposals { PlanReminder.cancel(for: p.id) }
+        for p in proposals { effects.cancelReminder(for: p.id) }
         proposals = []
     }
 
@@ -312,7 +323,7 @@ final class CoachPlanStore: ObservableObject {
     private func update(_ id: UUID, _ mutate: (inout PlanProposal) -> Void) {
         guard let idx = proposals.firstIndex(where: { $0.id == id }) else { return }
         mutate(&proposals[idx])
-        PlanReminder.schedule(for: proposals[idx])
+        effects.scheduleReminder(for: proposals[idx])
         // Any explicit user/store mutation invalidates the transient question built from the previous
         // snapshot. The next coordinator pass may create a fresh one for the new day/sport/time.
         reconciliationResolutions.removeAll { $0.proposalId == id }
@@ -327,7 +338,6 @@ final class CoachPlanStore: ObservableObject {
     private func save() {
         guard let data = try? JSONEncoder().encode(proposals) else { return }
         try? data.write(to: Self.fileURL, options: .atomic)
-        let snapshot = proposals
-        Task { await CoachSemanticMemory.shared.recommendationsChanged(snapshot) }
+        effects.proposalsSaved(proposals)
     }
 }
