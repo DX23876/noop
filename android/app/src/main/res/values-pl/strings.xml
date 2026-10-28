@@ -4490,4 +4490,10 @@
     <string name="coach_identity_tone_note">Lekki odcień w sposobie, w jaki trener formułuje wypowiedzi, ponad jego styl prowadzenia. Nigdy nie zmienia tego, co trener postanawia.</string>
     <string name="coach_identity_use_preset">Zacznij od: %1$s</string>
     <string name="coach_identity_avatar_option">Opcja awatara</string>
+    <string name="coach_settings_style">Styl prowadzenia</string>
+    <string name="coach_settings_length">Długość odpowiedzi</string>
+    <string name="coach_settings_proactive">Wiadomości z inicjatywy trenera</string>
+    <string name="coach_settings_emoji">Emoji w odpowiedziach</string>
+    <string name="coach_settings_summarise">Podsumowuj wcześniejsze rozmowy</string>
+    <string name="coach_settings_privacy_level">Poziom prywatności</string>
 </resources>

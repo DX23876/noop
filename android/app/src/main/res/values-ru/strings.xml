@@ -4369,4 +4369,10 @@
     <string name="coach_identity_tone_note">Лёгкий оттенок в том, как тренер формулирует мысли, поверх его стиля. Он никогда не меняет решений тренера.</string>
     <string name="coach_identity_use_preset">Начать с %1$s</string>
     <string name="coach_identity_avatar_option">Вариант аватара</string>
+    <string name="coach_settings_style">Стиль коучинга</string>
+    <string name="coach_settings_length">Длина ответов</string>
+    <string name="coach_settings_proactive">Сообщения по инициативе тренера</string>
+    <string name="coach_settings_emoji">Эмодзи в ответах</string>
+    <string name="coach_settings_summarise">Сводки прошлых чатов</string>
+    <string name="coach_settings_privacy_level">Уровень конфиденциальности</string>
 </resources>

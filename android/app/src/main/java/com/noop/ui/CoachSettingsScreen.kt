@@ -87,6 +87,7 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
             CoachModelCard(vm = vm)
             if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
             CoachConsentCard(vm = vm)
+            CoachSharedSettingsCards(vm = vm)
             CoachInstructions(vm = vm)
             MorningBriefCard(vm = vm)
         }

@@ -4444,4 +4444,10 @@
     <string name="coach_identity_tone_note">在教练原有风格之上，轻微调整它的措辞方式。不会改变教练的任何决定。</string>
     <string name="coach_identity_use_preset">以 %1$s 为起点</string>
     <string name="coach_identity_avatar_option">头像选项</string>
+    <string name="coach_settings_style">教练风格</string>
+    <string name="coach_settings_length">回复长度</string>
+    <string name="coach_settings_proactive">主动消息</string>
+    <string name="coach_settings_emoji">回复中的表情符号</string>
+    <string name="coach_settings_summarise">总结过去的聊天</string>
+    <string name="coach_settings_privacy_level">隐私级别</string>
 </resources>

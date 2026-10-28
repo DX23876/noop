@@ -93,6 +93,20 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** The coaching and data-access settings of the shared coach. */
+    private val _coachSettings = MutableStateFlow<CoreCoach.CoachSettings?>(null)
+    val coachSettings: StateFlow<CoreCoach.CoachSettings?> = _coachSettings.asStateFlow()
+
+    fun loadCoachSettings() {
+        viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.settings() }?.let { _coachSettings.value = it } }
+    }
+
+    fun updateCoachSettings(change: org.json.JSONObject) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.updateSettings(change) }?.let { _coachSettings.value = it }
+        }
+    }
+
     private fun applyIdentity(identity: CoreCoach.Identity) {
         _identity.value = identity
         _coachName.value = identity.name

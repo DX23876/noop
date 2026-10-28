@@ -4474,4 +4474,10 @@
     <string name="coach_identity_tone_note">Un ligero matiz en cómo se expresa el coach, además de su estilo de coaching. Nunca cambia lo que el coach decide.</string>
     <string name="coach_identity_use_preset">Usar %1$s como base</string>
     <string name="coach_identity_avatar_option">Opción de avatar</string>
+    <string name="coach_settings_style">Estilo de coaching</string>
+    <string name="coach_settings_length">Longitud de la respuesta</string>
+    <string name="coach_settings_proactive">Mensajes proactivos</string>
+    <string name="coach_settings_emoji">Emojis en las respuestas</string>
+    <string name="coach_settings_summarise">Resumir chats anteriores</string>
+    <string name="coach_settings_privacy_level">Nivel de privacidad</string>
 </resources>

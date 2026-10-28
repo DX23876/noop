@@ -4466,4 +4466,10 @@
     <string name="coach_identity_tone_note">Um ligeiro toque na forma como o coach se exprime, além do seu estilo. Nunca muda o que o coach decide.</string>
     <string name="coach_identity_use_preset">Começar por %1$s</string>
     <string name="coach_identity_avatar_option">Opção de avatar</string>
+    <string name="coach_settings_style">Estilo de coaching</string>
+    <string name="coach_settings_length">Comprimento das respostas</string>
+    <string name="coach_settings_proactive">Mensagens proativas</string>
+    <string name="coach_settings_emoji">Emojis nas respostas</string>
+    <string name="coach_settings_summarise">Resumir conversas anteriores</string>
+    <string name="coach_settings_privacy_level">Nível de privacidade</string>
 </resources>

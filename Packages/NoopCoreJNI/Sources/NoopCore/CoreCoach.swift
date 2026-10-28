@@ -67,6 +67,22 @@ enum CoreCoach {
         case "coach.pin":
             if let id { coach.setPinned(id, args["value"] as? Bool ?? true) }
             return CoreRead.json(Conversations(coach))
+        case "coach.settings":
+            return CoreRead.json(SettingsState(coach))
+        case "coach.settings.set":
+            if let raw = args["persona"] as? String, let v = CoachPersona(rawValue: raw) { coach.persona = v }
+            if let raw = args["verbosity"] as? String, let v = CoachVerbosity(rawValue: raw) { coach.verbosity = v }
+            if let raw = args["proactive"] as? String, let v = ProactiveLevel(rawValue: raw) { coach.proactiveLevel = v }
+            if let v = args["emoji"] as? Bool { coach.allowEmoji = v }
+            if let v = args["autoSummarize"] as? Bool { coach.autoSummarize = v }
+            if let raw = args["accessMode"] as? String, let mode = CoachDataAccessMode(rawValue: raw),
+               let purposes = mode.purposes {
+                coach.toolConsent.enabled = purposes
+            }
+            if let raw = args["purpose"] as? String, let purpose = CoachPurpose(rawValue: raw), let on = args["on"] as? Bool {
+                if on { coach.toolConsent.enabled.insert(purpose) } else { coach.toolConsent.enabled.remove(purpose) }
+            }
+            return CoreRead.json(SettingsState(coach))
         case "coach.identity":
             return CoreRead.json(IdentityState(CoreCoachIdentity.load()))
         case "coach.identity.set":
@@ -292,6 +308,62 @@ struct IdentityState: Encodable {
         case .bundled(let s): avatarKind = "bundled"; avatarValue = s
         case .photo(let s): avatarKind = "photo"; avatarValue = s
         }
+    }
+}
+
+/// The coaching and data-access settings as the iOS settings pages show them, every label from the iOS catalogue.
+struct SettingsState: Encodable {
+    struct Choice: Encodable { var id: String, label: String, detail: String }
+    struct Purpose: Encodable { var id: String, label: String, detail: String, on: Bool }
+    var persona: String, personas: [Choice]
+    var verbosity: String, verbosities: [Choice]
+    var proactive: String, proactives: [Choice]
+    var emoji: Bool, autoSummarize: Bool, autoSummarizeDetail: String
+    var accessMode: String, accessModes: [Choice]
+    var purposes: [Purpose]
+
+    @MainActor init(_ coach: AICoachEngine) {
+        persona = coach.persona.rawValue
+        personas = CoachPersona.allCases.map {
+            Choice(id: $0.rawValue, label: $0.title.localizedCatalogValue, detail: $0.subtitle.localizedCatalogValue)
+        }
+        verbosity = coach.verbosity.rawValue
+        verbosities = CoachVerbosity.allCases.map {
+            Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue, detail: $0.blurb.localizedCatalogValue)
+        }
+        proactive = coach.proactiveLevel.rawValue
+        proactives = ProactiveLevel.allCases.map {
+            Choice(id: $0.rawValue, label: $0.label.localizedCatalogValue, detail: $0.blurb.localizedCatalogValue)
+        }
+        emoji = coach.allowEmoji
+        autoSummarize = coach.autoSummarize
+        autoSummarizeDetail = (coach.autoSummarize
+            ? "On: when you move on from a chat, a cheap model distils it so the coach remembers it later. Sends that chat to your provider."
+            : "Off: past chats aren't summarised; the coach only recalls saved facts.").localizedCatalogValue
+        let enabled = coach.toolConsent.enabled
+        accessMode = CoachDataAccessMode.current(for: enabled).rawValue
+        let modeLabels: [CoachDataAccessMode: String] = [.essentials: "Essentials", .personal: "Personal",
+                                                         .deepInsights: "Deep insights", .expert: "Expert"]
+        accessModes = CoachDataAccessMode.allCases.map {
+            Choice(id: $0.rawValue, label: (modeLabels[$0] ?? $0.rawValue).localizedCatalogValue, detail: "")
+        }
+        // The rows of the iOS Data access page, in its order and words.
+        let rows: [(CoachPurpose, String, String)] = [
+            (.coreBiometrics, "Core biometrics", "Charge, sleep detail, readiness and charge drivers."),
+            (.longHistory, "Long-term trend", "A compact local trend across months or years"),
+            (.workouts, "Workouts", "Recent workouts, zone minutes and session outlook."),
+            (.planning, "Planning", "Suggesting sessions and checking what you actually did."),
+            (.stress, "Stress", "Today's derived stress index."),
+            (.logs, "Logging", "Reading and logging caffeine, journal entries and Lab Book markers."),
+            (.sensitiveLogs, "Sensitive journal", "Sexual, relationship, illness and cannabis entries need an extra choice."),
+            (.memory, "Memory tools", "Saving, correcting and forgetting facts, and searching past chats."),
+            (.patterns, "Also share my patterns & Lab Book",
+             enabled.contains(.patterns)
+                ? "On: a short summary of your strongest patterns and logged health numbers is added. Summaries only, never raw readings."
+                : "Off: only your core metrics are shared, not your patterns or Lab Book."),
+        ]
+        purposes = rows.map { Purpose(id: $0.0.rawValue, label: $0.1.localizedCatalogValue,
+                                      detail: $0.2.localizedCatalogValue, on: enabled.contains($0.0)) }
     }
 }
 

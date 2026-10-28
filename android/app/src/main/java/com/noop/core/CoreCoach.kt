@@ -63,6 +63,37 @@ object CoreCoach {
                         (0 until (s?.length() ?: 0)).map { s!!.getString(it) })
     }
 
+    /** The coaching and data-access settings (`CoachSettingsView`), every label worded by the core from iOS. */
+    data class Choice(val id: String, val label: String, val detail: String)
+    data class Purpose(val id: String, val label: String, val detail: String, val on: Boolean)
+    data class CoachSettings(
+        val persona: String, val personas: List<Choice>, val verbosity: String, val verbosities: List<Choice>,
+        val proactive: String, val proactives: List<Choice>, val emoji: Boolean, val autoSummarize: Boolean,
+        val autoSummarizeDetail: String,
+        val accessMode: String, val accessModes: List<Choice>, val purposes: List<Purpose>,
+    )
+
+    fun settings(): CoachSettings? = call("coach.settings", "{}")?.let(::parseSettings)
+
+    /** Changes one setting (`persona`, `verbosity`, `proactive`, `emoji`, `autoSummarize`, `accessMode`, or a purpose). */
+    fun updateSettings(args: JSONObject): CoachSettings? = call("coach.settings.set", args.toString())?.let(::parseSettings)
+
+    internal fun parseSettings(o: JSONObject): CoachSettings? {
+        if (!o.has("persona")) return null
+        fun choices(k: String) = o.optJSONArray(k).let { a ->
+            (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it).let { c -> Choice(c.getString("id"), c.getString("label"), c.optString("detail")) } }
+        }
+        val p = o.optJSONArray("purposes")
+        return CoachSettings(
+            o.getString("persona"), choices("personas"), o.getString("verbosity"), choices("verbosities"),
+            o.getString("proactive"), choices("proactives"), o.optBoolean("emoji"), o.optBoolean("autoSummarize"),
+            o.optString("autoSummarizeDetail"),
+            o.getString("accessMode"), choices("accessModes"),
+            (0 until (p?.length() ?: 0)).map { p!!.getJSONObject(it).let { c ->
+                Purpose(c.getString("id"), c.getString("label"), c.optString("detail"), c.optBoolean("on")) } },
+        )
+    }
+
     /** One saved thread in the history (`CoachHistoryView`). */
     data class Conversation(
         val id: String, val title: String, val preview: String, val updatedAt: Long, val pinned: Boolean,

@@ -4505,4 +4505,10 @@
     <string name="coach_identity_tone_note">A light lean in how the coach phrases things, on top of its coaching style. It never changes what the coach decides.</string>
     <string name="coach_identity_use_preset">Use the %1$s preset</string>
     <string name="coach_identity_avatar_option">Avatar option</string>
+    <string name="coach_settings_style">Coaching style</string>
+    <string name="coach_settings_length">Reply length</string>
+    <string name="coach_settings_proactive">Proactive messages</string>
+    <string name="coach_settings_emoji">Emoji in replies</string>
+    <string name="coach_settings_summarise">Summarise past chats</string>
+    <string name="coach_settings_privacy_level">Privacy level</string>
 </resources>

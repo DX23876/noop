@@ -4442,4 +4442,10 @@
     <string name="coach_identity_tone_note">Una leggera sfumatura nel modo in cui il coach si esprime, oltre al suo stile. Non cambia mai ciò che il coach decide.</string>
     <string name="coach_identity_use_preset">Parti da %1$s</string>
     <string name="coach_identity_avatar_option">Opzione avatar</string>
+    <string name="coach_settings_style">Stile di coaching</string>
+    <string name="coach_settings_length">Lunghezza delle risposte</string>
+    <string name="coach_settings_proactive">Messaggi proattivi</string>
+    <string name="coach_settings_emoji">Emoji nelle risposte</string>
+    <string name="coach_settings_summarise">Riassumi le chat passate</string>
+    <string name="coach_settings_privacy_level">Livello di privacy</string>
 </resources>
