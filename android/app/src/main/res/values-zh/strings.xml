@@ -4427,4 +4427,21 @@
     <string name="coach_hi_im">你好，我是%1$s</string>
     <string name="coach_empty_intro">教练会读取你最近两周的摘要，以及 30 天平均值和近期锻炼，然后用通俗的语言作答。试试下面的建议。</string>
     <string name="coach_history">历史</string>
+    <string name="coach_identity">教练身份</string>
+    <string name="coach_identity_subtitle">名字、图片和语气</string>
+    <string name="coach_identity_start">从一位教练开始</string>
+    <string name="coach_identity_start_body">Svea 和 Marv 是两位现成的教练——名字、图片和语气。选一位，然后随意修改。</string>
+    <string name="coach_identity_name">名字</string>
+    <string name="coach_identity_name_placeholder">教练名字</string>
+    <string name="coach_identity_picture">图片</string>
+    <string name="coach_identity_upload_photo">上传照片</string>
+    <string name="coach_identity_remove_photo">移除照片</string>
+    <string name="coach_identity_photo_note">你的照片只保存在这部手机上。教练从不会看到你的图片——只有它的名字和语气会发送给你的服务商。</string>
+    <string name="coach_identity_tone">语气</string>
+    <string name="coach_voice_warm">温暖</string>
+    <string name="coach_voice_grounded">沉稳</string>
+    <string name="coach_voice_neutral">中性</string>
+    <string name="coach_identity_tone_note">在教练原有风格之上，轻微调整它的措辞方式。不会改变教练的任何决定。</string>
+    <string name="coach_identity_use_preset">以 %1$s 为起点</string>
+    <string name="coach_identity_avatar_option">头像选项</string>
 </resources>

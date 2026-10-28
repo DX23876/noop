@@ -2,7 +2,7 @@ import Foundation
 
 // The Android core's answers to the hooks each target that links the coach defines (Android parity plan, Coach
 // extraction). For now they are the quiet ones: no reminder notifications, the API key only in memory as Kotlin
-// hands it in (`CoreCoach`), no semantic memory, the default identity and the core's own goal tracking model. Apple's answers live beside the app (`PlanReminder.swift`,
+// hands it in (`CoreCoach`), no semantic memory, the identity Android edits (`CoreCoachIdentity`) and the core's own goal tracking model. Apple's answers live beside the app (`PlanReminder.swift`,
 // `SecretVault+Keychain.swift`, `CoachSemanticMemory.swift`, `CoachAppHooks+App.swift`).
 
 /// No plan reminders or memory updates on Android yet.
@@ -49,7 +49,7 @@ func coachMemoryIndex() -> any CoachMemoryIndex { coreMemoryIndex }
 struct CoreCoachAppHooks: CoachAppHooks {
     static let goalTracking = GoalTrackingModel()
     var goalTracking: GoalTrackingModel { Self.goalTracking }
-    var identityPreamble: String { CoachIdentity.default.identityPreamble }
+    var identityPreamble: String { CoreCoachIdentity.load().identityPreamble }
     func planProposed(_ proposal: PlanProposal) {}
     func proactiveSignal(_ signal: ProactiveSignal, level: ProactiveLevel) {}
 }

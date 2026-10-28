@@ -72,12 +72,30 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     private val _coachName = MutableStateFlow("")
     val coachName: StateFlow<String> = _coachName.asStateFlow()
 
-    /** Reads the coach's name once the core is up; the header shows "Coach" until then. */
+    /** The coach's whole identity (name, picture, tone), for the avatar and the identity editor. */
+    private val _identity = MutableStateFlow<CoreCoach.Identity?>(null)
+    val identity: StateFlow<CoreCoach.Identity?> = _identity.asStateFlow()
+
+    /** Reads the coach's identity once the core is up; the header shows "Coach" until then. */
     fun loadCoachName() {
-        if (_coachName.value.isNotEmpty()) return
+        if (_identity.value != null) return
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { CoreCoach.state() }?.name?.takeIf { it.isNotEmpty() }?.let { _coachName.value = it }
+            withContext(Dispatchers.IO) { CoreCoach.identity() }?.let { applyIdentity(it) }
         }
+    }
+
+    /** Changes the identity in the shared coach, which also puts the name and tone into its prompt. */
+    fun updateIdentity(preset: String? = null, name: String? = null, voice: String? = null,
+                       avatarKind: String? = null, avatarValue: String? = null) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { CoreCoach.setIdentity(preset, name, voice, avatarKind, avatarValue) }
+                ?.let { applyIdentity(it) }
+        }
+    }
+
+    private fun applyIdentity(identity: CoreCoach.Identity) {
+        _identity.value = identity
+        _coachName.value = identity.name
     }
 
     private val _error = MutableStateFlow<String?>(null)

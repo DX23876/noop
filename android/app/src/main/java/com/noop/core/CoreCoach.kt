@@ -39,6 +39,30 @@ object CoreCoach {
 
     fun stop(): State? = call("coach.stop", "{}")?.let(::parse)
 
+    /** The coach's identity (`CoachIdentity`): name, picture and tone, edited on Android as on iOS. */
+    data class Identity(val name: String, val avatarKind: String, val avatarValue: String, val voice: String,
+                        val symbols: List<String>)
+
+    fun identity(): Identity? = call("coach.identity", "{}")?.let(::parseIdentity)
+
+    /** Applies a preset (`svea`, `marv`) first, then any of name, tone and picture; returns the identity after. */
+    fun setIdentity(preset: String? = null, name: String? = null, voice: String? = null,
+                    avatarKind: String? = null, avatarValue: String? = null): Identity? {
+        val args = JSONObject()
+        preset?.let { args.put("preset", it) }
+        name?.let { args.put("name", it) }
+        voice?.let { args.put("voice", it) }
+        if (avatarKind != null && avatarValue != null) args.put("avatarKind", avatarKind).put("avatarValue", avatarValue)
+        return call("coach.identity.set", args.toString())?.let(::parseIdentity)
+    }
+
+    internal fun parseIdentity(o: JSONObject): Identity? {
+        if (!o.has("name")) return null
+        val s = o.optJSONArray("symbols")
+        return Identity(o.getString("name"), o.optString("avatarKind"), o.optString("avatarValue"), o.optString("voice"),
+                        (0 until (s?.length() ?: 0)).map { s!!.getString(it) })
+    }
+
     /** One saved thread in the history (`CoachHistoryView`). */
     data class Conversation(
         val id: String, val title: String, val preview: String, val updatedAt: Long, val pinned: Boolean,

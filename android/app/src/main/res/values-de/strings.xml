@@ -4470,4 +4470,21 @@
     <string name="coach_hi_im">Hallo, ich bin %1$s</string>
     <string name="coach_empty_intro">Der Coach liest eine Zusammenfassung deiner letzten zwei Wochen sowie 30-Tage-Durchschnitte und aktuelle Workouts und antwortet dann in klarer Sprache. Probiere einen Vorschlag unten aus.</string>
     <string name="coach_history">Verlauf</string>
+    <string name="coach_identity">Coach-Identität</string>
+    <string name="coach_identity_subtitle">Name, Bild und Ton</string>
+    <string name="coach_identity_start">Mit einem Coach starten</string>
+    <string name="coach_identity_start_body">Svea und Marv sind zwei fertige Coaches — Name, Bild und Ton. Wähle einen und ändere dann, was du möchtest.</string>
+    <string name="coach_identity_name">Name</string>
+    <string name="coach_identity_name_placeholder">Name des Coaches</string>
+    <string name="coach_identity_picture">Bild</string>
+    <string name="coach_identity_upload_photo">Foto hochladen</string>
+    <string name="coach_identity_remove_photo">Foto entfernen</string>
+    <string name="coach_identity_photo_note">Dein Foto bleibt auf diesem Handy. Der Coach sieht dein Bild nie — nur sein Name und sein Ton erreichen deinen Anbieter.</string>
+    <string name="coach_identity_tone">Ton</string>
+    <string name="coach_voice_warm">Warm</string>
+    <string name="coach_voice_grounded">Sachlich</string>
+    <string name="coach_voice_neutral">Neutral</string>
+    <string name="coach_identity_tone_note">Eine leichte Färbung, wie der Coach formuliert, zusätzlich zu seinem Coaching-Stil. Was der Coach entscheidet, ändert sie nie.</string>
+    <string name="coach_identity_use_preset">%1$s als Vorlage verwenden</string>
+    <string name="coach_identity_avatar_option">Avatar-Option</string>
 </resources>

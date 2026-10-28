@@ -4473,4 +4473,21 @@
     <string name="coach_hi_im">Cześć, jestem %1$s</string>
     <string name="coach_empty_intro">Trener czyta podsumowanie Twoich ostatnich dwóch tygodni oraz średnie z 30 dni i ostatnie treningi, a następnie odpowiada prostym językiem. Wypróbuj sugestię poniżej.</string>
     <string name="coach_history">Historia</string>
+    <string name="coach_identity">Tożsamość trenera</string>
+    <string name="coach_identity_subtitle">Imię, zdjęcie i ton</string>
+    <string name="coach_identity_start">Zacznij od trenera</string>
+    <string name="coach_identity_start_body">Svea i Marv to dwaj gotowi trenerzy — imię, zdjęcie i ton. Wybierz jednego, a potem zmień, co zechcesz.</string>
+    <string name="coach_identity_name">Imię</string>
+    <string name="coach_identity_name_placeholder">Imię trenera</string>
+    <string name="coach_identity_picture">Zdjęcie</string>
+    <string name="coach_identity_upload_photo">Prześlij zdjęcie</string>
+    <string name="coach_identity_remove_photo">Usuń zdjęcie</string>
+    <string name="coach_identity_photo_note">Twoje zdjęcie zostaje na tym telefonie. Trener nigdy go nie widzi — do dostawcy trafiają tylko jego imię i ton.</string>
+    <string name="coach_identity_tone">Ton</string>
+    <string name="coach_voice_warm">Ciepły</string>
+    <string name="coach_voice_grounded">Rzeczowy</string>
+    <string name="coach_voice_neutral">Neutralny</string>
+    <string name="coach_identity_tone_note">Lekki odcień w sposobie, w jaki trener formułuje wypowiedzi, ponad jego styl prowadzenia. Nigdy nie zmienia tego, co trener postanawia.</string>
+    <string name="coach_identity_use_preset">Zacznij od: %1$s</string>
+    <string name="coach_identity_avatar_option">Opcja awatara</string>
 </resources>

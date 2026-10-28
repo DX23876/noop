@@ -57,6 +57,8 @@ import com.noop.R
 import com.noop.ui.AppViewModel
 import com.noop.ui.BreatheScreen
 import com.noop.ui.CoachScreen
+import com.noop.ui.CoachIdentityEditor
+import com.noop.ui.CoachSettingsScreen
 import com.noop.ui.CoachViewModel
 import com.noop.ui.CompareScreen
 import com.noop.ui.FusedRecordRoute
@@ -351,14 +353,19 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
 private fun ForgeCoachDestination(title: String, onBack: () -> Unit) {
     val vm = viewModel<CoachViewModel>()
     var sub by remember { mutableStateOf<String?>(null) }
-    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
+    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity") "settings" else null }
     when (sub) {
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
+        "settings" -> Hosted(stringResource(R.string.coach_settings), { sub = null }) {
+            CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" })
+        }
+        "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = "settings" }) { CoachIdentityEditor(vm) }
         // As the iOS chat: only a way back up here; the plan book sits in the chat's own header row and the
         // history in its overflow menu.
         else -> Hosted("", onBack) {
-            CoachScreen(vm, onOpenPlan = { sub = "plan" }, onOpenHistory = { sub = "history" })
+            CoachScreen(vm, onOpenSettings = { sub = "settings" }, onOpenPlan = { sub = "plan" },
+                        onOpenHistory = { sub = "history" })
         }
     }
 }

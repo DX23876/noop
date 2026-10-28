@@ -4488,4 +4488,21 @@
     <string name="coach_hi_im">Hi, I\'m %1$s</string>
     <string name="coach_empty_intro">Coach reads a summary of your last two weeks plus 30-day averages and recent workouts, then answers in plain language. Try a suggestion below.</string>
     <string name="coach_history">History</string>
+    <string name="coach_identity">Coach identity</string>
+    <string name="coach_identity_subtitle">Name, picture and tone</string>
+    <string name="coach_identity_start">Start from a coach</string>
+    <string name="coach_identity_start_body">Svea and Marv are two ready-made coaches — a name, a picture and a tone. Pick one, then change anything you like.</string>
+    <string name="coach_identity_name">Name</string>
+    <string name="coach_identity_name_placeholder">Coach name</string>
+    <string name="coach_identity_picture">Picture</string>
+    <string name="coach_identity_upload_photo">Upload a photo</string>
+    <string name="coach_identity_remove_photo">Remove photo</string>
+    <string name="coach_identity_photo_note">Your photo stays on this phone. The coach is never shown your picture — only its name and tone reach your provider.</string>
+    <string name="coach_identity_tone">Tone</string>
+    <string name="coach_voice_warm">Warm</string>
+    <string name="coach_voice_grounded">Grounded</string>
+    <string name="coach_voice_neutral">Neutral</string>
+    <string name="coach_identity_tone_note">A light lean in how the coach phrases things, on top of its coaching style. It never changes what the coach decides.</string>
+    <string name="coach_identity_use_preset">Use the %1$s preset</string>
+    <string name="coach_identity_avatar_option">Avatar option</string>
 </resources>

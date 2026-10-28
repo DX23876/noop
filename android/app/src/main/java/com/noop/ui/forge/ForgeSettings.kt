@@ -487,7 +487,13 @@ private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack:
         ForgeSettingsPage.BatteryRecording -> Hosted(stringResource(page.titleRes), onBack) { PowerSavingScreen(viewModel) }
         ForgeSettingsPage.StrapActions -> Hosted(stringResource(page.titleRes), onBack) { AutomationsScreen(viewModel) }
         ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack) { NotificationsSettingsScreen(viewModel) }
-        ForgeSettingsPage.Coach -> Hosted(stringResource(page.titleRes), onBack) { CoachSettingsScreen(viewModel<CoachViewModel>()) }
+        ForgeSettingsPage.Coach -> {
+            val vm = viewModel<CoachViewModel>()
+            var identity by remember { mutableStateOf(false) }
+            androidx.activity.compose.BackHandler(enabled = identity) { identity = false }
+            if (identity) Hosted(stringResource(R.string.coach_identity), { identity = false }) { com.noop.ui.CoachIdentityEditor(vm) }
+            else Hosted(stringResource(page.titleRes), onBack) { CoachSettingsScreen(vm, onOpenIdentity = { identity = true }) }
+        }
         else -> Unit
     }
 }

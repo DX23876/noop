@@ -4352,4 +4352,21 @@
     <string name="coach_hi_im">Привет, я %1$s</string>
     <string name="coach_empty_intro">ИИ-тренер анализирует сводку за последние две недели, средние показатели за 30 дней и недавние тренировки, а затем отвечает понятным языком. Попробуйте один из вариантов ниже.</string>
     <string name="coach_history">История</string>
+    <string name="coach_identity">Личность тренера</string>
+    <string name="coach_identity_subtitle">Имя, изображение и тон</string>
+    <string name="coach_identity_start">Начните с тренера</string>
+    <string name="coach_identity_start_body">Svea и Marv — два готовых тренера: имя, изображение и тон. Выберите одного, затем измените всё, что хотите.</string>
+    <string name="coach_identity_name">Имя</string>
+    <string name="coach_identity_name_placeholder">Имя тренера</string>
+    <string name="coach_identity_picture">Изображение</string>
+    <string name="coach_identity_upload_photo">Загрузить фото</string>
+    <string name="coach_identity_remove_photo">Удалить фото</string>
+    <string name="coach_identity_photo_note">Ваше фото остаётся на этом телефоне. Тренер никогда не видит его — провайдеру передаются только имя и тон.</string>
+    <string name="coach_identity_tone">Тон</string>
+    <string name="coach_voice_warm">Тёплый</string>
+    <string name="coach_voice_grounded">Спокойный</string>
+    <string name="coach_voice_neutral">Нейтральный</string>
+    <string name="coach_identity_tone_note">Лёгкий оттенок в том, как тренер формулирует мысли, поверх его стиля. Он никогда не меняет решений тренера.</string>
+    <string name="coach_identity_use_preset">Начать с %1$s</string>
+    <string name="coach_identity_avatar_option">Вариант аватара</string>
 </resources>

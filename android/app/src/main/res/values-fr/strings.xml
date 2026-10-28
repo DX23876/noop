@@ -4456,4 +4456,21 @@
     <string name="coach_hi_im">Bonjour, je m\'appelle %1$s</string>
     <string name="coach_empty_intro">Coach lit un résumé de vos deux dernières semaines, les moyennes sur 30 jours et vos récents entraînements, puis répond en langage clair. Essayez une suggestion ci-dessous.</string>
     <string name="coach_history">Historique</string>
+    <string name="coach_identity">Identité du coach</string>
+    <string name="coach_identity_subtitle">Nom, image et ton</string>
+    <string name="coach_identity_start">Partir d\'un coach</string>
+    <string name="coach_identity_start_body">Svea et Marv sont deux coachs prêts à l\'emploi — un nom, une image et un ton. Choisis-en un, puis modifie ce que tu veux.</string>
+    <string name="coach_identity_name">Nom</string>
+    <string name="coach_identity_name_placeholder">Nom du coach</string>
+    <string name="coach_identity_picture">Image</string>
+    <string name="coach_identity_upload_photo">Importer une photo</string>
+    <string name="coach_identity_remove_photo">Supprimer la photo</string>
+    <string name="coach_identity_photo_note">Ta photo reste sur ce téléphone. Le coach ne voit jamais ton image — seuls son nom et son ton parviennent à ton fournisseur.</string>
+    <string name="coach_identity_tone">Ton</string>
+    <string name="coach_voice_warm">Chaleureux</string>
+    <string name="coach_voice_grounded">Posé</string>
+    <string name="coach_voice_neutral">Neutre</string>
+    <string name="coach_identity_tone_note">Une légère nuance dans la façon dont le coach formule les choses, en plus de son style de coaching. Elle ne change jamais ce que le coach décide.</string>
+    <string name="coach_identity_use_preset">Partir de %1$s</string>
+    <string name="coach_identity_avatar_option">Option d\'avatar</string>
 </resources>

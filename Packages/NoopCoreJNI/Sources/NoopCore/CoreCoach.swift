@@ -25,6 +25,10 @@ enum CoreCoach {
     }
 
     static func run(_ op: String, args: [String: Any], reader: StoreReader) async -> String {
+        await perform(op, args: args, reader: reader)
+    }
+
+    private static func perform(_ op: String, args: [String: Any], reader: StoreReader) async -> String {
         // The plan book needs no engine: it is the shared store the coach's tools write into.
         if op.hasPrefix("coach.plan") { return CorePlan.run(op, args: args) }
         let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
@@ -63,6 +67,27 @@ enum CoreCoach {
         case "coach.pin":
             if let id { coach.setPinned(id, args["value"] as? Bool ?? true) }
             return CoreRead.json(Conversations(coach))
+        case "coach.identity":
+            return CoreRead.json(IdentityState(CoreCoachIdentity.load()))
+        case "coach.identity.set":
+            var identity = CoreCoachIdentity.load()
+            if let raw = args["preset"] as? String {
+                identity = raw == "marv" ? CoachIdentity.marv : CoachIdentity.svea
+            }
+            if let name = (args["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+                identity.name = name
+            }
+            if let raw = args["voice"] as? String, let voice = CoachVoice(rawValue: raw) { identity.voice = voice }
+            if let kind = args["avatarKind"] as? String, let value = args["avatarValue"] as? String {
+                switch kind {
+                case "preset": identity.avatar = .preset(value)
+                case "bundled": identity.avatar = .bundled(value)
+                case "photo": identity.avatar = .photo(value)
+                default: break
+                }
+            }
+            CoreCoachIdentity.save(identity)
+            return CoreRead.json(IdentityState(identity))
         default:
             return #"{"error":"unknownOp"}"#
         }
@@ -100,7 +125,7 @@ enum CoreCoach {
         var error: String?
         var configured: Bool
         /// The coach's name, as the iOS chat header and greeting show it (the default identity on Android).
-        var name = CoachIdentity.default.name
+        var name = CoreCoachIdentity.load().name
 
         @MainActor init(_ coach: AICoachEngine) {
             messages = coach.messages.map { Message(id: $0.id.uuidString, role: $0.role.rawValue, text: $0.text) }
@@ -237,3 +262,36 @@ enum CorePlan {
         return out.string(from: date)
     }
 }
+
+/// The coach's identity on Android, stored as Apple's `CoachIdentityStore` stores it: one JSON blob under
+/// `coach.identity` in UserDefaults. A photo is a file the Android app keeps; the identity holds its name only.
+enum CoreCoachIdentity {
+    static let key = "coach.identity"
+
+    static func load() -> CoachIdentity {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let identity = try? JSONDecoder().decode(CoachIdentity.self, from: data) else { return .default }
+        return identity
+    }
+
+    static func save(_ identity: CoachIdentity) {
+        if let data = try? JSONEncoder().encode(identity) { UserDefaults.standard.set(data, forKey: key) }
+    }
+}
+
+/// The identity as the Android editor draws it.
+struct IdentityState: Encodable {
+    var name: String, avatarKind: String, avatarValue: String, voice: String
+    var symbols = CoachAvatar.presetSymbols
+
+    init(_ identity: CoachIdentity) {
+        name = identity.name
+        voice = identity.voice.rawValue
+        switch identity.avatar {
+        case .preset(let s): avatarKind = "preset"; avatarValue = s
+        case .bundled(let s): avatarKind = "bundled"; avatarValue = s
+        case .photo(let s): avatarKind = "photo"; avatarValue = s
+        }
+    }
+}
+

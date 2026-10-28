@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EditNote
@@ -344,6 +346,8 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
         vm.consumeScheduledBriefIfAny(context)
     }
 
+    val identity by vm.identity.collectAsStateWithLifecycle()
+    androidx.compose.runtime.CompositionLocalProvider(LocalCoachIdentity provides identity) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
         // One compact glass row, as the iOS chat header: the coach's avatar (breathing while a reply is
@@ -514,11 +518,12 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
         // Privacy note repeated under the input so it's always on screen.
         PrivacyNote(local = provider == AiProvider.CUSTOM)
     }
+    }
 }
 
 // MARK: - Chat bubbles
 
-/** The coach's face, as `CoachAvatarView`: the preset portrait in a thin ring. */
+/** The coach's face, breathing while a reply is written, from the identity the chat provides. */
 @Composable
 private fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = false) {
     val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "coachBreath")
@@ -528,18 +533,8 @@ private fun CoachAvatar(size: androidx.compose.ui.unit.Dp, breathing: Boolean = 
             androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse),
         label = "coachBreathScale",
     )
-    Box(
-        modifier = Modifier
-            .size(size)
-            .graphicsLayer { val s = if (breathing) pulse else 1f; scaleX = s; scaleY = s }
-            .clip(CircleShape)
-            .border(if (size >= 60.dp) 3.dp else 1.5.dp, Palette.textPrimary.copy(alpha = 0.22f), CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        androidx.compose.foundation.Image(
-            painterResource(R.drawable.coach_svea_avatar), contentDescription = null,
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.matchParentSize(),
-        )
+    Box(Modifier.graphicsLayer { val s = if (breathing) pulse else 1f; scaleX = s; scaleY = s }) {
+        CoachIdentityAvatar(LocalCoachIdentity.current, size)
     }
 }
 
@@ -1044,10 +1039,10 @@ private fun MicComposerRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp))
             .frostedCardSurface(tint = Palette.accent, cornerRadius = 26.dp)
-            .border(1.dp, Palette.hairline, RoundedCornerShape(26.dp))
-            .padding(10.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .border(1.dp, Palette.textPrimary.copy(alpha = 0.16f), RoundedCornerShape(26.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // K4: on-device voice input, hidden where on-device recognition is not available.
         if (voiceInput.isAvailable()) {
@@ -1072,23 +1067,34 @@ private fun MicComposerRow(
             )
         }
 
-        OutlinedTextField(
+        // A flat inset field with one hairline, as iOS draws it (`CoachRadius.field`), not a Material outline.
+        var focused by remember { mutableStateOf(false) }
+        androidx.compose.foundation.text.BasicTextField(
             value = input,
             onValueChange = onInputChange,
-            modifier = Modifier.weight(1f),
-            placeholder = {
-                Text(
-                    if (isRecording) stringResource(R.string.coach_listening) else uiString(R.string.l10n_coach_screen_ask_your_coach_b1577d4c),
-                    style = NoopType.body,
-                    color = Palette.textTertiary,
-                )
-            },
-            textStyle = NoopType.body,
-            singleLine = false,
-            maxLines = 8,
             enabled = !sending,
-            colors = coachFieldColors(),
-            shape = RoundedCornerShape(18.dp),
+            textStyle = NoopType.body.copy(color = Palette.textPrimary),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.accent),
+            maxLines = 8,
+            modifier = Modifier.weight(1f).onFocusChanged { focused = it.isFocused },
+            decorationBox = { inner ->
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Palette.surfaceInset)
+                        .border(1.dp, if (focused) Palette.accent.copy(alpha = 0.6f) else Palette.hairline, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                ) {
+                    if (input.isEmpty()) {
+                        Text(
+                            if (isRecording) stringResource(R.string.coach_listening) else uiString(R.string.l10n_coach_screen_ask_your_coach_b1577d4c),
+                            style = NoopType.body, color = Palette.textTertiary,
+                        )
+                    }
+                    inner()
+                }
+            },
         )
 
         SendButton(
@@ -1108,6 +1114,7 @@ private fun MicComposerRow(
     }
 }
 
+/** The voice button as iOS draws it: a plain microphone glyph, the waveform in Charge while recording. */
 @Composable
 private fun MicButton(
     isRecording: Boolean,
@@ -1115,33 +1122,24 @@ private fun MicButton(
     statusMessage: String?,
     onClick: () -> Unit,
 ) {
-    val bg = if (isRecording) Palette.statusCritical.copy(alpha = 0.15f) else Palette.surfaceInset
-    val tint = if (isRecording) Palette.statusCritical else Palette.textSecondary
     val interaction = remember { MutableInteractionSource() }
     val desc = if (isRecording) "Stop voice input" else "Voice input"
     val statusSuffix = statusMessage?.let { stringResource(R.string.coach_status_suffix, it) } ?: ""
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(32.dp)
             .clip(CircleShape)
-            .background(bg)
             .let {
-                if (enabled)
-                    it
-                        .liquidPress(interaction)
-                        .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-                else it
+                if (enabled) it.clickable(interactionSource = interaction, indication = null, onClick = onClick) else it
             }
-            .semantics {
-                contentDescription = desc + statusSuffix
-            },
+            .semantics { contentDescription = desc + statusSuffix },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            if (isRecording) Icons.Filled.Stop else Icons.Filled.Mic,
+            if (isRecording) Icons.Filled.GraphicEq else Icons.Filled.Mic,
             contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(20.dp),
+            tint = if (isRecording) Palette.chargeColor else Palette.textSecondary,
+            modifier = Modifier.size(if (isRecording) 26.dp else 22.dp),
         )
     }
 }
@@ -1149,13 +1147,13 @@ private fun MicButton(
 /** One round accent button: an arrow to send, a square to stop a reply mid-stream. */
 @Composable
 private fun SendButton(enabled: Boolean, sending: Boolean, onClick: () -> Unit) {
-    val bg = if (enabled) Palette.accent else Palette.surfaceInset
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(40.dp)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.4f }
             .clip(CircleShape)
-            .background(bg)
+            .background(Palette.accent)
             .let {
                 if (enabled)
                     it
@@ -1172,7 +1170,7 @@ private fun SendButton(enabled: Boolean, sending: Boolean, onClick: () -> Unit) 
         Icon(
             if (sending) Icons.Filled.Stop else Icons.Filled.ArrowUpward,
             contentDescription = null,
-            tint = if (enabled) Palette.surfaceBase else Palette.textTertiary,
+            tint = Palette.surfaceBase,
             modifier = Modifier.size(20.dp),
         )
     }

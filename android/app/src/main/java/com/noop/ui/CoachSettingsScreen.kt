@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -62,7 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 // defect this screen shipped with: consent is held in memory and read by `send`, so a revoke made
 // against a second instance persisted to storage and still left the conversation sending on the old
 // one. AppRoot passes the Coach entry's view model.
-fun CoachSettingsScreen(vm: CoachViewModel) {
+fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null) {
     val context = LocalContext.current
 
     // The brief settings are read from prefs on show, the same as the coach page did before the
@@ -84,6 +85,7 @@ fun CoachSettingsScreen(vm: CoachViewModel) {
         // has no equivalent.
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             CoachModelCard(vm = vm)
+            if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
             CoachConsentCard(vm = vm)
             CoachInstructions(vm = vm)
             MorningBriefCard(vm = vm)
@@ -300,3 +302,26 @@ private fun CoachInstructions(vm: CoachViewModel) {
         }
     }
 }
+
+/** The way into the coach's identity, as the iOS Coaching page's "Coach identity" row, with its avatar. */
+@Composable
+private fun CoachIdentityRow(vm: CoachViewModel, onOpen: () -> Unit) {
+    val identity by vm.identity.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadCoachName() }
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClick = onOpen),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CoachIdentityAvatar(identity, 40.dp)
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.coach_identity), style = NoopType.headline, color = Palette.textPrimary)
+                Text(identity?.name ?: stringResource(R.string.coach_identity_subtitle), style = NoopType.footnote,
+                     color = Palette.textSecondary)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.textTertiary)
+        }
+    }
+}
+

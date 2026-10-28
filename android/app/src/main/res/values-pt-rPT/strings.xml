@@ -4449,4 +4449,21 @@
     <string name="coach_hi_im">Olá, sou a %1$s</string>
     <string name="coach_empty_intro">O Treinador lê um resumo das tuas últimas duas semanas, além das médias de 30 dias e dos treinos recentes, e depois responde numa linguagem simples. Experimenta uma sugestão abaixo.</string>
     <string name="coach_history">Histórico</string>
+    <string name="coach_identity">Identidade do coach</string>
+    <string name="coach_identity_subtitle">Nome, imagem e tom</string>
+    <string name="coach_identity_start">Começar por um coach</string>
+    <string name="coach_identity_start_body">A Svea e o Marv são dois coaches prontos a usar — um nome, uma imagem e um tom. Escolhe um e muda o que quiseres.</string>
+    <string name="coach_identity_name">Nome</string>
+    <string name="coach_identity_name_placeholder">Nome do coach</string>
+    <string name="coach_identity_picture">Imagem</string>
+    <string name="coach_identity_upload_photo">Carregar uma foto</string>
+    <string name="coach_identity_remove_photo">Remover foto</string>
+    <string name="coach_identity_photo_note">A tua foto fica neste telemóvel. O coach nunca vê a tua imagem — só o nome e o tom chegam ao teu fornecedor.</string>
+    <string name="coach_identity_tone">Tom</string>
+    <string name="coach_voice_warm">Caloroso</string>
+    <string name="coach_voice_grounded">Sereno</string>
+    <string name="coach_voice_neutral">Neutro</string>
+    <string name="coach_identity_tone_note">Um ligeiro toque na forma como o coach se exprime, além do seu estilo. Nunca muda o que o coach decide.</string>
+    <string name="coach_identity_use_preset">Começar por %1$s</string>
+    <string name="coach_identity_avatar_option">Opção de avatar</string>
 </resources>
