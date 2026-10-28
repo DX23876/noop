@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import Security
 import WhoopStore
 import StrandCore
 import StrandAnalytics
@@ -15,7 +14,7 @@ import SemanticMemory
 // key is set AND a question is asked. We never embed our own key, never auto-send, and only ever
 // transmit the small text context built in `buildContext()` + the running chat, no raw streams.
 //
-// Pure macOS: Foundation + URLSession + Security (Keychain). Compiles on macOS 13, Swift 5.
+// Pure macOS: Foundation + URLSession; the key store goes through `SecretVault`. Compiles on macOS 13, Swift 5.
 // Provider wire formats live in Providers/: OpenAI.swift, Anthropic.swift, Gemini.swift.
 
 // MARK: - Chat model
@@ -151,19 +150,11 @@ struct ChatMessage: Identifiable, Equatable, Codable {
 
 // MARK: - Secure key storage (Keychain)
 
-/// Keychain Services wrapper for the user's API key. Uses a generic-password item under a fixed
+/// The user's API key in the platform's secret store (`SecretVault`, the Keychain on Apple), under a fixed
 /// service so the key never lands in UserDefaults, a plist, or on disk in the clear.
 enum AIKeyStore {
     private static let service = "com.noop.aicoach"
     private static let account = "api-key"
-
-    private static var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-    }
 
     /// UserDefaults key recording which provider the stored API key belongs to, so one provider's key
     /// is never sent to another provider's endpoint (above all the arbitrary user-typed Custom URL).
@@ -183,28 +174,14 @@ enum AIKeyStore {
         guard !trimmed.isEmpty else { clear(); return true }
         guard let data = trimmed.data(using: .utf8) else { return false }
 
-        // Delete any existing item first so we always insert a single, fresh value.
-        SecItemDelete(baseQuery as CFDictionary)
-
-        var attrs = baseQuery
-        attrs[kSecValueData as String] = data
-        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let status = SecItemAdd(attrs as CFDictionary, nil)
-        guard status == errSecSuccess else { return false }
+        guard secretVault().write(data, service: service, account: account) else { return false }
         UserDefaults.standard.set(owner, forKey: ownerKey)
         return true
     }
 
     /// Read the stored API key, or nil if none is set.
     static func read() -> String? {
-        var query = baseQuery
-        query[kSecReturnData as String] = kCFBooleanTrue
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess,
-              let data = item as? Data,
+        guard let data = secretVault().read(service: service, account: account),
               let str = String(data: data, encoding: .utf8),
               !str.isEmpty else { return nil }
         return str
@@ -212,7 +189,7 @@ enum AIKeyStore {
 
     /// Remove any stored API key.
     static func clear() {
-        SecItemDelete(baseQuery as CFDictionary)
+        secretVault().delete(service: service, account: account)
         UserDefaults.standard.removeObject(forKey: ownerKey)
     }
 }

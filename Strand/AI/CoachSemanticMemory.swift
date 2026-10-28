@@ -1036,9 +1036,12 @@ extension CoachSemanticMemory: CoachMemoryIndex {
     func allowedScopes(for consent: ToolConsent) -> Set<SemanticConsentScope> { Self.allowedScopes(for: consent) }
 }
 
+@MainActor
+func coachMemoryIndex() -> any CoachMemoryIndex { CoachSemanticMemory.shared }
+
 extension AICoachEngine {
     /// The app's engine: the Repository's reads and the semantic memory with its embedding model.
     convenience init(repo: Repository, session: URLSession = .shared) {
-        self.init(repo: repo, memory: CoachSemanticMemory.shared, session: session)
+        self.init(repo: repo, memory: coachMemoryIndex(), session: session)
     }
 }

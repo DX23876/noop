@@ -150,8 +150,17 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   Kotlin.
   Inventur dieser App-Typen (2026-10-28, Probebau von `AICoach` mit 27 Coach-Dateien im Kern, in drei Runden,
   bis keine neuen fehlenden Namen dazukamen; ein Fehler kann weitere verdecken, die Liste ist ein Arbeitsstand):
-  - Stand nach weiteren Probeläufen (2026-10-28, mit `SemanticMemory` vorübergehend im Kern): Es fehlt nur
-    noch `HevyCredentials` (Schlüsselbund über `Security`), danach kann eine weitere Ebene sichtbar werden.
+  - Stand nach weiteren Probeläufen (2026-10-28, mit `SemanticMemory` vorübergehend im Kern und leeren
+    Umsetzungen von `coachPlanEffects()`, `secretVault()` und `coachMemoryIndex()`): Die Abhängigkeiten der
+    Hilfsdateien sind gelöst, der Probebau prüft jetzt `AICoach` selbst. Dort fehlen noch: rund 46 statische
+    `Repository`-Aufrufe (`localDayKey`, `logicalDayKey`, Quellennamen; Gegenstücke in `StoreReader` und
+    `MetricResolver`), weitere Coach-Dateien (`CoachMetricHistory`, `CoachBriefStamp`, `CoachHistoryBudget`,
+    `CoachDataCatalog`, `CoachTrainingPreferences`, `CoachLocalSourceAccess`, `CoachLocalContextPlanner`,
+    `CoachJournalPatternAnalyzer`, `CoachIdentityStore`, `CoachBriefScheduler`, `CoachRecommendationAdaptation`,
+    `LabBookFormat`, `StreamingToolClient` und die Anbieter-Clients), dazu App-Typen (`GoalTrackingStore`,
+    `InsightsHubViewModel`, `TrendsReportData`, `MoodStore`, `WorkoutEnergyDisplay`, `CoachNotifier`,
+    `AppModel`). Der Schlüsselbund geht seit diesem Stand über `SecretVault` (`SecretVault+Keychain.swift` auf
+    Apple), die Gedächtnis-Meldungen von `CoachMemory` über `coachMemoryIndex()`.
     Erledigt: `CoachTrainingLoad` (die Teile mit `TrainingLoadModel` liegen in `CoachTrainingLoad+Screen.swift`),
     `CoachFeaturePrefs` (eigene Datei statt `Screens/CoachEntry.swift`), `LongTermGoalCoach` (liest
     `StoreReader.localDayKey`), der Plan-Abgleich (`PlanReconciliationCoordinator` mit `CoachNotifier` in eigener

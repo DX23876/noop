@@ -851,7 +851,7 @@ final class CoachMemory: ObservableObject {
         if let data = try? JSONEncoder().encode(facts) { d.set(data, forKey: Self.factsKey) }
         if updatesSemanticIndex {
             let snapshot = facts
-            Task { await CoachSemanticMemory.shared.memoryFactsChanged(snapshot) }
+            Task { await coachMemoryIndex().memoryFactsChanged(snapshot) }
         }
     }
 }

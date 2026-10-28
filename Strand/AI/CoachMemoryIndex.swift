@@ -15,7 +15,8 @@ struct CoachSemanticRetrieval {
 
 /// The coach's long-term memory index (Android parity plan, Coach extraction). Apple answers it with
 /// `CoachSemanticMemory` and its bundled embedding model; a host without that model (the Android test build)
-/// passes `NoCoachMemoryIndex`, and the coach then answers without recalled context.
+/// uses `NoCoachMemoryIndex`, and the coach then answers without recalled context. Each target that links the
+/// coach defines `coachMemoryIndex()`, the shared index the stores report changes to.
 @MainActor
 protocol CoachMemoryIndex: AnyObject {
     func allowedScopes(for consent: ToolConsent) -> Set<SemanticConsentScope>
@@ -28,6 +29,7 @@ protocol CoachMemoryIndex: AnyObject {
     func startManualIndexing()
     func unload() async
     func conversationsChanged(_ conversations: [CoachConversation]) async
+    func memoryFactsChanged(_ facts: [CoachMemory.MemoryFact]) async
     func retrieve(question: String, conversations: [CoachConversation], journalEntries: [JournalEntry],
                   allowedScopes: Set<SemanticConsentScope>) async -> CoachSemanticRetrieval
 }
@@ -45,6 +47,7 @@ final class NoCoachMemoryIndex: CoachMemoryIndex {
     func startManualIndexing() {}
     func unload() async {}
     func conversationsChanged(_ conversations: [CoachConversation]) async {}
+    func memoryFactsChanged(_ facts: [CoachMemory.MemoryFact]) async {}
     func retrieve(question: String, conversations: [CoachConversation], journalEntries: [JournalEntry],
                   allowedScopes: Set<SemanticConsentScope>) async -> CoachSemanticRetrieval {
         CoachSemanticRetrieval(context: "", mode: .unavailable)
