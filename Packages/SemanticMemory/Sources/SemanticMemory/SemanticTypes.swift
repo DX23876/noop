@@ -186,7 +186,7 @@ public enum SemanticVector {
         let truncated = Array(values.prefix(dimensions))
         let squared = truncated.reduce(Float.zero) { $0 + ($1 * $1) }
         guard squared.isFinite, squared > 0 else { throw SemanticMemoryError.invalidVector }
-        let norm = sqrt(squared)
+        let norm = squared.squareRoot()
         return truncated.map { $0 / norm }
     }
 
@@ -201,7 +201,7 @@ public enum SemanticVector {
             rightNorm += rhs[index] * rhs[index]
         }
         guard leftNorm > 0, rightNorm > 0 else { return -.infinity }
-        return Double(dot / sqrt(leftNorm * rightNorm))
+        return Double(dot / (leftNorm * rightNorm).squareRoot())
     }
 
     /// IEEE-754 binary16 conversion done in integer arithmetic rather than through the `Float16` type.

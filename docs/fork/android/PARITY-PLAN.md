@@ -150,16 +150,17 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   Kotlin.
   Inventur dieser App-Typen (2026-10-28, Probebau von `AICoach` mit 27 Coach-Dateien im Kern, in drei Runden,
   bis keine neuen fehlenden Namen dazukamen; ein Fehler kann weitere verdecken, die Liste ist ein Arbeitsstand):
-  - Stand 2026-10-28: Der ganze Coach (`AICoach` mit 55 Hilfsdateien und den Anbieter-Clients) baut probeweise
-    im Kern auf dem Mac, ohne Fehler. Dafür nötig waren `SemanticMemory` als Abhängigkeit und vier Umsetzungen,
-    die jedes Ziel selbst liefert: `coachPlanEffects()`, `secretVault()`, `coachMemoryIndex()` und
-    `coachAppHooks()` (Zielstand, Identität, Benachrichtigungen; Apple: `CoachAppHooks+App.swift`). Aus
-    Bildschirm-Dateien in eigene Dateien gezogen: `LabBookFormat`, `TrendsReportData` mit `ReportRange`,
-    `WorkoutEnergyDisplay` (der Rest heißt jetzt `HealthWorkoutRewrite.swift`), `DoseJournal`,
-    `CycleAwarenessPrefs`, `MoodStoreValues`. Der Grundumsatz im Coach liest `profile.basalFormula` statt
-    `EnergyPlanStore` (gleicher Wert). Noch offen für den echten Umzug: die vier Umsetzungen im Kern, der
-    verzögerte Speicher-Publisher in `AICoach` (`$conversations.debounce.sink`), den der Combine-Ersatz des
-    Kerns (`CombineShim.swift`) auf Android nicht kennt, der Android-Build selbst und die Brücke nach Kotlin.
+  - Stand 2026-10-28: Der Coach ist im Kern verlinkt und baut für Android (`buildSwiftCore`) und auf dem Mac.
+    Dazu gehören `AICoach` mit seinen Hilfsdateien, alle Anbieter-Clients (`Strand/AI/Providers`), `SemanticMemory`
+    als Abhängigkeit des Kerns und `NoopCore/CoreCoachHost.swift` mit den vier Umsetzungen, die jedes Ziel
+    liefert (`coachPlanEffects()`, `secretVault()`, `coachMemoryIndex()`, `coachAppHooks()`). Auf Android sind sie
+    vorerst leise: keine Erinnerungen, kein gespeicherter API-Schlüssel (der Coach gilt als nicht eingerichtet),
+    kein semantisches Gedächtnis, die Standard-Identität. Für Android nötig waren: `FoundationNetworking`-Importe,
+    `coachBytes(for:)` (Apple `bytes(for:)`, Android `streamedBytes(for:)`), `objectWillChange` im Combine-Ersatz,
+    die Spracherkennung nur mit `NaturalLanguage` (sonst gilt jede Frage als unbestimmt), `squareRoot()` statt
+    `sqrt` in `SemanticMemory`, die Identitäts-Werte in `CoachIdentityValues.swift`. `libNoopCore.so` wächst
+    damit auf rund 22 MB. Offen: die JNI-Brücke und eine Kotlin-Oberfläche für den Coach, ein Schlüsselspeicher
+    auf Android (Android Keystore über JNI) und ein Test des Coaches im Emulator.
   - Ältere Punkte dieser Liste. Erledigt (2026-10-28):
     Diagramm und Karte, deren Datenhälften in `CoachChartData.swift` und `CoachCardData.swift` liegen und im Kern
     verlinkt sind, und das Profil, das `AICoach` als Wert `CoachProfile` über `CoachDataReading.coachProfile()`

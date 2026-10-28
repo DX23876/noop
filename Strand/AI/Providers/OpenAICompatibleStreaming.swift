@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Token-by-token streaming for the OpenAI-shaped providers — OpenAI, OpenRouter and Custom.
 ///
@@ -214,7 +217,7 @@ extension OpenAICompatibleStreamingClient {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (bytes, response) = try await session.bytes(for: req)
+        let (bytes, response) = try await session.coachBytes(for: req)
         guard let http = response as? HTTPURLResponse else {
             throw AICoachError.network("no HTTP response")
         }

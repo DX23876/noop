@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import StrandAnalytics
 
 /// A generic OpenAI-compatible provider pointed at a user-set base URL — e.g. a local LLM server such

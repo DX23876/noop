@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Tool-use loop for Anthropic's Messages API, kept in its own file so the base `AnthropicClient`
 /// (Anthropic.swift) stays untouched and merges cleanly against upstream. The model may answer directly

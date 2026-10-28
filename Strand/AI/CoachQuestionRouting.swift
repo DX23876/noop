@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(NaturalLanguage)
 import NaturalLanguage
+#endif
 
 /// The four routing decisions the per-turn tool policy needs about a question, as a value.
 ///
@@ -49,13 +51,19 @@ enum CoachQuestionLanguage {
     /// is reported as undetermined and treated as covered.
     static let minimumCharacters = 12
 
+    /// Without Apple's recognizer (the Android core) every question is undetermined, so the lexicon answers
+    /// as it does for a short question.
     static func dominantCode(of question: String) -> String? {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= minimumCharacters else { return nil }
+        #if canImport(NaturalLanguage)
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(trimmed)
         guard let language = recognizer.dominantLanguage else { return nil }
         return language.rawValue
+        #else
+        return nil
+        #endif
     }
 
     /// True when the lexicon can be trusted for this question: it is in a language the word lists cover,

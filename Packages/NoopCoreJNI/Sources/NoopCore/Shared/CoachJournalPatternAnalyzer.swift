@@ -1,0 +1,1 @@
+../../../../../Strand/AI/CoachJournalPatternAnalyzer.swift

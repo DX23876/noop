@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import StrandAnalytics
 
 struct AnthropicClient: AIProviderClient {
