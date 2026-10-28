@@ -861,9 +861,19 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     fun consumeScheduledBriefIfAny(ctx: Context) {
         if (_messages.value.isNotEmpty()) return
         val text = CoachBriefSettings.from(ctx.applicationContext).consumeStoredBrief() ?: return
-        appendMessage(ChatMsg(role = "assistant", text = getApplication<Application>().getString(R.string.coach_today_brief_format, text)))
-        conversationDay = LocalDate.now().toEpochDay()
-        persistMessages()
+        viewModelScope.launch {
+            // A brief the shared coach wrote is already in its chat, marked as the coach getting in touch: show
+            // that chat rather than a second copy.
+            val state = withContext(Dispatchers.IO) { CoreCoach.state() }
+            val today = LocalDate.now().toEpochDay()
+            if (state != null && state.messages.any { it.gotInTouch != null && it.date > 0 && localEpochDay(it.date.toLong()) == today }) {
+                apply(state)
+                return@launch
+            }
+            appendMessage(ChatMsg(role = "assistant", text = getApplication<Application>().getString(R.string.coach_today_brief_format, text)))
+            conversationDay = LocalDate.now().toEpochDay()
+            persistMessages()
+        }
     }
 
     companion object {

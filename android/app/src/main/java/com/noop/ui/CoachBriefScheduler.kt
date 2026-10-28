@@ -119,6 +119,9 @@ object CoachBriefScheduler {
         // switched off.
         if (!NoopPrefs.coachEnabled(context.applicationContext)) return null
         val ctx = context.applicationContext
+        // The shared coach writes the brief as iOS does, with its tools and into its own chat. The Kotlin coach
+        // below only answers when the core is not up in this process (a worker started before the app).
+        com.noop.core.CoreCoach.brief(ctx)?.let { return it }
         val provider = AiKeyStore.readProvider(ctx)
         val model = AiKeyStore.readModel(ctx, provider)
         val consent = AiKeyStore.readConsent(ctx)

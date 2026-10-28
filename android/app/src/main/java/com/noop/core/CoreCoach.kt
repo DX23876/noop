@@ -39,6 +39,26 @@ object CoreCoach {
         return call("coach.configure", args.toString())?.optBoolean("configured") ?: false
     }
 
+    /** Hands in the settings and key Android has stored, for a caller without the chat's view model (the brief). */
+    suspend fun configureFromStores(context: Context): Boolean {
+        val ctx = context.applicationContext
+        val provider = com.noop.ai.AiKeyStore.readProvider(ctx)
+        val settings = Settings(
+            provider = provider, model = com.noop.ai.AiKeyStore.readModel(ctx, provider),
+            key = com.noop.ai.AiKeyStore.read(ctx, provider).orEmpty(), consent = com.noop.ai.AiKeyStore.readConsent(ctx),
+            customBaseUrl = com.noop.ai.AiKeyStore.readCustomBaseUrl(ctx),
+            customAuthHeader = com.noop.ai.AiKeyStore.readCustomAuthHeader(ctx),
+            customConnected = com.noop.ai.AiKeyStore.readCustomConnected(ctx),
+        )
+        return configure(ctx, settings, com.noop.ui.forge.dismissedTrainingWorkouts(ctx))
+    }
+
+    /** The morning brief from the shared coach, or null when the core cannot write one (no store, no key, no consent). */
+    suspend fun brief(context: Context): String? {
+        if (!SwiftCore.available || !configureFromStores(context)) return null
+        return call("coach.brief", "{}")?.optString("text")?.takeIf { it.isNotBlank() }
+    }
+
     fun send(text: String): Boolean = call("coach.send", JSONObject().put("text", text).toString())?.optBoolean("ok") ?: false
 
     fun state(): State? = call("coach.state", "{}")?.let(::parse)

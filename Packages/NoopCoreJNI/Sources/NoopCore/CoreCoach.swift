@@ -53,6 +53,11 @@ enum CoreCoach {
         case "coach.stop":
             coach.stop()
             return CoreRead.json(State(coach))
+        case "coach.brief":
+            // The morning brief as iOS writes it in the background (`generateBriefText`): appended to the chat
+            // as the day's brief, and returned for the notification and the widget.
+            let text = await coach.generateBriefText()
+            return CoreRead.json(["text": text ?? ""])
         case "coach.regenerate":
             coach.regenerate()
             return CoreRead.json(State(coach))
