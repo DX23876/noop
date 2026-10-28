@@ -351,7 +351,7 @@ final class AICoachEngine: ObservableObject {
     /// the settings UI can trigger a refresh the moment the user switches to `.afterWake`, without holding
     /// a `Repository` of its own — the engine already has one.
     func refreshCoachCheckInSchedule() async {
-        await CoachCheckIn.refreshDynamicSchedule(repo: repo)
+        await repo.refreshCoachCheckIn()
     }
 
     /// The active conversation, if any.
@@ -620,8 +620,9 @@ final class AICoachEngine: ObservableObject {
     @Published var cardSuggestions: [String] = []
 
     /// Internal so consent-gated tool extensions can resolve local proposal evidence without copying
-    /// Repository access into another owner. It is never exposed outside the app module.
-    let repo: Repository
+    /// data access into another owner. Held as `CoachDataReading` so the coach does not depend on Apple's
+    /// `Repository` (Android parity plan, Coach step 1). It is never exposed outside the app module.
+    let repo: any CoachDataReading
     private let session: URLSession
 
     /// Closure `AppModel` wires right after constructing the engine, so the coach can read the LIVE
@@ -929,7 +930,7 @@ final class AICoachEngine: ObservableObject {
     them to enable "Let the coach use my data" for guidance tailored to their real numbers.
     """
 
-    init(repo: Repository, session: URLSession = .shared) {
+    init(repo: any CoachDataReading, session: URLSession = .shared) {
         self.repo = repo
         self.session = session
 
@@ -2308,8 +2309,8 @@ final class AICoachEngine: ObservableObject {
         // P6: the same session against today's cardio room — the lane's own Banister TRIMP, priced with
         // the lane's maximum and the profile's coefficient, between the zone's lower and upper heart rate.
         if let band = zoneSet.zones.first(where: { $0.number == zone }) {
-            let maxHR = Repository.cardioLoadMaxHR(repo.strainProfile)
-            let sex = repo.strainProfile?.sex ?? ""
+            let maxHR = repo.cardioLoadMaxHR
+            let sex = repo.strainProfileSex
             if let low = StrainScorer.banisterAverageTRIMP(minutes: minutes, averageHR: band.lower, maxHR: maxHR,
                                                            restingHR: resting, sex: sex),
                let high = StrainScorer.banisterAverageTRIMP(minutes: minutes, averageHR: band.upper, maxHR: maxHR,

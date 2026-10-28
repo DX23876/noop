@@ -206,6 +206,6 @@ enum CoachTrainingLoadBrief {
 extension AICoachEngine {
     /// `get_training_load`: the Training Load screen's own reading, rendered for the model.
     func trainingLoadTool() async -> String {
-        CoachTrainingLoadBrief.text(await TrainingLoadModel.snapshot(repo: repo).prepared)
+        await repo.trainingLoadBrief()
     }
 }
