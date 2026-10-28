@@ -4210,4 +4210,7 @@
     <string name="forge_body_cancel">Anuluj</string>
     <string name="forge_body_weigh_ins">Pomiary masy ciała</string>
     <string name="forge_body_pct">%1$s %%</string>
+    <string name="forge_goals_ctx_training">Cele treningowe w tym tygodniu</string>
+    <string name="forge_goals_ctx_sleep">Cel snu w tym tygodniu</string>
+    <string name="forge_goals_ctx_set_training">Ustaw tygodniowy cel treningowy</string>
 </resources>

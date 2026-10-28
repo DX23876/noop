@@ -32,6 +32,7 @@ final class CoreGoalsTests: XCTestCase {
         let goal = try XCTUnwrap(output.period.first)
         XCTAssertEqual(output.period.count, 1)
         XCTAssertEqual(goal.metric, "workouts")
+        XCTAssertEqual(goal.contexts, ["training"])
         XCTAssertEqual(goal.periodTarget, 3, accuracy: 3)
         XCTAssertEqual(goal.current, 1)
         XCTAssertEqual(goal.counted.count, 1)

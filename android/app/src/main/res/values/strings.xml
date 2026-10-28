@@ -4225,4 +4225,7 @@
     <string name="forge_body_cancel">Cancel</string>
     <string name="forge_body_weigh_ins">Weigh-ins</string>
     <string name="forge_body_pct">%1$s %%</string>
+    <string name="forge_goals_ctx_training">Training goals this week</string>
+    <string name="forge_goals_ctx_sleep">Sleep goal this week</string>
+    <string name="forge_goals_ctx_set_training">Set a weekly training goal</string>
 </resources>

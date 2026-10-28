@@ -160,6 +160,8 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
             Times(night, zone)
             Breakdown(night, zone)
         }
+        // The week's sleep goal, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); nothing without one.
+        ForgeGoalsContextCard("sleep")
         Spacer(Modifier.height(ForgeMetrics.space2))
         }
     }

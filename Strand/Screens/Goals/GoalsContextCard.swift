@@ -24,16 +24,8 @@ struct GoalsContextCard: View {
     }
 
     private var goals: [PeriodGoalSnapshot] {
-        tracking.periodSnapshots.filter { snapshot in
-            guard snapshot.goal.status == .active, snapshot.goal.period == .week else { return false }
-            switch context {
-            case .training:
-                return snapshot.goal.metric.isWorkoutBased || snapshot.goal.metric == .workingSets
-                    || snapshot.goal.metric == .restDays
-            case .sleep:
-                return snapshot.goal.metric == .sleepNights || snapshot.goal.metric == .sleepAverage
-            }
-        }
+        let shared: GoalContext = context == .training ? .training : .sleep
+        return tracking.periodSnapshots.filter { GoalContext.contexts(of: $0.goal).contains(shared) }
     }
 
     var body: some View {

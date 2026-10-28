@@ -27,6 +27,8 @@ object CoreGoals {
         val counted: List<Contribution>, val notCounted: List<Contribution>, val suggestedDays: List<String>,
         val aggregation: String, val step: Double, val rangeLow: Double, val rangeHigh: Double,
         val habitKey: String? = null, val habitWantsYes: Boolean = true,
+        /** The screens this goal shows on (`GoalContext`): "training", "sleep" or none. */
+        val contexts: List<String> = emptyList(),
     )
     data class LongTerm(
         val id: String, val title: String, val status: String, val targetDate: String?, val health: String,
@@ -158,6 +160,7 @@ object CoreGoals {
                     aggregation = p.optString("aggregation", "count"), step = p.optDouble("step", 1.0),
                     rangeLow = p.optDouble("rangeLow", 0.0), rangeHigh = p.optDouble("rangeHigh", 100.0),
                     habitKey = p.str("habitKey"), habitWantsYes = p.optBoolean("habitWantsYes", true),
+                    contexts = p.optJSONArray("contexts").strings(),
                 )
             },
             longTerm = o.optJSONArray("longTerm").objects().map { g ->

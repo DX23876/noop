@@ -10,6 +10,7 @@ class CoreGoalsTest {
         val output = CoreGoals.parse(json)!!
         val goal = output.period.single()
         assertEquals("workouts", goal.metric)
+        assertEquals(listOf("training"), goal.contexts)
         assertEquals("week", goal.period)
         assertEquals("active", goal.status)
         assertEquals(3.0, goal.target, 0.0)

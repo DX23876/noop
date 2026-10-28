@@ -48,6 +48,8 @@ public enum CoreGoals {
         public var aggregation: String, step: Double, rangeLow: Double, rangeHigh: Double
         /// The journal question a habit goal counts; the host names it with the wearer's own label.
         public var habitKey: String? = nil, habitWantsYes = true
+        /// The screens this goal shows on (`GoalContext`): "training", "sleep" or none.
+        public var contexts: [String] = []
     }
 
     /// A long-term goal as `GoalTrackingSnapshot` reads it.
@@ -315,7 +317,8 @@ public enum CoreGoals {
             counted: s.counted.map(contribution), notCounted: s.notCounted.map(contribution),
             suggestedDays: s.suggestedDays, aggregation: "\(goal.metric.aggregation)",
             step: goal.metric.step(for: goal.period), rangeLow: range.lowerBound, rangeHigh: range.upperBound,
-            habitKey: goal.habitKey, habitWantsYes: goal.habitWantsYes)
+            habitKey: goal.habitKey, habitWantsYes: goal.habitWantsYes,
+            contexts: GoalContext.contexts(of: goal).map(\.rawValue))
     }
 
     @MainActor

@@ -95,12 +95,12 @@ private sealed interface GoalsPage {
  * number comes from the shared core (`CoreGoals`), which evaluates and stores the goals as the Apple app does.
  */
 @Composable
-fun ForgeGoalsPage(onBack: () -> Unit) {
+fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
     val context = LocalContext.current
     var output by remember { mutableStateOf<CoreGoals.Output?>(null) }
     var loaded by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
-    var pageRaw by rememberSaveable { mutableStateOf("") }
+    var pageRaw by rememberSaveable { mutableStateOf(initialPage) }
     val page: GoalsPage? = when {
         pageRaw == "setup" -> GoalsPage.Setup
         pageRaw.startsWith("detail:") -> GoalsPage.Detail(pageRaw.removePrefix("detail:"))
@@ -116,22 +116,24 @@ fun ForgeGoalsPage(onBack: () -> Unit) {
         }
         loaded = true
     }
-    BackHandler(enabled = page != null) { pageRaw = "" }
+    // A page opened straight from a context card returns to that screen, not to the overview.
+    fun back() { if (initialPage.isNotEmpty()) onBack() else pageRaw = "" }
+    BackHandler(enabled = page != null) { back() }
     fun refresh() { revision++ }
     when (page) {
-        GoalsPage.Setup -> GoalSetupPage(onBack = { pageRaw = "" }, onCreated = { pageRaw = ""; refresh() })
+        GoalsPage.Setup -> GoalSetupPage(onBack = ::back, onCreated = { back(); refresh() })
         is GoalsPage.Detail -> {
             val goal = output?.period?.firstOrNull { it.id == page.id }
-            PeriodGoalPage(goal, onBack = { pageRaw = "" }, onChanged = ::refresh,
-                           onRemoved = { pageRaw = ""; refresh() })
+            PeriodGoalPage(goal, onBack = ::back, onChanged = ::refresh,
+                           onRemoved = { back(); refresh() })
         }
         is GoalsPage.Daily -> DailyGoalPage(output?.daily?.firstOrNull { it.slot == page.slot },
-                                            onBack = { pageRaw = "" }, onSaved = { pageRaw = ""; refresh() })
+                                            onBack = ::back, onSaved = { back(); refresh() })
         is GoalsPage.LongTerm -> LongTermGoalPage(output?.longTerm?.firstOrNull { it.id == page.id },
-                                                  output?.period.orEmpty(), onBack = { pageRaw = "" },
+                                                  output?.period.orEmpty(), onBack = ::back,
                                                   onOpenPeriod = { pageRaw = "detail:$it" }, onChanged = ::refresh,
-                                                  onRemoved = { pageRaw = ""; refresh() })
-        GoalsPage.LongTermSetup -> LongTermSetupPage(onBack = { pageRaw = "" }, onCreated = { pageRaw = ""; refresh() })
+                                                  onRemoved = { back(); refresh() })
+        GoalsPage.LongTermSetup -> LongTermSetupPage(onBack = ::back, onCreated = { back(); refresh() })
         null -> GoalsOverview(output, loaded, onBack, onOpen = { pageRaw = "detail:$it" },
                               onDaily = { pageRaw = "daily:$it" }, onLongTerm = { pageRaw = "lt:$it" },
                               onAddLongTerm = { pageRaw = "ltsetup" },
@@ -822,6 +824,51 @@ fun ForgeTodayGoalsCard(output: CoreGoals.Output?, onOpen: () -> Unit, onToggle:
                          modifier = Modifier.size(16.dp))
                 }
             }
+        }
+    }
+}
+
+// MARK: - Context card (`GoalsContextCard`)
+
+/**
+ * The goals that belong to a screen, at its top, as iOS places them (`GoalsContextCard`): the week's training goals on
+ * the Training tab, the week's sleep goal on Sleep. Which goal belongs where is the shared `GoalContext`'s call. A goal
+ * opens its own page; without a training goal the Training tab offers to set one. Sleep draws nothing without one.
+ */
+@Composable
+fun ForgeGoalsContextCard(contextName: String) {
+    val context = LocalContext.current
+    var output by remember { mutableStateOf<CoreGoals.Output?>(null) }
+    var revision by remember { mutableIntStateOf(0) }
+    var open by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(revision) {
+        output = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            CoreGoals.snapshot(context, dismissedTrainingWorkouts(context))
+        }
+    }
+    val loaded = output ?: return
+    val items = loaded.period.filter { contextName in it.contexts }.take(2)
+    val training = contextName == "training"
+    if (items.isNotEmpty()) {
+        ForgeCard(Modifier.fillMaxWidth()) {
+            Text(stringResource(if (training) R.string.forge_goals_ctx_training else R.string.forge_goals_ctx_sleep).uppercase(),
+                 style = Forge.type.overline, color = Forge.colors.textSecondary)
+            Spacer(Modifier.height(ForgeMetrics.space2))
+            items.forEach { goal -> PeriodRow(goal) { open = "detail:${goal.id}" } }
+        }
+    } else if (training) {
+        Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                .clickable(role = Role.Button) { open = "setup" },
+            verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = Forge.colors.accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(ForgeMetrics.space2))
+            Text(stringResource(R.string.forge_goals_ctx_set_training), style = Forge.type.footnote, color = Forge.colors.accent)
+        }
+    }
+    open?.let { start ->
+        ForgeOverlayPage(onDismiss = { open = null; revision++ }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeGoalsPage(onBack = { open = null; revision++ }, initialPage = start) }
         }
     }
 }

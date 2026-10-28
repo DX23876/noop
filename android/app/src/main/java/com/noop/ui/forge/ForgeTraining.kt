@@ -209,6 +209,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 onSettings = { configuring = it },
                 onAll = { showAll = true })
         }
+        ForgeGoalsContextCard("training")
 
         Section(stringResource(R.string.forge_th_this_week), stringResource(R.string.forge_th_schedule),
                 trailing = { TintButton(stringResource(R.string.forge_th_edit)) { page = TrainingPage.Schedule } }) {

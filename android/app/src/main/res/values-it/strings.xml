@@ -4162,4 +4162,7 @@
     <string name="forge_body_cancel">Annulla</string>
     <string name="forge_body_weigh_ins">Pesate</string>
     <string name="forge_body_pct">%1$s %%</string>
+    <string name="forge_goals_ctx_training">Obiettivi di allenamento della settimana</string>
+    <string name="forge_goals_ctx_sleep">Obiettivo di sonno della settimana</string>
+    <string name="forge_goals_ctx_set_training">Imposta un obiettivo di allenamento settimanale</string>
 </resources>

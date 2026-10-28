@@ -4164,4 +4164,7 @@
     <string name="forge_body_cancel">取消</string>
     <string name="forge_body_weigh_ins">称重记录</string>
     <string name="forge_body_pct">%1$s %%</string>
+    <string name="forge_goals_ctx_training">本周训练目标</string>
+    <string name="forge_goals_ctx_sleep">本周睡眠目标</string>
+    <string name="forge_goals_ctx_set_training">设置每周训练目标</string>
 </resources>
