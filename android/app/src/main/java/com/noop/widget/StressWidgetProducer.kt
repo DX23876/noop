@@ -1,5 +1,7 @@
 package com.noop.widget
 
+import com.noop.core.CoreStress
+import com.noop.core.CoreRead
 import com.noop.analytics.DaytimeStress
 import com.noop.data.WhoopRepository
 import com.noop.ui.selectedDaytimeStressMode
@@ -179,8 +181,13 @@ internal object StressWidgetProducer {
                 return@runCatching Curve(memoHit.points, day, memoHit.activityMaskedHours)
             }
 
-            val hr = repo.hrSamplesUnion(deviceId, from, nowSeconds, limit = 200_000)
-            val result = if (hr.size < DaytimeStress.minHourHrSamples) {
+            // Parity plan 1.3: once a screen has opened the shared core this process, the core scores today from its
+            // own union store as Apple does; until then (a cold widget worker) the Room path below stays.
+            val core = if (CoreRead.isOpen) CoreStress.day(personalBaseline) else null
+            val hr = if (core != null) emptyList() else repo.hrSamplesUnion(deviceId, from, nowSeconds, limit = 200_000)
+            val result = if (core != null) {
+                core.result
+            } else if (hr.size < DaytimeStress.minHourHrSamples) {
                 // Too little signal to score honestly. An EMPTY curve, not a null: this is a real
                 // answer about today, and the widget should drop yesterday's line rather than keep it.
                 DaytimeStress.Result.EMPTY

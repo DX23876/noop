@@ -474,11 +474,7 @@ final class Repository: ObservableObject {
     /// because its repository is not device-scoped; this one already knows `importedReadIds`.
     func gravitySamplesUnion(from: Int, to: Int, limit: Int = 200_000) async -> [GravitySample] {
         guard let store = await storeHandle() else { return [] }
-        var lists: [[GravitySample]] = []
-        for id in rawPhysiologyReadIds(store: store) {   // active strap FIRST → it wins any shared timestamp
-            lists.append((try? await store.gravitySamples(deviceId: id, from: from, to: to, limit: limit)) ?? [])
-        }
-        return Self.mergeGravityByTs(lists)
+        return await storeReader(store).gravitySamplesUnion(from: from, to: to, limit: limit)
     }
 
     /// Step-counter samples for `[from, to]` from the one raw WHOOP namespace that holds the most of them,
@@ -1524,12 +1520,7 @@ final class Repository: ObservableObject {
     /// asserting one, so do not "align" the encodings on the assumption that there is.
     func hrFingerprintUnion(from: Int, to: Int) async -> String {
         guard let store = await ensureStore() else { return "" }
-        var parts: [String] = []
-        for id in rawPhysiologyReadIds(store: store) {
-            let fp = (try? await store.hrFingerprint(deviceId: id, from: from, to: to)) ?? (count: 0, maxTs: 0)
-            parts.append("\(id):\(fp.count):\(fp.maxTs)")
-        }
-        return parts.joined(separator: "|")
+        return await reader(store).hrFingerprintUnion(from: from, to: to)
     }
 
     func hrSamples(from: Int, to: Int, limit: Int = 8000) async -> [HRSample] {
@@ -1551,19 +1542,7 @@ final class Repository: ObservableObject {
     /// active-first, while same-timestamp distinct beats remain intact.
     func rrIntervals(from: Int, to: Int, limit: Int = 8000) async -> [RRInterval] {
         guard let store = await ensureStore() else { return [] }
-        // Keep each physical strap's independently filtered history after a device switch. Only the
-        // ambiguous canonical alias inherits WHOOP 5's unit guard; a confirmed WHOOP 4 keeps its policy.
-        let activeWhoop5 = (try? await store.isWhoop5RRSource(deviceId: deviceId)) == true
-        let ids = rawPhysiologyReadIds(store: store)
-        guard ids.count != 1 else {
-            return (try? await store.rrIntervals(deviceId: deviceId, from: from, to: to, limit: limit)) ?? []
-        }
-        var lists: [[RRInterval]] = []
-        for id in ids {
-            lists.append((try? await store.rrIntervals(deviceId: id, from: from, to: to, limit: limit,
-                unlabelledAliasOfWhoop5: activeWhoop5 && id == Self.whoopSource)) ?? [])
-        }
-        return Self.mergeRRByIdentity(lists)
+        return await reader(store).rrIntervals(from: from, to: to, limit: limit)
     }
 
     /// Logical day-start of the most recent day the active device has HR data for, or nil when the store is

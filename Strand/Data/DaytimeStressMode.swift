@@ -1,5 +1,8 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
+import WhoopProtocol
+import WhoopStore
 
 /// Process-level reuse of the resolved daytime-stress lens, keyed on the inputs that can change it.
 ///
@@ -64,7 +67,7 @@ enum DaytimeStressMode {
     private static let baselineHistoryDays = 30
 
     @MainActor
-    static func selected(repo: Repository, startOfToday: Date,
+    static func selected(repo: some DaytimeStressSource, startOfToday: Date,
                          calendar: Calendar = .current,
                          personalBaseline: Bool) async -> DaytimeStress.ScoringMode {
         guard personalBaseline else { return .dayRelative }
@@ -76,7 +79,7 @@ enum DaytimeStressMode {
             .map { calendar.startOfDay(for: $0) } ?? startOfToday
         let spanEnd = Int(calendar.startOfDay(for: startOfToday).timeIntervalSince1970) - 1
         let fingerprint = await repo.hrFingerprintUnion(from: Int(spanStart.timeIntervalSince1970), to: spanEnd)
-        let cacheKey = "\(repo.deviceId)|\(Int(calendar.startOfDay(for: startOfToday).timeIntervalSince1970))"
+        let cacheKey = "\(repo.stressSourceId)|\(Int(calendar.startOfDay(for: startOfToday).timeIntervalSince1970))"
             + "|\(TimeZone.current.identifier)|\(fingerprint)"
         return await StressLensCache.shared.resolve(cacheKey) {
             var aggregates: [(hr: Double?, rmssd: Double?)] = []
@@ -108,5 +111,50 @@ enum DaytimeStressMode {
             }
             return DaytimeStress.scoringModeFromAggregates(aggregates)
         }
+    }
+}
+
+/// The reads the daytime stress score needs, answered by Apple's `Repository` and by the core's `StoreReader`
+/// (parity plan 1.2), so both platforms score today from the same union reads and the same lens.
+protocol DaytimeStressSource {
+    /// The active strap the reads are keyed to, part of the lens cache key.
+    var stressSourceId: String { get }
+    func hrFingerprintUnion(from: Int, to: Int) async -> String
+    func hrSamples(from: Int, to: Int, limit: Int) async -> [HRSample]
+    func rrIntervals(from: Int, to: Int, limit: Int) async -> [RRInterval]
+    func gravitySamplesUnion(from: Int, to: Int, limit: Int) async -> [GravitySample]
+}
+
+extension StoreReader: DaytimeStressSource {
+    var stressSourceId: String { activeDeviceId }
+}
+
+/// Today's inputs to `DaytimeStress.analyze`, read the way `StressDayCurve` reads them: heart rate, and past the
+/// sample guard, R-R, wrist gravity for the motion gate and the selected lens. Shared so the core scores the same
+/// day Apple does; each caller decides where the scoring itself runs.
+enum DaytimeStressDay {
+    struct Inputs {
+        let hr: [HRSample], rr: [RRInterval], gravity: [GravitySample]
+        let tzOffsetSeconds: Int
+        let mode: DaytimeStress.ScoringMode
+    }
+
+    /// Nil when today has too few heart-rate samples to score an hour: the answer is then an EMPTY result.
+    @MainActor
+    static func inputs(source: some DaytimeStressSource, now: Date, calendar: Calendar,
+                       personalBaseline: Bool) async -> Inputs? {
+        let startOfDay = calendar.startOfDay(for: now)
+        let from = Int(startOfDay.timeIntervalSince1970)
+        let to = Int(now.timeIntervalSince1970)
+        let hr = await source.hrSamples(from: from, to: to, limit: 200_000)
+        guard hr.count >= DaytimeStress.minHourHRSamples else { return nil }
+        let rr = await source.rrIntervals(from: from, to: to, limit: 200_000)
+        // Wrist accelerometer for the motion gate, so an ambulatory hour reads as exertion rather than as
+        // stress. Empty on hardware or imports without gravity, which degrades to no masking.
+        let gravity = await source.gravitySamplesUnion(from: from, to: to, limit: 200_000)
+        let mode = await DaytimeStressMode.selected(repo: source, startOfToday: startOfDay, calendar: calendar,
+                                                    personalBaseline: personalBaseline)
+        return Inputs(hr: hr, rr: rr, gravity: gravity, tzOffsetSeconds: TimeZone.current.secondsFromGMT(for: now),
+                      mode: mode)
     }
 }

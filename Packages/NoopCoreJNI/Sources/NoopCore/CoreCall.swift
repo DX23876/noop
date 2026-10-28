@@ -180,6 +180,10 @@ public enum CoreCall {
             return CoreRead.json(await CoreLongTermGoals.change(store: store, id: string("id"), action: string("action"),
                                                                 reason: args["reason"] as? String,
                                                                 value: (args["value"] as? NSNumber)?.doubleValue))
+        case "stress.day":
+            return CoreRead.json(await CoreStress.day(reader: reader, personalBaseline: args["personal"] as? Bool ?? false))
+        case "stress.fingerprint":
+            return CoreRead.json(["fingerprint": await CoreStress.fingerprint(reader: reader)])
         case "goals.journey":
             do {
                 return CoreRead.json(try await CoreLongTermGoals.journey(reader: reader, settings: CoreGoalEnergy.settings(args),
