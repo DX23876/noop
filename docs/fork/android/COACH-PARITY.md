@@ -20,7 +20,7 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Evidence chain under a reply (tools used, local context) | ✅ | wording in the shared `CoachChatLabels.swift` |
 | Memory receipt (what this reply saved, undo) | ✅ | confirm, edit, forget |
 | "The coach got in touch" label on brief, nudge, weekly review | ✅ | |
-| Action row: Review draft goal, Review routine, Review workout, Schedule a session | 🟡 | Breathe, Live Session, Schedule a session; the three review chips wait for their drafts on Android |
+| Action row: Review draft goal, Review routine, Review workout, Schedule a session | ✅ | the review pages (`coach.drafts`) send through iOS's Hevy writers; the coach sees the Hevy key and the stored goals (`CoreGoalHost`) |
 | Time separators | ✅ | |
 | Typing indicator | ✅ | |
 | Error banner with Retry (wait seconds), consent-off banner | ✅ | |

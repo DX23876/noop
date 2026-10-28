@@ -204,6 +204,10 @@ enum CoreCoach {
         }
         let key = args["key"] as? String ?? ""
         if key.isEmpty { AIKeyStore.clear() } else { AIKeyStore.save(key, owner: coach.provider.rawValue) }
+        // The Hevy key Android keeps in its own secure store, so the coach's Hevy tools see a connection as on iOS.
+        if let hevy = args["hevyKey"] as? String {
+            if hevy.isEmpty { HevyCredentials.clear() } else { HevyCredentials.save(hevy) }
+        }
     }
 
     /// "Edit and ask again": the question taken back, and the chat after its exchange was removed.

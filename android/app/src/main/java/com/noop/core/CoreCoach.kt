@@ -36,6 +36,7 @@ object CoreCoach {
             .put("customAuthHeader", if (settings.customAuthHeader == CustomAiAuthHeader.X_API_KEY) "xAPIKey" else "bearer")
             .put("customConnected", settings.customConnected)
             .put("enabled", com.noop.ui.NoopPrefs.coachEnabled(context))
+            .put("hevyKey", CoreHevyImport.apiKey(context) ?: "")
         return call("coach.configure", args.toString())?.optBoolean("configured") ?: false
     }
 

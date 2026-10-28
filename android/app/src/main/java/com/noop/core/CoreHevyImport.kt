@@ -24,6 +24,10 @@ object CoreHevyImport {
     private fun call(op: String, args: JSONObject = JSONObject()): JSONObject =
         if (SwiftCore.available) JSONObject(SwiftCore.call(op, args.toString())) else JSONObject().put("error", "coreUnavailable")
 
+    /** The stored key, for the coach's Hevy drafts (`HevyCredentials` in the shared coach), or null. */
+    fun apiKey(context: Context): String? =
+        try { credentials(context).getString("api_key", null)?.takeIf { it.isNotBlank() } } catch (_: Exception) { null }
+
     fun connected(context: Context): Boolean = !credentials(context).getString("api_key", null).isNullOrBlank()
 
     fun info(context: Context): Info {

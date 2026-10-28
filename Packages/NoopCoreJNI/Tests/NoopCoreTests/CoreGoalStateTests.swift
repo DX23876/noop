@@ -77,3 +77,38 @@ final class CoreGoalStateTests: XCTestCase {
         XCTAssertTrue(changed)
     }
 }
+
+/// What the coach and its goal screens save on Android lands in the persisted goal image (`CoreGoalHost`).
+@MainActor
+final class CoreGoalHostTests: XCTestCase {
+    func testGuidedSetupSavesIntoTheStoredGoals() async throws {
+        let store = try await WhoopStore.inMemory()
+        let draft: [String: Any] = ["step": 4, "kind": "custom", "title": "Feel good on the hills", "hasTargetDate": false]
+        let state = await CoreGoalHost.with(store) {
+            CoreGoalOnboarding.run("goals.onboarding.commit", ["draft": draft], weightKg: 0)
+        }
+        XCTAssertTrue(state.saved)
+        let titles = try await CoreGoalState.read(store: store) { $0.goals.activeGoals.map(\.title) }
+        XCTAssertEqual(titles, ["Feel good on the hills"])
+        // The next coach operation sees it, and the one-time offer is spent.
+        let next = await CoreGoalHost.with(store) { CoreGoalOnboarding.run("goals.onboarding", [:], weightKg: 0) }
+        XCTAssertFalse(next.offer)
+    }
+
+    func testReviewedDraftAppliesTheGoalAndItsRoutine() async throws {
+        let store = try await WhoopStore.inMemory()
+        let goal = CoachGoal(kind: .custom, title: "Move more")
+        let routine = GoalAction(title: "Daily walk", requirement: .steps(minimum: 8_000), goalIds: [goal.id])
+        let proposal = CoachGoalSetupProposal(goal: .init(operation: .create, goal: goal),
+                                              routines: [.init(operation: .create, action: routine)], rationale: "Start small")
+        _ = try await CoreGoalState.change(store: store) { $0.proposals.propose(proposal) }
+        let opened = await CoreGoalHost.with(store) { CoreGoalReview.run("coach.drafts.goal.open", ["id": proposal.id.uuidString]) }
+        XCTAssertTrue(opened.open)
+        XCTAssertEqual(opened.routines.map(\.title), ["Daily walk"])
+        let applied = await CoreGoalHost.with(store) { CoreGoalReview.run("coach.drafts.goal.apply", ["stage": "start"]) }
+        XCTAssertTrue(applied.applied, applied.error ?? "")
+        let saved = try await CoreGoalState.read(store: store) { ($0.goals.activeGoals.map(\.title), $0.actions.actions.map(\.title)) }
+        XCTAssertEqual(saved.0, ["Move more"])
+        XCTAssertEqual(saved.1, ["Daily walk"])
+    }
+}

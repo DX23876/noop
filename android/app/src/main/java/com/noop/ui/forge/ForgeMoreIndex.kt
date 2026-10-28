@@ -356,12 +356,16 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
 internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (MoreDest) -> Unit) {
     val vm = viewModel<CoachViewModel>()
     var sub by remember { mutableStateOf<String?>(null) }
+    var draftId by remember { mutableStateOf<String?>(null) }
     androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity" || sub == "memory" || sub == "info") "settings" else null }
     when (sub) {
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
         "goals" -> ForgeGoalsPage(onBack = { sub = null })
         "onboarding" -> GoalOnboardingPage(onClose = { sub = null })
+        "reviewRoutine" -> RoutineReviewPage(onClose = { sub = null })
+        "reviewWorkout" -> WorkoutReviewPage(onClose = { sub = null })
+        "reviewGoal" -> draftId?.let { GoalDraftReviewPage(it, onClose = { sub = null }) }
         "settings" -> Hosted(stringResource(R.string.coach_settings), { sub = null }) {
             CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
                                 onOpenInfo = { sub = "info" }, onOpenGoals = { sub = "goals" })
@@ -374,7 +378,8 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
         // As the iOS chat: only a way back up here; the plan book sits in the chat's own header row and the
         // history in its overflow menu.
         else -> Hosted("", onBack) {
-            CoachScreen(vm, onGoalOnboarding = { sub = "onboarding" }, onOpenSettings = { sub = "settings" }, onOpenPlan = { sub = "plan" },
+            CoachScreen(vm, onGoalOnboarding = { sub = "onboarding" },
+                        onReviewDraft = { kind, id -> if (kind == "goal") { draftId = id; sub = "reviewGoal" } else sub = "review" + kind.replaceFirstChar { it.uppercase() } }, onOpenSettings = { sub = "settings" }, onOpenPlan = { sub = "plan" },
                         onOpenHistory = { sub = "history" }, onOpenBreathe = { onOpen(MoreDest.Breathe) },
                         onOpenLive = { onOpen(MoreDest.Live) }, onOpenGoals = { sub = "goals" })
         }

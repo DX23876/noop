@@ -26,6 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.SportsGymnastics
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.filled.GraphicEq
@@ -106,7 +109,7 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
                 trailing: (@Composable () -> Unit)? = null, onOpenPlan: (() -> Unit)? = null,
                 onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
                 onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null,
-                onGoalOnboarding: (() -> Unit)? = null) {
+                onGoalOnboarding: (() -> Unit)? = null, onReviewDraft: ((String, String?) -> Unit)? = null) {
     val context = LocalContext.current
     val keyVersion by vm.keyVersion.collectAsStateWithLifecycle()
     val provider by vm.provider.collectAsStateWithLifecycle()
@@ -143,7 +146,7 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
         } else {
             CoachChat(vm = vm, onOpenSettings = onOpenSettings, onOpenPlan = onOpenPlan, onOpenHistory = onOpenHistory,
                       onOpenBreathe = onOpenBreathe, onOpenLive = onOpenLive, onOpenGoals = onOpenGoals,
-                      onGoalOnboarding = onGoalOnboarding)
+                      onGoalOnboarding = onGoalOnboarding, onReviewDraft = onReviewDraft)
         }
     }
 }
@@ -303,7 +306,7 @@ private fun CoachSetup(vm: CoachViewModel) {
 private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan: (() -> Unit)? = null,
                       onOpenHistory: (() -> Unit)? = null, onOpenBreathe: (() -> Unit)? = null,
                       onOpenLive: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null,
-                      onGoalOnboarding: (() -> Unit)? = null) {
+                      onGoalOnboarding: (() -> Unit)? = null, onReviewDraft: ((String, String?) -> Unit)? = null) {
     val context = LocalContext.current
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
@@ -334,6 +337,13 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
             }
         } else {
             CoachFirstUseNote(i, onMore = { infoOpen = true }, onGotIt = { vm.loadInfo(acknowledge = true) })
+        }
+    }
+    // The drafts the coach left for review (`hasPendingDraft`), read again whenever a reply finishes.
+    var drafts by remember { mutableStateOf<com.noop.core.CoreCoachDrafts.Drafts?>(null) }
+    LaunchedEffect(sending) {
+        if (!sending) drafts = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.noop.core.CoreCoachDrafts.drafts(context)
         }
     }
     // The goal setup, offered once to a coach with no goal yet, after the first-use note (`goalOnboarding`).
@@ -489,7 +499,8 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
                 // K7: follow-up suggestion chips after each assistant reply (when not mid-send); right after a
                 // card read the engine's metric-specific ones come first, as on iOS.
                 if (!sending && messages.isNotEmpty() && messages.last().role == "assistant") {
-                    ActionRow(chrome.actionLabels, onBreathe = onOpenBreathe, onLive = onOpenLive, onSchedule = onOpenPlan)
+                    ActionRow(chrome.actionLabels, onBreathe = onOpenBreathe, onLive = onOpenLive, onSchedule = onOpenPlan,
+                              drafts = drafts, onReview = onReviewDraft)
                     Spacer(Modifier.height(10.dp))
                     SuggestedPrompts(prompts = chrome.cardSuggestions.ifEmpty { vm.followUpSuggestions }, onPick = { input = it })
                 }
@@ -897,11 +908,17 @@ private fun ReceiptControl(label: String?, color: Color, onClick: () -> Unit) {
 
 /** The standing fast paths from advice to doing something (`actionRow`): Breathe, Live Session, Schedule a session. */
 @Composable
-private fun ActionRow(labels: Map<String, String>, onBreathe: (() -> Unit)?, onLive: (() -> Unit)?, onSchedule: (() -> Unit)?) {
+private fun ActionRow(labels: Map<String, String>, onBreathe: (() -> Unit)?, onLive: (() -> Unit)?, onSchedule: (() -> Unit)?,
+                      drafts: com.noop.core.CoreCoachDrafts.Drafts? = null, onReview: ((String, String?) -> Unit)? = null) {
     val context = LocalContext.current
     // Hidden while Live Sessions are switched off, as on iOS, so the chip never opens nothing.
     val live = onLive?.takeIf { LiveSessionPrefs.enabled(context) }
+    val l = drafts?.labels.orEmpty()
     val chips = listOfNotNull(
+        // The drafts waiting first, as `actionRow` orders them: goal, routine, workout.
+        drafts?.goalId?.let { id -> onReview?.let { r -> Triple(Icons.Filled.TrackChanges, l["reviewDraft"] ?: "", { r("goal", id) }) } },
+        drafts?.routine?.let { onReview?.let { r -> Triple(Icons.Filled.FitnessCenter, l["reviewRoutine"] ?: "", { r("routine", null) }) } },
+        drafts?.workout?.let { onReview?.let { r -> Triple(Icons.Filled.SportsGymnastics, l["reviewWorkout"] ?: "", { r("workout", null) }) } },
         onBreathe?.let { Triple(Icons.Filled.Air, labels["breathe"], it) },
         live?.let { Triple(Icons.Filled.MonitorHeart, labels["live"], it) },
         onSchedule?.let { Triple(Icons.Filled.EditCalendar, labels["schedule"], it) },

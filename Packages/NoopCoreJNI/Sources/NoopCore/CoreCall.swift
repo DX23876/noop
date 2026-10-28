@@ -100,9 +100,16 @@ public enum CoreCall {
             return #"{"error":"noStore"}"#
         }
         if op.hasPrefix("input.") || op.hasPrefix("lanes.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
-        if op.hasPrefix("coach.") { return await CoreCoach.run(op, args: args, reader: reader) }
-        if op.hasPrefix("goals.onboarding") {
-            return CoreRead.json(await CoreGoalOnboarding.run(op, args, weightKg: (args["weightKg"] as? NSNumber)?.doubleValue ?? 0))
+        // The coach and the goal screens built on its stores run over the persisted goals (`CoreGoalHost`).
+        if op.hasPrefix("coach.") || op.hasPrefix("goals.onboarding") {
+            return await CoreGoalHost.with(store) {
+                if op.hasPrefix("coach.drafts.goal") { return CoreRead.json(await CoreGoalReview.run(op, args)) }
+                if op.hasPrefix("coach.drafts") { return CoreRead.json(await CoreCoachDrafts.run(op, args, store: reader.store)) }
+                if op.hasPrefix("goals.onboarding") {
+                    return CoreRead.json(await CoreGoalOnboarding.run(op, args, weightKg: (args["weightKg"] as? NSNumber)?.doubleValue ?? 0))
+                }
+                return await CoreCoach.run(op, args: args, reader: reader)
+            }
         }
         if op.hasPrefix("ecg.") { return await CoreEcg.run(op, args: args, store: store) }
         switch op {
