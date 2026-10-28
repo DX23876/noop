@@ -133,6 +133,32 @@ public enum CoreRead {
         await reader.hrBuckets(from: from, to: to, bucketSeconds: 300).map { HeartPoint(ts: $0.ts, bpm: $0.bpm) }
     }
 
+    /// A resolved metric series in Android's shape (`WhoopRepository.MetricSeriesResolution`).
+    public struct ResolvedSeries: Encodable {
+        struct Candidate: Encodable { var source: String, key: String }
+        struct Point: Encodable { var day: String, value: Double, source: String, sourceKey: String }
+        var requestedSource: String
+        var candidates: [Candidate]
+        var points: [Point]
+
+        init(_ r: MetricSeriesResolution) {
+            requestedSource = r.requestedSource
+            candidates = r.candidates.map { Candidate(source: $0.source, key: $0.key) }
+            points = r.points.map { Point(day: $0.day, value: $0.value, source: $0.source, sourceKey: $0.sourceKey) }
+        }
+    }
+
+    /// The workout list as the iPhone's `Repository.workoutRows` builds it, without its display-only heart-rate
+    /// reconcile: every source's rows with native sessions and dismissed detections applied, cross-source twins
+    /// collapsed, recorded heart-rate fills laid over, newest first. What Android's Workouts screen reads instead of
+    /// Room's own assembly (parity plan 1.3).
+    public static func workouts(days: Int, dismissed: [String], reader: StoreReader) async -> [WorkoutRow] {
+        let now = Int(Date().timeIntervalSince1970)
+        let raw = await reader.rawWorkoutRows(from: now - days * 86_400, to: now + 86_400, dismissedDetectedSpans: dismissed)
+        let deduped = WorkoutSource.dedupCrossSource(raw)
+        return await WorkoutHeartRateFills.overlay(deduped.sorted { $0.startTs > $1.startTs }, store: reader.store)
+    }
+
     /// The daily rows as the iPhone's `Repository.days` holds them: imports win a day, the core's own rows fill it, a
     /// hand-edited night's sleep comes from the edit, and an activity file supplies steps a day lacks. What
     /// Android's classic screens read instead of Room's merge (parity plan 1.3).

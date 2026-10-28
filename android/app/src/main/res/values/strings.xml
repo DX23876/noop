@@ -4470,8 +4470,8 @@
     <string name="forge_sd_balance">Balance</string>
     <string name="forge_sd_need">Per-night need</string>
     <string name="forge_sd_nights">Nights</string>
-    <string name="forge_lab_core_days">Shared core reads daily values</string>
-    <string name="forge_lab_core_days_detail">For testers. The classic screens read each day\'s sleep, Charge, Effort and vitals from the shared core, as on iPhone, instead of the phone\'s own copy.</string>
+    <string name="forge_lab_core_days">Shared core reads daily values and workouts</string>
+    <string name="forge_lab_core_days_detail">For testers. The classic screens read each day\'s sleep, Charge, Effort and vitals and the workout list from the shared core, as on iPhone, instead of the phone\'s own copy.</string>
     <string name="forge_lab_compare">Compare with the phone\'s copy</string>
     <string name="forge_lab_compare_same">No differences in the recent days.</string>
     <string name="forge_lab_compare_diff">%1$d differences, first: %2$s</string>

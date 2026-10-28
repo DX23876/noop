@@ -4334,8 +4334,8 @@
     <string name="forge_sd_balance">Баланс</string>
     <string name="forge_sd_need">Потребность за ночь</string>
     <string name="forge_sd_nights">Ночи</string>
-    <string name="forge_lab_core_days">Общее ядро читает дневные значения</string>
-    <string name="forge_lab_core_days_detail">Для тестировщиков. Классические экраны читают сон, Charge, Effort и показатели каждого дня из общего ядра, как на iPhone, а не из копии телефона.</string>
+    <string name="forge_lab_core_days">Общее ядро читает дневные значения и тренировки</string>
+    <string name="forge_lab_core_days_detail">Для тестировщиков. Классические экраны читают сон, Charge, Effort и показатели каждого дня, а также список тренировок из общего ядра, как на iPhone, а не из копии телефона.</string>
     <string name="forge_lab_compare">Сравнить с копией телефона</string>
     <string name="forge_lab_compare_same">За последние дни расхождений нет.</string>
     <string name="forge_lab_compare_diff">Расхождений: %1$d, первое: %2$s</string>

@@ -444,6 +444,12 @@ class WhoopRepository(
     private val inputLanes: com.noop.core.CoreInputLanes? = null,
 ) {
 
+    /**
+     * Parity plan 1.3: whether reads that the shared core can answer come from it (the Lab switch
+     * `CoreDailyRows.coreReads`). Set by [from]; off for a repository built without a context, as in tests.
+     */
+    var coreReads: () -> Boolean = { false }
+
     /** Transaction boundary injected so repository writes remain testable without a Room runtime. */
     interface Transactor {
         suspend fun <R> run(block: suspend () -> R): R
@@ -1247,7 +1253,9 @@ class WhoopRepository(
     private suspend fun markerKeysOf(id: String): List<String> =
         dao.labMarkerById(id)?.let { listOf(it.markerKey) }.orEmpty()
     suspend fun labMarkersByKey(deviceId: String, markerKey: String) = dao.labMarkersByKey(deviceId, markerKey)
-    suspend fun labMarkersByCategory(deviceId: String, category: String) = dao.labMarkersByCategory(deviceId, category)
+    suspend fun labMarkersByCategory(deviceId: String, category: String): List<LabMarkerRow> =
+        (if (coreReads()) com.noop.core.CoreLabMarkers.read(deviceId, category) else null)
+            ?: dao.labMarkersByCategory(deviceId, category)
     suspend fun markerKeysPresent(deviceId: String) = dao.markerKeysPresent(deviceId)
 
     // MARK: - Reads
@@ -2365,6 +2373,15 @@ class WhoopRepository(
         to: String,
         strapDeviceId: String = "my-whoop",
     ): MetricSeriesResolution {
+        if (coreReads()) {
+            // The core resolves as Apple's `MetricResolver`; the #1705 one-scale rule below stays on this path too.
+            com.noop.core.CoreResolvedSeries.read(key, preferredSource, from, to, strapDeviceId)?.let { r ->
+                return if (key != "skin_temp") r else {
+                    val keep = com.noop.analytics.SkinTempDisplay.dominantKind(r.points.map { it.value })
+                    if (keep == null) r else r.copy(points = r.points.filter { com.noop.analytics.SkinTempDisplay.kind(it.value) == keep })
+                }
+            }
+        }
         val candidates = sourceCandidates(key, preferredSource, strapDeviceId)
         // First candidate wins per day; later candidates only fill days no earlier one covered.
         // #993 exception inside [resolveFirstWins]: a day held only by a WEAK sleep-total (the bare
@@ -2730,7 +2747,10 @@ class WhoopRepository(
         fun from(context: Context): WhoopRepository =
             WhoopDatabase.get(context).let { db ->
                 WhoopRepository(db, CoreUserInputs(context.applicationContext),
-                                com.noop.core.CoreInputLanes(context.applicationContext, db))
+                                com.noop.core.CoreInputLanes(context.applicationContext, db)).also { repo ->
+                    val app = context.applicationContext
+                    repo.coreReads = { com.noop.core.CoreDailyRows.coreReads(app) }
+                }
             }
 
         // MARK: - Compact per-epoch JSON (v18 motionJSON / sleepStateJSON), byte-equivalent with Swift's

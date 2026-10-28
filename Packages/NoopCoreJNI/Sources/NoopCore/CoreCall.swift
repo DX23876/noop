@@ -267,6 +267,18 @@ public enum CoreCall {
                 targetKgPerWeek: (args["targetKgPerWeek"] as? NSNumber)?.doubleValue ?? 0))
         case "read.dailyRows":
             return CoreRead.json(await CoreRead.dailyRows(from: string("from"), to: string("to"), reader: reader))
+        case "read.resolvedSeries":
+            // `Repository.resolvedSeries`: one metric across every compatible source, first candidate wins per day.
+            let r = await MetricResolver.resolve(store: reader.store, key: string("key"), preferredSource: string("source"),
+                                                 actualWhoopSource: string("whoopSource"), from: string("from"), to: string("to"),
+                                                 suppressedSleepWakeDays: Set(args["suppressedWakeDays"] as? [String] ?? []))
+            return CoreRead.json(CoreRead.ResolvedSeries(r))
+        case "read.labMarkers":
+            // The Lab Book's readings for one category, as Apple's `LabBookView` reads them.
+            return CoreRead.json((try? await reader.store.labMarkers(deviceId: string("deviceId"), category: string("category"))) ?? [])
+        case "read.workouts":
+            return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
+                                                         dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
         case "sleep.debt":
             return CoreRead.json(await CoreSleepDebt.read(reader: reader))
         case "energy.today":

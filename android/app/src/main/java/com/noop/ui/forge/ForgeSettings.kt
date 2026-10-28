@@ -1044,14 +1044,19 @@ private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Un
         val res = LocalContext.current.resources
         TextButton(onClick = {
             scope.launch {
-                val found = viewModel.compareDailyRowsWithCore()
+                // The daily rows first, then the workout list: one count over both, naming the first difference.
+                val days = viewModel.compareDailyRowsWithCore()
+                val workouts = viewModel.compareWorkoutsWithCore()
+                val found = if (days == null || workouts == null) null
+                    else days.map { listOf(it.day, it.field, it.room, it.core) } +
+                         workouts.map { listOf(it.session, it.field, it.room, it.core) }
                 comparison = when {
                     found == null -> unavailable
                     found.isEmpty() -> same
-                    else -> found.first().let { f ->
+                    else -> found.first().let { (where, field, room, core) ->
                         res.getString(R.string.forge_lab_compare_diff, found.size,
-                                      res.getString(R.string.forge_join_dot, f.day,
-                                                    res.getString(R.string.forge_join_arrow, res.getString(R.string.forge_join_space, f.field, f.room), f.core)))
+                                      res.getString(R.string.forge_join_dot, where,
+                                                    res.getString(R.string.forge_join_arrow, res.getString(R.string.forge_join_space, field, room), core)))
                     }
                 }
             }
