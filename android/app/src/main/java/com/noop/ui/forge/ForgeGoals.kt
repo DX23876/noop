@@ -163,7 +163,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
         val longTerm = output.longTerm.filter { it.status == "active" || it.status == "paused" }
 
         if (output.today.isNotEmpty()) {
-            SectionHeader(stringResource(R.string.forge_goals_today))
+            GoalSectionHeader(stringResource(R.string.forge_goals_today))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 output.today.forEachIndexed { i, action ->
                     DailyRow(action) {
@@ -178,7 +178,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
         }
 
         // The measured daily goals, one slot each, as the iOS "Daily" list offers them (`DailyGoalSheet`).
-        SectionHeader(stringResource(R.string.forge_goals_daily))
+        GoalSectionHeader(stringResource(R.string.forge_goals_daily))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
             output.daily.forEachIndexed { i, slot ->
                 Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onDaily(slot.slot) }
@@ -198,7 +198,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
             }
         }
 
-        SectionHeader(stringResource(R.string.forge_goals_long_term))
+        GoalSectionHeader(stringResource(R.string.forge_goals_long_term))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
             longTerm.forEachIndexed { i, goal ->
                 Box(Modifier.clickable(role = Role.Button) { onLongTerm(goal.id) }) { LongTermRow(goal) }
@@ -210,7 +210,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
         for (period in listOf("week", "month")) {
             val goals = active.filter { it.period == period }
             val left = goals.firstOrNull()?.daysLeft
-            SectionHeader(stringResource(if (period == "week") R.string.forge_goals_weekly else R.string.forge_goals_monthly) +
+            GoalSectionHeader(stringResource(if (period == "week") R.string.forge_goals_weekly else R.string.forge_goals_monthly) +
                 (left?.let { " · " + if (it <= 1) stringResource(R.string.forge_goals_ends_today)
                                      else stringResource(R.string.forge_goals_days_left, it) } ?: ""))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
@@ -225,7 +225,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
         }
 
         if (paused.isNotEmpty()) {
-            SectionHeader(stringResource(R.string.forge_goals_paused))
+            GoalSectionHeader(stringResource(R.string.forge_goals_paused))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 paused.forEachIndexed { i, goal ->
                     PeriodRow(goal) { onOpen(goal.id) }
@@ -832,6 +832,16 @@ fun ForgeTodayGoalsCard(output: CoreGoals.Output?, onOpen: () -> Unit, onToggle:
             }
         }
     }
+}
+
+/**
+ * A section heading on the goal pages, which sit on the sky scene: the scene's ink keeps it readable over a dark sky
+ * as iOS's overline is over its backdrop. The Today card keeps the canvas heading.
+ */
+@Composable
+internal fun GoalSectionHeader(text: String, modifier: Modifier = Modifier) {
+    Text(text.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary,
+         modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
 }
 
 // MARK: - Context card (`GoalsContextCard`)

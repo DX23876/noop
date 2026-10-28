@@ -570,7 +570,7 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
         }
         val children = periods.filter { it.parentGoalId == goal.id }
         if (children.isNotEmpty()) {
-            SectionHeader(stringResource(R.string.forge_lt_serving))
+            GoalSectionHeader(stringResource(R.string.forge_lt_serving))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 children.forEachIndexed { i, child ->
                     PeriodRow(child) { onOpenPeriod(child.id) }
@@ -748,7 +748,7 @@ private fun LongTermJourneyPage(id: String, onBack: () -> Unit, onChanged: () ->
             }
         }
         if (j.activities.isNotEmpty()) {
-            SectionHeader(stringResource(R.string.forge_lj_activities))
+            GoalSectionHeader(stringResource(R.string.forge_lj_activities))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 Text(stringResource(R.string.forge_lj_activities_text), style = Forge.type.caption, color = colors.textTertiary)
                 j.activities.forEach { a ->
@@ -763,7 +763,7 @@ private fun LongTermJourneyPage(id: String, onBack: () -> Unit, onChanged: () ->
             }
         }
         if (j.history.isNotEmpty()) {
-            SectionHeader(stringResource(R.string.forge_lj_changes))
+            GoalSectionHeader(stringResource(R.string.forge_lj_changes))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 j.history.forEach { h ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -833,7 +833,7 @@ private fun ReachedCard(p: CoreLongTermGoals.Page, onClose: () -> Unit, onRaise:
 @Composable
 private fun LongTermSectionHeader(title: String, action: String? = null, onAction: () -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.weight(1f)) { SectionHeader(title) }
+        Box(Modifier.weight(1f)) { GoalSectionHeader(title) }
         if (action != null) {
             Text(action, style = Forge.type.footnote, color = Forge.colors.accent,
                  modifier = Modifier.clickable(role = Role.Button, onClick = onAction).padding(ForgeMetrics.space2))
