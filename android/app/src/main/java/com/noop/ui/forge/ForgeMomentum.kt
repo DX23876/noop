@@ -73,7 +73,7 @@ private fun momentumFeed(retry: Int): MomentumFeedState {
 }
 
 @Composable
-internal fun ForgeTodayMomentum() {
+internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var retry by remember { mutableIntStateOf(0) }
@@ -97,17 +97,22 @@ internal fun ForgeTodayMomentum() {
     page?.let { selected ->
         ForgeOverlayPage(onDismiss = ::close) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {
-                if (selected == "goals") {
-                    BackHandler { page = "momentum" }
-                    ForgeGoalsPage(onBack = { page = "momentum" })
-                } else ForgeMomentumPage(onBack = ::close, onGoals = { page = "goals" })
+                when (selected) {
+                    "goalJourney" -> { BackHandler { page = "momentum" }; ForgeGoalsPage(onBack = { page = "momentum" }) }
+                    "plan" -> { BackHandler { page = "momentum" }; ForgeCoachPlanPage(onBack = { page = "momentum" }) }
+                    "liveSession" -> {
+                        BackHandler { page = "momentum" }
+                        Hosted(stringResource(R.string.nav_live), onBack = { page = "momentum" }) { com.noop.ui.LiveScreen(viewModel) }
+                    }
+                    else -> ForgeMomentumPage(onBack = ::close, onDestination = { page = it })
+                }
             }
         }
     }
 }
 
 @Composable
-fun ForgeMomentumPage(onBack: () -> Unit, onGoals: () -> Unit) {
+fun ForgeMomentumPage(onBack: () -> Unit, onDestination: (String) -> Unit) {
     var retry by remember { mutableIntStateOf(0) }
     val state = momentumFeed(retry)
     val messages = state.messages
@@ -126,7 +131,7 @@ fun ForgeMomentumPage(onBack: () -> Unit, onGoals: () -> Unit) {
                 Text(stringResource(R.string.forge_momentum_empty), style = Forge.type.headline, color = Forge.colors.text)
                 Text(stringResource(R.string.forge_momentum_quiet), style = Forge.type.body, color = Forge.colors.textSecondary)
             }
-            else -> messages.forEach { MomentumMessageCard(it, onGoals = onGoals) }
+            else -> messages.forEach { MomentumMessageCard(it, onDestination = onDestination) }
         }
     }
 }

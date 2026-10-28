@@ -52,6 +52,13 @@ public enum CoreMomentum {
         c.carriedCaption = lastScored.map { CarriedRecovery.caption(priorDayKey: $0.day, todayKey: todayKey) }
         // Measured steps only: the strap's own count for the day, else Apple Health's for the same day.
         if let steps = display?.steps ?? appleSteps { c.measuredSteps = steps }
+        // A session agreed for today and not yet recorded, through the selector the plan card uses
+        // (`DashboardMomentum.context`).
+        if let next = PlanTodaySelection.next(from: CoachPlanStore.shared.proposals, today: todayKey, now: now),
+           next.day == todayKey, PlanTodaySelection.shouldFlagInMomentum(next, now: now),
+           (display?.exerciseCount ?? 0) == 0 {
+            c.openPlannedSessionToday = next.sport
+        }
 
         let source = try await CoreGoals.source(reader: reader, settings: settings, now: now)
         return try await CoreGoalState.read(store: reader.store) { context in

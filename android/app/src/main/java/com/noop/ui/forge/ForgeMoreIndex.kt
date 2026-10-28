@@ -312,7 +312,16 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         return
     }
     if (dest == MoreDest.Momentum) {
-        ForgeMomentumPage(onBack, onGoals = { onOpen(MoreDest.Goals) })
+        var plan by remember { mutableStateOf(false) }
+        androidx.activity.compose.BackHandler(enabled = plan) { plan = false }
+        if (plan) ForgeCoachPlanPage(onBack = { plan = false })
+        else ForgeMomentumPage(onBack, onDestination = { d ->
+            when (d) {
+                "goalJourney" -> onOpen(MoreDest.Goals)
+                "liveSession" -> onOpen(MoreDest.Live)
+                "plan" -> plan = true
+            }
+        })
         return
     }
     Hosted(title, onBack) {
