@@ -146,3 +146,12 @@ struct CoachChartSnapshot: Codable, Equatable {
         )
     }
 }
+
+extension CoachChartArtifact {
+    /// Builds the artifact from plain {date, value} pairs, so the engine that picks the points (`AICoach`)
+    /// needs nothing from StrandDesign (Android parity plan, Coach extraction).
+    init(title: String, values: [CoachChartSnapshot.Point], valueRange: ClosedRange<Double>, kind: Kind) {
+        self.init(title: title, points: values.map { TrendPoint(date: $0.date, value: $0.value) },
+                  valueRange: valueRange, kind: kind)
+    }
+}

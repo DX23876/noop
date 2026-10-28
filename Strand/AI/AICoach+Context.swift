@@ -4,7 +4,6 @@ import Security
 import WhoopStore
 import StrandAnalytics
 import StrandImport
-import StrandDesign
 import SemanticMemory
 
 // AICoachEngine context builder, the plain-text data summary every turn sends.

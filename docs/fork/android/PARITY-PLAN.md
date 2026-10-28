@@ -142,8 +142,12 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   Schritt 4 erledigt (2026-10-28): `NoopCore/CoreCoachData.swift` erfüllt `CoachDataReading` über `StoreReader`
   und liest gemeinsame Bahnen (Training, Tagebuch, Wasser, Kraft, Körper, Tage) über `CoreGoals.Host`, damit Coach
   und Ziele nicht auseinanderlaufen. Noch ohne Kern-Leser und deshalb leer: Energiezusammenfassungen, der
-  Cardio-Spielraum, Stimmung, die Belastungsübersicht und alle Schreibwege. Als Nächstes der Umzug des Coaches
-  selbst (`AICoach` ohne `StrandDesign` und ohne `SemanticMemory`) und die Brücke nach Kotlin.
+  Cardio-Spielraum, Stimmung, die Belastungsübersicht und alle Schreibwege. Schritt 5 erledigt
+  (2026-10-28): `AICoach` importiert `StrandDesign` nicht mehr (Diagrammpunkte als `CoachChartSnapshot.Point`)
+  und erreicht das semantische Gedächtnis nur noch über `CoachMemoryIndex` (`Strand/AI/CoachMemoryIndex.swift`,
+  mit `NoCoachMemoryIndex` für einen Host ohne Modell). Das Paket `SemanticMemory` selbst hängt nur an GRDB und
+  darf bleiben. Als Nächstes die übrigen App-Typen, die `AICoach` noch erreicht, dann der Umzug und die Brücke nach
+  Kotlin.
 
 Jede Verschiebung bekommt Kern-Tests auf macOS. Der Echtdaten-Vergleich läuft dort, wo Werte gespeichert
 werden.

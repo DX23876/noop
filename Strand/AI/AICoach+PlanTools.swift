@@ -4,7 +4,6 @@ import Security
 import WhoopStore
 import StrandAnalytics
 import StrandImport
-import StrandDesign
 import SemanticMemory
 
 // AICoachEngine plan tools (`propose_plan` and its siblings).

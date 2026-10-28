@@ -5,7 +5,6 @@ import WhoopStore
 import StrandCore
 import StrandAnalytics
 import StrandImport
-import StrandDesign
 import SemanticMemory
 
 // MARK: - AI Coach (strictly opt-in, bring-your-own-key)
@@ -481,7 +480,7 @@ final class AICoachEngine: ObservableObject {
 
     private var semanticAllowedScopes: Set<SemanticConsentScope> {
         guard dataConsent else { return [] }
-        return CoachSemanticMemory.allowedScopes(for: toolConsent)
+        return memory.allowedScopes(for: toolConsent)
     }
 
     /// Called from the Coach screen. It only reconciles text metadata and begins an asynchronous warm-up;
@@ -491,7 +490,7 @@ final class AICoachEngine: ObservableObject {
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.prewarm(
+        await memory.prewarm(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes
@@ -504,7 +503,7 @@ final class AICoachEngine: ObservableObject {
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.performMaintenance(
+        await memory.performMaintenance(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes,
@@ -519,28 +518,28 @@ final class AICoachEngine: ObservableObject {
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.reconcile(
+        await memory.reconcile(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes
         )
-        CoachSemanticMemory.shared.startManualIndexing()
+        memory.startManualIndexing()
     }
 
     func unloadSemanticMemory() async {
-        await CoachSemanticMemory.shared.unload()
+        await memory.unload()
     }
 
     private func semanticPrivacyDidChange() async {
         // A privacy change invalidates any in-flight lease. Reconciliation below may retain still-
         // permitted vectors, but the 328 MB model is released immediately and only a later Coach use
         // or approved maintenance run may load it again.
-        await CoachSemanticMemory.shared.unload()
+        await memory.unload()
         let entries = semanticAllowedScopes.contains(.personalLogs)
             || semanticAllowedScopes.contains(.sensitiveLogs)
             ? await repo.journalEntries()
             : []
-        await CoachSemanticMemory.shared.reconcile(
+        await memory.reconcile(
             conversations: conversations,
             journalEntries: entries,
             allowedScopes: semanticAllowedScopes
@@ -623,6 +622,8 @@ final class AICoachEngine: ObservableObject {
     /// data access into another owner. Held as `CoachDataReading` so the coach does not depend on Apple's
     /// `Repository` (Android parity plan, Coach step 1). It is never exposed outside the app module.
     let repo: any CoachDataReading
+    /// The long-term memory index (`CoachMemoryIndex`): the semantic memory on Apple, none on Android yet.
+    private let memory: any CoachMemoryIndex
     private let session: URLSession
 
     /// Closure `AppModel` wires right after constructing the engine, so the coach can read the LIVE
@@ -930,8 +931,9 @@ final class AICoachEngine: ObservableObject {
     them to enable "Let the coach use my data" for guidance tailored to their real numbers.
     """
 
-    init(repo: any CoachDataReading, session: URLSession = .shared) {
+    init(repo: any CoachDataReading, memory: any CoachMemoryIndex, session: URLSession = .shared) {
         self.repo = repo
+        self.memory = memory
         self.session = session
 
         // Restore persisted provider / model (falling back to sane defaults).
@@ -994,9 +996,9 @@ final class AICoachEngine: ObservableObject {
         transcriptAutosave = $conversations
             .dropFirst()
             .debounce(for: .seconds(1.0), scheduler: DispatchQueue.main)
-            .sink { conversations in
+            .sink { [memory] conversations in
                 CoachConversationStore.save(conversations)
-                Task { await CoachSemanticMemory.shared.conversationsChanged(conversations) }
+                Task { await memory.conversationsChanged(conversations) }
             }
 
         // Rebuild the in-memory chart artifacts for the active conversation from their snapshots.
@@ -1637,7 +1639,7 @@ final class AICoachEngine: ObservableObject {
             : []
         let semanticRetrieval: CoachSemanticRetrieval
         if dataConsent {
-            semanticRetrieval = await CoachSemanticMemory.shared.retrieve(
+            semanticRetrieval = await memory.retrieve(
                 question: trimmed,
                 conversations: conversationsBeforeCurrentQuestion,
                 journalEntries: semanticJournalEntries,
@@ -1646,7 +1648,7 @@ final class AICoachEngine: ObservableObject {
             // Queue the just-added user turn immediately, but do not start another model operation.
             // Only the conversations changed since the reconcile inside `retrieve` a moment ago — this
             // used to be a second FULL reconcile of every source, doubling that work on every message.
-            await CoachSemanticMemory.shared.conversationsChanged(conversations)
+            await memory.conversationsChanged(conversations)
         } else {
             semanticRetrieval = CoachSemanticRetrieval(context: "", mode: .unavailable)
         }
@@ -1893,15 +1895,15 @@ final class AICoachEngine: ObservableObject {
         let n = max(7, min(days, 180))
         let recent = Array(repo.days.suffix(n))
 
-        func series(_ extract: (DailyMetric) -> Double?) -> [TrendPoint] {
+        func series(_ extract: (DailyMetric) -> Double?) -> [CoachChartSnapshot.Point] {
             recent.compactMap { d in
                 guard let v = extract(d), let date = Self.parseDay(d.day) else { return nil }
-                return TrendPoint(date: date, value: v)
+                return CoachChartSnapshot.Point(date: date, value: v)
             }
         }
 
         let title: String
-        let points: [TrendPoint]
+        let points: [CoachChartSnapshot.Point]
         let range: ClosedRange<Double>
         let kind: CoachChartArtifact.Kind
 
@@ -1922,7 +1924,7 @@ final class AICoachEngine: ObservableObject {
             guard await repo.availableKeys(source: Repository.whoopSource).contains(rawMetric) else { return nil }
             let rows = await repo.series(key: rawMetric, source: Repository.whoopSource, days: n)
             title = Self.humanizeMetricKey(rawMetric)
-            points = rows.compactMap { row in Self.parseDay(row.day).map { TrendPoint(date: $0, value: row.value) } }
+            points = rows.compactMap { row in Self.parseDay(row.day).map { CoachChartSnapshot.Point(date: $0, value: row.value) } }
             let vals = points.map(\.value)
             let span = (vals.max() ?? 0) - (vals.min() ?? 0)
             range = Self.paddedRange(vals, pad: max(span * 0.1, 0.5))
@@ -1930,7 +1932,7 @@ final class AICoachEngine: ObservableObject {
         }
 
         guard points.count >= 2 else { return nil }
-        return CoachChartArtifact(title: title, points: points, valueRange: range, kind: kind)
+        return CoachChartArtifact(title: title, values: points, valueRange: range, kind: kind)
     }
 
     /// "sleep_performance" → "Sleep Performance", for a chart title built from an arbitrary metric key

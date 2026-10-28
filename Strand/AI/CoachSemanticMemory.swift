@@ -3,17 +3,6 @@ import Combine
 import SemanticMemory
 import WhoopStore
 
-enum CoachSemanticRetrievalMode: String {
-    case semantic
-    case keywordFallback
-    case unavailable
-}
-
-struct CoachSemanticRetrieval {
-    let context: String
-    let mode: CoachSemanticRetrievalMode
-}
-
 /// A non-blocking race gate. Structured task groups wait for cancelled children to actually finish,
 /// which would defeat the 2.5-second fallback when a C inference call cannot observe cancellation.
 private actor SemanticSearchRace {
@@ -1039,5 +1028,17 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
 
     nonisolated private static func isRecentDay(_ day: String, days: Int) -> Bool {
         dayDate(day) >= Date().addingTimeInterval(-Double(days) * 86_400)
+    }
+}
+
+/// The Apple host of the coach's memory seam: this coordinator, with the bundled embedding model.
+extension CoachSemanticMemory: CoachMemoryIndex {
+    func allowedScopes(for consent: ToolConsent) -> Set<SemanticConsentScope> { Self.allowedScopes(for: consent) }
+}
+
+extension AICoachEngine {
+    /// The app's engine: the Repository's reads and the semantic memory with its embedding model.
+    convenience init(repo: Repository, session: URLSession = .shared) {
+        self.init(repo: repo, memory: CoachSemanticMemory.shared, session: session)
     }
 }
