@@ -62,3 +62,39 @@ final class CoreExerciseVO2maxTests: XCTestCase {
         XCTAssertFalse(out.passes)
     }
 }
+
+/// The morning suggestion on Android resolves by iOS's `MorningSuggestionState` and words its card the same way.
+@MainActor
+final class CoreMorningSuggestionTests: XCTestCase {
+    private let today = "2026-10-28"
+
+    func testWaitingProposalShowsEvenWithTheSwitchOff() {
+        let p = PlanProposal(day: today, sport: "Run", intent: .rest, rationale: "Low charge")
+        let state = MorningSuggestionState.resolve(morningOn: false, configured: true, consent: true, toolsActive: true,
+                                                   sending: false, pending: [p], today: today)
+        let card = CoreCoach.card(state, on: false, scale: .hundred)
+        XCTAssertEqual(card.kind, "waiting")
+        XCTAssertEqual(card.id, p.id.uuidString)
+        XCTAssertEqual(card.title, "Rest day suggested")
+        XCTAssertEqual(card.rationale, "Low charge")
+    }
+
+    func testUnsettledNightAsksAboutTheWakeOnlyWhenSwitchedOn() {
+        let off = MorningSuggestionState.resolve(morningOn: false, configured: true, consent: true, toolsActive: true,
+                                                 sending: false, pending: [], today: today, unsettledWake: 1_800_000_000)
+        XCTAssertEqual(CoreCoach.card(off, on: false, scale: .hundred).kind, "hidden")
+        let on = MorningSuggestionState.resolve(morningOn: true, configured: true, consent: true, toolsActive: true,
+                                                sending: false, pending: [], today: today, unsettledWake: 1_800_000_000)
+        let card = CoreCoach.card(on, on: true, scale: .hundred)
+        XCTAssertEqual(card.kind, "confirmWake")
+        XCTAssertEqual(card.wake, 1_800_000_000)
+        XCTAssertTrue(card.wakeText?.contains("%@") == true)
+    }
+
+    func testNoProviderHidesEverything() {
+        let p = PlanProposal(day: today, sport: "Run", intent: .easy)
+        let state = MorningSuggestionState.resolve(morningOn: true, configured: false, consent: true, toolsActive: true,
+                                                   sending: true, pending: [p], today: today)
+        XCTAssertEqual(CoreCoach.card(state, on: true, scale: .hundred).kind, "hidden")
+    }
+}

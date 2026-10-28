@@ -59,6 +59,29 @@ object CoreCoach {
         return call("coach.brief", "{}")?.optString("text")?.takeIf { it.isNotBlank() }
     }
 
+    /** The morning suggestion on Today (`MorningSuggestionCard`), worded by the core; `kind` is hidden, generating, waiting or confirmWake. */
+    data class Morning(
+        val on: Boolean, val kind: String, val id: String?, val title: String?, val summary: String?, val rationale: String?,
+        val wake: Long?, val wakeText: String?, val labels: Map<String, String>,
+    )
+
+    /**
+     * Reads the card, or first applies [op] (`set` with [on], `decide` with [id] and [accept], `confirmWake`). With
+     * [generate] the day's brief runs first, as opening Today does on iOS; that can take as long as a reply.
+     */
+    fun morning(effortScale: String, op: String? = null, generate: Boolean = false, on: Boolean? = null,
+                id: String? = null, accept: Boolean? = null): Morning? {
+        val args = JSONObject().put("effortScale", effortScale).put("generate", generate)
+        on?.let { args.put("on", it) }; id?.let { args.put("id", it) }; accept?.let { args.put("accept", it) }
+        val o = call(if (op == null) "coach.morning" else "coach.morning.$op", args.toString()) ?: return null
+        if (!o.has("kind")) return null
+        fun opt(k: String) = if (!o.has(k) || o.isNull(k)) null else o.optString(k).takeIf { it.isNotEmpty() }
+        val l = o.optJSONObject("labels")
+        return Morning(o.optBoolean("on"), o.getString("kind"), opt("id"), opt("title"), opt("summary"), opt("rationale"),
+                       if (!o.has("wake") || o.isNull("wake")) null else o.getLong("wake"), opt("wakeText"),
+                       l?.keys()?.asSequence()?.associateWith { l.getString(it) } ?: emptyMap())
+    }
+
     fun send(text: String): Boolean = call("coach.send", JSONObject().put("text", text).toString())?.optBoolean("ok") ?: false
 
     fun state(): State? = call("coach.state", "{}")?.let(::parse)

@@ -80,6 +80,7 @@ enum class ForgeWidth { Compact, Medium, Expanded;
 @Composable
 fun ForgeShell(screen: @Composable (tab: ForgeTab, padding: PaddingValues, width: ForgeWidth) -> Unit) {
     var tab by rememberSaveable { mutableStateOf(ForgeTab.Today) }
+    androidx.compose.runtime.CompositionLocalProvider(LocalForgeTabSelect provides { tab = it }) {
     ForgeSceneBackdrop(tab.backdrop) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val width = ForgeWidth.of(maxWidth)
@@ -100,7 +101,11 @@ fun ForgeShell(screen: @Composable (tab: ForgeTab, padding: PaddingValues, width
             }
         }
     }
+    }
 }
+
+/** Switches the shell's tab from inside a screen, as iOS's `NavRouter` does (the morning card's "Fix it" opens Sleep). */
+val LocalForgeTabSelect = androidx.compose.runtime.staticCompositionLocalOf<(ForgeTab) -> Unit> { {} }
 
 @Composable
 private fun Content(tab: ForgeTab, width: ForgeWidth, extra: PaddingValues,

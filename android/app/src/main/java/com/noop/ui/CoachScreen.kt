@@ -67,6 +67,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -133,6 +135,7 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
         fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
+        scrollable = !configured,
     ) {
         if (!configured) {
             CoachSetup(vm = vm)
@@ -385,8 +388,13 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
     }
 
     val identity by vm.identity.collectAsStateWithLifecycle()
+    // The transcript scrolls under a still header and composer, as on iOS, and follows the newest words.
+    val transcript = androidx.compose.foundation.rememberScrollState()
+    LaunchedEffect(messages.size, messages.lastOrNull()?.text?.length, sending, transcript.maxValue) {
+        transcript.animateScrollTo(transcript.maxValue)
+    }
     androidx.compose.runtime.CompositionLocalProvider(LocalCoachIdentity provides identity) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.fillMaxSize().imePadding(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
         // One compact glass row, as the iOS chat header: the coach's avatar (breathing while a reply is
         // written), its name with "Thinking…" in place of the provider line, New chat, and the rest in an
@@ -423,6 +431,7 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
             )
         }
 
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(transcript), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // Transcript or empty-state with suggested prompts.
         if (messages.isEmpty()) {
             // The iOS greeting: the coach's portrait, who it is, what it reads, then the suggestions.
@@ -535,6 +544,8 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
                     }
                 }
             }
+        }
+
         }
 
         // Input row + Send, a frosted overlay surface so the composer reads as a docked input bar.

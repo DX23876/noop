@@ -54,14 +54,18 @@ internal fun ForgeTodayCoach(viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
     if (!NoopPrefs.coachEnabled(context)) return
     var card by remember { mutableStateOf<CoreCoach.TodayCard?>(null) }
-    LaunchedEffect(Unit) { card = withContext(Dispatchers.IO) { CoreRead.open(context); CoreCoach.todayCard() } }
+    // The portrait follows the coach's identity, as the name in the overline does.
+    var identity by remember { mutableStateOf<CoreCoach.Identity?>(null) }
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { CoreRead.open(context); card = CoreCoach.todayCard(); identity = CoreCoach.identity() }
+    }
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     val c = card ?: return
     val colors = Forge.colors
 
     ForgeCard(Modifier.fillMaxWidth().clickable(role = Role.Button) { page = "launcher" }) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            com.noop.ui.CoachAvatar(size = 52.dp)
+            com.noop.ui.CoachIdentityAvatar(identity, 52.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(c.overline, style = Forge.type.caption, color = colors.textTertiary)
                 Text(c.greeting, style = Forge.type.headline, color = colors.text)

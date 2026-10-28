@@ -58,6 +58,8 @@ enum CoreCoach {
             // as the day's brief, and returned for the notification and the widget.
             let text = await coach.generateBriefText()
             return CoreRead.json(["text": text ?? ""])
+        case "coach.morning", "coach.morning.set", "coach.morning.confirmWake", "coach.morning.decide":
+            return CoreRead.json(await morning(op, coach, args))
         case "coach.regenerate":
             coach.regenerate()
             return CoreRead.json(State(coach))
@@ -714,6 +716,77 @@ struct CheckInState: Encodable {
 /// The coach card on Today (`DashboardCoachCard`) and the words of its launcher (`CoachLauncherSheet`). The sentence
 /// is Momentum's own read of today (`MomentumCopy.stateDetail`), so the card can never tell the wearer something
 /// different from Today's Momentum card.
+/// The morning suggestion on Today (`MorningSuggestionCard`): the card's state resolved by the shared
+/// `MorningSuggestionState`, its words from the iOS catalogue, and the switch (`coach.morningSuggestion`).
+struct MorningSuggestion: Encodable {
+    var on: Bool
+    var kind: String
+    var id: String?, title: String?, summary: String?, rationale: String?
+    /// The detected wake (unix seconds) and the sentence about it, `%@` standing for the time.
+    var wake: Int?, wakeText: String?
+    var labels: [String: String]
+}
+
+extension CoreCoach {
+    static let morningKey = "coach.morningSuggestion"
+    private static var unsettledWake: Int?
+
+    /// Reads the card; `.set` switches it, `.decide` accepts or declines the waiting proposal, `.confirmWake`
+    /// vouches for the detected wake. With `generate` it first runs the day's brief as Today opening does on
+    /// iOS (`maybeGenerate`), which may take as long as a reply.
+    static func morning(_ op: String, _ coach: AICoachEngine, _ args: [String: Any]) async -> MorningSuggestion {
+        let defaults = UserDefaults.standard
+        if op == "coach.morning.set" { defaults.set(args["on"] as? Bool ?? false, forKey: morningKey) }
+        if op == "coach.morning.decide", let id = (args["id"] as? String).flatMap(UUID.init(uuidString:)) {
+            if args["accept"] as? Bool == true { CoachPlanStore.shared.accept(id) } else { CoachPlanStore.shared.decline(id) }
+        }
+        var generate = args["generate"] as? Bool == true
+        if op == "coach.morning.confirmWake" {
+            CoachBriefStamp.confirmWake(day: LogicalDay.key(Date()))
+            unsettledWake = nil
+            generate = true
+        }
+        let on = defaults.bool(forKey: morningKey)
+        if generate, on, coach.isConfigured, coach.dataConsent, !coach.sending {
+            await coach.startBriefIfNeeded()
+            unsettledWake = await coach.unconfirmedWakeNeedingReview()
+        }
+        let scale = EffortScale(rawValue: args["effortScale"] as? String ?? "") ?? .hundred
+        let state = MorningSuggestionState.resolve(
+            morningOn: on, configured: coach.isConfigured, consent: coach.dataConsent,
+            toolsActive: coach.toolCallingActive, sending: coach.sending,
+            pending: CoachPlanStore.shared.pending, today: StoreReader.localDayKey(Date()), unsettledWake: unsettledWake)
+        return card(state, on: on, scale: scale)
+    }
+
+    /// The card for one resolved state, worded from the iOS catalogue.
+    static func card(_ state: MorningSuggestionState, on: Bool, scale: EffortScale) -> MorningSuggestion {
+        let labels = [
+            "setting": "Morning suggestion on Today", "note": "Needs a connected provider and data access, so the coach has something to suggest from.",
+            "generating": "Working out today's session…", "accept": "Accept", "change": "Change", "decline": "Not this one",
+            "wakeTitle": "Check last night first", "wakeHint": "This usually means the strap hasn't finished syncing yet.",
+            "confirm": "That's right", "fix": "Fix it",
+        ].mapValues(\.localizedCatalogValue)
+        var out = MorningSuggestion(on: on, kind: "hidden", labels: labels)
+        switch state {
+        case .hidden: break
+        case .generating: out.kind = "generating"
+        case .waiting(let p):
+            out.kind = "waiting"
+            out.id = p.id.uuidString
+            out.title = (p.intent == .rest ? "Rest day suggested" : p.intent == .mobility ? "Mobility suggested" : "Today's session")
+                .localizedCatalogValue
+            out.summary = p.summary(effortScale: scale)
+            out.rationale = p.rationale
+        case .confirmWake(let wake):
+            out.kind = "confirmWake"
+            out.wake = wake
+            out.wakeText = "Your strap recorded you waking at %@. If that's not right, today's recovery is off — and so would any plan built on it be.".localizedCatalogValue
+        }
+        return out
+    }
+}
+
 struct TodayCoachCard: Encodable {
     var overline: String, greeting: String, detail: String, badge: String
     var intro: String, ask: String, cancel: String, title: String

@@ -97,6 +97,7 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
             CoachConsentCard(vm = vm)
             CoachSharedSettingsCards(vm = vm)
             CoachInstructions(vm = vm)
+            MorningSuggestionSwitch()
             MorningBriefCard(vm = vm)
             CoachRemindersCard()
             CoachUsageCard(vm = vm)
@@ -194,6 +195,40 @@ private fun CoachConsentCard(vm: CoachViewModel) {
             androidx.compose.material3.Switch(
                 checked = consent,
                 onCheckedChange = { vm.setConsent(context, it) },
+            )
+        }
+    }
+}
+
+/**
+ * The switch for the morning suggestion on Today (`morningSuggestionBar`), kept by the shared coach under iOS's
+ * `coach.morningSuggestion` key, with its words from the core.
+ */
+@Composable
+private fun MorningSuggestionSwitch() {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val scale = androidx.compose.runtime.remember { UnitPrefs.effortScale(context).raw }
+    var card by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.noop.core.CoreCoach.Morning?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        card = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.noop.core.CoreCoach.morning(scale) }
+    }
+    val c = card ?: return
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(c.labels["setting"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+                Text(c.labels["note"].orEmpty(), style = NoopType.footnote, color = Palette.textTertiary)
+            }
+            androidx.compose.material3.Switch(
+                checked = c.on,
+                onCheckedChange = { on ->
+                    scope.launch {
+                        card = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            com.noop.core.CoreCoach.morning(scale, "set", on = on)
+                        } ?: card
+                    }
+                },
             )
         }
     }

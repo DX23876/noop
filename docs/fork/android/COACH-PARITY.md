@@ -11,7 +11,7 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | iOS | Android | Note |
 |---|---|---|
 | Header row: coach avatar (breathing while writing), name, "Your coach" / "Thinking…" | ✅ | avatar and name follow the identity |
-| Header: plan book with "waiting" dot, New chat, overflow (history, goal, settings, goal setup) | 🟡 | plan with its dot, new chat, history, settings; no goal entries |
+| Header: plan book with "waiting" dot, New chat, overflow (history, goal, settings, goal setup) | ✅ | goal entry opens Goals & journey; no separate goal setup sheet |
 | Empty state: portrait, "Hi, I'm …", what the coach reads, suggestion cloud | ✅ | |
 | Question bubble (accent, tight sender corner), long-press Copy, Share, Edit and ask again | ✅ | |
 | Reply without bubble beside avatar, Markdown, streaming word by word with caret | 🟡 | Markdown and the caret while it is written; the text arrives in polled chunks rather than word by word |
@@ -25,7 +25,7 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Typing indicator | ✅ | |
 | Error banner with Retry (wait seconds), consent-off banner | ✅ | |
 | Card follow-up chips | 🟡 | shown when the engine has them; Android has no card read that opens the chat yet |
-| Composer: glass capsule, mic, send/stop | ✅ | |
+| Composer: glass capsule, mic, send/stop | ✅ | stays at the bottom above the keyboard while the transcript scrolls |
 | First-use sheet, goal onboarding sheet | 🟡 | first-use note; no goal onboarding |
 
 ## Settings (`CoachSettingsView`)
@@ -41,11 +41,11 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Proactive messages level | ✅ | |
 | Coaching style (persona) | ✅ | |
 | Coach instructions (system prompt) | ✅ | the editor reads and writes the shared coach's (`coach.prompt`) |
-| Morning suggestion on Today | ❌ | |
-| Morning brief with time | 🟡 | Kotlin brief, not the shared coach's |
+| Morning suggestion on Today | ✅ | switch and Today card through `coach.morning`, state by the shared `MorningSuggestionState` |
+| Morning brief with time | ✅ | written by the shared coach (`coach.brief`) |
 | Daily check-in (fixed time or after waking) | ✅ | wake time learned at every launch by the shared rule (`CoachCheckInWake`); no snooze or skip action on the notification |
 | Plan reminders | ✅ | without the weekly-goal line iOS adds |
-| Goal & Journey (`CoachGoalView`, `CoachGoalJourneyView`, setup review) | ❌ | |
+| Goal & Journey (`CoachGoalView`, `CoachGoalJourneyView`, setup review) | ✅ | goals, journey and past goals; the setup review chip waits for drafts on Android |
 | Memory: facts list with category, edit, expiry, source, add fact, forget all, summarise past chats | ✅ | |
 | Semantic memory switch and status | ❌ | no embedding model on Android (plan decision) |
 | Privacy & data: Enable AI Coach, privacy level, data access purposes (8 switches), share patterns & Lab Book, let the coach use my data | ✅ | Enable AI Coach is Android's own switch (`NoopPrefs.coachEnabled`) |
@@ -59,4 +59,4 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 |---|---|---|
 | Coach history (`CoachHistoryView`) | ✅ | |
 | Plan book (`CoachPlanView`) | ✅ | with time, move-day and swap |
-| Today launcher sheet (`CoachLauncherSheet`), Today coach card (`DashboardCoachCard`) | ✅ | the card's sentence is Momentum's (`MomentumCopy.stateDetail`) |
+| Today launcher sheet (`CoachLauncherSheet`), Today coach card (`DashboardCoachCard`) | ✅ | the card's sentence is Momentum's (`MomentumCopy.stateDetail`); portrait follows the identity |
