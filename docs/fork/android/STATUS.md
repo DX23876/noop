@@ -144,6 +144,14 @@ functions and Android screens before the single testing release.
 - **Hardware evidence.** A tester still needs to enable "Shared core confirms history" and send a real strap log
   with a full overnight offload: each chunk acknowledged after the core stored it, no held acknowledgement.
   Forge pairing, live heart rate and BLE behavior remain unverified on hardware.
+- **Side-by-side gaps found 2026-10-29** (iOS simulator against the Android emulator, both on demo data; More,
+  Settings, Trends, the Sleep tab's first cards and the Sleep fix are done). Still open, largest first:
+  the iOS live strength session (rest timers, set effort, workout view, strap double-tap, keep screen on, and
+  the Training settings that belong to it); Sleep's Night detail (needs `SleepModel`'s tile series and the
+  imported sleep figures from `Repository.refresh` moved into the core), Body clock and Sleep marks; Trends'
+  sparse-range widening, year calendar and PDF report row; the More search over settings; Goals settings'
+  invitation and explainer switches and the Charge day streak; Today's Momentum card in the iOS shape (icon,
+  "All" and close in one compact card) and the day-cycle chips under the hero.
 - **Testing release (phase 3).** The emulator rounds, real-data comparison, all required checks and release notes
   precede the single release. Publishing it still requires the owner's explicit approval; F3/F4 and the D9 tester
   confirmations follow it.
