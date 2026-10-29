@@ -434,6 +434,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
     }
     if (dest == MoreDest.Momentum) {
         var plan by remember { mutableStateOf(false) }
+        var breakdown by remember { mutableStateOf(false) }
         androidx.activity.compose.BackHandler(enabled = plan) { plan = false }
         if (plan) ForgeCoachPlanPage(onBack = { plan = false })
         else ForgeMomentumPage(onBack, onDestination = { d ->
@@ -441,8 +442,10 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
                 "goalJourney" -> onOpen(MoreDest.Goals)
                 "liveSession" -> onOpen(MoreDest.Live)
                 "plan" -> plan = true
+                "chargeBreakdown" -> breakdown = true
             }
         })
+        if (breakdown) ChargeBreakdownHost(viewModel, onDismiss = { breakdown = false })
         return
     }
     Hosted(title, onBack) {

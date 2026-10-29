@@ -208,8 +208,10 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 TodaySection.SYNTHESIS -> if (shown == today) {
                     // The status pills sit above the Momentum card, as in `LiquidTodayView.synthesisSection`.
                     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-                        TodayStatusPills()
+                        var breakdown by remember { mutableStateOf(false) }
+                        TodayStatusPills(onReadiness = { breakdown = true })
                         ForgeTodayMomentum(viewModel)
+                        if (breakdown) ChargeBreakdownHost(viewModel, onDismiss = { breakdown = false })
                     }
                 }
                 TodaySection.GOALS -> if (shown == today) TodayGoals()

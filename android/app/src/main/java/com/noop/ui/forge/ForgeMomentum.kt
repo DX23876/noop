@@ -99,6 +99,10 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
                 when (selected) {
                     "goalJourney" -> { BackHandler { page = "momentum" }; ForgeGoalsPage(onBack = { page = "momentum" }) }
                     "plan" -> { BackHandler { page = "momentum" }; ForgeCoachPlanPage(onBack = { page = "momentum" }) }
+                    "chargeBreakdown" -> {
+                        ForgeMomentumPage(onBack = ::close, onDestination = { page = it })
+                        ChargeBreakdownHost(viewModel, onDismiss = { page = "momentum" })
+                    }
                     "liveSession" -> {
                         BackHandler { page = "momentum" }
                         Hosted(stringResource(R.string.nav_live), onBack = { page = "momentum" }) { com.noop.ui.LiveScreen(viewModel) }

@@ -4850,4 +4850,29 @@
     <string name="forge_lg_mark_open">Mark set incomplete</string>
     <string name="forge_lg_minimize">Back</string>
     <string name="forge_lg_warmup_badge" translatable="false">W</string>
+    <string name="forge_cb_title">What shaped your Charge</string>
+    <string name="forge_cb_section">What shaped it</string>
+    <string name="forge_cb_rel">REL.</string>
+    <string name="forge_cb_est">EST.</string>
+    <string name="forge_cb_cal">CALIBRATING</string>
+    <string name="forge_cb_how">How Charge is calculated</string>
+    <string name="forge_cb_how_sub">The method behind the score, not today\'s values.</string>
+    <string name="forge_cb_none">No Charge breakdown yet</string>
+    <string name="forge_cb_done">Done</string>
+    <string name="forge_cb_pt_plus">+%1$d pt</string>
+    <string name="forge_cb_pt">%1$d pt</string>
+    <string name="forge_cb_zero">0 pts</string>
+    <string name="forge_cb_skin">Skin temperature</string>
+    <string name="forge_cb_vs_normal">%1$s%2$s C vs your normal</string>
+    <string name="forge_cb_warmer">Warmer than your baseline</string>
+    <string name="forge_cb_cooler">Cooler than your baseline</string>
+    <string name="forge_cb_typical">Typical for you</string>
+    <plurals name="forge_cb_pts">
+        <item quantity="one">%1$d pt</item>
+        <item quantity="other">%1$d pts</item>
+    </plurals>
+    <plurals name="forge_cb_pts_plus">
+        <item quantity="one">+%1$d pt</item>
+        <item quantity="other">+%1$d pts</item>
+    </plurals>
 </resources>

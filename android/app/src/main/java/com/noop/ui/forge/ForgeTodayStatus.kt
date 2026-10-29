@@ -72,7 +72,7 @@ private val DURATIONS = listOf("untilChanged" to R.string.forge_as_until_changed
  * pencil, which opens the status sheet. Both come from the shared core.
  */
 @Composable
-internal fun TodayStatusPills() {
+internal fun TodayStatusPills(onReadiness: (() -> Unit)? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var revision by remember { mutableIntStateOf(0) }
@@ -103,7 +103,9 @@ internal fun TodayStatusPills() {
     Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
         if (word != null) {
             Text(stringResource(word).uppercase(), style = Forge.type.overline, color = levelColor,
+                 // Tapping the verdict opens what shaped the Charge, as iOS's `showChargeBreakdown`.
                  modifier = Modifier.background(levelColor.copy(alpha = 0.12f), CircleShape)
+                     .then(if (onReadiness != null) Modifier.clickable(role = Role.Button, onClick = onReadiness) else Modifier)
                      .padding(horizontal = ForgeMetrics.space3, vertical = ForgeMetrics.space1))
         }
         Row(Modifier.background(activityColor.copy(alpha = 0.14f), CircleShape)

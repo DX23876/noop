@@ -4833,4 +4833,27 @@
     <string name="forge_lg_mark_done">Oznacz serię jako ukończoną</string>
     <string name="forge_lg_mark_open">Oznacz serię jako nieukończoną</string>
     <string name="forge_lg_minimize">Wstecz</string>
+    <string name="forge_cb_title">Co ukształtowało Twój Energia</string>
+    <string name="forge_cb_section">Co to ukształtowało</string>
+    <string name="forge_cb_rel">REL.</string>
+    <string name="forge_cb_est">EST.</string>
+    <string name="forge_cb_cal">KALIBRACJA</string>
+    <string name="forge_cb_how">Jak obliczana jest Energia</string>
+    <string name="forge_cb_how_sub">Metoda kryjąca się za wynikiem, a nie dzisiejsze wartości.</string>
+    <string name="forge_cb_none">Brak składowych Energii</string>
+    <string name="forge_cb_done">Gotowe</string>
+    <string name="forge_cb_pt_plus">+%1$d pkt</string>
+    <string name="forge_cb_pt">%1$d pkt</string>
+    <string name="forge_cb_zero">0 pkt</string>
+    <string name="forge_cb_skin">Temperatura skóry</string>
+    <string name="forge_cb_vs_normal">%1$s%2$s C kontra normalny</string>
+    <string name="forge_cb_warmer">Cieplejszy niż poziom bazowy</string>
+    <string name="forge_cb_cooler">Chłodniej niż na poziomie podstawowym</string>
+    <string name="forge_cb_typical">Typowe dla ciebie</string>
+    <plurals name="forge_cb_pts">
+        <item quantity="other">%1$d pkt</item>
+    </plurals>
+    <plurals name="forge_cb_pts_plus">
+        <item quantity="other">+%1$d pkt</item>
+    </plurals>
 </resources>

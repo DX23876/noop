@@ -4809,4 +4809,27 @@
     <string name="forge_lg_mark_done">Marcar série como concluída</string>
     <string name="forge_lg_mark_open">Marcar série como incompleta</string>
     <string name="forge_lg_minimize">Voltar</string>
+    <string name="forge_cb_title">O que moldou a tua carga</string>
+    <string name="forge_cb_section">O que moldou este</string>
+    <string name="forge_cb_rel">REL.</string>
+    <string name="forge_cb_est">HUSA.</string>
+    <string name="forge_cb_cal">CALIBRANDO</string>
+    <string name="forge_cb_how">Como a Carga é calculada</string>
+    <string name="forge_cb_how_sub">O método por detrás da pontuação, não os valores de hoje.</string>
+    <string name="forge_cb_none">Ainda não há detalhe de Carga</string>
+    <string name="forge_cb_done">Concluído</string>
+    <string name="forge_cb_pt_plus">+%1$d pt</string>
+    <string name="forge_cb_pt">%1$d pt</string>
+    <string name="forge_cb_zero">0 pontos</string>
+    <string name="forge_cb_skin">Temperatura da pele</string>
+    <string name="forge_cb_vs_normal">%1$s%2$s C vs o teu normal</string>
+    <string name="forge_cb_warmer">Mais quente que a tua linha de base</string>
+    <string name="forge_cb_cooler">Mais frio que a tua linha de base</string>
+    <string name="forge_cb_typical">Típico para ti</string>
+    <plurals name="forge_cb_pts">
+        <item quantity="other">%1$d pontos</item>
+    </plurals>
+    <plurals name="forge_cb_pts_plus">
+        <item quantity="other">+%1$d pontos</item>
+    </plurals>
 </resources>

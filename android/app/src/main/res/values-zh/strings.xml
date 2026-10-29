@@ -4787,4 +4787,27 @@
     <string name="forge_lg_mark_done">将该组标记为已完成</string>
     <string name="forge_lg_mark_open">将该组标记为未完成</string>
     <string name="forge_lg_minimize">返回</string>
+    <string name="forge_cb_title">是什么塑造了你的能量</string>
+    <string name="forge_cb_section">是什么塑造了它</string>
+    <string name="forge_cb_rel">相对</string>
+    <string name="forge_cb_est">估算</string>
+    <string name="forge_cb_cal">校准中</string>
+    <string name="forge_cb_how">能量如何计算</string>
+    <string name="forge_cb_how_sub">评分背后的方法，而非今天的数值。</string>
+    <string name="forge_cb_none">尚无能量明细</string>
+    <string name="forge_cb_done">完成</string>
+    <string name="forge_cb_pt_plus">+%1$d 分</string>
+    <string name="forge_cb_pt">%1$d 分</string>
+    <string name="forge_cb_zero">0 分</string>
+    <string name="forge_cb_skin">皮肤温度</string>
+    <string name="forge_cb_vs_normal">%1$s%2$s C，相较你的正常水平</string>
+    <string name="forge_cb_warmer">高于你的基线温度</string>
+    <string name="forge_cb_cooler">低于你的基线温度</string>
+    <string name="forge_cb_typical">对你而言正常</string>
+    <plurals name="forge_cb_pts">
+        <item quantity="other">%1$d 分</item>
+    </plurals>
+    <plurals name="forge_cb_pts_plus">
+        <item quantity="other">+%1$d 分</item>
+    </plurals>
 </resources>

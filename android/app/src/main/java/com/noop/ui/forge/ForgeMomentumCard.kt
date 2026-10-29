@@ -44,7 +44,7 @@ import com.noop.R
 import com.noop.core.CoreMomentum
 
 /** The Momentum destinations Android has a page for: the goals, the coach's plan book and Live. */
-internal val MOMENTUM_DESTINATIONS = setOf("goalJourney", "plan", "liveSession")
+internal val MOMENTUM_DESTINATIONS = setOf("goalJourney", "plan", "liveSession", "chargeBreakdown")
 
 /** Presentation only. Readings, priority, progress and wording are already resolved by the Swift core. */
 @Composable
@@ -84,8 +84,7 @@ internal fun MomentumMessageCard(message: CoreMomentum.Message, compact: Boolean
                 }
                 val labels = listOfNotNull(message.progressLabel, message.progressChip, message.deltaText).distinct()
                 labels.forEach { Text(it, style = Forge.type.caption, color = colors.textSecondary) }
-                // A destination shows only where this host has its real page, as on Apple; the Charge breakdown
-                // sheet is not on Android yet.
+                // A destination shows only where this host has its real page, as on Apple.
                 val destination = message.destination
                 if (destination in MOMENTUM_DESTINATIONS && message.actionTitle != null && onDestination != null) {
                     TextButton(onClick = { onDestination(destination!!) }, modifier = Modifier.heightIn(min = ForgeMetrics.minHitTarget)) {

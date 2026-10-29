@@ -4712,4 +4712,33 @@
     <string name="forge_lg_mark_done">Отметить подход как выполненный</string>
     <string name="forge_lg_mark_open">Отметить подход как невыполненный</string>
     <string name="forge_lg_minimize">Назад</string>
+    <string name="forge_cb_title">Что повлияло на ваш Заряд</string>
+    <string name="forge_cb_section">Что на это повлияло</string>
+    <string name="forge_cb_rel">ОТН.</string>
+    <string name="forge_cb_est">ОЦЕНКА</string>
+    <string name="forge_cb_cal">КАЛИБРОВКА</string>
+    <string name="forge_cb_how">Как рассчитывается Заряд</string>
+    <string name="forge_cb_how_sub">Метод расчёта показателя, а не сегодняшние значения.</string>
+    <string name="forge_cb_none">Разбивка заряда пока недоступна</string>
+    <string name="forge_cb_done">Готово</string>
+    <string name="forge_cb_pt_plus">+%1$d балл</string>
+    <string name="forge_cb_pt">%1$d балл</string>
+    <string name="forge_cb_zero">0 баллов</string>
+    <string name="forge_cb_skin">Температура кожи</string>
+    <string name="forge_cb_vs_normal">%1$s%2$s °C от вашей нормы</string>
+    <string name="forge_cb_warmer">Теплее вашей нормы</string>
+    <string name="forge_cb_cooler">Холоднее вашей нормы</string>
+    <string name="forge_cb_typical">Типично для вас</string>
+    <plurals name="forge_cb_pts">
+        <item quantity="few">%1$d балла</item>
+        <item quantity="many">%1$d баллов</item>
+        <item quantity="one">%1$d балл</item>
+        <item quantity="other">%1$d баллов</item>
+    </plurals>
+    <plurals name="forge_cb_pts_plus">
+        <item quantity="few">+%1$d балла</item>
+        <item quantity="many">+%1$d баллов</item>
+        <item quantity="one">+%1$d балл</item>
+        <item quantity="other">+%1$d баллов</item>
+    </plurals>
 </resources>

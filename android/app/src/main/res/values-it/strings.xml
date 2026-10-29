@@ -4785,4 +4785,27 @@
     <string name="forge_lg_mark_done">Segna serie come completata</string>
     <string name="forge_lg_mark_open">Segna serie come incompleta</string>
     <string name="forge_lg_minimize">Indietro</string>
+    <string name="forge_cb_title">Cosa ha plasmato la tua carica</string>
+    <string name="forge_cb_section">Cosa l\'ha plasmato</string>
+    <string name="forge_cb_rel">REL.</string>
+    <string name="forge_cb_est">STIM.</string>
+    <string name="forge_cb_cal">CALIBRAZIONE</string>
+    <string name="forge_cb_how">Come viene calcolata la carica</string>
+    <string name="forge_cb_how_sub">Il metodo dietro il punteggio, non i valori di oggi.</string>
+    <string name="forge_cb_none">Ancora nessun dettaglio della carica</string>
+    <string name="forge_cb_done">Fatto</string>
+    <string name="forge_cb_pt_plus">+%1$d pt</string>
+    <string name="forge_cb_pt">%1$d pt</string>
+    <string name="forge_cb_zero">0 pt</string>
+    <string name="forge_cb_skin">Temperatura della pelle</string>
+    <string name="forge_cb_vs_normal">%1$s%2$s C rispetto al tuo normale</string>
+    <string name="forge_cb_warmer">Più calda della tua linea di base</string>
+    <string name="forge_cb_cooler">Più fredda della tua linea di base</string>
+    <string name="forge_cb_typical">Tipico per te</string>
+    <plurals name="forge_cb_pts">
+        <item quantity="other">%1$d pt</item>
+    </plurals>
+    <plurals name="forge_cb_pts_plus">
+        <item quantity="other">+%1$d pt</item>
+    </plurals>
 </resources>
