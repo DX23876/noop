@@ -4937,4 +4937,23 @@
     <string name="forge_db_slot2">Slot 2</string>
     <string name="forge_db_slot3">Slot 3</string>
     <string name="forge_db_slot4">Slot 4</string>
+    <string name="forge_db_hint_title">Diese Übersicht neu ordnen</string>
+    <string name="forge_db_hint_body">Drücke und halte das NOOP-Logo oben, um die Abschnitte umzuordnen oder zu verstecken.</string>
+    <string name="forge_db_hint_settings">Du kannst es auch unter Einstellungen → Dashboard-Stil finden.</string>
+    <string name="forge_db_hint_ok">Verstanden</string>
+    <string name="forge_gd_chain1">Halbmarathon im März</string>
+    <string name="forge_gd_chain2">60 km im Oktober</string>
+    <string name="forge_gd_chain3">3 Läufe pro Woche</string>
+    <string name="forge_gd_chain4">Heute: 30 min laufen</string>
+    <string name="forge_gd_runs">Läufe</string>
+    <string name="forge_gd_t_close">Balken hinter dem Strich: etwas aufholen</string>
+    <string name="forge_gd_t_ahead">Balken vor dem Strich: Du liegst vor dem Plan</string>
+    <string name="forge_gd_t_done">Balken voll: Ziel erreicht</string>
+    <string name="forge_gd_protected">Geschützte Woche: Serie bleibt</string>
+    <string name="forge_gd_s1">Sammeln: 642 von 1.000 km</string>
+    <string name="forge_gd_s2">Wert erreichen: 96 kg, Ziel 80</string>
+    <string name="forge_gd_s3">Bestwert schlagen: 8,4 von 10 km</string>
+    <string name="forge_gd_s4">Rhythmus halten: 3× pro Woche</string>
+    <string name="forge_gd_s5">Schnitt heben: 7 h 34 min</string>
+    <string name="forge_db_style_classic">Klassisch</string>
 </resources>

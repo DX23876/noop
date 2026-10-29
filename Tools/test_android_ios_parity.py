@@ -166,11 +166,23 @@ class AndroidIOSParityTest(unittest.TestCase):
         self.check(ios, witness, TODAY_SAME_AS_IOS, TODAY_GAPS, "Today")
         self.assertIn("QuickAction.LiveSession", android(TODAY), "the guided session lost its quick action")
 
+    def test_dashboard_styles(self):
+        ios = swift_cases("Strand/Data/TodayDashboardStyle.swift", "TodayDashboardStyle")
+        src = android(f"{FORGE}/ForgeDashboards.kt")
+        witness = {n: (lambda t=t: t in src) for n, t in STYLE_ANDROID.items()}
+        self.check(ios, witness, {}, set(), "Dashboard style")
+        self.assertIn("ForgeClassicToday(", android(f"{FORGE}/ForgeRoot.kt"), "Classic Today is not mounted")
+        self.assertIn("ForgeStyledDashboard(", android(TODAY), "the Trends and Overview styles are not mounted")
+
     def test_sleep_sections(self):
         ios = swift_cases("Strand/Data/SleepLayoutPrefs.swift", "SleepSection")
         drawn = drawn_sections(SLEEP, "SleepSection")
         witness = {n: (lambda a=a: a in drawn) for n, a in SLEEP_ANDROID.items() if n not in SLEEP_GAPS}
         self.check(ios, witness, {}, SLEEP_GAPS, "Sleep")
+
+
+# iOS `TodayDashboardStyle` (Strand/Data/TodayDashboardStyle.swift): offered under Settings > Dashboard style.
+STYLE_ANDROID = {"classic": '"classic"', "liquid": '"liquid"', "trends": '"trends"', "overview": '"overview"'}
 
 
 def drawn_sections(path: str, enum: str) -> set[str]:

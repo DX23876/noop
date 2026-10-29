@@ -4923,4 +4923,23 @@
     <string name="forge_db_slot2">Place 2</string>
     <string name="forge_db_slot3">Place 3</string>
     <string name="forge_db_slot4">Place 4</string>
+    <string name="forge_db_hint_title">Réorganiser ce tableau de bord</string>
+    <string name="forge_db_hint_body">Appuyez et maintenez le mot-clé NOOP en haut pour modifier l’ordre des sections ou afficher/masquer les éléments.</string>
+    <string name="forge_db_hint_settings">Vous pouvez également accéder à cela dans les paramètres sous le style du tableau de bord.</string>
+    <string name="forge_db_hint_ok">Compris</string>
+    <string name="forge_gd_chain1">Semi-marathon en mars</string>
+    <string name="forge_gd_chain2">60 km en octobre</string>
+    <string name="forge_gd_chain3">3 sorties par semaine</string>
+    <string name="forge_gd_chain4">Aujourd’hui : courir 30 min</string>
+    <string name="forge_gd_runs">Sorties</string>
+    <string name="forge_gd_t_close">Barre derrière le repère : rattrape un peu</string>
+    <string name="forge_gd_t_ahead">Barre au-delà du repère : tu es en avance</string>
+    <string name="forge_gd_t_done">Barre pleine : objectif atteint</string>
+    <string name="forge_gd_protected">Semaine protégée : série conservée</string>
+    <string name="forge_gd_s1">Cumuler : 642 sur 1 000 km</string>
+    <string name="forge_gd_s2">Atteindre une valeur : 96 kg, cible 80</string>
+    <string name="forge_gd_s3">Battre ton record : 8,4 sur 10 km</string>
+    <string name="forge_gd_s4">Tenir un rythme : 3× par semaine</string>
+    <string name="forge_gd_s5">Relever une moyenne : 7 h 34 min</string>
+    <string name="forge_db_style_classic">Classique</string>
 </resources>

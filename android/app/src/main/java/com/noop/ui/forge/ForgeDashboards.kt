@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -24,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.DirectionsRun
@@ -83,10 +85,15 @@ import kotlin.math.roundToInt
  * drawn here; the opt-in extras reuse the Liquid Today sections, as the iOS dashboards reuse theirs.
  */
 
+private const val WORDMARK = "N O O P"
+private const val LONG_DAY_PATTERN = "EEEE, d. MMMM"
+private const val SHORT_DAY_PATTERN = "d MMM"
+private const val DASH = "—"
+
 /** iOS `TodayDashboardStyle` under its key; Android draws Liquid, Trends and Overview. */
 internal object DashboardStylePrefs {
     const val KEY = "noop.todayDashboardStyle"
-    val STYLES = listOf("liquid", "trends", "overview")
+    val STYLES = listOf("classic", "liquid", "trends", "overview")
     fun style(c: Context): String = NoopPrefs.of(c).getString(KEY, "liquid")?.takeIf { it in STYLES } ?: "liquid"
     fun set(c: Context, style: String) = NoopPrefs.of(c).edit().putString(KEY, style).apply()
 }
@@ -182,7 +189,7 @@ internal fun DashboardHeader(date: LocalDate, isToday: Boolean, onQuickActions: 
     Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space6), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Long-pressing the wordmark arranges the sections, the dashboards' one shortcut (iOS `onLongPressGesture`).
-            Text("N O O P", style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = Forge.sceneInk.text,
+            Text(WORDMARK, style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = Forge.sceneInk.text,
                  modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onArrange))
             Spacer(Modifier.weight(1f))
             HeaderIcon(Icons.Rounded.Add, stringResource(R.string.forge_db_quick_actions), onQuickActions)
@@ -190,7 +197,7 @@ internal fun DashboardHeader(date: LocalDate, isToday: Boolean, onQuickActions: 
             HeaderIcon(Icons.Rounded.Tune, stringResource(R.string.forge_db_settings), onSettings)
         }
         val locale = Locale.getDefault()
-        Text(if (isToday) date.format(DateTimeFormatter.ofPattern("EEEE, d. MMMM", locale)).replaceFirstChar { it.titlecase(locale) }
+        Text(if (isToday) date.format(DateTimeFormatter.ofPattern(LONG_DAY_PATTERN, locale)).replaceFirstChar { it.titlecase(locale) }
              else date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)),
              style = Forge.type.subhead, color = Forge.sceneInk.secondary)
     }
@@ -276,9 +283,9 @@ internal fun DashboardTrendsCard(date: LocalDate, isToday: Boolean, effortFormat
             }
             val locale = Locale.getDefault()
             Row(Modifier.padding(start = 104.dp)) {
-                Text(from.format(DateTimeFormatter.ofPattern("d MMM", locale)), style = Forge.type.caption, color = colors.textTertiary)
+                Text(from.format(DateTimeFormatter.ofPattern(SHORT_DAY_PATTERN, locale)), style = Forge.type.caption, color = colors.textTertiary)
                 Spacer(Modifier.weight(1f))
-                Text(if (isToday) stringResource(R.string.nav_today) else date.format(DateTimeFormatter.ofPattern("d MMM", locale)),
+                Text(if (isToday) stringResource(R.string.nav_today) else date.format(DateTimeFormatter.ofPattern(SHORT_DAY_PATTERN, locale)),
                      style = Forge.type.caption, color = colors.textTertiary)
             }
         }
@@ -526,7 +533,7 @@ internal fun DashboardFocusRow(items: List<String>, d: DashboardDay, stepGoal: I
                         }
                     }
                     item == "sleep" -> MiniCard(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_db_sleep_insight), onSleep) {
-                        Text(d.day?.rest?.let { "${it.roundToInt()}%" } ?: "—", style = Forge.type.headline, color = colors.text)
+                        Text(d.day?.rest?.let { stringResource(R.string.forge_percent, it.roundToInt()) } ?: DASH, style = Forge.type.headline, color = colors.text)
                         Text(stringResource(R.string.forge_db_sleep_quality), style = Forge.type.footnote, color = colors.textSecondary)
                     }
                     item == "coach" -> MiniCard(Icons.Rounded.Person, colors.accent, stringResource(R.string.forge_db_coach), onCoach) {
@@ -629,8 +636,13 @@ internal fun ForgeStyledDashboard(
         value = withContext(Dispatchers.IO) {
             val weight = CoreBody.snapshot(context)?.weight?.lastOrNull { it.day <= date.toString() }?.value
             val kcal = if (isToday) CoreEnergyDetail.today(context, dismissedTrainingWorkouts(context))?.total else null
-            // Fitness age, VO2max and vitality have no read on the shared core yet; their cards say "—".
-            DashboardDay(day, isToday, date, weight, kcal, null, null, null)
+            // `latestBanked`: the newest value of the banked series on or before the shown day.
+            suspend fun banked(key: String): Double? = runCatching {
+                viewModel.repo.resolvedSeries(key, "my-whoop", date.minusDays(120).toString(), date.toString(),
+                    strapDeviceId = viewModel.activeStrapId).points
+                    .filter { it.day <= date.toString() }.maxByOrNull { it.day }?.value
+            }.getOrNull()
+            DashboardDay(day, isToday, date, weight, kcal, banked("fitness_age"), banked("vo2max_est"), banked("vitality"))
         }
     }
     val history by produceState(emptyList<CoreRead.Day>(), date) {
@@ -645,7 +657,7 @@ internal fun ForgeStyledDashboard(
         DashboardCard.COACH -> onCoach()
         else -> onHealth()
     }
-    val dashboardStyle = style
+    ForgeArrangeHint(style)
     sections.forEach { section ->
         when (section) {
             DashboardSection.COACH -> if (isToday) onSection(TodaySection.COACH)
@@ -670,7 +682,6 @@ internal fun ForgeStyledDashboard(
             DashboardSection.LIVE_SESSION, DashboardSection.DATA_SOURCES -> Unit
         }
     }
-    @Suppress("UNUSED_VARIABLE") val unused = dashboardStyle
 }
 
 /** "Arrange dashboard" (iOS `DashboardExtraSectionsSheet`): order and hide the style's blocks, then Save. */
@@ -698,6 +709,106 @@ internal fun ForgeDashboardArrange(dashboard: String, onClose: (saved: Boolean) 
                 stringResource(R.string.forge_lay_shown), stringResource(R.string.forge_lay_hidden),
                 LayoutRowStyle(title = { stringResource(it.titleRes) }, icon = { Icons.Rounded.Tune }, tint = { Forge.colors.accent }),
                 onReset = { draft = fresh() },
+            )
+        }
+    }
+}
+
+/** iOS `DashboardArrangeHintSheet`: told once per style, the flag written as the sheet is raised. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+internal fun ForgeArrangeHint(dashboard: String) {
+    val context = LocalContext.current
+    val key = "$dashboard.dashboard.arrangeHintSeen"
+    var open by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(dashboard) {
+        val p = NoopPrefs.of(context)
+        if (!p.getBoolean(key, false)) { p.edit().putBoolean(key, true).apply(); open = true }
+    }
+    if (!open) return
+    val colors = Forge.colors
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = { open = false }, containerColor = colors.surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.screenPadding).padding(bottom = ForgeMetrics.space6),
+               verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.size(36.dp).background(colors.accent.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.TouchApp, null, tint = colors.accent, modifier = Modifier.size(16.dp))
+                }
+                Text(stringResource(R.string.forge_db_hint_title), style = Forge.type.title2, color = colors.text)
+            }
+            Text(stringResource(R.string.forge_db_hint_body), style = Forge.type.subhead, color = colors.textSecondary)
+            Text(stringResource(R.string.forge_db_hint_settings), style = Forge.type.footnote, color = colors.textTertiary)
+            androidx.compose.material3.Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.forge_db_hint_ok))
+            }
+        }
+    }
+}
+
+/**
+ * The Classic Today (iOS `TodayView`), as ryanbr's list of cards read: its own header, the arranged sections and
+ * the cards, drawn in the Forge colours ([com.noop.ui.HostedPalette]) and routed to Forge's pages.
+ */
+@Composable
+internal fun ForgeClassicToday(padding: androidx.compose.foundation.layout.PaddingValues, viewModel: AppViewModel) {
+    val more = rememberMoreNavigator()
+    val selectTab = LocalForgeTabSelect.current
+    var settingsOpen by remember { mutableStateOf(false) }
+    var quickActions by remember { mutableStateOf(false) }
+    var startWorkout by remember { mutableStateOf(false) }
+    var liveWorkout by remember { mutableStateOf(false) }
+    var liveSession by remember { mutableStateOf(false) }
+    if (quickActions) {
+        ForgeQuickActionSheet(viewModel, onDismiss = { quickActions = false }) { action ->
+            quickActions = false
+            when (action) {
+                QuickAction.Battery -> selectTab(ForgeTab.More)
+                QuickAction.Live -> more.push(MoreRoute.Dest(MoreDest.Live))
+                QuickAction.Workout -> startWorkout = true
+                QuickAction.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
+                QuickAction.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
+                QuickAction.Goals -> more.push(MoreRoute.Dest(MoreDest.Goals))
+                QuickAction.LiveSession -> liveSession = true
+                QuickAction.CustomizeToday -> more.push(MoreRoute.Dest(MoreDest.Settings))
+            }
+        }
+    }
+    if (liveSession) ForgeLiveSessionCover(viewModel, onClose = { liveSession = false })
+    MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
+    if (settingsOpen) {
+        ForgeOverlayPage(onDismiss = { settingsOpen = false }) { ForgeSettings(viewModel, onClose = { settingsOpen = false }) }
+    }
+    if (startWorkout) {
+        com.noop.ui.StartWorkoutSheet(vm = viewModel, onDismiss = {
+            startWorkout = false
+            if (viewModel.activeWorkout.value != null) liveWorkout = true
+        })
+    }
+    if (liveWorkout) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { liveWorkout = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            com.noop.ui.LiveWorkoutScreen(vm = viewModel, onClose = { liveWorkout = false })
+        }
+    }
+    val forgeColors = Forge.colors
+    val tokens = remember(forgeColors) { hostedTokens(forgeColors) }
+    Box(Modifier.fillMaxSize().padding(padding)) {
+        com.noop.ui.HostedPalette(tokens, forgeColors.dark) {
+            com.noop.ui.TodayScreen(
+                viewModel = viewModel,
+                onQuickActions = { quickActions = true },
+                onOpenSettings = { settingsOpen = true },
+                onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Journal)) },
+                onOpenStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) },
+                onOpenHealth = { more.push(MoreRoute.Dest(MoreDest.Health)) },
+                onOpenMetric = { more.push(MoreRoute.Dest(MoreDest.Health)) },
+                onOpenSleep = { selectTab(ForgeTab.Sleep) },
+                onOpenCoupled = { more.push(MoreRoute.Dest(MoreDest.Health)) },
+                onOpenCoach = { more.push(MoreRoute.Dest(MoreDest.Coach)) },
+                onOpenActiveWorkout = { liveWorkout = true },
+                onOpenDevices = { selectTab(ForgeTab.More) },
+                onOpenJournal = { more.push(MoreRoute.Dest(MoreDest.Journal)) },
+                onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) },
             )
         }
     }

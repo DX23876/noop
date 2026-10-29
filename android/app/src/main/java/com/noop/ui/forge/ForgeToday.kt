@@ -446,7 +446,7 @@ object HeroRingLayout {
 
 /** The Energy card after `EnergyCard`: today's total so far, resting, active and projected; tap opens the detail. */
 @Composable
-private fun TodayEnergy() {
+internal fun TodayEnergy() {
     val context = LocalContext.current
     var summary by remember { mutableStateOf<com.noop.core.CoreEnergyDetail.Summary?>(null) }
     var open by remember { mutableStateOf(false) }
@@ -494,7 +494,7 @@ private fun TodayEnergy() {
 
 /** Today's goals card, read from the shared core; it opens the goals page over the tabs. */
 @Composable
-private fun TodayGoals() {
+internal fun TodayGoals() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var output by remember { mutableStateOf<CoreGoals.Output?>(null) }

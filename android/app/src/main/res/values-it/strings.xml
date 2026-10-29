@@ -4892,4 +4892,23 @@
     <string name="forge_db_slot2">Slot 2.</string>
     <string name="forge_db_slot3">Slot 3.</string>
     <string name="forge_db_slot4">Slot 4.</string>
+    <string name="forge_db_hint_title">Riordinare questo pannello</string>
+    <string name="forge_db_hint_body">Premi e tieni premuto il logo NOOP in alto per modificare l\'ordine delle sezioni o per visualizzarle e nasconderle.</string>
+    <string name="forge_db_hint_settings">Puoi trovare anche questa opzione nelle Impostazioni, nella sezione Stile dashboard.</string>
+    <string name="forge_db_hint_ok">Capito</string>
+    <string name="forge_gd_chain1">Mezza maratona a marzo</string>
+    <string name="forge_gd_chain2">60 km a ottobre</string>
+    <string name="forge_gd_chain3">3 corse a settimana</string>
+    <string name="forge_gd_chain4">Oggi: correre 30 min</string>
+    <string name="forge_gd_runs">Corse</string>
+    <string name="forge_gd_t_close">Barra dietro il segno: recupera un po’</string>
+    <string name="forge_gd_t_ahead">Barra oltre il segno: sei avanti rispetto al piano</string>
+    <string name="forge_gd_t_done">Barra piena: obiettivo raggiunto</string>
+    <string name="forge_gd_protected">Settimana protetta: serie mantenuta</string>
+    <string name="forge_gd_s1">Accumulare: 642 di 1.000 km</string>
+    <string name="forge_gd_s2">Raggiungere un valore: 96 kg, obiettivo 80</string>
+    <string name="forge_gd_s3">Battere il record: 8,4 di 10 km</string>
+    <string name="forge_gd_s4">Mantenere un ritmo: 3× a settimana</string>
+    <string name="forge_gd_s5">Alzare una media: 7 h 34 min</string>
+    <string name="forge_db_style_classic">Classico</string>
 </resources>

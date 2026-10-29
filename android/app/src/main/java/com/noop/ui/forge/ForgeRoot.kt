@@ -45,7 +45,9 @@ fun ForgeRoot(viewModel: AppViewModel) {
     ForgeOverlayHost {
         ForgeShell { tab, padding, width ->
             when (tab) {
-                ForgeTab.Today -> ForgeTodayScreen(padding, width, viewModel)
+                ForgeTab.Today ->
+                    if (DashboardStylePrefs.style(context) == "classic") ForgeClassicToday(padding, viewModel)
+                    else ForgeTodayScreen(padding, width, viewModel)
                 ForgeTab.Trends -> ForgeTrendsScreen(padding, width, viewModel)
                 ForgeTab.Training -> ForgeTrainingScreen(padding, viewModel)
                 ForgeTab.Sleep -> ForgeSleepScreen(padding, width, viewModel)

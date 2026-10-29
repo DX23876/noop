@@ -4959,4 +4959,23 @@
     <string name="forge_db_slot2">Slot 2</string>
     <string name="forge_db_slot3">Slot 3</string>
     <string name="forge_db_slot4">Slot 4</string>
+    <string name="forge_db_hint_title">Rearrange this dashboard</string>
+    <string name="forge_db_hint_body">Press and hold the NOOP wordmark at the top to change the order of the sections, or to show and hide them.</string>
+    <string name="forge_db_hint_settings">You can also reach it in Settings under Dashboard style.</string>
+    <string name="forge_db_hint_ok">Got it</string>
+    <string name="forge_gd_chain1">Half marathon in March</string>
+    <string name="forge_gd_chain2">60 km in October</string>
+    <string name="forge_gd_chain3">3 runs a week</string>
+    <string name="forge_gd_chain4">Today: run 30 min</string>
+    <string name="forge_gd_runs">Runs</string>
+    <string name="forge_gd_t_close">Bar behind the mark: catch up a little</string>
+    <string name="forge_gd_t_ahead">Bar past the mark: you\'re ahead of plan</string>
+    <string name="forge_gd_t_done">Bar full: goal reached</string>
+    <string name="forge_gd_protected">Protected week: series kept</string>
+    <string name="forge_gd_s1">Collect: 642 of 1,000 km</string>
+    <string name="forge_gd_s2">Reach a value: 96 kg, target 80</string>
+    <string name="forge_gd_s3">Beat your best: 8.4 of 10 km</string>
+    <string name="forge_gd_s4">Keep a rhythm: 3× a week</string>
+    <string name="forge_gd_s5">Raise an average: 7 h 34 min</string>
+    <string name="forge_db_style_classic">Classic</string>
 </resources>

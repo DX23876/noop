@@ -4894,4 +4894,23 @@
     <string name="forge_db_slot2">槽位2</string>
     <string name="forge_db_slot3">第3个时间段</string>
     <string name="forge_db_slot4">第4个时间段</string>
+    <string name="forge_db_hint_title">重新排列此仪表盘。</string>
+    <string name="forge_db_hint_body">按 NOOP 标志字标记顶部按住，可调整模块顺序，或显示和隐藏模块。</string>
+    <string name="forge_db_hint_settings">您也可以在设置中的仪表盘样式下找到。</string>
+    <string name="forge_db_hint_ok">知道了</string>
+    <string name="forge_gd_chain1">三月的半程马拉松</string>
+    <string name="forge_gd_chain2">十月跑 60 公里</string>
+    <string name="forge_gd_chain3">每周跑 3 次</string>
+    <string name="forge_gd_chain4">今天：跑 30 分钟</string>
+    <string name="forge_gd_runs">跑步</string>
+    <string name="forge_gd_t_close">进度条落后于标记：稍微追一追</string>
+    <string name="forge_gd_t_ahead">进度条超过标记：你领先于计划</string>
+    <string name="forge_gd_t_done">进度条已满：目标达成</string>
+    <string name="forge_gd_protected">受保护的一周：连续记录保留</string>
+    <string name="forge_gd_s1">累计：1,000 公里中的 642</string>
+    <string name="forge_gd_s2">达到数值：96 公斤，目标 80</string>
+    <string name="forge_gd_s3">超越最佳：10 公里中的 8.4</string>
+    <string name="forge_gd_s4">保持节奏：每周 3 次</string>
+    <string name="forge_gd_s5">提高平均：7 小时 34 分</string>
+    <string name="forge_db_style_classic">经典</string>
 </resources>

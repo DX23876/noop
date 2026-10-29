@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -114,8 +115,8 @@ private val INTRO_PAGES = listOf(
 
 /**
  * The goals explainer (`GoalsIntroSheet`), shown the first time the goals page opens and again after Settings ›
- * Goals › "Show the explainer again": five pages, Next and Let's go, Skip. iOS illustrates each page with an
- * animated demo of the goal bar; Android shows the words with the goal symbol.
+ * Goals › "Show the explainer again": five pages, Next and Let's go, Skip. Each page carries its demo ([GoalsIntroDemo]),
+ * the bar one animated as on iOS.
  */
 @Composable
 internal fun ForgeGoalsIntro(onDone: () -> Unit) {
@@ -135,10 +136,12 @@ internal fun ForgeGoalsIntro(onDone: () -> Unit) {
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius) {
             Column(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space6),
                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
-                Icon(Icons.Rounded.TrackChanges, null, tint = colors.accent, modifier = Modifier.size(56.dp))
-                Text(stringResource(INTRO_PAGES[page].first), style = Forge.type.title2, color = colors.text, textAlign = TextAlign.Center)
+                Box(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4).heightIn(min = 170.dp), contentAlignment = Alignment.CenterStart) {
+                    GoalsIntroDemo(page)
+                }
+                Text(stringResource(INTRO_PAGES[page].first), style = Forge.type.title2, color = colors.text, textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4))
                 Text(stringResource(INTRO_PAGES[page].second), style = Forge.type.body, color = colors.textSecondary,
-                     textAlign = TextAlign.Center)
+                     textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4))
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {

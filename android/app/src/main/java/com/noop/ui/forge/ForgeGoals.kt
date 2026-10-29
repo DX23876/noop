@@ -1257,7 +1257,7 @@ private fun streakLine(goal: CoreGoals.Period): String? {
 }
 
 @Composable
-private fun stateWord(state: String): String = stringResource(when (state) {
+internal fun stateWord(state: String): String = stringResource(when (state) {
     "achieved" -> R.string.forge_goals_s_achieved
     "ahead" -> R.string.forge_goals_s_ahead
     "onTrack" -> R.string.forge_goals_s_on_track
@@ -1271,7 +1271,7 @@ private fun stateWord(state: String): String = stringResource(when (state) {
 
 /** The state's tone (`GoalStatusStyle`): positive, warning, critical, accent or neutral. */
 @Composable
-private fun stateColor(state: String): Color = when (state) {
+internal fun stateColor(state: String): Color = when (state) {
     "achieved", "ahead", "onTrack" -> ForgeTokens.Color.systemGreen.resolve()
     "close" -> ForgeTokens.Color.systemOrange.resolve()
     "behind" -> ForgeTokens.Color.systemRed.resolve()

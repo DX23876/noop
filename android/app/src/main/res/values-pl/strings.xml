@@ -4940,4 +4940,23 @@
     <string name="forge_db_slot2">Slot 2.</string>
     <string name="forge_db_slot3">Slot 3.</string>
     <string name="forge_db_slot4">Slot 4.</string>
+    <string name="forge_db_hint_title">Zamień układ tego panelu.</string>
+    <string name="forge_db_hint_body">Naciśnij i przytrzymaj logo NOOP na górze, aby zmienić kolejność sekcji lub pokazać i ukryć je.</string>
+    <string name="forge_db_hint_settings">Możesz również dostosować ustawienia w zakładce Styl interfejsu.</string>
+    <string name="forge_db_hint_ok">Rozumiem</string>
+    <string name="forge_gd_chain1">Półmaraton w marcu</string>
+    <string name="forge_gd_chain2">60 km w październiku</string>
+    <string name="forge_gd_chain3">3 biegi tygodniowo</string>
+    <string name="forge_gd_chain4">Dziś: bieg 30 min</string>
+    <string name="forge_gd_runs">Biegi</string>
+    <string name="forge_gd_t_close">Pasek za znacznikiem: nadrób trochę</string>
+    <string name="forge_gd_t_ahead">Pasek za znacznikiem z przodu: jesteś przed planem</string>
+    <string name="forge_gd_t_done">Pełny pasek: cel osiągnięty</string>
+    <string name="forge_gd_protected">Chroniony tydzień: seria zachowana</string>
+    <string name="forge_gd_s1">Zbieraj: 642 z 1000 km</string>
+    <string name="forge_gd_s2">Osiągnij wartość: 96 kg, cel 80</string>
+    <string name="forge_gd_s3">Pobij rekord: 8,4 z 10 km</string>
+    <string name="forge_gd_s4">Utrzymaj rytm: 3× w tygodniu</string>
+    <string name="forge_gd_s5">Podnieś średnią: 7 h 34 min</string>
+    <string name="forge_db_style_classic">Klasyczny</string>
 </resources>

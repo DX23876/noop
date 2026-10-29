@@ -4825,4 +4825,23 @@
     <string name="forge_db_slot2">Позиция 2.</string>
     <string name="forge_db_slot3">Позиция 3.</string>
     <string name="forge_db_slot4">Позиция 4.</string>
+    <string name="forge_db_hint_title">Перегруппировать этот дисплей</string>
+    <string name="forge_db_hint_body">Нажмите и держите слово «NOOP» вверху, чтобы изменить порядок разделов или показать и спрятать их.</string>
+    <string name="forge_db_hint_settings">Вы можете настроить это в разделе «Настройки» под «Стиль панели».</string>
+    <string name="forge_db_hint_ok">Понятно</string>
+    <string name="forge_gd_chain1">Полумарафон в марте</string>
+    <string name="forge_gd_chain2">60 км в октябре</string>
+    <string name="forge_gd_chain3">3 пробежки в неделю</string>
+    <string name="forge_gd_chain4">Сегодня: бег 30 мин</string>
+    <string name="forge_gd_runs">Пробежки</string>
+    <string name="forge_gd_t_close">Полоса позади отметки: немного догоните</string>
+    <string name="forge_gd_t_ahead">Полоса за отметкой: вы опережаете план</string>
+    <string name="forge_gd_t_done">Полоса заполнена: цель достигнута</string>
+    <string name="forge_gd_protected">Защищённая неделя: серия сохранена</string>
+    <string name="forge_gd_s1">Накопить: 642 из 1000 км</string>
+    <string name="forge_gd_s2">Достичь значения: 96 кг, цель 80</string>
+    <string name="forge_gd_s3">Побить рекорд: 8,4 из 10 км</string>
+    <string name="forge_gd_s4">Держать ритм: 3× в неделю</string>
+    <string name="forge_gd_s5">Поднять среднее: 7 ч 34 мин</string>
+    <string name="forge_db_style_classic">Классический режим</string>
 </resources>

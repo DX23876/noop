@@ -895,7 +895,7 @@ private fun DashboardStyleSection(change: (() -> Unit) -> Unit) {
     val context = LocalContext.current
     var style by remember { mutableStateOf(DashboardStylePrefs.style(context)) }
     val ids = DashboardStylePrefs.STYLES
-    val labels = listOf(stringResource(R.string.forge_db_style_liquid), stringResource(R.string.forge_db_style_trends),
+    val labels = listOf(stringResource(R.string.forge_db_style_classic), stringResource(R.string.forge_db_style_liquid), stringResource(R.string.forge_db_style_trends),
                         stringResource(R.string.forge_db_style_overview))
     SettingsCard(title = stringResource(R.string.forge_db_style), blurb = null) {
         SettingRow(stringResource(R.string.forge_db_style)) {
