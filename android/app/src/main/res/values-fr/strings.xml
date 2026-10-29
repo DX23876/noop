@@ -4948,4 +4948,6 @@
     <string name="forge_gn_offer_no">Non merci</string>
     <string name="forge_gn_tick">Cocher</string>
     <string name="forge_gn_snooze">Me le rappeler dans 1 heure</string>
+    <string name="forge_db_swipe">Balayez pour changer de jour</string>
+    <string name="forge_db_updates">Nouveautés</string>
 </resources>

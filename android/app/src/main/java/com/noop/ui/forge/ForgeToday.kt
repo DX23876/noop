@@ -131,6 +131,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var liveWorkout by remember { mutableStateOf(false) }
     var liveSession by remember { mutableStateOf(false) }
     var arranging by remember { mutableStateOf<String?>(null) }
+    var updatesOpen by remember { mutableStateOf(false) }
     val more = rememberMoreNavigator()
     val selectTab = LocalForgeTabSelect.current
     if (quickActions) {
@@ -164,6 +165,12 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         androidx.compose.ui.window.Dialog(onDismissRequest = { liveWorkout = false },
             properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
             com.noop.ui.LiveWorkoutScreen(vm = viewModel, onClose = { liveWorkout = false })
+        }
+    }
+    if (updatesOpen) {
+        ForgeOverlayPage(onDismiss = { updatesOpen = false }) {
+            com.noop.ui.UpdatesInboxScreen(store = com.noop.ui.UpdateStore.from(context), onClose = { updatesOpen = false },
+                                           onDeepLink = { updatesOpen = false }, onRestore = {})
         }
     }
     arranging?.let { dashboard ->
@@ -242,8 +249,15 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         val style = remember(layoutRevision) { DashboardStylePrefs.style(context) }
         if (style != "liquid") {
             // The Trends and Overview styles (Settings › Dashboard) draw their own header and blocks.
-            DashboardHeader(shown, isToday = shown == today, onQuickActions = { quickActions = true },
-                            onSettings = { settingsOpen = true }, onArrange = { arranging = style })
+            val live by viewModel.live.collectAsState()
+            val updateStore = remember { com.noop.ui.UpdateStore.from(context) }
+            val coachOn = com.noop.ui.NoopPrefs.coachEnabled(context) && com.noop.ui.CoachTodayPrefs.shown(context)
+            DashboardHeader(shown, isToday = shown == today,
+                            battery = live.batteryPct?.let { stringResource(R.string.forge_percent, kotlin.math.round(it).toInt()) },
+                            unread = updateStore.unreadCount, onBattery = { selectTab(ForgeTab.More) },
+                            onQuickActions = { quickActions = true }, onUpdates = { updatesOpen = true },
+                            onCoach = if (coachOn) ({ more.push(MoreRoute.Dest(MoreDest.Coach)) }) else null,
+                            onArrange = { arranging = style })
             if (shown == today) ForgeMorningSuggestion()
             ForgeStyledDashboard(style, layoutRevision, shown, model?.day, viewModel,
                 onSection = { drawSection(it) },

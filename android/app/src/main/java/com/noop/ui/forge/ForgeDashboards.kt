@@ -25,6 +25,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.CheckCircleOutline
@@ -183,23 +187,53 @@ internal class DashboardDay(
 /** The header both dashboards share: the spaced wordmark, quick actions and Settings, and the day under it. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun DashboardHeader(date: LocalDate, isToday: Boolean, onQuickActions: () -> Unit, onSettings: () -> Unit,
-                             onArrange: () -> Unit) {
+internal fun DashboardHeader(date: LocalDate, isToday: Boolean, battery: String?, unread: Int, onBattery: () -> Unit,
+                             onQuickActions: () -> Unit, onUpdates: () -> Unit, onCoach: (() -> Unit)?, onArrange: () -> Unit) {
     val colors = Forge.colors
+    val ink = Forge.sceneInk
     Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space6), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Long-pressing the wordmark arranges the sections, the dashboards' one shortcut (iOS `onLongPressGesture`).
-            Text(WORDMARK, style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = Forge.sceneInk.text,
+            Text(WORDMARK, style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = ink.text,
                  modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onArrange))
             Spacer(Modifier.weight(1f))
+            // The strap's battery, "+" for the quick actions, the updates bell and (while the coach is on) the coach.
+            if (battery != null) {
+                Row(Modifier.height(36.dp).background(colors.inset, CircleShape).clickable(onClick = onBattery)
+                        .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Rounded.BatteryFull, null, tint = colors.text, modifier = Modifier.size(16.dp))
+                    Text(battery, style = Forge.type.footnote, color = colors.text)
+                }
+                Spacer(Modifier.width(ForgeMetrics.space2))
+            }
             HeaderIcon(Icons.Rounded.Add, stringResource(R.string.forge_db_quick_actions), onQuickActions)
             Spacer(Modifier.width(ForgeMetrics.space2))
-            HeaderIcon(Icons.Rounded.Tune, stringResource(R.string.forge_db_settings), onSettings)
+            Box {
+                HeaderIcon(if (unread > 0) Icons.Rounded.NotificationsActive else Icons.Rounded.Notifications,
+                           stringResource(R.string.forge_db_updates), onUpdates)
+                if (unread > 0) {
+                    Box(Modifier.align(Alignment.TopEnd).size(16.dp).background(ForgeTokens.Color.systemRed.resolve(), CircleShape),
+                        contentAlignment = Alignment.Center) {
+                        Text(minOf(unread, 99).toString(), style = Forge.type.caption.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                             color = Color.White)
+                    }
+                }
+            }
+            if (onCoach != null) {
+                Spacer(Modifier.width(ForgeMetrics.space2))
+                HeaderIcon(Icons.Rounded.Person, stringResource(R.string.forge_db_coach), onCoach)
+            }
         }
         val locale = Locale.getDefault()
-        Text(if (isToday) date.format(DateTimeFormatter.ofPattern(LONG_DAY_PATTERN, locale)).replaceFirstChar { it.titlecase(locale) }
-             else date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)),
-             style = Forge.type.subhead, color = Forge.sceneInk.secondary)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(if (isToday) stringResource(R.string.nav_today)
+                 else date.format(DateTimeFormatter.ofPattern(LONG_DAY_PATTERN, locale)).replaceFirstChar { it.titlecase(locale) },
+                 style = Forge.type.caption, color = ink.secondary)
+            Text("·", style = Forge.type.caption, color = ink.secondary)
+            Text(stringResource(R.string.forge_db_swipe), style = Forge.type.caption, color = ink.secondary)
+            Icon(Icons.Rounded.CalendarMonth, null, tint = ink.secondary, modifier = Modifier.size(11.dp))
+        }
     }
 }
 

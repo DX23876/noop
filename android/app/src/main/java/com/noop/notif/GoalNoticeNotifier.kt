@@ -99,7 +99,7 @@ object GoalNoticeNotifier {
                 builder.addAction(0, context.getString(R.string.forge_gn_snooze), actionIntent(context, id, ACTION_SNOOZE, message))
             }
             NotificationManagerCompat.from(context).notify(id, builder.build())
-        }
+        }.onFailure { android.util.Log.w("GoalNotice", "post failed: ${it.javaClass.simpleName} ${it.message}") }
     }
 
     private const val ACTION_TICK = "com.noop.goal.TICK"
@@ -159,6 +159,10 @@ object GoalNoticeNotifier {
 class GoalNoticeActionReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: android.content.Intent) {
         val pending = goAsync()
-        Thread { try { GoalNoticeNotifier.handle(context.applicationContext, intent) } finally { pending.finish() } }.start()
+        Thread {
+            try { GoalNoticeNotifier.handle(context.applicationContext, intent) }
+            catch (e: Exception) { android.util.Log.w("GoalNotice", "action failed: ${e.javaClass.simpleName}") }
+            finally { pending.finish() }
+        }.start()
     }
 }

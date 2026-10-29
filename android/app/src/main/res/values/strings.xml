@@ -4984,4 +4984,6 @@
     <string name="forge_gn_offer_no">No thanks</string>
     <string name="forge_gn_tick">Tick off</string>
     <string name="forge_gn_snooze">Remind me in 1 hour</string>
+    <string name="forge_db_swipe">Swipe to change day</string>
+    <string name="forge_db_updates">Updates</string>
 </resources>

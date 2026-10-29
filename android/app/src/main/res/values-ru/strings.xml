@@ -4850,4 +4850,6 @@
     <string name="forge_gn_offer_no">Нет, спасибо</string>
     <string name="forge_gn_tick">Отметить</string>
     <string name="forge_gn_snooze">Напомнить через 1 час</string>
+    <string name="forge_db_swipe">Смахните, чтобы сменить день</string>
+    <string name="forge_db_updates">Обновления</string>
 </resources>

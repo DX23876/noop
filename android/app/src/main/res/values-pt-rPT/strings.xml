@@ -4941,4 +4941,6 @@
     <string name="forge_gn_offer_no">Não, obrigado</string>
     <string name="forge_gn_tick">Marcar</string>
     <string name="forge_gn_snooze">Lembrar daqui a 1 hora</string>
+    <string name="forge_db_swipe">Desliza para mudar de dia</string>
+    <string name="forge_db_updates">Atualizações</string>
 </resources>
