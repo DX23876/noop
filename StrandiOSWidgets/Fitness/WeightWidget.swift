@@ -7,7 +7,7 @@ import StrandDesign
 struct NOOPWeightWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPWeightWidget", provider: FitnessProvider()) { entry in
-            WeightWidgetView(entry: entry).containerBackground(StrandPalette.surfaceBase, for: .widget)
+            WeightWidgetView(entry: entry).appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Weight")
         .description("Your latest weigh-in and the last 30 days.")

@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import com.noop.R
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -62,7 +66,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 // defect this screen shipped with: consent is held in memory and read by `send`, so a revoke made
 // against a second instance persisted to storage and still left the conversation sending on the old
 // one. AppRoot passes the Coach entry's view model.
-fun CoachSettingsScreen(vm: CoachViewModel) {
+fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null, onOpenMemory: (() -> Unit)? = null,
+                        onOpenInfo: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null) {
     val context = LocalContext.current
 
     // The brief settings are read from prefs on show, the same as the coach page did before the
@@ -83,10 +88,25 @@ fun CoachSettingsScreen(vm: CoachViewModel) {
         // stays on the coach page). A "not connected yet" card would be unreachable, and the Swift twin
         // has no equivalent.
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            CoachFeatureCard(vm = vm)
+            CoachTodayCard(vm = vm)
             CoachModelCard(vm = vm)
+            CoachBackgroundModelsCard(vm = vm)
+            if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
+            if (onOpenGoals != null) CoachNavRow(stringResource(R.string.coach_goals_journey), stringResource(R.string.coach_goals_journey_subtitle), onOpenGoals)
+            if (onOpenMemory != null) CoachNavRow(stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
             CoachConsentCard(vm = vm)
+            CoachSharedSettingsCards(vm = vm)
             CoachInstructions(vm = vm)
+            MorningSuggestionSwitch()
             MorningBriefCard(vm = vm)
+            CoachRemindersCard()
+            CoachUsageCard(vm = vm)
+            if (onOpenInfo != null) {
+                val info by vm.info.collectAsStateWithLifecycle()
+                androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadInfo() }
+                info?.let { CoachNavRow(it.infoTitle, "", onOpenInfo) }
+            }
         }
     }
 }
@@ -132,6 +152,20 @@ private fun CoachModelCard(vm: CoachViewModel) {
                 selected = model,
                 onSelect = { vm.selectModel(context, it) },
             )
+            // "Test connection" (`connectionTestRow`): one tiny request in the coach's own format.
+            val settings by vm.coachSettings.collectAsStateWithLifecycle()
+            val test by vm.connectionTest.collectAsStateWithLifecycle()
+            val labels = settings?.labels.orEmpty()
+            if (labels["test"] != null) {
+                val running = test?.second?.isEmpty() == true
+                Text(labels["test"].orEmpty(), style = NoopType.subhead, color = if (running) Palette.textTertiary else Palette.accent,
+                     modifier = Modifier.clip(RoundedCornerShape(50)).clickable(enabled = !running) { vm.testConnection(context) }
+                         .padding(vertical = 4.dp))
+                test?.let { (ok, line) ->
+                    Text(if (running) labels["testing"].orEmpty() else line, style = NoopType.footnote,
+                         color = when { running -> Palette.textTertiary; ok -> Palette.statusPositive; else -> Palette.statusCritical })
+                }
+            }
         }
     }
 }
@@ -162,6 +196,40 @@ private fun CoachConsentCard(vm: CoachViewModel) {
             androidx.compose.material3.Switch(
                 checked = consent,
                 onCheckedChange = { vm.setConsent(context, it) },
+            )
+        }
+    }
+}
+
+/**
+ * The switch for the morning suggestion on Today (`morningSuggestionBar`), kept by the shared coach under iOS's
+ * `coach.morningSuggestion` key, with its words from the core.
+ */
+@Composable
+private fun MorningSuggestionSwitch() {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val scale = androidx.compose.runtime.remember { UnitPrefs.effortScale(context).raw }
+    var card by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.noop.core.CoreCoach.Morning?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        card = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.noop.core.CoreCoach.morning(scale) }
+    }
+    val c = card ?: return
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(c.labels["setting"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+                Text(c.labels["note"].orEmpty(), style = NoopType.footnote, color = Palette.textTertiary)
+            }
+            androidx.compose.material3.Switch(
+                checked = c.on,
+                onCheckedChange = { on ->
+                    scope.launch {
+                        card = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            com.noop.core.CoreCoach.morning(scale, "set", on = on)
+                        } ?: card
+                    }
+                },
             )
         }
     }
@@ -233,6 +301,7 @@ private fun CoachInstructions(vm: CoachViewModel) {
     val context = LocalContext.current
     val prompt by vm.systemPrompt.collectAsStateWithLifecycle()
     val hasCustom by vm.hasCustomPrompt.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadSystemPrompt() }
     var expanded by remember { mutableStateOf(false) }
 
     val headerInteraction = remember { MutableInteractionSource() }
@@ -297,6 +366,133 @@ private fun CoachInstructions(vm: CoachViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** The way into the coach's identity, as the iOS Coaching page's "Coach identity" row, with its avatar. */
+@Composable
+private fun CoachIdentityRow(vm: CoachViewModel, onOpen: () -> Unit) {
+    val identity by vm.identity.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadCoachName() }
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClick = onOpen),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CoachIdentityAvatar(identity, 40.dp)
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.coach_identity), style = NoopType.headline, color = Palette.textPrimary)
+                Text(identity?.name ?: stringResource(R.string.coach_identity_subtitle), style = NoopType.footnote,
+                     color = Palette.textSecondary)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.textTertiary)
+        }
+    }
+}
+
+/** A row into one of the coach's own pages, in the shape of the identity row. */
+@Composable
+private fun CoachNavRow(title: String, subtitle: String, onOpen: () -> Unit) {
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onOpen), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = NoopType.headline, color = Palette.textPrimary)
+                if (subtitle.isNotEmpty()) Text(subtitle, style = NoopType.footnote, color = Palette.textSecondary)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.textTertiary)
+        }
+    }
+}
+
+
+/**
+ * The daily check-in (`checkInBar`: a reminder at a fixed time or at the learned wake time) and plan reminders
+ * (`planReminderBar`: at the time set for an agreed session). Both are local notifications with no provider call;
+ * switching one on asks for the notification permission where Android needs it.
+ */
+@Composable
+private fun CoachRemindersCard() {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var checkIn by remember { mutableStateOf(CoachReminders.checkIn(context)) }
+    var planOn by remember { mutableStateOf(CoachReminders.planRemindersEnabled(context)) }
+    var info by remember { mutableStateOf<com.noop.core.CoreCoach.CheckIn?>(null) }
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
+    fun askPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(checkIn.timeMinutes, checkIn.afterWake) {
+        info = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.noop.core.CoreRead.open(context); com.noop.core.CoreCoach.checkIn(checkIn.timeMinutes)
+        }
+    }
+    val l = info?.labels ?: return
+    fun save(next: CoachReminders.CheckIn) {
+        val learned = next.copy(wakeMinutes = info?.wakeMinutes ?: next.wakeMinutes)
+        checkIn = learned
+        CoachReminders.setCheckIn(context, learned, l["notifTitle"], l["notifBody"])
+    }
+    val notificationsOff = !androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(l["title"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+                    Text(l[if (checkIn.enabled) "on" else "off"].orEmpty(), style = NoopType.footnote, color = Palette.textTertiary)
+                }
+                androidx.compose.material3.Switch(checked = checkIn.enabled, onCheckedChange = {
+                    if (it) askPermission()
+                    save(checkIn.copy(enabled = it))
+                })
+            }
+            if (checkIn.enabled) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Palette.surfaceInset).padding(3.dp)) {
+                    listOf(false to l["fixed"], true to l["wake"]).forEach { (wake, label) ->
+                        val selected = checkIn.afterWake == wake
+                        Text(label.orEmpty(), style = NoopType.footnote,
+                             color = if (selected) Palette.textPrimary else Palette.textSecondary,
+                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                             modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                                 .background(if (selected) Palette.surfaceOverlay else Color.Transparent)
+                                 .clickable { save(checkIn.copy(afterWake = wake)) }.padding(vertical = 7.dp))
+                    }
+                }
+                if (checkIn.afterWake) {
+                    Text(l["wakeReadout"].orEmpty(), style = NoopType.footnote, color = Palette.textTertiary)
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(l["time"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary, modifier = Modifier.weight(1f))
+                        TimeChip(minutes = checkIn.timeMinutes, accessibilityLabel = l["time"].orEmpty(),
+                                 onPicked = { save(checkIn.copy(timeMinutes = it)) })
+                    }
+                }
+                if (notificationsOff) Text(l["denied"].orEmpty(), style = NoopType.footnote, color = Palette.statusCritical)
+            }
+        }
+    }
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(l["planTitle"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+                    Text((if (planOn) l["planOn"] else l["planOff"]).orEmpty(), style = NoopType.footnote, color = Palette.textTertiary)
+                }
+                androidx.compose.material3.Switch(checked = planOn, onCheckedChange = { on ->
+                    if (on) askPermission()
+                    planOn = on
+                    val scale = UnitPrefs.effortScale(context).raw
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) { CoachReminders.setPlanReminders(context, on, scale) }
+                })
+            }
+            if (planOn && notificationsOff) Text(l["planDenied"].orEmpty(), style = NoopType.footnote, color = Palette.statusCritical)
         }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// The repeat-guards behind the coach's two goal-driven proactive messages: the deadline nudge
 /// (`AICoachEngine.runProactiveNudgeIfNeeded`) and the expiry look-back
@@ -35,17 +36,17 @@ enum CoachGoalNudgeStamps {
     /// The stamp VALUE for a goal: its target date as a plain day key, or nil for a goal without one
     /// (which can neither have a deadline nudge nor an expiry review, so it is never stamped).
     static func stampValue(for goal: CoachGoal) -> String? {
-        goal.targetDate.map { Repository.localDayKey($0) }
+        goal.targetDate.map { StoreReader.localDayKey($0) }
     }
 
     /// Whether this goal has already been spoken about AT ITS CURRENT TARGET DATE.
     static func alreadyFired(_ key: String, for goal: CoachGoal,
-                             defaults: UserDefaults = .standard) -> Bool {
+                             defaults: any GoalPreferenceStorage = GoalPreferences.standard) -> Bool {
         guard let value = stampValue(for: goal) else { return false }
         return defaults.string(forKey: key) == value
     }
 
-    static func stamp(_ key: String, for goal: CoachGoal, defaults: UserDefaults = .standard) {
+    static func stamp(_ key: String, for goal: CoachGoal, defaults: any GoalPreferenceStorage = GoalPreferences.standard) {
         guard let value = stampValue(for: goal) else { return }
         defaults.set(value, forKey: key)
     }
@@ -53,7 +54,7 @@ enum CoachGoalNudgeStamps {
     /// Drop every stamp belonging to a goal. Only `CoachGoalStore.remove(_:)` needs this — a deleted
     /// goal leaves no way to reach its keys again, so without it they sit in `UserDefaults` forever.
     /// (Editing a goal needs no cleanup: that is what keying on the target date buys.)
-    static func clear(goalId: UUID, defaults: UserDefaults = .standard) {
+    static func clear(goalId: UUID, defaults: any GoalPreferenceStorage = GoalPreferences.standard) {
         defaults.removeObject(forKey: deadlineKey(goalId: goalId, important: true))
         defaults.removeObject(forKey: deadlineKey(goalId: goalId, important: false))
         defaults.removeObject(forKey: reviewKey(goalId: goalId))

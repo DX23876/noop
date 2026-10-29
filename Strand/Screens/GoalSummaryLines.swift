@@ -107,11 +107,6 @@ extension GoalTrackingSnapshot {
         routeLine ?? measurementLine ?? localizedNextAction
     }
 
-    /// The goal's own title, or its kind when the user left the title blank.
-    var displayTitle: String {
-        goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title
-    }
-
     /// Why there is no percentage — in the user's terms, and NOT all the same sentence.
     ///
     /// `progressFraction` goes nil for three quite different reasons, and saying "tracked, not

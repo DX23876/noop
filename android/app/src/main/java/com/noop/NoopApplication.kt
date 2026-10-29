@@ -47,6 +47,7 @@ class NoopApplication : Application() {
         // Install before any app-owned startup work so even an early failure is preserved for the
         // recovery screen on the next launch.
         CrashCapture.install(this)
+        if (com.noop.core.CoreExerciseMedia.downloadId(this) > 0) com.noop.core.CoreExerciseMedia.enqueueInstall(this)
         // #1008: pin the pre-change Overnight-only default for existing installs before anything
         // reads it. Idempotent; a no-op on fresh installs and on every launch after the first.
         com.noop.ui.NoopPrefs.migrateContinuousHrvOvernightDefault(this)
@@ -64,13 +65,17 @@ class NoopApplication : Application() {
         com.noop.core.SwiftCore.start(this)
     }
 
-    /** Process-wide Room-backed store. One instance shared by the UI and the background service. */
+    /** Process-wide repository: journal and water use the shared core; remaining classic data stays in Room. */
     val repository: WhoopRepository by lazy {
-        WhoopRepository(WhoopDatabase.get(this))
+        WhoopRepository.from(this)
     }
 
     /** Process-wide device registry over the same Room DB — the single source of the active device id. */
-    val deviceRegistry: DeviceRegistry by lazy { DeviceRegistry(WhoopDatabase.get(this)) }
+    val deviceRegistry: DeviceRegistry by lazy {
+        WhoopDatabase.get(this).let { db ->
+            DeviceRegistry(db, com.noop.core.CoreInputLanes(this, db), com.noop.core.CoreDeviceData)
+        }
+    }
 
     /**
      * Active device id, resolved once at startup from the registry and falling back to the legacy

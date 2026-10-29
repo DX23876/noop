@@ -12,6 +12,11 @@ import Foundation
 /// same call site as a real label.
 extension String {
     var localizedCatalogValue: String {
+        #if os(Android)
+        // Android ships the catalog per language for the shared core (`CoreLocalization`), not as a bundle table.
+        CoreLocalization.lookup(self) ?? self
+        #else
         Bundle.main.localizedString(forKey: self, value: self, table: nil)
+        #endif
     }
 }

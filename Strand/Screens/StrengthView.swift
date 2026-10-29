@@ -733,24 +733,8 @@ struct StrengthView: View {
 
     private func saveMapping(for exercise: String) async {
         guard let store = await repo.storeHandle(), mappingPrimary != .other else { return }
-        let mapping = StrengthExerciseMapping(
-            normalizedTitle: strengthNormalizedTitle(exercise), displayTitle: exercise,
-            primaryMuscleGroup: mappingPrimary,
-            secondaryMuscleGroups: mappingSecondary.sorted { $0.rawValue < $1.rawValue })
-        try? await store.upsertStrengthExerciseMapping(mapping)
-        let normalized = ExerciseAnatomyCatalog.normalize(exercise)
-        let primary = mappingPrimary.trainingMuscleIds
-        let secondary = mappingSecondary.flatMap(\.trainingMuscleIds)
-            .filter { !primary.contains($0) }
-        if !primary.isEmpty {
-            let anatomy = ExerciseAnatomy(
-                id: "user:\(normalized)", title: exercise, mode: .weightReps,
-                movementPattern: .other, primaryMuscleIds: primary,
-                secondaryMuscleIds: secondary, confidence: .userConfirmed)
-            try? await store.upsertTrainingExerciseAnatomyAlias(.init(
-                key: "user|\(normalized)", source: .imported,
-                normalizedTitle: normalized, anatomy: anatomy, origin: "user"))
-        }
+        try? await StrengthDetails.saveMapping(store: store, title: exercise,
+                                              primary: mappingPrimary, secondary: Array(mappingSecondary))
         mappingExercise = nil
         await model.load(repo: repo)
     }

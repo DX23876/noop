@@ -1362,6 +1362,64 @@
         }
       }
     },
+    "No shared data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine geteilten Daten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin datos compartidos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée partagée"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem dados partilhados"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak wspólnych danych"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato condiviso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет общих данных"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有共享数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有共享資料"
+          }
+        }
+      }
+    },
     "NOOP" : {
       "shouldTranslate" : false
     },
@@ -1901,6 +1959,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "壓力"
+          }
+        }
+      }
+    },
+    "This install method gives NOOP no App Group, so widgets can't read the app. Install with Xcode, AltStore or SideStore." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Installationsart gibt NOOP keine App Group, deshalb können Widgets die App nicht lesen. Installiere mit Xcode, AltStore oder SideStore."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este método de instalación no da a NOOP ningún App Group, así que los widgets no pueden leer la app. Instala con Xcode, AltStore o SideStore."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette méthode d’installation ne donne aucun App Group à NOOP, les widgets ne peuvent donc pas lire l’app. Installez avec Xcode, AltStore ou SideStore."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este método de instalação não dá ao NOOP nenhum App Group, por isso os widgets não conseguem ler a app. Instale com o Xcode, AltStore ou SideStore."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta metoda instalacji nie daje NOOP żadnej App Group, więc widżety nie mogą odczytać aplikacji. Zainstaluj przez Xcode, AltStore lub SideStore."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo metodo di installazione non dà a NOOP alcun App Group, quindi i widget non possono leggere l’app. Installa con Xcode, AltStore o SideStore."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот способ установки не даёт NOOP App Group, поэтому виджеты не могут читать данные приложения. Установите через Xcode, AltStore или SideStore."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此安装方式没有为 NOOP 提供 App Group，因此小组件无法读取应用数据。请使用 Xcode、AltStore 或 SideStore 安装。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此安裝方式沒有為 NOOP 提供 App Group，因此小工具無法讀取 App 資料。請使用 Xcode、AltStore 或 SideStore 安裝。"
           }
         }
       }

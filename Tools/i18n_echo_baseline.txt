@@ -25,7 +25,7 @@ Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings pt-PT
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings ru 1
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings zh-Hans 0
 Packages/StrandDesign/Sources/StrandDesign/Resources/Localizable.xcstrings zh-Hant 0
-Strand/Resources/Localizable.xcstrings de 90
+Strand/Resources/Localizable.xcstrings de 81
 Strand/Resources/Localizable.xcstrings es 95
 Strand/Resources/Localizable.xcstrings fr 91
 Strand/Resources/Localizable.xcstrings it 91

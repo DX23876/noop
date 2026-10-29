@@ -1,5 +1,6 @@
 import Foundation
 import WhoopStore
+import StrandCore
 
 /// Reading a journal whose questions the user has merged, and finding the merges worth offering.
 ///
@@ -29,39 +30,7 @@ enum JournalMerge {
                      native: [JournalEntry],
                      aliases: [String: String],
                      aliasOrder: [String: Int] = [:]) -> [JournalEntry] {
-        // An untouched catalog must behave exactly as before, through the very same function every
-        // other read has always used.
-        guard !aliases.isEmpty else {
-            return Repository.mergeJournal(imported: imported, native: native)
-        }
-
-        var best: [String: (entry: JournalEntry, rank: (Int, Int, Int))] = [:]
-        for (isNative, list) in [(false, imported), (true, native)] {
-            for (index, entry) in list.enumerated() {
-                let key = JournalCatalogStore.norm(entry.question)
-                let target = aliases[key]
-                let question = target ?? entry.question
-                // Bucketing on the VERBATIM resolved question, not its normalised form: a row that no
-                // alias touches must land exactly where `mergeJournal` puts it today, so this only ever
-                // merges what the user explicitly merged.
-                let bucket = entry.day + "\u{1F}" + question
-                // Negative index so that, all else equal, the LAST row wins — `mergeJournal`'s
-                // last-write-wins within a list (two imported source ids can carry the same day and
-                // question), preserved.
-                let aliasRank = aliasOrder[key].map { $0 + 1 } ?? Int.max - 1
-                let rank = (isNative ? 0 : 1,
-                            target == nil ? 0 : aliasRank,
-                            -index)
-                if let existing = best[bucket], existing.rank <= rank { continue }
-                let folded = target == nil ? entry : JournalEntry(day: entry.day,
-                                                                  question: question,
-                                                                  answeredYes: entry.answeredYes,
-                                                                  notes: entry.notes,
-                                                                  numericValue: entry.numericValue)
-                best[bucket] = (folded, rank)
-            }
-        }
-        return best.values.map(\.entry).sorted { ($0.day, $0.question) < ($1.day, $1.question) }
+        JournalRead.fold(imported: imported, native: native, aliases: aliases, aliasOrder: aliasOrder)
     }
 
     /// The same fold for a single day's `question → value` dictionaries the logging card reads. Same
@@ -69,25 +38,13 @@ enum JournalMerge {
     static func foldDay<V>(_ values: [String: V],
                            aliases: [String: String],
                            aliasOrder: [String: Int] = [:]) -> [String: V] {
-        guard !aliases.isEmpty else { return values }
-        var out: [String: V] = [:]
-        var rank: [String: Int] = [:]
-        for (question, value) in values.sorted(by: { $0.key < $1.key }) {
-            let key = JournalCatalogStore.norm(question)
-            let target = aliases[key]
-            let resolved = target ?? question
-            let candidate = target == nil ? 0 : aliasOrder[key].map { $0 + 1 } ?? Int.max - 1
-            if let held = rank[resolved], held <= candidate { continue }
-            out[resolved] = value
-            rank[resolved] = candidate
-        }
-        return out
+        JournalRead.foldDay(values, aliases: aliases, aliasOrder: aliasOrder)
     }
 
     /// Where a write for `question` must land: the merge target if it has one. New answers belong to
     /// the question the user actually sees, not to the wording it was folded from.
     static func writeTarget(_ question: String, aliases: [String: String]) -> String {
-        aliases[JournalCatalogStore.norm(question)] ?? question
+        JournalRead.writeTarget(question, aliases: aliases)
     }
 
     // MARK: - The merges offered for review

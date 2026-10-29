@@ -17,3 +17,25 @@ For every installed pack NOOP records the source URL, attribution, rights holder
 ## Day-cycle scene artwork
 
 The Alps day-cycle set (`alps1`...`alps10` in `Strand/Resources/Assets.xcassets` and `StrandiOS/Resources/Assets.xcassets`) is ten AI-generated images of one imaginary Alpine lake scene, lit for ten times of day, produced with ChatGPT image generation from a text prompt by the fork's owner. It contains no photograph, no third-party artwork and no real place, and it is not derived from any source image. The Coast set (`coast1`...`coast10`) is made the same way: ten AI-generated images of one imaginary dune path to the sea, lit for ten times of day. The painted meadow set (`scene1`...`scene10`) predates it and is unchanged.
+
+## Shared media integrity dependency
+
+The shared media installer uses Swift Crypto 4.5.2 (Apache-2.0), pinned in `StrandCore/Package.swift`.
+The package re-exports CryptoKit on Apple and provides the Android implementation. Its original
+`LICENSE.txt` and `NOTICE.txt` are shipped as `SwiftCrypto-LICENSE.txt` and `SwiftCrypto-NOTICE.txt`
+in the Apple app's `Resources/ThirdParty` and Android's `assets/licenses` directories. Upstream source:
+[apple/swift-crypto, 4.5.2](https://github.com/apple/swift-crypto/tree/4.5.2).
+
+The optional exercise pack remains a separate user-initiated download. On Android the completed pack
+lives in private `noBackupFilesDir`; the operating system's temporary download is in app-specific
+external storage, excluded from both cloud backup and device transfer by the app's extraction rules.
+
+## Personal ExerciseDB metadata endpoint
+
+The default optional endpoint is `https://oss.exercisedb.dev/api/v1/exercises`. Its
+[official reference](https://oss.exercisedb.dev/docs) requires AscendAPI credit; the shared client records
+“Exercise data: ExerciseDB V1 / AscendAPI — oss.exercisedb.dev.” on definitions received from that host.
+The credit is visible in the app's Acknowledgements and survives selected-only storage; the selection preview does not repeat it. Provider terms still apply;
+no exercise media is fetched by this metadata request. A single public `limit=1` request on 2026-10-27
+returned a `data` array with one definition, plus `meta` and `success` fields. No personal credential or
+health data was used. Other user-configured providers retain their own applicable terms.

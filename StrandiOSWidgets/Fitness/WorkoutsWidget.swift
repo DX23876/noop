@@ -6,7 +6,7 @@ import StrandDesign
 struct NOOPWorkoutsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NOOPWorkoutsWidget", provider: FitnessProvider()) { entry in
-            WorkoutsWidgetView(entry: entry).containerBackground(StrandPalette.surfaceBase, for: .widget)
+            WorkoutsWidgetView(entry: entry).appGroupNotice().containerBackground(StrandPalette.surfaceBase, for: .widget)
         }
         .configurationDisplayName("Training week")
         .description("Workouts and minutes this week, and your last workout.")

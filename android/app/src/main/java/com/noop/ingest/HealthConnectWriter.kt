@@ -393,6 +393,11 @@ object HealthConnectWriter {
         val rows = repo.metricSeriesComputedUnion(deviceId, "vo2max_est", cutoff, today)
         val records = buildVo2MaxRecords(rows, version, zone)
         if (records.isEmpty()) return 0
+        // #1525: VO2 max is asked for once and may be declined. A declined grant is the wearer's answer, not a
+        // failure: without this check every export threw SecurityException here and the status read "Sharing
+        // paused, permission revoked" while resting HR, HRV, sleep and workouts were being written.
+        val granted = client.permissionController.getGrantedPermissions()
+        if (!granted.containsAll(VO2MAX_PERMISSIONS)) return 0
         return insertChunked(client, records)
     }
 

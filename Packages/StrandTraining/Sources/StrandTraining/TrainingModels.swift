@@ -8,6 +8,15 @@ public enum TrainingMeasurementMode: String, Codable, CaseIterable, Sendable {
     case repetitions
     case duration
     case distanceDuration = "distance_duration"
+    case weightDuration = "weight_duration"
+    case distanceWeight = "distance_weight"
+
+    public var recordsRepetitions: Bool {
+        switch self {
+        case .weightReps, .bodyweightReps, .weightedBodyweight, .assistedBodyweight, .repetitions: true
+        case .duration, .distanceDuration, .weightDuration, .distanceWeight: false
+        }
+    }
 }
 
 public enum TrainingSetPhase: String, Codable, CaseIterable, Sendable {
@@ -56,7 +65,7 @@ public enum ExerciseLoadSemantics: String, Codable, CaseIterable, Sendable {
         case .assistedBodyweight: return .assistance
         case .bodyweightReps: return .bodyweightOnly
         case .duration, .distanceDuration, .repetitions: return .notApplicable
-        case .weightReps:
+        case .weightReps, .weightDuration, .distanceWeight:
             if equipmentIds.contains("dumbbell") || equipmentIds.contains("kettlebell") {
                 return .perImplement
             }
@@ -222,6 +231,11 @@ public struct RoutineSetPlan: Identifiable, Codable, Equatable, Sendable {
     public var targetDurationS: Int?
     public var targetDistanceM: Double?
     public var intensifierConfiguration: SetIntensifierConfiguration?
+
+    /// Fresh prescriptions carry repetitions only for movements measured in repetitions.
+    public static func defaults(for mode: TrainingMeasurementMode, count: Int = 3) -> [RoutineSetPlan] {
+        (0..<max(0, count)).map { _ in mode.recordsRepetitions ? .init(repsMin: 8, repsMax: 12) : .init() }
+    }
 
     public init(id: UUID = UUID(), phase: TrainingSetPhase = .work,
                 intensifier: TrainingSetIntensifier = .none, targetWeightKg: Double? = nil,

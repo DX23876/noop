@@ -1,6 +1,10 @@
 import XCTest
 import WhoopStore
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 @MainActor
 final class GoalActionsTests: XCTestCase {

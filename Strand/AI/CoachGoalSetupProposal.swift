@@ -1,5 +1,8 @@
 import Foundation
+import StrandCore
+#if canImport(Combine)
 import Combine
+#endif
 
 /// A coach-authored setup is deliberately inert until the person reviews it. It may contain one goal
 /// plus several reusable actions, including edits of existing records, but none of those stores are
@@ -58,7 +61,7 @@ struct CoachGoalSetupProposal: Codable, Identifiable, Equatable {
 
 @MainActor
 final class CoachGoalSetupProposalStore: ObservableObject {
-    static let shared = CoachGoalSetupProposalStore()
+    static var shared = CoachGoalSetupProposalStore()
     static let storageKey = "coach.goalSetupProposals.v1"
     static let maxProposals = 20
 
@@ -67,11 +70,11 @@ final class CoachGoalSetupProposalStore: ObservableObject {
         proposals.filter { $0.status == .proposed }.sorted { $0.createdAt > $1.createdAt }
     }
 
-    private let defaults: UserDefaults
+    private let defaults: any GoalPreferenceStorage
     private let storageKey: String
     private var isLoading = true
 
-    init(defaults: UserDefaults = .standard,
+    init(defaults: any GoalPreferenceStorage = GoalPreferences.standard,
          storageKey: String = "coach.goalSetupProposals.v1", loading: Bool = true) {
         self.defaults = defaults
         self.storageKey = storageKey
@@ -161,8 +164,9 @@ enum CoachGoalSetupApplier {
     static func apply(proposalId: UUID, selection: Selection,
                       proposalStore: CoachGoalSetupProposalStore,
                       goalStore: CoachGoalStore, actionStore: GoalActionStore,
-                      periodStore: PeriodGoalStore = .shared,
-                      today: String = Repository.localDayKey(Date())) -> ApplyError? {
+                      periodStore: PeriodGoalStore? = nil,
+                      today: String = StoreReader.localDayKey(Date())) -> ApplyError? {
+        let periodStore = periodStore ?? .shared
         guard proposalStore.proposal(id: proposalId)?.status == .proposed else {
             return .proposalUnavailable
         }

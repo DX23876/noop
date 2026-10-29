@@ -5,6 +5,8 @@ import com.noop.ui.ClockPrefs
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.WbSunny
@@ -43,11 +46,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import com.noop.ui.SleepLayoutPrefs
+import com.noop.ui.SleepSection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreRead
+import androidx.compose.runtime.produceState
+import com.noop.core.CoreGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -125,6 +133,16 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
             SleepModel(nights, rest.associate { it.day to it.value })
         }
     }
+    var customizing by remember { mutableStateOf(false) }
+    var layoutRevision by remember { mutableIntStateOf(0) }
+    val sections = remember(layoutRevision) {
+        SleepLayoutDefaults.visible(SleepLayoutPrefs.orderRaw(context), SleepLayoutPrefs.hiddenRaw(context))
+    }
+    if (customizing) {
+        ForgeOverlayPage(onDismiss = { customizing = false }) {
+            ForgeSleepCustomization { saved -> customizing = false; if (saved) layoutRevision++ }
+        }
+    }
     val nights = model?.nights.orEmpty()
     val i = if (index < 0 || index >= nights.size) nights.lastIndex else index
     val night = nights.getOrNull(i)
@@ -158,7 +176,36 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
                 }
             }
             Times(night, zone)
-            Breakdown(night, zone)
+            // Customize sits at the end of the hero, as on iOS (`sleepArrangeAffordance`).
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Row(Modifier.clickable(role = Role.Button) { customizing = true }.padding(ForgeMetrics.space2),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Tune, contentDescription = null, tint = Forge.colors.textTertiary,
+                         modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(ForgeMetrics.space1))
+                    Text(stringResource(R.string.forge_lay_customize), style = Forge.type.footnote,
+                         color = Forge.colors.textTertiary)
+                }
+            }
+        }
+        // Where this night stands in the week's sleep goals (iOS `SleepGoalNightLine`), then the week's sleep goal
+        // itself, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); neither draws without a goal.
+        if (wakeDay != null) {
+            val nightLines by produceState(emptyList<String>(), wakeDay) {
+                value = withContext(Dispatchers.IO) {
+                    CoreGoals.lines(context, dismissedTrainingWorkouts(context), day = wakeDay.toString())?.night.orEmpty()
+                }
+            }
+            ForgeGoalLines(nightLines)
+        }
+        ForgeGoalsContextCard("sleep")
+        // The arrangeable cards in the saved order, minus the hidden ones (`SleepLayoutDefaults`).
+        sections.forEach { section ->
+            when (section) {
+                SleepSection.STAGES -> if (night != null) Breakdown(night, zone)
+                SleepSection.SLEEP_DEBT -> SleepDebtLedger()
+                else -> Unit
+            }
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
         }
@@ -326,6 +373,63 @@ private fun StageLane(night: CoreRead.Night, stage: String, minutes: Int, inBed:
                 val x1 = (s.end - night.startTs) / span * size.width
                 drawRoundRect(color, topLeft = Offset(x0, 0f), size = Size((x1 - x0).coerceAtLeast(2f), size.height),
                               cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx()))
+            }
+        }
+    }
+}
+
+/** The sleep-debt ledger after `SleepDebtLedgerCard`: the balance over the last 14 nights and each night's delta. */
+@Composable
+private fun SleepDebtLedger() {
+    val ledger by produceState<com.noop.core.CoreSleepDebt.Ledger?>(null) {
+        value = withContext(Dispatchers.IO) { com.noop.core.CoreSleepDebt.read() }
+    }
+    val l = ledger ?: return
+    val tone = when (l.tone) {
+        "warning" -> ForgeTokens.Color.systemOrange.resolve()
+        "critical" -> ForgeTokens.Color.systemRed.resolve()
+        else -> ForgeTokens.Color.systemGreen.resolve()
+    }
+    val surplus = Forge.colors.accent
+    val deficit = ForgeTokens.Color.systemPink.resolve()
+    val line = Forge.colors.border
+    androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(ForgeMetrics.space2)) {
+        androidx.compose.foundation.layout.Row {
+            Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.sceneInk.text,
+                 modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.forge_sd_last14), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
+        }
+        ForgeCard(Modifier.fillMaxWidth()) {
+            if (l.nightCount == 0) {
+                Text(stringResource(R.string.forge_sd_empty), style = Forge.type.subhead, color = Forge.colors.textTertiary)
+                return@ForgeCard
+            }
+            androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
+                Text(l.headline, style = Forge.type.title1, color = tone, modifier = Modifier.weight(1f))
+                Text(l.tag, style = Forge.type.footnote, color = tone)
+            }
+            Text(l.read, style = Forge.type.subhead, color = Forge.colors.textSecondary)
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(56.dp)) {
+                val scale = (l.deltas.maxOfOrNull { kotlin.math.abs(it) } ?: 1.0).coerceAtLeast(1.0)
+                val slot = size.width / l.deltas.size.coerceAtLeast(1)
+                val bar = (slot * 0.6f).coerceAtLeast(2f)
+                val mid = size.height / 2
+                drawLine(line, androidx.compose.ui.geometry.Offset(0f, mid), androidx.compose.ui.geometry.Offset(size.width, mid))
+                l.deltas.forEachIndexed { i, d ->
+                    val h = (kotlin.math.abs(d) / scale * (mid - 2)).toFloat().coerceAtLeast(2f)
+                    val x = slot * i + (slot - bar) / 2
+                    drawRoundRect(if (d >= 0) surplus else deficit, androidx.compose.ui.geometry.Offset(x, if (d >= 0) mid - h else mid),
+                                  androidx.compose.ui.geometry.Size(bar, h), androidx.compose.ui.geometry.CornerRadius(4f, 4f))
+                }
+            }
+            androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth()) {
+                listOf(R.string.forge_sd_balance to l.balanceText, R.string.forge_sd_need to l.needText,
+                       R.string.forge_sd_nights to l.nightCount.toString()).forEach { (label, value) ->
+                    androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                        Text(stringResource(label), style = Forge.type.caption, color = Forge.colors.textSecondary)
+                        Text(value, style = Forge.type.headline, color = Forge.colors.text)
+                    }
+                }
             }
         }
     }

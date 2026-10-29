@@ -166,7 +166,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NOOP"
-        tools:targetApi="34">
+        tools:targetApi="34"
+        android:enableOnBackInvokedCallback="true">
 
         <!--
           MainActivity no longer carries the LAUNCHER intent-filter itself. The home-screen entry
@@ -333,6 +334,19 @@
                 android:resource="@xml/coach_brief_widget_info" />
         </receiver>
 
+        <!-- Parity plan 2.3: the goals widget (iOS NOOPGoalWidget), drawn from what the app stored. -->
+        <receiver
+            android:name="com.noop.widget.GoalsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/forge_goals_more_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/goals_widget_info" />
+        </receiver>
+
         <!-- Optional native phone-call alerts. The receiver only reacts to ringing/offhook/idle state
              and never reads the incoming-number extra. Delivery is gated by the Notifications screen
              settings and by the just-in-time READ_PHONE_STATE runtime permission. -->
@@ -382,6 +396,11 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <receiver android:name=".core.ExerciseMediaDownloadReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

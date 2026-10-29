@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -59,8 +60,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noop.R
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import com.noop.core.CoreGoals
 import com.noop.core.CoreRead
 import com.noop.ui.AppViewModel
+import com.noop.ui.TodayLayoutPrefs
+import com.noop.ui.TodaySection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -77,8 +84,9 @@ internal const val DAY_MONTH_SKELETON = "EEEdMMM"
 /** One day's values as the Today screen shows them; [CoreRead.Day] or nothing. */
 data class TodayModel(val date: LocalDate, val day: CoreRead.Day?, val baselines: Map<CoreRead.Metric, Double> = emptyMap())
 
-/** The metrics whose tile shows a change against the week before. */
-private val baselineMetrics = listOf(CoreRead.Metric.Hrv, CoreRead.Metric.RestingHr, CoreRead.Metric.RespRate)
+/** The metrics whose tile shows a change against the week before: the scores and vitals iOS compares to normal. */
+internal val baselineMetrics = listOf(CoreRead.Metric.Charge, CoreRead.Metric.Rest, CoreRead.Metric.Hrv,
+                                      CoreRead.Metric.RestingHr, CoreRead.Metric.RespRate)
 
 /** A tile's change against its baseline: "±0" inside the rounding step, else an arrow and the signed change. */
 fun deltaText(value: Double?, baseline: Double?, decimals: Int): String? {
@@ -112,6 +120,53 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     }
     val today = LocalDate.now()
     val shown = LocalDate.ofEpochDay(date)
+    var customizing by remember { mutableStateOf<TodayCustomizationDestination?>(null) }
+    var layoutRevision by remember { mutableIntStateOf(0) }
+    val sections = remember(layoutRevision) {
+        TodayLayoutDefaults.visibleSections(TodayLayoutPrefs.orderRaw(context), TodayLayoutPrefs.hiddenRaw(context))
+    }
+    var quickActions by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var startWorkout by remember { mutableStateOf(false) }
+    var liveWorkout by remember { mutableStateOf(false) }
+    val more = rememberMoreNavigator()
+    val selectTab = LocalForgeTabSelect.current
+    if (quickActions) {
+        ForgeQuickActionSheet(viewModel, onDismiss = { quickActions = false }) { action ->
+            quickActions = false
+            when (action) {
+                QuickAction.Battery -> selectTab(ForgeTab.More)
+                QuickAction.Live -> more.push(MoreRoute.Dest(MoreDest.Live))
+                QuickAction.Workout -> startWorkout = true
+                QuickAction.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
+                QuickAction.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
+                QuickAction.Goals -> more.push(MoreRoute.Dest(MoreDest.Goals))
+                QuickAction.CustomizeToday -> customizing = TodayCustomizationDestination.Today
+            }
+        }
+    }
+    MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
+    if (settingsOpen) {
+        ForgeOverlayPage(onDismiss = { settingsOpen = false }) { ForgeSettings(viewModel, onClose = { settingsOpen = false }) }
+    }
+    // The workout picker, then the live workout once one runs, as the Training tab opens them.
+    if (startWorkout) {
+        com.noop.ui.StartWorkoutSheet(vm = viewModel, onDismiss = {
+            startWorkout = false
+            if (viewModel.activeWorkout.value != null) liveWorkout = true
+        })
+    }
+    if (liveWorkout) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { liveWorkout = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            com.noop.ui.LiveWorkoutScreen(vm = viewModel, onClose = { liveWorkout = false })
+        }
+    }
+    customizing?.let { destination ->
+        ForgeOverlayPage(onDismiss = { customizing = null }) {
+            ForgeTodayCustomization(destination) { saved -> customizing = null; if (saved) layoutRevision++ }
+        }
+    }
     val previousLabel = stringResource(R.string.forge_previous_day)
     val nextLabel = stringResource(R.string.forge_next_day)
     var drag by remember { mutableStateOf(0f) }
@@ -140,16 +195,29 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             .padding(horizontal = ForgeMetrics.screenPadding),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
     ) {
-        Header(shown, isToday = shown == today)
-        Hero(model?.day, width)
-        HeartCard(viewModel, shown, live = shown == today)
-        KeyMetrics(model, columns = if (width == ForgeWidth.Compact) 2 else 3)
+        Header(shown, isToday = shown == today, onProfile = { settingsOpen = true }, onQuickActions = { quickActions = true })
+        // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`).
+        if (shown == today) ForgeMorningSuggestion()
+        // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
+        sections.forEach { section ->
+            when (section) {
+                TodaySection.HERO -> Hero(model?.day, width)
+                TodaySection.SYNTHESIS -> if (shown == today) ForgeTodayMomentum(viewModel)
+                TodaySection.GOALS -> if (shown == today) TodayGoals()
+                TodaySection.COACH -> if (shown == today) ForgeTodayCoach(viewModel)
+                TodaySection.HEART_RATE -> HeartCard(viewModel, shown, live = shown == today)
+                TodaySection.KEY_METRICS -> ForgeKeyMetrics(model, revision = layoutRevision,
+                                                            onEdit = { customizing = TodayCustomizationDestination.KeyMetrics })
+                TodaySection.ENERGY -> if (shown == today) TodayEnergy()
+                else -> Unit
+            }
+        }
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
 }
 
 @Composable
-private fun Header(date: LocalDate, isToday: Boolean) {
+private fun Header(date: LocalDate, isToday: Boolean, onProfile: () -> Unit, onQuickActions: () -> Unit) {
     val colors = Forge.colors
     val locale = Locale.getDefault()
     // The iOS header row: the title and its date on the left, the wordmark centred on the same line. Over a dark
@@ -168,6 +236,8 @@ private fun Header(date: LocalDate, isToday: Boolean) {
                  style = Forge.type.subhead.copy(shadow = sceneShadow), color = Forge.sceneInk.secondary, maxLines = 1)
         }
         ForgeWordmark(Modifier.align(Alignment.TopCenter).padding(top = ForgeMetrics.space2))
+        // Profile and quick actions trailing, as on iOS.
+        TodayHeaderButtons(onProfile, onQuickActions, Modifier.align(Alignment.TopEnd))
     }
 }
 
@@ -268,7 +338,14 @@ private fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
     val spoken = if (streaming) stringResource(R.string.forge_live_hr_spoken, value)
                  else stringResource(R.string.forge_hr_spoken_at, value, at ?: "")
     val points: List<Float> = if (streaming) liveTrace.map { it.toFloat() } else day.map { it.bpm.toFloat() }
-    ForgeCard(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = spoken }) {
+    // The whole day opens over the tabs, live or not: the card's trace is only the last two minutes while live.
+    var open by remember { mutableStateOf(false) }
+    if (open) {
+        ForgeOverlayPage(onDismiss = { open = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeDayHeartRatePage(date, onBack = { open = false }) }
+        }
+    }
+    ForgeCard(Modifier.fillMaxWidth().clickable { open = true }.semantics(mergeDescendants = true) { contentDescription = spoken }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Favorite, contentDescription = null, tint = colors.heart, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(ForgeMetrics.space2))
@@ -305,41 +382,6 @@ private fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
     }
 }
 
-@Composable
-private fun KeyMetrics(model: TodayModel?, columns: Int) {
-    val colors = Forge.colors
-    val day = model?.day
-    val base = model?.baselines.orEmpty()
-    val noData = stringResource(R.string.forge_no_data)
-    val sleep = day?.sleepMinutes?.roundToInt()
-    val tiles: List<@Composable (Modifier) -> Unit> = listOf(
-        { m -> MetricTile(Icons.Rounded.MonitorHeart, colors.accent, stringResource(R.string.forge_hrv),
-                          day?.hrv?.roundToInt()?.toString(), stringResource(R.string.forge_unit_ms), noData, m,
-                          deltaText(day?.hrv, base[CoreRead.Metric.Hrv], 0)) },
-        { m -> MetricTile(Icons.Rounded.Favorite, colors.heart, stringResource(R.string.forge_resting_hr),
-                          day?.restingHr?.toString(), stringResource(R.string.forge_unit_bpm), noData, m,
-                          deltaText(day?.restingHr?.toDouble(), base[CoreRead.Metric.RestingHr], 0)) },
-        { m -> MetricTile(Icons.Rounded.WaterDrop, colors.sleepLight, stringResource(R.string.forge_blood_oxygen),
-                          day?.spo2?.roundToInt()?.toString(), "%", noData, m) },
-        { m -> MetricTile(Icons.Rounded.Air, colors.sleepRem, stringResource(R.string.forge_breathing),
-                          day?.respRate?.let { "%.1f".format(it) }, stringResource(R.string.forge_unit_breaths), noData, m,
-                          deltaText(day?.respRate, base[CoreRead.Metric.RespRate], 1)) },
-        { m -> MetricTile(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_sleep),
-                          sleep?.let { stringResource(R.string.forge_hours_minutes, it / 60, it % 60) }, null, noData, m) },
-        { m -> MetricTile(Icons.Rounded.DirectionsWalk, colors.charge, stringResource(R.string.forge_steps),
-                          day?.steps?.let { "%,d".format(it) }, null, noData, m) },
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_key_metrics))
-        tiles.chunked(columns).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-                row.forEach { tile -> tile(Modifier.weight(1f)) }
-                repeat(columns - row.size) { Box(Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
 /**
  * The hero's ring sizing, as `LiquidHeroRingLayout` on iOS: each ring owns a third of the row and is drawn 8 %
  * larger than its slot, between 100 and 150 dp, inside 8 dp of side padding and 24 dp above and below.
@@ -353,4 +395,147 @@ object HeroRingLayout {
 
     fun diameter(rowWidth: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
         (rowWidth / 3 * OVERDRAW).coerceIn(minDiameter, maxDiameter)
+}
+
+/** The Energy card after `EnergyCard`: today's total so far, resting, active and projected; tap opens the detail. */
+@Composable
+private fun TodayEnergy() {
+    val context = LocalContext.current
+    var summary by remember { mutableStateOf<com.noop.core.CoreEnergyDetail.Summary?>(null) }
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        summary = withContext(Dispatchers.IO) {
+            CoreRead.open(context); com.noop.core.CoreEnergyDetail.today(context, dismissedTrainingWorkouts(context))
+        }
+    }
+    val s = summary ?: return
+    val whole = java.text.NumberFormat.getIntegerInstance(Locale.getDefault())
+    fun kcal(v: Double?) = v?.let { whole.format(kotlin.math.round(it).toLong()) } ?: "—"
+    ForgeCard(Modifier.fillMaxWidth().clickable { open = true }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_ed_title).uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
+                 modifier = Modifier.weight(1f))
+            Text(stringResource(when (s.confidence) {
+                "solid" -> R.string.forge_et_measured
+                "building" -> R.string.forge_et_partly
+                else -> R.string.forge_et_estimated
+            }), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+        }
+        if (s.total != null) {
+            Text(stringResource(R.string.forge_ed_kcal, kcal(s.total)), style = Forge.type.title1, color = Forge.colors.text)
+            Text(stringResource(R.string.forge_ed_so_far), style = Forge.type.caption, color = Forge.colors.textSecondary)
+        }
+        Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2)) {
+            listOf(
+                stringResource(if (s.basal == null) R.string.forge_ed_basal_day else R.string.forge_et_resting) to kcal(s.basal ?: s.bmr24h),
+                stringResource(R.string.forge_ed_active) to kcal(s.active),
+                stringResource(R.string.forge_et_projected) to kcal(s.projected),
+            ).forEach { (label, value) ->
+                Column(Modifier.weight(1f)) {
+                    Text(label, style = Forge.type.caption, color = Forge.colors.textSecondary)
+                    Text(value, style = Forge.type.headline, color = Forge.colors.text)
+                }
+            }
+        }
+    }
+    if (open) {
+        ForgeOverlayPage(onDismiss = { open = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { open = false }) }
+        }
+    }
+}
+
+/** Today's goals card, read from the shared core; it opens the goals page over the tabs. */
+@Composable
+private fun TodayGoals() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var output by remember { mutableStateOf<CoreGoals.Output?>(null) }
+    var revision by remember { mutableIntStateOf(0) }
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(revision) {
+        output = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            CoreGoals.snapshot(context, dismissedTrainingWorkouts(context))
+        }
+    }
+    PublishGoalsWidget(output)
+    ForgeTodayGoalsCard(output, onOpen = { open = true }, onToggle = { action ->
+        scope.launch {
+            withContext(Dispatchers.IO) { CoreGoals.toggleAction(action.actionId, action.day) }
+            revision++
+        }
+    })
+    if (open) {
+        ForgeOverlayPage(onDismiss = { open = false; revision++ }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeGoalsPage(onBack = { open = false; revision++ }) }
+        }
+    }
+}
+
+/** The day's heart rate in five-minute means from midnight to midnight, with its average, lowest and highest. */
+@Composable
+internal fun ForgeDayHeartRatePage(date: LocalDate, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val colors = Forge.colors
+    var points by remember(date) { mutableStateOf<List<CoreRead.HeartPoint>?>(null) }
+    val zone = java.time.ZoneId.systemDefault()
+    val from = date.atStartOfDay(zone).toEpochSecond()
+    LaunchedEffect(date) {
+        // Refreshed every five minutes, so a day still in progress keeps growing while the page is open.
+        while (true) {
+            points = withContext(Dispatchers.IO) { CoreRead.open(context); CoreRead.heartRate(from, from + 86_400 - 1) }
+            kotlinx.coroutines.delay(300_000)
+        }
+    }
+    SettingsColumn {
+        PageTitle(stringResource(R.string.forge_heart_rate), onBack)
+        val p = points ?: return@SettingsColumn
+        if (p.isEmpty()) {
+            Text(stringResource(R.string.forge_no_data), style = Forge.type.body, color = Forge.sceneInk.secondary)
+            return@SettingsColumn
+        }
+        ForgeCard(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth()) {
+                listOf(R.string.forge_hr_avg to p.map { it.bpm }.average(), R.string.forge_hr_low to p.minOf { it.bpm },
+                       R.string.forge_hr_high to p.maxOf { it.bpm }).forEach { (label, v) ->
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(label), style = Forge.type.caption, color = colors.textSecondary)
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(v.roundToInt().toString(), style = Forge.type.title2, color = colors.text)
+                            Spacer(Modifier.width(ForgeMetrics.space1))
+                            Text(stringResource(R.string.forge_unit_bpm), style = Forge.type.caption, color = colors.textTertiary,
+                                 modifier = Modifier.padding(bottom = 3.dp))
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            val grid = colors.divider
+            Canvas(Modifier.fillMaxWidth().height(200.dp)) {
+                val lo = p.minOf { it.bpm } - 5; val hi = p.maxOf { it.bpm } + 5
+                for (h in listOf(6, 12, 18)) {
+                    val x = size.width * h / 24f
+                    drawLine(grid, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height))
+                }
+                val path = Path()
+                var last: Long? = null
+                p.forEach { pt ->
+                    val x = ((pt.ts - from).toFloat() / 86_400f) * size.width
+                    val y = (size.height - (pt.bpm - lo) / (hi - lo) * size.height).toFloat()
+                    // A gap of more than fifteen minutes (strap off) breaks the line rather than bridging it.
+                    if (last == null || pt.ts - last!! > 900) path.moveTo(x, y) else path.lineTo(x, y)
+                    last = pt.ts
+                }
+                drawPath(path, colors.heart, style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round))
+            }
+            Row(Modifier.fillMaxWidth()) {
+                val clock = rememberClockFormatter()
+                listOf(0, 6, 12, 18).forEach { h ->
+                    Text(java.time.LocalTime.of(h, 0).format(clock), style = Forge.type.caption, color = colors.textTertiary,
+                         modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
 }

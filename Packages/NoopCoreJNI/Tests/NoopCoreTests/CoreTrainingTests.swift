@@ -91,7 +91,8 @@ final class CoreTrainingTests: XCTestCase {
         XCTAssertEqual(strength.workingSets, 1)
         XCTAssertEqual(strength.overview.sessions, 1)
         XCTAssertEqual(strength.selection.weekOffset, 0, "a single current-week session cannot select older weeks")
-        XCTAssertEqual(strength.sessionIds.count, 1)
+        XCTAssertEqual(strength.recentSessions.count, 1)
+        XCTAssertEqual(strength.recentSessions.first?.source, "noop_native")
         XCTAssertEqual(strength.exercise.choices.count, 1)
         XCTAssertFalse(CoreRead.json(strength) == "null")
     }

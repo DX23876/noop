@@ -2,11 +2,8 @@ import Foundation
 
 /// What the last Hevy sync did, kept so the user can see whether their strength data is current.
 ///
-/// NOTE WHAT IS NOT HERE: the incremental cursor. That is derived from the stored data
-/// (`WhoopStore.hevyNewestUpdatedAt`), not kept alongside this. A separately-stored cursor can end up
-/// AHEAD of what was actually written when a run is interrupted mid-page — and every later run then
-/// skips the gap forever, silently, with no way to notice. Deriving it from the rows makes that state
-/// unrepresentable: the cursor is by definition the newest thing we actually have.
+/// The shared engine keeps its banked frontier and backfill-completion marker in the database.
+/// UserDefaults holds presentation status only and cannot advance an import past unbanked pages.
 struct HevySyncStatus: Equatable {
     /// When a sync last completed without error.
     var lastSuccess: Date?
@@ -30,17 +27,10 @@ enum HevySyncState {
     /// The master switch. **Default off.** Until someone deliberately connects Hevy, the app should
     /// neither show the surface nor make a network request — same posture as `CoachFeaturePrefs`.
     static let enabledKey = "hevy.enabled"
-    /// The last time the catalogue was refreshed. Templates change rarely, so a full re-pull every sync
-    /// would be ~5 requests bought for nothing.
-    static let catalogueSyncedAtKey = "hevy.catalogueSyncedAt"
     private static let lastSuccessKey = "hevy.lastSuccess"
     private static let lastErrorKey = "hevy.lastError"
     private static let storedWorkoutsKey = "hevy.storedWorkouts"
     private static let skippedKey = "hevy.lastSkipped"
-
-    /// How stale the catalogue may get before the next sync refreshes it. A week: new exercises appear
-    /// when Hevy ships them or the user creates one, neither of which is hourly.
-    static let catalogueMaxAge: TimeInterval = 7 * 86_400
 
     static var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: enabledKey) }
@@ -69,21 +59,10 @@ enum HevySyncState {
         defaults.set(message, forKey: lastErrorKey)
     }
 
-    static var catalogueIsStale: Bool {
-        guard let last = UserDefaults.standard.object(forKey: catalogueSyncedAtKey) as? Date else {
-            return true
-        }
-        return Date().timeIntervalSince(last) > catalogueMaxAge
-    }
-
-    static func recordCatalogueSync(at date: Date = Date()) {
-        UserDefaults.standard.set(date, forKey: catalogueSyncedAtKey)
-    }
-
     /// Forget everything this lane remembers. Paired with `WhoopStore.deleteAllHevyData` and a
     /// Keychain clear, so "disconnect and remove" leaves nothing behind.
     static func reset(_ defaults: UserDefaults = .standard) {
-        for key in [enabledKey, catalogueSyncedAtKey, lastSuccessKey,
+        for key in [enabledKey, "hevy.catalogueSyncedAt", lastSuccessKey,
                     lastErrorKey, storedWorkoutsKey, skippedKey] {
             defaults.removeObject(forKey: key)
         }

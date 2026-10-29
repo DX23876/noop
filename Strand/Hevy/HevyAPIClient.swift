@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import StrandImport
+import StrandCore
 
 /// One fetched page: the verbatim body plus how many pages the envelope says there are.
 struct HevyPage {
@@ -8,7 +12,7 @@ struct HevyPage {
 }
 
 /// Abstracts the fetch so the coordinator is testable without a live network.
-protocol HevyFetching {
+protocol HevyFetching: HevyReadFetching {
     func get(path: String, query: [String: String]) async throws -> Data
     func post(path: String, body: Data) async throws -> Data
     func put(path: String, body: Data) async throws -> Data

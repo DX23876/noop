@@ -17,11 +17,13 @@ on:
       # Everything outside android/ the build or the tests read, so a change there runs this job in the
       # push that made it (Android plan D-7). The version name comes from project.yml (D-2); the Swift
       # core is built from Packages/** (D-5), whose fixtures the protocol and schema tests also read.
-      # Tests that read Swift app sources or the iOS string catalogue are excluded in
-      # android/app/build.gradle.kts, so Strand/** is not an input. Keep this list in step with what
-      # the build and the tests read.
+      # Strand/** is an input too: the core compiles app sources linked into Packages/NoopCoreJNI
+      # (the coach, goals, Hevy and data files under Sources/NoopCore/Shared), and the build packs the
+      # iOS string catalogue for the core's words. Keep this list in step with what the build and the
+      # tests read.
       - 'project.yml'
       - 'Packages/**'
+      - 'Strand/**'
       - 'Tools/parity_cases/**'
   push:
     branches: [main]
@@ -31,11 +33,13 @@ on:
       # Everything outside android/ the build or the tests read, so a change there runs this job in the
       # push that made it (Android plan D-7). The version name comes from project.yml (D-2); the Swift
       # core is built from Packages/** (D-5), whose fixtures the protocol and schema tests also read.
-      # Tests that read Swift app sources or the iOS string catalogue are excluded in
-      # android/app/build.gradle.kts, so Strand/** is not an input. Keep this list in step with what
-      # the build and the tests read.
+      # Strand/** is an input too: the core compiles app sources linked into Packages/NoopCoreJNI
+      # (the coach, goals, Hevy and data files under Sources/NoopCore/Shared), and the build packs the
+      # iOS string catalogue for the core's words. Keep this list in step with what the build and the
+      # tests read.
       - 'project.yml'
       - 'Packages/**'
+      - 'Strand/**'
       - 'Tools/parity_cases/**'
   workflow_dispatch:
 
@@ -98,7 +102,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build debug APKs
-        run: ./gradlew assembleFullDebug assembleDemoDebug
+        run: ./gradlew assembleFullDebug assembleDemoDebug assembleFullDebugAndroidTest
+
+      - name: Verify packaged Swift core resources
+        run: python3 swift-core/check-apk-resources.py app/build/outputs/apk/full/debug/*.apk app/build/outputs/apk/demo/debug/*.apk
 
       - name: Run unit tests
         run: ./gradlew testFullDebugUnitTest

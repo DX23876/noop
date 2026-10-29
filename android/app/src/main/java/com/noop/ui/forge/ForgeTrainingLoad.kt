@@ -102,15 +102,18 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
     val context = LocalContext.current
     var output by remember { mutableStateOf<CoreTrainingLoad.Output?>(null) }
     var loaded by remember { mutableStateOf(false) }
+    var history by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<LoadDetail?>(null) }
     LaunchedEffect(Unit) {
         output = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             val profile = ProfileStore.from(context)
-            CoreTrainingLoad.read(profile.hrMax.toDouble(), profile.sex, dismissedTrainingWorkouts(context))
+            CoreTrainingLoad.read(profile.hrMax.toDouble(), profile.sex, dismissedTrainingWorkouts(context),
+                                  com.noop.core.CoreFeatures.exerciseVO2max(context))
         }
         loaded = true
     }
+    if (history) { ForgeTrainingHistoryPage(onClose = { history = false }); return }
     BackHandler { if (detail != null) detail = null else onClose() }
     val o = output
     detail?.let { d ->
@@ -131,6 +134,7 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
         StrengthDevelopment(o)
         CardioDevelopment(o)
         ShapeCard(o)
+        TrainingHistoryButton { history = true }
         val maturity = maturity(o)
         ExplainerRows(listOf(
             ExplainerItem("maturity", maturityIcon(maturity), maturityTitle(maturity), maturityDetail(maturity)),
@@ -180,7 +184,7 @@ private fun belowSince(l: CoreTrainingLoad.Lane): String {
 }
 
 @Composable
-private fun strengthEvidence(l: CoreTrainingLoad.Lane): String = when {
+internal fun strengthEvidence(l: CoreTrainingLoad.Lane): String = when {
     l.guardState == "tooFewSessions" -> stringResource(R.string.forge_tl_too_few_in_window)
     l.band == null -> stringResource(R.string.forge_tl_sets_rated_after_21, l.measuredCount, l.possibleCount)
     l.band == "below" && l.daysBelowUsual > 0 && l.readingDay != null -> belowSince(l)
@@ -188,7 +192,7 @@ private fun strengthEvidence(l: CoreTrainingLoad.Lane): String = when {
 }
 
 @Composable
-private fun cardioEvidence(l: CoreTrainingLoad.Lane): String = when {
+internal fun cardioEvidence(l: CoreTrainingLoad.Lane): String = when {
     l.guardState == "tooFewSessions" -> stringResource(R.string.forge_tl_too_few_in_window)
     l.band == null -> stringResource(R.string.forge_tl_sessions_complete_after_21, l.measuredCount, l.possibleCount)
     l.band == "below" && l.daysBelowUsual > 0 && l.readingDay != null -> belowSince(l)
@@ -217,7 +221,7 @@ private fun cardioCaveat(o: CoreTrainingLoad.Output): String? {
 }
 
 @Composable
-private fun capNote(l: CoreTrainingLoad.Lane): String? =
+internal fun capNote(l: CoreTrainingLoad.Lane): String? =
     if (l.guardState == "lowVolumeCap") stringResource(R.string.forge_tl_cap_note) else null
 
 @Composable
@@ -659,11 +663,50 @@ private fun CardioDevelopment(o: CoreTrainingLoad.Output) {
         } else {
             Text(stringResource(R.string.forge_tl_vo2_empty), style = Forge.type.subhead, color = Forge.colors.textSecondary)
         }
+        o.exerciseVO2max?.let {
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            androidx.compose.material3.HorizontalDivider(color = Forge.colors.border.copy(alpha = 0.5f), thickness = ForgeMetrics.hairline)
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            ExerciseVO2maxRow(it)
+        }
         Spacer(Modifier.height(ForgeMetrics.space3))
         androidx.compose.material3.HorizontalDivider(color = Forge.colors.border.copy(alpha = 0.5f), thickness = ForgeMetrics.hairline)
         Spacer(Modifier.height(ForgeMetrics.space3))
         EvidenceRow(o)
     }
+    }
+}
+
+/** The Lab's experimental instrument, labelled as one (`exerciseVO2maxRow` on iOS). */
+@Composable
+private fun ExerciseVO2maxRow(x: CoreTrainingLoad.ExerciseVO2max) {
+    val one = NumberFormat.getNumberInstance(Locale.getDefault()).apply { minimumFractionDigits = 1; maximumFractionDigits = 1 }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(R.string.forge_tl_xvo2_title), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+             color = Forge.colors.text)
+        val week = x.mondayKey
+        if (x.value != null && week != null) {
+            Text(stringResource(R.string.forge_tl_xvo2_week, one.format(x.value), shortDate(week), x.sessionsUsed, x.sessionsOnFoot),
+                 style = Forge.type.caption, color = Forge.colors.textSecondary)
+        } else {
+            Text(stringResource(R.string.forge_tl_xvo2_none), style = Forge.type.caption, color = Forge.colors.textSecondary)
+        }
+        val graded = x.weekSessionsWithGrade ?: 0
+        val grade = when {
+            x.value == null || graded <= 0 -> stringResource(R.string.forge_tl_xvo2_flat)
+            graded == x.weekSessions -> stringResource(R.string.forge_tl_xvo2_climbs)
+            else -> stringResource(R.string.forge_tl_xvo2_some_climbs, graded, x.weekSessions ?: 0)
+        }
+        Text(grade, style = Forge.type.caption, color = Forge.colors.textTertiary)
+        Text(stringResource(R.string.forge_tl_xvo2_rough), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        val mae = x.meanAbsoluteError
+        val validation = if (x.pairs < x.pairsNeeded || mae == null) {
+            stringResource(R.string.forge_tl_xvo2_pairs, x.pairs, x.pairsNeeded)
+        } else {
+            val agreement = Math.round((x.directionAgreement ?: 0.0) * 100).toInt()
+            stringResource(if (x.passes) R.string.forge_tl_xvo2_passes else R.string.forge_tl_xvo2_fails, x.pairs, one.format(mae), agreement)
+        }
+        Text(validation, style = Forge.type.caption, color = Forge.colors.textTertiary)
     }
 }
 

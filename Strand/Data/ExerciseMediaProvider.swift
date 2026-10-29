@@ -1,5 +1,6 @@
 import Foundation
 import StrandTraining
+import StrandCore
 
 /// One playable or displayable file for an exercise, addressed only by NOOP's own exercise identity.
 struct ExerciseMedia: Equatable, Sendable {
@@ -68,7 +69,7 @@ final class ExerciseMediaRegistry: ObservableObject {
     /// only fetched when the wearer confirms a download after seeing its source, size and the rights
     /// holder's conditions (© Gym visual, attribution kept, personal non-commercial use). Add an id here
     /// to withdraw a provider again without touching exercises, routines or history.
-    static let withdrawnProviderIds: Set<String> = []
+    static let withdrawnProviderIds = ExerciseMediaPack.withdrawnProviderIds
 
     private let providers: [ExerciseMediaProvider]
 

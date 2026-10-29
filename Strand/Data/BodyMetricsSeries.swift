@@ -52,18 +52,7 @@ extension Repository {
                                 source: String = "manual", note: String? = nil) async -> Int {
         guard let store = await storeHandle() else { return 0 }
         let epoch = Int(takenAt.timeIntervalSince1970)
-        let day = Self.localDayKey(takenAt)
-        let rows = values.compactMap { key, value -> LabMarkerRow? in
-            guard value.isFinite, value > 0 else { return nil }
-            let definition = MarkerCatalog.definition(for: key)
-            return LabMarkerRow(
-                id: "\(key)-\(epoch)-\(UUID().uuidString.prefix(8))",
-                deviceId: deviceId, markerKey: key,
-                category: (definition?.category ?? .bodyMeasurement).rawValue,
-                day: day, takenAt: epoch, value: value, valueText: nil,
-                unit: definition?.canonicalUnit ?? "cm",
-                source: source, note: note, referenceText: nil)
-        }
+        let rows = BodyPreparation.measurementRows(values, deviceId: deviceId, takenAt: takenAt, source: source, note: note)
         guard !rows.isEmpty, (try? await store.upsertLabMarkers(rows)) != nil else { return 0 }
         if rows.contains(where: { Self.energyInputKeys.contains($0.markerKey) }) {
             scheduleEnergyRefresh(coveringStart: epoch)

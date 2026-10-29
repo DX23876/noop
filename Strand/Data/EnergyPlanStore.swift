@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import StrandAnalytics
 import WhoopStore
 
@@ -25,18 +26,18 @@ enum EnergyPlanStore {
     /// Manually entered intake is written under its OWN source id, never under `nutrition-csv`.
     /// Labelling a typed number as a CSV import would be a lie about provenance, and provenance is
     /// what the balance tier is judged on.
-    static let manualIntakeSource = "manual-intake"
+    static let manualIntakeSource = NutritionReads.manualIntakeSource
 
     /// Where `NutritionCsvImport` puts an imported day. Read alongside the manual source.
-    static let csvIntakeSource = "nutrition-csv"
+    static let csvIntakeSource = NutritionReads.csvIntakeSource
 
-    static let caloriesKey = "calories_in"
-    static let proteinKey = "protein_g"
-    static let carbsKey = "carbs_g"
-    static let fatKey = "fat_g"
+    static let caloriesKey = NutritionReads.caloriesKey
+    static let proteinKey = NutritionReads.proteinKey
+    static let carbsKey = NutritionReads.carbsKey
+    static let fatKey = NutritionReads.fatKey
     /// Presence distinguishes an explicitly confirmed zero-intake day from an unknown day.
-    static let loggedKey = "nutrition_logged"
-    static let nutritionKeys = [caloriesKey, proteinKey, carbsKey, fatKey, loggedKey]
+    static let loggedKey = NutritionReads.loggedKey
+    static let nutritionKeys = NutritionReads.keys
 
     // MARK: - The formula log
 
@@ -68,29 +69,6 @@ enum EnergyPlanStore {
     }
 }
 
-struct NutritionDay: Equatable, Sendable {
-    enum Source: String, Sendable { case appleHealth, csv, manual }
-
-    let day: String
-    var calories: Double?
-    var proteinG: Double?
-    var carbsG: Double?
-    var fatG: Double?
-    var caloriesSource: Source?
-    var macrosSource: Source?
-    var healthSourceName: String?
-    var isConfirmedNoIntake: Bool
-}
-
-struct ManualNutritionEntry: Equatable, Sendable {
-    let day: String
-    let calories: Double
-    let proteinG: Double?
-    let carbsG: Double?
-    let fatG: Double?
-    let isConfirmedNoIntake: Bool
-}
-
 // MARK: - Intake
 
 extension Repository {
@@ -102,49 +80,16 @@ extension Repository {
                                           fatG: nil, isConfirmedNoIntake: false))
     }
 
-    /// Replace one manual day's aggregate and read it back before claiming success.
+    /// Replace one manual day's aggregate and read it back before claiming success (`NutritionReads`).
     @discardableResult
     func recordManualNutrition(_ entry: ManualNutritionEntry) async -> Bool {
-        guard let store = await storeHandle(), entry.calories.isFinite,
-              entry.calories >= 0, entry.calories < 20_000,
-              entry.isConfirmedNoIntake == (entry.calories == 0),
-              !entry.isConfirmedNoIntake || [entry.proteinG, entry.carbsG, entry.fatG].allSatisfy({ $0 == nil }),
-              [entry.proteinG, entry.carbsG, entry.fatG].allSatisfy({ value in
-                  value.map { $0.isFinite && $0 >= 0 && $0 < 5_000 } ?? true
-              }) else { return false }
-        let optional = [(EnergyPlanStore.proteinKey, entry.proteinG),
-                        (EnergyPlanStore.carbsKey, entry.carbsG),
-                        (EnergyPlanStore.fatKey, entry.fatG)]
-        var rows = [
-            MetricPoint(day: entry.day, key: EnergyPlanStore.caloriesKey, value: entry.calories),
-            MetricPoint(day: entry.day, key: EnergyPlanStore.loggedKey, value: 1),
-        ]
-        rows += optional.compactMap { key, value in
-            value.map { MetricPoint(day: entry.day, key: key, value: $0) }
-        }
-        do {
-            try await store.replaceMetricSeriesWindow(
-                rows, deviceId: EnergyPlanStore.manualIntakeSource,
-                keys: EnergyPlanStore.nutritionKeys, from: entry.day, to: entry.day)
-            return await manualNutrition(on: entry.day) == entry
-        } catch {
-            return false
-        }
+        guard let store = await storeHandle() else { return false }
+        return await NutritionReads.recordManualNutrition(store: store, entry)
     }
 
     func manualNutrition(on day: String) async -> ManualNutritionEntry? {
         guard let store = await storeHandle() else { return nil }
-        func value(_ key: String) async -> Double? {
-            (try? await store.metricSeries(deviceId: EnergyPlanStore.manualIntakeSource,
-                                           key: key, from: day, to: day))?.first?.value
-        }
-        guard await value(EnergyPlanStore.loggedKey) != nil,
-              let calories = await value(EnergyPlanStore.caloriesKey) else { return nil }
-        return .init(day: day, calories: calories,
-                     proteinG: await value(EnergyPlanStore.proteinKey),
-                     carbsG: await value(EnergyPlanStore.carbsKey),
-                     fatG: await value(EnergyPlanStore.fatKey),
-                     isConfirmedNoIntake: calories == 0)
+        return await NutritionReads.manualNutrition(store: store, on: day)
     }
 
     /// Removes a manually entered day. Only NOOP's own source is touched: an imported CSV day is not
@@ -152,33 +97,15 @@ extension Repository {
     @discardableResult
     func deleteIntake(on day: String) async -> Bool {
         guard let store = await storeHandle() else { return false }
-        do {
-            try await store.replaceMetricSeriesWindow(
-                [], deviceId: EnergyPlanStore.manualIntakeSource,
-                keys: EnergyPlanStore.nutritionKeys, from: day, to: day)
-            return await manualNutrition(on: day) == nil
-        } catch {
-            return false
-        }
+        return await NutritionReads.deleteIntake(store: store, on: day)
     }
 
-    /// Intake per day from every source, in precedence order. Imported Health nutrition already
-    /// resolves to one writer per day, and a later CSV or manual calorie replaces that field rather
-    /// than being added to it.
-    ///
-    /// Apple Health is first because it is the intended path: NOOP ships no food diary, so a wearer who
-    /// logs in a nutrition app and syncs it to Health should never have to retype anything. A CSV
-    /// import overrides it, and a value typed here overrides both — later sources are more deliberate.
+    /// Intake per day from every source, in precedence order (`NutritionReads.nutritionByDay`).
     func intakeByDay(from: String, to: String) async -> [String: Double] {
         await nutritionByDay(from: from, to: to).compactMapValues(\.calories)
     }
 
     /// Logged macronutrient grams per day, under the same "one source wins a day" rule as intake.
-    ///
-    /// Read for the thermic effect of food: protein costs roughly a quarter of its own energy to
-    /// process, fat almost nothing, and a day's split is therefore worth more than a flat percentage
-    /// of its calories. A day that logged calories but no macros simply has no entry here and falls
-    /// back to the mixed-diet figure.
     func macrosByDay(from: String, to: String) async
         -> [String: (protein: Double?, carbs: Double?, fat: Double?)] {
         await nutritionByDay(from: from, to: to).mapValues {
@@ -186,42 +113,10 @@ extension Repository {
         }
     }
 
-    /// Resolve nutrition per field. A deliberate manual correction wins only the field it contains;
-    /// its absent macros continue to use the imported values instead of being erased.
+    /// Resolve nutrition per field, shared with the Android core (`NutritionReads`).
     func nutritionByDay(from: String, to: String) async -> [String: NutritionDay] {
         guard let store = await storeHandle() else { return [:] }
-        let sources: [(id: String, source: NutritionDay.Source)] = [
-            (Self.appleHealthSource, .appleHealth),
-            (EnergyPlanStore.csvIntakeSource, .csv),
-            (EnergyPlanStore.manualIntakeSource, .manual),
-        ]
-        var byDay: [String: NutritionDay] = [:]
-        let sourceNames = NutritionSourcePreferences.healthSourceByDay
-        for candidate in sources {
-            let markerDays = Set(((try? await store.metricSeries(
-                deviceId: candidate.id, key: EnergyPlanStore.loggedKey, from: from, to: to)) ?? []).map(\.day))
-            for key in [EnergyPlanStore.caloriesKey, EnergyPlanStore.proteinKey,
-                        EnergyPlanStore.carbsKey, EnergyPlanStore.fatKey] {
-                let rows = (try? await store.metricSeries(deviceId: candidate.id, key: key,
-                                                          from: from, to: to)) ?? []
-                for row in rows where row.value > 0 || (candidate.source == .manual && markerDays.contains(row.day)) {
-                    var entry = byDay[row.day] ?? NutritionDay(
-                        day: row.day, calories: nil, proteinG: nil, carbsG: nil, fatG: nil,
-                        caloriesSource: nil, macrosSource: nil,
-                        healthSourceName: sourceNames[row.day], isConfirmedNoIntake: false)
-                    switch key {
-                    case EnergyPlanStore.caloriesKey:
-                        entry.calories = row.value
-                        entry.caloriesSource = candidate.source
-                        entry.isConfirmedNoIntake = candidate.source == .manual && row.value == 0
-                    case EnergyPlanStore.proteinKey: entry.proteinG = row.value; entry.macrosSource = candidate.source
-                    case EnergyPlanStore.carbsKey: entry.carbsG = row.value; entry.macrosSource = candidate.source
-                    default: entry.fatG = row.value; entry.macrosSource = candidate.source
-                    }
-                    byDay[row.day] = entry
-                }
-            }
-        }
-        return byDay
+        return await NutritionReads.nutritionByDay(store: store, from: from, to: to,
+                                                   healthSourceNames: NutritionSourcePreferences.healthSourceByDay)
     }
 }

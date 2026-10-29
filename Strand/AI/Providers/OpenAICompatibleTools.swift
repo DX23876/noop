@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Tool-calling for OpenAI-compatible providers. OpenAI itself and OpenRouter both speak the SAME
 /// chat-completions "tools" wire format (OpenRouter is a pass-through gateway over it), so one

@@ -1,10 +1,11 @@
 import Foundation
+import StrandCore
+#if canImport(Combine)
 import Combine
-import Security
+#endif
 import WhoopStore
 import StrandAnalytics
 import StrandImport
-import StrandDesign
 import SemanticMemory
 
 // AICoachEngine context builder, the plain-text data summary every turn sends.
@@ -57,7 +58,7 @@ extension AICoachEngine {
         // Profile + goal (NOOP Forge): the same values the app's HR zones and calorie math use, so the
         // coach can prescribe zones/loads for THIS user. Consent-gated like the rest — buildContext()
         // is only reached with data access on.
-        let profile = ProfileStore()
+        let profile = repo.coachProfile()
         var profileParts = ["age \(profile.age)", profile.sex,
                             "\(Int(profile.weightKg.rounded())) kg",
                             "\(Int(profile.heightCm.rounded())) cm",
@@ -105,7 +106,7 @@ extension AICoachEngine {
                      + ", steps: \(avgInt(last30.compactMap { $0.steps.map(Double.init) }))/day"
                      + ", active energy: \(avgInt(last30.compactMap { activeEnergyByDay[$0.day] }))kcal/day")
         if let display = vo2maxDisplay, let headline = display.primary {
-            let source = headline.segment == Repository.appleHealthSource
+            let source = headline.segment == MetricResolver.appleHealthSource
                 ? "Apple Watch, measured \(headline.day)" : "NOOP weekly estimate, not a lab test"
             lines.append(String(format: "VO2max: %.1f ml/kg/min (%@)", headline.value, source))
             if let apple = display.appleLatest {
@@ -123,7 +124,7 @@ extension AICoachEngine {
     func buildCompactContext() -> String {
         let days = repo.days
         var lines: [String] = [clockLine(), "", "USER BIOMETRIC SNAPSHOT (derived local summary):"]
-        let profile = ProfileStore()
+        let profile = repo.coachProfile()
         lines.append("Profile: age \(profile.age), \(profile.sex), \(Int(profile.weightKg.rounded())) kg, "
                      + "\(Int(profile.heightCm.rounded())) cm, HRmax \(profile.hrMax) bpm")
         guard !days.isEmpty else {
@@ -202,13 +203,13 @@ extension AICoachEngine {
         // The quoted sessions' own resting rates, for the ones that recorded no energy. Bounded by
         // the sessions actually quoted, so this is one small read rather than a history-wide one.
         let quoted = Array(rows.prefix(limit))
-        let profileStore = ProfileStore()
-        let analyticsProfile = Repository.analyticsProfile(profileStore)
+        let profileStore = repo.coachProfile()
+        let analyticsProfile = profileStore.analytics
         var restingHrByDay: [String: Double] = [:]
         var peakMETByDay: [String: Double] = [:]
         if let oldest = quoted.map(\.startTs).min(), let newest = quoted.map(\.startTs).max() {
-            let fromDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest)))
-            let toDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest)))
+            let fromDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(oldest)))
+            let toDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(newest)))
             restingHrByDay = await repo.restingHrByDay(fromDay: fromDay, toDay: toDay)
             peakMETByDay = await repo.energyPeakMETByDay(fromDay: fromDay, toDay: toDay)
         }
@@ -247,7 +248,7 @@ extension AICoachEngine {
     /// actually known — which is the difference between advice and a guess with a decimal point.
     func bodyAndEnergyBlock() async -> String {
         let metrics = await repo.bodyMetrics()
-        let today = Repository.localDayKey(Date())
+        let today = StoreReader.localDayKey(Date())
         var lines: [String] = []
 
         var body: [String] = []
@@ -262,7 +263,7 @@ extension AICoachEngine {
                      ? "Body: nothing recorded."
                      : "Body: " + body.joined(separator: "; "))
 
-        let profile = Repository.analyticsProfile(ProfileStore())
+        let profile = repo.coachProfile().analytics
         let summaries = await repo.energySummaries(days: 30, profile: profile)
         let days = summaries.filter { $0.day < today }.compactMap { summary -> BurnDay? in
             guard let total = summary.totalBurnedSoFar else { return nil }
@@ -279,7 +280,7 @@ extension AICoachEngine {
                          + " (\(Int(balance.lowerBoundKcal.rounded()))–\(Int(balance.upperBoundKcal.rounded()))),"
                          + " from \(balance.intakeDays) intake days. Self-reported intake runs low, which biases this figure DOWN.")
         }
-        let formula = EnergyPlanStore.formulaLog.current
+        let formula = profile.basalFormula
         if let basal = BasalRate.kcalPerDay(formula,
                                             weightKg: metrics.value("weight", on: today) ?? profile.weightKg,
                                             heightCm: metrics.value("height", on: today) ?? profile.heightCm,

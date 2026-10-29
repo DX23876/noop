@@ -1,0 +1,1 @@
+../../../../../Strand/Data/StrengthDetails.swift

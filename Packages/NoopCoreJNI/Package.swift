@@ -18,6 +18,7 @@ let package = Package(
         .package(path: "../StrandAnalytics"),
         .package(path: "../StrandTraining"),
         .package(path: "../StrandImport"),
+        .package(path: "../SemanticMemory"),
     ],
     targets: [
         // jni.h and the looper come from the NDK sysroot on Android; elsewhere the header is empty and unused.
@@ -30,12 +31,16 @@ let package = Package(
                            .product(name: "StrandAnalytics", package: "StrandAnalytics"),
                            .product(name: "StrandTraining", package: "StrandTraining"),
                            .product(name: "StrandImport", package: "StrandImport"),
-                           .target(name: "CJNI", condition: .when(platforms: [.android]))]),
+                           .product(name: "SemanticMemory", package: "SemanticMemory"),
+                           .target(name: "CJNI", condition: .when(platforms: [.android]))],
+            // Set for the app sources the core compiles (`Sources/NoopCore/Shared`), where a few Apple-only
+            // pieces are left out: the core has no resource bundle for `String(localized:bundle:)`.
+            swiftSettings: [.define("NOOP_CORE")]),
         .testTarget(name: "NoopCoreTests", dependencies: [
             "NoopCore", .product(name: "WhoopStore", package: "WhoopStore"),
             .product(name: "StrandAnalytics", package: "StrandAnalytics"),
             .product(name: "StrandTraining", package: "StrandTraining"),
             .product(name: "WhoopProtocol", package: "WhoopProtocol")],
-            resources: [.copy("Fixtures")]),
+            resources: [.copy("Fixtures")], swiftSettings: [.define("NOOP_CORE_TESTS")]),
     ]
 )

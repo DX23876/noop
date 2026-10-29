@@ -66,6 +66,18 @@ final class TrainingHistoryModelTests: XCTestCase {
         XCTAssertEqual(fallback.lifts.map(\.id), ["bench"], "a lift no longer in the history falls back to the most trained")
     }
 
+    func testUnratedSessionsBeforeTheFirstRatingAreMeasurementGaps() {
+        let fixture = F.fixture(days: 60)
+        let source = TrainingHistoryModel.source(workouts: fixture.strength.workouts,
+            templates: fixture.strength.templates, sessions: fixture.sessions, resolution: fixture.cardio,
+            ratings: [], vo2Estimates: [], vo2Apple: [], today: F.today, offset: 0).0
+        let built = TrainingHistoryModel.build(source: source, span: .threeMonths, end: F.today, chosenLifts: [])
+        XCTAssertNotNil(source.sessionStart)
+        XCTAssertGreaterThan(built.session.reduce(0) { $0 + $1.unknownDays }, 0)
+        XCTAssertGreaterThan(built.session.compactMap(\.possible).reduce(0, +), 0)
+        XCTAssertEqual(built.session.compactMap(\.measured).reduce(0, +), 0)
+    }
+
     func testAJumpCentresTheDayButNeverPassesToday() {
         XCTAssertEqual(TrainingHistoryModel.end(for: .threeMonths, jumpedTo: "2025-03-01", today: "2026-09-24"),
                        "2025-04-16")

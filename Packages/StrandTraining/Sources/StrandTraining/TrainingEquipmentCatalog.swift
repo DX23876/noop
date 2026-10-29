@@ -17,6 +17,13 @@ public enum TrainingEquipmentCatalog {
         "band", "medicine-ball", "sled"
     ]
 
+    /// All required tools must be owned. Bodyweight is always available; no selection disables filtering.
+    public static func matches(_ required: [String], available: Set<String>) -> Bool {
+        guard !available.isEmpty else { return true }
+        let owned = Set(available.map(canonical))
+        return required.map(canonical).allSatisfy { $0 == "bodyweight" || owned.contains($0) }
+    }
+
     public static func canonical(_ id: String) -> String {
         let key = id.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             .replacingOccurrences(of: " ", with: "-")

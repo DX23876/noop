@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.noop.BuildConfig
@@ -68,8 +69,15 @@ class MainActivity : ComponentActivity() {
             // the UI simply reflects connection state. No blocking here.
         }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        com.noop.notif.SessionRatingNavigation.accept(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.noop.notif.SessionRatingNavigation.accept(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // NOTE: `crash` stays RAW here on purpose. acknowledge() fingerprints what it is given, and
         // pendingCrash() fingerprints the stored file — hand it redacted text and the two hashes never
@@ -123,6 +131,10 @@ class MainActivity : ComponentActivity() {
 
         // K5: self-heal the scheduled Coach morning-brief job (no-op when off / already scheduled).
         runCatching { CoachBriefScheduler.reschedule(applicationContext) }
+
+        // The coach's daily check-in and plan reminders (`CoachCheckIn`, `PlanReminder`): re-armed after a reboot
+        // or update, and in "When I wake up" mode the wake time is learned again on every launch, as iOS does.
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { CoachReminders.refreshOnLaunch(applicationContext) } }
 
         // Backup & Sync (#791): self-heal the daily auto-backup schedule (no-op when off / no folder),
         // and run a DEFERRED on-launch catch-up backup. Must-fix #4: the catch-up is gated on the toggle
@@ -1663,6 +1675,18 @@ fun NoopRoot() {
                 onboarded = true
             },
         )
+        return
+    }
+
+    val ratingSession by com.noop.notif.SessionRatingNavigation.sessionId.collectAsStateWithLifecycle()
+    if (ratingSession != null) {
+        com.noop.ui.forge.ForgeTheme {
+            com.noop.ui.forge.ForgeSceneBackdrop(com.noop.ui.forge.ForgeBackdrop.Canvas) {
+                com.noop.ui.forge.ForgeTrainingSessionDetailPage(ratingSession!!) {
+                    com.noop.notif.SessionRatingNavigation.sessionId.value = null
+                }
+            }
+        }
         return
     }
 

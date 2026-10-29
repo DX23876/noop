@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandTraining
+import StrandCore
 import UniformTypeIdentifiers
 
 /// Searchable, offline-first exercise library. Provider content is displayed with its source;
@@ -253,15 +254,11 @@ struct TrainingExerciseLibraryView: View {
     /// The region comes from the reviewed anatomy where there is one, so a filter can never disagree
     /// with the muscle map; an unmapped exercise falls back to its own primary muscle.
     private func bodyRegion(_ exercise: TrainingExercise) -> TrainingBodyRegion {
-        if let anatomy = TrainingMuscleProjection.anatomy(for: exercise) { return anatomy.bodyRegion }
-        return TrainingBodyRegion.forMuscles([exercise.primaryMuscleId].compactMap { $0 })
+        TrainingLibraryPreparation.Info(exercise).region
     }
 
     private func matchesMuscle(_ exercise: TrainingExercise, _ muscleId: String) -> Bool {
-        if exercise.primaryMuscleId == muscleId { return true }
-        if exercise.secondaryMuscleIds.contains(muscleId) { return true }
-        guard let anatomy = TrainingMuscleProjection.anatomy(for: exercise) else { return false }
-        return anatomy.primaryMuscleIds.contains(muscleId) || anatomy.secondaryMuscleIds.contains(muscleId)
+        TrainingLibraryPreparation.Info(exercise).matchesMuscle(muscleId)
     }
 
     private var filteredExercises: [TrainingExercise] {
@@ -317,13 +314,11 @@ struct TrainingExerciseLibraryView: View {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         do {
-            let archive = try ExerciseCatalogArchive.decode(Data(contentsOf: url))
-            guard archive.rights.allowsOfflineCache else {
-                message = String(localized: "This catalog does not allow local storage.")
-                return
-            }
-            archive.exercises.forEach { onSave?($0) }
+            let values = try TrainingLibraryPreparation.importedExercises(Data(contentsOf: url))
+            values.forEach { onSave?($0) }
             message = String(localized: "The exercise catalog was imported.")
+        } catch TrainingLibraryPreparation.ImportError.offlineStorageNotAllowed {
+            message = String(localized: "This catalog does not allow local storage.")
         } catch {
             message = String(localized: "The exercise catalog could not be imported.")
         }
@@ -347,6 +342,7 @@ private struct TrainingExerciseDetailView: View {
     }
 
     var body: some View {
+        let info = TrainingLibraryPreparation.Info(exercise)
         ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 NoopCard {
@@ -365,9 +361,9 @@ private struct TrainingExerciseDetailView: View {
                             .buttonStyle(.plain)
                             .foregroundStyle(isFavorite ? StrandPalette.metricAmber : StrandPalette.textSecondary)
                         }
-                        LabeledContent("Primary muscle", value: muscle(exercise.primaryMuscleId))
-                        if !exercise.secondaryMuscleIds.isEmpty {
-                            LabeledContent("Also involved", value: exercise.secondaryMuscleIds.map(muscle).joined(separator: ", "))
+                        LabeledContent("Primary muscle", value: info.primary.isEmpty ? muscle(nil) : info.primary.map { muscle($0) }.joined(separator: ", "))
+                        if !info.secondary.isEmpty {
+                            LabeledContent("Also involved", value: info.secondary.map { muscle($0) }.joined(separator: ", "))
                         }
                         LabeledContent("Equipment", value: exercise.equipmentIds.isEmpty
                                        ? String(localized: "No equipment")
@@ -517,6 +513,8 @@ private struct TrainingExerciseDetailView: View {
         case .repetitions: return String(localized: "Repetitions")
         case .duration: return String(localized: "Duration")
         case .distanceDuration: return String(localized: "Distance and duration")
+        case .weightDuration: return String(localized: "Weight and duration")
+        case .distanceWeight: return String(localized: "Weight and distance")
         }
     }
 
@@ -727,10 +725,11 @@ private struct ExerciseMediaDisclosureView: View {
 
 private struct ExerciseDBSourceView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var repo: Repository
     let onImport: ([TrainingExercise]) -> Void
     @AppStorage("training.exerciseDB.endpoint") private var endpoint =
-        "https://oss.exercisedb.dev/api/v1/exercises"
-    @AppStorage("training.exerciseDB.header") private var headerName = "x-rapidapi-key"
+        ExerciseDBProviderClient.defaultEndpoint
+    @AppStorage("training.exerciseDB.header") private var headerName = ExerciseDBProviderClient.defaultHeader
     @State private var key = ""
     @State private var results: [TrainingExercise] = []
     @State private var selected = Set<String>()
@@ -742,13 +741,14 @@ private struct ExerciseDBSourceView: View {
         Form {
             Section {
                 TextField("HTTPS exercise endpoint", text: $endpoint)
-                    .trainingTechnicalTextInput()
+                    .trainingTechnicalTextInput().disabled(loading)
                 TextField("API key header", text: $headerName)
-                    .trainingTechnicalTextInput()
+                    .trainingTechnicalTextInput().disabled(loading)
                 SecureField(hasStoredKey ? "Stored key — enter to replace" : "API key, if required", text: $key)
+                    .disabled(loading)
                 if hasStoredKey {
                     Button("Remove stored key", role: .destructive) {
-                        ExerciseDBCredentials.clear(); hasStoredKey = false; key = ""
+                        ExerciseDBCredentials.clear(); hasStoredKey = false; key = ""; results = []; selected = []
                     }
                 }
                 Button {
@@ -761,7 +761,7 @@ private struct ExerciseDBSourceView: View {
             } header: {
                 Text("Personal provider access")
             } footer: {
-                Text("The free ExerciseDB endpoint does not require a key. A personal key for another compatible provider is stored in this device's Keychain. NOOP requests one page only and sends no workout or health data.")
+                Text("A key is stored securely on this device and used only for the endpoint you choose. NOOP reads one page and sends no workout or health data.")
             }
 
             if !results.isEmpty {
@@ -782,7 +782,9 @@ private struct ExerciseDBSourceView: View {
                         }
                     }
                 } header: { Text("Preview") }
-                  footer: { Text("Only selected exercise definitions are stored. Workout rows retain the exercise id, not instructions or media files.") }
+                  footer: {
+                    Text("Only selected exercise definitions are stored. Workout rows retain the exercise id, not instructions or media files.")
+                  }
             }
 
             if let errorMessage {
@@ -798,10 +800,13 @@ private struct ExerciseDBSourceView: View {
             }
         }
         .onAppear { hasStoredKey = ExerciseDBCredentials.read() != nil }
+        .onChange(of: endpoint) { _ in results = []; selected = [] }
+        .onChange(of: headerName) { _ in results = []; selected = [] }
+        .onChange(of: key) { _ in results = []; selected = [] }
     }
 
     @MainActor private func load() async {
-        loading = true; errorMessage = nil
+        loading = true; errorMessage = nil; results = []; selected = []
         let supplied = key.trimmingCharacters(in: .whitespacesAndNewlines)
         if !supplied.isEmpty {
             guard ExerciseDBCredentials.save(supplied) else {
@@ -814,8 +819,9 @@ private struct ExerciseDBSourceView: View {
             let values = try await ExerciseDBProviderClient.fetch(
                 endpoint: endpoint, key: supplied.isEmpty ? ExerciseDBCredentials.read() : supplied,
                 headerName: headerName)
-            results = values
-            selected = Set(values.map(\.id))
+            let existing = await repo.nativeTrainingExercises()
+            results = try ExerciseDBProviderClient.keepingMeasurementIdentity(values, existing: existing)
+            selected = Set(results.map(\.id))
         } catch {
             errorMessage = String(localized: "The provider could not be reached or returned an unsupported response.")
         }
@@ -874,14 +880,10 @@ private struct TrainingCustomExerciseEditor: View {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let equipmentIds = equipment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? [] : [equipment.lowercased().replacingOccurrences(of: " ", with: "-")]
-                    let instructions = instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? [] : [instruction.trimmingCharacters(in: .whitespacesAndNewlines)]
-                    onSave(TrainingExercise(id: "user:\(UUID().uuidString.lowercased())", title: trimmed,
-                        mode: mode, primaryMuscleId: primaryMuscle, equipmentIds: equipmentIds,
-                        instructions: instructions, isUnilateral: unilateral, source: .user))
+                    guard let exercise = TrainingLibraryPreparation.customExercise(title: name, mode: mode,
+                        primary: primaryMuscle, equipment: equipment, instruction: instruction,
+                        unilateral: unilateral) else { return }
+                    onSave(exercise)
                 }
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -897,6 +899,8 @@ private struct TrainingCustomExerciseEditor: View {
         case .repetitions: return String(localized: "Repetitions")
         case .duration: return String(localized: "Duration")
         case .distanceDuration: return String(localized: "Distance and duration")
+        case .weightDuration: return String(localized: "Weight and duration")
+        case .distanceWeight: return String(localized: "Weight and distance")
         }
     }
 }

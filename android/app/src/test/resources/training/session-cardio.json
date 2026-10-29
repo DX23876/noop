@@ -1,0 +1,22 @@
+{
+  "avgHr" : 140,
+  "bucketSeconds" : 15,
+  "canonicalId" : "session|manual|1793016000|running",
+  "distanceM" : 5000,
+  "durationS" : 1800,
+  "endTs" : 1793017800,
+  "energyKcal" : 200,
+  "groups" : [
+
+  ],
+  "heartRate" : [
+
+  ],
+  "id" : "session|manual|1793016000|running",
+  "kind" : "endurance",
+  "maxHr" : 170,
+  "notes" : "Synthetic cardio note",
+  "source" : "manual",
+  "startTs" : 1793016000,
+  "title" : "Running"
+}

@@ -340,8 +340,11 @@ public enum EnergyPlanning {
             return min(low, high)...max(low, high)
         }
 
+        // Too early only while the forecast still reaches BOTH directions, past the band on each side. Against
+        // zero instead, a range from -2 to +1,270 read as undecided while one from +3 to +1,275 read as a
+        // surplus: five kilocalories of intake flipped the card, though both lower ends sit inside the band.
         let verdict: DailyBalance.Verdict
-        if let range, range.lowerBound < 0, range.upperBound > 0 {
+        if let range, range.lowerBound < -band, range.upperBound > band {
             verdict = .tooEarly
         } else if balance < -band {
             verdict = .deficit

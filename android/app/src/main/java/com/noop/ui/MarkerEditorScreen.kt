@@ -404,7 +404,7 @@ private fun editorFieldColors() = OutlinedTextFieldDefaults.colors(
     unfocusedTextColor = Palette.textPrimary,
     cursorColor = Palette.accent,
     focusedBorderColor = Palette.accent,
-    unfocusedBorderColor = Palette.hairline,
+    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
     focusedContainerColor = Palette.surfaceInset,
     unfocusedContainerColor = Palette.surfaceInset,
 )

@@ -1,6 +1,366 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Estimated from your age" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus deinem Alter geschätzt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated from your age"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimada a partir de tu edad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimée à partir de votre âge"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimata in base alla tua età"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oszacowano na podstawie wieku"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimada a partir da tua idade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценено по возрасту"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据年龄估算"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據年齡估算"
+          }
+        }
+      }
+    },
+    "Measured in your workouts, confirmed %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In deinen Workouts gemessen, bestätigt am %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Measured in your workouts, confirmed %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medida en tus entrenamientos, confirmada el %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesurée pendant vos entraînements, confirmée le %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misurata nei tuoi allenamenti, confermata il %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmierzono podczas Twoich treningów, potwierdzono %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medida nos teus treinos, confirmada a %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерено на ваших тренировках, подтверждено %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据你的训练测得，确认于 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據你的訓練測得，確認於 %@"
+          }
+        }
+      }
+    },
+    "Delete nap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nickerchen löschen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar siesta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer la sieste"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elimina pisolino"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usuń drzemkę"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar sesta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить дневной сон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除小睡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除小睡"
+          }
+        }
+      }
+    },
+    "Nap actions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktionen für das Nickerchen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acciones de la siesta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actions de la sieste"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azioni del pisolino"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akcje drzemki"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ações da sesta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Действия с дневным сном"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小睡操作"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小睡操作"
+          }
+        }
+      }
+    },
+    "Delete this nap?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Nickerchen löschen?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eliminar esta siesta?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer cette sieste ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminare questo pisolino?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usunąć tę drzemkę?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar esta sesta?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить этот дневной сон?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除这次小睡？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除這次小睡？"
+          }
+        }
+      }
+    },
+    "It no longer counts toward the day's sleep, and the next analysis leaves it out." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es zählt nicht mehr zum Schlaf des Tages, und die nächste Analyse lässt es weg."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya no cuenta para el sueño del día y el próximo análisis la omite."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne compte plus dans le sommeil de la journée et la prochaine analyse l’ignore."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non conta più nel sonno della giornata e la prossima analisi lo esclude."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie wlicza się już do snu z tego dnia, a następna analiza ją pominie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixa de contar para o sono do dia e a próxima análise ignora-a."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Он больше не учитывается в сне за день, и следующий анализ его пропустит."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它不再计入当天的睡眠，下次分析也会将其排除。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它不再計入當天的睡眠，下次分析也會將其排除。"
+          }
+        }
+      }
+    },
     "Delete and download again" : {
       "localizations" : {
         "de" : {
@@ -161759,7 +162119,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Detaillierte Fliesen"
+            "value" : "Detaillierte Kacheln"
           }
         },
         "es" : {
@@ -382696,6 +383056,64 @@
         }
       }
     },
+    "RPE %@ × %@ min · sRPE load" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ Min. · sRPE-Last"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · carga sRPE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · charge sRPE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · carico sRPE"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · obciążenie sRPE"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ min · carga sRPE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ мин · нагрузка sRPE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ 分钟 · sRPE 负荷"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RPE %@ × %@ 分鐘 · sRPE 負荷"
+          }
+        }
+      }
+    },
     "RPE %@ × %lld min · sRPE load" : {
       "localizations" : {
         "de" : {
@@ -565274,130 +565692,258 @@
         }
       }
     },
-    "Measured in your workouts, confirmed %@" : {
+    "Weight and duration" : {
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In deinen Workouts gemessen, bestätigt am %@"
-          }
-        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Measured in your workouts, confirmed %@"
+            "value" : "Weight and duration"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewicht und Dauer"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Medida en tus entrenamientos, confirmada el %@"
+            "value" : "Peso y duración"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mesurée pendant vos entraînements, confirmée le %@"
+            "value" : "Poids et durée"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Misurata nei tuoi allenamenti, confermata il %@"
+            "value" : "Peso e durata"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zmierzono podczas Twoich treningów, potwierdzono %@"
+            "value" : "Ciężar i czas"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Medida nos teus treinos, confirmada a %@"
+            "value" : "Peso e duração"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Измерено на ваших тренировках, подтверждено %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "根据你的训练测得，确认于 %@"
+            "value" : "Вес и длительность"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "根據你的訓練測得，確認於 %@"
+            "value" : "重量與時間"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重量和时长"
           }
         }
       }
     },
-    "Estimated from your age" : {
+    "Weight and distance" : {
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aus deinem Alter geschätzt"
-          }
-        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimated from your age"
+            "value" : "Weight and distance"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewicht und Strecke"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimada a partir de tu edad"
+            "value" : "Peso y distancia"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimée à partir de votre âge"
+            "value" : "Poids et distance"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stimata in base alla tua età"
+            "value" : "Peso e distanza"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oszacowano na podstawie wieku"
+            "value" : "Ciężar i dystans"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimada a partir da tua idade"
+            "value" : "Peso e distância"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Оценено по возрасту"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "根据年龄估算"
+            "value" : "Вес и расстояние"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "根據年齡估算"
+            "value" : "重量與距離"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重量和距离"
+          }
+        }
+      }
+    },
+    "A key is stored securely on this device and used only for the endpoint you choose. NOOP reads one page and sends no workout or health data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A key is stored securely on this device and used only for the endpoint you choose. NOOP reads one page and sends no workout or health data."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Schlüssel wird sicher auf diesem Gerät gespeichert und nur für den gewählten Endpunkt verwendet. NOOP liest eine Seite und sendet keine Trainings- oder Gesundheitsdaten."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clave se guarda de forma segura en este dispositivo y solo se usa para el punto de acceso elegido. NOOP lee una página y no envía datos de entrenamiento ni de salud."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clé est stockée de manière sécurisée sur cet appareil et utilisée uniquement pour le point d’accès choisi. NOOP lit une page sans envoyer de données de santé ou d’entraînement."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La chiave viene conservata in modo sicuro su questo dispositivo e usata solo per l’endpoint scelto. NOOP legge una pagina senza inviare dati di allenamento o salute."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klucz jest bezpiecznie przechowywany na tym urządzeniu i używany tylko dla wybranego adresu. NOOP odczytuje jedną stronę i nie wysyła danych treningowych ani zdrowotnych."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A chave é guardada de forma segura neste dispositivo e usada apenas para o endereço escolhido. O NOOP lê uma página e não envia dados de treino ou saúde."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ безопасно хранится на этом устройстве и используется только для выбранного адреса. NOOP читает одну страницу и не отправляет данные тренировок или здоровья."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥安全保存在此设备上，仅用于你选择的接口。NOOP 只读取一页，不发送训练或健康数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金鑰安全儲存在此裝置上，僅用於你選擇的端點。NOOP 只讀取一頁，不傳送訓練或健康資料。"
+          }
+        }
+      }
+    },
+    "Optional exercise metadata. Provider terms apply; media downloads are separate.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional exercise metadata. Provider terms apply; media downloads are separate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionale Übungsdaten. Es gelten die Bedingungen des Anbieters; Medien werden separat heruntergeladen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadatos de ejercicios opcionales. Se aplican las condiciones del proveedor; los archivos multimedia se descargan por separado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Métadonnées d’exercices facultatives. Les conditions du fournisseur s’appliquent ; les médias sont téléchargés séparément."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadati degli esercizi facoltativi. Si applicano le condizioni del fornitore; i contenuti multimediali vengono scaricati separatamente."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opcjonalne metadane ćwiczeń. Obowiązują warunki dostawcy; multimedia są pobierane osobno."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadados de exercícios opcionais. Aplicam-se as condições do fornecedor; os conteúdos multimédia são transferidos separadamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Необязательные метаданные упражнений. Действуют условия поставщика; медиафайлы загружаются отдельно."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可选的动作元数据。适用提供方条款；媒体文件另行下载。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可選的動作中繼資料。適用提供方條款；媒體檔案另行下載。"
           }
         }
       }

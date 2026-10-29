@@ -11,9 +11,8 @@ public enum BodyMetricsReader {
     /// Apple Health body readings stored as daily metric points rather than markers.
     public static let appleHealthBodyKeys = ["body_fat", "lean_mass"]
 
-    public static func read(reader: StoreReader, activeDeviceId: String, days: Int) async -> BodyMetrics {
+    public static func read(reader: StoreReader, activeDeviceId: String, days: Int, now: Date = Date()) async -> BodyMetrics {
         var readings: [String: [BodyReading]] = [:]
-        let now = Date()
         let from = StoreReader.localDayKey(now.addingTimeInterval(-Double(days) * 86_400))
         let to = StoreReader.localDayKey(now.addingTimeInterval(86_400))
 

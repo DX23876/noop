@@ -262,7 +262,7 @@ fun TrendsExploreScreen(vm: AppViewModel) {
     // using the cheap bounded flow, so the cap is NOT raised (#797 stays fixed). Same merge as the dashboard.
     var fullHistory by remember { mutableStateOf<List<DailyMetric>?>(null) }
     LaunchedEffect(deviceId) {
-        fullHistory = runCatching { vm.repo.daysMerged(deviceId) }.getOrNull()
+        fullHistory = runCatching { vm.mergedDays(deviceId) }.getOrNull()
     }
 
     // Extra long-format keys from the metricSeries table (anything beyond the built-ins) , from the

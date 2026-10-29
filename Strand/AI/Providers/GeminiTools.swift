@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Tool-calling and streaming for Google Gemini — the last provider stuck on the pre-baked context path,
 /// unable to reach `propose_plan`, `remember_fact`, `plot_metric` or any of the other tools, and showing
@@ -115,7 +118,7 @@ extension GeminiClient: ToolCallingClient, StreamingToolClient {
         session: URLSession,
         onDelta: (String) async -> Void
     ) async throws -> (text: String, calls: [GeminiFunctionCall]) {
-        let (bytes, response) = try await session.bytes(for: req)
+        let (bytes, response) = try await session.coachBytes(for: req)
         guard let http = response as? HTTPURLResponse else {
             throw AICoachError.network("no HTTP response")
         }

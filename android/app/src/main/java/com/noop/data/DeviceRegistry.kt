@@ -17,7 +17,15 @@ import androidx.room.withTransaction
 class DeviceRegistry(
     private val dao: DeviceRegistryDao,
     private val transactor: Transactor,
+    private val lanes: com.noop.core.CoreInputLanes? = null,
+    private val core: SharedCore? = null,
 ) {
+    /** The shared core's copy of a device's data (parity plan 1.3); cleared and re-keyed before Room. */
+    interface SharedCore {
+        fun deleteData(id: String): Boolean
+        fun reKey(from: String, to: String): Boolean
+    }
+
     /** A single-transaction boundary. Production wraps Room's `withTransaction`; tests pass through.
      *  Not a `fun interface` — a SAM method may not be generic — so implementors use the object form. */
     interface Transactor {
@@ -25,11 +33,13 @@ class DeviceRegistry(
     }
 
     /** Production constructor: wraps the DAO + Room transaction over [db]. */
-    constructor(db: WhoopDatabase) : this(
+    constructor(db: WhoopDatabase, lanes: com.noop.core.CoreInputLanes? = null, core: SharedCore? = null) : this(
         dao = db.whoopDao(),
         transactor = object : Transactor {
             override suspend fun <R> run(block: suspend () -> R): R = db.withTransaction { block() }
         },
+        lanes = lanes,
+        core = core,
     )
 
     /** All paired devices, oldest first. */
@@ -80,6 +90,8 @@ class DeviceRegistry(
      */
     suspend fun adoptSerialIdentity(activeId: String, serialId: String): Boolean {
         if (activeId == serialId) return false
+        // The shared core holds the same recordings; they move first, so a failure leaves both stores as they were.
+        if (core != null && dao.pairedDevice(activeId) != null && !core.reKey(activeId, serialId)) return false
         return transactor.run {
             val active = dao.pairedDevice(activeId) ?: return@run false
             val serial = dao.pairedDevice(serialId)
@@ -201,6 +213,9 @@ class DeviceRegistry(
      * guards completeness (fails if a delete*For DAO method isn't wired in here).
      */
     suspend fun deleteDeviceData(id: String) {
+        // The shared core holds the same recordings (and the journal and water it owns); it is cleared first,
+        // as Apple's `DeviceRegistry.forget` does, so a failure there leaves Room untouched too.
+        if (core != null) check(core.deleteData(id)) { "core delete failed for $id" }
         transactor.run {
             dao.deleteHrFor(id)
             dao.deleteRrFor(id)
@@ -237,8 +252,10 @@ class DeviceRegistry(
     }
 
     /** Set the owner override for a day (insert-or-replace). */
-    suspend fun setDayOwner(day: String, deviceId: String, locked: Boolean) =
+    suspend fun setDayOwner(day: String, deviceId: String, locked: Boolean) {
         dao.setDayOwner(DayOwnershipRow(day = day, deviceId = deviceId, locked = locked))
+        lanes?.mirror("dayOwnership", listOf(listOf(day)))
+    }
 
     /** The owner override for a day, or null if none. */
     suspend fun dayOwner(day: String): DayOwnershipRow? {

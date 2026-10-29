@@ -1327,12 +1327,16 @@ fun ScreenScaffold(
     // the screen on plain canvas (the "sky doesn't reach the lower cards" report on the vital
     // details). Defaulted, so every existing caller is byte-for-byte untouched.
     fullBleedBackground: Boolean = false,
+    // False hands the screen the full height without a scroll of its own, for a screen that scrolls part of
+    // itself and keeps the rest still (the coach chat keeps its composer at the bottom, as on iOS).
+    scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val scroll = if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier.fillMaxHeight()
     // Fork: inside the Forge Settings the host's chrome replaces the canvas, the backdrop and the header.
     LocalHostedChrome.current?.let { hosted ->
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().then(scroll)
                 .padding(horizontal = hosted.horizontalPadding).widthIn(max = hosted.maxContentWidth)
                 .padding(bottom = 28.dp + BottomBarStyleStore.barHeightForContent()),
             verticalArrangement = Arrangement.spacedBy(hosted.rowSpacing),
@@ -1356,7 +1360,7 @@ fun ScreenScaffold(
     val column: @Composable () -> Unit = {
         Column(
             modifier = columnModifier
-                .verticalScroll(rememberScrollState())
+                .then(scroll)
                 // #1836: the bar's height is added to the CONTENT's bottom padding, not to the screen's
                 // layout. That distinction is the whole overlay: the screen reaches the bottom edge so its
                 // backdrop paints behind and around the glass, while the scrolling content still stops
@@ -1688,3 +1692,24 @@ fun BackupFailureDialog(message: String, onDismiss: () -> Unit) {
         },
     )
 }
+
+/**
+ * Text field colours for the whole app, as iOS draws its fields: a flat inset fill with no frame at rest, and the
+ * accent line only while the field has focus. Material's default draws a grey outline around every field, which
+ * no iOS field has.
+ */
+@androidx.compose.runtime.Composable
+fun noopFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Palette.textPrimary,
+    unfocusedTextColor = Palette.textPrimary,
+    disabledTextColor = Palette.textTertiary,
+    cursorColor = Palette.accent,
+    focusedBorderColor = Palette.accent,
+    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    disabledBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    errorBorderColor = Palette.statusCritical,
+    focusedContainerColor = Palette.surfaceInset,
+    unfocusedContainerColor = Palette.surfaceInset,
+    disabledContainerColor = Palette.surfaceInset,
+)
+

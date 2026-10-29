@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import WhoopStore
 
 /// Tool-calling for the coach. Instead of pre-baking one fixed text block into every request, the

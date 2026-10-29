@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 #if canImport(UserNotifications)
 import UserNotifications
 #endif
@@ -46,11 +47,7 @@ struct SessionRPECard: View {
                 saved = await repo.sessionRPE(at: startTs)
             }
             if let saved { draft = saved.rpe }
-            if saved == nil, let durationS,
-               await repo.shouldPromptSessionRating(startTs: startTs, endTs: startTs + Int(durationS),
-                                                    sport: sport) {
-                await SessionRPEReminder.schedule(startTs: startTs, durationS: durationS, sport: sport)
-            }
+            await repo.refreshSessionRatingReminders()
         }
     }
 
@@ -134,15 +131,15 @@ struct SessionRPECard: View {
     }
 
     private func loadText(_ entry: SessionRPEEntry) -> String? {
-        guard let minutes = durationMinutes else { return nil }
-        return String(localized: "\(Int((entry.rpe * minutes).rounded())) AU")
+        guard let load = entry.load(durationS: durationS) else { return nil }
+        return String(localized: "\(Int(load.rounded())) AU")
     }
 
     private func loadExplanation(_ rpe: Double) -> String {
         guard let minutes = durationMinutes else {
             return String(localized: "Rating saved · duration unavailable")
         }
-        return String(localized: "RPE \(rpeNumber(rpe)) × \(Int(minutes.rounded())) min · sRPE load")
+        return String(localized: "RPE \(rpeNumber(rpe)) × \(minutes.formatted(.number.precision(.fractionLength(0...2)))) min · sRPE load")
     }
 
     private func rpeNumber(_ value: Double) -> String {
@@ -150,8 +147,7 @@ struct SessionRPECard: View {
     }
 
     private var durationMinutes: Double? {
-        guard let durationS, durationS > 0 else { return nil }
-        return durationS / 60
+        SessionRPEEntry.durationMinutes(durationS)
     }
 
     @MainActor
@@ -183,44 +179,53 @@ struct SessionRPECard: View {
 
 private extension SessionRPECard {
     func ratingTiming(_ entry: SessionRPEEntry) -> String {
-        guard let ratedAt = entry.ratedAtTs else { return String(localized: "Rating time unknown") }
-        let end = startTs + Int(durationS ?? 0)
-        let delayMinutes = Int((Double(ratedAt - end) / 60).rounded())
-        if (20...45).contains(delayMinutes) { return String(localized: "Rated about 30 minutes after training") }
-        if delayMinutes < 20 { return String(localized: "Rated immediately after training") }
-        return String(localized: "Rated later")
+        switch entry.timing(durationS: durationS) {
+        case .unknown: return String(localized: "Rating time unknown")
+        case .about30Minutes: return String(localized: "Rated about 30 minutes after training")
+        case .immediately: return String(localized: "Rated immediately after training")
+        case .later: return String(localized: "Rated later")
+        }
     }
 }
 
 #if canImport(UserNotifications)
 enum SessionRPEReminder {
-    static func id(_ startTs: Int) -> String { "session-rpe-reminder-\(startTs)" }
-
-    static func schedule(startTs: Int, durationS: Double, sport: String) async {
+    static func synchronize(_ candidates: [SessionRatingReminders.Candidate], now: Int) async {
         let centre = UNUserNotificationCenter.current()
+        let pending = await centre.pendingNotificationRequests()
+        let allowed = Set(candidates.map(\.id))
+        centre.removePendingNotificationRequests(withIdentifiers: pending.filter {
+            $0.identifier.hasPrefix("session-rpe-reminder-") && !allowed.contains($0.identifier)
+        }.map(\.identifier))
         let settings = await centre.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
-            return
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+        for candidate in candidates {
+            let content = UNMutableNotificationContent()
+            let sport = candidate.sport
+            content.title = String(localized: "How did the session feel?")
+            content.body = String(localized: "Rate \(sport) from 1 to 10 for your Session Load.")
+            content.sound = .default
+            content.userInfo = ["sessionRatingStartTs": candidate.startTs]
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: Double(max(1, candidate.fireTs - now)), repeats: false)
+            try? await centre.add(UNNotificationRequest(identifier: candidate.id, content: content, trigger: trigger))
         }
-        let end = Date(timeIntervalSince1970: TimeInterval(startTs) + durationS)
-        let fire = end.addingTimeInterval(30 * 60)
-        guard fire > Date() else { return }
-        let content = UNMutableNotificationContent()
-        content.title = String(localized: "How did the session feel?")
-        content.body = String(localized: "Rate \(sport) from 1 to 10 for your Session Load.")
-        content.sound = .default
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fire.timeIntervalSinceNow, repeats: false)
-        centre.removePendingNotificationRequests(withIdentifiers: [id(startTs)])
-        try? await centre.add(UNNotificationRequest(identifier: id(startTs), content: content, trigger: trigger))
     }
 
     static func cancel(startTs: Int) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id(startTs)])
+        Task {
+            let centre = UNUserNotificationCenter.current()
+            let pending = await centre.pendingNotificationRequests()
+            let ids = pending.filter {
+                ($0.content.userInfo["sessionRatingStartTs"] as? Int) == startTs
+                    || $0.identifier == "session-rpe-reminder-\(startTs)"
+            }.map(\.identifier)
+            centre.removePendingNotificationRequests(withIdentifiers: ids)
+        }
     }
 }
 #else
 enum SessionRPEReminder {
-    static func schedule(startTs: Int, durationS: Double, sport: String) async {}
+    static func synchronize(_ candidates: [SessionRatingReminders.Candidate], now: Int) async {}
     static func cancel(startTs: Int) {}
 }
 #endif

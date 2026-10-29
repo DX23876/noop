@@ -2952,6 +2952,9 @@ class WhoopBleClient(
 
     /** True while a scan is active, so we never start a second scan (Android scanner is stateful). */
     private var scanning = false
+    // Android can retain a callback registration after startScan throws or reports ALREADY_STARTED. Keep its
+    // cleanup obligation separate from the UI's scan state, which onScanFailed correctly turns off.
+    private var scanRegistrationNeedsCleanup = false
 
     /** All BLE work hops onto the main looper, matching CBCentralManager(queue: .main). */
     private val handler = Handler(Looper.getMainLooper())
@@ -3916,6 +3919,7 @@ class WhoopBleClient(
         // before it was put into pairing mode against one after — so the latch has to reopen here.
         advertisementLogged = false
         handler.removeCallbacks(scanFallbackRunnable)
+        stopScan()
         // Defensive: the normal auto-connect scan is NEVER a present-scan. Clearing the flag here means a
         // leaked wizard present-scan (e.g. the wizard was dismissed without stopWhoopScan) can't divert
         // this connect's onScanResult into accumulate-not-connect. No-op on the (default) single-WHOOP path.
@@ -3950,6 +3954,7 @@ class WhoopBleClient(
         scanning = true
         _state.update { it.copy(scanning = true, whoop5Detected = false, statusNote = "Searching for your ${model.displayName}…") }
         try {
+            scanRegistrationNeedsCleanup = true
             sc.startScan(filters, settings, scanCallback)
         } catch (se: SecurityException) {
             // Android 12+: BLUETOOTH_SCAN/CONNECT not granted. This is the #1 reason connect fails.
@@ -4375,15 +4380,19 @@ class WhoopBleClient(
             .build()
         scanning = true
         try {
+            scanRegistrationNeedsCleanup = true
+            _state.update { it.copy(scanning = true, statusNote = null) }
             sc.startScan(filters, settings, scanCallback)
             log("Add-a-WHOOP scan: presenting nearby ${model.displayName} straps")
         } catch (se: SecurityException) {
             scanning = false
             scanningForList = false
+            _state.update { it.copy(scanning = false) }
             log("Add-a-WHOOP scan blocked (permission): ${se.message}")
         } catch (t: Throwable) {
             scanning = false
             scanningForList = false
+            _state.update { it.copy(scanning = false) }
             log("Add-a-WHOOP scan failed to start: ${t.message}")
         }
     }
@@ -6517,12 +6526,14 @@ class WhoopBleClient(
     @SuppressLint("MissingPermission")
     private fun stopScan() {
         handler.removeCallbacks(scanFallbackRunnable)
-        if (!scanning) return
+        if (!scanning && !scanRegistrationNeedsCleanup) return
         scanning = false
+        _state.update { it.copy(scanning = false) }
         try {
             scanner?.stopScan(scanCallback)
+            scanRegistrationNeedsCleanup = false
         } catch (t: Throwable) {
-            // Adapter may have been turned off underneath us; nothing to clean up.
+            // Keep the cleanup obligation: after a permission grant or radio recovery another stop can release it.
             log("stopScan threw: ${t.message}")
         }
     }
@@ -6626,7 +6637,13 @@ class WhoopBleClient(
 
         override fun onScanFailed(errorCode: Int) {
             scanning = false
-            log("Scan failed: ${scanFailureLabel(errorCode)}")
+            // A duplicate-start failure leaves the original Android registration alive. Unregister it even
+            // though the scan state is already false, so dismissal and the next Rescan start cleanly.
+            stopScan()
+            handler.removeCallbacks(scanTimeoutRunnable)
+            val failureLine = "Scan failed: ${scanFailureLabel(errorCode)}"
+            _state.update { it.copy(scanning = false, statusNote = failureLine) }
+            log(failureLine)
         }
     }
 

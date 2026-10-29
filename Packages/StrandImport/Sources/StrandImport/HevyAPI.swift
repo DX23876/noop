@@ -8,10 +8,8 @@ import Foundation
 /// are SMALL (5, or 10 for body measurements), so a caller that reads one page has almost certainly
 /// not read the account.
 ///
-/// Parsing only, deliberately: there is no client, and the transport question (whether an
-/// offline-first app should hold an API key at all) is unanswered. These are pure so the shape can be
-/// pinned by tests now and the decision taken later. Tolerant throughout, because this runs over
-/// another server's data: a malformed element is skipped and counted, never fatal.
+/// Network-free parsing. The shared sync engine and the explicit platform connection own transport
+/// and credential handling. Malformed elements are skipped and counted by these tolerant parsers.
 public enum HevyAPI {
 
     // MARK: - Muscle groups

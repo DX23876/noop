@@ -1,8 +1,7 @@
 import Foundation
-import Security
 
-/// Keychain Services wrapper for the Hevy API key. One generic-password item under a fixed service, so
-/// the key never lands in UserDefaults, a plist, or a backup file in the clear.
+/// The Hevy API key in the platform's secret store (`SecretVault`, the Keychain on Apple). One item under a
+/// fixed service, so the key never lands in UserDefaults, a plist, or a backup file in the clear.
 ///
 /// Mirrors `OuraTokenStore` and `AIKeyStore` exactly: delete-then-add, `ThisDeviceOnly` accessibility.
 /// `ThisDeviceOnly` is the deliberate part — the key does not travel to another device in an iCloud
@@ -13,40 +12,23 @@ enum HevyCredentials {
     private static let service = "com.noop.hevy"
     private static let account = "api-key"
 
-    private static var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-    }
-
-    /// Store (or replace) the key. Returns false when the Keychain write fails, so a caller never
+    /// Store (or replace) the key. Returns false when the write fails, so a caller never
     /// reports "connected" for a key that was not actually saved.
     @discardableResult
     static func save(_ key: String) -> Bool {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return false }
-        SecItemDelete(baseQuery as CFDictionary)
-        var attrs = baseQuery
-        attrs[kSecValueData as String] = data
-        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        return SecItemAdd(attrs as CFDictionary, nil) == errSecSuccess
+        return secretVault().write(data, service: service, account: account)
     }
 
     /// The stored key, or nil.
     static func load() -> String? {
-        var query = baseQuery
-        query[kSecReturnData as String] = kCFBooleanTrue
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data,
+        guard let data = secretVault().read(service: service, account: account),
               let key = String(data: data, encoding: .utf8) else { return nil }
         return key
     }
 
-    static func clear() { SecItemDelete(baseQuery as CFDictionary) }
+    static func clear() { secretVault().delete(service: service, account: account) }
 
     static var isConnected: Bool { load() != nil }
 

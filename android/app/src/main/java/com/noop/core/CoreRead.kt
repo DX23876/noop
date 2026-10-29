@@ -16,6 +16,9 @@ import org.json.JSONObject
 object CoreRead {
     @Volatile private var opened = false
 
+    /** Whether a screen has opened the core's store in this process, so a background reader may use it. */
+    val isOpen: Boolean get() = opened
+
     /** One day as the Today screen shows it. */
     data class Day(
         val day: String,

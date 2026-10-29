@@ -26,8 +26,13 @@ final class StressPersonalBaselineSurfaceTests: XCTestCase {
             of: #"DaytimeStress\.analyze\([\s\S]*?mode:\s*mode,"#,
             options: .regularExpression
         ))
-        XCTAssertTrue(producer.contains("let mode = await DaytimeStressMode.selected("))
-        XCTAssertTrue(producer.contains("tzOffsetSeconds: tz, mode: mode,"))
+        // The producer's reads and lens live in the shared `DaytimeStressDay` (also the Android core's), and the
+        // producer scores with the mode it selected for the requested lens.
+        let shared = try source("Strand/Data/DaytimeStressMode.swift")
+        XCTAssertTrue(shared.contains("let mode = await DaytimeStressMode.selected("))
+        XCTAssertTrue(shared.contains("personalBaseline: personalBaseline)"))
+        XCTAssertTrue(producer.contains("DaytimeStressDay.inputs(source: repo, now: now, calendar: calendar,"))
+        XCTAssertTrue(producer.contains("tzOffsetSeconds: inputs.tzOffsetSeconds, mode: inputs.mode,"))
         for body in [today, liquidToday] {
             XCTAssertTrue(body.contains(
                 "personalBaseline: PuffinExperiment.stressPersonalBaselineEnabled"

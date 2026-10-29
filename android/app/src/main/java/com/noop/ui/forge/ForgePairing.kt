@@ -84,6 +84,7 @@ fun forgeWhoopRow(strap: WhoopBleClient.DiscoveredWhoop, model: WhoopModel, nowS
 fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: () -> Unit) {
     val colors = Forge.colors
     val scope = rememberCoroutineScope()
+    val live by viewModel.live.collectAsStateWithLifecycle()
     var model by remember { mutableStateOf<WhoopModel?>(null) }
     val startScan = rememberRequestScan { model?.let { viewModel.presentWhoopScan(it) } }
     DisposableEffect(Unit) { onDispose { viewModel.stopWhoopScan() } }
@@ -121,9 +122,11 @@ fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: ()
                 val found by viewModel.discoveredWhoops.collectAsStateWithLifecycle()
                 ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                     Row(Modifier.fillMaxWidth().padding(ForgeMetrics.cardPadding), verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = colors.accent)
-                        Spacer(Modifier.width(ForgeMetrics.space2 + ForgeMetrics.space1))
-                        Text(stringResource(R.string.forge_pair_searching), style = Forge.type.subhead,
+                        if (live.scanning) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = colors.accent)
+                            Spacer(Modifier.width(ForgeMetrics.space2 + ForgeMetrics.space1))
+                        }
+                        Text(stringResource(if (live.scanning) R.string.forge_pair_searching else R.string.onboarding_state_ready_scan), style = Forge.type.subhead,
                              color = colors.textSecondary)
                     }
                     found.sortedByDescending { it.rssi }.forEach { strap ->

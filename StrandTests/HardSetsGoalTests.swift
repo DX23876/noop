@@ -1,6 +1,10 @@
 import XCTest
 import StrandAnalytics
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// Pins the weekly-hard-sets goal kind.
 ///

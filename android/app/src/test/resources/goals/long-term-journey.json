@@ -1,0 +1,21 @@
+{
+  "activities" : [
+
+  ],
+  "appearsReached" : false,
+  "datePassed" : false,
+  "history" : [
+    {
+      "ts" : 1793151064.299739,
+      "what" : "Goal updated"
+    },
+    {
+      "ts" : 1793151064.271778,
+      "what" : "Goal set"
+    }
+  ],
+  "id" : "BD095FDA-B8C5-419F-A033-6109454EFCFB",
+  "status" : "active",
+  "timeSummary" : "9 weeks to go",
+  "title" : "Collect workouts"
+}

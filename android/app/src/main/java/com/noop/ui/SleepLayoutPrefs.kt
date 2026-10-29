@@ -85,6 +85,15 @@ object SleepLayoutPrefs {
     private const val KEY_ORDER = "sleep.sectionOrder"
     private const val KEY_HIDDEN = "sleep.hiddenSections"
 
+    /** The stored strings as written, null while unset. */
+    fun orderRaw(context: Context): String? = NoopPrefs.of(context).getString(KEY_ORDER, null)
+
+    fun hiddenRaw(context: Context): String? = NoopPrefs.of(context).getString(KEY_HIDDEN, null)
+
+    fun setRaw(context: Context, order: String, hidden: String) {
+        NoopPrefs.of(context).edit().putString(KEY_ORDER, order).putString(KEY_HIDDEN, hidden).apply()
+    }
+
     /** Every known card in display order (saved order first, then any newly-added card at its default position). */
     fun order(context: Context): List<SleepSection> =
         decodeOrder(NoopPrefs.of(context).getString(KEY_ORDER, null))

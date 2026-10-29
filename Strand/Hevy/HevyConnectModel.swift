@@ -52,9 +52,11 @@ final class HevyConnectModel: ObservableObject {
         message = String(localized: "Checking the key with Hevy…")
         failed = false
         Task {
+            let changed = HevyCredentials.load() != trimmed
             let client = HevyAPIClient(keyProvider: { trimmed })
             do {
                 try await client.verifyKey()
+                if changed, let store = await repo.storeHandle() { try await store.resetHevySyncState() }
             } catch {
                 phase = .idle
                 report(describe(error), failed: true)
@@ -131,10 +133,6 @@ final class HevyConnectModel: ObservableObject {
     func disconnectAndForget(repo: Repository) {
         Task {
             if let store = await repo.storeHandle() {
-                // The mirrored rows live in the shared workout table, so they are removed here rather
-                // than in `deleteAllHevyData`, which only owns the Hevy tables.
-                _ = try? await store.deleteWorkouts(deviceId: HevySource.id, sport: HevySource.sport,
-                                                    from: 0, to: Int(Date().timeIntervalSince1970) + 86_400)
                 try? await store.deleteAllHevyData()
             }
             HevyCredentials.clear()

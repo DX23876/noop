@@ -1,0 +1,220 @@
+{
+  "band" : {
+    "all" : [
+      {
+        "label" : "1",
+        "state" : "next"
+      },
+      {
+        "label" : "1",
+        "state" : "open"
+      },
+      {
+        "label" : "2",
+        "state" : "open"
+      },
+      {
+        "label" : "2",
+        "state" : "open"
+      },
+      {
+        "label" : "3",
+        "state" : "open"
+      },
+      {
+        "label" : "3",
+        "state" : "open"
+      },
+      {
+        "label" : "4",
+        "state" : "open"
+      },
+      {
+        "label" : "4",
+        "state" : "open"
+      },
+      {
+        "label" : "5",
+        "state" : "open"
+      },
+      {
+        "label" : "5",
+        "state" : "open"
+      }
+    ],
+    "higherIsBetter" : true,
+    "kind" : "milestones",
+    "moreAfter" : true,
+    "moreBefore" : false,
+    "points" : [
+      {
+        "label" : "1",
+        "state" : "next"
+      },
+      {
+        "label" : "1",
+        "state" : "open"
+      },
+      {
+        "label" : "2",
+        "state" : "open"
+      },
+      {
+        "label" : "2",
+        "state" : "open"
+      },
+      {
+        "label" : "3",
+        "state" : "open"
+      }
+    ],
+    "target" : 0,
+    "values" : [
+
+    ]
+  },
+  "bandTitle" : "Milestones · 0 of 10",
+  "figures" : [
+    {
+      "label" : "Target",
+      "value" : "5"
+    },
+    {
+      "fraction" : 0,
+      "label" : "Progress",
+      "value" : "0 %"
+    },
+    {
+      "label" : "Estimated",
+      "value" : "–"
+    }
+  ],
+  "goalStatus" : "active",
+  "heroCaption" : "of 5",
+  "heroValue" : "0",
+  "id" : "D592EC89-5D6E-4EEA-827B-EBAD628D50D3",
+  "insights" : [
+    {
+      "caption" : "Behind",
+      "icon" : "speedometer",
+      "title" : "Current pace",
+      "tone" : "critical",
+      "value" : "0\/week"
+    },
+    {
+      "icon" : "flag",
+      "title" : "Next milestone",
+      "value" : "1"
+    },
+    {
+      "caption" : "10 weeks left",
+      "icon" : "calendar",
+      "title" : "Needed per week",
+      "value" : "1"
+    }
+  ],
+  "pinned" : false,
+  "raise" : [
+    {
+      "text" : "6",
+      "value" : 6
+    },
+    {
+      "text" : "7",
+      "value" : 7
+    },
+    {
+      "text" : "8",
+      "value" : 8
+    },
+    {
+      "text" : "9",
+      "value" : 9
+    },
+    {
+      "text" : "10",
+      "value" : 10
+    },
+    {
+      "text" : "11",
+      "value" : 11
+    },
+    {
+      "text" : "12",
+      "value" : 12
+    },
+    {
+      "text" : "13",
+      "value" : 13
+    },
+    {
+      "text" : "14",
+      "value" : 14
+    },
+    {
+      "text" : "15",
+      "value" : 15
+    },
+    {
+      "text" : "16",
+      "value" : 16
+    },
+    {
+      "text" : "17",
+      "value" : 17
+    },
+    {
+      "text" : "18",
+      "value" : 18
+    },
+    {
+      "text" : "19",
+      "value" : 19
+    },
+    {
+      "text" : "20",
+      "value" : 20
+    },
+    {
+      "text" : "21",
+      "value" : 21
+    },
+    {
+      "text" : "22",
+      "value" : 22
+    },
+    {
+      "text" : "23",
+      "value" : 23
+    },
+    {
+      "text" : "24",
+      "value" : 24
+    },
+    {
+      "text" : "25",
+      "value" : 25
+    },
+    {
+      "text" : "26",
+      "value" : 26
+    },
+    {
+      "text" : "27",
+      "value" : 27
+    },
+    {
+      "text" : "28",
+      "value" : 28
+    },
+    {
+      "text" : "29",
+      "value" : 29
+    }
+  ],
+  "reached" : false,
+  "statusSymbol" : "arrow.down.right",
+  "statusText" : "Behind",
+  "title" : "Collect workouts",
+  "tone" : "critical"
+}

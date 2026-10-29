@@ -199,18 +199,8 @@ final class StrengthModel: ObservableObject {
             sessions: history.sessions,
             weekStart: TrainingWeekStart(rawValue: UserDefaults.standard.string(
                 forKey: TrainingPreferences.weekStartKey) ?? "") ?? .monday)
-        genericSessions = fused.sessions.compactMap { session -> GenericStrengthSession? in
-            guard session.kind == .strength else { return nil }
-            let overlapping = sessions.filter { detail in
-                let overlap = max(0, min(detail.endTs, session.row.endTs) - max(detail.startTs, session.row.startTs))
-                let shorter = max(1, min(detail.endTs - detail.startTs, session.row.endTs - session.row.startTs))
-                return Double(overlap) / Double(shorter) > 0.8
-            }
-            // A session logged in Hevy or imported from a file already carries its exercises. Only an
-            // envelope with nothing at all, or one the wearer completed by hand, belongs here — and the
-            // completed one stays listed so its entry can be corrected later.
-            guard overlapping.allSatisfy({ $0.source == .manual }) else { return nil }
-            return GenericStrengthSession(session: session, manual: overlapping.first)
+        genericSessions = StrengthDetails.genericSessions(fused, workouts: sessions).map {
+            GenericStrengthSession(session: $0.session, manual: $0.manual)
         }
         templates = catalogue
         summaries = prepared.summaries

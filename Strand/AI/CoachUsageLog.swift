@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// Per-turn token accounting for the coach's own API calls. On-device only: these counters are read from
 /// the provider's reply, shown in Coach settings, and never stored or sent anywhere.
@@ -105,14 +106,14 @@ final class CoachUsageLog: ObservableObject {
     /// last write) — checked once per question, at `beginTurn`, so a question that starts right after the
     /// 04:00 rollover starts counting into the new day rather than tacking onto the old one.
     private func rollDayTotalIfNeeded() {
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.dayTotalDayKey) != today else { return }
         dayTotal = Turn()
         dayQuestionCount = 0
     }
 
     private func restoreDayTotalIfCurrent() {
-        let today = Repository.logicalDayKey(Date())
+        let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.dayTotalDayKey) == today,
               let data = UserDefaults.standard.data(forKey: Self.dayTotalKey),
               let stored = try? JSONDecoder().decode(StoredTotals.self, from: data) else { return }
@@ -122,7 +123,7 @@ final class CoachUsageLog: ObservableObject {
     }
 
     private func persistDayTotal() {
-        UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.dayTotalDayKey)
+        UserDefaults.standard.set(LogicalDay.key(Date()), forKey: Self.dayTotalDayKey)
         let stored = StoredTotals(inputTokens: dayTotal.inputTokens, cacheReadTokens: dayTotal.cacheReadTokens,
                                    cacheWriteTokens: dayTotal.cacheWriteTokens, outputTokens: dayTotal.outputTokens,
                                    questionCount: dayQuestionCount)

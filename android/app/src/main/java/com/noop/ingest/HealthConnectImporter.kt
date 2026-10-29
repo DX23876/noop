@@ -808,6 +808,11 @@ object HealthConnectImporter {
             a.bodyFatPct?.let { metricSeriesRows += MetricSeriesRow(HC_DEVICE, day, "body_fat", round2(it)) }
             a.leanMassKg?.let { metricSeriesRows += MetricSeriesRow(HC_DEVICE, day, "lean_mass", round2(it)) }
 
+            // SpO2 as its own Health Connect series on EVERY day, like the iPhone's Apple Health SpO2: a WHOOP 4.0
+            // measures none, so a covered day would otherwise never show the phone's reading. The shared core's
+            // day read takes it only where the strap's row has no SpO2.
+            if (a.spo2Count > 0) metricSeriesRows += MetricSeriesRow(HC_DEVICE, day, "spo2", round1(a.spo2Sum / a.spo2Count))
+
             // DailyMetric (my-whoop): resting-HR / HRV / sleep-minutes / SpO2 / respiration,
             // ONLY for days the strap does not already cover (raw OR computed).
             if (day !in coveredDays) {

@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 import WhoopProtocol
 
@@ -55,7 +56,7 @@ actor SkinTempBackfillWalker {
 
     init(store: WhoopStore) {
         self.store = store
-        self.computedId = Repository.whoopSource + "-noop"
+        self.computedId = MetricResolver.whoopSource + "-noop"
     }
 
     /// Run one page of the backfill. The caller calls this repeatedly with increasing `page` until
@@ -83,7 +84,7 @@ actor SkinTempBackfillWalker {
         //    canonical "my-whoop"). The registry is read once, mirroring the scoring pass.
         let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
         let regDevices = (try? registry.all()) ?? []
-        let activeId = (try? registry.activeDeviceId()) ?? Repository.whoopSource
+        let activeId = (try? registry.activeDeviceId()) ?? MetricResolver.whoopSource
 
         var filled: [FilledNight] = []
         var declined: [DeclinedNight] = []
@@ -91,13 +92,13 @@ actor SkinTempBackfillWalker {
 
         for candidate in pageCandidates {
             // Resolve the day owner for this night (same resolver the scoring pass uses).
-            let owner = await IntelligenceEngine.resolveDayOwner(
+            let owner = await DailyAnalysis.resolveDayOwner(
                 day: candidate.day, from: candidate.from, to: candidate.to,
                 store: store, devices: regDevices, activeId: activeId,
-                registry: registry, fallbackDeviceId: Repository.whoopSource)
+                registry: registry, fallbackDeviceId: MetricResolver.whoopSource)
 
-            let family = IntelligenceEngine.skinTempFamily(forOwner: owner, devices: regDevices)
-            let tolerance = IntelligenceEngine.skinTempWornToleranceSec(forOwner: owner, devices: regDevices)
+            let family = DailyAnalysis.skinTempFamily(forOwner: owner, devices: regDevices)
+            let tolerance = DailyAnalysis.skinTempWornToleranceSec(forOwner: owner, devices: regDevices)
 
             // Read the raw streams for this night's window — same limits the scoring pass uses.
             let skin = (try? await store.skinTempSamples(
@@ -167,7 +168,7 @@ actor SkinTempBackfillWalker {
                 let from = dayStart - StreamReadCap.lookbackSeconds
                 let to = min(dayStart + 86_400, now)  // don't read past now for today's partial night
                 return SkinTempBackfill.NightCandidate(day: row.day, from: from, to: to,
-                                                        owner: Repository.whoopSource)
+                                                        owner: MetricResolver.whoopSource)
             }
     }
 
@@ -201,6 +202,16 @@ actor SkinTempBackfillWalker {
         var filledCount: Int { filled.count }
         var declinedCount: Int { declined.count }
         var noRawDataCount: Int { noRawData.count }
+
+        /// The one line the Test Centre logs and shows under the button, on Apple and Android alike.
+        var summary: String {
+            let anchorNote = windowAnchorRaw != nil ? "anchor from current window"
+                                                    : "no 4.0 anchor (5/MG or too few worn samples)"
+            let endNote = reachedEnd ? "reached end" : "hit page budget"
+            return "skin-temp backfill (#1853): filled \(filledCount), " +
+                   "declined \(declinedCount), no raw data \(noRawDataCount) " +
+                   "(\(anchorNote), \(endNote))"
+        }
     }
 
     /// Run the full backfill: resolve the WHOOP 4.0 window anchor from the CURRENT scoring window
@@ -220,9 +231,9 @@ actor SkinTempBackfillWalker {
         let scanFrom = nowLocalMidnight - (maxDays - 1) * 86_400 - StreamReadCap.lookbackSeconds
         let scanTo = nowLocalMidnight + 18 * 3_600
         let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
-        let activeId = (try? registry.activeDeviceId()) ?? Repository.whoopSource
+        let activeId = (try? registry.activeDeviceId()) ?? MetricResolver.whoopSource
         let regDevices = (try? registry.all()) ?? []
-        let family = IntelligenceEngine.skinTempFamily(forOwner: activeId, devices: regDevices)
+        let family = DailyAnalysis.skinTempFamily(forOwner: activeId, devices: regDevices)
         // Only a 4.0 needs the anchor; a 5/MG (centidegree path) passes nil and proceeds.
         let windowAnchorRaw: Double?
         if family == .whoop4 {

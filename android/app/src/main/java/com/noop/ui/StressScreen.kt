@@ -49,6 +49,9 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import com.noop.core.SwiftCore
+import com.noop.core.CoreStress
+import com.noop.core.CoreRead
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -157,8 +160,10 @@ fun StressScreen(vm: AppViewModel, onBreathe: () -> Unit = {}) {
             while (true) {
                 val nowSeconds = System.currentTimeMillis() / 1000L
                 val window = stressLocalDayWindowContaining(nowSeconds, ZoneId.systemDefault())
+                // The core's union fingerprint when the core scores the day (parity plan 1.3), Room's otherwise.
                 val fingerprint = StressLoadCancellation.read {
-                    vm.repo.hrUnionFingerprint(vm.activeStrapId, window.fromEpochSecond, nowSeconds)
+                    withContext(Dispatchers.IO) { if (CoreRead.isOpen) CoreStress.fingerprint() else null }
+                        ?: vm.repo.hrUnionFingerprint(vm.activeStrapId, window.fromEpochSecond, nowSeconds)
                 }
                 // A failed fingerprint reads as "cannot tell", which loads rather than skips: being
                 // wrong about this costs one pass, being wrong the other way freezes the screen.
@@ -253,6 +258,16 @@ private suspend fun loadDaytimeCore(
     val zone = ZoneId.systemDefault()
     val todayWindow = stressLocalDayWindowContaining(nowSeconds, zone)
     val from = todayWindow.fromEpochSecond
+    // Parity plan 1.3: the shared core reads its own union store and scores today as Apple does
+    // (`StressDayCurve`). The beats for the two HRV lenses below still come from Room until those lenses move.
+    if (SwiftCore.available) {
+        CoreRead.open(vm.getApplication())
+        CoreStress.day(personalBaseline)?.let { core ->
+            val beats = if (core.result.hours.isEmpty()) emptyList()
+                        else vm.repo.rrIntervalsUnion(vm.activeStrapId, from, nowSeconds, limit = 200_000)
+            return@withContext DaytimeCore(core.result, beats, core.usesPersonalBaseline)
+        }
+    }
     val tzOffsetSeconds = zone.rules.getOffset(Instant.ofEpochSecond(nowSeconds)).totalSeconds.toLong()
     val hr = vm.repo.hrSamplesUnion(vm.activeStrapId, from, nowSeconds, limit = 200_000)
     if (hr.size < DaytimeStress.minHourHrSamples) {

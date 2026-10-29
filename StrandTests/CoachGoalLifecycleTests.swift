@@ -1,5 +1,9 @@
 import XCTest
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// A goal must be able to END. These pin the store's lifecycle transitions: closing is recorded in the
 /// history (the story stays honest), closing is idempotent, and a closed goal never reopens by accident.

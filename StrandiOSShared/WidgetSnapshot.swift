@@ -171,6 +171,13 @@ public struct WidgetSnapshot: Codable, Equatable {
         return "group.com.noopapp.noop"
     }
 
+    /// Whether this process's signature actually grants the App Group. A wildcard provisioning profile
+    /// (Feather and other certificate signers) cannot carry one; `UserDefaults(suiteName:)` still returns
+    /// a store then, but a private one, so this container lookup is the test that tells the two apart.
+    public static var groupContainerAvailable: Bool {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suiteName) != nil
+    }
+
     /// Debug-only canary: trips on the first run after a misprovisioning so the silent no-op gets
     /// caught immediately rather than masquerading as "widget shows nothing yet." Release builds do
     /// nothing — App Store apps can't crash on a missing entitlement.

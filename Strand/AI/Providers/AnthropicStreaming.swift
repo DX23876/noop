@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Streaming tool-use loop for Anthropic's Messages API (SSE). Kept separate from `AnthropicClient`'s
 /// base file so it merges cleanly against upstream. Each round opens a streamed request; text deltas are
@@ -102,7 +105,7 @@ extension AnthropicClient: StreamingToolClient {
         session: URLSession,
         onDelta: (String) async -> Void
     ) async throws -> StreamedRound {
-        let (bytes, response) = try await session.bytes(for: req)
+        let (bytes, response) = try await session.coachBytes(for: req)
         guard let http = response as? HTTPURLResponse else { throw AICoachError.network("no HTTP response") }
         guard (200...299).contains(http.statusCode) else {
             switch http.statusCode {

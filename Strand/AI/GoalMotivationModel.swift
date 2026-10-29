@@ -47,16 +47,16 @@ extension GoalPrefs {
 
     /// Badges, streaks, records and cheering. On unless switched off.
     static var motivationEnabled: Bool {
-        UserDefaults.standard.object(forKey: motivationEnabledKey) as? Bool ?? true
+        GoalPreferences.standard.object(forKey: motivationEnabledKey) as? Bool ?? true
     }
 
     static var seenBadgeIds: Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: seenBadgesKey) ?? [])
+        Set(GoalPreferences.standard.stringArray(forKey: seenBadgesKey) ?? [])
     }
 
     static func markBadgesSeen(_ ids: [String]) {
         let all = seenBadgeIds.union(ids)
-        UserDefaults.standard.set(all.sorted(), forKey: seenBadgesKey)
+        GoalPreferences.standard.set(all.sorted(), forKey: seenBadgesKey)
     }
 }
 

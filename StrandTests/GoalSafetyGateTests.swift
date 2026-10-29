@@ -1,5 +1,9 @@
 import XCTest
+#if NOOP_CORE_TESTS
+@testable import NoopCore
+#else
 @testable import Strand
+#endif
 
 /// The safety gate is the one piece of coach logic where being wrong has real-world consequences, so
 /// it is a pure function with a table of cases rather than a prompt instruction.

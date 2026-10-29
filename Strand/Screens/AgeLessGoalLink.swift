@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
 
 // AgeLessGoalLink.swift — fork feature "AgeLess", stage 2 (backlog plan HEALTHSPAN_AGE_PLAN, 2026-10-13): which
 // catalog goal measures the same number as an AgeLess measure, what a lever pre-fills, and what a goal's target
@@ -88,7 +89,7 @@ enum AgeLessGoalLink {
                 return date >= from && date < to && HealthspanWindow.countsAsStrength(storedName: $0.sport)
             }.compactMap { PeriodGoalTracker.workoutAmount(.strengthMinutes, $0) }.reduce(0, +) / weeks
         case .moderateMinutes, .vigorousMinutes:
-            let fromKey = Repository.localDayKey(from), toKey = Repository.localDayKey(to)
+            let fromKey = StoreReader.localDayKey(from), toKey = StoreReader.localDayKey(to)
             return inputs.agelessMinutes(for: metric)
                 .map { $0.filter { $0.key >= fromKey && $0.key < toKey }.values.reduce(0, +) / weeks }
         default:
@@ -127,5 +128,12 @@ enum AgeLessGoalLink {
               let years = HealthspanEngine.years(reaching: mapped.value, on: mapped.component, from: week),
               years <= -minimumYears else { return nil }
         return years
+    }
+
+    /// "Worth about −0.9 years in AgeLess": the line a goal's page shows for `years(goal:week:)`.
+    static func worthLine(years: Double) -> String {
+        let n = abs(years).formatted(.number.precision(.fractionLength(1)))
+        let signed = abs(years) < 0.05 ? n : (years < 0 ? "−" + n : "+" + n)
+        return String(localized: "Worth about \(signed) years in AgeLess")
     }
 }

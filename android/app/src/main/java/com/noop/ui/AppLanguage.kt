@@ -71,6 +71,7 @@ object AppLanguagePrefs {
         Locale.setDefault(locales[0])
         @Suppress("DEPRECATION")
         appResources.updateConfiguration(configuration, appResources.displayMetrics)
+        com.noop.core.CoreShadow.applyLanguage(context)
     }
 
     private fun localesFor(language: AppLanguage): LocaleList {

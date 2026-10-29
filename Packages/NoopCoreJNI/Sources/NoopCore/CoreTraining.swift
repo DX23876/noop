@@ -232,9 +232,10 @@ public enum CoreTraining {
         var routine = existing?.routines.first { $0.id == uuid } ?? TrainingRoutine(id: uuid, title: title)
         let kept = Dictionary(routine.exercises.map { ($0.exerciseId, $0) }, uniquingKeysWith: { first, _ in first })
         routine.title = title
+        let definitions = Dictionary(((try? await store.trainingExercises()) ?? []).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         routine.exercises = exerciseIds.map { exerciseId in
             kept[exerciseId] ?? RoutineExercise(exerciseId: exerciseId,
-                                                sets: (0..<3).map { _ in RoutineSetPlan(repsMin: 8, repsMax: 12) })
+                                                sets: RoutineSetPlan.defaults(for: definitions[exerciseId]?.mode ?? .weightReps))
         }
         do {
             try await store.upsertTrainingRoutine(routine)
@@ -351,7 +352,7 @@ public enum CoreTraining {
         return draft
     }
 
-    /// Applies one change to the draft and saves it: `set` (exercise, set, weight, reps, done), `addSet`,
+    /// Applies one change to the draft and saves it: `set` (exercise, set, measurements, done), `addSet`,
     /// `addExercise` (a library id) or `removeExercise`. Returns the draft as saved, nil without one.
     public static func changeDraft(store: WhoopStore, args: [String: Any]) async -> WorkoutDraft? {
         guard var draft = (try? await store.workoutDraft()) ?? nil else { return nil }
@@ -365,6 +366,14 @@ public enum CoreTraining {
             if args["weightKg"] is NSNull { draft.exercises[e].sets[i].weightKg = nil }
             if let r = args["reps"] as? NSNumber { draft.exercises[e].sets[i].reps = r.intValue }
             if args["reps"] is NSNull { draft.exercises[e].sets[i].reps = nil }
+            if let value = args["leftReps"] as? NSNumber { draft.exercises[e].sets[i].leftReps = value.intValue }
+            if args["leftReps"] is NSNull { draft.exercises[e].sets[i].leftReps = nil }
+            if let value = args["rightReps"] as? NSNumber { draft.exercises[e].sets[i].rightReps = value.intValue }
+            if args["rightReps"] is NSNull { draft.exercises[e].sets[i].rightReps = nil }
+            if let value = args["durationS"] as? NSNumber { draft.exercises[e].sets[i].durationS = value.intValue }
+            if args["durationS"] is NSNull { draft.exercises[e].sets[i].durationS = nil }
+            if let value = args["distanceM"] as? NSNumber { draft.exercises[e].sets[i].distanceM = value.doubleValue }
+            if args["distanceM"] is NSNull { draft.exercises[e].sets[i].distanceM = nil }
             if let done = args["done"] as? Bool { draft.exercises[e].sets[i].isCompleted = done }
         case "addSet":
             guard let exerciseUUID else { return draft }
@@ -372,8 +381,8 @@ public enum CoreTraining {
         case "addExercise":
             guard let id = args["exerciseId"] as? String else { return draft }
             let definition = (try? await store.trainingExercises())?.first { $0.id == id }
-            NativeWorkoutEngine.addExercise(id, to: &draft, sets: NativeWorkoutEngine.plannedSets([]),
-                                            definition: definition)
+            NativeWorkoutEngine.addExercise(id, to: &draft, sets: NativeWorkoutEngine.setsForAddedExercise(lastPerformance: [],
+                unilateral: definition?.isUnilateral ?? false, workingSets: 1, mode: definition?.mode), definition: definition)
             if let last = draft.exercises.last, last.sets.isEmpty { try? NativeWorkoutEngine.appendSet(to: last.id, in: &draft) }
         case "removeExercise":
             guard let exerciseUUID else { return draft }

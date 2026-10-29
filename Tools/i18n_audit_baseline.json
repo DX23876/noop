@@ -97,6 +97,10 @@
       "Trend"
     ],
     [
+      "android/app/src/main/java/com/noop/ui/CoachMemoryPage.kt",
+      "${f.categoryLabel} · ${f.source}"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "Bring your own API key. It is stored encrypted on this device and only used to "
     ],
@@ -127,6 +131,18 @@
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "The coach talks only to the server URL you set. Point it at a local model to "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "coachBreath"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "coachBreathScale"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "dot$i"
     ],
     [
       "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
