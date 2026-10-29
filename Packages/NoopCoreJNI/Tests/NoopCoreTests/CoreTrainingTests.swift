@@ -187,4 +187,47 @@ final class CoreTrainingTests: XCTestCase {
         let below = await CoreCall.run("training.plates", #"{"totalKg":15,"barKg":20,"platesKg":[25]}"#)
         XCTAssertEqual(below, "null")
     }
+
+    func testTheLoggerHeaderPauseAndNotesGoThroughTheCore() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("figures-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = try await WhoopStore(path: dir.appendingPathComponent("s.sqlite").path)
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        let none = await CoreTraining.draftFigures(store: store)
+        XCTAssertNil(none)
+        let started = await CoreTraining.startDraft(reader: reader, routineIds: [], dismissedWorkoutSpans: [])
+        let start = try XCTUnwrap(started).startedAt
+        let library = try await store.trainingExercises()
+        let weighted = try XCTUnwrap(library.first { $0.mode == .weightReps })
+        let added = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": weighted.id])
+        let exercise = try XCTUnwrap(added?.exercises.first)
+        let first = try XCTUnwrap(exercise.sets.first { $0.phase == .work })
+        _ = await CoreTraining.changeDraft(store: store, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": first.id.uuidString,
+            "weightKg": 100, "reps": 5, "done": true])
+        let figures = await CoreTraining.draftFigures(store: store, now: start + 600)
+        XCTAssertEqual(figures?.activeSeconds, 600)
+        XCTAssertEqual(figures?.volumeKg, 500, "load times repetitions of completed working sets")
+        XCTAssertEqual(figures?.completedSets, 1)
+        XCTAssertNotEqual(figures?.nextSetId, first.id.uuidString, "the next set is an open one")
+
+        let paused = await CoreTraining.changeDraft(store: store, args: ["change": "togglePause"])
+        XCTAssertEqual(paused?.state, .paused)
+        XCTAssertEqual(paused?.pauseIntervals?.count, 1)
+        let resumed = await CoreTraining.changeDraft(store: store, args: ["change": "togglePause"])
+        XCTAssertEqual(resumed?.state, .active)
+        XCTAssertNotNil(resumed?.pauseIntervals?.first?.endedAtTs)
+
+        let noted = await CoreTraining.changeDraft(store: store, args: ["change": "workoutNote", "note": "Felt strong"])
+        XCTAssertEqual(noted?.note, "Felt strong")
+        let exerciseNote = await CoreTraining.changeDraft(store: store, args: [
+            "change": "exerciseNote", "exercise": exercise.id.uuidString, "note": "  Wide grip "])
+        XCTAssertEqual(exerciseNote?.exercises.first?.note, "Wide grip")
+        let rest = await CoreTraining.changeDraft(store: store, args: [
+            "change": "restSeconds", "exercise": exercise.id.uuidString, "seconds": 150])
+        XCTAssertEqual(rest?.exercises.first?.restSeconds, 150)
+        let previous = await CoreTraining.previousSets(store: store, reader: reader, dismissedWorkoutSpans: [])
+        XCTAssertTrue(previous.isEmpty, "no earlier session, no previous column values")
+    }
 }

@@ -450,6 +450,11 @@ public enum CoreCall {
             let dismissed = args["dismissedWorkouts"] as? [String] ?? []
             return CoreRead.json(await CoreTraining.startDraft(reader: reader, routineIds: ids,
                                                                dismissedWorkoutSpans: dismissed))
+        case "training.previousSets":
+            return CoreRead.json(await CoreTraining.previousSets(store: store, reader: reader,
+                                                                 dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
+        case "training.draftFigures":
+            return CoreRead.json(await CoreTraining.draftFigures(store: store))
         case "training.strapStep":
             return CoreRead.json(await CoreTraining.strapStep(store: store))
         case "training.changeDraft":

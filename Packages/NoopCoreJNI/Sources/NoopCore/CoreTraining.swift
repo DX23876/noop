@@ -352,6 +352,83 @@ public enum CoreTraining {
         return draft
     }
 
+    /// The logger's PREVIOUS column (`previousWorkingSet`): for each working set of the draft, the set with the same
+    /// number in the latest session of that exercise that had working sets. Keyed by the draft set's id.
+    public struct PreviousSet: Encodable {
+        public let weightKg: Double?
+        public let reps: Int?
+        public let leftReps: Int?
+        public let rightReps: Int?
+        public let durationS: Int?
+        public let distanceM: Double?
+    }
+
+    public static func previousSets(store: WhoopStore, reader: StoreReader,
+                                    dismissedWorkoutSpans: [String]) async -> [String: PreviousSet] {
+        guard let draft = (try? await store.workoutDraft()) ?? nil else { return [:] }
+        let exercises = (try? await store.trainingExercises()) ?? []
+        let now = Int(Date().timeIntervalSince1970), days = TrainingHistoryWindow.allDays
+        let workouts = (try? await store.nativeWorkouts(from: now - days * 86_400, to: now + 86_400)) ?? []
+        let history = await StrengthHistoryReader.read(store: store, days: days) {
+            await TrainingSessionResolver.read(reader: reader, from: now - days * 86_400, to: now + 86_400,
+                                               dismissedDetectedSpans: dismissedWorkoutSpans)
+        }
+        let performance = TrainingPerformanceHistory(native: workouts, resolved: history, exercises: exercises)
+        var result: [String: PreviousSet] = [:]
+        for exercise in draft.exercises {
+            guard let entry = performance.entries(for: exercise.exerciseId).last(where: { !$0.workingSets.isEmpty })
+            else { continue }
+            for index in exercise.sets.indices {
+                guard let number = NativeWorkoutEngine.workingSetNumber(of: index, in: exercise.sets),
+                      let prior = entry.workingSet(number: number) else { continue }
+                result[exercise.sets[index].id.uuidString] = PreviousSet(
+                    weightKg: prior.weightKg, reps: prior.reps, leftReps: prior.leftReps, rightReps: prior.rightReps,
+                    durationS: prior.durationS, distanceM: prior.distanceM)
+            }
+        }
+        return result
+    }
+
+    /// The logger header's running figures (`WorkoutLoggerHeader`): active seconds at `now` with pauses taken out,
+    /// whether the workout is paused, the lifted volume of completed working sets with a load
+    /// (`NativeWorkoutSessionModel.completedVolumeKg`) and the set counts.
+    public struct DraftFigures: Encodable {
+        public let activeSeconds: Int
+        public let paused: Bool
+        public let volumeKg: Double
+        public let completedSets: Int
+        public let totalSets: Int
+        /// The set a check or a strap tap completes next (`NativeWorkoutEngine.nextOpenSet`), ringed in the logger.
+        public let nextSetId: String?
+    }
+
+    public static func draftFigures(store: WhoopStore, now: Int = Int(Date().timeIntervalSince1970)) async -> DraftFigures? {
+        guard let draft = (try? await store.workoutDraft()) ?? nil else { return nil }
+        let modes = Dictionary(((try? await store.trainingExercises()) ?? []).map { ($0.id, $0.mode) },
+                               uniquingKeysWith: { first, _ in first })
+        let end = draft.plannedEndTs.map { min($0, now) } ?? now
+        let paused = (draft.pauseIntervals ?? []).reduce(0) { total, pause in
+            let lo = max(draft.startedAt, pause.startedAtTs), hi = min(end, pause.endedAtTs ?? end)
+            return total + max(0, hi - lo)
+        }
+        let volume = draft.exercises.reduce(0.0) { total, exercise in
+            switch modes[exercise.exerciseId] {
+            case .weightReps, .weightedBodyweight: break
+            default: return total
+            }
+            return exercise.sets.reduce(total) { sum, set in
+                guard set.isCompleted, set.phase == .work, let kg = set.weightKg, kg > 0 else { return sum }
+                let reps = set.reps ?? [set.leftReps, set.rightReps].compactMap { $0 }.min() ?? 0
+                return sum + kg * Double(reps)
+            }
+        }
+        return DraftFigures(activeSeconds: max(0, end - draft.startedAt - paused), paused: draft.state != .active,
+                            volumeKg: volume, completedSets: draft.exercises.reduce(0) { $0 + $1.sets.filter(\.isCompleted).count },
+                            totalSets: draft.exercises.reduce(0) { $0 + $1.sets.count },
+                            nextSetId: NativeWorkoutEngine.nextOpenSet(in: draft).map {
+                                draft.exercises[$0.exercise].sets[$0.set].id.uuidString })
+    }
+
     /// What a strap double-tap did (`NativeWorkoutSessionModel.strapDoubleTap`): `completed` with the set it ticked
     /// off, or why it did nothing (`noDraft`, `paused`, `allDone`, `missingNumbers` with the set that lacks them).
     public struct StrapStep: Encodable {
@@ -451,6 +528,33 @@ public enum CoreTraining {
                     forKey: TrainingPreferences.warmupRestKey) as? Int ?? TrainingPreferences.defaultWarmupRestSeconds
             }
             if let last = draft.exercises.last, last.sets.isEmpty { try? NativeWorkoutEngine.appendSet(to: last.id, in: &draft) }
+        case "togglePause":
+            // Pauses or resumes the workout (`NativeWorkoutSessionModel.toggleWorkoutPause`); Android's rest
+            // runs on the page, so there is no draft timer to hold.
+            let now = Int(Date().timeIntervalSince1970)
+            if draft.state == .active {
+                draft.state = .paused
+                draft.interruptionReason = .userPaused
+                draft.pauseIntervals = (draft.pauseIntervals ?? []) + [.init(startedAtTs: now)]
+            } else if draft.state == .paused || draft.state == .interrupted {
+                draft.state = .active
+                draft.interruptionReason = nil
+                if var intervals = draft.pauseIntervals, let last = intervals.indices.last, intervals[last].endedAtTs == nil {
+                    intervals[last].endedAtTs = now
+                    draft.pauseIntervals = intervals
+                }
+            }
+        case "workoutNote":
+            let note = (args["note"] as? String) ?? ""
+            draft.note = note.isEmpty ? nil : note
+        case "exerciseNote":
+            guard let exerciseUUID, let e = draft.exercises.firstIndex(where: { $0.id == exerciseUUID }) else { return draft }
+            let note = ((args["note"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            draft.exercises[e].note = note.isEmpty ? nil : note
+        case "restSeconds":
+            guard let exerciseUUID, let e = draft.exercises.firstIndex(where: { $0.id == exerciseUUID }),
+                  let seconds = (args["seconds"] as? NSNumber)?.intValue else { return draft }
+            draft.exercises[e].restSeconds = max(0, min(600, seconds))
         case "selectExercise":
             // The exercise the focus view shows, and its first open set (`NativeWorkoutSessionModel.selectExercise`).
             guard let exerciseUUID, let e = draft.exercises.firstIndex(where: { $0.id == exerciseUUID }) else { return draft }

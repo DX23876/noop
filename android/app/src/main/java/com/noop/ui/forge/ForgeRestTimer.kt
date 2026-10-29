@@ -28,6 +28,20 @@ import androidx.compose.ui.res.stringResource
 import com.noop.R
 import com.noop.ui.NoopPrefs
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.NotificationChannel
@@ -65,22 +79,29 @@ internal object RestTimerPrefs {
     fun setStrapBuzz(c: Context, on: Boolean) = com.noop.ui.HapticPrefs.setEnabled(c, STRAP_BUZZ, on)
 }
 
-/** The rest in progress: when it ends, in epoch milliseconds, and which set it follows. */
-internal data class RunningRest(val setId: String, val endsAtMs: Long)
+/** The rest in progress: which set it follows, when it started and ends (epoch ms), and the time left while paused. */
+internal data class RunningRest(val setId: String, val endsAtMs: Long, val startedAtMs: Long = System.currentTimeMillis(),
+                                val pausedLeftMs: Long? = null)
 
+/**
+ * The running rest, pinned above the bottom edge so it never scrolls away while logging (iOS `WorkoutRestDock`):
+ * "Rest" over the time left, −15, +15, pause and Skip, and the share of the rest gone as a bar.
+ */
 @Composable
-internal fun RestBand(rest: RunningRest, onChange: (RunningRest?) -> Unit, onStrapBuzz: () -> Unit) {
+internal fun RestDock(rest: RunningRest, onChange: (RunningRest?) -> Unit, onStrapBuzz: () -> Unit,
+                      modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var buzzed by remember(rest.setId) { androidx.compose.runtime.mutableStateOf(false) }
+    val paused = rest.pausedLeftMs != null
     // The notification that announces the end while NOOP is in the background (`TrainingRestNotification`).
     DisposableEffect(rest) {
-        RestNotification.schedule(context, rest.endsAtMs)
+        if (!paused) RestNotification.schedule(context, rest.endsAtMs)
         // A rest changed, skipped or left early withdraws it; one that ran out keeps its alarm, which fires now.
-        onDispose { if (System.currentTimeMillis() < rest.endsAtMs - 500) RestNotification.cancel(context) }
+        onDispose { if (paused || System.currentTimeMillis() < rest.endsAtMs - 500) RestNotification.cancel(context) }
     }
     LaunchedEffect(rest) {
-        while (true) {
+        while (!paused) {
             now = System.currentTimeMillis()
             val left = rest.endsAtMs - now
             if (!buzzed && left in 1..5_000 && RestTimerPrefs.strapBuzz(context)) { buzzed = true; onStrapBuzz() }
@@ -88,25 +109,47 @@ internal fun RestBand(rest: RunningRest, onChange: (RunningRest?) -> Unit, onStr
             delay(250)
         }
     }
-    val leftS = ((rest.endsAtMs - now) / 1000).coerceAtLeast(0)
-    val amber = ForgeTokens.Color.systemOrange.resolve()
-    Column(Modifier.fillMaxWidth().background(amber.copy(alpha = 0.14f), RoundedCornerShape(dp12))
-               .padding(horizontal = ForgeMetrics.space3, vertical = ForgeMetrics.space2),
-           verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
-        Text(stringResource(R.string.forge_rest_period).uppercase(), style = Forge.type.overline, color = amber)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(clock(leftS), style = Forge.type.title2, color = Forge.colors.text,
-                 modifier = Modifier.weight(1f))
-            TextButton(onClick = { onChange(rest.copy(endsAtMs = maxOf(System.currentTimeMillis(), rest.endsAtMs - 15_000))) }) {
-                Text("−15", color = amber)
+    val leftMs = rest.pausedLeftMs ?: (rest.endsAtMs - now)
+    val totalMs = (rest.endsAtMs - rest.startedAtMs).coerceAtLeast(1)
+    val accent = Forge.colors.accent
+    Column(modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.screenPadding).padding(bottom = ForgeMetrics.space2)
+               .background(Forge.colors.surfaceTop, RoundedCornerShape(20.dp))
+               .border(1.dp, Forge.colors.border, RoundedCornerShape(20.dp))
+               .padding(16.dp),
+           verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.forge_lg_rest), style = Forge.type.caption, color = Forge.colors.textSecondary)
+                Text(clock((leftMs / 1000).coerceAtLeast(0)), color = Forge.colors.text,
+                     style = Forge.type.title1.copy(fontSize = 30.sp, fontFeatureSettings = "tnum"),
+                     modifier = Modifier.semantics { contentDescription = context.getString(R.string.forge_lg_rest_remaining) })
             }
-            TextButton(onClick = { onChange(rest.copy(endsAtMs = rest.endsAtMs + 15_000)) }) { Text("+15", color = amber) }
-            TextButton(onClick = { onChange(null) }) { Text(stringResource(R.string.forge_rest_skip), color = amber) }
+            Text("−15", style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = accent,
+                 modifier = Modifier.clickable {
+                     onChange(if (paused) rest.copy(pausedLeftMs = (rest.pausedLeftMs!! - 15_000).coerceAtLeast(0))
+                              else rest.copy(endsAtMs = maxOf(System.currentTimeMillis(), rest.endsAtMs - 15_000)))
+                 }.semantics { contentDescription = context.getString(R.string.forge_lg_minus15) })
+            Text("+15", style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = accent,
+                 modifier = Modifier.clickable {
+                     onChange(if (paused) rest.copy(pausedLeftMs = rest.pausedLeftMs!! + 15_000, endsAtMs = rest.endsAtMs + 15_000)
+                              else rest.copy(endsAtMs = rest.endsAtMs + 15_000))
+                 }.semantics { contentDescription = context.getString(R.string.forge_lg_plus15) })
+            Icon(if (paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                 stringResource(if (paused) R.string.forge_lg_resume else R.string.forge_lg_pause), tint = accent,
+                 modifier = Modifier.size(22.dp).clickable {
+                     val t = System.currentTimeMillis()
+                     // Resuming keeps the rest's length: it ends the time left from now and started that length before.
+                     onChange(if (paused) (t + rest.pausedLeftMs!!).let { end -> rest.copy(endsAtMs = end, startedAtMs = end - totalMs, pausedLeftMs = null) }
+                              else rest.copy(pausedLeftMs = (rest.endsAtMs - t).coerceAtLeast(0)))
+                 })
+            Text(stringResource(R.string.forge_lg_skip), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = Color.White,
+                 modifier = Modifier.background(accent, RoundedCornerShape(50)).clickable { onChange(null) }
+                     .padding(horizontal = 14.dp, vertical = 7.dp))
         }
+        LoggerBar((1f - leftMs.toFloat() / totalMs).coerceIn(0f, 1f), accent)
     }
 }
-
-private val dp12 = androidx.compose.ui.unit.Dp(12f)
 
 /** Minutes and seconds left, as the rest clock shows them. */
 private fun clock(seconds: Long): String = "%d:%02d".format(seconds / 60, seconds % 60)

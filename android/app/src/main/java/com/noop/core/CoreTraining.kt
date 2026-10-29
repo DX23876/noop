@@ -45,9 +45,9 @@ object CoreTraining {
                         val durationS: Int? = null, val distanceM: Double? = null,
                         val effortScale: String? = null, val effortValue: Double? = null)
     data class DraftExercise(val id: String, val exerciseId: String, val restSeconds: Int, val sets: List<DraftSet>,
-                             val warmupRestSeconds: Int = 60)
+                             val warmupRestSeconds: Int = 60, val note: String? = null)
     data class Draft(val id: String, val title: String, val startedAt: Long, val exercises: List<DraftExercise>,
-                     val activeExerciseId: String? = null) {
+                     val activeExerciseId: String? = null, val note: String? = null, val paused: Boolean = false) {
         /** The exercise the focus view shows (`NativeWorkoutSessionModel.activeExerciseIndex`): the cursor's, else the first. */
         val activeIndex get() = exercises.indexOfFirst { it.id == activeExerciseId }.coerceAtLeast(0)
     }
@@ -99,6 +99,42 @@ object CoreTraining {
         val plates = o.getJSONArray("platesPerSideKg")
         PlateLoading((0 until plates.length()).map(plates::getDouble), o.getDouble("achievableTotalKg"), o.getDouble("remainderKg"))
     }.getOrNull()
+
+    /** The logger header's figures (`CoreTraining.draftFigures`), read at [fetchedAtMs]. */
+    data class Figures(val activeSeconds: Long, val paused: Boolean, val volumeKg: Double, val completedSets: Int,
+                       val totalSets: Int, val nextSetId: String? = null, val fetchedAtMs: Long = System.currentTimeMillis())
+
+    fun figures(): Figures? = call("training.draftFigures")?.let { json ->
+        runCatching {
+            val o = JSONObject(json)
+            Figures(o.getLong("activeSeconds"), o.getBoolean("paused"), o.getDouble("volumeKg"),
+                    o.getInt("completedSets"), o.getInt("totalSets"), o.optStringOrNull("nextSetId"))
+        }.getOrNull()
+    }
+
+    data class PreviousSet(val weightKg: Double?, val reps: Int?, val leftReps: Int?, val rightReps: Int?,
+                           val durationS: Int?, val distanceM: Double?)
+
+    /** The PREVIOUS column: the last session's set with the same number, by draft set id (`CoreTraining.previousSets`). */
+    fun previousSets(dismissedWorkouts: List<String>): Map<String, PreviousSet> =
+        call("training.previousSets", JSONObject().put("dismissedWorkouts", JSONArray(dismissedWorkouts)))?.let { json ->
+            runCatching {
+                val o = JSONObject(json)
+                o.keys().asSequence().associateWith { k ->
+                    val p = o.getJSONObject(k)
+                    PreviousSet(p.optDoubleOrNull("weightKg"), p.optIntOrNull("reps"), p.optIntOrNull("leftReps"),
+                                p.optIntOrNull("rightReps"), p.optIntOrNull("durationS"), p.optDoubleOrNull("distanceM"))
+                }
+            }.getOrNull()
+        } ?: emptyMap()
+
+    fun togglePause(): Draft? = change(JSONObject().put("change", "togglePause"))
+    fun workoutNote(note: String): Draft? = change(JSONObject().put("change", "workoutNote").put("note", note))
+    fun exerciseNote(exercise: String, note: String): Draft? =
+        change(JSONObject().put("change", "exerciseNote").put("exercise", exercise).put("note", note))
+    fun restSeconds(exercise: String, seconds: Int): Draft? =
+        change(JSONObject().put("change", "restSeconds").put("exercise", exercise).put("seconds", seconds))
+    private fun change(args: JSONObject): Draft? = call("training.changeDraft", args)?.let(::parseDraft)
 
     fun selectExercise(exercise: String): Draft? =
         call("training.changeDraft", JSONObject().put("change", "selectExercise").put("exercise", exercise))?.let(::parseDraft)
@@ -232,8 +268,9 @@ object CoreTraining {
                                  s.optIntOrNull("durationS"), s.optDoubleOrNull("distanceM"),
                                  s.optJSONObject("effort")?.optStringOrNull("scale"),
                                  s.optJSONObject("effort")?.optDoubleOrNull("value"))
-                    }, e.optInt("warmupRestSeconds", 60))
-            }, o.optJSONObject("cursor")?.optStringOrNull("exerciseId"))
+                    }, e.optInt("warmupRestSeconds", 60), e.optStringOrNull("note"))
+            }, o.optJSONObject("cursor")?.optStringOrNull("exerciseId"), o.optStringOrNull("note"),
+            o.optString("state", "active") != "active")
     }
 
     private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }

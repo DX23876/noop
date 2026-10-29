@@ -8,6 +8,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -808,7 +810,6 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     val effortScale = remember { com.noop.ui.NoopPrefs.of(context).getString(CorePrefs.EFFORT_SCALE, null) ?: "rpe" }
     // Settings › Training's "Workout view", also switched from the page's menu (`ActiveWorkoutLayout`).
     var layout by remember { mutableStateOf(com.noop.ui.NoopPrefs.of(context).getString(WORKOUT_LAYOUT, "list") ?: "list") }
-    var layoutMenu by remember { mutableStateOf(false) }
     var effortRequest by remember { mutableStateOf<Pair<String, CoreTraining.DraftSet>?>(null) }
     LaunchedEffect(Unit) { draft = core(context) { CoreTraining.draft() } }
     fun change(block: () -> CoreTraining.Draft?) = scope.launch { core(context, block)?.let { draft = it } }
@@ -879,119 +880,162 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
         return
     }
     val d = draft
-    SettingsColumn {
-        PageTitle(d?.title ?: stringResource(R.string.forge_training), onClose) {
-            Box {
-                IconButton(onClick = { layoutMenu = true }) {
-                    Icon(Icons.Rounded.MoreHoriz, stringResource(R.string.forge_wl_options), tint = Forge.colors.accent)
-                }
-                DropdownMenu(layoutMenu, onDismissRequest = { layoutMenu = false }) {
-                    listOf("focus" to R.string.forge_wl_focus, "list" to R.string.forge_wl_list,
-                           "compact" to R.string.forge_wl_compact).forEach { (id, label) ->
-                        DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
-                            layout = id; layoutMenu = false
-                            com.noop.ui.NoopPrefs.of(context).edit().putString(WORKOUT_LAYOUT, id).apply()
-                        }, trailingIcon = { if (layout == id) Icon(Icons.Rounded.Check, contentDescription = null) })
-                    }
-                }
-            }
-        }
-        if (d == null) return@SettingsColumn
-        strapNotice?.let { notice ->
-            ForgeCard(Modifier.fillMaxWidth().clickable { strapNotice = null }, radius = ForgeMetrics.groupedRadius) {
-                Text(notice, style = Forge.type.subhead, color = Forge.colors.text)
-            }
-        }
-        @Composable
-        fun ExerciseCard(exercise: CoreTraining.DraftExercise, compact: Boolean) {
-            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(definitions[exercise.exerciseId]?.title ?: stringResource(R.string.forge_report_exercise), style = Forge.type.headline,
-                         color = Forge.colors.text, modifier = Modifier.weight(1f))
-                    // Compact (`compactExerciseCard`): the count of done sets instead of the exercise's tools.
-                    if (compact) Text(stringResource(R.string.forge_count_of, exercise.sets.count { it.done }, exercise.sets.size), style = Forge.type.caption,
-                                      color = Forge.colors.textSecondary)
-                    else if ((definitions[exercise.exerciseId]?.mode ?: "weight_reps") == "weight_reps") {
-                        IconButton(onClick = { plateTarget = exercise.sets.firstOrNull { !it.warmup }?.weightKg ?: 60.0 }) {
-                            Icon(Icons.Rounded.Calculate, stringResource(R.string.forge_pl_title), tint = Forge.colors.textTertiary)
+    val massUnits = strengthUnits()
+    val distanceUnits = com.noop.ui.UnitPrefs.distanceSystem(context)
+    // The header's running figures and the PREVIOUS column, both from the core (`WorkoutLoggerHeader`, `previousCell`).
+    var figures by remember { mutableStateOf<CoreTraining.Figures?>(null) }
+    LaunchedEffect(d) { if (d != null) figures = core(context) { CoreTraining.figures() } }
+    val setIds = d?.exercises?.flatMap { e -> e.sets.map { it.id } }
+    var previous by remember { mutableStateOf<Map<String, CoreTraining.PreviousSet>>(emptyMap()) }
+    LaunchedEffect(setIds) {
+        if (setIds != null) previous = withContext(Dispatchers.IO) { CoreTraining.previousSets(dismissedTrainingWorkouts(context)) }
+    }
+    var restRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
+    var noteRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
+    var confirmingDiscard by remember { mutableStateOf(false) }
+    fun requestFinish() { if (d?.exercises?.any { e -> e.sets.any { it.done } } == true) finishing = true else emptyNotice = true }
+
+    @Composable
+    fun ExerciseCard(exercise: CoreTraining.DraftExercise, compact: Boolean) {
+        val definition = definitions[exercise.exerciseId]
+        val title = definition?.title ?: stringResource(R.string.forge_report_exercise)
+        val mode = definition?.mode ?: "weight_reps"
+        val columns = TrainingSetInput.columns(mode, definition?.unilateral == true)
+        val previousColumn = showsPreviousColumn(mode)
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                LoggerExerciseHeader(title, if (compact) null else definition?.primaryMuscle?.let { muscleName(it) }) {
+                    if (compact) {
+                        Text(stringResource(R.string.forge_count_of, exercise.sets.count { it.done }, exercise.sets.size),
+                             style = Forge.type.caption, color = Forge.colors.textSecondary)
+                    } else Box {
+                        var menu by remember { mutableStateOf(false) }
+                        IconButton(onClick = { menu = true }) {
+                            Icon(Icons.Rounded.MoreHoriz, stringResource(R.string.forge_lg_exercise_options), tint = Forge.colors.accent)
+                        }
+                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                            if (mode == "weight_reps") DropdownMenuItem(text = { Text(stringResource(R.string.forge_pl_title)) }, onClick = {
+                                menu = false; plateTarget = exercise.sets.firstOrNull { !it.warmup }?.weightKg ?: 60.0
+                            })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.forge_lg_remove), color = ForgeTokens.Color.systemRed.resolve()) },
+                                             onClick = { menu = false; change { CoreTraining.removeExercise(exercise.id) } })
                         }
                     }
-                    if (!compact) IconButton(onClick = { change { CoreTraining.removeExercise(exercise.id) } }) {
-                        Icon(Icons.Rounded.Delete, stringResource(R.string.forge_training_remove_exercise),
-                             tint = Forge.colors.textTertiary)
-                    }
                 }
-                val definition = definitions[exercise.exerciseId]
-                val mode = definition?.mode ?: "weight_reps"
-                val columns = TrainingSetInput.columns(mode, definition?.unilateral == true)
-                val massUnits = strengthUnits()
-                val distanceUnits = com.noop.ui.UnitPrefs.distanceSystem(context)
                 if (!compact) {
-                    ReportNote(measurementName(mode))
                     ForgeLocalExerciseMedia(exercise.exerciseId, definition?.title.orEmpty())
+                    exercise.note?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textSecondary, maxLines = 2) }
+                    LoggerChips(stringResource(R.string.forge_lg_rest_chip, restText(exercise.restSeconds)),
+                                onRest = { restRequest = exercise }, onNote = { noteRequest = exercise })
                 }
-                // Compact shows only the next open set, or that the exercise is complete.
+                // Compact (`compactExerciseCard`) shows only the next open set, or that the exercise is complete.
                 val shown = if (compact) exercise.sets.withIndex().filter { !it.value.done }.take(1)
                             else exercise.sets.withIndex().toList()
                 if (compact && shown.isEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Check, contentDescription = null, tint = Forge.colors.charge, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.forge_wl_complete), style = Forge.type.caption, color = Forge.colors.charge)
-                } else Row(Modifier.padding(vertical = ForgeMetrics.space1), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
-                    Text(stringResource(R.string.forge_training_set), style = Forge.type.caption,
-                         color = Forge.colors.textTertiary, modifier = Modifier.width(ForgeMetrics.space6))
-                    columns.forEach { field -> Text(setInputLabel(field, massUnits, distanceUnits), style = Forge.type.caption,
-                        color = Forge.colors.textTertiary, modifier = Modifier.weight(1f)) }
-                    if (effortScale != "off") Text(effortScale.uppercase(), style = Forge.type.caption,
-                        color = Forge.colors.textTertiary, modifier = Modifier.width(EFFORT_COLUMN))
-                    Spacer(Modifier.width(ForgeMetrics.minHitTarget))
-                }
+                } else LoggerSetHeader(columns, previousColumn, effortScale)
+                var working = 0
+                val numbers = exercise.sets.map { if (it.warmup) null else ++working }
                 shown.forEach { (i, set) ->
-                    SetRow(i + 1, set, columns, massUnits, distanceUnits, effortScale,
-                           onEffort = { effortRequest = exercise.id to set }) { updated ->
+                    LoggerSetRow(numbers[i], set, columns, previous[set.id], previousColumn, isNext = figures?.nextSetId == set.id,
+                                 massUnits = massUnits, distanceUnits = distanceUnits, effortScale = effortScale,
+                                 onEffort = { effortRequest = exercise.id to set }) { updated ->
                         change { CoreTraining.setValues(exercise.id, updated) }
                         if (!set.done && updated.done) startRest(exercise, set)
                     }
-                    rest?.takeIf { it.setId == set.id }?.let { r -> RestBand(r, onChange = { rest = it }, onStrapBuzz = onStrapBuzz) }
                 }
-                TintButton(stringResource(R.string.forge_training_add_set), Icons.Rounded.Add) {
-                    change { CoreTraining.addSet(exercise.id) }
+                Row(Modifier.fillMaxWidth().heightIn(min = 40.dp)
+                        .background(Forge.colors.inset, RoundedCornerShape(ForgeMetrics.groupedRadius))
+                        .clickable { change { CoreTraining.addSet(exercise.id) } },
+                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, tint = Forge.colors.text, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.forge_training_add_set), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                         color = Forge.colors.text)
                 }
             }
         }
-        when (layout) {
-            "focus" -> d.exercises.getOrNull(d.activeIndex)?.let { exercise ->
-                val index = d.activeIndex
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(enabled = index > 0, onClick = { change { CoreTraining.selectExercise(d.exercises[index - 1].id) } }) {
-                        Text("‹ " + stringResource(R.string.forge_wl_back))
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text(stringResource(R.string.forge_wl_position, index + 1, d.exercises.size), style = Forge.type.caption, color = Forge.colors.textSecondary)
-                    Spacer(Modifier.weight(1f))
-                    TextButton(enabled = index + 1 < d.exercises.size, onClick = { change { CoreTraining.selectExercise(d.exercises[index + 1].id) } }) {
-                        Text(stringResource(R.string.forge_wl_next) + " ›")
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
+                   .padding(horizontal = ForgeMetrics.screenPadding).navigationBarsPadding()
+                   .padding(bottom = if (rest != null) 150.dp else ForgeMetrics.space4),
+               verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            LoggerTopBar(d?.title ?: stringResource(R.string.forge_training), onMinimize = onClose, onFinish = ::requestFinish) { dismiss ->
+                DropdownMenuItem(text = { Text(stringResource(R.string.forge_lg_add_exercise)) },
+                                 leadingIcon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+                                 onClick = { dismiss(); picking = true })
+                HorizontalDivider()
+                listOf("focus" to R.string.forge_wl_focus, "list" to R.string.forge_wl_list,
+                       "compact" to R.string.forge_wl_compact).forEach { (id, label) ->
+                    DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
+                        layout = id; dismiss()
+                        com.noop.ui.NoopPrefs.of(context).edit().putString(WORKOUT_LAYOUT, id).apply()
+                    }, leadingIcon = { if (layout == id) Icon(Icons.Rounded.Check, contentDescription = null) else Spacer(Modifier.size(24.dp)) })
+                }
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text(stringResource(R.string.forge_lg_discard), color = ForgeTokens.Color.systemRed.resolve()) },
+                                 leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = ForgeTokens.Color.systemRed.resolve()) },
+                                 onClick = { dismiss(); confirmingDiscard = true })
+            }
+            if (d != null) {
+                LoggerHeaderCard(figures, massUnits) { change { CoreTraining.togglePause() } }
+                strapNotice?.let { notice ->
+                    ForgeCard(Modifier.fillMaxWidth().clickable { strapNotice = null }, radius = ForgeMetrics.groupedRadius) {
+                        Text(notice, style = Forge.type.subhead, color = Forge.colors.text)
                     }
                 }
-                ExerciseCard(exercise, compact = false)
+                when (layout) {
+                    "focus" -> d.exercises.getOrNull(d.activeIndex)?.let { exercise ->
+                        val index = d.activeIndex
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(enabled = index > 0, onClick = { change { CoreTraining.selectExercise(d.exercises[index - 1].id) } }) {
+                                Text("‹ " + stringResource(R.string.forge_wl_back), style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold))
+                            }
+                            Spacer(Modifier.weight(1f))
+                            Text(stringResource(R.string.forge_wl_position, index + 1, d.exercises.size), style = Forge.type.caption,
+                                 color = Forge.colors.textSecondary)
+                            Spacer(Modifier.weight(1f))
+                            TextButton(enabled = index + 1 < d.exercises.size, onClick = { change { CoreTraining.selectExercise(d.exercises[index + 1].id) } }) {
+                                Text(stringResource(R.string.forge_wl_next) + " ›", style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold))
+                            }
+                        }
+                        ExerciseCard(exercise, compact = false)
+                    }
+                    "compact" -> d.exercises.forEach { ExerciseCard(it, compact = true) }
+                    else -> d.exercises.forEach { ExerciseCard(it, compact = false) }
+                }
+                LoggerAddExerciseButton { picking = true }
+                LoggerNotesCard(d.note) { text -> change { CoreTraining.workoutNote(text) } }
             }
-            "compact" -> d.exercises.forEach { ExerciseCard(it, compact = true) }
-            else -> d.exercises.forEach { ExerciseCard(it, compact = false) }
         }
-        PanelButton(stringResource(R.string.forge_training_add_exercise), Icons.Rounded.Add) { picking = true }
-        Row(Modifier.fillMaxWidth().background(Forge.colors.accent, RoundedCornerShape(12.dp)).clickable {
-                if (d.exercises.any { e -> e.sets.any { it.done } }) finishing = true else emptyNotice = true
-            }.padding(vertical = ForgeMetrics.space3),
-            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(ForgeMetrics.space2))
-            Text(stringResource(R.string.forge_training_finish), style = Forge.type.headline, color = Color.White)
+        rest?.let { r ->
+            RestDock(r, onChange = { rest = it }, onStrapBuzz = onStrapBuzz,
+                     modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
-        TextButton(onClick = {
-            scope.launch { core(context) { CoreTraining.discard(d.id) }; onClose() }
-        }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.forge_training_discard), color = ForgeTokens.Color.systemRed.resolve())
-        }
+    }
+    restRequest?.let { exercise ->
+        RestPickerDialog(definitions[exercise.exerciseId]?.title.orEmpty(), exercise.restSeconds,
+                         onPick = { seconds -> change { CoreTraining.restSeconds(exercise.id, seconds) } },
+                         onDismiss = { restRequest = null })
+    }
+    noteRequest?.let { exercise ->
+        NoteDialog(definitions[exercise.exerciseId]?.title.orEmpty(), exercise.note.orEmpty(),
+                   onSave = { text -> change { CoreTraining.exerciseNote(exercise.id, text) } },
+                   onDismiss = { noteRequest = null })
+    }
+    if (confirmingDiscard && d != null) {
+        AlertDialog(onDismissRequest = { confirmingDiscard = false },
+            title = { Text(stringResource(R.string.forge_lg_discard_q)) },
+            text = { Text(stringResource(R.string.forge_lg_discard_msg)) },
+            confirmButton = { TextButton(onClick = {
+                confirmingDiscard = false
+                scope.launch { core(context) { CoreTraining.discard(d.id) }; onClose() }
+            }) { Text(stringResource(R.string.forge_lg_discard), color = ForgeTokens.Color.systemRed.resolve()) } },
+            dismissButton = { TextButton(onClick = { confirmingDiscard = false }) { Text(stringResource(R.string.forge_lg_keep)) } })
     }
     effortRequest?.let { (exerciseId, set) ->
         EffortPickerSheet(effortScale, set.effortValue?.takeIf { set.effortScale == effortScale },
@@ -1052,83 +1096,6 @@ internal class StrapTapHost(val claim: ((() -> Unit)?) -> Unit, val confirm: () 
 /** iOS's `TrainingPreferences.activeLayoutKey`: focus, list (default) or compact. */
 internal const val WORKOUT_LAYOUT = "training.activeWorkout.layout"
 
-/** Width of the effort badge column, as iOS's `SetColumns.effort`. */
-private val EFFORT_COLUMN = 44.dp
-
-@Composable
-private fun setInputLabel(field: TrainingSetInput, mass: com.noop.ui.UnitSystem, distance: com.noop.ui.UnitSystem): String = when (field) {
-    TrainingSetInput.Weight -> com.noop.ui.UnitFormatter.massUnit(mass)
-    TrainingSetInput.Reps -> stringResource(R.string.forge_training_reps)
-    TrainingSetInput.Left -> stringResource(R.string.forge_library_left)
-    TrainingSetInput.Right -> stringResource(R.string.forge_library_right)
-    TrainingSetInput.Seconds -> stringResource(R.string.forge_library_seconds)
-    TrainingSetInput.Distance -> com.noop.ui.UnitFormatter.distanceUnit(distance)
-}
-
-@Composable
-private fun SetRow(number: Int, set: CoreTraining.DraftSet, columns: List<TrainingSetInput>,
-                   massUnits: com.noop.ui.UnitSystem, distanceUnits: com.noop.ui.UnitSystem,
-                   effortScale: String, onEffort: () -> Unit,
-                   onChange: (CoreTraining.DraftSet) -> Unit) {
-    val initialWeight = remember(set.id, set.weightKg, massUnits) { set.weightKg?.let { inputDecimal(TrainingSetInput.massForInput(it, massUnits)) } ?: "" }
-    val initialDistance = remember(set.id, set.distanceM, distanceUnits) { set.distanceM?.let { inputDecimal(TrainingSetInput.distanceForInput(it, distanceUnits)) } ?: "" }
-    var weight by remember(set.id, set.weightKg, massUnits) { mutableStateOf(initialWeight) }
-    var reps by remember(set.id, set.reps) { mutableStateOf(set.reps?.toString() ?: "") }
-    var left by remember(set.id, set.leftReps, set.reps) { mutableStateOf((set.leftReps ?: set.reps)?.toString() ?: "") }
-    var right by remember(set.id, set.rightReps, set.reps) { mutableStateOf((set.rightReps ?: set.reps)?.toString() ?: "") }
-    var duration by remember(set.id, set.durationS) { mutableStateOf(set.durationS?.toString() ?: "") }
-    var distance by remember(set.id, set.distanceM, distanceUnits) { mutableStateOf(initialDistance) }
-    fun commit(done: Boolean = set.done) = onChange(set.copy(
-        weightKg = if (TrainingSetInput.Weight in columns) TrainingSetInput.editedMeasurement(set.weightKg, initialWeight, weight) { TrainingSetInput.massForStore(it, massUnits) } else set.weightKg,
-        reps = if (TrainingSetInput.Reps in columns) reps.toIntOrNull() else if (TrainingSetInput.Left in columns) null else set.reps,
-        leftReps = if (TrainingSetInput.Left in columns) left.toIntOrNull() else set.leftReps,
-        rightReps = if (TrainingSetInput.Right in columns) right.toIntOrNull() else set.rightReps,
-        durationS = if (TrainingSetInput.Seconds in columns) duration.toIntOrNull() else set.durationS,
-        distanceM = if (TrainingSetInput.Distance in columns) TrainingSetInput.editedMeasurement(set.distanceM, initialDistance, distance) { TrainingSetInput.distanceForStore(it, distanceUnits) } else set.distanceM,
-        done = done))
-    Row(verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1), modifier = Modifier.padding(vertical = ForgeMetrics.space1)) {
-        Text(if (set.warmup) stringResource(R.string.forge_training_warmup_short) else number.toString(),
-             style = Forge.type.bodyNumber, color = Forge.colors.textSecondary, modifier = Modifier.width(ForgeMetrics.space6))
-        columns.forEach { field ->
-            val value = when (field) {
-                TrainingSetInput.Weight -> weight; TrainingSetInput.Reps -> reps; TrainingSetInput.Left -> left
-                TrainingSetInput.Right -> right; TrainingSetInput.Seconds -> duration; TrainingSetInput.Distance -> distance
-            }
-            Box(Modifier.weight(1f)) { NumberField(value, decimal = field == TrainingSetInput.Weight || field == TrainingSetInput.Distance,
-                onChange = { input ->
-                    val number = input.filter { it.isDigit() || ((field == TrainingSetInput.Weight || field == TrainingSetInput.Distance) && (it == '.' || it == ',')) }
-                    when (field) {
-                        TrainingSetInput.Weight -> weight = number; TrainingSetInput.Reps -> reps = number; TrainingSetInput.Left -> left = number
-                        TrainingSetInput.Right -> right = number; TrainingSetInput.Seconds -> duration = number; TrainingSetInput.Distance -> distance = number
-                    }
-                }, onDone = { commit() }) }
-        }
-        if (effortScale != "off") {
-            val rated = set.effortValue?.takeIf { set.effortScale != null }
-            val label = stringResource(if (effortScale == "rir") R.string.forge_ef_rir_label else R.string.forge_ef_rpe)
-            val stateText = rated?.let(SetEffort::format) ?: stringResource(R.string.forge_ef_not_rated)
-            val labelValue = stringResource(R.string.forge_label_value, label, stateText)
-            EffortBadge((if (set.effortScale == "rir") "R" else "") + (rated?.let(SetEffort::format) ?: "—"),
-                        rated?.let { SetEffort.color(SetEffort.level(set.effortScale!!, it)) },
-                        Modifier.size(EFFORT_COLUMN, 32.dp).clickable(onClick = onEffort)
-                            .semantics { contentDescription = labelValue })
-        }
-        IconButton(onClick = { commit(!set.done) }, modifier = Modifier.size(ForgeMetrics.minHitTarget)
-            .background(if (set.done) Forge.colors.charge else Forge.colors.inset, CircleShape)) {
-            Icon(Icons.Rounded.Check, contentDescription = stringResource(if (set.done) R.string.forge_library_uncomplete_set else R.string.forge_library_complete_set),
-                 tint = if (set.done) Color.White else Forge.colors.textTertiary)
-        }
-    }
-}
-
-private fun inputDecimal(value: Double): String = java.text.NumberFormat.getNumberInstance(Locale.getDefault()).apply {
-    maximumFractionDigits = 6; isGroupingUsed = false
-}.format(value)
-
-private fun formatKg(v: Double): String =
-    if (v % 1.0 == 0.0) v.toInt().toString()
-    else java.text.NumberFormat.getNumberInstance(Locale.getDefault()).apply { maximumFractionDigits = 1 }.format(v)
 
 @Composable
 private fun NumberField(value: String, decimal: Boolean = false, onChange: (String) -> Unit, onDone: () -> Unit = {}) {
