@@ -147,7 +147,13 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     // over the daily rows, the export-verbatim sleep figures and the merged sessions with their naps).
     val recentDays by viewModel.recentDays.collectAsState()
     val tiles by androidx.compose.runtime.produceState<com.noop.ui.SleepModel?>(null, recentDays) {
-        value = withContext(Dispatchers.IO) { runCatching { nightDetailModel(viewModel, recentDays) }.getOrNull() }
+        value = withContext(Dispatchers.IO) {
+            // The daily rows come from the shared core (the merged rows iOS's `repo.days` reads); Room's recent days
+            // stand in only when the core is not open.
+            val coreDays = com.noop.core.CoreDailyRows.rows(LocalDate.now().minusDays(com.noop.data.WhoopRepository.RECENT_DAYS_CAP.toLong()).toString(),
+                                                            LocalDate.now().toString(), viewModel.activeStrapId)
+            runCatching { nightDetailModel(viewModel, coreDays?.takeIf { it.isNotEmpty() } ?: recentDays) }.getOrNull()
+        }
     }
     var layoutRevision by remember { mutableIntStateOf(0) }
     val sections = remember(layoutRevision) {

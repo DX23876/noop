@@ -155,8 +155,7 @@ functions and Android screens before the single testing release.
   the detailed Key Metrics lines for SpO2, steps, weight, calories and skin temperature, then the Classic, Trends and
   Overview Today styles, the goals explainer's illustrated pages and the goal notifications' parts (the one consent
   question when the first ring closes, "Tick off" and "Remind me in 1 hour" on the evening reminder, the reminder placed
-  three hours before the bedtime the alarm and wind-down settings give). Still open: the Night detail tiles read Room
-  through ryanbr's `SleepModel` (same figures as the core, a data-source difference only, no screen differs).
+  three hours before the bedtime the alarm and wind-down settings give). The Night detail tiles take their daily rows from the shared core (`CoreDailyRows`, the same 800-day window as before) and still build their figures with ryanbr's `SleepModel`; the sleep sessions, the imported sleep series and the habitual mid-sleep still come from Room through the repository's core-aware reads.
   ECG recording and the strap's raw lanes in the core wait for a WHOOP MG to verify on. `Tools/test_android_ios_parity.py`
   names what is still open.
 - **Testing release (phase 3).** The emulator rounds, real-data comparison, all required checks and release notes
