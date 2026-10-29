@@ -77,6 +77,7 @@ public enum BackupSettings {
         "training.weightUnit": .string,
         "effort.scale": .string,
         "dayCycle.mode": .string,
+        "sleep.stagerMethod": .string,
         "today.hostedCards": .string,
         // User-authored workout templates and their selected plan; active capture stays in SQLite.
         "workout.guidance.plan": .string,
@@ -129,6 +130,7 @@ public enum BackupSettings {
         "training.weightUnit": "training.weightUnit",
         "effort.scale": "effort.scale",
         "dayCycle.mode": "noop.dayCycleMode",
+        "sleep.stagerMethod": "noopSleepStagerMethod",
         "today.hostedCards": "today.hostedCards",
         "workout.guidance.plan": "workout.guidance.plan",
         "workout.guidance.templates": "workout.guidance.templates",

@@ -135,6 +135,7 @@ object CoreShadow {
     fun extras(context: Context, profile: com.noop.ui.ProfileStore, dismissedSleep: List<Pair<Long, Long>>,
                dismissedWorkouts: List<Pair<Long, Long>>, spo2CandidateDisplay: Boolean): String =
         org.json.JSONObject().apply {
+            put("sleepStagerMethod", com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod)
             put("spo2CandidateDisplay", spo2CandidateDisplay)
             put("hrvBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble())
             put("recoveryBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble())

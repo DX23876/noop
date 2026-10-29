@@ -426,12 +426,9 @@ public enum AnalyticsEngine {
                                   // pure-function callers/tests free of it; IntelligenceEngine threads the
                                   // night window's persisted band state. (#531 / H8 consume)
                                   bandSleepState: [(ts: Int, state: Int)] = [],
-                                  // Which sleep-staging recipe runs (V2 vs V1). When true, detected nights
-                                  // are staged by `SleepStagerV2` instead of V1. This PARAMETER defaults
-                                  // false to keep pure-function callers/tests byte-identical — it is NOT
-                                  // the product default. IntelligenceEngine threads
-                                  // `PuffinExperiment.experimentalSleepV2Enabled`, which is default ON
-                                  // (#277/#351), so the shipped app stages with V2. (7.0.0)
+                                  // Legacy phase-engine selector. An explicit `method` selects the complete
+                                  // V1/V2/V3 pipeline; nil keeps this Boolean API unchanged. Product hosts
+                                  // pass the resolved method, whose default is V3.
                                   useSleepStagerV2: Bool = false,
                                   // Opt-in motion-aware wake refinement (#364 "Proposal 2" follow-up; density
                                   // gate precedent #345). When true, `WakeMotionRefinement` re-derives each
@@ -495,7 +492,9 @@ public enum AnalyticsEngine {
                                   // The day's aerobic ceiling (stored by the energy model), so a detected
                                   // bout's calories are priced on the same curve as the day's workouts.
                                   // Nil prices bouts from the table MET of an unnamed session.
-                                  workoutPeakMET: Double? = nil) -> DayResult {
+                                  workoutPeakMET: Double? = nil,
+                                  method: SleepStager.Method? = nil) -> DayResult {
+        let method = method ?? (useSleepStagerV2 ? .v2 : .v1)
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
         // calendar day of (ts + offset) with a FIXED offset, so "== day" is exactly membership in
@@ -512,7 +511,7 @@ public enum AnalyticsEngine {
                                                   tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                                   bandSleepState: bandSleepState,
                                                   useSleepStagerV2: useSleepStagerV2,
-                                                  traceSink: traceSink)
+                                                  traceSink: traceSink, method: method)
         // Motion-aware wake refinement (#364 follow-up) runs AFTER V1/V2 staging, over every detected
         // session (naps included — the same eligibility gates apply). `steps` is the SAME calendar-day/
         // night-window stream the caller passed for the rest of this analysis; the pass self-gates on its
@@ -664,7 +663,7 @@ public enum AnalyticsEngine {
             traceSink(AnalyticsEngine.sleepMotionLine(
                 day: day, grav: gravity.count, hr: hr.count,
                 sparse: gravitySparse,
-                useSleepStagerV2: useSleepStagerV2, family: skinTempFamily))
+                useSleepStagerV2: useSleepStagerV2, family: skinTempFamily, method: method))
             // CAPTURE-C (#799): append the sleep PROVENANCE so an imported row winning the merge is visible
             // (not silently swapped for the measured night). hoursAsleep = the scored night's tst in minutes;
             // sourceRowId = the main-night's start ts for the measured path (stable per night), else the

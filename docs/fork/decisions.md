@@ -704,3 +704,15 @@ tables and no raw table changed. On the owner's iPhone 13 Pro Max (105 days) it 
 Analysis migration required: yes. AI-31 changes no formula; it is the first rebuild, which re-scores every
 day an older recipe or a narrower window left behind.
 
+
+### SleepStager pipeline selection (2026-10-29)
+
+V3 combines the conservative onset policy above with the unchanged V2 phase engine. It is the product
+default; V2 retains the original detector and V1 retains original detection with classic phases. The
+legacy Boolean API keeps its existing V1/V2 mapping. Preference migration preserves an explicit classic
+choice and upgrades the former default to V3; a new explicit V2 choice is authoritative. Detection
+memos, persisted daily signatures, edited-night healing and backup settings carry the selected method.
+Changing methods recalculates recent nights; the unshipped AI-31 recipe applies the default to all raw
+history without replacing imported or wearer-corrected bounds.
+
+Analysis migration required: yes, included in the unshipped AI-31 rebuild.

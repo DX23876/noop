@@ -4542,4 +4542,7 @@
     <string name="forge_lt_aside_none">No particular reason</string>
     <string name="coach_goals_journey">Goals &amp; journey</string>
     <string name="coach_goals_journey_subtitle">Set a target and see your progress.</string>
+
+    <string name="sleep_stager_method">Sleep stage method</string>
+    <string name="sleep_stager_method_detail">V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights.</string>
 </resources>

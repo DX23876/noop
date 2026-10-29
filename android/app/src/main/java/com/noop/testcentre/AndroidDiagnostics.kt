@@ -443,8 +443,8 @@ object AndroidDiagnostics {
                     // raw resp channel that hardware never emits, while V2 recovers respiration from
                     // R-R. Suffix byte-identical to the Swift twin in DebugDataDiagnostics.
                     val screenStager =
-                        if (com.noop.ble.PuffinExperiment.from(context).experimentalSleepV2) "V2" else "V1"
-                    var summary = it.summary + " · funnel replays V1; screen staged by $screenStager"
+                        com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod.uppercase(java.util.Locale.ROOT)
+                    var summary = it.summary + " · funnel replays V1; currently selected pipeline $screenStager"
                     if (screenStager != "V1") summary += " — totals can differ"
                     add(summary)
                 } ?: add("REM funnel: insufficient motion data (<2 gravity samples)")

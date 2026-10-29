@@ -188,8 +188,9 @@ public enum AnalysisRecipe {
     // samples are never rewritten, and no value an import or the wearer supplied is replaced. What the daily
     // pass already did for recent days now reaches the whole history: a workout without heart rate gets it from
     // the strap trace, and a corrected night keeps its bed and wake times while its stages are derived again.
-    // AI-31 changes no formula: what moves is every day scored under an older recipe or outside the windows
-    // the earlier migrations re-scored, which now reads what the current code produces.
+    // The rebuild mechanism itself changes no formula. The unshipped AI-31 also carries the V3 conservative
+    // sleep-onset policy: all raw-backed days use the selected pipeline, while edited bounds stay locked.
+    // Days outside earlier migration windows now read what the current code produces.
     public static let currentVersion = 31
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

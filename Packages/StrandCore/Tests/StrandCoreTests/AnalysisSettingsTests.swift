@@ -11,6 +11,17 @@ final class AnalysisSettingsTests: XCTestCase {
                          recoveryBaselineEpoch: recoveryEpoch, traces: traces)
     }
 
+    func testSleepMethodSurvivesCapturedSettingsAndHealSignatures() {
+        var captured = settings()
+        XCTAssertEqual(captured.sleepStagerMethod, .v1)
+        captured.sleepStagerMethod = .v3
+        XCTAssertTrue(captured.sleepStagerV2)
+        let v2 = EditedSleepHeal.Staging(method: .v2, motionAwareWake: false)
+        let v3 = EditedSleepHeal.Staging(method: .v3, motionAwareWake: false)
+        XCTAssertNotEqual(v2.signature, v3.signature)
+        XCTAssertTrue(v3.sleepV2)
+    }
+
     func testOnlyTheCapturedDomainsTrace() {
         let s = settings(traces: [.sleep, .universal])
         XCTAssertTrue(s.traces(.sleep))

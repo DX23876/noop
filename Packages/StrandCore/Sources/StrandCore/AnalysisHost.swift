@@ -11,8 +11,13 @@ public struct AnalysisSettings: Equatable, Sendable {
     public var effortMethod: StrainScorer.Method
     /// Whether the experimental SpO2 candidate is shown, which decides whether it is computed.
     public var spo2CandidateDisplay: Bool
-    /// Experimental sleep stager v2 instead of the default stager.
-    public var sleepStagerV2: Bool
+    /// Complete sleep pipeline, captured once for this pass.
+    public var sleepStagerMethod: SleepStager.Method
+    /// Compatibility for callers that selected only the phase engine.
+    public var sleepStagerV2: Bool {
+        get { sleepStagerMethod.usesV2Stages }
+        set { sleepStagerMethod = newValue ? .v2 : .v1 }
+    }
     /// Experimental motion-aware wake detection.
     public var motionAwareWake: Bool
     /// HRV read over the deep-sleep window instead of the whole night.
@@ -33,10 +38,10 @@ public struct AnalysisSettings: Equatable, Sendable {
     public init(effortMethod: StrainScorer.Method, spo2CandidateDisplay: Bool, sleepStagerV2: Bool,
                 motionAwareWake: Bool, deepHrvWindow: Bool, dayCycleMode: DayCycleMode, rhythmAge: Bool,
                 healthspan: Bool, hrvBaselineEpoch: Double, recoveryBaselineEpoch: Double,
-                traces: Set<TestDomain>) {
+                traces: Set<TestDomain>, sleepStagerMethod: SleepStager.Method? = nil) {
         self.effortMethod = effortMethod
         self.spo2CandidateDisplay = spo2CandidateDisplay
-        self.sleepStagerV2 = sleepStagerV2
+        self.sleepStagerMethod = sleepStagerMethod ?? (sleepStagerV2 ? .v2 : .v1)
         self.motionAwareWake = motionAwareWake
         self.deepHrvWindow = deepHrvWindow
         self.dayCycleMode = dayCycleMode

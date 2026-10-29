@@ -121,6 +121,17 @@ final class BackupSettingsTests: XCTestCase {
 
     // MARK: - UserDefaults snapshot / apply (the platform boundary)
 
+    func testExplicitSleepMethodSurvivesBackupRestore() throws {
+        let source = try freshDefaults()
+        source.set("v2", forKey: "noopSleepStagerMethod")
+        let snapshot = BackupSettings.snapshot(from: source)
+        XCTAssertEqual(snapshot["sleep.stagerMethod"] as? String, "v2")
+        let encoded = try XCTUnwrap(BackupSettings.encode(snapshot))
+        let destination = try freshDefaults()
+        BackupSettings.apply(BackupSettings.decode(encoded), to: destination)
+        XCTAssertEqual(destination.string(forKey: "noopSleepStagerMethod"), "v2")
+    }
+
     func testSnapshotOmitsUnsetKeysAndMapsHrMaxOverride() throws {
         let defaults = try freshDefaults()
         defaults.set(29, forKey: "profile.age")

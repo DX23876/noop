@@ -216,21 +216,17 @@ enum PuffinExperiment {
 
     /// "Experimental sleep staging (V2)": re-stage each detected night with `SleepStagerV2` — a transparent
     /// cardiorespiratory recipe (reimplemented from contributor PR #600) — instead of the older V1 stager.
-    /// Pure analysis switch: it changes ONLY which staging engine runs over an already-detected sleep window;
-    /// sleep DETECTION, scoring and the V1 path are all untouched. Model-agnostic (WHOOP 4 and 5). **Default
-    /// ON**: V2 was promoted to the default staging engine after a 44-subject cross-subject benchmark (AAUWSS
-    /// + Walch sleep-accel, leave-one-subject-out) showed V2 strictly dominates V1 (kappa 0.35 vs 0.03, deep
-    /// recall 55 % vs 1 %) — the multi-subject validation this recipe originally lacked. V1 remains available.
-    /// Read at the staging call site (Repository). Mirrors the Android `PuffinExperiment.KEY_EXPERIMENTAL_SLEEP_V2`.
+    /// Legacy phase-engine preference, retained for migration from V1/V2 installs.
     static let experimentalSleepV2Key = "noopExperimentalSleepV2"
+    static let sleepStagerMethodKey = "noopSleepStagerMethod"
 
-    /// Default ON when the key is unset (mirrors the Android `getBoolean(KEY, true)`): a `bool(forKey:)` alone
-    /// reads a missing key as false, so an absent preference must resolve to the promoted V2 default explicitly.
-    static var experimentalSleepV2Enabled: Bool {
-        UserDefaults.standard.object(forKey: experimentalSleepV2Key) == nil
-            ? true
-            : UserDefaults.standard.bool(forKey: experimentalSleepV2Key)
+    static func sleepStagerMethod(in defaults: UserDefaults = .standard) -> SleepStager.Method {
+        SleepStager.Method.resolvedPreference(
+            rawValue: defaults.string(forKey: sleepStagerMethodKey),
+            legacyV2: defaults.object(forKey: experimentalSleepV2Key) as? Bool)
     }
+
+    static var experimentalSleepV2Enabled: Bool { sleepStagerMethod().usesV2Stages }
 
     /// Opt-in "HR-from-PPG sub-lag interpolation" (default off): the v26 optical-PPG gap-fill HR estimator
     /// (`PpgHr`) refines its integer autocorrelation lag with a parabolic (Variant A) interpolation of the

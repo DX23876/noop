@@ -326,8 +326,8 @@ enum DebugDataDiagnostics {
             // On a 5/MG the gap is maximal: V1's primary REM gate needs the raw resp channel that
             // hardware never emits, while V2 recovers respiration from R-R, so the funnel can report
             // ~46min REM against a 231min screen for the same night.
-            let screenStager = PuffinExperiment.experimentalSleepV2Enabled ? "V2" : "V1"
-            var summary = rem.summary + " · funnel replays V1; screen staged by \(screenStager)"
+            let screenStager = PuffinExperiment.sleepStagerMethod().rawValue.uppercased()
+            var summary = rem.summary + " · funnel replays V1; currently selected pipeline \(screenStager)"
             if screenStager != "V1" {
                 summary += " — totals can differ"
             }

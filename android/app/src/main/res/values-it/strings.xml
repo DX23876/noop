@@ -4479,4 +4479,7 @@
     <string name="forge_lt_aside_none">Nessun motivo in particolare</string>
     <string name="coach_goals_journey">Obiettivi e percorso</string>
     <string name="coach_goals_journey_subtitle">Fissa un obiettivo e segui i tuoi progressi.</string>
+
+    <string name="sleep_stager_method">Metodo delle fasi del sonno</string>
+    <string name="sleep_stager_method_detail">V3 rileva l’inizio del sonno con più cautela e usa le fasi di V2. V2 mantiene il rilevamento precedente; V1 è il metodo classico. Il cambio ricalcola le notti recenti.</string>
 </resources>

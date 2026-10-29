@@ -38,7 +38,12 @@ public enum CoreAnalysis {
     /// passes, AgeLess and the daily rhythm. `standard` is what an install that never touched them gets on either
     /// platform.
     public struct Settings: Sendable, Equatable {
-        public var effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool
+        public var effortBanister: Bool, motionAwareWake: Bool, deepHrvWindow: Bool
+        public var sleepStagerMethod: SleepStager.Method
+        public var sleepStagerV2: Bool {
+            get { sleepStagerMethod.usesV2Stages }
+            set { sleepStagerMethod = newValue ? .v2 : .v1 }
+        }
         public var dayCycleMode: String?
         public var healthspan: Bool, rhythmAge: Bool
         /// The nights and detected workouts the wearer deleted, as "startTs:endTs" tokens (Apple: UserDefaults
@@ -60,8 +65,10 @@ public enum CoreAnalysis {
                     dayCycleMode: String?, healthspan: Bool = false, rhythmAge: Bool = false,
                     dismissedSleepSpans: [String] = [], dismissedWorkoutSpans: [String] = [],
                     manualVO2max: Double = 0, manualVO2maxDay: String = "", manualVO2maxWeightKg: Double = 0,
-                    activityLevelOverride: Int = 0, energyCalibration: Bool = false) {
-            self.effortBanister = effortBanister; self.sleepStagerV2 = sleepStagerV2
+                    activityLevelOverride: Int = 0, energyCalibration: Bool = false,
+                    sleepStagerMethod: SleepStager.Method? = nil) {
+            self.effortBanister = effortBanister
+            self.sleepStagerMethod = sleepStagerMethod ?? (sleepStagerV2 ? .v2 : .v1)
             self.motionAwareWake = motionAwareWake; self.deepHrvWindow = deepHrvWindow; self.dayCycleMode = dayCycleMode
             self.healthspan = healthspan; self.rhythmAge = rhythmAge
             self.dismissedSleepSpans = dismissedSleepSpans; self.dismissedWorkoutSpans = dismissedWorkoutSpans
@@ -78,7 +85,7 @@ public enum CoreAnalysis {
         }
 
         public static let standard = Settings(effortBanister: false, sleepStagerV2: true, motionAwareWake: false,
-                                              deepHrvWindow: false, dayCycleMode: nil)
+                                              deepHrvWindow: false, dayCycleMode: nil, sleepStagerMethod: .v3)
 
         /// What the pass reads, the experiments the Android app has no switch for left off.
         public var analysisSettings: AnalysisSettings {
@@ -87,7 +94,7 @@ public enum CoreAnalysis {
                              deepHrvWindow: deepHrvWindow, dayCycleMode: .persisted(dayCycleMode),
                              rhythmAge: rhythmAge, healthspan: healthspan,
                              hrvBaselineEpoch: hrvBaselineEpoch, recoveryBaselineEpoch: recoveryBaselineEpoch,
-                             traces: [])
+                             traces: [], sleepStagerMethod: sleepStagerMethod)
         }
     }
 
@@ -100,6 +107,9 @@ public enum CoreAnalysis {
     public static func applyExtras(_ json: String, to settings: inout Settings, profile: inout Profile) {
         guard let data = json.data(using: .utf8),
               let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        if let raw = o["sleepStagerMethod"] as? String, let method = SleepStager.Method(rawValue: raw) {
+            settings.sleepStagerMethod = method
+        }
         if let raw = o["formulaLog"] as? String { settings.basalFormula = BmrFormulaLog.decode(raw).current }
         func double(_ k: String) -> Double? { (o[k] as? NSNumber)?.doubleValue }
         func int(_ k: String) -> Int? { (o[k] as? NSNumber)?.intValue }
@@ -240,7 +250,7 @@ public enum CoreAnalysis {
             await EditedSleepHeal.heal(
                 store: reader.store, strapId: reader.activeDeviceId, computedId: reader.activeDeviceId + "-noop",
                 from: windowStart, to: windowEnd, unchangedDays: unchangedDays, tzOffsetSeconds: tzOffsetSeconds,
-                staging: .init(sleepV2: settings.sleepStagerV2, motionAwareWake: settings.motionAwareWake),
+                staging: .init(method: settings.sleepStagerMethod, motionAwareWake: settings.motionAwareWake),
                 lastSignature: host.storedString(Self.stagerSignatureKey),
                 saveSignature: { [host] in host.store($0, forKey: Self.stagerSignatureKey) })
         }

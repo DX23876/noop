@@ -64,9 +64,11 @@ extension AnalyticsEngine {
     /// most epochs default to sleep → over-counted duration → high Rest); `stager` says which engine ran;
     /// `family` the day's owner. PURE; byte-identical to Android `AnalyticsEngine.sleepMotionLine`.
     public static func sleepMotionLine(day: String, grav: Int, hr: Int, sparse: Bool,
-                                       useSleepStagerV2: Bool, family: DeviceFamily) -> String {
-        "sleep-motion day=\(day) grav=\(grav) hr=\(hr) sparse=\(sparse) "
-            + "stager=\(useSleepStagerV2 ? "V2" : "V1") family=\(family.rawValue)"
+                                       useSleepStagerV2: Bool, family: DeviceFamily,
+                                       method: SleepStager.Method? = nil) -> String {
+        let method = method ?? (useSleepStagerV2 ? .v2 : .v1)
+        return "sleep-motion day=\(day) grav=\(grav) hr=\(hr) sparse=\(sparse) "
+            + "stager=\(method.rawValue.uppercased()) family=\(family.rawValue)"
     }
 
     /// How long AFTER the detected onset to sample HR for the #271 onset trace (seconds). The first

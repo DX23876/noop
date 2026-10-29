@@ -4406,4 +4406,7 @@
     <string name="forge_lt_aside_none">Без особой причины</string>
     <string name="coach_goals_journey">Цели и путь</string>
     <string name="coach_goals_journey_subtitle">Поставьте цель и следите за прогрессом.</string>
+
+    <string name="sleep_stager_method">Метод определения фаз сна</string>
+    <string name="sleep_stager_method_detail">V3 осторожнее определяет начало сна и использует фазы V2. V2 сохраняет прежнее определение; V1 — классический метод. При смене пересчитываются последние ночи.</string>
 </resources>

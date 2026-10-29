@@ -1315,6 +1315,7 @@ public enum SleepStager {
     /// re-onset (#531): a daytime block the strap itself scored predominantly "asleep" is KEPT even on a
     /// borderline HR dip. Default empty keeps pure-function callers/tests free of it; IntelligenceEngine
     /// passes the night window's persisted band state. It can only RESCUE a real-sleep block, never fabricate.
+    /// `method` selects the complete pipeline; nil preserves the legacy Boolean V1/V2 API.
     /// `useSleepStagerV2` (7.0.0; default ON since #277/#351): which recipe stages an accepted night — the cardiorespiratory
     /// `SleepStagerV2.stageSession` when true, V1's `stageSession` when false. DETECTION is unchanged
     /// (same accepted windows); only the per-epoch hypnogram differs.
@@ -1338,7 +1339,9 @@ public enum SleepStager {
                                    bandSleepState: [(ts: Int, state: Int)] = [],
                                    useSleepStagerV2: Bool = false,
                                    sleepHRBaseline: Double? = nil,
-                                   traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
+                                   traceSink: ((String) -> Void)? = nil,
+                                   method: Method? = nil) -> [SleepSession] {
+        let method = method ?? (useSleepStagerV2 ? .v2 : .v1)
         // Sleep & Rest test mode only: when a trace is requested we MUST run the live ladder, not a
         // memoized result, so each gate verdict is emitted for THIS night. The trace is side-effect-
         // only and never changes the sessions, so a traced and an untraced call return the identical
@@ -1347,7 +1350,7 @@ public enum SleepStager {
         if let traceSink {
             return detectSleepUncached(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                        tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
-                                       bandSleepState: bandSleepState, useSleepStagerV2: useSleepStagerV2,
+                                       bandSleepState: bandSleepState, method: method,
                                        sleepHRBaseline: sleepHRBaseline, traceSink: traceSink)
         }
         // v7.0.2 perf (#707): the single heaviest analytics call — it sorts the dense full-day gravity
@@ -1356,7 +1359,7 @@ public enum SleepStager {
         // a re-run with the SAME raw (an idempotent re-pass, or a later sync that didn't touch this day's
         // streams) re-does all of it for an identical `[SleepSession]`. Memoize on a FULL key: every input
         // that steers detection or staging — the four streams, the tz offset (daytime-guard + onset band),
-        // the off-wrist intervals (#500 backstop), the persisted band state (#531 H8), and the V2 toggle (an
+        // the off-wrist intervals (#500 backstop), the persisted band state (#531 H8), and the selected pipeline (an
         // edit to any re-keys to a fresh compute). Result-only + bounded; the raw arrays are never retained.
         // Match Android's raw-axis semantics: mix x/y/z IEEE-754 bits in order, never their lossy sum.
         let key = DetectKey(
@@ -1369,12 +1372,12 @@ public enum SleepStager {
             tz: tzOffsetSeconds,
             wristOff: StreamFingerprint.of(wristOff, ts: { $0.start }, quant: { $0.end }),
             band: StreamFingerprint.of(bandSleepState, ts: { $0.ts }, quant: { $0.state }),
-            v2: useSleepStagerV2,
+            method: method,
             sleepHRBaseline: sleepHRBaseline)
         return detectSleepCache.value(key) {
             detectSleepUncached(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                 tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
-                                bandSleepState: bandSleepState, useSleepStagerV2: useSleepStagerV2,
+                                bandSleepState: bandSleepState, method: method,
                                 sleepHRBaseline: sleepHRBaseline, traceSink: nil)
         }
     }
@@ -1384,13 +1387,13 @@ public enum SleepStager {
         let rr: StreamFingerprint; let resp: StreamFingerprint
         let tz: Int
         let wristOff: StreamFingerprint; let band: StreamFingerprint
-        let v2: Bool
+        let method: Method
         let sleepHRBaseline: Double?
     }
     /// ≈ the number of distinct days in a scoring window; FIFO-evicted, holds only small session arrays.
     private static let detectSleepCache = AnalyticsMemoCache<DetectKey, [SleepSession]>(capacity: 40)
 
-    /// The unchanged detection+staging pipeline; split out verbatim so the public entry memoizes in front.
+    /// The selected detection and staging pipeline, with memoization at the public entry point.
     private static func detectSleepUncached(hr: [HRSample],
                                             rr: [RRInterval],
                                             resp: [RespSample],
@@ -1398,7 +1401,7 @@ public enum SleepStager {
                                             tzOffsetSeconds: Int,
                                             wristOff: [(start: Int, end: Int)],
                                             bandSleepState: [(ts: Int, state: Int)],
-                                            useSleepStagerV2: Bool,
+                                            method: Method,
                                             sleepHRBaseline: Double? = nil,
                                             traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
         let grav = gravity.sorted { $0.ts < $1.ts }
@@ -1453,13 +1456,13 @@ public enum SleepStager {
         let runsBeforeBridge = traceSink == nil ? 0 : runs.filter { $0.stage == "sleep" }.count
         // #737: capture the per-pair reasons BEFORE the merge mutates `runs`, so a bridge that changed
         // nothing still says why (gapTooLong / hrOutOfBand / overlap) instead of only before==after.
-        let onsetRuns = bridgeEnabled
+        let onsetRuns = method == .v3 && bridgeEnabled
             ? onsetEvidenceRuns(buildRuns(grav, flags), hr: hrS, baseline: baseline)
             : runs
         let bridgeResult = bridgeSparseSleepTraced(runs, sparse: bridgeEnabled, hr: hrS, baseline: baseline)
         let bridgeAttempts = bridgeResult.1
         runs = bridgeResult.0.map { period in
-            let onset = conservativeOnset(for: period, evidence: onsetRuns)
+            let onset = method == .v3 ? conservativeOnset(for: period, evidence: onsetRuns) : period.start
             guard onset > period.start else { return period }
             traceSink?(GateTrace.runLine(index: -1, startTs: onset, endTs: period.end,
                 verdict: .kept, gate: "conservativeOnset",
@@ -1600,7 +1603,7 @@ public enum SleepStager {
                     detail: "daytime=true restingHR=\(resting ?? -1) baseline=\(baseline.map { Int($0) } ?? -1) nightTail=false"))
                 continue
             }
-            let rawStages = useSleepStagerV2
+            let rawStages = method.usesV2Stages
                 ? SleepStagerV2.stageSession(start: p.start, end: p.end, grav: grav,
                                              hr: hrS, rr: rrS, resp: respS)
                 : stageSession(start: p.start, end: p.end, grav: grav,

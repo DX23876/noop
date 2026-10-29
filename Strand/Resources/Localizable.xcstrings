@@ -486493,6 +486493,70 @@
         }
       }
     },
+    "V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 erkennt den Schlafbeginn vorsichtiger und nutzt die V2-Schlafphasen. V2 behält die bisherige Erkennung bei; V1 ist die klassische Methode. Beim Wechsel werden die letzten Nächte neu berechnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 detecta el inicio del sueño con más cautela y usa las fases de V2. V2 conserva la detección anterior; V1 es el método clásico. Al cambiar se recalculan las noches recientes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 détecte le début du sommeil avec plus de prudence et utilise les phases de V2. V2 conserve la détection précédente ; V1 est la méthode classique. Le changement recalcule les nuits récentes."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A V3 deteta o início do sono com mais cautela e usa as fases da V2. A V2 mantém a deteção anterior; a V1 é o método clássico. A mudança recalcula as noites recentes."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 ostrożniej rozpoznaje początek snu i używa faz V2. V2 zachowuje poprzednie wykrywanie; V1 to metoda klasyczna. Zmiana przelicza ostatnie noce."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 rileva l’inizio del sonno con più cautela e usa le fasi di V2. V2 mantiene il rilevamento precedente; V1 è il metodo classico. Il cambio ricalcola le notti recenti."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 осторожнее определяет начало сна и использует фазы V2. V2 сохраняет прежнее определение; V1 — классический метод. При смене пересчитываются последние ночи."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 更谨慎地识别入睡时间，并使用 V2 的睡眠阶段。V2 保留之前的识别方式；V1 是经典方法。切换后会重新计算最近几晚。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V3 更謹慎地識別入睡時間，並使用 V2 的睡眠階段。V2 保留之前的識別方式；V1 是經典方法。切換後會重新計算最近幾晚。"
+          }
+        }
+      }
+    },
     "Valid for" : {
       "localizations" : {
         "de" : {

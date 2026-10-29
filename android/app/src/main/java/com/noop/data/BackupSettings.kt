@@ -61,6 +61,7 @@ object BackupSettingsCodec {
         "units.skinTempDisplay" to Kind.STRING,   // #1846, carried like the other display units
         "effort.scale" to Kind.STRING,
         "dayCycle.mode" to Kind.STRING,
+        "sleep.stagerMethod" to Kind.STRING,
         // The ONE layout pref carried (#today-hosted-cards): the Trends/Sleep cards the user chose to host
         // in Today, a JSON [String] of ids. Unlike section order, this is a deliberate composition the user
         // built and expects across a restore. Its POSITION (the addedCards slot in today.sectionOrder) is
@@ -179,6 +180,7 @@ object BackupSettingsBridge {
             }.getOrDefault(emptyList())
             if (names.isNotEmpty()) values["journal.customBehaviors"] = names.joinToString("\n")
         }
+        values["sleep.stagerMethod"] = com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod
         return BackupSettingsCodec.encode(values)
     }
 
@@ -194,6 +196,9 @@ object BackupSettingsBridge {
 
         ProfileStore.from(context).applyBackup(values)
 
+        (values["sleep.stagerMethod"] as? String)?.takeIf {
+            it in com.noop.ble.PuffinExperiment.SLEEP_METHODS
+        }?.let { com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod = it }
         val editor = NoopPrefs.of(context).edit()
         (values["units.system"] as? String)?.let { editor.putString(NoopPrefs.KEY_UNIT_SYSTEM, it) }
         (values["units.distance"] as? String)?.let { editor.putString(NoopPrefs.KEY_DISTANCE_UNIT_SYSTEM, it) }

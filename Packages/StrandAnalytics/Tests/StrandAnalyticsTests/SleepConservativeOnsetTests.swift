@@ -54,7 +54,7 @@ final class SleepConservativeOnsetTests: XCTestCase {
     }
 
     private func detect(_ input: Fixture) -> [SleepSession] {
-        SleepStager.detectSleep(hr: input.hr, gravity: input.gravity, useSleepStagerV2: true)
+        SleepStager.detectSleep(hr: input.hr, gravity: input.gravity, useSleepStagerV2: true, method: .v3)
     }
 
     func testShortQuietLeadingBoutsDoNotBecomeHoursOfSleepBeforeAnEstablishedNight() throws {
@@ -212,7 +212,7 @@ final class SleepConservativeOnsetTests: XCTestCase {
         let plain = detect(input)
         var lines: [String] = []
         let traced = SleepStager.detectSleep(hr: input.hr, gravity: input.gravity,
-                                             useSleepStagerV2: true, traceSink: { lines.append($0) })
+                                             useSleepStagerV2: true, traceSink: { lines.append($0) }, method: .v3)
         XCTAssertEqual(traced, plain)
         XCTAssertTrue(lines.contains { $0.contains("gate=conservativeOnset ")
             && $0.contains("anchorStartTs=\(plain[0].start)") },

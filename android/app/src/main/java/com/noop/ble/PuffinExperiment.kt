@@ -72,19 +72,21 @@ class PuffinExperiment(
         get() = prefs.getBoolean(KEY_ECG, false)
         set(v) = prefs.edit().putBoolean(KEY_ECG, v).apply()
 
-    /** True if the user opted in to "Experimental sleep staging (V2)": detected nights are re-staged with
-     *  [com.noop.analytics.SleepStagerV2] (the transparent cardiorespiratory recipe, reimplemented from
-     *  contributor PR #600) instead of the older V1 [com.noop.analytics.SleepStager]. Pure analysis switch
-     *  — it changes ONLY which staging engine runs over an already-detected sleep window; detection, scoring
-     *  and the V1 code path itself are untouched. Model-agnostic (works on WHOOP 4 and 5). **Default true —
-     *  V2, not V1, is what stages a normal user's nights**:
-     *  V2 was promoted to the default staging engine after a 44-subject cross-subject benchmark (AAUWSS +
-     *  Walch sleep-accel, leave-one-subject-out) showed V2 strictly dominates V1 (kappa 0.35 vs 0.03, deep
-     *  recall 55% vs 1%) — the multi-subject validation this recipe originally lacked. V1 remains available.
-     *  Mirrors the macOS `PuffinExperiment.experimentalSleepV2Key`. */
+    /** Phase-engine compatibility for legacy Kotlin call sites. Shared-core detection uses
+     *  [sleepStagerMethod], including the V3 conservative onset policy. */
     var experimentalSleepV2: Boolean
-        get() = prefs.getBoolean(KEY_EXPERIMENTAL_SLEEP_V2, true)
-        set(v) = prefs.edit().putBoolean(KEY_EXPERIMENTAL_SLEEP_V2, v).apply()
+        get() = sleepStagerMethod != "v1"
+        set(v) { sleepStagerMethod = if (v) "v2" else "v1" }
+
+    /** Complete shared-core pipeline. Explicit new choices override the legacy phase-engine flag. */
+    var sleepStagerMethod: String
+        get() = prefs.getString(KEY_SLEEP_STAGER_METHOD, null)?.takeIf { it in SLEEP_METHODS }
+            ?: if (prefs.contains(KEY_EXPERIMENTAL_SLEEP_V2) &&
+                   !prefs.getBoolean(KEY_EXPERIMENTAL_SLEEP_V2, true)) "v1" else "v3"
+        set(v) {
+            require(v in SLEEP_METHODS)
+            prefs.edit().putString(KEY_SLEEP_STAGER_METHOD, v).apply()
+        }
 
     /** True if the user opted in to "HR-from-PPG sub-lag interpolation" (default false): the v26 optical-PPG
      *  gap-fill HR estimator ([com.noop.protocol.PpgHr]) refines its integer autocorrelation lag with a
@@ -341,6 +343,8 @@ class PuffinExperiment(
 
         /** "Experimental sleep staging (V2)" opt-in (mirrors macOS `PuffinExperiment.experimentalSleepV2Key`). */
         const val KEY_EXPERIMENTAL_SLEEP_V2 = "noopExperimentalSleepV2"
+        const val KEY_SLEEP_STAGER_METHOD = "noopSleepStagerMethod"
+        val SLEEP_METHODS = listOf("v3", "v2", "v1")
 
         /** "HR-from-PPG sub-lag interpolation" opt-in (mirrors macOS `PuffinExperiment.ppgHrSubLagInterpKey`). */
         const val KEY_PPG_HR_SUBLAG_INTERP = "noopPpgHrSubLagInterp"

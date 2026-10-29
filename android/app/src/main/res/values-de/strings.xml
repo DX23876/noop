@@ -4524,4 +4524,7 @@
     <string name="forge_lt_aside_none">Kein bestimmter Grund</string>
     <string name="coach_goals_journey">Ziele &amp; Weg</string>
     <string name="coach_goals_journey_subtitle">Ziel setzen und Fortschritt sehen.</string>
+
+    <string name="sleep_stager_method">Schlafphasenmethode</string>
+    <string name="sleep_stager_method_detail">V3 erkennt den Schlafbeginn vorsichtiger und nutzt die V2-Schlafphasen. V2 behält die bisherige Erkennung bei; V1 ist die klassische Methode. Beim Wechsel werden die letzten Nächte neu berechnet.</string>
 </resources>

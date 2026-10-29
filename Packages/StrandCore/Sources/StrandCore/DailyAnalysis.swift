@@ -1778,6 +1778,8 @@ public final class DailyAnalysis {
         let semanticSignatureTail = [
             "stepTicks=\(profile.stepTicksPerStep.bitPattern)",
             "tz=\(tzOffset)",
+            "sleepMethod=\(settings.sleepStagerMethod.rawValue)",
+            "motionAwareWake=\(settings.motionAwareWake ? 1 : 0)",
             "deepHrv=\(deepHrvWindow ? 1 : 0)",
             "spo2Candidate=\(spo2CandidateDisplayOn ? 1 : 0)",
             "effortMethod=\(String(describing: effortMethodGlobal))",
@@ -2252,7 +2254,8 @@ public final class DailyAnalysis {
                                                      deepHrvWindow: deepHrvWindow,
                                                      effortMethod: effortMethodGlobal,
                                                      workoutPeakMET: EnergyModelRefresh.peakMET(
-                                                        on: day, in: workoutPeakByDay))
+                                                        on: day, in: workoutPeakByDay),
+                                                     method: settings.sleepStagerMethod)
                 await Task.yield()
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =

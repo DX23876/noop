@@ -4527,4 +4527,7 @@
     <string name="forge_lt_aside_none">Bez konkretnego powodu</string>
     <string name="coach_goals_journey">Cele i droga</string>
     <string name="coach_goals_journey_subtitle">Ustal cel i śledź postępy.</string>
+
+    <string name="sleep_stager_method">Metoda faz snu</string>
+    <string name="sleep_stager_method_detail">V3 ostrożniej rozpoznaje początek snu i używa faz V2. V2 zachowuje poprzednie wykrywanie; V1 to metoda klasyczna. Zmiana przelicza ostatnie noce.</string>
 </resources>

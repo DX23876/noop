@@ -193,11 +193,8 @@ struct SettingsView: View {
     // iPhone (between Test Centre and Settings) and its own sidebar item on macOS. Its `@AppStorage`
     // keys live there now; nothing here reads them.
 
-    /// "Experimental sleep staging (V2)" (ON by default, promoted after the 44-subject cross-subject
-    /// benchmark). When on, detected nights are re-staged with `SleepStagerV2` (the transparent
-    /// cardiorespiratory recipe) instead of the older V1 stager. Read at the staging call site in
-    /// `Repository`. See [PuffinExperiment.experimentalSleepV2Key].
-    @AppStorage(PuffinExperiment.experimentalSleepV2Key) private var experimentalSleepV2Enabled = true
+    /// Persist the complete pipeline; an absent new key resolves the legacy choice once read.
+    @AppStorage(PuffinExperiment.sleepStagerMethodKey) private var sleepStagerMethodRaw = ""
 
     /// "Motion-aware wake refinement" (#364 follow-up, OFF by default). A post-pass over the already-staged
     /// hypnogram: reclassifies a scored WAKE segment to `light` when its per-minute step-tick cadence shows
@@ -3634,19 +3631,26 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
-                // Sleep staging engine. V2 (the transparent cardiorespiratory recipe) is the DEFAULT after
-                // a 44-subject benchmark; Classic falls back to the older V1 stager. Future nights only.
                 FormRow(label: "Sleep stage method") {
-                    Picker("Sleep stage method", selection: $experimentalSleepV2Enabled) {
-                        Text("Current").tag(true)
-                        Text("Classic").tag(false)
+                    Picker("Sleep stage method", selection: Binding(
+                        get: { SleepStager.Method.resolvedPreference(
+                            rawValue: sleepStagerMethodRaw,
+                            legacyV2: UserDefaults.standard.object(forKey: PuffinExperiment.experimentalSleepV2Key) as? Bool) },
+                        set: { sleepStagerMethodRaw = $0.rawValue }
+                    )) {
+                        Text(verbatim: "V3").tag(SleepStager.Method.v3)
+                        Text(verbatim: "V2").tag(SleepStager.Method.v2)
+                        Text(verbatim: "V1").tag(SleepStager.Method.v1)
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Sleep stage method")
+                    .onChange(of: sleepStagerMethodRaw) { _ in
+                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                    }
                 }
-                Text("Current finds deep and REM sleep better. Classic is the older method. Applies from the next night.")
+                Text("V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

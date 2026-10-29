@@ -33,7 +33,8 @@ final class AppAnalysisHost: AnalysisHost {
             healthspan: HealthspanFeature.isEnabled,
             hrvBaselineEpoch: Baselines.hrvBaselineEpoch(defaults),
             recoveryBaselineEpoch: Baselines.recoveryBaselineEpoch(defaults),
-            traces: Set(TestDomain.allCases.filter { TestCentre.active($0) }))
+            traces: Set(TestDomain.allCases.filter { TestCentre.active($0) }),
+            sleepStagerMethod: PuffinExperiment.sleepStagerMethod(in: defaults))
     }
 
     func diagnostic(_ line: String, domain: TestDomain?) {
