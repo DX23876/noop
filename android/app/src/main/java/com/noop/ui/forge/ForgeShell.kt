@@ -121,13 +121,13 @@ private fun Content(tab: ForgeTab, width: ForgeWidth, extra: PaddingValues,
 
 @Composable
 private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifier: Modifier = Modifier) {
-    // Opaque with an outline and a shadow: Android cannot blur the scrolling content behind the bar as iOS glass does,
+    // Opaque with a hairline and a soft shadow: Android cannot blur the scrolling content behind the bar as iOS glass does,
     // and a see-through or outline-less bar fused with the white cards scrolling under it.
     // A real shadow, so the bar stays apart from the white cards that scroll under it (as iOS's glass bar does).
     ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth()
-                  .shadow(14.dp, RoundedCornerShape(32.dp), ambientColor = Color.Black.copy(alpha = 0.18f),
-                          spotColor = Color.Black.copy(alpha = 0.32f))
-                  .border(BorderStroke(1.dp, Forge.colors.border), RoundedCornerShape(32.dp)), radius = 32.dp,
+                  .shadow(18.dp, RoundedCornerShape(32.dp), ambientColor = Color.Black.copy(alpha = 0.16f),
+                          spotColor = Color.Black.copy(alpha = 0.26f))
+                  .border(BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.10f)), RoundedCornerShape(32.dp)), radius = 32.dp,
               fill = Forge.colors.surface, contentPadding = 6.dp) {
         Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
