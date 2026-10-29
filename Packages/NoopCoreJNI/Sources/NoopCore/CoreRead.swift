@@ -48,6 +48,9 @@ public enum CoreRead {
     /// The metrics a trend screen can chart.
     public enum Metric: String, CaseIterable, Sendable {
         case charge, effort, rest, hrv, restingHr, sleepMinutes, respRate
+        /// The day rows' own SpO2, steps and skin-temperature deviation, as Today's detailed tiles draw them
+        /// (`LiquidTodayView` `kSparks` "spo2", "steps", "skin_temp").
+        case spo2, steps, skinTemp
     }
 
     public static func day(_ day: String, reader: StoreReader) async -> Day? {
@@ -121,6 +124,9 @@ public enum CoreRead {
             case .restingHr: row.restingHr.map(Double.init)
             case .sleepMinutes: row.totalSleepMin
             case .respRate: row.respRateBpm
+            case .spo2: row.spo2Pct
+            case .steps: row.steps.map(Double.init)
+            case .skinTemp: row.skinTempDevC
             case .rest: nil
             }
             return value.map { Point(day: row.day, value: $0) }

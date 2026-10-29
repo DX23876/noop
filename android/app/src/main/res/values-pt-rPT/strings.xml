@@ -4832,4 +4832,6 @@
     <plurals name="forge_cb_pts_plus">
         <item quantity="other">+%1$d pontos</item>
     </plurals>
+    <string name="forge_tr_widened">%1$d leituras · esparsas, ampliadas para %2$s</string>
+    <string name="forge_tr_one_widened">1 leitura · escassa, ampliada para %1$s</string>
 </resources>

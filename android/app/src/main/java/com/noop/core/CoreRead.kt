@@ -51,7 +51,7 @@ object CoreRead {
     /** The metrics a trend screen can chart; the name is the core's. */
     enum class Metric(val key: String) {
         Charge("charge"), Effort("effort"), Rest("rest"), Hrv("hrv"), RestingHr("restingHr"),
-        SleepMinutes("sleepMinutes"), RespRate("respRate"),
+        SleepMinutes("sleepMinutes"), RespRate("respRate"), Spo2("spo2"), Steps("steps"), SkinTemp("skinTemp"),
     }
 
     /**

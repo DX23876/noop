@@ -4810,4 +4810,6 @@
     <plurals name="forge_cb_pts_plus">
         <item quantity="other">+%1$d 分</item>
     </plurals>
+    <string name="forge_tr_widened">%1$d 条读数 · 稀疏，已加宽至 %2$s</string>
+    <string name="forge_tr_one_widened">1 条读数 · 稀疏，已加宽至 %1$s</string>
 </resources>

@@ -4856,4 +4856,6 @@
     <plurals name="forge_cb_pts_plus">
         <item quantity="other">+%1$d pkt</item>
     </plurals>
+    <string name="forge_tr_widened">Odczyty %1$d · rzadkie, rozszerzone do %2$s</string>
+    <string name="forge_tr_one_widened">1 odczyt · rzadki, rozszerzony do %1$s</string>
 </resources>

@@ -4741,4 +4741,6 @@
         <item quantity="one">+%1$d балл</item>
         <item quantity="other">+%1$d баллов</item>
     </plurals>
+    <string name="forge_tr_one_widened">1 показание · разреженное, расширено до %1$s</string>
+    <string name="forge_tr_widened">%1$d измерений · разреженно, расширено до %2$s</string>
 </resources>

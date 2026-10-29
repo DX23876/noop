@@ -61,8 +61,22 @@ private val KeyMetric.series: CoreRead.Metric?
         KeyMetric.HRV -> CoreRead.Metric.Hrv
         KeyMetric.RESTING_HR -> CoreRead.Metric.RestingHr
         KeyMetric.RESPIRATORY -> CoreRead.Metric.RespRate
+        KeyMetric.BLOOD_OXYGEN -> CoreRead.Metric.Spo2
+        KeyMetric.STEPS -> CoreRead.Metric.Steps
+        KeyMetric.SKIN_TEMP -> CoreRead.Metric.SkinTemp
         else -> null
     }
+
+/**
+ * The detailed tile's line (`LiquidTodayView.windowedSpark`): the points inside the window, or, when that cannot
+ * draw a line, the last [maxPoints] measurements of the whole series, so a sparse series such as weight never
+ * leaves a tile empty while its number shows.
+ */
+internal fun windowedSpark(points: List<Pair<String, Double>>, cutoff: String, maxPoints: Int): List<Double> {
+    val windowed = points.filter { it.first >= cutoff }
+    if (windowed.size >= 2) return windowed.map { it.second }
+    return points.takeLast(maxPoints).map { it.second }
+}
 
 /** One tile's figures: the value, its unit, the change against the week before and where a tap goes. */
 private class KeyTile(val value: String?, val unit: String?, val delta: String? = null, val opens: CoreRead.Metric? = null,
@@ -100,8 +114,16 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
     }
     val sparks by produceState<Map<KeyMetric, List<Double>>>(emptyMap(), date, selection, detailed, windowDays) {
         value = if (!detailed) emptyMap() else withContext(Dispatchers.IO) {
-            val from = date.minusDays(windowDays - 1L).toString(); val to = date.toString()
-            selection.metrics.mapNotNull { m -> m.series?.let { s -> m to CoreRead.series(s, from, to).map { it.value } } }
+            val cutoff = date.minusDays(windowDays - 1L).toString(); val to = date.toString()
+            // The whole history up to the day, so a sparse series can fall back to its latest measurements.
+            val dismissed = if (KeyMetric.CALORIES in selection.metrics) dismissedTrainingWorkouts(context) else emptyList()
+            fun history(metric: KeyMetric): List<Pair<String, Double>>? = when (metric) {
+                KeyMetric.WEIGHT -> CoreBody.snapshot(context)?.weight?.filter { it.day <= to }?.map { it.day to it.value }
+                KeyMetric.CALORIES -> CoreEnergyDetail.read(context, to, "sevenDay", dismissed)
+                    ?.summaries?.mapNotNull { s -> s.total?.let { s.day to it } }
+                else -> metric.series?.let { s -> CoreRead.series(s, "1970-01-01", to).map { it.day to it.value } }
+            }
+            selection.metrics.mapNotNull { m -> history(m)?.let { m to windowedSpark(it, cutoff, windowDays) } }
                 .filter { it.second.size >= 2 }.toMap()
         }
     }
@@ -205,6 +227,8 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
                     CoreRead.Metric.Rest -> ForgeMetricTrendPage(metric, R.string.forge_rest, "%", colors.rest, true, ask) { open = null }
                     CoreRead.Metric.SleepMinutes -> ForgeMetricTrendPage(metric, R.string.forge_sleep,
                         stringResource(R.string.forge_unit_min), colors.rest, true, ask) { open = null }
+                    // SpO2, steps and skin temperature draw a tile line only; their tiles open no page, as on iOS.
+                    CoreRead.Metric.Spo2, CoreRead.Metric.Steps, CoreRead.Metric.SkinTemp -> Unit
                 }
             }
         }

@@ -148,7 +148,8 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.
         }
         WeekReview(all, today, weekOffset, onStep = { weekOffset = it })
         RangeBar(range, all[CoreRead.Metric.Charge].orEmpty(), today) { rangeName = it.name }
-        fun window(m: CoreRead.Metric) = inRange(all[m].orEmpty(), range, today)
+        // Each card falls back to the next wider window that holds a reading (`HostedTrendData.resolve`).
+        fun window(m: CoreRead.Metric) = resolveWindow(all[m].orEmpty(), range, today).first
         val subtitle = range.days?.let { stringResource(R.string.forge_tr_trailing_days, it) }
             ?: stringResource(R.string.forge_tr_all_history)
         val tall = width != ForgeWidth.Compact
@@ -178,6 +179,18 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.
             ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeTrainingHistoryPage(onClose = { history = false }) }
         }
     }
+}
+
+/**
+ * The points of the smallest window at or wider than [selected] that holds any, and that window (iOS
+ * `HostedTrendData.resolve`); all history when none does, so a new wearer never sees an empty card.
+ */
+private fun resolveWindow(points: List<CoreRead.Point>, selected: TrendRange, today: LocalDate): Pair<List<CoreRead.Point>, TrendRange> {
+    for (r in TrendRange.entries.drop(selected.ordinal)) {
+        val window = inRange(points, r, today)
+        if (window.isNotEmpty()) return window to r
+    }
+    return inRange(points, TrendRange.All, today) to TrendRange.All
 }
 
 /** The points inside [range] ending today; all of them for all history. */
@@ -350,10 +363,18 @@ private fun RangeBar(range: TrendRange, charge: List<CoreRead.Point>, today: Loc
                             color = Forge.sceneInk.secondary)
             }
         }
-        val n = inRange(charge, range, today).size
-        val name = stringResource(range.nameRes)
-        Text(if (n == 1) stringResource(R.string.forge_tr_one_reading, name) else stringResource(R.string.forge_tr_readings, n, name),
-             style = Forge.type.footnote, color = Forge.sceneInk.tertiary)
+        val (window, effective) = resolveWindow(charge, range, today)
+        val n = window.size
+        val widened = effective != range
+        val name = stringResource(effective.nameRes)
+        Text(when {
+                widened && n == 1 -> stringResource(R.string.forge_tr_one_widened, name)
+                widened -> stringResource(R.string.forge_tr_widened, n, name)
+                n == 1 -> stringResource(R.string.forge_tr_one_reading, name)
+                else -> stringResource(R.string.forge_tr_readings, n, name)
+            },
+             style = Forge.type.footnote,
+             color = if (widened) ForgeTokens.StrandPalette.statusWarning.resolve() else Forge.sceneInk.tertiary)
     }
 }
 
