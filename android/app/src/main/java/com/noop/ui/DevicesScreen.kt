@@ -118,6 +118,8 @@ fun DevicesScreen(
      *  Oura app instead (import a file)" link and every honest Oura failure offer this. Defaults to a no-op
      *  so existing call sites keep compiling; AppRoot wires it to navigate to Data Sources. */
     onUseFileImport: () -> Unit = {},
+    /** Fork (DX23876): when set, "Add device" opens this (the Forge pairing) instead of the classic wizard. */
+    onAddDevice: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val live by viewModel.live.collectAsStateWithLifecycle()
@@ -355,7 +357,7 @@ fun DevicesScreen(
         }
 
         // Prominent "+ Add a device" button.
-        item { AddDeviceButton(onClick = { showAddWizard = true }) }
+        item { AddDeviceButton(onClick = { onAddDevice?.invoke() ?: run { showAddWizard = true } }) }
 
         // #1300 tier 2: read-only "compare straps" card when 2 WHOOP straps share a readable day.
         strapCompare?.let { c -> item { CompareCard(c) } }

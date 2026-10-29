@@ -217,6 +217,12 @@ class ProfileStore(private val prefs: SharedPreferences) {
      *  both go through here, so age always flows from a DOB). Clamped to [AGE_MIN]..[AGE_MAX]. */
     fun setAge(years: Int) { dateOfBirthMillis = dobForAge(years.coerceIn(AGE_MIN, AGE_MAX)) }
 
+    /** Fork (DX23876): the wearer's first name for More and the greetings, as iOS `ProfileStore.name`. Local only,
+     *  never in a backup (iOS keeps it out of the `.noopbak` whitelist too); blank means none. */
+    var name: String
+        get() = prefs.getString(KEY_NAME, "") ?: ""
+        set(v) { val t = v.trim(); prefs.edit().apply { if (t.isEmpty()) remove(KEY_NAME) else putString(KEY_NAME, t) }.apply() }
+
     /** "male" | "female" | "nonbinary" — matches the macOS tag values. */
     var sex: String
         get() = prefs.getString(KEY_SEX, "male") ?: "male"
@@ -444,6 +450,7 @@ class ProfileStore(private val prefs: SharedPreferences) {
          *  keeps round-tripping unchanged. */
         private const val KEY_AGE = "age"
         private const val KEY_SEX = "sex"
+        private const val KEY_NAME = "profile_name"
         private const val KEY_WEIGHT = "weight_kg"
         private const val KEY_USE_HC_WEIGHT = "use_health_connect_weight"
         private const val KEY_HC_WEIGHT_DAY = "health_connect_weight_day"

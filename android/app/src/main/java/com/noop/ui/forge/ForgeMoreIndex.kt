@@ -54,6 +54,27 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.HourglassBottom
+import androidx.compose.material.icons.rounded.WbTwilight
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import com.noop.R
 import com.noop.ui.AppViewModel
 import com.noop.ui.BreatheScreen
@@ -74,6 +95,7 @@ import com.noop.ui.RhythmRoute
 import com.noop.ui.SmartAlarmScreen
 import com.noop.ui.StressScreen
 import com.noop.ui.TrendsExploreScreen
+import com.noop.ui.WorkoutsScreen
 
 /** The More categories, as iOS groups them (`MoreCategory`). */
 enum class MoreCategory(val titleRes: Int, val subtitleRes: Int, val icon: ImageVector) {
@@ -83,50 +105,81 @@ enum class MoreCategory(val titleRes: Int, val subtitleRes: Int, val icon: Image
 }
 
 /**
- * Every place More opens, in iOS order (`MoreCatalog`): the category it is listed in (null for a root row), its
- * title, icon and search words. A destination iOS has and Android does not yet is left out rather than opening an
- * empty page; the parity plan adds each one with its screen.
+ * Every place More opens, as iOS has them (`MoreCatalog`): the category whose tint the row takes (null for the
+ * root rows), its title, icon and search words. Which rows each category page lists, and in what order, is
+ * [MORE_GROUPS]; [searchOnly] destinations are found by the search but have no row, as iOS's `searchOnlyEntries`.
  */
-enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: ImageVector, val keywords: List<String>) {
-    Coach(MoreCategory.Analysis, R.string.nav_coach, Icons.Rounded.Forum,
-          listOf("ai", "coach", "chat", "ask", "plan")),
+enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: ImageVector, val keywords: List<String>,
+                    val searchOnly: Boolean = false) {
+    Momentum(MoreCategory.Analysis, R.string.forge_momentum_title, Icons.Rounded.Bolt,
+             listOf("today", "priority", "what matters", "insights", "goals")),
     Insights(MoreCategory.Analysis, R.string.forge_more_insights, Icons.Rounded.AutoAwesome,
              listOf("correlations", "weekly review", "patterns")),
     Scoring(MoreCategory.Analysis, R.string.forge_more_scoring, Icons.Rounded.Psychology,
             listOf("scoring", "charge", "effort", "rest", "on-device")),
+    Goals(null, R.string.forge_goals_more_title, Icons.Rounded.TrackChanges,
+          listOf("goals", "weekly goal", "monthly goal", "journey", "plan", "progress", "coach")),
     Journal(MoreCategory.Analysis, R.string.forge_more_journal, Icons.Rounded.MenuBook,
             listOf("log", "behaviour", "experiments", "caffeine", "alcohol")),
-    Explore(MoreCategory.Analysis, R.string.nav_explore, Icons.Rounded.GridView, listOf("metrics", "trends", "history")),
+    Explore(MoreCategory.Analysis, R.string.nav_explore, Icons.Rounded.GridView,
+            listOf("metrics", "trends", "history", "every signal")),
     Compare(MoreCategory.Analysis, R.string.nav_compare, Icons.Rounded.CompareArrows,
             listOf("two metrics", "overlay", "correlation")),
     Fused(MoreCategory.Analysis, R.string.nav_fused_record, Icons.Rounded.Layers,
           listOf("merged record", "all sources", "one timeline")),
-    Momentum(MoreCategory.HealthBody, R.string.forge_momentum_title, Icons.Rounded.AutoAwesome,
-             listOf("momentum", "readiness", "priorities", "goals")),
-    Ecg(MoreCategory.HealthBody, R.string.forge_ecg_title, Icons.Rounded.MonitorHeart, listOf("ecg", "ekg", "heart", "rhythm", "afib")),
+    Training(MoreCategory.HealthBody, R.string.forge_training, Icons.Rounded.FitnessCenter,
+             listOf("workouts", "strength", "cardio", "training load", "sessions", "exercise")),
     Body(MoreCategory.HealthBody, R.string.forge_body_title, Icons.Rounded.Accessibility,
-         listOf("body", "weight", "weigh-in", "waist", "measurements", "body fat", "tape")),
+         listOf("weight", "body fat", "waist", "measurements", "tape", "navy", "circumference", "composition", "scale")),
     Energy(MoreCategory.HealthBody, R.string.forge_energy_title, Icons.Rounded.LocalFireDepartment,
-           listOf("energy plan", "calories", "maintenance", "intake", "basal rate", "TDEE")),
-    AgeLess(MoreCategory.HealthBody, R.string.forge_ageless_title, Icons.Rounded.Favorite,
-            listOf("ageless", "healthspan", "biological age", "aging speed")),
-    RhythmAge(MoreCategory.HealthBody, R.string.forge_rhythm_title, Icons.Rounded.Waves,
-              listOf("daily rhythm", "rhythm age", "circadian", "cosinor")),
+           listOf("calories", "tdee", "maintenance", "deficit", "intake", "bmr", "planning", "kcal", "diet", "surplus")),
     Health(MoreCategory.HealthBody, R.string.nav_health, Icons.Rounded.Favorite,
            listOf("biometrics", "fitness age", "vitality", "skin temperature")),
+    AgeLess(MoreCategory.HealthBody, R.string.forge_ageless_title, Icons.Rounded.HourglassBottom,
+            listOf("healthspan", "biological age", "age", "levers")),
+    RhythmAge(MoreCategory.HealthBody, R.string.forge_rhythm_title, Icons.Rounded.WbTwilight,
+              listOf("rhythm age", "CosinorAge", "circadian", "movement", "day and night")),
     Biomarkers(MoreCategory.HealthBody, R.string.forge_more_biomarkers, Icons.Rounded.Science,
                listOf("blood", "blood pressure", "lab results", "body composition")),
     Stress(MoreCategory.HealthBody, R.string.nav_stress, Icons.Rounded.Bolt, listOf("strain", "load", "tension")),
     BeatRhythm(MoreCategory.HealthBody, R.string.forge_more_beat_rhythm, Icons.Rounded.Waves,
                listOf("beat-to-beat", "R-R", "regularity", "experimental")),
-    Live(MoreCategory.Tools, R.string.nav_live, Icons.Rounded.MonitorHeart, listOf("heart rate", "BPM", "now")),
-    Breathe(MoreCategory.Tools, R.string.nav_breathe, Icons.Rounded.Air, listOf("breathing", "calm", "biofeedback")),
+    Ecg(MoreCategory.HealthBody, R.string.forge_ecg_title, Icons.Rounded.MonitorHeart,
+        listOf("ECG", "EKG", "electrocardiogram", "WHOOP MG", "atrial fibrillation", "experimental")),
+    Live(MoreCategory.Tools, R.string.nav_live, Icons.Rounded.MonitorHeart, listOf("heart rate", "BPM", "live console", "now")),
+    Breathe(MoreCategory.Tools, R.string.nav_breathe, Icons.Rounded.Air,
+            listOf("breathing", "box breathing", "calm", "biofeedback")),
     Intervals(MoreCategory.Tools, R.string.nav_intervals, Icons.Rounded.Timer, listOf("interval timer", "rounds", "HIIT")),
-    Goals(null, R.string.forge_goals_more_title, Icons.Rounded.TrackChanges,
-          listOf("goals", "weekly goal", "monthly goal", "daily goal", "streak", "target")),
-    Alarms(null, R.string.nav_alarms, Icons.Rounded.Alarm, listOf("smart alarm", "wake", "wake-up window")),
     Settings(null, R.string.nav_settings, Icons.Rounded.Settings, listOf("preferences", "options", "configuration")),
+    Alarms(null, R.string.nav_alarms, Icons.Rounded.Alarm, listOf("smart alarm", "wake", "wake-up window")),
+    // Found by the search only. iOS reaches the coach through its button and Today card, and its settings
+    // under Settings › AI Coach; the training reports sit behind Training.
+    Coach(MoreCategory.Analysis, R.string.nav_coach, Icons.Rounded.Forum,
+          listOf("ai", "coach", "chat", "ask", "plan"), searchOnly = true),
+    Workouts(MoreCategory.HealthBody, R.string.forge_more_workouts, Icons.Rounded.DirectionsRun,
+             listOf("training", "sessions", "exercise", "activities"), searchOnly = true),
+    Strength(MoreCategory.HealthBody, R.string.forge_more_strength, Icons.Rounded.FitnessCenter,
+             listOf("lifting", "hevy", "sets", "reps", "volume", "1rm", "gym"), searchOnly = true),
+    Cardio(MoreCategory.HealthBody, R.string.forge_more_cardio, Icons.Rounded.DirectionsRun,
+           listOf("running", "cycling", "swimming", "pace", "distance", "endurance", "km", "speed", "rowing"),
+           searchOnly = true),
+    TrainingLoad(MoreCategory.HealthBody, R.string.forge_more_training_load, Icons.Rounded.BarChart,
+                 listOf("strength load", "cardio load", "session RPE", "sRPE", "acute", "chronic", "training stress"),
+                 searchOnly = true),
 }
+
+/** Each category page's rows in iOS order (`MoreCatalog.groups`); Goals is listed in Analysis as well as at the root. */
+internal val MORE_GROUPS: Map<MoreCategory, List<MoreDest>> = mapOf(
+    MoreCategory.Analysis to listOf(MoreDest.Momentum, MoreDest.Insights, MoreDest.Scoring, MoreDest.Goals,
+                                    MoreDest.Journal, MoreDest.Explore, MoreDest.Compare, MoreDest.Fused),
+    MoreCategory.HealthBody to listOf(MoreDest.Training, MoreDest.Body, MoreDest.Energy, MoreDest.Health,
+                                      MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Biomarkers, MoreDest.Stress,
+                                      MoreDest.BeatRhythm, MoreDest.Ecg),
+    MoreCategory.Tools to listOf(MoreDest.Live, MoreDest.Breathe, MoreDest.Intervals),
+)
+
+/** The "Quick access" rows under the categories (`MoreCatalog.rootEntries`). */
+internal val MORE_QUICK_ACCESS = listOf(MoreDest.Settings, MoreDest.Alarms)
 
 /** Lab features appear only while switched on, as iOS lists them. */
 internal fun MoreDest.shown(context: android.content.Context): Boolean =
@@ -174,10 +227,10 @@ fun rememberMoreNavigator(): MoreNavigator {
 }
 
 /**
- * Fork (DX23876), Android parity plan 2.1: the More index as iOS draws it (`MoreCatalog`): a search over every
- * destination, the root rows (Settings, Alarms), then the three categories, each opening its page of destinations.
- * Destinations Android has as classic screens open in the Forge frame (`Hosted`), so every page has one look.
- * Drawn inside the More tab's column; [MoreOverlay] shows the pages.
+ * Fork (DX23876), Android parity plan 2.1: the More index as iOS draws it (`RootTabView.moreTab`): a search over every
+ * destination, Goals on its own card, the three categories under "Browse", each a card of its own opening its page,
+ * and Settings and Alarms under "Quick access". Destinations Android has as classic screens open in the Forge frame
+ * (`Hosted`), so every page has one look. Drawn inside the More tab's column; [MoreOverlay] shows the pages.
  */
 @Composable
 fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit) {
@@ -195,13 +248,44 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit) {
         } else DestCard(hits, ::open)
         return
     }
-    DestCard(MoreDest.entries.filter { it.category == null }, ::open)
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-        MoreCategory.entries.forEachIndexed { i, c ->
-            HubRow(c.icon, categoryTint(c), stringResource(c.titleRes), stringResource(c.subtitleRes)) {
-                nav.push(MoreRoute.Category(c))
+    DestCard(listOf(MoreDest.Goals), ::open)
+    SectionHeader(stringResource(R.string.forge_more_browse))
+    MoreCategory.entries.forEach { c ->
+        LargeRow(c.icon, categoryTint(c), stringResource(c.titleRes), stringResource(c.subtitleRes)) {
+            nav.push(MoreRoute.Category(c))
+        }
+    }
+    SectionHeader(stringResource(R.string.forge_more_quick_access))
+    DestCard(MORE_QUICK_ACCESS, ::open)
+}
+
+/**
+ * A row that is a card of its own, as iOS draws the categories, the profile and the device on More
+ * (`MoreCategoryRow`): a 42 pt icon tile or [leading], the headline over a two-line footnote, the chevron.
+ */
+@Composable
+internal fun LargeRow(icon: ImageVector?, tint: Color, title: String, subtitle: String,
+                      leading: (@Composable () -> Unit)? = null, detail: (@Composable () -> Unit)? = null,
+                      onClick: () -> Unit) {
+    val colors = Forge.colors
+    ForgeCard(Modifier.fillMaxWidth().clip(RoundedCornerShape(ForgeMetrics.groupedRadius))
+                  .clickable(role = Role.Button, onClick = onClick),
+              radius = ForgeMetrics.groupedRadius, contentPadding = ForgeMetrics.space4) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (leading != null) leading() else if (icon != null) {
+                Box(Modifier.size(42.dp).background(tint, RoundedCornerShape(11.76.dp)), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(21.dp))
+                }
             }
-            if (i < MoreCategory.entries.lastIndex) HubDivider()
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = Forge.type.headline, color = colors.text)
+                if (detail != null) detail()
+                else Text(subtitle, style = Forge.type.subhead, color = colors.textSecondary, maxLines = 2,
+                          overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.width(ForgeMetrics.space2))
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -238,7 +322,7 @@ private fun CategoryPage(category: MoreCategory, onBack: () -> Unit, onOpen: (Mo
     SettingsColumn {
         PageTitle(stringResource(category.titleRes), onBack)
         val context = LocalContext.current
-        DestCard(MoreDest.entries.filter { it.category == category && it.shown(context) }, onOpen)
+        DestCard(MORE_GROUPS.getValue(category).filter { it.shown(context) }, onOpen)
     }
 }
 
@@ -272,9 +356,9 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
 
 @Composable
 private fun categoryTint(c: MoreCategory): Color = when (c) {
-    MoreCategory.Analysis -> ForgeTokens.Color.systemIndigo.resolve()
-    MoreCategory.HealthBody -> ForgeTokens.Color.systemPink.resolve()
-    MoreCategory.Tools -> ForgeTokens.Color.systemOrange.resolve()
+    MoreCategory.Analysis -> ForgeTokens.Color.systemPurple.resolve()
+    MoreCategory.HealthBody -> ForgeTokens.Color.systemRed.resolve()
+    MoreCategory.Tools -> ForgeTokens.Color.systemCyan.resolve()
 }
 
 @Composable
@@ -293,6 +377,20 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
     if (dest == MoreDest.Body) {
         ForgeBodyPage(onBack)
         return
+    }
+    when (dest) {
+        // iOS pushes the Training hub onto More's stack; Android shows its Training tab there with a way back.
+        MoreDest.Training -> {
+            Column(Modifier.fillMaxSize().statusBarsPadding()) {
+                Box(Modifier.padding(horizontal = ForgeMetrics.screenPadding)) { PageTitle(null, onBack) }
+                Box(Modifier.weight(1f)) { ForgeTrainingScreen(PaddingValues(0.dp), viewModel) }
+            }
+            return
+        }
+        MoreDest.Strength -> { ForgeStrengthPage(onBack); return }
+        MoreDest.Cardio -> { ForgeCardioPage(onBack); return }
+        MoreDest.TrainingLoad -> { ForgeTrainingLoadPage(onBack); return }
+        else -> Unit
     }
     if (dest == MoreDest.Ecg) {
         ForgeEcgPage(onBack)
@@ -346,7 +444,9 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body, MoreDest.Coach, MoreDest.Ecg -> Unit
+            MoreDest.Workouts -> WorkoutsScreen(viewModel)
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body, MoreDest.Coach, MoreDest.Ecg, MoreDest.Training,
+            MoreDest.Strength, MoreDest.Cardio, MoreDest.TrainingLoad -> Unit
         }
     }
 }

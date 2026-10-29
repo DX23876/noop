@@ -45,6 +45,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Help
 import androidx.compose.material.icons.rounded.AccountCircle
@@ -163,9 +165,11 @@ private const val SOURCE_URL = "https://github.com/DX23876/noop"
  */
 enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: ImageVector, val hosted: Boolean = false) {
     Profile(R.string.l10n_settings_screen_profile_ff4fc027, R.string.forge_settings_profile_subtitle, Icons.Rounded.AccountCircle),
+    Goals(R.string.forge_goals_more_title, R.string.forge_sg_goals_subtitle, Icons.Rounded.TrackChanges),
     Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna, hosted = true),
     BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar, hosted = true),
     StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp, hosted = true),
+    Training(R.string.forge_training, R.string.forge_st_subtitle, Icons.Rounded.FitnessCenter),
     TodayTrends(R.string.forge_settings_today_trends, R.string.forge_settings_today_cards, Icons.Rounded.Dashboard),
     Notifications(R.string.forge_settings_notifications, R.string.forge_settings_notifications_subtitle, Icons.Rounded.NotificationsActive, hosted = true),
     Coach(R.string.forge_settings_coach, R.string.forge_settings_coach_subtitle, Icons.Rounded.AutoAwesome, hosted = true),
@@ -179,14 +183,14 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
 }
 
 /**
- * The hub's groups in iOS order (`SettingsHubLayout`). Goals, Training and Siri have no Android feature behind them
- * yet, so their rows are left out rather than opening an empty page; Today & Trends carries only its cards.
+ * The hub's groups in iOS order (`SettingsHubLayout`). Siri has no Android counterpart, so its row is left out;
+ * Today & Trends carries only its cards.
  */
 internal val HUB_GROUPS = listOf(
-    R.string.forge_settings_group_you to listOf(ForgeSettingsPage.Profile),
+    R.string.forge_settings_group_you to listOf(ForgeSettingsPage.Profile, ForgeSettingsPage.Goals),
     R.string.forge_settings_group_strap to listOf(ForgeSettingsPage.Strap, ForgeSettingsPage.BatteryRecording,
                                                   ForgeSettingsPage.StrapActions),
-    R.string.forge_settings_group_training to listOf(ForgeSettingsPage.TodayTrends, ForgeSettingsPage.Notifications,
+    R.string.forge_settings_group_training to listOf(ForgeSettingsPage.Training, ForgeSettingsPage.TodayTrends, ForgeSettingsPage.Notifications,
                                                      ForgeSettingsPage.Coach),
     R.string.forge_settings_group_display to listOf(ForgeSettingsPage.LanguageUnits, ForgeSettingsPage.Appearance),
     R.string.forge_settings_group_data to listOf(ForgeSettingsPage.Calculations, ForgeSettingsPage.DataBackup),
@@ -212,6 +216,7 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     Advanced(R.string.l10n_settings_screen_advanced_4d064726, cards = setOf(ClassicSettingsCard.Advanced)),
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
     Acknowledgements(R.string.forge_provider_acknowledgements),
+    ExerciseMedia(R.string.forge_st_manage_media),
     AllSettings(R.string.forge_settings_all),
 }
 
@@ -243,6 +248,7 @@ private fun decodeRoutes(raw: String): List<Route> = raw.split(",").mapNotNull {
 private fun ForgeSettingsPage.tint(): Color {
     val token = when (this) {
         ForgeSettingsPage.Profile, ForgeSettingsPage.DataBackup -> ForgeTokens.Color.systemBlue
+        ForgeSettingsPage.Goals, ForgeSettingsPage.Training -> ForgeTokens.Color.systemOrange
         ForgeSettingsPage.Strap -> ForgeTokens.Color.systemGreen
         ForgeSettingsPage.BatteryRecording -> ForgeTokens.Color.systemYellow
         ForgeSettingsPage.StrapActions, ForgeSettingsPage.Notifications, ForgeSettingsPage.Coach,
@@ -268,11 +274,14 @@ internal fun ForgeColor.resolve(): Color = Color(if (Forge.colors.dark) dark els
  * last row hosts the whole classic Settings, so no Android setting is out of reach from here.
  */
 @Composable
-fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit) {
-    var stackRaw by rememberSaveable { mutableStateOf("") }
+fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: ForgeSettingsPage? = null) {
+    // Opened on one page (More's profile row, as iOS opens `SettingsView(initialPage: .profile)`), Back from it closes.
+    var stackRaw by rememberSaveable { mutableStateOf(initialPage?.let { listOf<Route>(Route.Page(it)).encode() } ?: "") }
     val stack = decodeRoutes(stackRaw)
     fun push(route: Route) { stackRaw = (stack + route).encode() }
-    fun pop() { stackRaw = stack.dropLast(1).encode() }
+    fun pop() {
+        if (initialPage != null && stack.size == 1) onClose() else stackRaw = stack.dropLast(1).encode()
+    }
     BackHandler(enabled = stack.isNotEmpty()) { pop() }
     ForgeSceneBackdrop(ForgeBackdrop.Sky) {
         AnimatedContent(
@@ -354,6 +363,8 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
         key(revision) {
             when (page) {
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen)
+                ForgeSettingsPage.Goals -> GoalsSettingsSection()
+                ForgeSettingsPage.Training -> TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
                 ForgeSettingsPage.TodayTrends -> TodayCardsSection(::change)
@@ -529,6 +540,7 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.Limitations -> Hosted(stringResource(sub.titleRes), onBack) { NoopLimitationsScreen() }
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
         ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
+        ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
         ForgeSettingsSub.AllSettings -> Hosted(stringResource(sub.titleRes), onBack) {
             SettingsScreen(
                 viewModel,
@@ -624,6 +636,12 @@ private fun ProfileSection(profile: ProfileStore, viewModel: AppViewModel, chang
     val scope = rememberCoroutineScope()
     val imperial = UnitPrefs.system(context) == UnitSystem.IMPERIAL
     SettingsCard(title = null, blurb = stringResource(R.string.forge_settings_profile_detail)) {
+        // The name More's profile row shows (iOS `ProfileStore.name`); saved as typed, blank clears it.
+        var name by remember { mutableStateOf(profile.name) }
+        androidx.compose.material3.OutlinedTextField(
+            value = name, onValueChange = { name = it; profile.name = it }, singleLine = true,
+            label = { Text(stringResource(R.string.forge_profile_name)) }, modifier = Modifier.fillMaxWidth())
+        RowDivider()
         SettingRow(stringResource(R.string.l10n_settings_screen_age_ff9f1ff3)) {
             Stepper("${profile.age}", onMinus = { change { profile.setAge(profile.age - 1) } },
                     onPlus = { change { profile.setAge(profile.age + 1) } })
@@ -1196,6 +1214,12 @@ internal fun Stepper(value: String, enabled: Boolean = true, onMinus: () -> Unit
     val colors = Forge.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
         StepButton(Icons.Rounded.Remove, stringResource(R.string.forge_settings_less), enabled, onMinus)
+        // An empty value draws the bare pair, as iOS's Stepper does when its label already states the value.
+        if (value.isEmpty()) {
+            Spacer(Modifier.width(8.dp))
+            StepButton(Icons.Rounded.Add, stringResource(R.string.forge_settings_more_step), enabled, onPlus)
+            return@Row
+        }
         Text(value, style = Forge.type.bodyNumber, color = if (enabled) colors.text else colors.textTertiary,
              textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.widthIn(min = 72.dp).padding(horizontal = 6.dp))
         StepButton(Icons.Rounded.Add, stringResource(R.string.forge_settings_more_step), enabled, onPlus)

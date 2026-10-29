@@ -689,12 +689,12 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Re-reads the chat's surroundings (the plan dot after the plan book, consent after settings). */
     /** The chat is on screen: what the coach said on its own counts as seen, so the floating button's dot clears. */
     fun markSeen() {
         viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.seen() } }
     }
 
+    /** Re-reads the chat's surroundings (the plan dot after the plan book, consent after settings). */
     fun refreshChrome() {
         viewModelScope.launch { withContext(Dispatchers.IO) { CoreCoach.state() }?.let(::apply) }
     }

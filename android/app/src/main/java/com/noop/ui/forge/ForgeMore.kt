@@ -59,7 +59,12 @@ import androidx.compose.ui.window.DialogProperties
 import com.noop.BuildConfig
 import com.noop.R
 import com.noop.core.CoreBackup
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.rounded.SettingsInputAntenna
 import com.noop.ui.AddDeviceWizard
+import com.noop.ui.DevicesScreen
+import com.noop.ui.ProfileAvatar
+import com.noop.ui.ProfileStore
 import com.noop.ui.AppViewModel
 import com.noop.ui.LogExport
 import com.noop.ui.Palette
@@ -82,6 +87,8 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     val context = LocalContext.current
     var pairing by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
+    var profilePage by remember { mutableStateOf(false) }
+    var devices by remember { mutableStateOf(false) }
     var classicWizard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val more = rememberMoreNavigator()
@@ -92,18 +99,21 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
             .padding(horizontal = ForgeMetrics.screenPadding),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap),
     ) {
-        Row(Modifier.padding(top = ForgeMetrics.space4, bottom = ForgeMetrics.space2),
-            verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.nav_more), style = Forge.type.title1, color = Forge.sceneInk.text,
-                 modifier = Modifier.weight(1f))
+        Row(Modifier.padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.nav_more), style = Forge.type.title1, color = Forge.sceneInk.text)
+                Text(stringResource(R.string.forge_more_subtitle), style = Forge.type.subhead,
+                     color = Forge.sceneInk.secondary)
+            }
             // D9: the Android build says it is in testing until three testers have confirmed it.
             Text(stringResource(R.string.forge_testing).uppercase(), style = Forge.type.overline, color = colors.effort,
                  modifier = Modifier.background(colors.effort.copy(alpha = 0.16f), CircleShape)
                      .padding(horizontal = 10.dp, vertical = 4.dp))
         }
+        Spacer(Modifier.height(ForgeMetrics.space2))
 
-        SectionHeader(stringResource(R.string.forge_strap_section))
-        StrapCard(viewModel, onPair = { pairing = true })
+        ProfileRow(open = profilePage, onClick = { profilePage = true })
+        DeviceRow(viewModel, onClick = { devices = true })
 
         MoreIndexSections(more, onOpenSettings = { settings = true })
         Text(stringResource(R.string.forge_version, BuildConfig.VERSION_NAME), style = Forge.type.caption,
@@ -117,6 +127,21 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     if (settings) {
         ForgeOverlayPage(onDismiss = { settings = false }) {
             ForgeSettings(viewModel, onClose = { settings = false })
+        }
+    }
+    if (profilePage) {
+        ForgeOverlayPage(onDismiss = { profilePage = false }) {
+            ForgeSettings(viewModel, onClose = { profilePage = false }, initialPage = ForgeSettingsPage.Profile)
+        }
+    }
+    if (devices) {
+        ForgeOverlayPage(onDismiss = { devices = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                BackHandler { devices = false }
+                Hosted(stringResource(R.string.nav_devices), onBack = { devices = false }) {
+                    DevicesScreen(viewModel, onAddDevice = { pairing = true })
+                }
+            }
         }
     }
     if (pairing) {
@@ -136,56 +161,43 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
 
 }
 
-/** The strap as the app sees it now: name, link state, battery and last sync, with connect and pairing. */
+/** The profile on top of More, as iOS draws it (`MoreProfileRow`): the photo, the name or a nudge to set it up. */
 @Composable
-private fun StrapCard(viewModel: AppViewModel, onPair: () -> Unit) {
+private fun ProfileRow(open: Boolean, onClick: () -> Unit) {
+    val context = LocalContext.current
+    // Read again whenever the profile page closes, so a name typed there shows at once.
+    val name = remember(open) { ProfileStore.from(context).name }
+    LargeRow(null, Color.Transparent,
+             name.ifBlank { stringResource(R.string.forge_more_profile_setup) },
+             stringResource(R.string.forge_more_profile_detail),
+             leading = { ProfileAvatar(64.dp) }, onClick = onClick)
+}
+
+/**
+ * The active wearable, as iOS draws it (`MoreDeviceRow`): its name, a dot and the link state with the battery. Opens
+ * Devices, where it connects, disconnects and pairs.
+ */
+@Composable
+private fun DeviceRow(viewModel: AppViewModel, onClick: () -> Unit) {
     val colors = Forge.colors
     val live by viewModel.live.collectAsState()
     val name by viewModel.activeDeviceName.collectAsState()
-    val linked = live.connected || live.bonded || live.streamingLiveHR
-    // Connecting goes through the permission gate first, as every Connect in the app does (issue #1): without it a
-    // revoked Bluetooth permission makes the tap do nothing at all.
-    val requestConnect = rememberRequestScan { viewModel.connect() }
-    val (status, tint) = when {
-        live.backfilling -> stringResource(R.string.forge_strap_syncing) to colors.rest
-        linked -> stringResource(R.string.forge_strap_connected) to colors.charge
-        live.scanning -> stringResource(R.string.forge_strap_searching) to colors.effort
-        else -> stringResource(R.string.forge_strap_disconnected) to colors.textTertiary
+    val connected = live.connected
+    val status = when {
+        name == null -> stringResource(R.string.forge_more_device_none)
+        !connected -> stringResource(R.string.forge_strap_disconnected)
+        live.batteryPct != null -> stringResource(R.string.forge_qa_connected_battery, live.batteryPct!!.roundToInt())
+        else -> stringResource(R.string.forge_strap_connected)
     }
-    ForgeCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(12.dp).background(tint, CircleShape))
-            Spacer(Modifier.width(ForgeMetrics.space2 + ForgeMetrics.space1))
-            Column(Modifier.weight(1f)) {
-                Text(name ?: stringResource(R.string.forge_strap_none), style = Forge.type.headline, color = colors.text)
-                Text(status, style = Forge.type.subhead, color = colors.textSecondary)
-            }
-            live.batteryPct?.let { pct ->
-                Text(stringResource(R.string.forge_strap_battery, pct.roundToInt()), style = Forge.type.captionNumber,
-                     color = colors.textSecondary)
-            }
-        }
-        live.lastSyncAt?.let { at ->
-            Spacer(Modifier.height(ForgeMetrics.space2))
-            Text(stringResource(R.string.forge_strap_last_sync,
-                                DateUtils.getRelativeTimeSpanString(at * 1000, System.currentTimeMillis(),
-                                                                    DateUtils.MINUTE_IN_MILLIS).toString()),
-                 style = Forge.type.caption, color = colors.textTertiary)
-        }
-        Spacer(Modifier.height(ForgeMetrics.space4))
-        Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-            if (name != null) {
-                OutlinedButton(onClick = { if (linked || live.scanning) viewModel.disconnect() else requestConnect() },
-                               modifier = Modifier.weight(1f)) {
-                    Text(stringResource(if (linked || live.scanning) R.string.forge_strap_disconnect
-                                        else R.string.forge_strap_connect), maxLines = 1)
-                }
-            }
-            Button(onClick = onPair, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.forge_strap_add), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-    }
+    LargeRow(Icons.Rounded.SettingsInputAntenna, ForgeTokens.Color.systemGreen.resolve(),
+             name ?: stringResource(R.string.nav_devices), status,
+             detail = {
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+                     Box(Modifier.size(7.dp).background(if (connected) colors.charge else colors.textTertiary, CircleShape))
+                     Spacer(Modifier.width(5.dp))
+                     Text(status, style = Forge.type.subhead, color = colors.textSecondary)
+                 }
+             }, onClick = onClick)
 }
 
 @Composable

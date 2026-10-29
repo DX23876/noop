@@ -290,7 +290,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
  * on. Switching one on asks for Android's notification permission where the system needs it.
  */
 @Composable
-private fun GoalNotificationsCard() {
+internal fun GoalNotificationsCard() {
     val context = LocalContext.current
     val kinds = com.noop.notif.GoalNoticeNotifier.Kind.values()
     var on by remember { mutableStateOf(kinds.associateWith { com.noop.notif.GoalNoticeNotifier.isOn(context, it) }) }

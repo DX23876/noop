@@ -82,6 +82,8 @@ public enum CoreCall {
         case "media.cancel": await CoreExerciseMedia.shared.cancel(); return ok(true)
         case "media.disabled": await CoreExerciseMedia.shared.setDisabled(args["disabled"] as? Bool ?? false); return ok(true)
         case "media.delete": return ok(await CoreExerciseMedia.shared.delete())
+        case "prefs.read": return CorePrefs.readJSON()
+        case "prefs.write": return ok(CorePrefs.write(key: string("key"), value: args["value"]))
         case "provider.defaults": return CoreRead.json(CoreExerciseProvider.Defaults())
         case "provider.invalidate": await CoreExerciseProvider.shared.invalidate(); return ok(true)
         case "hevy.verify":
