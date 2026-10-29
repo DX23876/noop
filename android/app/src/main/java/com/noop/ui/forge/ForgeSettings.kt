@@ -935,7 +935,7 @@ private fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) ->
         // V3 runs in the shared Swift core; the optional legacy Kotlin screen keeps its V1/V2 choice.
         if (com.noop.core.CoreDailyRows.coreReads(context)) {
             Text(stringResource(R.string.sleep_stager_method), style = Forge.type.body,
-                 color = Forge.colors.textPrimary)
+                 color = Forge.colors.text)
             Segmented(com.noop.ble.PuffinExperiment.SLEEP_METHODS, experiment.sleepStagerMethod,
                       label = { it.uppercase(java.util.Locale.ROOT) }, onSelect = { method ->
                           change {
