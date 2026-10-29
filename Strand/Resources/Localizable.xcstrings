@@ -486737,6 +486737,18 @@
         }
       }
     },
+    "V1" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "V2" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
+    "V3" : {
+      "extractionState" : "manual",
+      "shouldTranslate" : false
+    },
     "V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights." : {
       "localizations" : {
         "en" : {
