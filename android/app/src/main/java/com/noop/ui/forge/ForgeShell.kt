@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.FitnessCenter
@@ -119,10 +121,14 @@ private fun Content(tab: ForgeTab, width: ForgeWidth, extra: PaddingValues,
 
 @Composable
 private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifier: Modifier = Modifier) {
-    // Nearly opaque: Android cannot blur the scrolling content behind the bar as iOS glass does, and at the hero
-    // fill's translucency the text under it read through.
-    ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth(), radius = 32.dp,
-              fill = Forge.colors.surface.copy(alpha = 0.95f), contentPadding = 6.dp) {
+    // Opaque with an outline and a shadow: Android cannot blur the scrolling content behind the bar as iOS glass does,
+    // and a see-through or outline-less bar fused with the white cards scrolling under it.
+    // A real shadow, so the bar stays apart from the white cards that scroll under it (as iOS's glass bar does).
+    ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth()
+                  .shadow(14.dp, RoundedCornerShape(32.dp), ambientColor = Color.Black.copy(alpha = 0.18f),
+                          spotColor = Color.Black.copy(alpha = 0.32f))
+                  .border(BorderStroke(1.dp, Forge.colors.border), RoundedCornerShape(32.dp)), radius = 32.dp,
+              fill = Forge.colors.surface, contentPadding = 6.dp) {
         Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
             ForgeTab.entries.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
