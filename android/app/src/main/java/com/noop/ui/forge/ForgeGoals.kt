@@ -130,6 +130,12 @@ fun ForgeGoalsPage(onBack: () -> Unit, initialPage: String = "") {
     // System Back reloads like the page's own arrow, so what a page changed (badges seen, a goal edited) shows.
     BackHandler(enabled = page != null) { back(); refresh() }
     PublishGoalsWidget(output)
+    // The explainer the first time the overview opens (`GoalsOverviewView` reads `GoalPrefs.introSeenKey`).
+    var intro by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(Unit) {
+        intro = withContext(Dispatchers.IO) { !com.noop.core.CorePrefs.read(context).optBoolean(com.noop.core.CorePrefs.INTRO_SEEN, false) }
+    }
+    if (page == null && intro == true) { ForgeGoalsIntro(onDone = { intro = false }); return }
     when (page) {
         GoalsPage.Setup -> GoalSetupPage(onBack = ::back, onCreated = { back(); refresh() })
         is GoalsPage.Detail -> {

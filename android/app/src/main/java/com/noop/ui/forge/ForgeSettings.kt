@@ -393,7 +393,7 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
         key(revision) {
             when (page) {
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen)
-                ForgeSettingsPage.Goals -> GoalsSettingsSection()
+                ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
                 ForgeSettingsPage.Training -> TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)

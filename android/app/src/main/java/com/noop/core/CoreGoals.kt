@@ -90,7 +90,10 @@ object CoreGoals {
         val monthDefault: Double, val monthStep: Double, val monthLow: Double, val monthHigh: Double,
         val threshold: Double?,
     )
-    data class Setup(val metrics: List<MetricChoice>, val openCount: Int, val periodLimit: Int)
+    /** Today's goal invitation: a weekly workouts goal at the recommended [target]; [usual] when it is known. */
+    data class Invite(val target: Double, val usual: Double?)
+    data class Setup(val metrics: List<MetricChoice>, val openCount: Int, val periodLimit: Int,
+                     val invite: Invite? = null)
     data class Change(val ok: Boolean, val error: String?)
 
     /** Every goal, refreshed and evaluated as the Apple `GoalTrackingStore.refresh` does. */
@@ -137,6 +140,8 @@ object CoreGoals {
                     it.getDouble("monthStep"), it.getDouble("monthLow"), it.getDouble("monthHigh"), it.dbl("threshold"))
             },
             openCount = o.optInt("openCount"), periodLimit = o.optInt("periodLimit", 6),
+            invite = o.optJSONObject("invite")?.let { Invite(it.getDouble("target"),
+                if (it.has("usual") && !it.isNull("usual")) it.getDouble("usual") else null) },
         )
     }
 

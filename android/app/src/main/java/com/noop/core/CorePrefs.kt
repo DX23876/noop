@@ -17,6 +17,8 @@ object CorePrefs {
     const val REST_WEEKDAYS = "training.restWeekdays"
     const val STEP_GOAL = "momentum.stepGoal"
     const val MOTIVATION = "goals.motivation.enabled"
+    const val INVITE_DISMISSED = "goals.todayInviteDismissed"
+    const val INTRO_SEEN = "goals.introSeen"
     const val NEW_EXERCISE_SETS = "training.newExerciseSets"
     const val DEFAULT_REST = "training.defaultRestSeconds"
     const val WEIGHT_UNIT = "training.weightUnit"

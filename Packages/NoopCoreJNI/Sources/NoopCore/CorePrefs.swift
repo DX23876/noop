@@ -12,6 +12,8 @@ enum CorePrefs {
         "training.restWeekdays": .weekdays,
         "momentum.stepGoal": .int(0...30_000),
         "goals.motivation.enabled": .bool,
+        "goals.todayInviteDismissed": .bool,
+        "goals.introSeen": .bool,
         "training.newExerciseSets": .int(1...6),
         "training.defaultRestSeconds": .int(0...600),
         "training.weightUnit": .string(["kilograms", "pounds"]),

@@ -485,6 +485,8 @@ private fun TodayGoals() {
         }
     }
     PublishGoalsWidget(output)
+    // No goal yet: the invitation, as `GoalsTodaySection` shows `GoalsInviteCard`.
+    output?.let { if (!it.hasAnyGoal()) ForgeGoalsInvite(onCreated = { revision++ }, onOtherGoals = { open = true }) }
     ForgeTodayGoalsCard(output, onOpen = { open = true }, onToggle = { action ->
         scope.launch {
             withContext(Dispatchers.IO) { CoreGoals.toggleAction(action.actionId, action.day) }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,13 +41,15 @@ import java.util.Locale
  * shared core's settings ([CorePrefs]), where goals and Momentum read them, as Apple's UserDefaults do.
  */
 @Composable
-internal fun GoalsSettingsSection() {
+internal fun GoalsSettingsSection(viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
     val stored = remember { CorePrefs.read(context) }
     var longTerm by remember { mutableStateOf(stored.optInt(CorePrefs.LONG_TERM_LIMIT, 5)) }
     var period by remember { mutableStateOf(stored.optInt(CorePrefs.PERIOD_LIMIT, 6)) }
     var stepGoal by remember { mutableStateOf(stored.optInt(CorePrefs.STEP_GOAL, 0)) }
     var motivation by remember { mutableStateOf(stored.optBoolean(CorePrefs.MOTIVATION, true)) }
+    var invite by remember { mutableStateOf(!stored.optBoolean(CorePrefs.INVITE_DISMISSED, false)) }
+    val streaks by viewModel.streaks.collectAsState()
     var restDays by remember {
         mutableStateOf(stored.optJSONArray(CorePrefs.REST_WEEKDAYS)?.let { a -> (0 until a.length()).map(a::getInt).toSet() }
                            ?: emptySet())
@@ -81,6 +84,25 @@ internal fun GoalsSettingsSection() {
     SettingsCard(stringResource(R.string.forge_sg_motivation), null) {
         ToggleRow(stringResource(R.string.forge_sg_motivation_switch), stringResource(R.string.forge_sg_motivation_note),
                   motivation) { on -> if (save(CorePrefs.MOTIVATION, on)) motivation = on }
+        RowDivider()
+        // Day streak (#569): consecutive days with a Charge score, beside the switch as on iOS.
+        SettingRow(stringResource(R.string.forge_sg_streak)) {
+            Text(if (streaks.current == 1) stringResource(R.string.forge_sg_streak_one)
+                 else stringResource(R.string.forge_sg_streak_n, streaks.current),
+                 style = Forge.type.footnote, color = Forge.colors.accent)
+        }
+        Note(if (streaks.longest == 1) stringResource(R.string.forge_sg_longest_one)
+             else stringResource(R.string.forge_sg_longest_n, streaks.longest))
+    }
+    SettingsCard(null, null) {
+        ToggleRow(stringResource(R.string.forge_sg_invite), null, invite) { on ->
+            if (save(CorePrefs.INVITE_DISMISSED, !on)) invite = on
+        }
+        RowDivider()
+        LinkRow(stringResource(R.string.forge_sg_explainer), null) {
+            // The goals page shows the explainer again the next time it opens.
+            save(CorePrefs.INTRO_SEEN, false)
+        }
     }
 }
 

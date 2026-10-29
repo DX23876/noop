@@ -159,6 +159,13 @@ public enum CoreGoals {
 
     public struct Setup: Encodable {
         public var metrics: [MetricChoice], openCount: Int, periodLimit: Int
+        /// Today's goal invitation (`GoalsInviteCard.suggestion`): a weekly workouts goal at the recommended
+        /// target, and how often the wearer usually trains when that is known.
+        public var invite: Invite
+    }
+
+    public struct Invite: Encodable {
+        public var target: Double, usual: Double?
     }
 
     public struct Change: Encodable {
@@ -289,7 +296,11 @@ public enum CoreGoals {
                 monthDefault: metric.defaultTarget(for: .month), monthStep: metric.step(for: .month),
                 monthLow: month.lowerBound, monthHigh: month.upperBound, threshold: metric.defaultThreshold)
         }
-        return Setup(metrics: choices, openCount: state.0.filter(\.isOpen).count, periodLimit: GoalPrefs.periodLimit)
+        var draft = PeriodGoal(metric: .workouts, period: .week, target: PeriodMetric.workouts.defaultTarget(for: .week))
+        let rec = PeriodGoalTracker.recommendation(for: draft, inputs: inputs, now: now, calendar: calendar)
+        if let rec { draft.target = rec.recommended.value }
+        return Setup(metrics: choices, openCount: state.0.filter(\.isOpen).count, periodLimit: GoalPrefs.periodLimit,
+                     invite: Invite(target: draft.target, usual: rec?.usual))
     }
 
     // MARK: Change
