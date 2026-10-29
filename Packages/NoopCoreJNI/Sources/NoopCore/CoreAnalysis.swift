@@ -56,6 +56,8 @@ public enum CoreAnalysis {
         public var hrvBaselineEpoch: Double = 0, recoveryBaselineEpoch: Double = 0
         /// Lab: the strap's SpO₂ estimate is kept for the Blood Oxygen tile (Apple `noopSpo2CandidateDisplay`).
         public var spo2CandidateDisplay = false
+        /// Lab: rated strength sessions add to Effort (`StrengthEffort`); the extras key `effortStrengthBonus`.
+        public var effortStrengthBonus = false
         public init(effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool,
                     dayCycleMode: String?, healthspan: Bool = false, rhythmAge: Bool = false,
                     dismissedSleepSpans: [String] = [], dismissedWorkoutSpans: [String] = [],
@@ -87,7 +89,7 @@ public enum CoreAnalysis {
                              deepHrvWindow: deepHrvWindow, dayCycleMode: .persisted(dayCycleMode),
                              rhythmAge: rhythmAge, healthspan: healthspan,
                              hrvBaselineEpoch: hrvBaselineEpoch, recoveryBaselineEpoch: recoveryBaselineEpoch,
-                             traces: [])
+                             traces: [], effortStrengthBonus: effortStrengthBonus)
         }
     }
 
@@ -113,6 +115,7 @@ public enum CoreAnalysis {
         if let v = double("hrvBaselineEpoch") { settings.hrvBaselineEpoch = v }
         if let v = double("recoveryBaselineEpoch") { settings.recoveryBaselineEpoch = v }
         if let v = bool("spo2CandidateDisplay") { settings.spo2CandidateDisplay = v }
+        if let v = bool("effortStrengthBonus") { settings.effortStrengthBonus = v }
         if let v = double("waistCm") { profile.waistCm = v }
         if let v = double("stepTicksPerStep"), v > 0 { profile.stepTicksPerStep = v }
         if let v = double("stepsManualCoefficient") { profile.stepsManualCoefficient = v }
@@ -201,6 +204,10 @@ public enum CoreAnalysis {
         func recomputeCardioLoadHistory() async {
             _ = await price(await sessions(days: TrainingHistoryWindow.allDays), budget: Int.max, recompute: true)
             await cardioCache.removeAll()
+        }
+        func trainingSessions(from lo: Int, to hi: Int) async -> TrainingSessionFusionResult {
+            await TrainingSessionResolver.read(reader: reader, from: lo, to: hi,
+                                               dismissedDetectedSpans: settings.dismissedWorkoutSpans)
         }
         func agelessLongSessions(days: Int) async -> [HealthspanVO2.LongSession] {
             let unified = await sessions(days: days)

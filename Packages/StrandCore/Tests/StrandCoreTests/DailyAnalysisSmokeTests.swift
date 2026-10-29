@@ -52,6 +52,9 @@ final class DailyAnalysisSmokeTests: XCTestCase {
             await WeightSeries.series(reader: reader, from: "0000-01-01", to: "9999-12-31")
         }
         func agelessLongSessions(days: Int) async -> [HealthspanVO2.LongSession] { [] }
+        func trainingSessions(from lo: Int, to hi: Int) async -> TrainingSessionFusionResult {
+            TrainingSessionResolver.resolve(rows: [], metadata: [], links: [], preferences: [])
+        }
     }
 
     private final class Profile: AnalysisProfileSource {

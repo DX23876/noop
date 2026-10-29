@@ -94,6 +94,13 @@ enum PuffinExperiment {
 
     static var exerciseVO2maxEnabled: Bool { UserDefaults.standard.bool(forKey: exerciseVO2maxKey) }
 
+    /// Opt-in strength share of Effort (#2438, `StrengthEffort`): a rated strength session adds session RPE ×
+    /// minutes to its day's load before the curve. Default OFF: the scale rests on an assumed RPE 7 in the WHOOP
+    /// exports it was fitted on.
+    static let effortStrengthBonusKey = "noopEffortStrengthBonus"
+
+    static var effortStrengthBonusEnabled: Bool { UserDefaults.standard.bool(forKey: effortStrengthBonusKey) }
+
     /// Opt-in "Continuous HRV capture": hold the dense realtime HR stream armed even with no Live screen
     /// open, so the strap banks beat-to-beat R-R intervals 24/7 for far better overnight HRV/recovery/
     /// sleep (vs the sparse history offload). Uses more battery (continuous HR streaming). Default OFF;

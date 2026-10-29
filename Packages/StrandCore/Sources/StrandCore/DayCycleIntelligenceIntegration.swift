@@ -142,7 +142,7 @@ public actor DayCycleIntelligenceIntegration {
 
     public func compute(nights: [Night], editedRows: [CachedSleepSession], store: WhoopStore,
                         candidates: [(owner: String, priority: Int)], physiologyOwners: [String],
-                        workouts: [WorkoutRow], windowStart: Int,
+                        workouts: [WorkoutRow], strengthSessions: [StrengthEffort.Session] = [], windowStart: Int,
                         now: Int, offsetSec: Int, habitualMidsleepSec: Int?, ticksPerStep: Double,
                         mode: DayCycleMode,
                         profile: UserProfile, maxHROverride: Double?,
@@ -289,9 +289,12 @@ public actor DayCycleIntelligenceIntegration {
                                    + nights.flatMap(\.workouts).map { $0.start ..< $0.end })
                     .filter { $0.lowerBound < window.endExclusive && window.onset < $0.upperBound }
                 let spanKey = effortSpans.map { "\($0.lowerBound)-\($0.upperBound)" }.sorted().joined(separator: ",")
+                // Rated strength sessions starting in the cycle (Lab, #2438).
+                let strengthLoad = StrengthEffort.load(strengthSessions, startingIn: window.onset ..< window.endExclusive)
                 let loadKey = "\(window.onset)-\(window.endExclusive)|\(hrWitness.joined(separator: ","))"
                     + "|rhr=\(restingHR)|max=\(effectiveMaxHR.map { "\($0)" } ?? "nil")|curve2438|\(spanKey)"
                     + "|\(profile.cacheKey)"
+                    + (strengthLoad > 0 ? "|strength=\(strengthLoad.bitPattern)" : "")
                 let load: CachedLoad
                 if let hit = cache.loads[window.sleepId], hit.key == loadKey,
                    !hrWitness.contains(where: { $0.hasSuffix("=unread") }) {
@@ -310,7 +313,7 @@ public actor DayCycleIntelligenceIntegration {
                     load = CachedLoad(
                         key: loadKey,
                         strain: StrainScorer.strain(cycleHR, maxHR: effectiveMaxHR, restingHR: restingHR,
-                                                    lowIntensity: .countedIn(effortSpans)),
+                                                    lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad),
                         calories: cycleHR.isEmpty ? nil : Calories.estimateDayCalories(
                             cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: restingHR))
                     cache.loads[window.sleepId] = load

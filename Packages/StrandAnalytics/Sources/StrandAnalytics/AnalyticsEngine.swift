@@ -491,6 +491,8 @@ public enum AnalyticsEngine {
                                   // seconds). Inside them and inside the bouts detected here, heart rate
                                   // below 50 % HRR counts toward the day's Effort (#2438); elsewhere not.
                                   workoutSpans: [Range<Int>] = [],
+                                  // Load the day's rated strength sessions add before the curve (#2438).
+                                  strengthLoad: Double = 0,
                                   // The day's aerobic ceiling (stored by the energy model), so a detected
                                   // bout's calories are priced on the same curve as the day's workouts.
                                   // Nil prices bouts from the table MET of an unnamed session.
@@ -962,7 +964,7 @@ public enum AnalyticsEngine {
         // Scored after the workouts are known: below 50 % HRR only their time counts (#2438).
         let effortSpans = workoutSpans + workouts.map { $0.start ..< $0.end }
         let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
-                                         lowIntensity: .countedIn(effortSpans),
+                                         lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad,
                                          diag: strainDiag, day: day)
         // #2438 step 0 asks two things of a contributed log: whether the day was scored against the
         // user's own setting or against the age formula, and how far the day's own heart rate ran above

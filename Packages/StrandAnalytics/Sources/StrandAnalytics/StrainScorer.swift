@@ -165,6 +165,35 @@ public enum StrainScorer {
         return min((value * 100).rounded() / 100, maxStrain - 0.01)
     }
 
+    /// Load one strength minute adds per point of session RPE (#2438, behind the Lab switch for strength).
+    /// Heart rate misses what lifting asks of the muscles, so a rated strength session adds Foster's session
+    /// RPE × minutes, scaled into this curve's load. Fitted on 419 WHOOP strength sessions of 9 contributors as
+    /// the median load WHOOP gave beyond heart rate, ASSUMING RPE 7 for each (the exports carry no rating);
+    /// leaving out one person at a time moves it between 0.085 and 0.123.
+    public static let effortStrengthLoadPerRPEMinute: Double = 0.11
+
+    /// The load a strength session of `minutes` rated `rpe` (1 to 10) adds before the curve.
+    public static func strengthLoad(rpe: Double, minutes: Double) -> Double {
+        guard rpe.isFinite, minutes.isFinite, rpe > 0, minutes > 0 else { return 0 }
+        return effortStrengthLoadPerRPEMinute * min(rpe, 10) * minutes
+    }
+
+    /// The load that scores `value` on the 0–100 axis: the inverse of `effortValue(load:)`, so a stored score
+    /// can take a strength load on top.
+    public static func effortLoad(forEffortValue value: Double) -> Double {
+        let s = max(0, min(value, maxStrain - 0.01)) / maxStrain * whoopMaxStrain
+        guard s > 0 else { return 0 }
+        let p = effortCapExponent
+        let b = s * 21 / pow(pow(21, p) - pow(s, p), 1 / p)
+        return effortCurveK * expm1(b / effortCurveA)
+    }
+
+    /// `value` (0–100) with a strength load added before the curve.
+    public static func effortValue(_ value: Double, addingStrengthLoad load: Double) -> Double {
+        guard load > 0 else { return value }
+        return effortValue(load: effortLoad(forEffortValue: value) + load)
+    }
+
     /// The load of a heart-rate series: each reading's `effortWeight` × its minutes. Below
     /// `effortOutsideWorkoutFloor` a reading counts only where `lowIntensity` says it is in a workout.
     static func effortLoad(_ hr: [HRSample], restingHR: Double, hrReserve: Double, durations: [Double],
@@ -433,6 +462,8 @@ public enum StrainScorer {
                               maxHR: Double? = nil,
                               restingHR: Double = defaultRestingHR,
                               lowIntensity: LowIntensity = .countedIn([]),
+                              // Load added before the curve by rated strength sessions (`strengthLoad`).
+                              strengthLoad: Double = 0,
                               // Optional diagnostic sink. Nil by default and the line is built ONLY when
                               // one is supplied, so a pass nobody is watching pays nothing.
                               //
@@ -447,7 +478,7 @@ public enum StrainScorer {
         // result is a single `Double?`; the HR array is not retained.
         let key = StrainKey(
             hr: StreamFingerprint.of(hr, ts: { $0.ts }, quant: { Int($0.bpm) }),
-            maxHR: maxHR, restingHR: restingHR, lowIntensity: lowIntensity)
+            maxHR: maxHR, restingHR: restingHR, lowIntensity: lowIntensity, strengthLoad: strengthLoad)
         // A diagnostic request BYPASSES the memo, and must. The Today view re-reads this on every
         // live-HR tick with no sink, so by the time the scoring pass asks with one the answer is already
         // cached — and a cache hit never reaches the code that emits, so the line would simply never
@@ -455,11 +486,11 @@ public enum StrainScorer {
         // one. Kotlin has no memo here and always emits; this keeps the two behaving the same.
         guard diag == nil else {
             return strainUncached(hr, maxHR: maxHR, restingHR: restingHR, lowIntensity: lowIntensity,
-                                  diag: diag, day: day)
+                                  strengthLoad: strengthLoad, diag: diag, day: day)
         }
         return strainCache.value(key) {
             strainUncached(hr, maxHR: maxHR, restingHR: restingHR, lowIntensity: lowIntensity,
-                           diag: nil, day: day)
+                           strengthLoad: strengthLoad, diag: nil, day: day)
         }
     }
 
@@ -708,12 +739,12 @@ public enum StrainScorer {
     /// Key folds `sex` to the single bit the recipe reads (`hasPrefix("f")`) so "female"/"f"/"F" all hit.
     private struct StrainKey: Hashable {
         let hr: StreamFingerprint
-        let maxHR: Double?; let restingHR: Double; let lowIntensity: LowIntensity
+        let maxHR: Double?; let restingHR: Double; let lowIntensity: LowIntensity; let strengthLoad: Double
     }
     private static let strainCache = AnalyticsMemoCache<StrainKey, Double?>(capacity: 48)
 
     private static func strainUncached(_ hr: [HRSample], maxHR: Double?, restingHR: Double,
-                                       lowIntensity: LowIntensity,
+                                       lowIntensity: LowIntensity, strengthLoad: Double = 0,
                                        diag: ((String) -> Void)? = nil, day: String = "") -> Double? {
         let effMax = maxHR ?? Double(defaultMaxHR())
         // Enough data to trust the score: a dense stream (≥ minReadings) OR a sparse-but-sustained
@@ -741,7 +772,7 @@ public enum StrainScorer {
 
         let load = effortLoad(hr, restingHR: restingHR, hrReserve: hrReserve, durations: durations,
                               lowIntensity: lowIntensity)
-        let scored = effortValue(load: load)
+        let scored = effortValue(load: load + max(0, strengthLoad))
         // Walked only when a sink is attached. It is a second O(n) pass over the day's samples, and
         // `analyzeRecent`'s prep is already the expensive half of a scoring run, so a normal pass must
         // not pay for a diagnostic nobody is reading. `hrReserve` is safe here: the refusal path above

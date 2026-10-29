@@ -876,6 +876,17 @@ public final class DailyAnalysis {
         return ", battery \(start) % to \(end) %"
     }
 
+    /// Every day with raw heart rate scored again where its signature moved, the rest reused: for a choice that
+    /// changes only some days, such as the strength share of Effort (#2438). Paced like any pass.
+    public func reanalyzeHistoryReusingUnchangedDays() async {
+        guard let store = await repo.storeHandle() else { return }
+        let earliestRawDay = ((try? await store.earliestHeartRateSampleTs()) ?? nil)
+            .map { StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval($0))) }
+        let days = AnalysisRecipe.rebuildDays(earliestRawDay: earliestRawDay, today: StoreReader.localDayKey(Date()))
+        await analyzeRecent(maxDays: days, force: true, allowDayReuse: true, reason: .semanticChange,
+                            triggerLabel: "strength-effort")
+    }
+
     private func runRebuildStep(_ step: AnalysisRecipe.RebuildStep, store: WhoopStore, from: Int) async throws {
         let now = Date()
         let today = StoreReader.localDayKey(now)
@@ -1058,10 +1069,16 @@ public final class DailyAnalysis {
         // below 50 % HRR reaches today's Effort with the next pass (`LiveEffort` shows the larger value).
         let spans = await Self.workoutSpans(store: store, deviceId: deviceId, from: dayStart - 86_400,
                                             to: dayEnd + 1)
+        // The same strength load the full pass gives today (Lab, #2438).
+        let strengthLoad = host.analysisSettings().effortStrengthBonus
+            ? StrengthEffort.load(await StrengthEffort.read(services: repo, store: store, from: dayStart,
+                                                            to: dayStart + 86_400),
+                                  startingIn: dayStart ..< dayStart + 86_400)
+            : 0
 
         let activity = await Task.detached(priority: .userInitiated) {
             let strain = StrainScorer.strain(
-                hr, maxHR: maxHR, restingHR: restingHR, lowIntensity: .countedIn(spans))
+                hr, maxHR: maxHR, restingHR: restingHR, lowIntensity: .countedIn(spans), strengthLoad: strengthLoad)
             let steps: Int? = {
                 guard let ticks = StepsCounter.stepsInWindow(stepSamples) else { return nil }
                 let value = Int((Double(ticks) / max(ticksPerStep, 0.5)).rounded())
@@ -1352,6 +1369,15 @@ public final class DailyAnalysis {
             rows += (try? await store.workouts(deviceId: source, from: from, to: to, limit: 100_000)) ?? []
         }
         return rows.filter { $0.endTs > $0.startTs }.map { $0.startTs ..< $0.endTs }
+    }
+
+    /// The strength load per local day of each session's start, leaving out days without one.
+    nonisolated static func strengthLoadByDay(_ sessions: [StrengthEffort.Session], tzOffset: Int) -> [String: Double] {
+        var out: [String: Double] = [:]
+        for session in sessions where session.load > 0 {
+            out[AnalyticsEngine.dayString(session.startTs, offsetSec: tzOffset), default: 0] += session.load
+        }
+        return out
     }
 
     /// Which max-HR override each day was — and stays — scored with: the newest entry dated at or
@@ -1802,6 +1828,14 @@ public final class DailyAnalysis {
         let effortWorkoutSpans = await Self.workoutSpans(
             store: store, deviceId: deviceId, from: nowLocalMidnight - (maxDays + 2) * 86_400,
             to: nowLocalMidnight + 2 * 86_400)
+        // Lab (#2438): the load rated strength sessions add to the day they start on. A day's value is part of
+        // its signature, so rating a session or turning the switch re-derives exactly the days it moves.
+        let strengthSessions: [StrengthEffort.Session] = settings.effortStrengthBonus
+            ? await StrengthEffort.read(services: repo, store: store,
+                                        from: nowLocalMidnight - (maxDays + 2) * 86_400,
+                                        to: nowLocalMidnight + 2 * 86_400)
+            : []
+        let strengthLoadByDay = Self.strengthLoadByDay(strengthSessions, tzOffset: tzOffset)
         // `weight` and `hrmax` are deliberately NOT in these two lists — both are per DAY, spliced in by
         // `semanticSignature(forDay:)` below. Everything that remains is genuinely pass-global: it holds
         // for every day in the window or for none, which is what makes a single miss on one of these
@@ -1835,6 +1869,8 @@ public final class DailyAnalysis {
             "\(semanticSignatureHead)|hrmax=\(hrmaxByDay[day] ?? profileHrmax)"
                 + "/\(maxHRByDay[day]?.wholeBpm ?? 0)|\(semanticSignatureTail)"
                 + "|weight=\((weightByDay[day] ?? profileWeightKg).bitPattern)"
+                // Only on a day with strength load, so every other day keeps its signature.
+                + (strengthLoadByDay[day].map { "|strength=\($0.bitPattern)" } ?? "")
         }
         // ── Per-day skip (#launch-rescore) ───────────────────────────────────────────────────────────
         // Re-deriving a day costs a ~54 h read (~950 k rows on a fully-worn library) plus sleep staging,
@@ -2297,6 +2333,7 @@ public final class DailyAnalysis {
                                                          $0.lowerBound < dayStart + 2 * 86_400
                                                              && dayStart - 86_400 < $0.upperBound
                                                      },
+                                                     strengthLoad: strengthLoadByDay[day] ?? 0,
                                                      workoutPeakMET: EnergyModelRefresh.peakMET(
                                                         on: day, in: workoutPeakByDay))
                 await Task.yield()
@@ -2947,6 +2984,7 @@ public final class DailyAnalysis {
             candidates: cycleCandidates,
             physiologyOwners: physiologyOwners,
             workouts: cycleWorkouts,
+            strengthSessions: strengthSessions,
             windowStart: windowStart,
             now: now,
             offsetSec: tzOffset,

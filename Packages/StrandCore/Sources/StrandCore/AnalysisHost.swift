@@ -27,11 +27,13 @@ public struct AnalysisSettings: Equatable, Sendable {
     public var recoveryBaselineEpoch: Double
     /// Test Centre domains whose trace lines the pass builds.
     public var traces: Set<TestDomain>
+    /// Lab: rated strength sessions add to Effort beyond their heart rate (`StrengthEffort`, #2438).
+    public var effortStrengthBonus: Bool
 
     public init(spo2CandidateDisplay: Bool, sleepStagerV2: Bool,
                 motionAwareWake: Bool, deepHrvWindow: Bool, dayCycleMode: DayCycleMode, rhythmAge: Bool,
                 healthspan: Bool, hrvBaselineEpoch: Double, recoveryBaselineEpoch: Double,
-                traces: Set<TestDomain>) {
+                traces: Set<TestDomain>, effortStrengthBonus: Bool = false) {
         self.spo2CandidateDisplay = spo2CandidateDisplay
         self.sleepStagerV2 = sleepStagerV2
         self.motionAwareWake = motionAwareWake
@@ -42,6 +44,7 @@ public struct AnalysisSettings: Equatable, Sendable {
         self.hrvBaselineEpoch = hrvBaselineEpoch
         self.recoveryBaselineEpoch = recoveryBaselineEpoch
         self.traces = traces
+        self.effortStrengthBonus = effortStrengthBonus
     }
 
     /// Whether the pass builds the trace lines of `domain`.

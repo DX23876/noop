@@ -356,16 +356,10 @@ enum TrainingLoadPreparation {
     /// workout start; the id breaks a tie so the choice never depends on read order.
     static func canonicalRatings(entries: [SessionRPEEntry],
                                              canonicalIdByStart: [Int: String]) -> [SessionRPEEntry] {
-        var chosen: [String: SessionRPEEntry] = [:]
-        for entry in entries {
-            let key = entry.sessionId ?? canonicalIdByStart[entry.startTs] ?? "start|\(entry.startTs)"
-            let candidateOrder = (entry.ratedAtTs ?? entry.startTs, entry.id)
-            if let existing = chosen[key],
-               (existing.ratedAtTs ?? existing.startTs, existing.id) >= candidateOrder {
-                continue
-            }
-            chosen[key] = entry
-        }
-        return chosen.values.sorted { ($0.startTs, $0.id) < ($1.startTs, $1.id) }
+        // One rule with the strength share of Effort (`StrengthEffort`), so both read the same answer.
+        StrengthEffort.latestPerSession(
+            entries, key: { $0.sessionId ?? canonicalIdByStart[$0.startTs] ?? "start|\($0.startTs)" },
+            ratedAt: { $0.ratedAtTs ?? $0.startTs }, id: \.id)
+            .sorted { ($0.startTs, $0.id) < ($1.startTs, $1.id) }
     }
 }

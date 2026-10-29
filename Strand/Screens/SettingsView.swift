@@ -105,6 +105,8 @@ struct SettingsView: View {
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
     /// [PuffinExperiment.exerciseVO2maxKey].
     @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
+    /// [PuffinExperiment.effortStrengthBonusKey].
+    @AppStorage(PuffinExperiment.effortStrengthBonusKey) private var effortStrengthBonusEnabled = false
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
     @AppStorage(RhythmAgeFeature.defaultsKey) private var rhythmAgeEnabled = false
 
@@ -3655,6 +3657,25 @@ struct SettingsView: View {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Estimates VO₂max from runs and walks with distance and heart rate, including measured climbs. Shown on Training Load beside the weekly estimate, compared with Apple Watch. Not counted as evidence until that comparison passes.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // MARK: Strength share of Effort (#2438). Off by default.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $effortStrengthBonusEnabled) {
+                    Text("Strength in Effort")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: effortStrengthBonusEnabled) { _ in
+                    // Only days with a rated strength session change; every other day is reused.
+                    Task { await model.intelligence.reanalyzeHistoryReusingUnchangedDays(); await model.repo.refresh() }
+                }
+                Text("Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

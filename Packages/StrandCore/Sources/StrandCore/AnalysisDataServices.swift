@@ -33,6 +33,8 @@ public protocol AnalysisDataServices: AnyObject {
     func bodyMetrics(days: Int) async -> BodyMetrics
     func weightSeries(days: Int) async -> [WeightPoint]
     func agelessLongSessions(days: Int) async -> [HealthspanVO2.LongSession]
+    /// The training sessions in `[lo, hi]`, one per physical session across its sources.
+    func trainingSessions(from lo: Int, to hi: Int) async -> TrainingSessionFusionResult
 }
 
 /// The wearer's profile as the daily analysis reads it, and the step calibration it writes back. The Apple apps
