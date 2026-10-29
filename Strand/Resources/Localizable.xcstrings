@@ -1,6 +1,122 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Strength in Effort" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kraft in der Belastung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuerza en el esfuerzo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force dans l’effort"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forza nello sforzo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siła w wysiłku"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Força no esforço"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сила в усилии"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量计入消耗"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量計入消耗"
+          }
+        }
+      }
+    },
+    "Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krafteinheiten, die du nach dem Training bewertest, erhöhen die Belastung über deinen Puls hinaus, stärker bei härterer Bewertung und längerer Einheit. Unbewertete Einheiten zählen nicht. An WHOOP abgestimmt, mit einer angenommenen Anstrengung von 7 von 10."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las sesiones de fuerza que valoras después de entrenar suman al esfuerzo más allá de tu pulso, más cuanto más dura sea la valoración y más larga la sesión. Las sesiones sin valorar no suman nada. Calibrado con WHOOP suponiendo un esfuerzo de 7 sobre 10."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les séances de force que vous évaluez après l’entraînement s’ajoutent à l’effort au-delà de votre pouls, davantage pour une évaluation plus dure et une séance plus longue. Les séances non évaluées n’ajoutent rien. Calibré sur WHOOP avec un effort supposé de 7 sur 10."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le sessioni di forza che valuti dopo l’allenamento si aggiungono allo sforzo oltre il battito, di più per una valutazione più dura e una sessione più lunga. Le sessioni non valutate non aggiungono nulla. Calibrato su WHOOP con uno sforzo presunto di 7 su 10."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesje siłowe, które oceniasz po treningu, zwiększają wysiłek ponad to, co pokazuje tętno, tym bardziej, im wyższa ocena i dłuższa sesja. Sesje bez oceny nic nie dodają. Skalibrowane względem WHOOP przy założonym wysiłku 7 na 10."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As sessões de força que avalias depois do treino somam ao esforço para lá do teu pulso, mais quanto mais dura for a avaliação e mais longa a sessão. Sessões sem avaliação não somam nada. Calibrado com a WHOOP assumindo um esforço de 7 em 10."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Силовые тренировки, которые вы оцениваете после занятия, добавляют к усилию сверх пульса, тем больше, чем выше оценка и длиннее тренировка. Неоценённые тренировки ничего не добавляют. Откалибровано по WHOOP при предполагаемом усилии 7 из 10."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在训练后评分的力量训练会在心率之外计入消耗，评分越高、时长越长，计入越多。未评分的训练不计入。按假定强度 7/10 与 WHOOP 校准。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在訓練後評分的力量訓練會在心率之外計入消耗，評分越高、時長越長，計入越多。未評分的訓練不計入。按假定強度 7/10 與 WHOOP 校準。"
+          }
+        }
+      }
+    },
     "Estimated from your age" : {
       "localizations" : {
         "de" : {
