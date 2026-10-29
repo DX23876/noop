@@ -678,7 +678,6 @@ fun SettingsScreen(
     // "Sleep staging (V2)" — V2 is the DEFAULT for every strap (WHOOP 4 and 5/MG); turn it OFF to fall back
     // to V1. Model-agnostic, so it lives outside the 5/MG-only card. 4.0 is unvalidated either way (#319/#347).
     var sleepStagerMethod by remember { mutableStateOf(puffinExperiment.sleepStagerMethod) }
-    var experimentalSleepV2 by remember { mutableStateOf(puffinExperiment.experimentalSleepV2) }
     // "Motion-aware wake refinement" (#364 follow-up) — OFF by default. Self-gates on observed gravity +
     // step density, so it is a no-op on a sparse (e.g. WHOOP 4.0) night regardless of this switch.
     var motionAwareWake by remember { mutableStateOf(puffinExperiment.motionAwareWake) }
@@ -3136,10 +3135,10 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f),
                         )
                         Switch(
-                            checked = experimentalSleepV2,
+                            checked = sleepStagerMethod != "v1",
                             onCheckedChange = {
-                                experimentalSleepV2 = it
-                                vm.setSleepStagerMethod(if (it) "v2" else "v1")
+                                sleepStagerMethod = if (it) "v2" else "v1"
+                                vm.setSleepStagerMethod(sleepStagerMethod)
                             },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Palette.surfaceBase,
