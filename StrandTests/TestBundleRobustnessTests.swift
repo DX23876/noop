@@ -77,10 +77,16 @@ final class TestBundleRobustnessTests: XCTestCase {
         // Isolate UserDefaults so the suite doesn't depend on ambient Test Centre state.
         let defaults = UserDefaults.standard
         let key = "testcentre.active.sleep"
-        let prior = defaults.object(forKey: key)
-        defer { if let prior { defaults.set(prior, forKey: key) } else { defaults.removeObject(forKey: key) } }
+        let activeKeys = TestDomain.allCases.map { "testcentre.active." + $0.id }
+        let prior = activeKeys.map { ($0, defaults.object(forKey: $0)) }
+        defer {
+            for (activeKey, value) in prior {
+                if let value { defaults.set(value, forKey: activeKey) }
+                else { defaults.removeObject(forKey: activeKey) }
+            }
+        }
 
-        defaults.set(false, forKey: key)
+        for activeKey in activeKeys { defaults.set(false, forKey: activeKey) }
         XCTAssertFalse(TestBundleAssembler.activeDomains().contains(.universal),
                        "no mode on => universal not graded")
 
