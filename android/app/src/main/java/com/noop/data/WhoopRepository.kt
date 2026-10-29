@@ -1887,7 +1887,8 @@ class WhoopRepository(
      * (Room reads) for a computed source and in every case [coreLaneRead] falls back.
      */
     private suspend fun <T> storedInput(deviceId: String, read: () -> T?): T? =
-        if (com.noop.core.CoreStoredInputs.owns(deviceId)) coreLaneRead(read) else null
+        // The switch and the lanes first: `owns` loads the core, which a repository without one must never touch.
+        if (inputLanes != null && coreReads() && com.noop.core.CoreStoredInputs.owns(deviceId)) coreLaneRead(read) else null
 
     /**
      * A read the shared core answers from its input lanes, with the Lab switch on: off the main thread, since the
