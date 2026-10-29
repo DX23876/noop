@@ -516,8 +516,10 @@ private suspend fun nightDetailModel(viewModel: com.noop.ui.AppViewModel,
     val sleeps = com.noop.data.WhoopRepository.mergeSleepRichness(
         repo.sleepSessionsUnion(strap, 0L, now), repo.computedSleepSessionsUnion(strap, 0L, now)) { localEndDay(it.endTs) }
         .sortedBy { it.effectiveStartTs }
-    suspend fun load(key: String) = runCatching { repo.metricSeries("my-whoop", key, "0000-00-00", "9999-99-99") }
-        .getOrDefault(emptyList()).associate { it.day to it.value }
+    // The export-verbatim sleep figures through the resolver the core answers (`read.resolvedSeries`).
+    suspend fun load(key: String) = runCatching {
+        repo.resolvedSeries(key, "my-whoop", "0000-00-00", "9999-99-99", strapDeviceId = strap).points
+    }.getOrDefault(emptyList()).associate { it.day to it.value }
     val imported = com.noop.ui.ImportedSleepSeries(performance = load("sleep_performance"),
         consistency = load("sleep_consistency"), needMin = load("sleep_need_min"), debtMin = load("sleep_debt_min"))
     val habitual = runCatching { repo.habitualMidsleepSec(strap) }.getOrNull()
