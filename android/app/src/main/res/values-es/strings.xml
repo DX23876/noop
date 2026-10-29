@@ -4951,4 +4951,11 @@
     <string name="forge_gn_snooze">Recuérdamelo en 1 hora</string>
     <string name="forge_db_swipe">Desliza para cambiar de día</string>
     <string name="forge_db_updates">Novedades</string>
+    <string name="forge_profile_edit">Editar</string>
+    <string name="forge_profile_done">Listo</string>
+    <string name="forge_profile_birthday">fecha de nacimiento</string>
+    <string name="forge_profile_name_hint">Nombre</string>
+    <string name="forge_profile_not_set">Sin definir</string>
+    <string name="forge_profile_change_photo">Cambiar foto</string>
+    <string name="forge_profile_choose_photo">Elegir foto</string>
 </resources>

@@ -168,7 +168,7 @@ private fun KeyMetricsDisplay(detailed: Boolean, onDetailed: (Boolean) -> Unit, 
                     Text(stringResource(R.string.forge_lay_detailed), style = Forge.type.body, color = colors.text)
                     Text(stringResource(R.string.forge_lay_detailed_detail), style = Forge.type.caption, color = colors.textSecondary)
                 }
-                Switch(detailed, onDetailed, colors = SwitchDefaults.colors(checkedTrackColor = colors.accent))
+                Switch(detailed, onDetailed, colors = forgeSwitchColors())
             }
             if (detailed) {
                 Text(stringResource(R.string.forge_lay_trend_window), style = Forge.type.body, color = colors.text)

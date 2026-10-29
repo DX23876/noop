@@ -4921,4 +4921,11 @@
     <string name="forge_gn_snooze">1 小时后提醒我</string>
     <string name="forge_db_swipe">轻扫以切换日期</string>
     <string name="forge_db_updates">更新</string>
+    <string name="forge_profile_edit">编辑</string>
+    <string name="forge_profile_done">完成</string>
+    <string name="forge_profile_birthday">出生日期</string>
+    <string name="forge_profile_name_hint">名称</string>
+    <string name="forge_profile_not_set">未设置</string>
+    <string name="forge_profile_change_photo">更改照片</string>
+    <string name="forge_profile_choose_photo">选择照片</string>
 </resources>

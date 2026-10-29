@@ -365,7 +365,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 if (sport.isDistanceSport) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.forge_th_route), style = Forge.type.body, modifier = Modifier.weight(1f))
-                        Switch(checked = route, onCheckedChange = { route = it })
+                        Switch(checked = route, onCheckedChange = { route = it }, colors = forgeSwitchColors())
                     }
                 }
             },

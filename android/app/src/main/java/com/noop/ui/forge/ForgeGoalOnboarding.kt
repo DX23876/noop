@@ -299,7 +299,7 @@ private fun SwitchRow(title: String, note: String, on: Boolean, enabled: Boolean
             Text(note, style = Forge.type.footnote, color = Forge.colors.textTertiary)
         }
         Spacer(Modifier.width(8.dp))
-        Switch(checked = on, onCheckedChange = onChange, enabled = enabled)
+        Switch(checked = on, onCheckedChange = onChange, enabled = enabled, colors = forgeSwitchColors())
     }
 }
 

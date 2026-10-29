@@ -442,7 +442,7 @@ internal fun GoalDraftReviewPage(proposalId: String, onClose: () -> Unit) {
 private fun ToggleLine(title: String, on: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = Forge.type.subhead, color = Forge.colors.text, modifier = Modifier.weight(1f))
-        Switch(checked = on, onCheckedChange = onChange)
+        Switch(checked = on, onCheckedChange = onChange, colors = forgeSwitchColors())
     }
 }
 

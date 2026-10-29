@@ -4967,4 +4967,11 @@
     <string name="forge_gn_snooze">Przypomnij za 1 godzinę</string>
     <string name="forge_db_swipe">Przesuń, aby zmienić dzień</string>
     <string name="forge_db_updates">Aktualizacje</string>
+    <string name="forge_profile_edit">Redagować</string>
+    <string name="forge_profile_done">Gotowe</string>
+    <string name="forge_profile_birthday">Data urodzenia</string>
+    <string name="forge_profile_name_hint">Nazwa</string>
+    <string name="forge_profile_not_set">Nie ustawiono</string>
+    <string name="forge_profile_change_photo">Zmień zdjęcie</string>
+    <string name="forge_profile_choose_photo">Wybierz zdjęcie</string>
 </resources>

@@ -4919,4 +4919,11 @@
     <string name="forge_gn_snooze">Ricordamelo tra 1 ora</string>
     <string name="forge_db_swipe">Scorri per cambiare giorno</string>
     <string name="forge_db_updates">Aggiornamenti</string>
+    <string name="forge_profile_edit">Modifica</string>
+    <string name="forge_profile_done">Fatto</string>
+    <string name="forge_profile_birthday">Data di nascita</string>
+    <string name="forge_profile_name_hint">Nome</string>
+    <string name="forge_profile_not_set">Non impostato</string>
+    <string name="forge_profile_change_photo">Cambia foto</string>
+    <string name="forge_profile_choose_photo">Scegli foto</string>
 </resources>

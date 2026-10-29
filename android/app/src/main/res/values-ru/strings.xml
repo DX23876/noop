@@ -4852,4 +4852,11 @@
     <string name="forge_gn_snooze">Напомнить через 1 час</string>
     <string name="forge_db_swipe">Смахните, чтобы сменить день</string>
     <string name="forge_db_updates">Обновления</string>
+    <string name="forge_profile_edit">Изменить</string>
+    <string name="forge_profile_done">Готово</string>
+    <string name="forge_profile_birthday">Дата рождения</string>
+    <string name="forge_profile_name_hint">Имя</string>
+    <string name="forge_profile_not_set">Не задано</string>
+    <string name="forge_profile_change_photo">Изменить фото</string>
+    <string name="forge_profile_choose_photo">Выбрать фото</string>
 </resources>

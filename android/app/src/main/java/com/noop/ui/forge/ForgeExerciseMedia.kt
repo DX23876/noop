@@ -92,7 +92,7 @@ fun ForgeExerciseMediaSettings(onClose: () -> Unit) {
             if (!current.withdrawn) Row(Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.forge_media_disable), style = Forge.type.subhead,
                     color = Forge.colors.text, modifier = Modifier.weight(1f))
-                Switch(current.disabled, enabled = !busy, onCheckedChange = { value -> change { CoreExerciseMedia.setDisabled(context, value); true } })
+                Switch(current.disabled, enabled = !busy, colors = forgeSwitchColors(), onCheckedChange = { value -> change { CoreExerciseMedia.setDisabled(context, value); true } })
             }
             if (!current.disabled && !current.withdrawn && current.state !in listOf("downloading", "installing")) {
                 TextButton(enabled = !busy, onClick = { disclosure = true }) { Text(stringResource(R.string.forge_media_download)) }

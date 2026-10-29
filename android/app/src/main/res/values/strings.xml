@@ -4986,4 +4986,11 @@
     <string name="forge_gn_snooze">Remind me in 1 hour</string>
     <string name="forge_db_swipe">Swipe to change day</string>
     <string name="forge_db_updates">Updates</string>
+    <string name="forge_profile_edit">Edit</string>
+    <string name="forge_profile_done">Done</string>
+    <string name="forge_profile_birthday">Date of birth</string>
+    <string name="forge_profile_name_hint">Name</string>
+    <string name="forge_profile_not_set">Not set</string>
+    <string name="forge_profile_change_photo">Change photo</string>
+    <string name="forge_profile_choose_photo">Choose photo</string>
 </resources>
