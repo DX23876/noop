@@ -111,11 +111,12 @@ final class StrainScorerTests: XCTestCase {
         XCTAssertEqual(StrainScorer.trimpToStrain(100), 51.96, accuracy: 1e-2)
     }
 
-    func testStrainGoldenEdwardsZone5() {
-        // 600 z5 samples at 1 Hz, resting 60, max 190. TRIMP = 600*5*(1/60)=50.
-        // Effort = 100*ln(51)/ln(7201) = 44.27 (was 9.3 on the 0–21 axis).
+    func testStrainGoldenZone5() {
+        // 600 samples at 1 Hz at 185 bpm, resting 60, max 190: x = 125 / 130 = 96.15 % HRR.
+        // Load = 10 min × e^(0.5646 × 4.115) ≈ 102.1; b = 5.4591 × ln(1 + 102.1 / 12.2245) ≈ 12.20;
+        // 21 × b / (b^8 + 21^8)^(1/8) ≈ 12.18 on 0–21, so Effort ≈ 58.03 (Edwards gave 44.27).
         let s = StrainScorer.strain(hr(185, 600), maxHR: 190, restingHR: 60)
-        XCTAssertEqual(s!, 44.27, accuracy: 1e-2)
+        XCTAssertEqual(s!, 58.03, accuracy: 1e-2)
     }
 
     /// #137 (partial-day sanity, PR #236 review): an imported ride is a short HR ISLAND — a 1–2 h
@@ -166,12 +167,6 @@ final class StrainScorerTests: XCTestCase {
         let z3 = StrainScorer.strain(hr(155, 600), maxHR: 190, restingHR: 60)!  // ~73% HRR → w3
         let z5 = StrainScorer.strain(hr(185, 600), maxHR: 190, restingHR: 60)!  // ~96% HRR → w5
         XCTAssertGreaterThan(z5, z3)
-    }
-
-    func testStrainBanisterAlsoBounded() {
-        let s = StrainScorer.strain(hr(185, 600), maxHR: 190, restingHR: 60, method: .banister)!
-        XCTAssertGreaterThan(s, 0)
-        XCTAssertLessThanOrEqual(s, 100.0)
     }
 
     // MARK: - #482/#480 sparse-strap acceptance + honest-zero (regression guards)

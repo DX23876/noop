@@ -78,7 +78,7 @@ final class DayCycleRecoveryTests: XCTestCase {
             windowStart: 1_700_000_000, now: 1_700_086_400, offsetSec: 0,
             habitualMidsleepSec: nil, ticksPerStep: 1, mode: .sleepOnset,
             profile: UserProfile(),
-            maxHROverride: nil, effortMethod: .edwards, recoveryReader: reader)
+            maxHROverride: nil, recoveryReader: reader)
 
         guard case .preserve = result.markerUpdate else {
             return XCTFail("an unread marker namespace must never become an authoritative replacement")

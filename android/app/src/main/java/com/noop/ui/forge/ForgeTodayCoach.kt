@@ -53,7 +53,9 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun ForgeTodayCoach(viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
-    if (!NoopPrefs.coachEnabled(context) || !com.noop.ui.CoachTodayPrefs.shown(context)) return
+    com.noop.ui.CoachTodayPrefs.version // read, so turning the banner off in Settings hides it here
+    if (!NoopPrefs.coachEnabled(context) || !com.noop.ui.CoachTodayPrefs.shown(context) ||
+        !com.noop.ui.CoachTodayPrefs.banner(context)) return
     var card by remember { mutableStateOf<CoreCoach.TodayCard?>(null) }
     // The portrait follows the coach's identity, as the name in the overline does.
     var identity by remember { mutableStateOf<CoreCoach.Identity?>(null) }
@@ -86,29 +88,39 @@ internal fun ForgeTodayCoach(viewModel: com.noop.ui.AppViewModel) {
     page?.let { selected ->
         ForgeOverlayPage(onDismiss = { page = null }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {
-                when (selected) {
-                    "launcher" -> CoachLauncher(c, onCancel = { page = null }, onHand = { q ->
-                        CoachHandoff.pendingPrompt = q
-                        page = "chat"
-                    }, onConnect = { page = "chat" })
-                    "breathe" -> {
-                        BackHandler { page = "chat" }
-                        Hosted(stringResource(R.string.nav_breathe), onBack = { page = "chat" }) { com.noop.ui.BreatheScreen(viewModel) }
-                    }
-                    "live" -> {
-                        BackHandler { page = "chat" }
-                        Hosted(stringResource(R.string.nav_live), onBack = { page = "chat" }) { com.noop.ui.LiveScreen(viewModel) }
-                    }
-                    else -> ForgeCoachDestination(c.title, onBack = { page = null }, onOpen = { dest ->
-                        when (dest) {
-                            MoreDest.Breathe -> page = "breathe"
-                            MoreDest.Live -> page = "live"
-                            else -> Unit
-                        }
-                    })
-                }
+                if (selected == "launcher") CoachLauncher(c, onCancel = { page = null }, onHand = { q ->
+                    CoachHandoff.pendingPrompt = q
+                    page = "chat"
+                }, onConnect = { page = "chat" })
+                else ForgeCoachChatPages(viewModel, c.title, onBack = { page = null })
             }
         }
+    }
+}
+
+/**
+ * The coach chat as every entry opens it (the Today card, the floating button, Ask coach): the chat, with Breathe
+ * and Live from its action row opening over it and Back returning to it.
+ */
+@Composable
+internal fun ForgeCoachChatPages(viewModel: com.noop.ui.AppViewModel, title: String, onBack: () -> Unit) {
+    var sub by rememberSaveable { mutableStateOf<String?>(null) }
+    when (sub) {
+        "breathe" -> {
+            BackHandler { sub = null }
+            Hosted(stringResource(R.string.nav_breathe), onBack = { sub = null }) { com.noop.ui.BreatheScreen(viewModel) }
+        }
+        "live" -> {
+            BackHandler { sub = null }
+            Hosted(stringResource(R.string.nav_live), onBack = { sub = null }) { com.noop.ui.LiveScreen(viewModel) }
+        }
+        else -> ForgeCoachDestination(title, onBack = onBack, onOpen = { dest ->
+            when (dest) {
+                MoreDest.Breathe -> sub = "breathe"
+                MoreDest.Live -> sub = "live"
+                else -> Unit
+            }
+        })
     }
 }
 

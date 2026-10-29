@@ -47,20 +47,18 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(settings.analysisSettings.sleepStagerMethod, .v1)
     }
 
-    /// An Android install that never touched its analysis choices scores like an untouched iPhone: Effort on
-    /// heart-rate zones, the V2 sleep stager, no wake check, the whole-night HRV window, days from sleep onset
+    /// An Android install that never touched its analysis choices scores like an untouched iPhone: the V3
+    /// sleep stager, no wake check, the whole-night HRV window, days from sleep onset
     /// (the Apple `AppAnalysisHost` defaults). The core used to hard-wire Banister and the V1 stager here.
     @MainActor
     func testTheStandardAnalysisSettingsAreTheAppleDefaults() {
         let s = CoreAnalysis.Settings.standard.analysisSettings
-        XCTAssertEqual("\(s.effortMethod)", "edwards")
         XCTAssertTrue(s.sleepStagerV2)
         XCTAssertFalse(s.motionAwareWake)
         XCTAssertFalse(s.deepHrvWindow)
         XCTAssertEqual(s.dayCycleMode.rawValue, "sleep_onset")
         let chosen = CoreAnalysis.Settings(effortBanister: true, sleepStagerV2: false, motionAwareWake: true,
                                            deepHrvWindow: true, dayCycleMode: "midnight").analysisSettings
-        XCTAssertEqual("\(chosen.effortMethod)", "banister")
         XCTAssertFalse(chosen.sleepStagerV2)
         XCTAssertTrue(chosen.motionAwareWake)
         XCTAssertTrue(chosen.deepHrvWindow)

@@ -23,7 +23,6 @@ final class AppAnalysisHost: AnalysisHost {
 
     func analysisSettings() -> AnalysisSettings {
         AnalysisSettings(
-            effortMethod: PuffinExperiment.effortMethod,
             spo2CandidateDisplay: PuffinExperiment.spo2CandidateDisplayEnabled,
             sleepStagerV2: PuffinExperiment.experimentalSleepV2Enabled,
             motionAwareWake: PuffinExperiment.motionAwareWakeEnabled,
@@ -34,6 +33,7 @@ final class AppAnalysisHost: AnalysisHost {
             hrvBaselineEpoch: Baselines.hrvBaselineEpoch(defaults),
             recoveryBaselineEpoch: Baselines.recoveryBaselineEpoch(defaults),
             traces: Set(TestDomain.allCases.filter { TestCentre.active($0) }),
+            effortStrengthBonus: PuffinExperiment.effortStrengthBonusEnabled,
             sleepStagerMethod: PuffinExperiment.sleepStagerMethod(in: defaults))
     }
 

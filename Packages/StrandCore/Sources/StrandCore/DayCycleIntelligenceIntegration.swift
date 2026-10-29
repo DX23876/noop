@@ -142,10 +142,10 @@ public actor DayCycleIntelligenceIntegration {
 
     public func compute(nights: [Night], editedRows: [CachedSleepSession], store: WhoopStore,
                         candidates: [(owner: String, priority: Int)], physiologyOwners: [String],
-                        workouts: [WorkoutRow], windowStart: Int,
+                        workouts: [WorkoutRow], strengthSessions: [StrengthEffort.Session] = [], windowStart: Int,
                         now: Int, offsetSec: Int, habitualMidsleepSec: Int?, ticksPerStep: Double,
                         mode: DayCycleMode,
-                        profile: UserProfile, maxHROverride: Double?, effortMethod: StrainScorer.Method,
+                        profile: UserProfile, maxHROverride: Double?,
                         recoveryReader: BoundaryRecoveryReader? = nil,
                         trace: (@Sendable (String) -> Void)? = nil) async throws -> Result {
         await acquire()
@@ -270,8 +270,7 @@ public actor DayCycleIntelligenceIntegration {
                     if !$0.contains($1) { $0.append($1) }
                 }
                 let restingHR = persisted?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-                let effectiveMaxHR = maxHROverride
-                    ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
+                let effectiveMaxHR = MaxHeartRate.resolve(override: maxHROverride, age: profile.age).bpm
                 // A day the fingerprint reuse above cannot skip may still hold a cycle whose heart rate did
                 // not move since the last pass (#2293): its onset or the next day changed, not its beats.
                 // The index-only count and newest timestamp per owner witness the heart rate the same way
@@ -284,8 +283,18 @@ public actor DayCycleIntelligenceIntegration {
                         hrWitness.append("\(owner)=\(fp.map { "\($0.count):\($0.maxTs)" } ?? "unread")")
                     }
                 }
+                // Below 50 % HRR only workout time counts toward Effort (#2438): the stored workouts and
+                // the bouts detected for these nights, clipped to the cycle.
+                let effortSpans = (workouts.map { $0.startTs ..< $0.endTs }
+                                   + nights.flatMap(\.workouts).map { $0.start ..< $0.end })
+                    .filter { $0.lowerBound < window.endExclusive && window.onset < $0.upperBound }
+                let spanKey = effortSpans.map { "\($0.lowerBound)-\($0.upperBound)" }.sorted().joined(separator: ",")
+                // Rated strength sessions starting in the cycle (Lab, #2438).
+                let strengthLoad = StrengthEffort.load(strengthSessions, startingIn: window.onset ..< window.endExclusive)
                 let loadKey = "\(window.onset)-\(window.endExclusive)|\(hrWitness.joined(separator: ","))"
-                    + "|rhr=\(restingHR)|max=\(effectiveMaxHR.map { "\($0)" } ?? "nil")|\(effortMethod)|\(profile.cacheKey)"
+                    + "|rhr=\(restingHR)|max=\(effectiveMaxHR.map { "\($0)" } ?? "nil")|curve2438|\(spanKey)"
+                    + "|\(profile.cacheKey)"
+                    + (strengthLoad > 0 ? "|strength=\(strengthLoad.bitPattern)" : "")
                 let load: CachedLoad
                 if let hit = cache.loads[window.sleepId], hit.key == loadKey,
                    !hrWitness.contains(where: { $0.hasSuffix("=unread") }) {
@@ -304,7 +313,7 @@ public actor DayCycleIntelligenceIntegration {
                     load = CachedLoad(
                         key: loadKey,
                         strain: StrainScorer.strain(cycleHR, maxHR: effectiveMaxHR, restingHR: restingHR,
-                                                    method: effortMethod, sex: profile.sex),
+                                                    lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad),
                         calories: cycleHR.isEmpty ? nil : Calories.estimateDayCalories(
                             cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: restingHR))
                     cache.loads[window.sleepId] = load

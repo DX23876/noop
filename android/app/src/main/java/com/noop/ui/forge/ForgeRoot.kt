@@ -52,5 +52,7 @@ fun ForgeRoot(viewModel: AppViewModel) {
                 ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
             }
         }
+        // Over every tab, under the pages that open over them (`RootTabView` mounts it the same way).
+        ForgeCoachButton(viewModel)
     }
 }

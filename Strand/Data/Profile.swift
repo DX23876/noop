@@ -249,7 +249,8 @@ final class ProfileStore: ObservableObject {
         let dob = d.object(forKey: K.dateOfBirth) as? Date
         let age = dob.map { years(from: $0, to: Date()) } ?? (d.object(forKey: K.legacyAge) as? Int ?? 30)
         let override = d.object(forKey: K.hrMax) as? Int ?? 0
-        let hrMax = override > 0 ? override : Int((208 - 0.7 * Double(age)).rounded())
+        let hrMax = MaxHeartRate.resolve(overrideBpm: override, age: Double(age),
+                                         measured: measuredMaxHeartRate?.bpm).wholeBpm
         return UserProfile(weightKg: persistedWeightKg,
                            heightCm: d.object(forKey: K.height) as? Double ?? 178,
                            age: Double(age),
@@ -310,27 +311,31 @@ final class ProfileStore: ObservableObject {
         dateOfBirth(forAge: 100)...dateOfBirth(forAge: 13)
     }
 
-    /// The effective HRmax an EFFORT score is computed against, resolved exactly as `AnalyticsEngine`
-    /// resolves it: the manual override when one is set, else Tanaka from age, else nil.
-    ///
-    /// Deliberately not `hrMax` below, which answers a different question and differs from this one in
-    /// two ways: it rounds Tanaka to an Int, and for an age-less profile it returns 208 rather than nil.
-    /// A day scored through it would not match the day the engine stored either.
-    ///
-    /// #2460: today's live Effort is computed in the Today views rather than read from the scored day,
-    /// and both of them passed Tanaka here with no reference to the override. Because the ring shows
-    /// `StrainScorer.effectiveEffort(live:stored:)`, which is `max(live, stored)`, and an override is
-    /// normally set BECAUSE the real maximum is above the formula, the Tanaka value was not merely
-    /// different, it was always the larger of the two and so always the one displayed. The setting
-    /// therefore did nothing until the day stopped being today. Both views now read this, so the live
-    /// value and the stored day are scored against one number.
-    var effortHRmax: Double? {
-        if hrMaxOverride > 0 { return Double(hrMaxOverride) }
-        return age > 0 ? StrainScorer.tanakaHRmax(age: Double(age)) : nil
+    /// The maximum heart rate in force today, with its source (`MaxHeartRate`): the manual setting, else
+    /// the level the daily pass measured in workouts (`measuredMaxHeartRate`), else Gellish from age.
+    var maxHeartRate: MaxHeartRate.Resolved {
+        MaxHeartRate.resolve(overrideBpm: hrMaxOverride, age: Double(age),
+                             measured: Self.measuredMaxHeartRate?.bpm)
     }
 
-    /// Tanaka estimate unless overridden.
-    var hrMax: Int { hrMaxOverride > 0 ? hrMaxOverride : Int((208 - 0.7 * Double(age)).rounded()) }
+    /// The level the last daily pass measured, or nil when none is confirmed yet. Written by the pass
+    /// through the analysis host, read here so the live readouts use the value the stored days use.
+    nonisolated static var measuredMaxHeartRate: MaxHeartRate.Level? {
+        MaxHeartRate.Level(stored: UserDefaults.standard.string(forKey: MaxHeartRate.measuredLevelKey))
+    }
+
+    /// The HRmax an EFFORT score is computed against: `maxHeartRate`, nil for an age-less profile with no
+    /// setting (the scorer then substitutes its default, as the engine does).
+    ///
+    /// #2460: today's live Effort is computed in the Today views rather than read from the scored day,
+    /// and both of them once passed Tanaka here with no reference to the override. Because the ring shows
+    /// `StrainScorer.effectiveEffort(live:stored:)`, which is `max(live, stored)`, a mismatched value was
+    /// always the one displayed. Both views read this, so the live value and the stored day are scored
+    /// against one number.
+    var effortHRmax: Double? { maxHeartRate.bpm }
+
+    /// `maxHeartRate` as whole bpm, for zones, workouts and display.
+    var hrMax: Int { maxHeartRate.wholeBpm }
 
     // MARK: - HR zone bands
 
@@ -356,7 +361,7 @@ final class ProfileStore: ObservableObject {
     /// alone and `HealthView` carried its own hardcoded table: three answers for one question.
     var hrZoneSet: HRZoneSet {
         HRZones.zones(config: hrZoneConfig, maxHR: Double(hrMax),
-                      autoSource: hrMaxOverride > 0 ? "manual" : "tanaka")
+                      autoSource: hrMaxOverride > 0 ? "manual" : maxHeartRate.source.rawValue)
     }
 
     /// Store a validated configuration. Returns false (and changes nothing) when the mode's bounds

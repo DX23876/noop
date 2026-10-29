@@ -7,8 +7,6 @@ import StrandAnalytics
 /// while it ran. A snapshot keeps one pass on one set of choices and lets each platform supply them from its
 /// own settings store (Android plan B3 step 3).
 public struct AnalysisSettings: Equatable, Sendable {
-    /// TRIMP method behind Effort.
-    public var effortMethod: StrainScorer.Method
     /// Whether the experimental SpO2 candidate is shown, which decides whether it is computed.
     public var spo2CandidateDisplay: Bool
     /// Complete sleep pipeline, captured once for this pass.
@@ -34,12 +32,14 @@ public struct AnalysisSettings: Equatable, Sendable {
     public var recoveryBaselineEpoch: Double
     /// Test Centre domains whose trace lines the pass builds.
     public var traces: Set<TestDomain>
+    /// Lab: rated strength sessions add to Effort beyond their heart rate (`StrengthEffort`, #2438).
+    public var effortStrengthBonus: Bool
 
-    public init(effortMethod: StrainScorer.Method, spo2CandidateDisplay: Bool, sleepStagerV2: Bool,
+    public init(spo2CandidateDisplay: Bool, sleepStagerV2: Bool,
                 motionAwareWake: Bool, deepHrvWindow: Bool, dayCycleMode: DayCycleMode, rhythmAge: Bool,
                 healthspan: Bool, hrvBaselineEpoch: Double, recoveryBaselineEpoch: Double,
-                traces: Set<TestDomain>, sleepStagerMethod: SleepStager.Method? = nil) {
-        self.effortMethod = effortMethod
+                traces: Set<TestDomain>, effortStrengthBonus: Bool = false,
+                sleepStagerMethod: SleepStager.Method? = nil) {
         self.spo2CandidateDisplay = spo2CandidateDisplay
         self.sleepStagerMethod = sleepStagerMethod ?? (sleepStagerV2 ? .v2 : .v1)
         self.motionAwareWake = motionAwareWake
@@ -50,6 +50,7 @@ public struct AnalysisSettings: Equatable, Sendable {
         self.hrvBaselineEpoch = hrvBaselineEpoch
         self.recoveryBaselineEpoch = recoveryBaselineEpoch
         self.traces = traces
+        self.effortStrengthBonus = effortStrengthBonus
     }
 
     /// Whether the pass builds the trace lines of `domain`.

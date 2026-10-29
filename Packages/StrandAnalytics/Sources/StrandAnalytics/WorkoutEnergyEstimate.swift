@@ -180,7 +180,7 @@ extension WorkoutEnergyEstimate {
             basalPerSecond = bmr / 86_400
             weightKg = profile.weightKg
             resting = min(100, max(35, restingHR ?? 60))
-            let fallbackMax = profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : 190
+            let fallbackMax = MaxHeartRate.resolve(override: nil, age: profile.age).bpm ?? 190
             maximum = max(resting + 20, hrMax ?? profile.maxHR ?? fallbackMax)
             self.peakMET = peakMET.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
             kind = EnergyWorkoutKind.forSport(sport)

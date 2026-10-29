@@ -214,7 +214,7 @@ hold).
 | 2026-10-10 | **`CLAUDE.md` and `AGENTS.md` are ryanbr's files verbatim plus one line each pointing at `docs/fork/AGENT_RULES.md`**, which holds the fork's binding agent rules (Apple-only scope, parity retired, analysis recipe rule, readout and CI invariants) and wins where it disagrees. `CLAUDE.md` imports it with `@`, `AGENTS.md` links it. Supersedes the 2026-08-01 row's "`CLAUDE.md` byte-identical apart from one pointer paragraph; `AGENTS.md` deleted" | Upstream moved its guide into `AGENTS.md` on 2026-09-17 (#2140). The fork kept an older copy of that guide in `CLAUDE.md` (13 lines in ryanbr's older wording) and grew its own `AGENTS.md`, and the two files pointed at each other. Only 14 lines were genuinely fork-own. Claude Code reads `CLAUDE.md` and its imports, Codex reads `AGENTS.md`, so one line in each reaches both tools while every sync takes ryanbr's current text without a conflict. **Analysis migration required: no** (documentation only) |
 | 2026-10-10 | **`.githooks/pre-push` refuses a push to `main` that changes app code, a package or `project.yml` unless `Tools/local-tests.sh` passed on exactly that tree** (tree hash recorded in the git dir; `NOOP_SKIP_LOCAL_TESTS=1` skips on purpose). The script runs `swift test` per changed package and, for any app or package change, the macOS `StrandTests` and the iOS build | Since 2026-09-30 (app build) and 2026-10-10 (package tests) no CI runs these on a push, and the FORK_GUIDE rule "run them locally before pushing" was prose only, the same gap the 2026-09-24 red-main hook closed for CI state. Local and mechanical, so it adds no Actions minutes. The stamp needs a clean tree, and a build that rewrites tracked files (String Catalogs) refuses to stamp. `test_pre_push_local_tests.py` runs the real hook, including its refusals. **Analysis migration required: no** |
 | 2026-10-22 | **An optional Ko-fi link (`ko-fi.com/dx23876`) is back**: one row under Settings → About, a "Support NOOP Forge" section in the README and `.github/FUNDING.yml` for the GitHub Sponsor button. No Today card, no prompt, no counter | Upstream removed its donation nudge, Support screen and FUNDING.yml on 2026-07-07 (`d7d4e4a90`) because ryanbr no longer solicits donations. The fork does, to pay for an Android version and the AI tools it needs. The row is a plain `Link`, so the app itself sends nothing; the URL lives in `ProjectLinks.support`. **Analysis migration required: no** |
-| 2026-10-28 | **Prefer a conservative detected onset to chains of short leading rest bouts.** A joined candidate starts at its first raw onset-evidence run that independently clears the existing session-duration floor when actual active runs separate it from shorter leading bouts. A qualifying first run, bare data gaps, interior interruptions and all-short-night rescue retain their existing behavior. | Historical replay isolated the active-run bridge changes as a source of additional pre-sleep minutes. The accepted tradeoff is that genuine short initial sleep may be omitted. No clock-hour cutoff is added. Tan’s stronger entry thresholds and awake retunes were measured rather than adopted wholesale; the latter also increased false wake against PSG. Light/deep/REM formulas stay unchanged. **Analysis migration required: yes**, included in the unshipped AI-31 full rebuild; imported and wearer-corrected bounds stay authoritative. |
+| 2026-10-28 | **Prefer a conservative detected onset to chains of short leading rest bouts.** A joined candidate starts at its first raw onset-evidence run that independently clears the existing session-duration floor when actual active runs separate it from shorter leading bouts. A qualifying first run, bare data gaps, interior interruptions and all-short-night rescue retain their existing behavior. | Historical replay isolated the active-run bridge changes as a source of additional pre-sleep minutes. The accepted tradeoff is that genuine short initial sleep may be omitted. No clock-hour cutoff is added. Tan’s stronger entry thresholds and awake retunes were measured rather than adopted wholesale; the latter also increased false wake against PSG. Light/deep/REM formulas stay unchanged. **Analysis migration required: yes**, included in the current AI-32 full rebuild; imported and wearer-corrected bounds stay authoritative. |
 
 ### 2026-10-06 — Bidirectional Apple Health reconciliation
 
@@ -393,6 +393,8 @@ lacks its basis, so the AgeLess weeks are deleted once more and the next pass re
 are kept. No daily row is re-scored.
 
 ### 2026-10-12 — Measured maximum heart rate offered, never applied silently
+
+Superseded on 2026-10-28 by "The maximum heart rate follows what the band measured in workouts (AI-32)" below.
 
 The analysis pass banks each day's highest heart rate held for 30 seconds without a gap in a workout
 (`hr_peak_held_30s`, `MaxHRSuggestion.heldPeak`) while the band's raw trace exists, over the whole
@@ -712,7 +714,82 @@ default; V2 retains the original detector and V1 retains original detection with
 legacy Boolean API keeps its existing V1/V2 mapping. Preference migration preserves an explicit classic
 choice and upgrades the former default to V3; a new explicit V2 choice is authoritative. Detection
 memos, persisted daily signatures, edited-night healing and backup settings carry the selected method.
-Changing methods recalculates recent nights; the unshipped AI-31 recipe applies the default to all raw
+Changing methods recalculates recent nights; the current AI-32 recipe applies the default to all raw
 history without replacing imported or wearer-corrected bounds.
 
-Analysis migration required: yes, included in the unshipped AI-31 rebuild.
+Analysis migration required: yes, included in the current AI-32 rebuild.
+
+### 2026-10-28 — The Effort recalibration gets its own bump (AI-32) before AI-31 ships in a release
+
+The Effort recalibration of [#2438](https://github.com/ryanbr/noop/issues/2438) (maximum heart rate from held
+workout peaks, a new load curve) changes stored Effort and everything derived from it, so it needs a rebuild.
+The rule of 2026-10-25 says a release carries at most one bump, and AI-31 has not shipped in a release yet, so
+the change would normally ride on AI-31. It does not: the testing build of 2026-10-26 (`b351eecd4`) already
+carries AI-31 and is published, and the owner's iPhone ran its rebuild. On every store that ran it, a change
+riding on AI-31 would reach new days only and leave the history on the old formula.
+
+The recalibration therefore bumps to AI-32. This costs release users nothing: a store on AI-30 migrates to
+AI-32 in one rebuild, because every bump runs the same full rebuild. Stores on AI-31 run the rebuild once more,
+which is the point.
+
+The rule itself stands. What counts as "shipped" for it is any published build, testing builds included, not
+only a release.
+
+Analysis migration required: no. This records a numbering decision; the bump lands with the change it serves.
+
+### 2026-10-28 — The maximum heart rate follows what the band measured in workouts (AI-32)
+
+Step 0 of [#2438](https://github.com/ryanbr/noop/issues/2438). The maximum heart rate is resolved in one place
+(`MaxHeartRate`, StrandAnalytics) and every reader goes through it: day and workout Effort, workout detection,
+zones, workout energy, AgeLess, the VO₂max fallback, the coach and Settings. The rule:
+
+1. The wearer's own setting wins, as entered. It stays available in Settings.
+2. Otherwise the measured level: each day's highest heart rate held for five consecutive samples
+   (`StrainScorer.sustainedPeak`, about five seconds) inside a workout of any source, measured on the band's
+   trace, banked per day (`hr_peak_workout_5s`). The level is the second-highest day of the 90 before a day,
+   so it needs two days; a day more than 25 bpm above the formula counts as an artefact. A day reads only the
+   days before it. After a quiet stretch the last level stays and falls only by the formula's age slope.
+3. Otherwise Gellish (2007), 192 − 0.007 × age², the formula WHOOP starts from, instead of Tanaka.
+
+Every value is a whole bpm, so a day and its workouts read one number (Swift rounded Tanaka for workouts and
+not for days before). Settings shows where the value comes from: the setting, "Measured in your workouts,
+confirmed …", or "Estimated from your age". The 30-second suggestion of 2026-10-12 and its series are removed.
+
+Why automatic now: the new Effort curve is fitted to WHOOP values, and WHOOP adjusts the maximum from workout
+peaks itself; a suggestion few people accept would leave most wearers on the formula. Why five samples and
+not 30 seconds: real maximal efforts are often seconds long, and against the usual wrist artefact (cadence
+lock, which lasts minutes) the hold length helps little; the two-day rule and the bound do. A measured peak is
+a lower bound of the true maximum, so the level only raises the value; a maximum below the formula cannot be
+seen in everyday data and needs the setting. The idea of a resolver comes from bartmuskala
+(refactor/effort-hrmax-resolver).
+
+Analysis migration required: yes. AI-32: the workout peaks are banked over the whole raw history
+(`RebuildStep.workoutPeaks`), then the full rebuild scores every day again with the maximum in force on it.
+Energy, AgeLess, the VO₂max fallback and the coach read today's value for the whole history, as they read
+the setting before.
+
+### 2026-10-28 — Effort on one fitted curve; low intensity counts only in workouts (AI-32)
+
+Step 1 of [#2438](https://github.com/ryanbr/noop/issues/2438). Effort is no longer Edwards' five zones on a
+logarithm (or Banister's exponential as a setting). Every heart-rate reading weighs
+e^(0.5646 (x − 55) / 10) per minute, x in % of heart-rate reserve, faded out below 20 % HRR; the summed load
+maps to a × ln(1 + load / k) on WHOOP's 0–21 axis with a soft cap at 21 (exponent 8), shown on 0–100.
+a 5.4591, k 12.2245 and beta 0.5646 are the fit of the fit tool's `PROPOSED` spec (DX23876/effort-calibration
+f8e1304) rerun on 2026-10-28 on the 15 contributed exports (3,760 workouts); the published rounded values were
+a 5.48, k 12.4, beta 0.567 on very nearly the same data. Example days on 0–21: a 30-minute brisk walk 6.8, an
+hour in zone 4 17.5, a 3:30 marathon 20.4, 24 hours at the top 20.97. `EffortCurveTests` rebuilds the tool's
+example days as heart-rate series and matches them within 0.1.
+
+Below 50 % HRR a reading counts only inside a workout (recorded, imported or detected that day); outside, the
+day counts from 50 % HRR as Edwards' zone 1 did. The fit is made on workouts, and over a whole day the low
+weights would turn ten hours on one's feet into a hard day; how a whole day should count is step 2, still
+open. A workout's own score, a detected bout, the coach's planned-session check (`EffortFeasibility`) and the
+live workout count everything.
+
+The Banister choice for Effort is removed on Apple and in the shared core. The Android switch stays for now:
+the Kotlin engine still reads it, and Android shows the core's daily values only with the Lab switch *Shared
+core reads daily values*. The Training Load cardio lane keeps its own Banister TRIMP. The coach's high-strain
+threshold and the hydration goal are unchanged.
+
+Analysis migration required: yes. Rides on AI-32 with step 0: the rebuild scores every day, workout and bout
+again on the new curve.

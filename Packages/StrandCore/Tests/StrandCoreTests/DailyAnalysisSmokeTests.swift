@@ -52,6 +52,9 @@ final class DailyAnalysisSmokeTests: XCTestCase {
             await WeightSeries.series(reader: reader, from: "0000-01-01", to: "9999-12-31")
         }
         func agelessLongSessions(days: Int) async -> [HealthspanVO2.LongSession] { [] }
+        func trainingSessions(from lo: Int, to hi: Int) async -> TrainingSessionFusionResult {
+            TrainingSessionResolver.resolve(rows: [], metadata: [], links: [], preferences: [])
+        }
     }
 
     private final class Profile: AnalysisProfileSource {
@@ -82,7 +85,7 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         var strings: [String: String] = [:]
         var sleepStagerMethod: SleepStager.Method = .v1
         func analysisSettings() -> AnalysisSettings {
-            AnalysisSettings(effortMethod: .banister, spo2CandidateDisplay: false, sleepStagerV2: false,
+            AnalysisSettings(spo2CandidateDisplay: false, sleepStagerV2: false,
                              motionAwareWake: false, deepHrvWindow: false, dayCycleMode: .persisted(nil),
                              rhythmAge: false, healthspan: false, hrvBaselineEpoch: 0, recoveryBaselineEpoch: 0,
                              traces: [], sleepStagerMethod: sleepStagerMethod)
