@@ -2947,7 +2947,7 @@
     <string name="forge_more_health_body_sub">Тренировки, тело, энергия и сигналы здоровья</string>
     <string name="forge_more_tools">Инструменты</string>
     <string name="forge_more_tools_sub">Пульс в реальном времени, дыхание и интервалы</string>
-    <string name="forge_more_search">Поиск</string>
+    <string name="forge_more_search">Поиск по экранам и настройкам</string>
     <string name="forge_more_no_results">Ничего не найдено</string>
     <string name="forge_more_insights">Инсайты</string>
     <string name="forge_more_scoring">Как считаются оценки</string>
@@ -4555,4 +4555,24 @@
     <string name="forge_sl_not_enough">Пока недостаточно данных о сне.</string>
     <string name="forge_sl_trend">Тренд</string>
     <string name="forge_momentum_all">Все</string>
+    <string name="forge_as_active">Активно</string>
+    <string name="forge_as_sick">Больной</string>
+    <string name="forge_as_injured">Раненый</string>
+    <string name="forge_as_break">На перерыве</string>
+    <string name="forge_as_active_sub">Обычная тренировка</string>
+    <string name="forge_as_sick_sub">Выздоровление после болезни</string>
+    <string name="forge_as_injured_sub">Нет предложений по обучению</string>
+    <string name="forge_as_break_sub">Сознательное отсутствие обучения</string>
+    <string name="forge_as_title">Статус активности</string>
+    <string name="forge_as_apply">Применить</string>
+    <string name="forge_as_valid_for">Действительно для</string>
+    <string name="forge_as_until_changed">Пока не изменилось</string>
+    <string name="forge_as_today">Сегодня</string>
+    <string name="forge_as_3days">3 дня</string>
+    <string name="forge_as_week">На этой неделе</string>
+    <string name="forge_sl_tap_to_log">Нажмите, чтобы записать</string>
+    <string name="forge_qa_guardian">Тихий страж</string>
+    <string name="forge_qa_guardian_sub">Тихая тренировка на ремнях против сегодняшнего Charge</string>
+    <string name="forge_ls_guarding">Отслеживаем вашу сессию. Тишина означает, что всё идёт по плану.</string>
+    <string name="forge_ls_paused">Нет данных в реальном времени. Тренер приостановлен.</string>
 </resources>

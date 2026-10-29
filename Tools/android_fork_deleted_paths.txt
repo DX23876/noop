@@ -10,16 +10,12 @@ android/fork-debug.keystore
 # Coupled view only his Today opened, and the helpers and tests only they used.
 android/app/src/main/java/com/noop/ui/AutoWorkoutNudge.kt
 android/app/src/main/java/com/noop/ui/AutoWorkoutPrefs.kt
-android/app/src/main/java/com/noop/ui/BodyClockDialCard.kt
 android/app/src/main/java/com/noop/ui/CoachLauncherSheet.kt
 android/app/src/main/java/com/noop/ui/CoupledScreen.kt
 android/app/src/main/java/com/noop/ui/HeaderBatteryDisplay.kt
-android/app/src/main/java/com/noop/ui/JournalReminder.kt
-android/app/src/main/java/com/noop/ui/LiveSessionScreen.kt
 android/app/src/main/java/com/noop/ui/RecapShare.kt
 android/app/src/main/java/com/noop/ui/RollingStepsAverage.kt
 android/app/src/main/java/com/noop/ui/SleepArrangeSheet.kt
-android/app/src/main/java/com/noop/ui/SleepMetricCardsUi.kt
 android/app/src/main/java/com/noop/ui/SleepMetricDetailLogic.kt
 android/app/src/main/java/com/noop/ui/SleepMetricDetailSheet.kt
 android/app/src/main/java/com/noop/ui/SleepNightNavUi.kt

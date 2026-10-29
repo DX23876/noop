@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.runtime.collectAsState
 import com.noop.R
 import com.noop.core.CoreRead
 import androidx.compose.runtime.produceState
@@ -140,6 +141,13 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     }
     var customizing by remember { mutableStateOf(false) }
     var alarms by remember { mutableStateOf(false) }
+    val v5 by viewModel.v5Signals.collectAsState()
+    // The Night detail tiles' model, built as the former Android Sleep screen built it (`fallbackSleepModel`
+    // over the daily rows, the export-verbatim sleep figures and the merged sessions with their naps).
+    val recentDays by viewModel.recentDays.collectAsState()
+    val tiles by androidx.compose.runtime.produceState<com.noop.ui.SleepModel?>(null, recentDays) {
+        value = withContext(Dispatchers.IO) { runCatching { nightDetailModel(viewModel, recentDays) }.getOrNull() }
+    }
     var layoutRevision by remember { mutableIntStateOf(0) }
     val sections = remember(layoutRevision) {
         SleepLayoutDefaults.visible(SleepLayoutPrefs.orderRaw(context), SleepLayoutPrefs.hiddenRaw(context))
@@ -227,6 +235,26 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                                         (m["light"] ?: 0).toDouble(), model?.days.orEmpty())
                 }
                 SleepSection.ASLEEP_DURATION -> AsleepDurationCard(model?.days.orEmpty())
+                SleepSection.SLEEP_MARKS -> ForgeSleepMarkCard(viewModel)
+                SleepSection.NIGHT_DETAIL -> tiles?.let { m ->
+                    val forgeColors = Forge.colors
+                    val tokens = androidx.compose.runtime.remember(forgeColors) { hostedTokens(forgeColors) }
+                    com.noop.ui.HostedPalette(tokens, forgeColors.dark) { com.noop.ui.NightDetailHostCard(m) }
+                }
+                // The 24-hour body-clock dial (`SleepBodyClockCard`): drawn only for a readable rhythm, from
+                // the circadian estimate the view model already keeps, in the Forge colours.
+                SleepSection.BODY_CLOCK -> {
+                    val phase = v5?.bodyClock
+                    if (night != null && phase != null &&
+                        phase.confidence != com.noop.analytics.CircadianEngine.PhaseConfidence.UNREADABLE) {
+                        val forgeColors = Forge.colors
+                        val tokens = androidx.compose.runtime.remember(forgeColors) { hostedTokens(forgeColors) }
+                        com.noop.ui.HostedPalette(tokens, Forge.colors.dark) {
+                            com.noop.ui.BodyClockDialCard(phase, com.noop.ui.localClockHour(night.startTs),
+                                                          com.noop.ui.localClockHour(night.endTs))
+                        }
+                    }
+                }
                 else -> Unit
             }
         }
@@ -418,9 +446,9 @@ private fun SleepDebtLedger() {
     val line = Forge.colors.border
     androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(ForgeMetrics.space2)) {
         androidx.compose.foundation.layout.Row {
-            Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.sceneInk.text,
+            Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.colors.text,
                  modifier = Modifier.weight(1f))
-            Text(stringResource(R.string.forge_sd_last14), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
+            Text(stringResource(R.string.forge_sd_last14), style = Forge.type.footnote, color = Forge.colors.textSecondary)
         }
         ForgeCard(Modifier.fillMaxWidth()) {
             if (l.nightCount == 0) {
@@ -456,4 +484,24 @@ private fun SleepDebtLedger() {
             }
         }
     }
+}
+
+
+/** The tiles' model: daily rows, the imported sleep figures and the merged sessions, as the classic screen read them. */
+private suspend fun nightDetailModel(viewModel: com.noop.ui.AppViewModel,
+                                     days: List<com.noop.data.DailyMetric>): com.noop.ui.SleepModel? {
+    val repo = viewModel.repo
+    val strap = viewModel.activeStrapId
+    val now = System.currentTimeMillis() / 1000L
+    fun localEndDay(ts: Long): String =
+        com.noop.analytics.AnalyticsEngine.dayString(ts, (java.util.TimeZone.getDefault().getOffset(ts * 1000) / 1000).toLong())
+    val sleeps = com.noop.data.WhoopRepository.mergeSleepRichness(
+        repo.sleepSessionsUnion(strap, 0L, now), repo.computedSleepSessionsUnion(strap, 0L, now)) { localEndDay(it.endTs) }
+        .sortedBy { it.effectiveStartTs }
+    suspend fun load(key: String) = runCatching { repo.metricSeries("my-whoop", key, "0000-00-00", "9999-99-99") }
+        .getOrDefault(emptyList()).associate { it.day to it.value }
+    val imported = com.noop.ui.ImportedSleepSeries(performance = load("sleep_performance"),
+        consistency = load("sleep_consistency"), needMin = load("sleep_need_min"), debtMin = load("sleep_debt_min"))
+    val habitual = runCatching { repo.habitualMidsleepSec(strap) }.getOrNull()
+    return com.noop.ui.fallbackSleepModel(days, imported, com.noop.ui.napSleepMinutesByDay(sleeps, habitual), sessions = sleeps)
 }

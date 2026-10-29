@@ -3065,7 +3065,7 @@
     <string name="forge_more_health_body_sub">Training, Körper, Energie und Gesundheitssignale</string>
     <string name="forge_more_tools">Werkzeuge</string>
     <string name="forge_more_tools_sub">Live-Herzfrequenz, Atmen und Intervalle</string>
-    <string name="forge_more_search">Suchen</string>
+    <string name="forge_more_search">Seiten und Einstellungen durchsuchen</string>
     <string name="forge_more_no_results">Keine Treffer</string>
     <string name="forge_more_insights">Insights</string>
     <string name="forge_more_scoring">So funktionieren die Werte</string>
@@ -4673,4 +4673,24 @@
     <string name="forge_sl_not_enough">Noch nicht genug Nächte.</string>
     <string name="forge_sl_trend">Trend</string>
     <string name="forge_momentum_all">Alle</string>
+    <string name="forge_as_active">Aktiv</string>
+    <string name="forge_as_sick">Krank</string>
+    <string name="forge_as_injured">Verletzt</string>
+    <string name="forge_as_break">Pause</string>
+    <string name="forge_as_active_sub">Normales Training</string>
+    <string name="forge_as_sick_sub">Erholung von einer Krankheit</string>
+    <string name="forge_as_injured_sub">Keine Trainingsvorschläge</string>
+    <string name="forge_as_break_sub">Bewusst kein Training</string>
+    <string name="forge_as_title">Aktivitätsstatus</string>
+    <string name="forge_as_apply">Übernehmen</string>
+    <string name="forge_as_valid_for">Gültig für</string>
+    <string name="forge_as_until_changed">Bis geändert</string>
+    <string name="forge_as_today">Heute</string>
+    <string name="forge_as_3days">3 Tage</string>
+    <string name="forge_as_week">Diese Woche</string>
+    <string name="forge_sl_tap_to_log">Zum Erfassen tippen</string>
+    <string name="forge_qa_guardian">Stiller Wächter</string>
+    <string name="forge_qa_guardian_sub">Leises Strap-Coaching gegen den heutigen Charge</string>
+    <string name="forge_ls_guarding">Deine Session wird bewacht. Stille bedeutet, du bist auf Kurs.</string>
+    <string name="forge_ls_paused">Kein Live-Messwert. Coaching ist pausiert.</string>
 </resources>

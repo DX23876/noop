@@ -3022,7 +3022,7 @@
     <string name="forge_more_health_body_sub">训练、身体、能量和健康信号</string>
     <string name="forge_more_tools">工具</string>
     <string name="forge_more_tools_sub">实时心率、呼吸和间歇</string>
-    <string name="forge_more_search">搜索</string>
+    <string name="forge_more_search">搜索页面和设置</string>
     <string name="forge_more_no_results">没有匹配结果</string>
     <string name="forge_more_insights">洞察</string>
     <string name="forge_more_scoring">评分原理</string>
@@ -4630,4 +4630,24 @@
     <string name="forge_sl_not_enough">夜间记录还不够。</string>
     <string name="forge_sl_trend">趋势</string>
     <string name="forge_momentum_all">全部</string>
+    <string name="forge_as_active">活跃</string>
+    <string name="forge_as_sick">生病了</string>
+    <string name="forge_as_injured">受伤</string>
+    <string name="forge_as_break">休息时</string>
+    <string name="forge_as_active_sub">正常训练</string>
+    <string name="forge_as_sick_sub">从疾病中康复</string>
+    <string name="forge_as_injured_sub">没有培训建议</string>
+    <string name="forge_as_break_sub">故意不训练</string>
+    <string name="forge_as_title">活动状态</string>
+    <string name="forge_as_apply">申请</string>
+    <string name="forge_as_valid_for">有效期为</string>
+    <string name="forge_as_until_changed">直到改变</string>
+    <string name="forge_as_today">今天</string>
+    <string name="forge_as_3days">3天</string>
+    <string name="forge_as_week">本周</string>
+    <string name="forge_sl_tap_to_log">点击以记录</string>
+    <string name="forge_qa_guardian">沉默的守护者</string>
+    <string name="forge_qa_guardian_sub">针对今天的 Charge 的安静带训练</string>
+    <string name="forge_ls_guarding">正在守护你的训练。安静即表示状态良好。</string>
+    <string name="forge_ls_paused">暂无实时读数。指导已暂停。</string>
 </resources>

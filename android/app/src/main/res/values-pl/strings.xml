@@ -3068,7 +3068,7 @@
     <string name="forge_more_health_body_sub">Trening, ciało, energia i sygnały zdrowia</string>
     <string name="forge_more_tools">Narzędzia</string>
     <string name="forge_more_tools_sub">Tętno na żywo, oddech i interwały</string>
-    <string name="forge_more_search">Szukaj</string>
+    <string name="forge_more_search">Szukaj ekranów i ustawień</string>
     <string name="forge_more_no_results">Brak wyników</string>
     <string name="forge_more_insights">Insights</string>
     <string name="forge_more_scoring">Jak działają wyniki</string>
@@ -4676,4 +4676,24 @@
     <string name="forge_sl_not_enough">Jeszcze za mało nocy.</string>
     <string name="forge_sl_trend">Tendencja</string>
     <string name="forge_momentum_all">Wszystko</string>
+    <string name="forge_as_active">Aktywny</string>
+    <string name="forge_as_sick">Chory</string>
+    <string name="forge_as_injured">Kontuzjowany</string>
+    <string name="forge_as_break">Przerwa</string>
+    <string name="forge_as_active_sub">Zwykły trening</string>
+    <string name="forge_as_sick_sub">Powrót do formy po chorobie</string>
+    <string name="forge_as_injured_sub">Brak sugestii treningowych</string>
+    <string name="forge_as_break_sub">Świadomie bez treningu</string>
+    <string name="forge_as_title">Status aktywności</string>
+    <string name="forge_as_apply">Zastosuj</string>
+    <string name="forge_as_valid_for">Ważne przez</string>
+    <string name="forge_as_until_changed">Do odwołania</string>
+    <string name="forge_as_today">Dzisiaj</string>
+    <string name="forge_as_3days">3 dni</string>
+    <string name="forge_as_week">W tym tygodniu</string>
+    <string name="forge_sl_tap_to_log">Kliknij, aby się zalogować</string>
+    <string name="forge_qa_guardian">Cichy opiekun</string>
+    <string name="forge_qa_guardian_sub">Ciche prowadzenie przez opaskę względem dzisiejszego Poziomu energii</string>
+    <string name="forge_ls_guarding">Chronię twoją sesję. Cisza oznacza, że ​​jesteś na dobrej drodze.</string>
+    <string name="forge_ls_paused">Żadnego czytania na żywo. Coaching jest wstrzymany.</string>
 </resources>

@@ -344,6 +344,13 @@ public enum CoreCall {
                                                        weekdays: args["weekdays"] as? [Int]))
         case "training.duplicateRoutine":
             return ok(await CoreTraining.duplicateRoutine(store: store, id: string("id"), title: string("title")))
+        case "today.status":
+            let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
+            return CoreRead.json(await CoreTodayStatus.read(reader: reader, maxHR: maxHR, sex: string("sex"),
+                                                            dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
+        case "today.setActivity":
+            return ok(CoreTodayStatus.setActivity(state: string("state"), duration: string("duration"),
+                                                  customUntil: (args["until"] as? NSNumber)?.intValue))
         case "training.load":
             let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
             return CoreRead.json(await CoreTrainingLoad.read(reader: reader, maxHR: maxHR, sex: string("sex"),

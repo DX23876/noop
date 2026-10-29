@@ -233,7 +233,8 @@ fun rememberMoreNavigator(): MoreNavigator {
  * (`Hosted`), so every page has one look. Drawn inside the More tab's column; [MoreOverlay] shows the pages.
  */
 @Composable
-fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit) {
+fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
+                      onOpenSettingsPage: (ForgeSettingsPage) -> Unit = { onOpenSettings() }) {
     val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
     fun open(dest: MoreDest) = if (dest == MoreDest.Settings) onOpenSettings() else nav.push(MoreRoute.Dest(dest))
@@ -242,10 +243,27 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit) {
         val hits = MoreDest.entries.filter { it.shown(context) }.filter { d ->
             (listOf(context.getString(d.titleRes)) + d.keywords).any { it.contains(query.trim(), ignoreCase = true) }
         }
-        if (hits.isEmpty()) {
+        // Settings pages come after the screens, as iOS lists `SettingsSearchCatalog` hits under "Settings".
+        val q = query.trim()
+        val pages = HUB_GROUPS.flatMap { it.second }.filter { p ->
+            (listOf(context.getString(p.titleRes), context.getString(p.subtitleRes)) + SETTINGS_SEARCH_WORDS[p].orEmpty())
+                .any { it.contains(q, ignoreCase = true) }
+        }
+        if (hits.isEmpty() && pages.isEmpty()) {
             Text(stringResource(R.string.forge_more_no_results), style = Forge.type.subhead,
                  color = Forge.sceneInk.secondary, modifier = Modifier.padding(ForgeMetrics.space2))
-        } else DestCard(hits, ::open)
+            return
+        }
+        if (hits.isNotEmpty()) DestCard(hits, ::open)
+        if (pages.isNotEmpty()) {
+            SectionHeader(stringResource(R.string.nav_settings))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                pages.forEachIndexed { i, p ->
+                    HubRow(p.icon, p.tint(), stringResource(p.titleRes), stringResource(p.subtitleRes)) { onOpenSettingsPage(p) }
+                    if (i < pages.lastIndex) HubDivider()
+                }
+            }
+        }
         return
     }
     DestCard(listOf(MoreDest.Goals), ::open)

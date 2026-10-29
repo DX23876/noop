@@ -182,6 +182,36 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
     About(R.string.l10n_settings_screen_about_6b21fb79, R.string.forge_settings_about_subtitle, Icons.Rounded.Info),
 }
 
+/** Search words for each page, after iOS `SettingsSearchCatalog.entries` (English, as iOS keeps them). */
+internal val SETTINGS_SEARCH_WORDS: Map<ForgeSettingsPage, List<String>> = mapOf(
+    ForgeSettingsPage.Profile to listOf("photo", "picture", "avatar", "name", "date of birth", "age", "sex", "weight",
+                                        "height", "waist", "max heart rate", "heart-rate zones"),
+    ForgeSettingsPage.Goals to listOf("goal", "rest days", "step goal", "daily steps", "streak", "badges", "records",
+                                      "motivation", "goal notifications"),
+    ForgeSettingsPage.Strap to listOf("bluetooth", "pairing", "connection", "re-scan", "disconnect", "strap log", "steps",
+                                      "step count", "calibration", "heart rate sharing", "broadcast"),
+    ForgeSettingsPage.BatteryRecording to listOf("battery", "power saving", "low power", "strap battery", "continuous HRV"),
+    ForgeSettingsPage.StrapActions to listOf("double-tap", "haptics", "buzz", "vibration", "heart-rate ceiling"),
+    ForgeSettingsPage.Training to listOf("strength", "workout", "session rating", "rest timer", "weight unit", "sets",
+                                         "exercise media", "workout suggestions", "auto-detect workouts"),
+    ForgeSettingsPage.TodayTrends to listOf("dashboard", "today cards", "water", "hydration", "journal", "journal card"),
+    ForgeSettingsPage.Notifications to listOf("wrist alerts", "inactivity", "reminders", "daily report", "calls"),
+    ForgeSettingsPage.Coach to listOf("chat", "API key", "provider", "model", "memory", "coach"),
+    ForgeSettingsPage.LanguageUnits to listOf("language", "clock", "12-hour", "24-hour", "week start", "Monday", "Sunday",
+                                              "metric", "imperial", "distance", "pace", "temperature"),
+    ForgeSettingsPage.Appearance to listOf("theme", "dark mode", "light mode", "accent colour", "background", "sky",
+                                           "charts", "motion", "animation"),
+    ForgeSettingsPage.Calculations to listOf("day start", "day cycle", "midnight", "effort model", "recalibrate",
+                                             "reset baseline", "charge baseline"),
+    ForgeSettingsPage.DataBackup to listOf("export", "import", "backup file", "noopbak", "restore", "Health Connect",
+                                           "data sources", "WHOOP export", "CSV"),
+    ForgeSettingsPage.Help to listOf("how NOOP works", "how your scores work", "limitations", "test centre", "diagnostics",
+                                     "bug report", "strap log"),
+    ForgeSettingsPage.Lab to listOf("experimental", "beta", "stress baseline", "training-based VO2max", "AgeLess",
+                                    "daily rhythm"),
+    ForgeSettingsPage.About to listOf("version", "what's new", "update check", "source code", "GitHub", "licence"),
+)
+
 /**
  * The hub's groups in iOS order (`SettingsHubLayout`). Siri has no Android counterpart, so its row is left out;
  * Today & Trends carries only its cards.
@@ -245,7 +275,7 @@ private fun decodeRoutes(raw: String): List<Route> = raw.split(",").mapNotNull {
 
 /** The tile colour of a page's icon, the iOS system colour `AppleInspiredColors` gives its colour key. */
 @Composable
-private fun ForgeSettingsPage.tint(): Color {
+internal fun ForgeSettingsPage.tint(): Color {
     val token = when (this) {
         ForgeSettingsPage.Profile, ForgeSettingsPage.DataBackup -> ForgeTokens.Color.systemBlue
         ForgeSettingsPage.Goals, ForgeSettingsPage.Training -> ForgeTokens.Color.systemOrange

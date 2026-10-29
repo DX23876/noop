@@ -50,16 +50,8 @@ object TodayLayoutDefaults {
     /** Recovery Vitals starts hidden: HRV, resting heart rate and respiration are already Key Metrics. */
     val hiddenSections: List<TodaySection> = listOf(TodaySection.RECOVERY_VITALS)
 
-    /**
-     * Sections the Forge Today never draws, left out of the editor. Data Sources as on iOS; the rest are iOS
-     * sections Android has no card for yet. Their stored position and visibility survive a save, so a layout
-     * restored on the iPhone keeps them, and each leaves this set when its card lands.
-     */
-    val excludedSections: Set<TodaySection> = setOf(
-        TodaySection.DATA_SOURCES, TodaySection.LIVE_SESSION, TodaySection.TRAINING_LOAD, TodaySection.WORKOUTS,
-        TodaySection.RECOVERY_VITALS, TodaySection.YOUR_CARDS, TodaySection.MENSTRUAL_CYCLE, TodaySection.JOURNAL,
-        TodaySection.ADDED_CARDS,
-    )
+    /** Never drawn by Forge Today, as `LiquidTodayDefaults.excludedSections`: Data Sources keeps its route in Settings. */
+    val excludedSections: Set<TodaySection> = setOf(TodaySection.DATA_SOURCES)
 
     /** Calories, Charge, Effort and Rest stay out of the untouched grid: the Energy card and the hero show them. */
     val keyMetrics: List<KeyMetric> = KeyMetric.defaultOrder.filterNot {
@@ -142,7 +134,9 @@ object TodayLayoutDefaults {
  */
 object SleepLayoutDefaults {
     val drawn: List<SleepSection> = listOf(SleepSection.STAGES, SleepSection.SLEEP_DEBT,
-                                          SleepSection.STAGES_VS_TYPICAL, SleepSection.ASLEEP_DURATION)
+                                          SleepSection.STAGES_VS_TYPICAL, SleepSection.ASLEEP_DURATION,
+                                          SleepSection.BODY_CLOCK, SleepSection.NIGHT_DETAIL,
+                                          SleepSection.SLEEP_MARKS)
 
     fun draft(orderRaw: String?, hiddenRaw: String?): EditableLayoutDraft<SleepSection> {
         val order = SleepLayoutPrefs.decodeOrder(orderRaw).filter { it in drawn }

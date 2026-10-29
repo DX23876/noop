@@ -562,3 +562,24 @@ internal fun ForgeMetricTrendPage(metric: CoreRead.Metric, titleRes: Int, unit: 
         }
     }
 }
+
+/** A Trends card hosted on Today (Today's "Added cards"): the metric over the trailing 30 days from the core. */
+@Composable
+internal fun ForgeHostedTrend(metric: CoreRead.Metric) {
+    val context = LocalContext.current
+    var points by remember { mutableStateOf<List<CoreRead.Point>>(emptyList()) }
+    LaunchedEffect(metric) {
+        points = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            CoreRead.series(metric, LocalDate.now().minusDays(29).toString(), LocalDate.now().toString())
+        }
+    }
+    val colors = Forge.colors
+    val (title, unit, tint, better) = when (metric) {
+        CoreRead.Metric.Hrv -> listOf(stringResource(R.string.forge_tr_hrv), stringResource(R.string.forge_unit_ms), colors.accent, true)
+        CoreRead.Metric.RestingHr -> listOf(stringResource(R.string.forge_tr_rhr), stringResource(R.string.forge_unit_bpm), colors.heart, false)
+        else -> listOf(stringResource(R.string.forge_effort), "", colors.effort, null)
+    }
+    RangeCard(title as String, stringResource(R.string.forge_tr_trailing_days, 30), unit as String, points, TrendRange.Month,
+              LocalDate.now(), tint as Color, better as Boolean?, tall = false)
+}

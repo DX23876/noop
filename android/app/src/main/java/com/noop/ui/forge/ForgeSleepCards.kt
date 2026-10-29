@@ -24,6 +24,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.WbSunny
+import kotlinx.coroutines.launch
 import com.noop.R
 import com.noop.data.DailyMetric
 import java.util.Locale
@@ -160,6 +163,49 @@ internal fun AsleepDurationCard(days: List<DailyMetric>) {
                             Text(label.uppercase(Locale.getDefault()), style = Forge.type.footnote, color = colors.textTertiary)
                             Text(value, style = Forge.type.captionNumber, color = colors.text)
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Fork (DX23876), Android parity plan 2.3: "Sleep marks" as iOS draws it (`SleepMarkCard`): two buttons that log
+ * going to sleep or waking up with the time. Logging only: the mark goes to the `sleep_mark` series and the strap
+ * log and never changes the detected night.
+ */
+@Composable
+internal fun ForgeSleepMarkCard(viewModel: com.noop.ui.AppViewModel) {
+    val colors = Forge.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    fun mark(type: com.noop.analytics.SleepMarkType) {
+        val mark = com.noop.analytics.SleepMark.now(type)
+        viewModel.ble.externalLog(mark.logLine())
+        scope.launch { runCatching { viewModel.repo.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"))) } }
+        android.widget.Toast.makeText(context, mark.confirmation(), android.widget.Toast.LENGTH_SHORT).show()
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+        Column {
+            Text(stringResource(R.string.forge_sl_tap_to_log).uppercase(), style = Forge.type.overline, color = colors.textSecondary)
+            Text(stringResource(R.string.l10n_sleep_screen_sleep_marks_8e9b86f0), style = Forge.type.title2, color = colors.text)
+        }
+        ForgeCard(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.l10n_sleep_screen_tap_when_you_re_heading_to_1f401690), style = Forge.type.footnote,
+                 color = colors.textTertiary)
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+                listOf(Triple(com.noop.analytics.SleepMarkType.BEDTIME, androidx.compose.material.icons.Icons.Rounded.Bedtime,
+                              R.string.l10n_sleep_screen_going_to_sleep_9c6c63fd),
+                       Triple(com.noop.analytics.SleepMarkType.WAKE, androidx.compose.material.icons.Icons.Rounded.WbSunny,
+                              R.string.l10n_sleep_screen_i_m_awake_2caf0e7f)).forEach { (type, icon, label) ->
+                    androidx.compose.material3.Button(onClick = { mark(type) }, modifier = Modifier.weight(1f),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = colors.inset,
+                                                                                        contentColor = colors.text)) {
+                        androidx.compose.material3.Icon(icon, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(label), style = Forge.type.subhead, maxLines = 2)
                     }
                 }
             }

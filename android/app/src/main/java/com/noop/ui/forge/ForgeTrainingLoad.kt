@@ -151,7 +151,7 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
 // MARK: - The two lanes
 
 @Composable
-private fun HeroLanes(o: CoreTrainingLoad.Output) {
+internal fun HeroLanes(o: CoreTrainingLoad.Output) {
     val s = o.strength; val c = o.cardio
     val provisional = s.band == null && o.provisionalBand != null
     LoadHeroCard(TrainingLane.Strength, s.percent, LoadPill.of(s.band, s.guardState, provisional),

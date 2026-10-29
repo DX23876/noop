@@ -88,6 +88,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     var pairing by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
     var profilePage by remember { mutableStateOf(false) }
+    var settingsPage by remember { mutableStateOf<ForgeSettingsPage?>(null) }
     var devices by remember { mutableStateOf(false) }
     var classicWizard by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -115,7 +116,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         ProfileRow(open = profilePage, onClick = { profilePage = true })
         DeviceRow(viewModel, onClick = { devices = true })
 
-        MoreIndexSections(more, onOpenSettings = { settings = true })
+        MoreIndexSections(more, onOpenSettings = { settings = true }, onOpenSettingsPage = { settingsPage = it })
         Text(stringResource(R.string.forge_version, BuildConfig.VERSION_NAME), style = Forge.type.caption,
              color = Forge.sceneInk.tertiary, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         Text(stringResource(R.string.forge_privacy), style = Forge.type.caption, color = Forge.sceneInk.tertiary,
@@ -132,6 +133,11 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
     if (profilePage) {
         ForgeOverlayPage(onDismiss = { profilePage = false }) {
             ForgeSettings(viewModel, onClose = { profilePage = false }, initialPage = ForgeSettingsPage.Profile)
+        }
+    }
+    settingsPage?.let { page ->
+        ForgeOverlayPage(onDismiss = { settingsPage = null }) {
+            ForgeSettings(viewModel, onClose = { settingsPage = null }, initialPage = page)
         }
     }
     if (devices) {

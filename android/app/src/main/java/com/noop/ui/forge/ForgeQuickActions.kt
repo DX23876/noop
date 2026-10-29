@@ -45,13 +45,15 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.ui.platform.LocalContext
 import com.noop.R
 import com.noop.ui.AppViewModel
 import com.noop.ui.ProfileAvatar
 import kotlin.math.roundToInt
 
 /** What the Today header's "+" opens, after the iOS `QuickAction`. */
-enum class QuickAction { Battery, Live, Workout, Journal, Breathe, Goals, CustomizeToday }
+enum class QuickAction { Battery, Live, Workout, Journal, Breathe, Goals, LiveSession, CustomizeToday }
 
 /** The header's trailing pair after iOS (`headerProfileButton`, `LiquidAddButton`): the profile photo, then "+". */
 @Composable
@@ -110,6 +112,11 @@ internal fun ForgeQuickActionSheet(viewModel: AppViewModel, onDismiss: () -> Uni
                       ForgeTokens.Color.systemOrange.resolve()) { onPick(QuickAction.Journal) }
             ActionRow(stringResource(R.string.forge_qa_breathe), Icons.Rounded.Air, colors.rest) { onPick(QuickAction.Breathe) }
             ActionRow(stringResource(R.string.forge_lay_section_goals), Icons.Rounded.TrackChanges, colors.charge) { onPick(QuickAction.Goals) }
+            // The guided session (iOS "Silent Guardian"), while its beta switch is on (Settings › Training).
+            if (com.noop.ui.LiveSessionPrefs.enabled(LocalContext.current)) {
+                ActionRow(stringResource(R.string.forge_qa_guardian), Icons.Rounded.Shield, ForgeTokens.Color.systemCyan.resolve(),
+                          stringResource(R.string.forge_qa_guardian_sub)) { onPick(QuickAction.LiveSession) }
+            }
             HorizontalDivider(color = colors.divider, modifier = Modifier.padding(vertical = ForgeMetrics.space3))
             ActionRow(stringResource(R.string.forge_qa_customize_home), Icons.Rounded.Tune, colors.textSecondary) {
                 onPick(QuickAction.CustomizeToday)

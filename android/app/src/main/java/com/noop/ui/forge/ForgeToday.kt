@@ -129,6 +129,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var settingsOpen by remember { mutableStateOf(false) }
     var startWorkout by remember { mutableStateOf(false) }
     var liveWorkout by remember { mutableStateOf(false) }
+    var liveSession by remember { mutableStateOf(false) }
     val more = rememberMoreNavigator()
     val selectTab = LocalForgeTabSelect.current
     if (quickActions) {
@@ -141,10 +142,12 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 QuickAction.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
                 QuickAction.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
                 QuickAction.Goals -> more.push(MoreRoute.Dest(MoreDest.Goals))
+                QuickAction.LiveSession -> liveSession = true
                 QuickAction.CustomizeToday -> customizing = TodayCustomizationDestination.Today
             }
         }
     }
+    if (liveSession) ForgeLiveSessionCover(viewModel, onClose = { liveSession = false })
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
     if (settingsOpen) {
         ForgeOverlayPage(onDismiss = { settingsOpen = false }) { ForgeSettings(viewModel, onClose = { settingsOpen = false }) }
@@ -202,14 +205,36 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         sections.forEach { section ->
             when (section) {
                 TodaySection.HERO -> Hero(model?.day, width)
-                TodaySection.SYNTHESIS -> if (shown == today) ForgeTodayMomentum(viewModel)
+                TodaySection.SYNTHESIS -> if (shown == today) {
+                    // The status pills sit above the Momentum card, as in `LiquidTodayView.synthesisSection`.
+                    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                        TodayStatusPills()
+                        ForgeTodayMomentum(viewModel)
+                    }
+                }
                 TodaySection.GOALS -> if (shown == today) TodayGoals()
                 TodaySection.COACH -> if (shown == today) ForgeTodayCoach(viewModel)
                 TodaySection.HEART_RATE -> HeartCard(viewModel, shown, live = shown == today)
                 TodaySection.KEY_METRICS -> ForgeKeyMetrics(model, revision = layoutRevision,
                                                             onEdit = { customizing = TodayCustomizationDestination.KeyMetrics })
                 TodaySection.ENERGY -> if (shown == today) TodayEnergy()
-                else -> Unit
+                // The sections ryanbr's Today drew and Forge Today had dropped (E-3f), as `LiquidTodayView` shows them.
+                TodaySection.TRAINING_LOAD -> if (shown == today) TodayTrainingLoadForge { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) }
+                TodaySection.WORKOUTS -> TodayWorkoutsForge(viewModel)
+                TodaySection.RECOVERY_VITALS -> TodayRecoveryVitalsForge(viewModel) { more.push(MoreRoute.Dest(MoreDest.Health)) }
+                TodaySection.YOUR_CARDS -> if (shown == today) TodayYourCardsForge(viewModel,
+                    onOpenMetric = { more.push(MoreRoute.Dest(MoreDest.Health)) }, onOpenSleep = { selectTab(ForgeTab.Sleep) },
+                    onOpenStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) },
+                    onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Journal)) },
+                    onOpenCoach = { more.push(MoreRoute.Dest(MoreDest.Coach)) },
+                    onCustomise = { customizing = TodayCustomizationDestination.Today })
+                TodaySection.MENSTRUAL_CYCLE -> if (shown == today) TodayCycleForge(viewModel)
+                TodaySection.JOURNAL -> if (shown == today) TodayJournalForge(viewModel) { more.push(MoreRoute.Dest(MoreDest.Journal)) }
+                TodaySection.ADDED_CARDS -> if (shown == today) TodayAddedCardsForge(viewModel,
+                    onOpenMetric = { more.push(MoreRoute.Dest(MoreDest.Health)) }, onOpenSleep = { selectTab(ForgeTab.Sleep) },
+                    onOpenStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) })
+                // As on iOS: the guided session starts from the quick actions, Data Sources lives in Settings.
+                TodaySection.LIVE_SESSION, TodaySection.DATA_SOURCES -> Unit
             }
         }
         Spacer(Modifier.height(ForgeMetrics.space2))

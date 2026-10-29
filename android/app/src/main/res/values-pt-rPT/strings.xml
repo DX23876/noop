@@ -3044,7 +3044,7 @@
     <string name="forge_more_health_body_sub">Treino, corpo, energia e sinais de saúde</string>
     <string name="forge_more_tools">Ferramentas</string>
     <string name="forge_more_tools_sub">Frequência cardíaca ao vivo, respiração e intervalos</string>
-    <string name="forge_more_search">Pesquisar</string>
+    <string name="forge_more_search">Pesquisar ecrãs e definições</string>
     <string name="forge_more_no_results">Sem resultados</string>
     <string name="forge_more_insights">Insights</string>
     <string name="forge_more_scoring">Como funcionam as pontuações</string>
@@ -4652,4 +4652,24 @@
     <string name="forge_sl_not_enough">Ainda não há noites suficientes.</string>
     <string name="forge_sl_trend">Tendência</string>
     <string name="forge_momentum_all">Tudo</string>
+    <string name="forge_as_active">Ativo</string>
+    <string name="forge_as_sick">Doente</string>
+    <string name="forge_as_injured">Ferido</string>
+    <string name="forge_as_break">No intervalo</string>
+    <string name="forge_as_active_sub">Treinamento normal</string>
+    <string name="forge_as_sick_sub">Recuperando-se de uma doença</string>
+    <string name="forge_as_injured_sub">Nenhuma sugestão de treinamento</string>
+    <string name="forge_as_break_sub">Deliberadamente sem treinamento</string>
+    <string name="forge_as_title">Status da atividade</string>
+    <string name="forge_as_apply">Aplicar</string>
+    <string name="forge_as_valid_for">Válido para</string>
+    <string name="forge_as_until_changed">Até mudar</string>
+    <string name="forge_as_today">Hoje</string>
+    <string name="forge_as_3days">3 dias</string>
+    <string name="forge_as_week">Esta semana</string>
+    <string name="forge_sl_tap_to_log">Toque para registar</string>
+    <string name="forge_qa_guardian">Guardião Silencioso</string>
+    <string name="forge_qa_guardian_sub">Treinamento silencioso contra o Charge de hoje</string>
+    <string name="forge_ls_guarding">Protegendo a tua sessão. Silêncio significa que está no caminho certo.</string>
+    <string name="forge_ls_paused">Sem leitura em direto. O treino está pausado.</string>
 </resources>

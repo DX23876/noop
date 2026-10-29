@@ -3081,7 +3081,7 @@
     <string name="forge_more_health_body_sub">Training, body, energy and health signals</string>
     <string name="forge_more_tools">Tools</string>
     <string name="forge_more_tools_sub">Live heart rate, breathing and intervals</string>
-    <string name="forge_more_search">Search</string>
+    <string name="forge_more_search">Search screens and settings</string>
     <string name="forge_more_no_results">No matches</string>
     <string name="forge_more_insights">Insights</string>
     <string name="forge_more_scoring">How Scoring Works</string>
@@ -4691,4 +4691,24 @@
     <string name="forge_sl_not_enough">Not enough nights yet.</string>
     <string name="forge_sl_trend">Trend</string>
     <string name="forge_momentum_all">All</string>
+    <string name="forge_as_active">Active</string>
+    <string name="forge_as_sick">Sick</string>
+    <string name="forge_as_injured">Injured</string>
+    <string name="forge_as_break">On break</string>
+    <string name="forge_as_active_sub">Normal training</string>
+    <string name="forge_as_sick_sub">Recovering from an illness</string>
+    <string name="forge_as_injured_sub">No training suggestions</string>
+    <string name="forge_as_break_sub">Deliberately no training</string>
+    <string name="forge_as_title">Activity status</string>
+    <string name="forge_as_apply">Apply</string>
+    <string name="forge_as_valid_for">Valid for</string>
+    <string name="forge_as_until_changed">Until changed</string>
+    <string name="forge_as_today">Today</string>
+    <string name="forge_as_3days">3 days</string>
+    <string name="forge_as_week">This week</string>
+    <string name="forge_sl_tap_to_log">Tap to log</string>
+    <string name="forge_qa_guardian">Silent Guardian</string>
+    <string name="forge_qa_guardian_sub">Quiet strap coaching against today\'s Charge</string>
+    <string name="forge_ls_guarding">Guarding your session. Silence means you\'re on track.</string>
+    <string name="forge_ls_paused">No live reading. Coaching is paused.</string>
 </resources>

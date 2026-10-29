@@ -3052,7 +3052,7 @@
     <string name="forge_more_health_body_sub">Entrenamiento, cuerpo, energía y señales de salud</string>
     <string name="forge_more_tools">Herramientas</string>
     <string name="forge_more_tools_sub">Frecuencia cardíaca en vivo, respiración e intervalos</string>
-    <string name="forge_more_search">Buscar</string>
+    <string name="forge_more_search">Buscar pantallas y ajustes</string>
     <string name="forge_more_no_results">Sin resultados</string>
     <string name="forge_more_insights">Insights</string>
     <string name="forge_more_scoring">Cómo funcionan las puntuaciones</string>
@@ -4660,4 +4660,24 @@
     <string name="forge_sl_not_enough">Aún no hay suficientes noches.</string>
     <string name="forge_sl_trend">Tendencia</string>
     <string name="forge_momentum_all">Todo</string>
+    <string name="forge_as_active">Activo</string>
+    <string name="forge_as_sick">Enfermo</string>
+    <string name="forge_as_injured">Lesionado</string>
+    <string name="forge_as_break">De descanso</string>
+    <string name="forge_as_active_sub">Entrenamiento normal</string>
+    <string name="forge_as_sick_sub">Recuperándote de una enfermedad</string>
+    <string name="forge_as_injured_sub">Sin sugerencias de entrenamiento</string>
+    <string name="forge_as_break_sub">Sin entrenamiento a propósito</string>
+    <string name="forge_as_title">Estado de actividad</string>
+    <string name="forge_as_apply">Aplicar</string>
+    <string name="forge_as_valid_for">Válido durante</string>
+    <string name="forge_as_until_changed">Hasta que se cambie</string>
+    <string name="forge_as_today">Hoy</string>
+    <string name="forge_as_3days">3 días</string>
+    <string name="forge_as_week">Esta semana</string>
+    <string name="forge_sl_tap_to_log">Toca para registrar</string>
+    <string name="forge_qa_guardian">Guardián silencioso</string>
+    <string name="forge_qa_guardian_sub">Entrenamiento silencioso con correa contra el Charge de hoy</string>
+    <string name="forge_ls_guarding">Vigilando tu sesión. El silencio significa que vas bien.</string>
+    <string name="forge_ls_paused">Sin lectura en directo. El coaching está en pausa.</string>
 </resources>
