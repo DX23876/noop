@@ -130,6 +130,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var startWorkout by remember { mutableStateOf(false) }
     var liveWorkout by remember { mutableStateOf(false) }
     var liveSession by remember { mutableStateOf(false) }
+    var arranging by remember { mutableStateOf<String?>(null) }
     val more = rememberMoreNavigator()
     val selectTab = LocalForgeTabSelect.current
     if (quickActions) {
@@ -165,44 +166,15 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             com.noop.ui.LiveWorkoutScreen(vm = viewModel, onClose = { liveWorkout = false })
         }
     }
+    arranging?.let { dashboard ->
+        ForgeOverlayPage(onDismiss = { arranging = null }) { ForgeDashboardArrange(dashboard) { saved -> arranging = null; if (saved) layoutRevision++ } }
+    }
     customizing?.let { destination ->
         ForgeOverlayPage(onDismiss = { customizing = null }) {
             ForgeTodayCustomization(destination) { saved -> customizing = null; if (saved) layoutRevision++ }
         }
     }
-    val previousLabel = stringResource(R.string.forge_previous_day)
-    val nextLabel = stringResource(R.string.forge_next_day)
-    var drag by remember { mutableStateOf(0f) }
-    Column(
-        Modifier.fillMaxSize()
-            // Swipe sideways for another day, as on iOS; screen readers get the same as two actions.
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { drag = 0f },
-                    onDragEnd = {
-                        if (drag > 120f) date -= 1
-                        else if (drag < -120f && date < LocalDate.now().toEpochDay()) date += 1
-                    },
-                    onHorizontalDrag = { _, amount -> drag += amount },
-                )
-            }
-            .semantics {
-                customActions = listOf(
-                    CustomAccessibilityAction(previousLabel) { date -= 1; true },
-                    CustomAccessibilityAction(nextLabel) {
-                        if (date < LocalDate.now().toEpochDay()) { date += 1; true } else false
-                    },
-                )
-            }
-            .verticalScroll(rememberScrollState()).padding(padding)
-            .padding(horizontal = ForgeMetrics.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
-    ) {
-        Header(shown, isToday = shown == today, onProfile = { settingsOpen = true }, onQuickActions = { quickActions = true })
-        // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`).
-        if (shown == today) ForgeMorningSuggestion()
-        // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
-        sections.forEach { section ->
+    val drawSection: @Composable (TodaySection) -> Unit = { section ->
             when (section) {
                 TodaySection.HERO -> Hero(model?.day, width)
                 TodaySection.SYNTHESIS -> if (shown == today) {
@@ -238,6 +210,54 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 // As on iOS: the guided session starts from the quick actions, Data Sources lives in Settings.
                 TodaySection.LIVE_SESSION, TodaySection.DATA_SOURCES -> Unit
             }
+    }
+    val previousLabel = stringResource(R.string.forge_previous_day)
+    val nextLabel = stringResource(R.string.forge_next_day)
+    var drag by remember { mutableStateOf(0f) }
+    Column(
+        Modifier.fillMaxSize()
+            // Swipe sideways for another day, as on iOS; screen readers get the same as two actions.
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { drag = 0f },
+                    onDragEnd = {
+                        if (drag > 120f) date -= 1
+                        else if (drag < -120f && date < LocalDate.now().toEpochDay()) date += 1
+                    },
+                    onHorizontalDrag = { _, amount -> drag += amount },
+                )
+            }
+            .semantics {
+                customActions = listOf(
+                    CustomAccessibilityAction(previousLabel) { date -= 1; true },
+                    CustomAccessibilityAction(nextLabel) {
+                        if (date < LocalDate.now().toEpochDay()) { date += 1; true } else false
+                    },
+                )
+            }
+            .verticalScroll(rememberScrollState()).padding(padding)
+            .padding(horizontal = ForgeMetrics.screenPadding),
+        verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
+    ) {
+        val style = remember(layoutRevision) { DashboardStylePrefs.style(context) }
+        if (style != "liquid") {
+            // The Trends and Overview styles (Settings › Dashboard) draw their own header and blocks.
+            DashboardHeader(shown, isToday = shown == today, onQuickActions = { quickActions = true },
+                            onSettings = { settingsOpen = true }, onArrange = { arranging = style })
+            if (shown == today) ForgeMorningSuggestion()
+            ForgeStyledDashboard(style, layoutRevision, shown, model?.day, viewModel,
+                onSection = { drawSection(it) },
+                onHealth = { more.push(MoreRoute.Dest(MoreDest.Health)) },
+                onSleep = { selectTab(ForgeTab.Sleep) },
+                onStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) },
+                onCoach = { more.push(MoreRoute.Dest(MoreDest.Coach)) },
+                onActivity = { more.push(MoreRoute.Dest(MoreDest.Workouts)) })
+        } else {
+        Header(shown, isToday = shown == today, onProfile = { settingsOpen = true }, onQuickActions = { quickActions = true })
+        // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`).
+        if (shown == today) ForgeMorningSuggestion()
+        // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
+        sections.forEach { drawSection(it) }
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
     }

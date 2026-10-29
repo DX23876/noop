@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Hexagon
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -74,6 +75,9 @@ enum class DashboardCard(
     // provider never gains a fixed dashboard row for one. Opening the sheet makes NO provider request.
     // Reuses the existing nav + Coach-screen strings, so the card adds nothing to translate.
     // Mirrors iOS DashboardCard.coach (raw "coach", byte-identical across OS).
+    // Overview dashboard's health list names weight; not in [defaultSelection]. Mirrors iOS DashboardCard.weight.
+    WEIGHT("weight", R.string.today_card_weight, R.string.today_card_weight_subtitle, "", Icons.Filled.MonitorWeight),
+
     COACH("coach", R.string.nav_coach, R.string.l10n_coach_screen_ask_anything_about_your_recent_recovery_e6c287ca, "", Icons.AutoMirrored.Filled.Chat);
 
     companion object {

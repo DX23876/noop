@@ -997,7 +997,7 @@ private fun dashboardCardFraction(
         DashboardCard.COACH -> 0.5
         // Not wired to a real read yet — an EMPTY ring (not half-full) so it doesn't imply a reading.
         DashboardCard.BLOOD_OXYGEN, DashboardCard.SKIN_TEMP, DashboardCard.CALORIES,
-        DashboardCard.HYDRATION -> null
+        DashboardCard.HYDRATION, DashboardCard.WEIGHT -> null
     }
 }
 
@@ -1017,7 +1017,7 @@ internal fun dashboardCardMetricKey(card: DashboardCard): String? = when (card) 
     DashboardCard.STEPS, DashboardCard.STEPS_AVERAGE_30 -> "steps_est"
     DashboardCard.CALORIES -> "active_kcal"
     // These carry their own full screen, not a per-metric trend.
-    DashboardCard.STRESS, DashboardCard.SLEEP, DashboardCard.HYDRATION, DashboardCard.COUPLED,
+    DashboardCard.STRESS, DashboardCard.SLEEP, DashboardCard.HYDRATION, DashboardCard.COUPLED, DashboardCard.WEIGHT,
     // #1862: a launcher row, not a metric — no explorer key.
     DashboardCard.COACH -> null
 }
@@ -1045,6 +1045,7 @@ private fun dashboardCardTint(card: DashboardCard): Color = when (card) {
     DashboardCard.CALORIES -> Palette.metricAmber
     DashboardCard.HYDRATION -> Palette.metricCyan
     DashboardCard.COUPLED -> Palette.chargeColor
+    DashboardCard.WEIGHT -> Palette.metricRose
     DashboardCard.COACH -> Palette.accent
 }
 
@@ -1167,6 +1168,7 @@ private fun dashboardCardValue(
                 Locale.getDefault(), "%.1f / %.1f L",
                 hydrationTotalMl / 1000.0, hydrationGoalMl / 1000.0,
             )
+        DashboardCard.WEIGHT -> NO_DATA // drawn by the Forge dashboards (cardValue), not by the classic list
         DashboardCard.COUPLED ->
             // A tap-through row with no metric value of its own, the row shows just the chevron. An empty
             // string (not NO_DATA) renders no number and leaves it un-dimmed. Mirrors iOS dashboardValue.

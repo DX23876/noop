@@ -397,7 +397,7 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.Training -> TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
-                ForgeSettingsPage.TodayTrends -> TodayCardsSection(::change)
+                ForgeSettingsPage.TodayTrends -> { DashboardStyleSection(::change); TodayCardsSection(::change) }
                 ForgeSettingsPage.Calculations -> CalculationsSection(viewModel, ::change, onOpen)
                 ForgeSettingsPage.DataBackup -> DataBackupSection(onOpen)
                 ForgeSettingsPage.Help -> HelpSection(onOpen)
@@ -889,9 +889,41 @@ private fun AppearanceSection(change: (() -> Unit) -> Unit) {
     BackgroundCard()
 }
 
+/** The iOS Settings › Dashboard card: which dashboard Today shows, and for Trends its four metric slots. */
+@Composable
+private fun DashboardStyleSection(change: (() -> Unit) -> Unit) {
+    val context = LocalContext.current
+    var style by remember { mutableStateOf(DashboardStylePrefs.style(context)) }
+    val ids = DashboardStylePrefs.STYLES
+    val labels = listOf(stringResource(R.string.forge_db_style_liquid), stringResource(R.string.forge_db_style_trends),
+                        stringResource(R.string.forge_db_style_overview))
+    SettingsCard(title = stringResource(R.string.forge_db_style), blurb = null) {
+        SettingRow(stringResource(R.string.forge_db_style)) {
+            ReportPicker(labels[ids.indexOf(style).coerceAtLeast(0)], labels) { i ->
+                change { DashboardStylePrefs.set(context, ids[i]); style = ids[i] }
+            }
+        }
+        if (style == "trends") {
+            val slotLabels = listOf(R.string.forge_db_slot1, R.string.forge_db_slot2, R.string.forge_db_slot3, R.string.forge_db_slot4)
+            val cards = com.noop.ui.DashboardCard.entries
+            val titles = cards.map { stringResource(it.titleRes) }
+            val chosen = remember { mutableStateOf(TrendsMetricSlots.slots(context)) }
+            TrendsMetricSlots.KEYS.forEachIndexed { i, key ->
+                RowDivider()
+                SettingRow(stringResource(slotLabels[i])) {
+                    ReportPicker(titles[cards.indexOf(chosen.value[i]).coerceAtLeast(0)], titles) { k ->
+                        change { NoopPrefs.of(context).edit().putString(key, cards[k].raw).apply()
+                                 chosen.value = chosen.value.toMutableList().also { it[i] = cards[k] } }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /**
  * The iOS "Cards on Today" card: water gates the water card, its page and hydration goals; the journal switch gates
- * the journal card. Today's order and style controls have no Android counterpart yet.
+ * the journal card. Its Dashboard card is above it.
  */
 @Composable
 private fun TodayCardsSection(change: (() -> Unit) -> Unit) {
