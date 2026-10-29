@@ -16,6 +16,18 @@ final class SleepNightTests: XCTestCase {
 
     /// The shape of the owner's 2026-10-24: a night stored as two blocks with a 27-minute gap, then an evening
     /// nap. The night is one, from the first block's onset to the second's wake; the nap is not it.
+    /// Android's WHOOP CSV and Health Connect imports store minute totals as an array; adopted into the core
+    /// they must still make a night (they decoded to none, so the Android Sleep tab stayed empty).
+    func testTheAndroidImportMinuteArrayDecodes() {
+        let json = #"[{"stage":"light","min":84.6},{"stage":"deep","min":51.5},{"stage":"rem","min":40},{"stage":"awake","min":10}]"#
+        XCTAssertEqual(SleepNight.minutes(json), SleepNight.Minutes(awake: 10, light: 84.6, deep: 51.5, rem: 40))
+        XCTAssertEqual(SleepNight.asleepMinutes(json, effectiveStartTs: 0), 176.1, accuracy: 0.001)
+        XCTAssertNil(SleepNight.minutes(#"[{"start":0,"end":600,"stage":"deep"}]"#), "a computed timeline is not minutes")
+        let night = SleepNight.main([CachedSleepSession(startTs: 1_000_000, endTs: 1_000_000 + 186 * 60, efficiency: nil, restingHr: nil, avgHrv: nil, stagesJSON: json)],
+                                    offsetSec: 0, habitualMidsleepSec: nil)
+        XCTAssertEqual(night?.minutes.deep, 51.5)
+    }
+
     func testASplitNightIsOneNightAndTheEveningNapIsNot() throws {
         let d = 1_761_264_000   // 2026-10-24 00:00 UTC
         let first = block(d - 10_200, d + 3_000, [("light", d - 10_200, d - 3_000), ("deep", d - 3_000, d + 3_000)])

@@ -65,12 +65,28 @@ public enum SleepNight {
         public init(stage: String, start: Double, end: Double) { self.stage = stage; self.start = start; self.end = end }
     }
 
-    /// Decode the imported stagesJSON dict of MINUTES {"light","deep","rem","awake"}; nil when it is not that
-    /// format or carries no minutes.
+    /// Decode the imported stagesJSON dict of MINUTES {"light","deep","rem","awake"}, or the array of minute
+    /// totals Android's WHOOP CSV and Health Connect imports store ([{"stage","min"}], adopted into the core from
+    /// Room); nil when it is neither or carries no minutes.
     public static func minutes(_ json: String?) -> Minutes? {
         guard let json, let data = json.data(using: .utf8) else { return nil }
-        guard let obj = try? JSONSerialization.jsonObject(with: data),
-              let dict = obj as? [String: Any] else { return nil }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) else { return nil }
+        if let arr = obj as? [[String: Any]] {
+            var m = Minutes()
+            for seg in arr where seg["start"] == nil {
+                guard let name = seg["stage"] as? String, let min = (seg["min"] as? NSNumber)?.doubleValue,
+                      min > 0 else { continue }
+                switch name {
+                case "wake", "awake": m.awake += min
+                case "light": m.light += min
+                case "deep": m.deep += min
+                case "rem": m.rem += min
+                default: continue
+                }
+            }
+            return m.total > 0 ? m : nil
+        }
+        guard let dict = obj as? [String: Any] else { return nil }
         func val(_ key: String) -> Double {
             if let n = dict[key] as? NSNumber { return n.doubleValue }
             if let d = dict[key] as? Double { return d }

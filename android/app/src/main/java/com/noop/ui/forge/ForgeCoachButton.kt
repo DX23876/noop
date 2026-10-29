@@ -101,8 +101,8 @@ internal fun ForgeCoachButton(viewModel: AppViewModel) {
             else -> bottom
         }
         var drag by remember { mutableStateOf(Offset.Zero) }
-        val x by animateFloatAsState(baseX, label = "coachButtonX")
-        val y by animateFloatAsState(baseY, label = "coachButtonY")
+        val x by animateFloatAsState(baseX, label = ANIM_X)
+        val y by animateFloatAsState(baseY, label = ANIM_Y)
         val cx = (x + drag.x).coerceIn(leading, trailing)
         val cy = (y + drag.y).coerceIn(half + margin, h - half - margin)
 
@@ -157,3 +157,7 @@ private val MARGIN = 18.dp
 private val BOTTOM_CHROME = 96.dp
 // Forge's Today header (title, date and its round buttons) is taller than the iOS one.
 private val TOP_CHROME = 100.dp
+
+/** Animation labels for the layout inspector, not shown to anyone. */
+private const val ANIM_X = "coachButtonX"
+private const val ANIM_Y = "coachButtonY"
