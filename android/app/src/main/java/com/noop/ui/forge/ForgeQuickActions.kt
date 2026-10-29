@@ -39,6 +39,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -102,7 +105,7 @@ internal fun ForgeQuickActionSheet(viewModel: AppViewModel, onDismiss: () -> Uni
             if (status != null) {
                 ActionRow(stringResource(R.string.forge_qa_battery), Icons.Rounded.BatteryFull,
                           ForgeTokens.Color.systemGreen.resolve(), status) { onPick(QuickAction.Battery) }
-                Spacer(Modifier.size(ForgeMetrics.space2))
+                Spacer(Modifier.size(ForgeMetrics.space1))
             }
             Text(stringResource(R.string.forge_qa_header), style = Forge.type.overline, color = colors.textSecondary,
                  modifier = Modifier.padding(bottom = ForgeMetrics.space1))
@@ -125,21 +128,28 @@ internal fun ForgeQuickActionSheet(viewModel: AppViewModel, onDismiss: () -> Uni
     }
 }
 
-/** One flat action row: the hued icon tile and its title, on an inset surface with a hairline. */
+/**
+ * One action row as iOS draws it (`QuickActionSheet.row`): a soft raised card without an outline, a large hued icon
+ * tile, the title in a heavier weight and a trailing chevron.
+ */
 @Composable
 private fun ActionRow(title: String, icon: ImageVector, tint: Color, subtitle: String? = null, onClick: () -> Unit) {
     val colors = Forge.colors
-    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).background(colors.inset, RoundedCornerShape(14.dp))
-            .border(1.dp, colors.border, RoundedCornerShape(14.dp)).clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+    val shape = RoundedCornerShape(18.dp)
+    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .shadow(3.dp, shape, ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.10f))
+            .background(colors.surfaceTop, shape).clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).background(tint, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        Box(Modifier.size(46.dp).background(tint, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
         }
-        Spacer(Modifier.width(13.dp))
+        Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, style = Forge.type.body, color = colors.text)
-            if (subtitle != null) Text(subtitle, style = Forge.type.caption, color = colors.textSecondary)
+            Text(title, style = Forge.type.headline.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            if (subtitle != null) Text(subtitle, style = Forge.type.footnote, color = colors.textSecondary)
         }
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary,
+             modifier = Modifier.size(22.dp))
     }
 }
