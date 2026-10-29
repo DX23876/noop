@@ -87,6 +87,17 @@ class CoreTrainingLibraryTest {
         assertNull(sides.reps)
     }
 
+    @Test fun draftCarriesEachSetsEffortRating() {
+        val json = """{"id":"d","title":"T","startedAt":1,"exercises":[{"id":"e","exerciseId":"x","restSeconds":90,"sets":[
+            {"id":"a","index":0,"phase":"working","isCompleted":true,"effort":{"scale":"rir","value":1.5}},
+            {"id":"b","index":1,"phase":"working","isCompleted":false}]}]}"""
+        val sets = CoreTraining.parseDraft(json)!!.exercises.single().sets
+        assertEquals("rir", sets[0].effortScale)
+        assertEquals(1.5, sets[0].effortValue!!, 0.0)
+        assertNull(sets[1].effortScale)
+        assertNull(sets[1].effortValue)
+    }
+
     @Test fun inputUnitConversionsRoundTripAndUntouchedReadingsStayExact() {
         for (units in UnitSystem.entries) {
             assertEquals(80.123456789, TrainingSetInput.massForStore(TrainingSetInput.massForInput(80.123456789, units), units), 1e-10)

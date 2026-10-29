@@ -23,7 +23,9 @@ object CorePrefs {
     const val DEFAULT_REST = "training.defaultRestSeconds"
     const val WARMUP_REST = "training.warmupRestSeconds"
     const val WEIGHT_UNIT = "training.weightUnit"
-    private val MIRRORED = setOf(DEFAULT_REST, WARMUP_REST, WEIGHT_UNIT)
+    /** Per-set effort entry: `off`, `rir` or `rpe` (`TrainingPreferences.effortKey`, iOS default `rpe`). */
+    const val EFFORT_SCALE = "training.effortScale"
+    private val MIRRORED = setOf(DEFAULT_REST, WARMUP_REST, WEIGHT_UNIT, EFFORT_SCALE)
 
     fun read(context: Context): JSONObject = runCatching {
         CoreRead.open(context)

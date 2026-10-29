@@ -4615,4 +4615,21 @@
     <string name="forge_st_strap_buzz">Вибрация браслета за 5 секунд</string>
     <string name="forge_st_keep_screen">Не выключать экран во время тренировки</string>
     <string name="forge_st_keep_screen_note">Экран не выключается только во время записи тренировки. Это расходует больше заряда и оставляет разблокированный экран видимым.</string>
+    <string name="forge_ef_0">Больше ничего, до отказа</string>
+    <string name="forge_ef_05">Может, ещё полповторения</string>
+    <string name="forge_ef_1">Ещё одно повторение в запасе</string>
+    <string name="forge_ef_2">Ещё два повторения</string>
+    <string name="forge_ef_3">Ещё три повторения</string>
+    <string name="forge_ef_4">Легко, уровень разминки</string>
+    <string name="forge_ef_title">Насколько тяжёлым был подход?</string>
+    <string name="forge_ef_clear">Сбросить оценку</string>
+    <string name="forge_ef_rir_note">Повторения в запасе: сколько чистых повторений вы могли бы ещё сделать.</string>
+    <string name="forge_ef_rpe_note">Воспринимаемая нагрузка: 10 означает, что сил не осталось.</string>
+    <string name="forge_st_set_effort">Усилие в подходе</string>
+    <string name="forge_st_off">Выкл.</string>
+    <string name="forge_st_set_effort_note">RIR — число повторений в запасе; RPE оценивает подход по шкале от 1 до 10. «Выкл.» скрывает ввод в каждом подходе и сохраняет уже записанные оценки.</string>
+    <string name="forge_ef_use">Применить %1$s</string>
+    <string name="forge_ef_exact">Точное значение</string>
+    <string name="forge_ef_not_rated">Без оценки</string>
+    <string name="forge_ef_rir_label">Повторения в запасе</string>
 </resources>

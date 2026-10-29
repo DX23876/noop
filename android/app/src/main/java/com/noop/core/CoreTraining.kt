@@ -42,7 +42,8 @@ object CoreTraining {
 
     data class DraftSet(val id: String, val index: Int, val warmup: Boolean, val weightKg: Double?, val reps: Int?,
                         val done: Boolean, val leftReps: Int? = null, val rightReps: Int? = null,
-                        val durationS: Int? = null, val distanceM: Double? = null)
+                        val durationS: Int? = null, val distanceM: Double? = null,
+                        val effortScale: String? = null, val effortValue: Double? = null)
     data class DraftExercise(val id: String, val exerciseId: String, val restSeconds: Int, val sets: List<DraftSet>,
                              val warmupRestSeconds: Int = 60)
     data class Draft(val id: String, val title: String, val startedAt: Long, val exercises: List<DraftExercise>)
@@ -63,6 +64,11 @@ object CoreTraining {
             .put("leftReps", set.leftReps ?: JSONObject.NULL).put("rightReps", set.rightReps ?: JSONObject.NULL)
             .put("durationS", set.durationS ?: JSONObject.NULL).put("distanceM", set.distanceM ?: JSONObject.NULL)
             .put("done", set.done))?.let(::parseDraft)
+
+    /** The set's effort rating, `rir` or `rpe` (`NativeWorkoutSessionModel.setEffort`); a null value clears it. */
+    fun setEffort(exercise: String, set: String, scale: String, value: Double?): Draft? =
+        call("training.changeDraft", JSONObject().put("change", "set").put("exercise", exercise).put("set", set)
+            .put("effortScale", scale).put("effortValue", value ?: JSONObject.NULL))?.let(::parseDraft)
 
     fun addSet(exercise: String): Draft? =
         call("training.changeDraft", JSONObject().put("change", "addSet").put("exercise", exercise))?.let(::parseDraft)
@@ -190,7 +196,9 @@ object CoreTraining {
                                  if (s.has("weightKg") && !s.isNull("weightKg")) s.getDouble("weightKg") else null,
                                  if (s.has("reps") && !s.isNull("reps")) s.getInt("reps") else null,
                                  s.optBoolean("isCompleted"), s.optIntOrNull("leftReps"), s.optIntOrNull("rightReps"),
-                                 s.optIntOrNull("durationS"), s.optDoubleOrNull("distanceM"))
+                                 s.optIntOrNull("durationS"), s.optDoubleOrNull("distanceM"),
+                                 s.optJSONObject("effort")?.optStringOrNull("scale"),
+                                 s.optJSONObject("effort")?.optDoubleOrNull("value"))
                     }, e.optInt("warmupRestSeconds", 60))
             })
     }

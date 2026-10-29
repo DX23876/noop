@@ -133,8 +133,7 @@ private fun Note(text: String) = Text(text, style = Forge.type.caption, color = 
 /**
  * Fork (DX23876), Android parity plan 2.3: Settings › Training as iOS has it (`trainingCard`, `guidedTrainingCard`),
  * limited to what Android's training uses: the session rating reminder, the weight unit, a new exercise's sets and
- * rest, the exercise media and workout suggestions. iOS's rest-timer, strap and workout-screen options belong to its
- * live strength session, which Android does not have yet.
+ * rest, per-set effort, the rest timer, the exercise media and workout suggestions.
  */
 @Composable
 internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
@@ -143,6 +142,7 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
     val prefs = remember { NoopPrefs.of(context) }
     val stored = remember { CorePrefs.read(context) }
     var rating by remember { mutableStateOf(CoreTrainingReminders.prompt(context)) }
+    var effort by remember { mutableStateOf(prefs.getString(CorePrefs.EFFORT_SCALE, null) ?: stored.optString(CorePrefs.EFFORT_SCALE, "rpe")) }
     var unit by remember { mutableStateOf(prefs.getString(CorePrefs.WEIGHT_UNIT, null) ?: stored.optString(CorePrefs.WEIGHT_UNIT, "kilograms")) }
     var sets by remember { mutableStateOf(stored.optInt(CorePrefs.NEW_EXERCISE_SETS, 3)) }
     var rest by remember { mutableStateOf(stored.optInt(CorePrefs.DEFAULT_REST, prefs.getInt(CorePrefs.DEFAULT_REST, 120))) }
@@ -157,6 +157,16 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
     Text(stringResource(R.string.forge_st_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
     SettingsCard(stringResource(R.string.forge_training), stringResource(R.string.forge_st_blurb)) {
         Overline(stringResource(R.string.forge_st_logging))
+        val effortIds = listOf("off", "rir", "rpe")
+        val effortLabels = listOf(stringResource(R.string.forge_st_off), "RIR", stringResource(R.string.forge_ef_rpe))
+        Text(stringResource(R.string.forge_st_set_effort), style = Forge.type.body, color = Forge.colors.text)
+        run {
+            ReportPicker(effortLabels[effortIds.indexOf(effort).coerceAtLeast(0)], effortLabels) { i ->
+                if (CorePrefs.write(context, CorePrefs.EFFORT_SCALE, effortIds[i])) effort = effortIds[i]
+            }
+        }
+        Note(stringResource(R.string.forge_st_set_effort_note))
+        RowDivider()
         val ratingIds = listOf("off", "whenUseful", "always")
         val ratingLabels = listOf(stringResource(R.string.forge_rating_reminder_off),
             stringResource(R.string.forge_rating_reminder_useful), stringResource(R.string.forge_rating_reminder_always))

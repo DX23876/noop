@@ -4733,4 +4733,21 @@
     <string name="forge_st_strap_buzz">Strap vibriert 5 Sekunden vorher</string>
     <string name="forge_st_keep_screen">Bildschirm während eines Workouts anlassen</string>
     <string name="forge_st_keep_screen_note">Hält das Display nur während einer laufenden Trainingsaufzeichnung aktiv. Das verbraucht mehr Akku und lässt den entsperrten Bildschirm sichtbar.</string>
+    <string name="forge_ef_0">Nichts mehr drin, bis zum Muskelversagen</string>
+    <string name="forge_ef_05">Vielleicht noch eine halbe Wiederholung</string>
+    <string name="forge_ef_1">Noch eine Wiederholung drin</string>
+    <string name="forge_ef_2">Noch zwei Wiederholungen</string>
+    <string name="forge_ef_3">Noch drei Wiederholungen</string>
+    <string name="forge_ef_4">Leicht, Aufwärmbereich</string>
+    <string name="forge_ef_title">Wie schwer war der Satz?</string>
+    <string name="forge_ef_clear">Bewertung entfernen</string>
+    <string name="forge_ef_rir_note">Wiederholungen in Reserve: wie viele saubere Wiederholungen noch möglich gewesen wären.</string>
+    <string name="forge_ef_rpe_note">Subjektives Belastungsempfinden: 10 bedeutet, es war nichts mehr drin.</string>
+    <string name="forge_st_set_effort">Satzanstrengung</string>
+    <string name="forge_st_off">Aus</string>
+    <string name="forge_st_set_effort_note">RIR zählt die Wiederholungen in Reserve; RPE bewertet den Satz von 1 bis 10. „Aus“ blendet die Eingabe pro Satz aus und behält bereits erfasste Bewertungen.</string>
+    <string name="forge_ef_use">%1$s übernehmen</string>
+    <string name="forge_ef_exact">Genauer Wert</string>
+    <string name="forge_ef_not_rated">Nicht bewertet</string>
+    <string name="forge_ef_rir_label">Wiederholungen in Reserve</string>
 </resources>

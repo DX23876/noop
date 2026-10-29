@@ -4751,4 +4751,22 @@
     <string name="forge_st_strap_buzz">Buzz the strap 5 seconds early</string>
     <string name="forge_st_keep_screen">Keep screen on during a workout</string>
     <string name="forge_st_keep_screen_note">Keeps the display awake only while a workout is recording. This uses more battery and leaves the unlocked screen visible.</string>
+    <string name="forge_ef_0">Nothing left, went to failure</string>
+    <string name="forge_ef_05">Maybe half a rep left</string>
+    <string name="forge_ef_1">One more rep in the tank</string>
+    <string name="forge_ef_2">Two more reps</string>
+    <string name="forge_ef_3">Three more reps</string>
+    <string name="forge_ef_4">Easy, warm-up territory</string>
+    <string name="forge_ef_title">How hard was that set?</string>
+    <string name="forge_ef_clear">Clear rating</string>
+    <string name="forge_ef_rir_note">Reps in reserve: how many more clean reps you could have done.</string>
+    <string name="forge_ef_rpe_note">Rate of perceived exertion: 10 means nothing was left.</string>
+    <string name="forge_st_set_effort">Set effort</string>
+    <string name="forge_st_off">Off</string>
+    <string name="forge_st_set_effort_note">RIR counts the repetitions left in reserve; RPE rates the set from 1 to 10. Off hides per-set effort entry and keeps ratings you already logged.</string>
+    <string name="forge_ef_use">Use %1$s</string>
+    <string name="forge_ef_exact">Exact value</string>
+    <string name="forge_ef_not_rated">Not rated</string>
+    <string name="forge_ef_rir_label">Repetitions in reserve</string>
+    <string name="forge_ef_rpe" translatable="false">RPE</string>
 </resources>

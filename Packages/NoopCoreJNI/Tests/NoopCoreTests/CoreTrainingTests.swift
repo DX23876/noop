@@ -90,10 +90,26 @@ final class CoreTrainingTests: XCTestCase {
             "change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString,
             "weightKg": 80, "reps": 8, "done": true])
         XCTAssertEqual(logged?.exercises.first?.sets.first?.reps, 8)
+        // Per-set effort: a rating sticks, a later measurement change keeps it, and null clears it.
+        let rated = await CoreTraining.changeDraft(store: store, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString,
+            "effortScale": "rir", "effortValue": 1.5])
+        XCTAssertEqual(rated?.exercises.first?.sets.first?.effort, TrainingEffortRating(scale: .rir, value: 1.5))
+        let reweighed = await CoreTraining.changeDraft(store: store, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString, "weightKg": 82.5])
+        XCTAssertEqual(reweighed?.exercises.first?.sets.first?.effort?.value, 1.5)
+        let cleared = await CoreTraining.changeDraft(store: store, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString,
+            "effortScale": "rir", "effortValue": NSNull()])
+        XCTAssertNil(cleared?.exercises.first?.sets.first?.effort)
+        _ = await CoreTraining.changeDraft(store: store, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString,
+            "weightKg": 80, "effortScale": "rpe", "effortValue": 8])
 
         let finished = await CoreTraining.finishDraft(store: store, sessionRPE: 7)
         let workout = try XCTUnwrap(finished)
         XCTAssertEqual(workout.exercises.first?.sets.first?.weightKg, 80)
+        XCTAssertEqual(workout.exercises.first?.sets.first?.effort, TrainingEffortRating(scale: .rpe, value: 8))
         XCTAssertEqual(workout.sessionRPE, 7)
         let draftAfter = try await store.workoutDraft()
         XCTAssertNil(draftAfter, "finishing removes the draft")

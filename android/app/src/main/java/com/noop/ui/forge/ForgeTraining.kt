@@ -88,7 +88,10 @@ import com.noop.NoopApplication
 import com.noop.analytics.Sport
 import com.noop.analytics.WorkoutSport
 import com.noop.core.CoreRead
+import com.noop.core.CorePrefs
 import com.noop.core.CoreTraining
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.noop.ui.AppViewModel
 import com.noop.ui.LiveWorkoutScreen
 import com.noop.ui.NoopPrefs
@@ -794,6 +797,9 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     var finishing by remember { mutableStateOf(false) }
     var emptyNotice by remember { mutableStateOf(false) }
     val definitions = remember(exercises) { exercises.associateBy { it.id } }
+    // Settings › Training's per-set effort scale; "off" hides the column and keeps ratings already logged.
+    val effortScale = remember { com.noop.ui.NoopPrefs.of(context).getString(CorePrefs.EFFORT_SCALE, null) ?: "rpe" }
+    var effortRequest by remember { mutableStateOf<Pair<String, CoreTraining.DraftSet>?>(null) }
     LaunchedEffect(Unit) { draft = core(context) { CoreTraining.draft() } }
     fun change(block: () -> CoreTraining.Draft?) = scope.launch { core(context, block)?.let { draft = it } }
     BackHandler { onClose() }
@@ -832,10 +838,13 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                          color = Forge.colors.textTertiary, modifier = Modifier.width(ForgeMetrics.space6))
                     columns.forEach { field -> Text(setInputLabel(field, massUnits, distanceUnits), style = Forge.type.caption,
                         color = Forge.colors.textTertiary, modifier = Modifier.weight(1f)) }
+                    if (effortScale != "off") Text(effortScale.uppercase(), style = Forge.type.caption,
+                        color = Forge.colors.textTertiary, modifier = Modifier.width(EFFORT_COLUMN))
                     Spacer(Modifier.width(ForgeMetrics.minHitTarget))
                 }
                 exercise.sets.forEachIndexed { i, set ->
-                    SetRow(i + 1, set, columns, massUnits, distanceUnits) { updated ->
+                    SetRow(i + 1, set, columns, massUnits, distanceUnits, effortScale,
+                           onEffort = { effortRequest = exercise.id to set }) { updated ->
                         change { CoreTraining.setValues(exercise.id, updated) }
                         // Ticking a set off starts its rest: the exercise's own, or the warm-up rest after a warm-up.
                         if (!set.done && updated.done) {
@@ -864,6 +873,11 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
         }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.forge_training_discard), color = ForgeTokens.Color.systemRed.resolve())
         }
+    }
+    effortRequest?.let { (exerciseId, set) ->
+        EffortPickerSheet(effortScale, set.effortValue?.takeIf { set.effortScale == effortScale },
+            onPick = { value -> change { CoreTraining.setEffort(exerciseId, set.id, effortScale, value) } },
+            onDismiss = { effortRequest = null })
     }
     if (emptyNotice) {
         AlertDialog(onDismissRequest = { emptyNotice = false },
@@ -912,6 +926,9 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     }
 }
 
+/** Width of the effort badge column, as iOS's `SetColumns.effort`. */
+private val EFFORT_COLUMN = 44.dp
+
 @Composable
 private fun setInputLabel(field: TrainingSetInput, mass: com.noop.ui.UnitSystem, distance: com.noop.ui.UnitSystem): String = when (field) {
     TrainingSetInput.Weight -> com.noop.ui.UnitFormatter.massUnit(mass)
@@ -925,6 +942,7 @@ private fun setInputLabel(field: TrainingSetInput, mass: com.noop.ui.UnitSystem,
 @Composable
 private fun SetRow(number: Int, set: CoreTraining.DraftSet, columns: List<TrainingSetInput>,
                    massUnits: com.noop.ui.UnitSystem, distanceUnits: com.noop.ui.UnitSystem,
+                   effortScale: String, onEffort: () -> Unit,
                    onChange: (CoreTraining.DraftSet) -> Unit) {
     val initialWeight = remember(set.id, set.weightKg, massUnits) { set.weightKg?.let { inputDecimal(TrainingSetInput.massForInput(it, massUnits)) } ?: "" }
     val initialDistance = remember(set.id, set.distanceM, distanceUnits) { set.distanceM?.let { inputDecimal(TrainingSetInput.distanceForInput(it, distanceUnits)) } ?: "" }
@@ -959,6 +977,15 @@ private fun SetRow(number: Int, set: CoreTraining.DraftSet, columns: List<Traini
                         TrainingSetInput.Right -> right = number; TrainingSetInput.Seconds -> duration = number; TrainingSetInput.Distance -> distance = number
                     }
                 }, onDone = { commit() }) }
+        }
+        if (effortScale != "off") {
+            val rated = set.effortValue?.takeIf { set.effortScale != null }
+            val label = stringResource(if (effortScale == "rir") R.string.forge_ef_rir_label else R.string.forge_ef_rpe)
+            val stateText = rated?.let(SetEffort::format) ?: stringResource(R.string.forge_ef_not_rated)
+            EffortBadge((if (set.effortScale == "rir") "R" else "") + (rated?.let(SetEffort::format) ?: "—"),
+                        rated?.let { SetEffort.color(SetEffort.level(set.effortScale!!, it)) },
+                        Modifier.size(EFFORT_COLUMN, 32.dp).clickable(onClick = onEffort)
+                            .semantics { contentDescription = "$label, $stateText" })
         }
         IconButton(onClick = { commit(!set.done) }, modifier = Modifier.size(ForgeMetrics.minHitTarget)
             .background(if (set.done) Forge.colors.charge else Forge.colors.inset, CircleShape)) {

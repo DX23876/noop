@@ -18,6 +18,7 @@ enum CorePrefs {
         "training.defaultRestSeconds": .int(0...600),
         "training.warmupRestSeconds": .int(0...300),
         "training.weightUnit": .string(["kilograms", "pounds"]),
+        "training.effortScale": .string(["off", "rir", "rpe"]),
     ]
 
     /// The stored values of the known keys; a key never set is left out, so the caller keeps its default.

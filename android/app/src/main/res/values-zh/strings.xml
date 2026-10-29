@@ -4690,4 +4690,21 @@
     <string name="forge_st_strap_buzz">提前 5 秒手环振动</string>
     <string name="forge_st_keep_screen">锻炼期间保持屏幕常亮</string>
     <string name="forge_st_keep_screen_note">仅在记录训练时保持屏幕常亮。这会消耗更多电量，并让未锁定的屏幕保持可见。</string>
+    <string name="forge_ef_0">毫无余力，力竭</string>
+    <string name="forge_ef_05">也许还能做半次</string>
+    <string name="forge_ef_1">还能再做一次</string>
+    <string name="forge_ef_2">还能做两次</string>
+    <string name="forge_ef_3">还能做三次</string>
+    <string name="forge_ef_4">轻松，热身强度</string>
+    <string name="forge_ef_title">这一组有多吃力？</string>
+    <string name="forge_ef_clear">清除评分</string>
+    <string name="forge_ef_rir_note">保留次数：你还能标准完成几次。</string>
+    <string name="forge_ef_rpe_note">主观用力程度：10 表示毫无余力。</string>
+    <string name="forge_st_set_effort">每组用力程度</string>
+    <string name="forge_st_off">关闭</string>
+    <string name="forge_st_set_effort_note">RIR 表示保留的次数；RPE 以 1 到 10 为一组评分。“关闭”会隐藏每组的输入，并保留已记录的评分。</string>
+    <string name="forge_ef_use">使用 %1$s</string>
+    <string name="forge_ef_exact">精确数值</string>
+    <string name="forge_ef_not_rated">未评分</string>
+    <string name="forge_ef_rir_label">保留次数</string>
 </resources>

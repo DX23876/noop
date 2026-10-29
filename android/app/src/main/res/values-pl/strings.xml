@@ -4736,4 +4736,21 @@
     <string name="forge_st_strap_buzz">Wibracja opaski 5 sekund wcześniej</string>
     <string name="forge_st_keep_screen">Trzymaj ekran włączony podczas treningu</string>
     <string name="forge_st_keep_screen_note">Ekran pozostaje aktywny tylko podczas rejestrowania treningu. Zużywa to więcej baterii i pozostawia odblokowany ekran widoczny.</string>
+    <string name="forge_ef_0">Nic więcej, do upadku mięśniowego</string>
+    <string name="forge_ef_05">Może jeszcze pół powtórzenia</string>
+    <string name="forge_ef_1">Jeszcze jedno powtórzenie w zapasie</string>
+    <string name="forge_ef_2">Jeszcze dwa powtórzenia</string>
+    <string name="forge_ef_3">Jeszcze trzy powtórzenia</string>
+    <string name="forge_ef_4">Lekko, poziom rozgrzewki</string>
+    <string name="forge_ef_title">Jak ciężka była seria?</string>
+    <string name="forge_ef_clear">Usuń ocenę</string>
+    <string name="forge_ef_rir_note">Powtórzenia w zapasie: ile czystych powtórzeń dałoby się jeszcze zrobić.</string>
+    <string name="forge_ef_rpe_note">Odczuwany wysiłek: 10 oznacza, że nic już nie zostało.</string>
+    <string name="forge_st_set_effort">Wysiłek serii</string>
+    <string name="forge_st_off">Wyłączony</string>
+    <string name="forge_st_set_effort_note">RIR liczy powtórzenia w zapasie; RPE ocenia serię w skali od 1 do 10. „Wyłączony” ukrywa ocenę przy seriach i zachowuje już zapisane oceny.</string>
+    <string name="forge_ef_use">Użyj %1$s</string>
+    <string name="forge_ef_exact">Dokładna wartość</string>
+    <string name="forge_ef_not_rated">Bez oceny</string>
+    <string name="forge_ef_rir_label">Powtórzenia w zapasie</string>
 </resources>

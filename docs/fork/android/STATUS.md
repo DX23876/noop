@@ -148,7 +148,7 @@ functions and Android screens before the single testing release.
   Forge pairing, live heart rate and BLE behavior remain unverified on hardware.
 - **Side-by-side gaps found 2026-10-29** (iOS simulator against the Android emulator, both on demo data; More,
   Settings, Trends, the Sleep tab's first cards and the Sleep fix are done). Still open, largest first:
-  the rest of iOS's live strength session (set effort, workout views, strap double-tap, plate calculator, the
+  the rest of iOS's live strength session (workout views, strap double-tap, plate calculator, the
   background rest notification); the Night detail tiles still read Room through ryanbr's `SleepModel` (move to the core); Trends'
   sparse-range widening; the goals explainer's animated demos (Android shows the words). Trends' year calendar and
   report export, the Mi Band import, Today's goal invitation, the goals explainer and Settings › Goals' invitation,

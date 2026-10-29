@@ -376,6 +376,12 @@ public enum CoreTraining {
             if let value = args["distanceM"] as? NSNumber { draft.exercises[e].sets[i].distanceM = value.doubleValue }
             if args["distanceM"] is NSNull { draft.exercises[e].sets[i].distanceM = nil }
             if let done = args["done"] as? Bool { draft.exercises[e].sets[i].isCompleted = done }
+            // The set's effort on the scale Settings › Training picks (`NativeWorkoutSessionModel.setEffort`); null clears it.
+            if let scale = (args["effortScale"] as? String).flatMap(TrainingEffortScale.init(rawValue:)),
+               let value = (args["effortValue"] as? NSNumber)?.doubleValue {
+                draft.exercises[e].sets[i].effort = TrainingEffortRating(scale: scale, value: value)
+            }
+            if args["effortValue"] is NSNull { draft.exercises[e].sets[i].effort = nil }
         case "addSet":
             guard let exerciseUUID else { return draft }
             try? NativeWorkoutEngine.appendSet(to: exerciseUUID, in: &draft)

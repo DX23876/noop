@@ -4720,4 +4720,21 @@
     <string name="forge_st_strap_buzz">Vibrar la pulsera 5 segundos antes</string>
     <string name="forge_st_keep_screen">Mantener la pantalla encendida durante un entrenamiento</string>
     <string name="forge_st_keep_screen_note">Mantiene la pantalla activa solo mientras se graba un entrenamiento. Consume más batería y deja visible la pantalla desbloqueada.</string>
+    <string name="forge_ef_0">Nada más, hasta el fallo</string>
+    <string name="forge_ef_05">Quizá media repetición más</string>
+    <string name="forge_ef_1">Me quedaba una repetición</string>
+    <string name="forge_ef_2">Dos repeticiones más</string>
+    <string name="forge_ef_3">Tres repeticiones más</string>
+    <string name="forge_ef_4">Fácil, zona de calentamiento</string>
+    <string name="forge_ef_title">¿Qué tan dura fue la serie?</string>
+    <string name="forge_ef_clear">Borrar valoración</string>
+    <string name="forge_ef_rir_note">Repeticiones en reserva: cuántas repeticiones limpias más podrías haber hecho.</string>
+    <string name="forge_ef_rpe_note">Esfuerzo percibido: 10 significa que no quedaba nada.</string>
+    <string name="forge_st_set_effort">Esfuerzo por serie</string>
+    <string name="forge_st_off">Desactivado</string>
+    <string name="forge_st_set_effort_note">RIR cuenta las repeticiones en reserva; RPE valora la serie del 1 al 10. «Desactivado» oculta la entrada por serie y conserva las valoraciones ya registradas.</string>
+    <string name="forge_ef_use">Usar %1$s</string>
+    <string name="forge_ef_exact">Valor exacto</string>
+    <string name="forge_ef_not_rated">Sin valorar</string>
+    <string name="forge_ef_rir_label">Repeticiones en reserva</string>
 </resources>

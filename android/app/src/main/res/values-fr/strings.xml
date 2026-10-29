@@ -4719,4 +4719,21 @@
     <string name="forge_st_strap_buzz">Faire vibrer le bracelet 5 secondes avant</string>
     <string name="forge_st_keep_screen">Garder l\'écran allumé pendant un entraînement</string>
     <string name="forge_st_keep_screen_note">Maintient l’écran allumé uniquement pendant l’enregistrement d’un entraînement. Cela consomme plus de batterie et laisse l’écran déverrouillé visible.</string>
+    <string name="forge_ef_0">Plus rien, jusqu’à l’échec</string>
+    <string name="forge_ef_05">Peut-être encore une demi-répétition</string>
+    <string name="forge_ef_1">Encore une répétition en réserve</string>
+    <string name="forge_ef_2">Encore deux répétitions</string>
+    <string name="forge_ef_3">Encore trois répétitions</string>
+    <string name="forge_ef_4">Facile, niveau échauffement</string>
+    <string name="forge_ef_title">Quelle était la difficulté de la série ?</string>
+    <string name="forge_ef_clear">Effacer l’évaluation</string>
+    <string name="forge_ef_rir_note">Répétitions en réserve : combien de répétitions propres vous auriez encore pu faire.</string>
+    <string name="forge_ef_rpe_note">Effort perçu : 10 signifie qu’il ne restait plus rien.</string>
+    <string name="forge_st_set_effort">Effort par série</string>
+    <string name="forge_st_off">Désactivé</string>
+    <string name="forge_st_set_effort_note">Le RIR compte les répétitions en réserve ; le RPE note la série de 1 à 10. « Désactivé » masque la saisie par série et conserve les évaluations déjà enregistrées.</string>
+    <string name="forge_ef_use">Utiliser %1$s</string>
+    <string name="forge_ef_exact">Valeur exacte</string>
+    <string name="forge_ef_not_rated">Non évalué</string>
+    <string name="forge_ef_rir_label">Répétitions en réserve</string>
 </resources>
