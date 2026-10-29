@@ -194,9 +194,6 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                  color = Forge.sceneInk.secondary)
             Text(stringResource(R.string.forge_training), style = Forge.type.title1, color = Forge.sceneInk.text)
             }
-            IconButton(onClick = { page = TrainingPage.RatingPreferences }) {
-                Icon(Icons.Rounded.Tune, stringResource(R.string.forge_rating_reminder_channel), tint = Forge.sceneInk.text)
-            }
         }
         if (s == null) return@Column
         val live = activeWorkout

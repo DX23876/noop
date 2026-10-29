@@ -4541,4 +4541,17 @@
     <string name="forge_tr_n_days">%1$d дней</string>
     <string name="forge_tr_readings">%1$d измерений · %2$s</string>
     <string name="forge_tr_share_recap">Поделиться сводкой</string>
+    <string name="forge_sl_vs_typical">Стадии и норма</string>
+    <string name="forge_sl_last_night">Последняя ночь</string>
+    <string name="forge_sl_delta_typ">%1$s%2$s от тип.</string>
+    <string name="forge_sl_asleep_duration">Длительность сна</string>
+    <string name="forge_sl_hours_asleep">Часов сна</string>
+    <string name="forge_sl_trailing30">За ночь, за последние 30 дней</string>
+    <string name="forge_sl_h_avg">%1$s ч в среднем</string>
+    <string name="forge_sl_avg">Сред.</string>
+    <string name="forge_sl_min">Мин.</string>
+    <string name="forge_sl_max">Макс.</string>
+    <string name="forge_sl_nights">Ночи</string>
+    <string name="forge_sl_not_enough">Пока недостаточно данных о сне.</string>
+    <string name="forge_sl_trend">Тренд</string>
 </resources>

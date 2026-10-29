@@ -48,7 +48,7 @@ fun ForgeRoot(viewModel: AppViewModel) {
                 ForgeTab.Today -> ForgeTodayScreen(padding, width, viewModel)
                 ForgeTab.Trends -> ForgeTrendsScreen(padding, width)
                 ForgeTab.Training -> ForgeTrainingScreen(padding, viewModel)
-                ForgeTab.Sleep -> ForgeSleepScreen(padding, width)
+                ForgeTab.Sleep -> ForgeSleepScreen(padding, width, viewModel)
                 ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
             }
         }

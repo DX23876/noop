@@ -4638,4 +4638,17 @@
     <string name="forge_tr_n_days">%1$d dias</string>
     <string name="forge_tr_readings">%1$d leituras · %2$s</string>
     <string name="forge_tr_share_recap">Partilhar resumo</string>
+    <string name="forge_sl_vs_typical">Estágios versus típico</string>
+    <string name="forge_sl_last_night">Noite passada</string>
+    <string name="forge_sl_delta_typ">%1$s%2$s vs típ</string>
+    <string name="forge_sl_asleep_duration">Duração do sono</string>
+    <string name="forge_sl_hours_asleep">Horas a dormir</string>
+    <string name="forge_sl_trailing30">Por noite, últimos 30 dias</string>
+    <string name="forge_sl_h_avg">%1$s h média</string>
+    <string name="forge_sl_avg">Média</string>
+    <string name="forge_sl_min">Mín.</string>
+    <string name="forge_sl_max">Máx.</string>
+    <string name="forge_sl_nights">Noites</string>
+    <string name="forge_sl_not_enough">Ainda não há noites suficientes.</string>
+    <string name="forge_sl_trend">Tendência</string>
 </resources>

@@ -4677,4 +4677,17 @@
     <string name="forge_tr_training_history">Training history</string>
     <string name="forge_tr_training_history_sub">Strength, cardio and session load over months and years</string>
     <string name="forge_tr_share_recap">Share recap</string>
+    <string name="forge_sl_vs_typical">Stages vs typical</string>
+    <string name="forge_sl_last_night">Last night</string>
+    <string name="forge_sl_delta_typ">%1$s%2$s vs typ</string>
+    <string name="forge_sl_asleep_duration">Asleep duration</string>
+    <string name="forge_sl_hours_asleep">Hours asleep</string>
+    <string name="forge_sl_trailing30">Per night, trailing 30 days</string>
+    <string name="forge_sl_h_avg">%1$s h avg</string>
+    <string name="forge_sl_avg">Avg</string>
+    <string name="forge_sl_min">Min</string>
+    <string name="forge_sl_max">Max</string>
+    <string name="forge_sl_nights">Nights</string>
+    <string name="forge_sl_not_enough">Not enough nights yet.</string>
+    <string name="forge_sl_trend">Trend</string>
 </resources>

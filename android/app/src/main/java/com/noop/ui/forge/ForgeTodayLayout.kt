@@ -135,12 +135,14 @@ object TodayLayoutDefaults {
 }
 
 /**
- * The Sleep tab's arrangeable cards as Forge Sleep draws them: Stages (the night's breakdown) and the sleep-debt
- * ledger. The other Apple Sleep cards have no Android card yet; like Today's excluded sections they stay out of the
+ * The Sleep tab's arrangeable cards as Forge Sleep draws them: Stages (the night's breakdown), the sleep-debt
+ * ledger, stages against the typical night and the asleep-duration trend. The other Apple Sleep cards have no
+ * Android card yet; like Today's excluded sections they stay out of the
  * editor and keep their stored place.
  */
 object SleepLayoutDefaults {
-    val drawn: List<SleepSection> = listOf(SleepSection.STAGES, SleepSection.SLEEP_DEBT)
+    val drawn: List<SleepSection> = listOf(SleepSection.STAGES, SleepSection.SLEEP_DEBT,
+                                          SleepSection.STAGES_VS_TYPICAL, SleepSection.ASLEEP_DURATION)
 
     fun draft(orderRaw: String?, hiddenRaw: String?): EditableLayoutDraft<SleepSection> {
         val order = SleepLayoutPrefs.decodeOrder(orderRaw).filter { it in drawn }

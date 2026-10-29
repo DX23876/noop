@@ -52,6 +52,7 @@ import com.noop.ui.SleepSection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.rounded.Alarm
 import com.noop.R
 import com.noop.core.CoreRead
 import androidx.compose.runtime.produceState
@@ -111,14 +112,15 @@ internal fun rememberClockFormatter(): DateTimeFormatter {
     }
 }
 
-private data class SleepModel(val nights: List<CoreRead.Night>, val restByDay: Map<String, Double>)
+private data class SleepModel(val nights: List<CoreRead.Night>, val restByDay: Map<String, Double>,
+                              val days: List<com.noop.data.DailyMetric> = emptyList())
 
 /**
  * Fork (DX23876), Android plan E-3: the Sleep screen on the shared core. The night's Rest as a large ring, when
  * sleep started and ended, then the stage breakdown with each stage on its own lane across the night.
  */
 @Composable
-fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
+fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
     val zone = ZoneId.systemDefault()
     var model by remember { mutableStateOf<SleepModel?>(null) }
@@ -130,13 +132,25 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
             val nights = CoreRead.nights(now - 60L * 86_400, now)
             val from = LocalDate.now().minusDays(61).toString()
             val rest = CoreRead.series(CoreRead.Metric.Rest, from, LocalDate.now().toString())
-            SleepModel(nights, rest.associate { it.day to it.value })
+            // The merged daily rows, as iOS's `repo.days`, for the typical stages and the asleep-duration trend.
+            val days = com.noop.core.CoreDailyRows.rows(LocalDate.now().minusDays(400).toString(),
+                                                        LocalDate.now().toString(), "core").orEmpty()
+            SleepModel(nights, rest.associate { it.day to it.value }, days)
         }
     }
     var customizing by remember { mutableStateOf(false) }
+    var alarms by remember { mutableStateOf(false) }
     var layoutRevision by remember { mutableIntStateOf(0) }
     val sections = remember(layoutRevision) {
         SleepLayoutDefaults.visible(SleepLayoutPrefs.orderRaw(context), SleepLayoutPrefs.hiddenRaw(context))
+    }
+    if (alarms) {
+        ForgeOverlayPage(onDismiss = { alarms = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                androidx.activity.compose.BackHandler { alarms = false }
+                Hosted(stringResource(R.string.nav_alarms), onBack = { alarms = false }) { com.noop.ui.SmartAlarmScreen(viewModel) }
+            }
+        }
     }
     if (customizing) {
         ForgeOverlayPage(onDismiss = { customizing = false }) {
@@ -188,6 +202,9 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
                 }
             }
         }
+        // The alarms one tap from the night, as iOS puts its Alarms row under the Rest hero.
+        LargeRow(Icons.Rounded.Alarm, Forge.colors.rest, stringResource(R.string.nav_alarms), "",
+                 detail = {}) { alarms = true }
         // Where this night stands in the week's sleep goals (iOS `SleepGoalNightLine`), then the week's sleep goal
         // itself, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); neither draws without a goal.
         if (wakeDay != null) {
@@ -204,6 +221,12 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
             when (section) {
                 SleepSection.STAGES -> if (night != null) Breakdown(night, zone)
                 SleepSection.SLEEP_DEBT -> SleepDebtLedger()
+                SleepSection.STAGES_VS_TYPICAL -> if (night != null) {
+                    val m = SleepSummary.of(night).minutesByStage
+                    StagesVsTypicalCard((m["deep"] ?: 0).toDouble(), (m["rem"] ?: 0).toDouble(),
+                                        (m["light"] ?: 0).toDouble(), model?.days.orEmpty())
+                }
+                SleepSection.ASLEEP_DURATION -> AsleepDurationCard(model?.days.orEmpty())
                 else -> Unit
             }
         }

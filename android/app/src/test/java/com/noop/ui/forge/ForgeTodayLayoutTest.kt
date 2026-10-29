@@ -112,11 +112,15 @@ class ForgeTodayLayoutTest {
     fun sleepSavesItsDrawnCardsAndKeepsTheOthersWhereTheyWere() {
         val orderRaw = "sleepDebt,bodyClock,stages,nightDetail"
         val draft = SleepLayoutDefaults.draft(orderRaw, "bodyClock")
-        assertEquals(listOf(SleepSection.SLEEP_DEBT, SleepSection.STAGES), draft.visible)
+        // Cards missing from a stored order come after it, as `decodeOrder` appends them.
+        assertEquals(listOf(SleepSection.SLEEP_DEBT, SleepSection.STAGES, SleepSection.STAGES_VS_TYPICAL,
+                            SleepSection.ASLEEP_DURATION), draft.visible)
         val (order, hidden) = SleepLayoutDefaults.encode(draft.hide(SleepSection.SLEEP_DEBT), orderRaw, "bodyClock")
-        assertTrue(order, order.startsWith("stages,sleepDebt,sleepMarks,bodyClock,nightDetail,"))
+        assertTrue(order, order.startsWith("stages,stagesVsTypical,asleepDuration,sleepDebt,sleepMarks,bodyClock,nightDetail,"))
         assertEquals("sleepDebt,bodyClock", hidden)
-        assertEquals(listOf(SleepSection.STAGES), SleepLayoutDefaults.visible(order, hidden))
-        assertEquals(listOf(SleepSection.STAGES, SleepSection.SLEEP_DEBT), SleepLayoutDefaults.defaultDraft().visible)
+        assertEquals(listOf(SleepSection.STAGES, SleepSection.STAGES_VS_TYPICAL, SleepSection.ASLEEP_DURATION),
+                     SleepLayoutDefaults.visible(order, hidden))
+        assertEquals(listOf(SleepSection.STAGES, SleepSection.SLEEP_DEBT, SleepSection.STAGES_VS_TYPICAL,
+                            SleepSection.ASLEEP_DURATION), SleepLayoutDefaults.defaultDraft().visible)
     }
 }

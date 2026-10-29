@@ -4616,4 +4616,17 @@
     <string name="forge_tr_n_days">%1$d 天</string>
     <string name="forge_tr_readings">%1$d 条读数 · %2$s</string>
     <string name="forge_tr_share_recap">分享回顾</string>
+    <string name="forge_sl_vs_typical">各阶段 vs 常态</string>
+    <string name="forge_sl_last_night">昨晚</string>
+    <string name="forge_sl_delta_typ">%1$s%2$s 对比常态</string>
+    <string name="forge_sl_asleep_duration">睡眠时长</string>
+    <string name="forge_sl_hours_asleep">睡眠小时数</string>
+    <string name="forge_sl_trailing30">每晚，最近 30 天</string>
+    <string name="forge_sl_h_avg">平均 %1$s 小时</string>
+    <string name="forge_sl_avg">平均</string>
+    <string name="forge_sl_min">最小值</string>
+    <string name="forge_sl_max">最大值</string>
+    <string name="forge_sl_nights">夜数</string>
+    <string name="forge_sl_not_enough">夜间记录还不够。</string>
+    <string name="forge_sl_trend">趋势</string>
 </resources>
