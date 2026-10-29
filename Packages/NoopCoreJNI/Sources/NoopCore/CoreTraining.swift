@@ -354,7 +354,8 @@ public enum CoreTraining {
 
     /// Applies one change to the draft and saves it: `set` (exercise, set, measurements, done), `addSet`,
     /// `addExercise` (a library id) or `removeExercise`. Returns the draft as saved, nil without one.
-    public static func changeDraft(store: WhoopStore, args: [String: Any]) async -> WorkoutDraft? {
+    public static func changeDraft(store: WhoopStore, args: [String: Any], reader: StoreReader? = nil,
+                                   dismissedWorkoutSpans: [String] = []) async -> WorkoutDraft? {
         guard var draft = (try? await store.workoutDraft()) ?? nil else { return nil }
         let exerciseUUID = (args["exercise"] as? String).flatMap(UUID.init(uuidString:))
         switch args["change"] as? String {
@@ -380,9 +381,36 @@ public enum CoreTraining {
             try? NativeWorkoutEngine.appendSet(to: exerciseUUID, in: &draft)
         case "addExercise":
             guard let id = args["exerciseId"] as? String else { return draft }
-            let definition = (try? await store.trainingExercises())?.first { $0.id == id }
-            NativeWorkoutEngine.addExercise(id, to: &draft, sets: NativeWorkoutEngine.setsForAddedExercise(lastPerformance: [],
-                unilateral: definition?.isUnilateral ?? false, workingSets: 1, mode: definition?.mode), definition: definition)
+            let exercises = (try? await store.trainingExercises()) ?? []
+            let definition = exercises.first { $0.id == id }
+            // `NativeWorkoutSessionModel.addExercise`: the exercise's last performance (native first, then imported),
+            // else the working sets Settings › Training names, with the rest and warm-up rest from there too.
+            var last: [NativeWorkoutSet] = []
+            if let reader {
+                let now = Int(Date().timeIntervalSince1970), days = TrainingHistoryWindow.allDays
+                let workouts = (try? await store.nativeWorkouts(from: now - days * 86_400, to: now + 86_400)) ?? []
+                let history = await StrengthHistoryReader.read(store: store, days: days) {
+                    await TrainingSessionResolver.read(reader: reader, from: now - days * 86_400, to: now + 86_400,
+                                                       dismissedDetectedSpans: dismissedWorkoutSpans)
+                }
+                let performance = TrainingPerformanceHistory(native: workouts, resolved: history, exercises: exercises)
+                last = performance.latest(for: id)?.sets.enumerated().map { index, prior in
+                    NativeWorkoutSet(index: index, phase: prior.isWarmup ? .warmup : .work, weightKg: prior.weightKg,
+                                     reps: prior.reps, leftReps: prior.leftReps, rightReps: prior.rightReps,
+                                     durationS: prior.durationS, distanceM: prior.distanceM)
+                } ?? []
+            }
+            let workingSets = UserDefaults.standard.object(forKey: TrainingPreferences.newExerciseSetsKey) as? Int
+                ?? TrainingPreferences.defaultNewExerciseSets
+            NativeWorkoutEngine.addExercise(id, to: &draft, sets: NativeWorkoutEngine.setsForAddedExercise(lastPerformance: last,
+                unilateral: definition?.isUnilateral ?? false, workingSets: workingSets, mode: definition?.mode),
+                definition: definition)
+            if let index = draft.exercises.indices.last {
+                draft.exercises[index].restSeconds = UserDefaults.standard.object(forKey: TrainingPreferences.defaultRestKey)
+                    as? Int ?? TrainingPreferences.defaultRestSeconds
+                draft.exercises[index].warmupRestSeconds = UserDefaults.standard.object(
+                    forKey: TrainingPreferences.warmupRestKey) as? Int ?? TrainingPreferences.defaultWarmupRestSeconds
+            }
             if let last = draft.exercises.last, last.sets.isEmpty { try? NativeWorkoutEngine.appendSet(to: last.id, in: &draft) }
         case "removeExercise":
             guard let exerciseUUID else { return draft }

@@ -1,5 +1,5 @@
 import XCTest
-import NoopCore
+@testable import NoopCore
 import StrandCore
 import StrandTraining
 import WhoopStore
@@ -41,6 +41,34 @@ final class CoreTrainingTests: XCTestCase {
         let finished = await CoreTraining.snapshot(reader: reader, days: 30, weekStartsOn: .monday,
                                                    dismissedWorkoutSpans: [])
         XCTAssertEqual(finished.workouts.map(\.id), [workout.id])
+    }
+
+    /// `NativeWorkoutSessionModel.addExercise`: without a last performance a new exercise gets the working sets and
+    /// the rests Settings › Training names (Android had one set and no rest of its own).
+    func testAnAddedExerciseTakesTheTrainingSettings() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("added-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: dir)
+            for key in [TrainingPreferences.newExerciseSetsKey, TrainingPreferences.defaultRestKey,
+                        TrainingPreferences.warmupRestKey] { UserDefaults.standard.removeObject(forKey: key) }
+        }
+        let store = try await WhoopStore(path: dir.appendingPathComponent("s.sqlite").path)
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        _ = await CoreTraining.startDraft(reader: reader, routineIds: [], dismissedWorkoutSpans: [])
+        let library = try await store.trainingExercises()
+        let id = try XCTUnwrap(library.first?.id)
+        let fresh = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": id], reader: reader)
+        XCTAssertEqual(fresh?.exercises.last?.sets.filter { $0.phase != .warmup }.count, TrainingPreferences.defaultNewExerciseSets)
+        XCTAssertEqual(fresh?.exercises.last?.restSeconds, TrainingPreferences.defaultRestSeconds)
+        UserDefaults.standard.set(5, forKey: TrainingPreferences.newExerciseSetsKey)
+        UserDefaults.standard.set(90, forKey: TrainingPreferences.defaultRestKey)
+        UserDefaults.standard.set(45, forKey: TrainingPreferences.warmupRestKey)
+        let second = try XCTUnwrap(library.dropFirst().first?.id)
+        let set = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": second], reader: reader)
+        XCTAssertEqual(set?.exercises.last?.sets.filter { $0.phase != .warmup }.count, 5)
+        XCTAssertEqual(set?.exercises.last?.restSeconds, 90)
+        XCTAssertEqual(set?.exercises.last?.warmupRestSeconds, 45)
     }
 
     func testASessionStartsLogsASetAndFinishes() async throws {

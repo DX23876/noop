@@ -4681,4 +4681,13 @@
     <string name="forge_gx_next">下一步</string>
     <string name="forge_gx_go">开始吧</string>
     <string name="forge_gx_skip">跳过</string>
+    <string name="forge_rest_period">组间休息</string>
+    <string name="forge_rest_skip">跳过</string>
+    <string name="forge_st_warmup_rest">热身组休息：%1$d 秒</string>
+    <string name="forge_st_timer_ends">计时结束时</string>
+    <string name="forge_st_sound">播放声音</string>
+    <string name="forge_st_vibration">振动</string>
+    <string name="forge_st_strap_buzz">提前 5 秒手环振动</string>
+    <string name="forge_st_keep_screen">锻炼期间保持屏幕常亮</string>
+    <string name="forge_st_keep_screen_note">仅在记录训练时保持屏幕常亮。这会消耗更多电量，并让未锁定的屏幕保持可见。</string>
 </resources>

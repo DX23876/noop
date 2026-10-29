@@ -4727,4 +4727,13 @@
     <string name="forge_gx_next">Dalej</string>
     <string name="forge_gx_go">Zaczynamy</string>
     <string name="forge_gx_skip">Pomiń</string>
+    <string name="forge_rest_period">Przerwa</string>
+    <string name="forge_rest_skip">Pomiń</string>
+    <string name="forge_st_warmup_rest">Przerwa po rozgrzewce: %1$d s</string>
+    <string name="forge_st_timer_ends">Gdy minutnik się skończy</string>
+    <string name="forge_st_sound">Odtwórz dźwięk</string>
+    <string name="forge_st_vibration">Wibracje</string>
+    <string name="forge_st_strap_buzz">Wibracja opaski 5 sekund wcześniej</string>
+    <string name="forge_st_keep_screen">Trzymaj ekran włączony podczas treningu</string>
+    <string name="forge_st_keep_screen_note">Ekran pozostaje aktywny tylko podczas rejestrowania treningu. Zużywa to więcej baterii i pozostawia odblokowany ekran widoczny.</string>
 </resources>

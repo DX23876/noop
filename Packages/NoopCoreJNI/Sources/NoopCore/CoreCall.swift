@@ -441,7 +441,8 @@ public enum CoreCall {
             return CoreRead.json(await CoreTraining.startDraft(reader: reader, routineIds: ids,
                                                                dismissedWorkoutSpans: dismissed))
         case "training.changeDraft":
-            return CoreRead.json(await CoreTraining.changeDraft(store: store, args: args))
+            return CoreRead.json(await CoreTraining.changeDraft(store: store, args: args, reader: reader,
+                                                                dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
         case "training.finishDraft":
             let rpe = (args["sessionRPE"] as? NSNumber)?.doubleValue
             return CoreRead.json(await CoreTraining.finishDraft(store: store, sessionRPE: rpe))

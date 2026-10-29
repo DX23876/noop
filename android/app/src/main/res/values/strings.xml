@@ -4742,4 +4742,13 @@
     <string name="forge_gx_next">Next</string>
     <string name="forge_gx_go">Let\'s go</string>
     <string name="forge_gx_skip">Skip</string>
+    <string name="forge_rest_period">Rest period</string>
+    <string name="forge_rest_skip">Skip</string>
+    <string name="forge_st_warmup_rest">Warm-up rest: %1$d sec</string>
+    <string name="forge_st_timer_ends">When a timer ends</string>
+    <string name="forge_st_sound">Play a sound</string>
+    <string name="forge_st_vibration">Vibration</string>
+    <string name="forge_st_strap_buzz">Buzz the strap 5 seconds early</string>
+    <string name="forge_st_keep_screen">Keep screen on during a workout</string>
+    <string name="forge_st_keep_screen_note">Keeps the display awake only while a workout is recording. This uses more battery and leaves the unlocked screen visible.</string>
 </resources>

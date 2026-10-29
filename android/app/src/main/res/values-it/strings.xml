@@ -4679,4 +4679,13 @@
     <string name="forge_gx_next">Avanti</string>
     <string name="forge_gx_go">Andiamo</string>
     <string name="forge_gx_skip">Salta</string>
+    <string name="forge_rest_period">Recupero</string>
+    <string name="forge_rest_skip">Salta</string>
+    <string name="forge_st_warmup_rest">Recupero riscaldamento: %1$d s</string>
+    <string name="forge_st_timer_ends">Alla fine di un timer</string>
+    <string name="forge_st_sound">Riproduci un suono</string>
+    <string name="forge_st_vibration">Vibrazione</string>
+    <string name="forge_st_strap_buzz">Vibrazione del bracciale 5 secondi prima</string>
+    <string name="forge_st_keep_screen">Mantieni lo schermo acceso durante un allenamento</string>
+    <string name="forge_st_keep_screen_note">Mantiene lo schermo attivo solo durante la registrazione di un allenamento. Consuma più batteria e lascia visibile lo schermo sbloccato.</string>
 </resources>

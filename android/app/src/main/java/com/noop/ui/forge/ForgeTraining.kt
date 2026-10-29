@@ -316,7 +316,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
                 when (open) {
                     TrainingPage.RatingPreferences -> ForgeSessionRatingPreferences(close)
-                    TrainingPage.Session -> ForgeTrainingSession(s?.exercises.orEmpty(), onClose = close)
+                    TrainingPage.Session -> ForgeTrainingSession(s?.exercises.orEmpty(), onClose = close,
+                        onStrapBuzz = { viewModel.buzz(3, RestTimerPrefs.STRAP_BUZZ) })
                     is TrainingPage.Routine -> RoutineEditor(s?.exercises.orEmpty(), open.routine, onClose = close)
                     TrainingPage.Schedule -> ScheduleEditor(s?.routines.orEmpty(), onClose = close)
                     TrainingPage.Starters -> StarterPlans(onClose = close)
@@ -781,9 +782,13 @@ private fun StarterPlans(onClose: () -> Unit) {
  * the draft it saves, so a session survives the app being closed exactly as on the iPhone.
  */
 @Composable
-private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose: () -> Unit) {
+private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose: () -> Unit,
+                                 onStrapBuzz: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // The rest after a completed set (`LiftSessionView.restBand`); the screen stays on while logging when asked.
+    var rest by remember { mutableStateOf<RunningRest?>(null) }
+    KeepScreenOnWhileLogging()
     var draft by remember { mutableStateOf<CoreTraining.Draft?>(null) }
     var picking by remember { mutableStateOf(false) }
     var finishing by remember { mutableStateOf(false) }
@@ -832,7 +837,13 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                 exercise.sets.forEachIndexed { i, set ->
                     SetRow(i + 1, set, columns, massUnits, distanceUnits) { updated ->
                         change { CoreTraining.setValues(exercise.id, updated) }
+                        // Ticking a set off starts its rest: the exercise's own, or the warm-up rest after a warm-up.
+                        if (!set.done && updated.done) {
+                            val seconds = if (set.warmup) exercise.warmupRestSeconds else exercise.restSeconds
+                            rest = if (seconds > 0) RunningRest(set.id, System.currentTimeMillis() + seconds * 1000L) else null
+                        }
                     }
+                    rest?.takeIf { it.setId == set.id }?.let { r -> RestBand(r, onChange = { rest = it }, onStrapBuzz = onStrapBuzz) }
                 }
                 TintButton(stringResource(R.string.forge_training_add_set), Icons.Rounded.Add) {
                     change { CoreTraining.addSet(exercise.id) }

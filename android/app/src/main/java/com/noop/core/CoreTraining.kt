@@ -43,7 +43,8 @@ object CoreTraining {
     data class DraftSet(val id: String, val index: Int, val warmup: Boolean, val weightKg: Double?, val reps: Int?,
                         val done: Boolean, val leftReps: Int? = null, val rightReps: Int? = null,
                         val durationS: Int? = null, val distanceM: Double? = null)
-    data class DraftExercise(val id: String, val exerciseId: String, val restSeconds: Int, val sets: List<DraftSet>)
+    data class DraftExercise(val id: String, val exerciseId: String, val restSeconds: Int, val sets: List<DraftSet>,
+                             val warmupRestSeconds: Int = 60)
     data class Draft(val id: String, val title: String, val startedAt: Long, val exercises: List<DraftExercise>)
 
     private fun call(op: String, args: JSONObject = JSONObject()): String? =
@@ -190,7 +191,7 @@ object CoreTraining {
                                  if (s.has("reps") && !s.isNull("reps")) s.getInt("reps") else null,
                                  s.optBoolean("isCompleted"), s.optIntOrNull("leftReps"), s.optIntOrNull("rightReps"),
                                  s.optIntOrNull("durationS"), s.optDoubleOrNull("distanceM"))
-                    })
+                    }, e.optInt("warmupRestSeconds", 60))
             })
     }
 

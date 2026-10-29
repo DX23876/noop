@@ -4710,4 +4710,13 @@
     <string name="forge_gx_next">Suivant</string>
     <string name="forge_gx_go">C’est parti</string>
     <string name="forge_gx_skip">Passer</string>
+    <string name="forge_rest_period">Temps de repos</string>
+    <string name="forge_rest_skip">Passer</string>
+    <string name="forge_st_warmup_rest">Repos d\'échauffement : %1$d s</string>
+    <string name="forge_st_timer_ends">À la fin d\'un minuteur</string>
+    <string name="forge_st_sound">Émettre un son</string>
+    <string name="forge_st_vibration">Vibration</string>
+    <string name="forge_st_strap_buzz">Faire vibrer le bracelet 5 secondes avant</string>
+    <string name="forge_st_keep_screen">Garder l\'écran allumé pendant un entraînement</string>
+    <string name="forge_st_keep_screen_note">Maintient l’écran allumé uniquement pendant l’enregistrement d’un entraînement. Cela consomme plus de batterie et laisse l’écran déverrouillé visible.</string>
 </resources>

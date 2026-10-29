@@ -16,6 +16,7 @@ enum CorePrefs {
         "goals.introSeen": .bool,
         "training.newExerciseSets": .int(1...6),
         "training.defaultRestSeconds": .int(0...600),
+        "training.warmupRestSeconds": .int(0...300),
         "training.weightUnit": .string(["kilograms", "pounds"]),
     ]
 

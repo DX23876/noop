@@ -21,8 +21,9 @@ object CorePrefs {
     const val INTRO_SEEN = "goals.introSeen"
     const val NEW_EXERCISE_SETS = "training.newExerciseSets"
     const val DEFAULT_REST = "training.defaultRestSeconds"
+    const val WARMUP_REST = "training.warmupRestSeconds"
     const val WEIGHT_UNIT = "training.weightUnit"
-    private val MIRRORED = setOf(DEFAULT_REST, WEIGHT_UNIT)
+    private val MIRRORED = setOf(DEFAULT_REST, WARMUP_REST, WEIGHT_UNIT)
 
     fun read(context: Context): JSONObject = runCatching {
         CoreRead.open(context)

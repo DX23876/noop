@@ -8,20 +8,35 @@
         "loadSemantics" : "not_applicable"
       },
       "excludeFromProgression" : false,
-      "exerciseId" : "user:f8d22536-2208-48c2-8e9a-3f22c8dd0f20",
-      "id" : "7A7B3088-F872-4DAA-B2AA-711A4E7078E7",
+      "exerciseId" : "user:cdd4d1d9-afb5-4f84-9776-de034fe8e1ab",
+      "id" : "6BFFE2F1-5494-44A1-AED1-FF07966A026D",
       "restSeconds" : 120,
       "sets" : [
         {
           "distanceM" : 250.5,
           "durationS" : 75,
-          "id" : "7E21851F-37ED-4A63-8501-F25D8A56547F",
+          "id" : "533D9FDB-ED34-4E90-90C8-73DC66084940",
           "index" : 0,
           "intensifier" : "none",
           "isCompleted" : true,
           "phase" : "work"
+        },
+        {
+          "id" : "5B660800-954F-4047-ACAB-2FF2E76C01EF",
+          "index" : 1,
+          "intensifier" : "none",
+          "isCompleted" : false,
+          "phase" : "work"
+        },
+        {
+          "id" : "7FFFBE69-FD43-4A96-B6CF-A2F19B6405C9",
+          "index" : 2,
+          "intensifier" : "none",
+          "isCompleted" : false,
+          "phase" : "work"
         }
-      ]
+      ],
+      "warmupRestSeconds" : 60
     },
     {
       "equipmentSnapshot" : {
@@ -31,30 +46,49 @@
         "loadSemantics" : "bodyweight_only"
       },
       "excludeFromProgression" : false,
-      "exerciseId" : "user:2eebdf57-f13f-42fe-96af-a0379afe6f11",
-      "id" : "2B30162A-24A6-4402-A722-0B4922586295",
+      "exerciseId" : "user:ecabae80-8db6-4cb8-bb28-ab92e631b411",
+      "id" : "412B0F62-7F82-4245-BDCE-00E8C1547185",
       "restSeconds" : 120,
       "sets" : [
         {
-          "id" : "BA310CB3-32CA-4F03-9C5A-9C45B56551F6",
+          "id" : "230EF67F-2A08-40F2-BD90-046F977DD66D",
           "index" : 0,
           "intensifier" : "none",
           "isCompleted" : true,
           "leftReps" : 8,
           "phase" : "work",
           "rightReps" : 6
+        },
+        {
+          "id" : "733701B6-0B3D-4B5D-B1C7-058F2C836428",
+          "index" : 1,
+          "intensifier" : "none",
+          "isCompleted" : false,
+          "leftReps" : 8,
+          "phase" : "work",
+          "rightReps" : 8
+        },
+        {
+          "id" : "EB6516A1-F61E-4CAB-BBA8-C259847EE47C",
+          "index" : 2,
+          "intensifier" : "none",
+          "isCompleted" : false,
+          "leftReps" : 8,
+          "phase" : "work",
+          "rightReps" : 8
         }
-      ]
+      ],
+      "warmupRestSeconds" : 60
     }
   ],
-  "id" : "EAF6AB84-87FD-4521-8B56-1D63AF8D8DA5",
+  "id" : "74FC7F67-C6E3-4ADC-9BFA-E73AEAE1FA66",
   "lifecycleVersion" : 1,
-  "plannedDay" : "2026-10-27",
+  "plannedDay" : "2026-10-29",
   "routineIds" : [
 
   ],
-  "startedAt" : 1793084114,
+  "startedAt" : 1793293399,
   "state" : "active",
   "title" : "Freestyle workout",
-  "updatedAt" : 1793084114
+  "updatedAt" : 1793293399
 }

@@ -4606,4 +4606,13 @@
     <string name="forge_gx_next">Далее</string>
     <string name="forge_gx_go">Поехали</string>
     <string name="forge_gx_skip">Пропустить</string>
+    <string name="forge_rest_period">Отдых между подходами</string>
+    <string name="forge_rest_skip">Пропустить</string>
+    <string name="forge_st_warmup_rest">Отдых после разминки: %1$d с</string>
+    <string name="forge_st_timer_ends">Когда таймер заканчивается</string>
+    <string name="forge_st_sound">Воспроизводить звук</string>
+    <string name="forge_st_vibration">Вибрация</string>
+    <string name="forge_st_strap_buzz">Вибрация браслета за 5 секунд</string>
+    <string name="forge_st_keep_screen">Не выключать экран во время тренировки</string>
+    <string name="forge_st_keep_screen_note">Экран не выключается только во время записи тренировки. Это расходует больше заряда и оставляет разблокированный экран видимым.</string>
 </resources>

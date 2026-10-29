@@ -4711,4 +4711,13 @@
     <string name="forge_gx_next">Siguiente</string>
     <string name="forge_gx_go">Vamos</string>
     <string name="forge_gx_skip">Omitir</string>
+    <string name="forge_rest_period">Descanso entre series</string>
+    <string name="forge_rest_skip">Omitir</string>
+    <string name="forge_st_warmup_rest">Descanso de calentamiento: %1$d s</string>
+    <string name="forge_st_timer_ends">Al terminar un temporizador</string>
+    <string name="forge_st_sound">Reproducir un sonido</string>
+    <string name="forge_st_vibration">Vibración</string>
+    <string name="forge_st_strap_buzz">Vibrar la pulsera 5 segundos antes</string>
+    <string name="forge_st_keep_screen">Mantener la pantalla encendida durante un entrenamiento</string>
+    <string name="forge_st_keep_screen_note">Mantiene la pantalla activa solo mientras se graba un entrenamiento. Consume más batería y deja visible la pantalla desbloqueada.</string>
 </resources>

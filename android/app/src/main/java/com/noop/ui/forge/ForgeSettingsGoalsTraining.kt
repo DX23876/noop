@@ -146,6 +146,11 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
     var unit by remember { mutableStateOf(prefs.getString(CorePrefs.WEIGHT_UNIT, null) ?: stored.optString(CorePrefs.WEIGHT_UNIT, "kilograms")) }
     var sets by remember { mutableStateOf(stored.optInt(CorePrefs.NEW_EXERCISE_SETS, 3)) }
     var rest by remember { mutableStateOf(stored.optInt(CorePrefs.DEFAULT_REST, prefs.getInt(CorePrefs.DEFAULT_REST, 120))) }
+    var warmupRest by remember { mutableStateOf(stored.optInt(CorePrefs.WARMUP_REST, 60)) }
+    var sound by remember { mutableStateOf(RestTimerPrefs.sound(context)) }
+    var vibration by remember { mutableStateOf(RestTimerPrefs.haptics(context)) }
+    var strapBuzz by remember { mutableStateOf(RestTimerPrefs.strapBuzz(context)) }
+    var keepOn by remember { mutableStateOf(RestTimerPrefs.keepScreenOn(context)) }
     var media by remember { mutableStateOf(prefs.getString("training.mediaPresentation", "large") ?: "large") }
     var suggestions by remember { mutableStateOf(NoopPrefs.autoDetectWorkouts(context)) }
 
@@ -184,6 +189,20 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
         SettingRow(stringResource(R.string.forge_st_default_rest, rest)) {
             Stepper("", onMinus = { val v = (rest - 15).coerceAtLeast(0); if (CorePrefs.write(context, CorePrefs.DEFAULT_REST, v)) rest = v },
                     onPlus = { val v = (rest + 15).coerceAtMost(600); if (CorePrefs.write(context, CorePrefs.DEFAULT_REST, v)) rest = v })
+        }
+        RowDivider()
+        SettingRow(stringResource(R.string.forge_st_warmup_rest, warmupRest)) {
+            Stepper("", onMinus = { val v = (warmupRest - 15).coerceAtLeast(0); if (CorePrefs.write(context, CorePrefs.WARMUP_REST, v)) warmupRest = v },
+                    onPlus = { val v = (warmupRest + 15).coerceAtMost(300); if (CorePrefs.write(context, CorePrefs.WARMUP_REST, v)) warmupRest = v })
+        }
+        RowDivider()
+        Overline(stringResource(R.string.forge_st_timer_ends))
+        ToggleRow(stringResource(R.string.forge_st_sound), null, sound) { sound = it; prefs.edit().putBoolean(RestTimerPrefs.SOUND, it).apply() }
+        ToggleRow(stringResource(R.string.forge_st_vibration), null, vibration) { vibration = it; prefs.edit().putBoolean(RestTimerPrefs.HAPTICS, it).apply() }
+        ToggleRow(stringResource(R.string.forge_st_strap_buzz), null, strapBuzz) { strapBuzz = it; RestTimerPrefs.setStrapBuzz(context, it) }
+        RowDivider()
+        ToggleRow(stringResource(R.string.forge_st_keep_screen), stringResource(R.string.forge_st_keep_screen_note), keepOn) {
+            keepOn = it; prefs.edit().putBoolean(RestTimerPrefs.KEEP_SCREEN_ON, it).apply()
         }
         RowDivider()
         Overline(stringResource(R.string.forge_st_during))

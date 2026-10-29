@@ -4724,4 +4724,13 @@
     <string name="forge_gx_next">Weiter</string>
     <string name="forge_gx_go">Los geht’s</string>
     <string name="forge_gx_skip">Überspringen</string>
+    <string name="forge_rest_period">Pause</string>
+    <string name="forge_rest_skip">Überspringen</string>
+    <string name="forge_st_warmup_rest">Aufwärmpause: %1$d s</string>
+    <string name="forge_st_timer_ends">Wenn ein Timer endet</string>
+    <string name="forge_st_sound">Ton abspielen</string>
+    <string name="forge_st_vibration">Vibration</string>
+    <string name="forge_st_strap_buzz">Strap vibriert 5 Sekunden vorher</string>
+    <string name="forge_st_keep_screen">Bildschirm während eines Workouts anlassen</string>
+    <string name="forge_st_keep_screen_note">Hält das Display nur während einer laufenden Trainingsaufzeichnung aktiv. Das verbraucht mehr Akku und lässt den entsperrten Bildschirm sichtbar.</string>
 </resources>

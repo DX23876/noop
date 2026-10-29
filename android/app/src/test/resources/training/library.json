@@ -1,7 +1,7 @@
 {
   "attribution" : "Exercise data: ExerciseDB v1 via hasaneyldrm\/exercises-dataset, MIT licence. Exercise media is not included and is not covered by that licence.",
   "availableExerciseIds" : [
-    "user:56c21533-bbf2-4e22-8965-02b120073ac0"
+    "user:483f5808-9222-447a-bb75-b8c9cfdd49fd"
   ],
   "equipment" : [
     "ab-wheel",
@@ -39,7 +39,7 @@
       "equipment" : [
         "barbell"
       ],
-      "id" : "user:56c21533-bbf2-4e22-8965-02b120073ac0",
+      "id" : "user:483f5808-9222-447a-bb75-b8c9cfdd49fd",
       "matchingMuscles" : [
         "chest",
         "front_delts",
