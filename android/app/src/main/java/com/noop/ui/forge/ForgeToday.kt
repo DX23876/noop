@@ -332,7 +332,7 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
 
 /** The hero's source caption: the names joined with " + ", the translated words resolved; null without any. */
 @Composable
-private fun heroSourceLabel(tokens: List<String>): String? {
+internal fun heroSourceLabel(tokens: List<String>): String? {
     if (tokens.isEmpty()) return null
     return tokens.map { token ->
         when (token) {

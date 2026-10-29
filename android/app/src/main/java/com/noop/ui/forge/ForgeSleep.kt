@@ -5,6 +5,7 @@ import com.noop.ui.ClockPrefs
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
@@ -195,6 +196,17 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                     Spacer(Modifier.height(ForgeMetrics.space3))
                     Text(stringResource(RestWord.of(rest)), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                          color = Forge.colors.rest)
+                    // Who supplied the night's inputs, a pill under the verdict as on iOS (`restHero`'s source badge).
+                    val sources by produceState(emptyList<String>(), wakeDay) {
+                        value = withContext(Dispatchers.IO) { wakeDay?.let { CoreRead.day(it.toString())?.heroSource }.orEmpty() }
+                    }
+                    heroSourceLabel(sources)?.let { label ->
+                        Spacer(Modifier.height(ForgeMetrics.space3))
+                        Text(label.uppercase(), style = Forge.type.overline, color = Forge.colors.rest, maxLines = 1,
+                             modifier = Modifier.background(Forge.colors.rest.copy(alpha = 0.12f), RoundedCornerShape(50))
+                                 .border(1.dp, Forge.colors.rest.copy(alpha = 0.35f), RoundedCornerShape(50))
+                                 .padding(horizontal = ForgeMetrics.space3, vertical = 4.dp))
+                    }
                 }
             }
             Times(night, zone)
