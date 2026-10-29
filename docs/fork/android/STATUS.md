@@ -147,12 +147,15 @@ functions and Android screens before the single testing release.
 - **Hardware evidence.** A tester still needs to enable "Shared core confirms history" and send a real strap log
   with a full overnight offload: each chunk acknowledged after the core stored it, no held acknowledgement.
   Forge pairing, live heart rate and BLE behavior remain unverified on hardware.
-- **Side-by-side gaps found 2026-10-29** (iOS simulator against the Android emulator, both on demo data; More,
-  Settings, Trends, the Sleep tab's first cards and the Sleep fix are done). Still open, largest first:
-  the Night detail tiles still read Room through ryanbr's `SleepModel` (move to the core); Trends'
-  sparse-range widening; the goals explainer's animated demos (Android shows the words). Trends' year calendar and
-  report export, the Mi Band import, Today's goal invitation, the goals explainer and Settings › Goals' invitation,
-  explainer and streak rows are on Android since 2026-10-29. `Tools/test_android_ios_parity.py` names what is still open.
+- **Side-by-side gaps found 2026-10-29** (iOS simulator against the Android emulator, both on demo data). Done the
+  same day: the live strength session in iOS's look (header card, set table, rest dock, plate calculator, workout
+  views, set effort, rest notification, strap double-tap), "What shaped your Charge", Trends' sparse-range widening and
+  the detailed Key Metrics lines for SpO2, steps, weight, calories and skin temperature. Still open, largest first:
+  the Trends and Overview Today dashboards with their Settings picker; the Night detail tiles still read Room through
+  ryanbr's `SleepModel` (move to the core); the goal notifications' consent question, tick and snooze buttons and the
+  wind-down evening minute; the coach's own Today switch and floating button; the goals explainer's animated demos.
+  ECG recording and the strap's raw lanes in the core wait for a WHOOP MG to verify on. `Tools/test_android_ios_parity.py`
+  names what is still open.
 - **Testing release (phase 3).** The emulator rounds, real-data comparison, all required checks and release notes
   precede the single release. Publishing it still requires the owner's explicit approval; F3/F4 and the D9 tester
   confirmations follow it.
