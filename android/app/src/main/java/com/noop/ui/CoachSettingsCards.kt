@@ -24,6 +24,10 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.rounded.NorthEast
+import androidx.compose.material.icons.rounded.NorthWest
+import androidx.compose.material.icons.rounded.SouthEast
+import androidx.compose.material.icons.rounded.SouthWest
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.R
 import com.noop.core.CoreCoach
@@ -95,6 +99,64 @@ internal fun CoachTodayCard(vm: CoachViewModel) {
             }
         }
     }
+    if (shown) CoachEntryCard(s.labels)
+}
+
+/**
+ * "Coach entry" (`coachEntryBar`): the banner and the floating button, each on its own, and while the button shows,
+ * its corner (`buttonPlacementControls`: four icons, none lit once it was dragged) and the lock.
+ */
+@Composable
+private fun CoachEntryCard(labels: Map<String, String>) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    CoachTodayPrefs.version // read, so a change made here draws the card again
+    val floating = CoachTodayPrefs.floating(context)
+    val corner = CoachTodayPrefs.corner(context)
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(labels["entry"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
+                Text(labels["entryDetail"].orEmpty(), style = NoopType.footnote, color = Palette.textSecondary)
+            }
+            ToggleRow(labels["banner"].orEmpty(), labels["bannerDetail"], CoachTodayPrefs.banner(context)) {
+                CoachTodayPrefs.setBanner(context, it)
+            }
+            ToggleRow(labels["floating"].orEmpty(), labels["floatingDetail"], floating) {
+                CoachTodayPrefs.setFloating(context, it)
+            }
+            if (floating) {
+                Overline(labels["position"].orEmpty())
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CoachTodayPrefs.corners.forEach { c ->
+                        val on = c == corner
+                        Box(
+                            Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                                .background(if (on) Palette.accent else Palette.surfaceInset)
+                                .clickable { CoachTodayPrefs.setCorner(context, c) }
+                                .padding(vertical = 9.dp)
+                                .semantics { this.selected = on },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            androidx.compose.material3.Icon(cornerIcon(c), contentDescription = labels["corner.$c"],
+                                tint = if (on) Color.White else Palette.textSecondary)
+                        }
+                    }
+                }
+                Text(labels[if (corner == "custom") "dragged" else "pinned.$corner"].orEmpty(),
+                     style = NoopType.footnote, color = Palette.textSecondary)
+                ToggleRow(labels["lock"].orEmpty(), labels["lockDetail"], CoachTodayPrefs.locked(context)) {
+                    CoachTodayPrefs.setLocked(context, it)
+                }
+            }
+        }
+    }
+}
+
+private fun cornerIcon(corner: String) = when (corner) {
+    "topLeading" -> androidx.compose.material.icons.Icons.Rounded.NorthWest
+    "topTrailing" -> androidx.compose.material.icons.Icons.Rounded.NorthEast
+    "bottomLeading" -> androidx.compose.material.icons.Icons.Rounded.SouthWest
+    else -> androidx.compose.material.icons.Icons.Rounded.SouthEast
 }
 
 /** "Enable AI Coach" (`coachFeatureBar`): off hides the coach and its check-ins; chats and data stay saved. */

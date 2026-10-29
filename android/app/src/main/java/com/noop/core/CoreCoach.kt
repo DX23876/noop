@@ -87,6 +87,12 @@ object CoreCoach {
 
     fun state(): State? = call("coach.state", "{}")?.let(::parse)
 
+    /** A message the coach started that the wearer has not seen yet: the dot on the floating button. */
+    fun unseen(): Boolean = call("coach.unseen", "{}")?.optBoolean("unseen") ?: false
+
+    /** The chat is on screen, so everything the coach said on its own counts as seen (`markCoachMessagesSeen`). */
+    fun seen() { call("coach.seen", "{}") }
+
     fun newConversation(): State? = call("coach.new", "{}")?.let(::parse)
 
     fun stop(): State? = call("coach.stop", "{}")?.let(::parse)

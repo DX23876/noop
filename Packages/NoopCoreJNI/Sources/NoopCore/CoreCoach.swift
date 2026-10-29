@@ -47,6 +47,12 @@ enum CoreCoach {
             return #"{"ok":true}"#
         case "coach.state":
             return CoreRead.json(State(coach))
+        case "coach.unseen":
+            // The dot on the floating button (`hasUnseenCoachMessage`): a message the coach started, not yet seen.
+            return CoreRead.json(["unseen": coach.hasUnseenCoachMessage])
+        case "coach.seen":
+            coach.markCoachMessagesSeen()
+            return CoreRead.json(["unseen": false])
         case "coach.new":
             coach.newConversation()
             return CoreRead.json(State(coach))
@@ -546,8 +552,21 @@ struct SettingsState: Encodable {
             "todayDetail": "Turn off to hide the Coach card and floating button. Per-metric “Ask coach” and the AI that writes your card summaries keep working.",
             "todayAvatar": "Show coach avatar",
             "todayAvatarDetail": "Use your coach’s picture on the Today entry instead of a plain icon.",
+            "entry": "Coach entry", "entryDetail": "How you open Coach from Today — pick any combination.",
+            "banner": "Banner", "bannerDetail": "A full-width card in Today's card list, movable via Arrange Today",
+            "floating": "Floating button", "floatingDetail": "A draggable button that floats over every screen",
+            "position": "Button position",
+            "dragged": "Dragged freely — tap a corner to pin it. Corners stay clear of the tab bar and header.",
+            "lock": "Lock position", "lockDetail": "Stops the button moving if you brush it. Tapping still opens Coach.",
+            "askCoach": "Ask your Coach",
         ]
         labels = words.mapValues { $0.localizedCatalogValue }
+        // The floating button's corners (`CoachButtonCorner`) and the line naming the pinned one.
+        for (id, name) in [("topLeading", "Top left"), ("topTrailing", "Top right"),
+                           ("bottomLeading", "Bottom left"), ("bottomTrailing", "Bottom right")] {
+            labels["corner.\(id)"] = name.localizedCatalogValue
+            labels["pinned.\(id)"] = String(localized: "Pinned: \(name.localizedCatalogValue). Drag the button anytime to place it freely.")
+        }
         let log = CoachUsageLog.shared
         if let turn = log.lastTurn, !turn.rounds.isEmpty {
             usage.append(Usage(title: "Last question".localizedCatalogValue, line: CoachUsageLog.summaryLine(for: turn),

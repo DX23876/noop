@@ -51,7 +51,7 @@ screen and its `coach.*` operation in `CoreCoach.swift`.
 | Privacy & data: Enable AI Coach, privacy level, data access purposes (8 switches), share patterns & Lab Book, let the coach use my data | ✅ | Enable AI Coach is Android's own switch (`NoopPrefs.coachEnabled`) |
 | How Coach works (`CoachInfoView`) | ✅ | without the two paragraphs on the iPhone's on-device search |
 | Usage: last question, today, this session | ✅ | |
-| Coach on Today: show coach, avatar, banner, floating button, position, lock | 🟡 | Show Coach on Today and the avatar switch; no floating button, so no position or lock |
+| Coach on Today: show coach, avatar, banner, floating button, position, lock | ✅ | Show Coach on Today, the avatar, the banner and the floating button each switch on their own; the button pins to four corners clear of the tab bar and header or stays where it was dragged, can be locked and carries the dot for a message the coach started (`coach.unseen`, cleared when the chat opens) |
 
 ## Elsewhere
 

@@ -119,6 +119,8 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
     // #1862: a question handed over by the Today launcher sheet. Consumed once — `consume()` clears it —
     // so a recomposition cannot resend it, and only when the coach can actually send, so an unconfigured
     // handoff degrades to showing setup rather than a failed request. Swift twin: CoachView's task.
+    // Opening the chat shows what the coach sent on its own (`markCoachMessagesSeen`).
+    LaunchedEffect(Unit) { vm.markSeen() }
     LaunchedEffect(configured) {
         val handed = CoachHandoff.consume()
         if (handed != null && configured) vm.send(context, handed)
