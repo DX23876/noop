@@ -263,6 +263,11 @@
             </intent-filter>
         </service>
 
+        <!-- The end of a strength rest while NOOP is in the background (fork, ForgeRestTimer.kt). -->
+        <receiver
+            android:name="com.noop.ui.forge.RestEndReceiver"
+            android:exported="false" />
+
         <!-- Home-screen widget (today's recovery + live HR + strap battery). exported=true is
              required so the launcher can deliver APPWIDGET_UPDATE; it renders only from our own
              SharedPreferences snapshot. -->

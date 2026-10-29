@@ -352,6 +352,39 @@ public enum CoreTraining {
         return draft
     }
 
+    /// What a strap double-tap did (`NativeWorkoutSessionModel.strapDoubleTap`): `completed` with the set it ticked
+    /// off, or why it did nothing (`noDraft`, `paused`, `allDone`, `missingNumbers` with the set that lacks them).
+    public struct StrapStep: Encodable {
+        public let outcome: String
+        public var exerciseId: String? = nil
+        public var warmup = false
+        public var segment: String? = nil
+        public var number: Int? = nil
+        public var draft: WorkoutDraft? = nil
+    }
+
+    /// Completes the next open set with the numbers already in its row, so a set is logged with the phone left on
+    /// the bench; a set whose exercise needs numbers it does not have yet stays open. The knock window (a second
+    /// tap within five seconds) stays with the caller, which saw the previous tap.
+    public static func strapStep(store: WhoopStore) async -> StrapStep {
+        guard var draft = (try? await store.workoutDraft()) ?? nil else { return StrapStep(outcome: "noDraft") }
+        guard draft.state == .active else { return StrapStep(outcome: "paused") }
+        guard let next = NativeWorkoutEngine.nextOpenSet(in: draft) else { return StrapStep(outcome: "allDone") }
+        let exercise = draft.exercises[next.exercise]
+        let set = exercise.sets[next.set]
+        let modes = Dictionary(((try? await store.trainingExercises()) ?? []).map { ($0.id, $0.mode) },
+                               uniquingKeysWith: { first, _ in first })
+        let step = StrapStep(outcome: "missingNumbers", exerciseId: exercise.exerciseId, warmup: set.phase == .warmup,
+                             segment: set.parentSetId == nil ? nil : (set.intensifier == .restPause ? "restPause" : "drop"),
+                             number: NativeWorkoutEngine.workingSetNumber(of: next.set, in: exercise.sets))
+        guard NativeWorkoutEngine.hasLoggableValues(set, mode: modes[exercise.exerciseId]) else { return step }
+        draft.exercises[next.exercise].sets[next.set].isCompleted = true
+        draft.updatedAt = Int(Date().timeIntervalSince1970)
+        guard (try? await store.saveWorkoutDraft(draft)) != nil else { return StrapStep(outcome: "noDraft") }
+        return StrapStep(outcome: "completed", exerciseId: step.exerciseId, warmup: step.warmup, segment: step.segment,
+                         number: step.number, draft: draft)
+    }
+
     /// Applies one change to the draft and saves it: `set` (exercise, set, measurements, done), `addSet`,
     /// `addExercise` (a library id) or `removeExercise`. Returns the draft as saved, nil without one.
     public static func changeDraft(store: WhoopStore, args: [String: Any], reader: StoreReader? = nil,
@@ -418,6 +451,10 @@ public enum CoreTraining {
                     forKey: TrainingPreferences.warmupRestKey) as? Int ?? TrainingPreferences.defaultWarmupRestSeconds
             }
             if let last = draft.exercises.last, last.sets.isEmpty { try? NativeWorkoutEngine.appendSet(to: last.id, in: &draft) }
+        case "selectExercise":
+            // The exercise the focus view shows, and its first open set (`NativeWorkoutSessionModel.selectExercise`).
+            guard let exerciseUUID, let e = draft.exercises.firstIndex(where: { $0.id == exerciseUUID }) else { return draft }
+            draft.cursor = .init(exerciseId: exerciseUUID, setId: draft.exercises[e].sets.first(where: { !$0.isCompleted })?.id)
         case "removeExercise":
             guard let exerciseUUID else { return draft }
             try? NativeWorkoutEngine.removeExercise(exerciseUUID, from: &draft)

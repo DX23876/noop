@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
@@ -56,6 +57,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -320,7 +322,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 when (open) {
                     TrainingPage.RatingPreferences -> ForgeSessionRatingPreferences(close)
                     TrainingPage.Session -> ForgeTrainingSession(s?.exercises.orEmpty(), onClose = close,
-                        onStrapBuzz = { viewModel.buzz(3, RestTimerPrefs.STRAP_BUZZ) })
+                        onStrapBuzz = { viewModel.buzz(3, RestTimerPrefs.STRAP_BUZZ) },
+                        strap = remember(viewModel) { StrapTapHost(claim = { viewModel.strapDoubleTapOverride = it },
+                                             confirm = { viewModel.buzz(1) }, log = viewModel::strapLog) })
                     is TrainingPage.Routine -> RoutineEditor(s?.exercises.orEmpty(), open.routine, onClose = close)
                     TrainingPage.Schedule -> ScheduleEditor(s?.routines.orEmpty(), onClose = close)
                     TrainingPage.Starters -> StarterPlans(onClose = close)
@@ -786,22 +790,80 @@ private fun StarterPlans(onClose: () -> Unit) {
  */
 @Composable
 private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose: () -> Unit,
-                                 onStrapBuzz: () -> Unit = {}) {
+                                 onStrapBuzz: () -> Unit = {}, strap: StrapTapHost? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // The rest after a completed set (`LiftSessionView.restBand`); the screen stays on while logging when asked.
     var rest by remember { mutableStateOf<RunningRest?>(null) }
     KeepScreenOnWhileLogging()
+    TrackLoggerOnScreen()
     var draft by remember { mutableStateOf<CoreTraining.Draft?>(null) }
     var picking by remember { mutableStateOf(false) }
+    // The plate calculator's starting total, while it is open (`TrainingPlateRequest`).
+    var plateTarget by remember { mutableStateOf<Double?>(null) }
     var finishing by remember { mutableStateOf(false) }
     var emptyNotice by remember { mutableStateOf(false) }
     val definitions = remember(exercises) { exercises.associateBy { it.id } }
     // Settings › Training's per-set effort scale; "off" hides the column and keeps ratings already logged.
     val effortScale = remember { com.noop.ui.NoopPrefs.of(context).getString(CorePrefs.EFFORT_SCALE, null) ?: "rpe" }
+    // Settings › Training's "Workout view", also switched from the page's menu (`ActiveWorkoutLayout`).
+    var layout by remember { mutableStateOf(com.noop.ui.NoopPrefs.of(context).getString(WORKOUT_LAYOUT, "list") ?: "list") }
+    var layoutMenu by remember { mutableStateOf(false) }
     var effortRequest by remember { mutableStateOf<Pair<String, CoreTraining.DraftSet>?>(null) }
     LaunchedEffect(Unit) { draft = core(context) { CoreTraining.draft() } }
     fun change(block: () -> CoreTraining.Draft?) = scope.launch { core(context, block)?.let { draft = it } }
+    // Ticking a set off starts its rest: the exercise's own, or the warm-up rest after a warm-up.
+    fun startRest(exercise: CoreTraining.DraftExercise, set: CoreTraining.DraftSet) {
+        val seconds = if (set.warmup) exercise.warmupRestSeconds else exercise.restSeconds
+        rest = if (seconds > 0) RunningRest(set.id, System.currentTimeMillis() + seconds * 1000L) else null
+    }
+
+    // A strap double-tap logs the next prepared set (`NativeWorkoutSessionModel.strapDoubleTap`); the core picks
+    // the set, this page keeps the knock window, the confirming buzz and the notice when nothing was logged.
+    var strapNotice by remember { mutableStateOf<String?>(null) }
+    var lastStrapStepAt by remember { mutableStateOf(0L) }
+    fun strapTap() = scope.launch {
+        val host = strap ?: return@launch
+        val now = System.currentTimeMillis()
+        if (now - lastStrapStepAt in 0 until 5_000) {
+            host.log("Strength session: double-tap not acted on, ${(now - lastStrapStepAt) / 1000} s after the last one it acted on (under 5 s is taken as a knock)")
+            strapNotice = context.getString(R.string.forge_tap_knock)
+            return@launch
+        }
+        val before = draft
+        val step = core(context) { CoreTraining.strapStep() } ?: return@launch
+        when (step.outcome) {
+            "completed" -> {
+                lastStrapStepAt = now
+                host.confirm()
+                strapNotice = null
+                val after = step.draft ?: return@launch
+                draft = after
+                after.exercises.forEach { e ->
+                    e.sets.firstOrNull { set -> set.done && before?.exercises?.firstOrNull { it.id == e.id }
+                        ?.sets?.firstOrNull { it.id == set.id }?.done == false }?.let { startRest(e, it) }
+                }
+                host.log("Strength session: double-tap completed the next set")
+            }
+            "paused" -> strapNotice = context.getString(R.string.forge_tap_paused)
+            "allDone" -> strapNotice = context.getString(R.string.forge_tap_done)
+            "missingNumbers" -> {
+                val label = when {
+                    step.warmup -> context.getString(R.string.forge_warmup)
+                    step.segment == "restPause" -> context.getString(R.string.forge_rest_pause)
+                    step.segment != null -> context.getString(R.string.forge_drop_set)
+                    else -> context.getString(R.string.forge_set_n, step.number ?: 1)
+                }
+                val title = definitions[step.exerciseId]?.title ?: step.exerciseId.orEmpty()
+                strapNotice = context.getString(R.string.forge_tap_missing, label, title)
+            }
+        }
+        if (step.outcome != "completed") host.log("Strength session: double-tap not acted on (${step.outcome})")
+    }
+    DisposableEffect(strap) {
+        if (strap != null && RestTimerPrefs.strapDoubleTap(context)) strap.claim { strapTap() }
+        onDispose { strap?.claim?.invoke(null) }
+    }
     BackHandler { onClose() }
 
     if (picking) {
@@ -812,16 +874,49 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
         }
         return
     }
+    plateTarget?.let { kg ->
+        ForgePlateCalculator(kg, onClose = { plateTarget = null })
+        return
+    }
     val d = draft
     SettingsColumn {
-        PageTitle(d?.title ?: stringResource(R.string.forge_training), onClose)
+        PageTitle(d?.title ?: stringResource(R.string.forge_training), onClose) {
+            Box {
+                IconButton(onClick = { layoutMenu = true }) {
+                    Icon(Icons.Rounded.MoreHoriz, stringResource(R.string.forge_wl_options), tint = Forge.colors.accent)
+                }
+                DropdownMenu(layoutMenu, onDismissRequest = { layoutMenu = false }) {
+                    listOf("focus" to R.string.forge_wl_focus, "list" to R.string.forge_wl_list,
+                           "compact" to R.string.forge_wl_compact).forEach { (id, label) ->
+                        DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
+                            layout = id; layoutMenu = false
+                            com.noop.ui.NoopPrefs.of(context).edit().putString(WORKOUT_LAYOUT, id).apply()
+                        }, trailingIcon = { if (layout == id) Icon(Icons.Rounded.Check, contentDescription = null) })
+                    }
+                }
+            }
+        }
         if (d == null) return@SettingsColumn
-        d.exercises.forEach { exercise ->
+        strapNotice?.let { notice ->
+            ForgeCard(Modifier.fillMaxWidth().clickable { strapNotice = null }, radius = ForgeMetrics.groupedRadius) {
+                Text(notice, style = Forge.type.subhead, color = Forge.colors.text)
+            }
+        }
+        @Composable
+        fun ExerciseCard(exercise: CoreTraining.DraftExercise, compact: Boolean) {
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(definitions[exercise.exerciseId]?.title ?: stringResource(R.string.forge_report_exercise), style = Forge.type.headline,
                          color = Forge.colors.text, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { change { CoreTraining.removeExercise(exercise.id) } }) {
+                    // Compact (`compactExerciseCard`): the count of done sets instead of the exercise's tools.
+                    if (compact) Text(stringResource(R.string.forge_count_of, exercise.sets.count { it.done }, exercise.sets.size), style = Forge.type.caption,
+                                      color = Forge.colors.textSecondary)
+                    else if ((definitions[exercise.exerciseId]?.mode ?: "weight_reps") == "weight_reps") {
+                        IconButton(onClick = { plateTarget = exercise.sets.firstOrNull { !it.warmup }?.weightKg ?: 60.0 }) {
+                            Icon(Icons.Rounded.Calculate, stringResource(R.string.forge_pl_title), tint = Forge.colors.textTertiary)
+                        }
+                    }
+                    if (!compact) IconButton(onClick = { change { CoreTraining.removeExercise(exercise.id) } }) {
                         Icon(Icons.Rounded.Delete, stringResource(R.string.forge_training_remove_exercise),
                              tint = Forge.colors.textTertiary)
                     }
@@ -831,9 +926,18 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                 val columns = TrainingSetInput.columns(mode, definition?.unilateral == true)
                 val massUnits = strengthUnits()
                 val distanceUnits = com.noop.ui.UnitPrefs.distanceSystem(context)
-                ReportNote(measurementName(mode))
-                ForgeLocalExerciseMedia(exercise.exerciseId, definition?.title.orEmpty())
-                Row(Modifier.padding(vertical = ForgeMetrics.space1), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
+                if (!compact) {
+                    ReportNote(measurementName(mode))
+                    ForgeLocalExerciseMedia(exercise.exerciseId, definition?.title.orEmpty())
+                }
+                // Compact shows only the next open set, or that the exercise is complete.
+                val shown = if (compact) exercise.sets.withIndex().filter { !it.value.done }.take(1)
+                            else exercise.sets.withIndex().toList()
+                if (compact && shown.isEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, tint = Forge.colors.charge, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.forge_wl_complete), style = Forge.type.caption, color = Forge.colors.charge)
+                } else Row(Modifier.padding(vertical = ForgeMetrics.space1), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
                     Text(stringResource(R.string.forge_training_set), style = Forge.type.caption,
                          color = Forge.colors.textTertiary, modifier = Modifier.width(ForgeMetrics.space6))
                     columns.forEach { field -> Text(setInputLabel(field, massUnits, distanceUnits), style = Forge.type.caption,
@@ -842,15 +946,11 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                         color = Forge.colors.textTertiary, modifier = Modifier.width(EFFORT_COLUMN))
                     Spacer(Modifier.width(ForgeMetrics.minHitTarget))
                 }
-                exercise.sets.forEachIndexed { i, set ->
+                shown.forEach { (i, set) ->
                     SetRow(i + 1, set, columns, massUnits, distanceUnits, effortScale,
                            onEffort = { effortRequest = exercise.id to set }) { updated ->
                         change { CoreTraining.setValues(exercise.id, updated) }
-                        // Ticking a set off starts its rest: the exercise's own, or the warm-up rest after a warm-up.
-                        if (!set.done && updated.done) {
-                            val seconds = if (set.warmup) exercise.warmupRestSeconds else exercise.restSeconds
-                            rest = if (seconds > 0) RunningRest(set.id, System.currentTimeMillis() + seconds * 1000L) else null
-                        }
+                        if (!set.done && updated.done) startRest(exercise, set)
                     }
                     rest?.takeIf { it.setId == set.id }?.let { r -> RestBand(r, onChange = { rest = it }, onStrapBuzz = onStrapBuzz) }
                 }
@@ -858,6 +958,25 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                     change { CoreTraining.addSet(exercise.id) }
                 }
             }
+        }
+        when (layout) {
+            "focus" -> d.exercises.getOrNull(d.activeIndex)?.let { exercise ->
+                val index = d.activeIndex
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(enabled = index > 0, onClick = { change { CoreTraining.selectExercise(d.exercises[index - 1].id) } }) {
+                        Text("‹ " + stringResource(R.string.forge_wl_back))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text(stringResource(R.string.forge_wl_position, index + 1, d.exercises.size), style = Forge.type.caption, color = Forge.colors.textSecondary)
+                    Spacer(Modifier.weight(1f))
+                    TextButton(enabled = index + 1 < d.exercises.size, onClick = { change { CoreTraining.selectExercise(d.exercises[index + 1].id) } }) {
+                        Text(stringResource(R.string.forge_wl_next) + " ›")
+                    }
+                }
+                ExerciseCard(exercise, compact = false)
+            }
+            "compact" -> d.exercises.forEach { ExerciseCard(it, compact = true) }
+            else -> d.exercises.forEach { ExerciseCard(it, compact = false) }
         }
         PanelButton(stringResource(R.string.forge_training_add_exercise), Icons.Rounded.Add) { picking = true }
         Row(Modifier.fillMaxWidth().background(Forge.colors.accent, RoundedCornerShape(12.dp)).clickable {
@@ -926,6 +1045,13 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     }
 }
 
+/** What the strength session needs from the app for the strap double-tap: claiming the gesture, the confirming
+ *  buzz and the strap log. */
+internal class StrapTapHost(val claim: ((() -> Unit)?) -> Unit, val confirm: () -> Unit, val log: (String) -> Unit)
+
+/** iOS's `TrainingPreferences.activeLayoutKey`: focus, list (default) or compact. */
+internal const val WORKOUT_LAYOUT = "training.activeWorkout.layout"
+
 /** Width of the effort badge column, as iOS's `SetColumns.effort`. */
 private val EFFORT_COLUMN = 44.dp
 
@@ -982,10 +1108,11 @@ private fun SetRow(number: Int, set: CoreTraining.DraftSet, columns: List<Traini
             val rated = set.effortValue?.takeIf { set.effortScale != null }
             val label = stringResource(if (effortScale == "rir") R.string.forge_ef_rir_label else R.string.forge_ef_rpe)
             val stateText = rated?.let(SetEffort::format) ?: stringResource(R.string.forge_ef_not_rated)
+            val labelValue = stringResource(R.string.forge_label_value, label, stateText)
             EffortBadge((if (set.effortScale == "rir") "R" else "") + (rated?.let(SetEffort::format) ?: "—"),
                         rated?.let { SetEffort.color(SetEffort.level(set.effortScale!!, it)) },
                         Modifier.size(EFFORT_COLUMN, 32.dp).clickable(onClick = onEffort)
-                            .semantics { contentDescription = "$label, $stateText" })
+                            .semantics { contentDescription = labelValue })
         }
         IconButton(onClick = { commit(!set.done) }, modifier = Modifier.size(ForgeMetrics.minHitTarget)
             .background(if (set.done) Forge.colors.charge else Forge.colors.inset, CircleShape)) {

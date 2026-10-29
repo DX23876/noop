@@ -16,6 +16,16 @@ public enum CoreCall {
     }
 
     private static func perform(_ op: String, _ argsJSON: String) async -> String {
+        if op == "training.plates" {
+            // The plate calculator's loading per side (`PlateCalculator`); null below the bar weight.
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            let plates = (args["platesKg"] as? [NSNumber])?.map(\.doubleValue) ?? []
+            guard let total = (args["totalKg"] as? NSNumber)?.doubleValue, let bar = (args["barKg"] as? NSNumber)?.doubleValue,
+                  let loading = PlateCalculator.loading(totalKg: total, barKg: bar, availablePairsKg: plates) else { return "null" }
+            struct Wire: Encodable { let platesPerSideKg: [Double]; let achievableTotalKg: Double; let remainderKg: Double }
+            return CoreRead.json(Wire(platesPerSideKg: loading.platesPerSideKg,
+                                      achievableTotalKg: loading.achievableTotalKg, remainderKg: loading.remainderKg))
+        }
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
         }
@@ -440,6 +450,8 @@ public enum CoreCall {
             let dismissed = args["dismissedWorkouts"] as? [String] ?? []
             return CoreRead.json(await CoreTraining.startDraft(reader: reader, routineIds: ids,
                                                                dismissedWorkoutSpans: dismissed))
+        case "training.strapStep":
+            return CoreRead.json(await CoreTraining.strapStep(store: store))
         case "training.changeDraft":
             return CoreRead.json(await CoreTraining.changeDraft(store: store, args: args, reader: reader,
                                                                 dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))

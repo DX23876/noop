@@ -28,6 +28,19 @@ import androidx.compose.ui.res.stringResource
 import com.noop.R
 import com.noop.ui.NoopPrefs
 import kotlinx.coroutines.delay
+import android.annotation.SuppressLint
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 
 /**
  * Fork (DX23876), Android parity plan 2.3: the running rest after a completed set, as iOS's native logger draws it
@@ -40,6 +53,10 @@ internal object RestTimerPrefs {
     const val HAPTICS = "training.timerHaptics"
     const val KEEP_SCREEN_ON = "workoutKeepScreenOn"
     const val STRAP_BUZZ = "haptics.liftRest"
+    const val FEEDBACK = "training.timerFeedback"
+    const val STRAP_DOUBLE_TAP = "training.strapDoubleTapLogsSet"
+    fun feedback(c: Context) = NoopPrefs.of(c).getBoolean(FEEDBACK, true)
+    fun strapDoubleTap(c: Context) = NoopPrefs.of(c).getBoolean(STRAP_DOUBLE_TAP, true)
     fun sound(c: Context) = NoopPrefs.of(c).getBoolean(SOUND, true)
     fun haptics(c: Context) = NoopPrefs.of(c).getBoolean(HAPTICS, true)
     fun keepScreenOn(c: Context) = NoopPrefs.of(c).getBoolean(KEEP_SCREEN_ON, false)
@@ -56,6 +73,12 @@ internal fun RestBand(rest: RunningRest, onChange: (RunningRest?) -> Unit, onStr
     val context = LocalContext.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var buzzed by remember(rest.setId) { androidx.compose.runtime.mutableStateOf(false) }
+    // The notification that announces the end while NOOP is in the background (`TrainingRestNotification`).
+    DisposableEffect(rest) {
+        RestNotification.schedule(context, rest.endsAtMs)
+        // A rest changed, skipped or left early withdraws it; one that ran out keeps its alarm, which fires now.
+        onDispose { if (System.currentTimeMillis() < rest.endsAtMs - 500) RestNotification.cancel(context) }
+    }
     LaunchedEffect(rest) {
         while (true) {
             now = System.currentTimeMillis()
@@ -90,6 +113,8 @@ private fun clock(seconds: Long): String = "%d:%02d".format(seconds / 60, second
 
 /** iOS: while the workout is open a timer ends with the sound only, no banner; vibration as set. */
 private fun restEnded(context: Context) {
+    // In the background the notification carries the sound; the band only speaks while the logger is seen.
+    if (!RestNotification.loggerOnScreen) return
     if (RestTimerPrefs.sound(context)) runCatching {
         RingtoneManager.getRingtone(context, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))?.play()
     }
@@ -97,6 +122,83 @@ private fun restEnded(context: Context) {
         @Suppress("DEPRECATION")
         val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         v.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 180, 120, 180), -1))
+    }
+}
+
+/**
+ * The end of a rest announced by the system while the logger is not on screen (iOS `TrainingRestNotification`): an
+ * alarm at the end time posts "Rest complete" with the sound as Settings › Training says. With the logger on screen
+ * the band itself plays the sound and vibrates, so no notification is posted then.
+ */
+internal object RestNotification {
+    private const val CHANNEL_ID = "training_rest"
+    private const val CHANNEL_SILENT_ID = "training_rest_silent"
+    private const val NOTIFICATION_ID = 7310
+    @Volatile var loggerOnScreen = false
+
+    private fun pending(context: Context) = PendingIntent.getBroadcast(context, NOTIFICATION_ID,
+        Intent(context, RestEndReceiver::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+    fun schedule(context: Context, atMs: Long) {
+        val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        runCatching {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()) {
+                alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pending(context))
+            } else {
+                alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pending(context))
+            }
+        }
+    }
+
+    fun cancel(context: Context) {
+        (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(pending(context))
+    }
+
+    @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled()
+    fun post(context: Context) {
+        if (loggerOnScreen || !RestTimerPrefs.feedback(context) ||
+            !NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+        val sound = RestTimerPrefs.sound(context)
+        val channel = if (sound) CHANNEL_ID else CHANNEL_SILENT_ID
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val c = NotificationChannel(channel, context.getString(R.string.forge_rest_channel), NotificationManager.IMPORTANCE_HIGH)
+            if (!sound) c.setSound(null, null)
+            c.enableVibration(RestTimerPrefs.haptics(context))
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(c)
+        }
+        val n = NotificationCompat.Builder(context, channel)
+            .setSmallIcon(R.drawable.ic_stat_heart)
+            .setContentTitle(context.getString(R.string.forge_rest_done_title))
+            .setContentText(context.getString(R.string.forge_rest_done_body))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(PendingIntent.getActivity(context, NOTIFICATION_ID, com.noop.ui.appLaunchIntent(context),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            .setAutoCancel(true)
+            .build()
+        runCatching { NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, n) }
+    }
+}
+
+class RestEndReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) = RestNotification.post(context)
+}
+
+/** Marks the logger as seen while its page is resumed, so a rest ending then needs no notification. */
+@Composable
+internal fun TrackLoggerOnScreen() {
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> RestNotification.loggerOnScreen = true
+                Lifecycle.Event.ON_PAUSE -> RestNotification.loggerOnScreen = false
+                else -> Unit
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        RestNotification.loggerOnScreen = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        onDispose { owner.lifecycle.removeObserver(observer); RestNotification.loggerOnScreen = false }
     }
 }
 

@@ -147,10 +147,13 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
     var sets by remember { mutableStateOf(stored.optInt(CorePrefs.NEW_EXERCISE_SETS, 3)) }
     var rest by remember { mutableStateOf(stored.optInt(CorePrefs.DEFAULT_REST, prefs.getInt(CorePrefs.DEFAULT_REST, 120))) }
     var warmupRest by remember { mutableStateOf(stored.optInt(CorePrefs.WARMUP_REST, 60)) }
+    var feedback by remember { mutableStateOf(RestTimerPrefs.feedback(context)) }
+    var doubleTap by remember { mutableStateOf(RestTimerPrefs.strapDoubleTap(context)) }
     var sound by remember { mutableStateOf(RestTimerPrefs.sound(context)) }
     var vibration by remember { mutableStateOf(RestTimerPrefs.haptics(context)) }
     var strapBuzz by remember { mutableStateOf(RestTimerPrefs.strapBuzz(context)) }
     var keepOn by remember { mutableStateOf(RestTimerPrefs.keepScreenOn(context)) }
+    var workoutView by remember { mutableStateOf(prefs.getString(WORKOUT_LAYOUT, "list") ?: "list") }
     var media by remember { mutableStateOf(prefs.getString("training.mediaPresentation", "large") ?: "large") }
     var suggestions by remember { mutableStateOf(NoopPrefs.autoDetectWorkouts(context)) }
 
@@ -207,15 +210,37 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
         }
         RowDivider()
         Overline(stringResource(R.string.forge_st_timer_ends))
-        ToggleRow(stringResource(R.string.forge_st_sound), null, sound) { sound = it; prefs.edit().putBoolean(RestTimerPrefs.SOUND, it).apply() }
+        ToggleRow(stringResource(R.string.forge_st_show_notification), null, feedback) {
+            feedback = it; prefs.edit().putBoolean(RestTimerPrefs.FEEDBACK, it).apply()
+        }
+        ToggleRow(stringResource(R.string.forge_st_sound), null, sound, enabled = feedback) {
+            sound = it; prefs.edit().putBoolean(RestTimerPrefs.SOUND, it).apply()
+        }
         ToggleRow(stringResource(R.string.forge_st_vibration), null, vibration) { vibration = it; prefs.edit().putBoolean(RestTimerPrefs.HAPTICS, it).apply() }
         ToggleRow(stringResource(R.string.forge_st_strap_buzz), null, strapBuzz) { strapBuzz = it; RestTimerPrefs.setStrapBuzz(context, it) }
+        Note(stringResource(R.string.forge_st_timer_note))
+        RowDivider()
+        Overline(stringResource(R.string.forge_st_strap))
+        ToggleRow(stringResource(R.string.forge_tap_setting), stringResource(R.string.forge_tap_setting_note), doubleTap) {
+            doubleTap = it; prefs.edit().putBoolean(RestTimerPrefs.STRAP_DOUBLE_TAP, it).apply()
+        }
         RowDivider()
         ToggleRow(stringResource(R.string.forge_st_keep_screen), stringResource(R.string.forge_st_keep_screen_note), keepOn) {
             keepOn = it; prefs.edit().putBoolean(RestTimerPrefs.KEEP_SCREEN_ON, it).apply()
         }
         RowDivider()
         Overline(stringResource(R.string.forge_st_during))
+        val viewIds = listOf("focus", "list", "compact")
+        val viewLabels = listOf(stringResource(R.string.forge_wl_focus_short), stringResource(R.string.forge_wl_list_short),
+                                stringResource(R.string.forge_wl_compact))
+        Text(stringResource(R.string.forge_wl_view), style = Forge.type.body, color = Forge.colors.text)
+        run {
+            ReportPicker(viewLabels[viewIds.indexOf(workoutView).coerceAtLeast(0)], viewLabels) { i ->
+                workoutView = viewIds[i]
+                prefs.edit().putString(WORKOUT_LAYOUT, workoutView).apply()
+            }
+        }
+        RowDivider()
         val mediaIds = listOf("large", "small", "hidden")
         val mediaLabels = listOf(stringResource(R.string.forge_st_media_large), stringResource(R.string.forge_st_media_small),
                                  stringResource(R.string.forge_st_media_hidden))

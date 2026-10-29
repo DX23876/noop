@@ -678,6 +678,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  process-owned BLE client keeps the old lastEvent) treats it as already-handled, not a fresh tap. */
     private var lastDispatchedEvent: String? = ble.state.value.lastEvent
 
+    /** Fork: set by the strength session while it is open and Settings › Training lets the strap log a set. */
+    @Volatile var strapDoubleTapOverride: (() -> Unit)? = null
+
+    /** Fork: writes a strength-session line to the strap log, as iOS's `strapLog`. */
+    fun strapLog(line: String) = ble.externalLog(line)
+
     // PHONE smart alarm (#207) — distinct from the strap-firmware buzz alarm above. The state lives in
     // its own [SmartAlarmStore]; the GUARANTEED wake is an exact OS alarm via [SmartAlarmScheduler],
     // independent of Bluetooth, sleep detection, or this process being alive. The overnight watcher
@@ -3208,6 +3214,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (ev == lastDispatchedEvent) return       // not a fresh event since we last looked
         lastDispatchedEvent = ev
         if (ev == null || !ev.startsWith("DOUBLE_TAP")) return
+        // Fork: a running strength session claims the gesture to log its next set (iOS strapDoubleTapOverride).
+        strapDoubleTapOverride?.let { override ->
+            ble.externalLog("Double-tap -> strength session: next set")
+            override()
+            return
+        }
         val action = _doubleTapAction.value
         if (action == DoubleTapAction.NONE) return
         ble.externalLog("Double-tap -> ${action.label}")

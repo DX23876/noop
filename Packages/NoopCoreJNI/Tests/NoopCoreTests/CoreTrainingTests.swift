@@ -140,4 +140,51 @@ final class CoreTrainingTests: XCTestCase {
         XCTAssertEqual(strength.exercise.choices.count, 1)
         XCTAssertFalse(CoreRead.json(strength) == "null")
     }
+
+    func testAStrapDoubleTapCompletesTheNextSetOnlyWithItsNumbers() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("strap-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = try await WhoopStore(path: dir.appendingPathComponent("s.sqlite").path)
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        let none = await CoreTraining.strapStep(store: store)
+        XCTAssertEqual(none.outcome, "noDraft")
+
+        _ = await CoreTraining.startDraft(reader: reader, routineIds: [], dismissedWorkoutSpans: [])
+        let library = try await store.trainingExercises()
+        let definition = try XCTUnwrap(library.first)
+        let added = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": definition.id])
+        let exercise = try XCTUnwrap(added?.exercises.first)
+        let first = try XCTUnwrap(exercise.sets.first)
+        func edit(_ setId: UUID, _ values: [String: Any]) async {
+            var args: [String: Any] = ["change": "set", "exercise": exercise.id.uuidString, "set": setId.uuidString]
+            args.merge(values) { $1 }
+            _ = await CoreTraining.changeDraft(store: store, args: args)
+        }
+        let empty: [String: Any] = ["weightKg": NSNull(), "reps": NSNull(), "leftReps": NSNull(), "rightReps": NSNull(),
+                                    "durationS": NSNull(), "distanceM": NSNull()]
+        await edit(first.id, empty)
+        let missing = await CoreTraining.strapStep(store: store)
+        XCTAssertEqual(missing.outcome, "missingNumbers", "a set without its numbers stays open")
+        XCTAssertEqual(missing.exerciseId, definition.id)
+        XCTAssertNil(missing.draft)
+
+        await edit(first.id, ["weightKg": 50, "reps": 5, "durationS": 30, "distanceM": 100])
+        let completed = await CoreTraining.strapStep(store: store)
+        XCTAssertEqual(completed.outcome, "completed")
+        XCTAssertEqual(completed.draft?.exercises.first?.sets.first?.isCompleted, true)
+        let saved = try await store.workoutDraft()
+        XCTAssertEqual(saved?.exercises.first?.sets.first?.isCompleted, true, "the completed set is saved")
+
+        for set in exercise.sets.dropFirst() { await edit(set.id, ["done": true]) }
+        let allDone = await CoreTraining.strapStep(store: store)
+        XCTAssertEqual(allDone.outcome, "allDone")
+    }
+
+    func testThePlateCalculatorLoadsEachSideThroughTheCore() async throws {
+        let json = await CoreCall.run("training.plates", #"{"totalKg":102.5,"barKg":20,"platesKg":[25,20,10,5,2.5,1.25]}"#)
+        XCTAssertEqual(json, #"{"achievableTotalKg":102.5,"platesPerSideKg":[25,10,5,1.25],"remainderKg":0}"#)
+        let below = await CoreCall.run("training.plates", #"{"totalKg":15,"barKg":20,"platesKg":[25]}"#)
+        XCTAssertEqual(below, "null")
+    }
 }

@@ -46,7 +46,11 @@ object CoreTraining {
                         val effortScale: String? = null, val effortValue: Double? = null)
     data class DraftExercise(val id: String, val exerciseId: String, val restSeconds: Int, val sets: List<DraftSet>,
                              val warmupRestSeconds: Int = 60)
-    data class Draft(val id: String, val title: String, val startedAt: Long, val exercises: List<DraftExercise>)
+    data class Draft(val id: String, val title: String, val startedAt: Long, val exercises: List<DraftExercise>,
+                     val activeExerciseId: String? = null) {
+        /** The exercise the focus view shows (`NativeWorkoutSessionModel.activeExerciseIndex`): the cursor's, else the first. */
+        val activeIndex get() = exercises.indexOfFirst { it.id == activeExerciseId }.coerceAtLeast(0)
+    }
 
     private fun call(op: String, args: JSONObject = JSONObject()): String? =
         if (SwiftCore.available) SwiftCore.call(op, args.toString()) else null
@@ -69,6 +73,35 @@ object CoreTraining {
     fun setEffort(exercise: String, set: String, scale: String, value: Double?): Draft? =
         call("training.changeDraft", JSONObject().put("change", "set").put("exercise", exercise).put("set", set)
             .put("effortScale", scale).put("effortValue", value ?: JSONObject.NULL))?.let(::parseDraft)
+
+    /** What a strap double-tap did (`CoreTraining.strapStep`); [draft] is set when a set was completed. */
+    data class StrapStep(val outcome: String, val exerciseId: String?, val warmup: Boolean, val segment: String?,
+                         val number: Int?, val draft: Draft?)
+
+    fun strapStep(): StrapStep? = call("training.strapStep")?.let(::parseStrapStep)
+
+    internal fun parseStrapStep(json: String): StrapStep? = runCatching {
+        val o = JSONObject(json)
+        StrapStep(o.getString("outcome"), o.optStringOrNull("exerciseId"), o.optBoolean("warmup"), o.optStringOrNull("segment"),
+                  o.optIntOrNull("number"), o.optJSONObject("draft")?.let { parseDraft(it.toString()) })
+    }.getOrNull()
+
+    data class PlateLoading(val platesPerSideKg: List<Double>, val achievableTotalKg: Double, val remainderKg: Double)
+
+    /** The plate calculator's loading per side (`PlateCalculator.loading`); null below the bar weight. */
+    fun plates(totalKg: Double, barKg: Double, platesKg: List<Double>): PlateLoading? =
+        call("training.plates", JSONObject().put("totalKg", totalKg).put("barKg", barKg).put("platesKg", JSONArray(platesKg)))
+            ?.let(::parsePlates)
+
+    internal fun parsePlates(json: String): PlateLoading? = runCatching {
+        if (json == "null") return null
+        val o = JSONObject(json)
+        val plates = o.getJSONArray("platesPerSideKg")
+        PlateLoading((0 until plates.length()).map(plates::getDouble), o.getDouble("achievableTotalKg"), o.getDouble("remainderKg"))
+    }.getOrNull()
+
+    fun selectExercise(exercise: String): Draft? =
+        call("training.changeDraft", JSONObject().put("change", "selectExercise").put("exercise", exercise))?.let(::parseDraft)
 
     fun addSet(exercise: String): Draft? =
         call("training.changeDraft", JSONObject().put("change", "addSet").put("exercise", exercise))?.let(::parseDraft)
@@ -200,7 +233,7 @@ object CoreTraining {
                                  s.optJSONObject("effort")?.optStringOrNull("scale"),
                                  s.optJSONObject("effort")?.optDoubleOrNull("value"))
                     }, e.optInt("warmupRestSeconds", 60))
-            })
+            }, o.optJSONObject("cursor")?.optStringOrNull("exerciseId"))
     }
 
     private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
