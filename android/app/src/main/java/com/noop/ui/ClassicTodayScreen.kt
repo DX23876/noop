@@ -1376,9 +1376,10 @@ fun TodayScreen(
         // LiquidScreenSky() slot verbatim.
         // #698, gated on the "Day-cycle background" setting (default ON). Off passes null, so the scaffold
         // paints the plain dark surface canvas instead, mirroring iOS's `showDayCycleBackground ? ... : nil`.
-        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
+        // Fork: hosted in Forge, the list sits on Forge's plain canvas; the sky fading into it left mid-tone text unreadable.
+        topBackground = null,
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down.
-        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
+        fullBleedBackground = false,
     ) {
         item {
         // LIQUID Today header (iOS LiquidTodayView.scene parity), a full structural rebuild to mirror the

@@ -790,9 +790,11 @@ internal fun ForgeClassicToday(padding: androidx.compose.foundation.layout.Paddi
             com.noop.ui.LiveWorkoutScreen(vm = viewModel, onClose = { liveWorkout = false })
         }
     }
+    // The classic list was drawn for a dark canvas (white header, near-black hero), so it gets Forge's dark theme.
+    ForgeTheme(dark = true) {
     val forgeColors = Forge.colors
     val tokens = remember(forgeColors) { hostedTokens(forgeColors) }
-    Box(Modifier.fillMaxSize().padding(padding)) {
+    Box(Modifier.fillMaxSize().background(forgeColors.canvas).padding(padding)) {
         com.noop.ui.HostedPalette(tokens, forgeColors.dark) {
             com.noop.ui.TodayScreen(
                 viewModel = viewModel,
@@ -811,5 +813,6 @@ internal fun ForgeClassicToday(padding: androidx.compose.foundation.layout.Paddi
                 onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) },
             )
         }
+    }
     }
 }
