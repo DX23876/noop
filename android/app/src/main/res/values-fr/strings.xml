@@ -4679,4 +4679,9 @@
     <string name="forge_qa_guardian_sub">Coaching de sangle silencieux contre le Charge d\'aujourd\'hui</string>
     <string name="forge_ls_guarding">Surveillance de votre séance. Le silence signifie que vous êtes sur la bonne voie.</string>
     <string name="forge_ls_paused">Aucune lecture en direct. Le coaching est en pause.</string>
+    <string name="forge_tr_charge_all">Charge (tout l\'historique)</string>
+    <string name="forge_tr_charge_year">Charge (année écoulée)</string>
+    <string name="forge_tr_calendar">Calendrier</string>
+    <string name="forge_tr_depleted">Épuisé</string>
+    <string name="forge_tr_peaked">Au sommet</string>
 </resources>

@@ -4693,4 +4693,9 @@
     <string name="forge_qa_guardian_sub">Leises Strap-Coaching gegen den heutigen Charge</string>
     <string name="forge_ls_guarding">Deine Session wird bewacht. Stille bedeutet, du bist auf Kurs.</string>
     <string name="forge_ls_paused">Kein Live-Messwert. Coaching ist pausiert.</string>
+    <string name="forge_tr_charge_all">Energie (gesamter Verlauf)</string>
+    <string name="forge_tr_charge_year">Energie (letztes Jahr)</string>
+    <string name="forge_tr_calendar">Kalender</string>
+    <string name="forge_tr_depleted">Erschöpft</string>
+    <string name="forge_tr_peaked">Höchststand</string>
 </resources>

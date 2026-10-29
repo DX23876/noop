@@ -4575,4 +4575,9 @@
     <string name="forge_qa_guardian_sub">Тихая тренировка на ремнях против сегодняшнего Charge</string>
     <string name="forge_ls_guarding">Отслеживаем вашу сессию. Тишина означает, что всё идёт по плану.</string>
     <string name="forge_ls_paused">Нет данных в реальном времени. Тренер приостановлен.</string>
+    <string name="forge_tr_charge_all">Заряд (вся история)</string>
+    <string name="forge_tr_charge_year">Заряд (за последний год)</string>
+    <string name="forge_tr_calendar">Календарь</string>
+    <string name="forge_tr_depleted">Истощён</string>
+    <string name="forge_tr_peaked">На пике</string>
 </resources>

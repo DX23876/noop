@@ -90,15 +90,15 @@ MORE_WITNESS = {
     "settings": (MORE, "MoreDest.Settings"),
     "settingsSearch": (MORE, "SETTINGS_SEARCH_WORDS"),
     "settingsPage": (MORE_TAB, "initialPage = page"),
+    # iOS's Mi Band screen imports a Mi Fitness export; Android imports it under Settings › Data sources.
+    "miBand": ("android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt", "XiaomiBandImporter.importExport"),
 }
 MORE_APPLE_ONLY = {
     "appleHealth": "HealthKit; Android reads Health Connect under Data Sources",
     "siriShortcuts": "Siri and App Intents",
     "shortcutsExport": "the Shortcuts app",
 }
-MORE_GAPS = {
-    "miBand": "the Mi Fitness import screen",
-}
+MORE_GAPS: dict[str, str] = {}
 
 # iOS `SettingsPage` (Strand/Screens/SettingsSearchCatalog.swift).
 SETTINGS_WITNESS = {

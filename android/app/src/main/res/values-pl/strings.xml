@@ -4696,4 +4696,9 @@
     <string name="forge_qa_guardian_sub">Ciche prowadzenie przez opaskę względem dzisiejszego Poziomu energii</string>
     <string name="forge_ls_guarding">Chronię twoją sesję. Cisza oznacza, że ​​jesteś na dobrej drodze.</string>
     <string name="forge_ls_paused">Żadnego czytania na żywo. Coaching jest wstrzymany.</string>
+    <string name="forge_tr_charge_all">Energia (cała historia)</string>
+    <string name="forge_tr_charge_year">Energia (ubiegły rok)</string>
+    <string name="forge_tr_calendar">Kalendarz</string>
+    <string name="forge_tr_depleted">Wyczerpany</string>
+    <string name="forge_tr_peaked">Spiczasty</string>
 </resources>

@@ -4672,4 +4672,9 @@
     <string name="forge_qa_guardian_sub">Treinamento silencioso contra o Charge de hoje</string>
     <string name="forge_ls_guarding">Protegendo a tua sessão. Silêncio significa que está no caminho certo.</string>
     <string name="forge_ls_paused">Sem leitura em direto. O treino está pausado.</string>
+    <string name="forge_tr_charge_all">Carregar (todo o histórico)</string>
+    <string name="forge_tr_charge_year">Carga (ano passado)</string>
+    <string name="forge_tr_calendar">Calendário</string>
+    <string name="forge_tr_depleted">Esgotado</string>
+    <string name="forge_tr_peaked">Atingido</string>
 </resources>

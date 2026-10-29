@@ -55,6 +55,11 @@ import com.noop.analytics.WeeklyMetricSummary
 import com.noop.ui.UnitPrefs
 import com.noop.ui.effortDisplayFactor
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.Size
 import com.noop.R
 import com.noop.core.CoreRead
 import kotlinx.coroutines.Dispatchers
@@ -109,7 +114,7 @@ private enum class TrendRange(val days: Int?, val labelRes: Int, val nameRes: In
  * Every series comes from the shared core; the digest is the same `WeeklyDigestEngine` the classic card used.
  */
 @Composable
-fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth) {
+fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
     var rangeName by rememberSaveable { mutableStateOf(TrendRange.Quarter.name) }
     val range = TrendRange.valueOf(rangeName)
@@ -160,6 +165,12 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth) {
                  stringResource(R.string.forge_tr_training_history), stringResource(R.string.forge_tr_training_history_sub)) {
             history = true
         }
+        // `TrendsView.yearStrip`: at least a year of Charge, all of it on ALL.
+        YearCalendarCard(all[CoreRead.Metric.Charge].orEmpty(), range, today)
+        // `exportReportRow`: ryanbr's Android report export (range picker and PDF), in the Forge colours.
+        val forgeColors = Forge.colors
+        val tokens = remember(forgeColors) { hostedTokens(forgeColors) }
+        com.noop.ui.HostedPalette(tokens, forgeColors.dark) { com.noop.ui.TrendsReportExportSection(viewModel) }
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
     if (history) {
@@ -582,4 +593,70 @@ internal fun ForgeHostedTrend(metric: CoreRead.Metric) {
     }
     RangeCard(title as String, stringResource(R.string.forge_tr_trailing_days, 30), unit as String, points, TrendRange.Month,
               LocalDate.now(), tint as Color, better as Boolean?, tall = false)
+}
+
+/**
+ * The year calendar of Charge as iOS draws it (`YearHeatStrip` in `TrendsView.yearStrip`): weeks as columns, Monday
+ * first, each day tinted by its Charge on the recovery scale, days without one as a faint square; at least a year,
+ * all history on ALL, scrolled to the newest week. The legend runs from depleted to peaked.
+ */
+@Composable
+private fun YearCalendarCard(charge: List<CoreRead.Point>, range: TrendRange, today: LocalDate) {
+    val colors = Forge.colors
+    val byDay = remember(charge) { charge.associate { it.day to it.value } }
+    val first = charge.minOfOrNull { it.day }?.let(LocalDate::parse)
+    val span = maxOf(range.days ?: (first?.let { (today.toEpochDay() - it.toEpochDay() + 1).toInt() } ?: 365), 365)
+    val start = today.minusDays(span - 1L)
+    val monday = start.minusDays((start.dayOfWeek.value - 1).toLong())
+    val weeks = ((today.toEpochDay() - monday.toEpochDay()) / 7 + 1).toInt()
+    val scored = (0 until span).count { byDay.containsKey(start.plusDays(it.toLong()).toString()) }
+    val title = if (range == TrendRange.All && span > 365) stringResource(R.string.forge_tr_charge_all)
+                else stringResource(R.string.forge_tr_charge_year)
+    val locale = Locale.getDefault()
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.forge_tr_calendar).uppercase(), style = Forge.type.overline, color = colors.textSecondary)
+                Text(title, style = Forge.type.headline, color = colors.text)
+            }
+            Text(stringResource(R.string.forge_tr_n_days, scored), style = Forge.type.footnote, color = colors.textTertiary)
+        }
+        Spacer(Modifier.height(ForgeMetrics.space3))
+        val cell = 12.dp; val gap = 3.dp; val label = 12.dp
+        val scroll = rememberScrollState()
+        LaunchedEffect(scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
+        val inset = colors.inset
+        val text = colors.textTertiary
+        val textPx = with(androidx.compose.ui.platform.LocalDensity.current) { 9.sp.toPx() }
+        Box(Modifier.fillMaxWidth().horizontalScroll(scroll)) {
+            Canvas(Modifier.width((cell + gap) * weeks).height(label + (cell + gap) * 7)) {
+                val c = cell.toPx(); val g = gap.toPx(); val top = label.toPx()
+                val paint = android.graphics.Paint().apply { color = text.toArgb(); textSize = textPx; isAntiAlias = true }
+                for (w in 0 until weeks) {
+                    val weekStart = monday.plusWeeks(w.toLong())
+                    if (weekStart.dayOfMonth <= 7) {
+                        drawContext.canvas.nativeCanvas.drawText(
+                            weekStart.month.getDisplayName(java.time.format.TextStyle.SHORT, locale), w * (c + g), textPx, paint)
+                    }
+                    for (d in 0 until 7) {
+                        val day = weekStart.plusDays(d.toLong())
+                        if (day.isBefore(start) || day.isAfter(today)) continue
+                        val v = byDay[day.toString()]
+                        drawRoundRect(if (v != null) colors.chargeRing(v) else inset,
+                                      topLeft = Offset(w * (c + g), top + d * (c + g)), size = Size(c, c),
+                                      cornerRadius = androidx.compose.ui.geometry.CornerRadius(c * 0.25f, c * 0.25f))
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(ForgeMetrics.space3))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_tr_depleted), style = Forge.type.footnote, color = colors.textTertiary)
+            Spacer(Modifier.width(ForgeMetrics.space2))
+            Box(Modifier.weight(1f).height(6.dp).background(
+                Brush.horizontalGradient(colors.recoveryStops.map { it.second }), RoundedCornerShape(percent = 50)))
+            Spacer(Modifier.width(ForgeMetrics.space2))
+            Text(stringResource(R.string.forge_tr_peaked), style = Forge.type.footnote, color = colors.textTertiary)
+        }
+    }
 }

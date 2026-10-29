@@ -4650,4 +4650,9 @@
     <string name="forge_qa_guardian_sub">针对今天的 Charge 的安静带训练</string>
     <string name="forge_ls_guarding">正在守护你的训练。安静即表示状态良好。</string>
     <string name="forge_ls_paused">暂无实时读数。指导已暂停。</string>
+    <string name="forge_tr_charge_all">能量（全部历史）</string>
+    <string name="forge_tr_charge_year">能量（过去一年）</string>
+    <string name="forge_tr_calendar">日历</string>
+    <string name="forge_tr_depleted">已耗尽</string>
+    <string name="forge_tr_peaked">已达峰值</string>
 </resources>

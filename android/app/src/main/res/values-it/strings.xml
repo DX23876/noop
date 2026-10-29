@@ -4648,4 +4648,9 @@
     <string name="forge_qa_guardian_sub">Allenamento silenzioso con le cinghie contro Charge di oggi</string>
     <string name="forge_ls_guarding">Sto monitorando la tua sessione. Il silenzio significa che sei in linea.</string>
     <string name="forge_ls_paused">Nessuna lettura live. Il coaching è in pausa.</string>
+    <string name="forge_tr_charge_all">Carica (tutta la cronologia)</string>
+    <string name="forge_tr_charge_year">Carica (ultimo anno)</string>
+    <string name="forge_tr_calendar">Calendario</string>
+    <string name="forge_tr_depleted">Esaurito</string>
+    <string name="forge_tr_peaked">Al picco</string>
 </resources>

@@ -4711,4 +4711,9 @@
     <string name="forge_qa_guardian_sub">Quiet strap coaching against today\'s Charge</string>
     <string name="forge_ls_guarding">Guarding your session. Silence means you\'re on track.</string>
     <string name="forge_ls_paused">No live reading. Coaching is paused.</string>
+    <string name="forge_tr_charge_all">Charge (all history)</string>
+    <string name="forge_tr_charge_year">Charge (past year)</string>
+    <string name="forge_tr_calendar">Calendar</string>
+    <string name="forge_tr_depleted">Depleted</string>
+    <string name="forge_tr_peaked">Peaked</string>
 </resources>

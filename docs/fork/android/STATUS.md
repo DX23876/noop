@@ -149,8 +149,8 @@ functions and Android screens before the single testing release.
   Settings, Trends, the Sleep tab's first cards and the Sleep fix are done). Still open, largest first:
   the iOS live strength session (rest timers, set effort, workout view, strap double-tap, keep screen on, and
   the Training settings that belong to it); the Night detail tiles still read Room through ryanbr's `SleepModel` (move to the core); Trends'
-  sparse-range widening, year calendar and PDF report row; Goals settings' invitation and explainer switches
-  and the Charge day streak; the Mi Band import. `Tools/test_android_ios_parity.py` names what is still open.
+  sparse-range widening; Goals settings' invitation and explainer switches and the Charge day streak (Trends'
+  year calendar and report export and the Mi Band import are on Android since 2026-10-29). `Tools/test_android_ios_parity.py` names what is still open.
 - **Testing release (phase 3).** The emulator rounds, real-data comparison, all required checks and release notes
   precede the single release. Publishing it still requires the owner's explicit approval; F3/F4 and the D9 tester
   confirmations follow it.
