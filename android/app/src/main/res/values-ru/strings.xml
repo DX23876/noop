@@ -4554,4 +4554,5 @@
     <string name="forge_sl_nights">Ночи</string>
     <string name="forge_sl_not_enough">Пока недостаточно данных о сне.</string>
     <string name="forge_sl_trend">Тренд</string>
+    <string name="forge_momentum_all">Все</string>
 </resources>

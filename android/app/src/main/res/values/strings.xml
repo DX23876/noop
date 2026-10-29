@@ -4690,4 +4690,5 @@
     <string name="forge_sl_nights">Nights</string>
     <string name="forge_sl_not_enough">Not enough nights yet.</string>
     <string name="forge_sl_trend">Trend</string>
+    <string name="forge_momentum_all">All</string>
 </resources>

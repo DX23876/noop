@@ -83,7 +83,6 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
     val top = state.messages?.firstOrNull()
     if (top != null) {
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-            SectionHeader(stringResource(R.string.forge_momentum_title))
             MomentumMessageCard(top, compact = true, onOpen = { page = "momentum" }, onHide = {
                 scope.launch {
                     hideFailed = !withContext(Dispatchers.IO) { CoreMomentum.snooze(context, top.kind) }

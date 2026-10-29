@@ -150,8 +150,8 @@ functions and Android screens before the single testing release.
   the Training settings that belong to it); Sleep's Night detail (needs `SleepModel`'s tile series and the
   imported sleep figures from `Repository.refresh` moved into the core), Body clock and Sleep marks; Trends'
   sparse-range widening, year calendar and PDF report row; the More search over settings; Goals settings'
-  invitation and explainer switches and the Charge day streak; Today's Momentum card in the iOS shape (icon,
-  "All" and close in one compact card) and the day-cycle chips under the hero.
+  invitation and explainer switches and the Charge day streak; and the day-cycle chips under Today's hero
+  (Today's Momentum card has the iOS compact shape since 2026-10-29).
 - **Testing release (phase 3).** The emulator rounds, real-data comparison, all required checks and release notes
   precede the single release. Publishing it still requires the owner's explicit approval; F3/F4 and the D9 tester
   confirmations follow it.

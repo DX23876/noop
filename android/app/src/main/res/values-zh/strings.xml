@@ -4629,4 +4629,5 @@
     <string name="forge_sl_nights">夜数</string>
     <string name="forge_sl_not_enough">夜间记录还不够。</string>
     <string name="forge_sl_trend">趋势</string>
+    <string name="forge_momentum_all">全部</string>
 </resources>
