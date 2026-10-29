@@ -4913,4 +4913,10 @@
     <string name="forge_gd_s4">保持节奏：每周 3 次</string>
     <string name="forge_gd_s5">提高平均：7 小时 34 分</string>
     <string name="forge_db_style_classic">经典</string>
+    <string name="forge_gn_offer_title">达成目标时要收到提醒吗？</string>
+    <string name="forge_gn_offer_body">当你合上一个圆环、获得徽章，或晚间连续记录即将中断时，NOOP 可以通知你。每天最多两次，绝不在安静时段打扰。</string>
+    <string name="forge_gn_offer_yes">好的</string>
+    <string name="forge_gn_offer_no">不用了</string>
+    <string name="forge_gn_tick">勾选</string>
+    <string name="forge_gn_snooze">1 小时后提醒我</string>
 </resources>

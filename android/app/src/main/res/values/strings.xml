@@ -4978,4 +4978,10 @@
     <string name="forge_gd_s4">Keep a rhythm: 3× a week</string>
     <string name="forge_gd_s5">Raise an average: 7 h 34 min</string>
     <string name="forge_db_style_classic">Classic</string>
+    <string name="forge_gn_offer_title">Want a note when you reach a goal?</string>
+    <string name="forge_gn_offer_body">NOOP can tell you when you close a ring, earn a badge or a streak is in danger in the evening. At most two a day, never in your quiet hours.</string>
+    <string name="forge_gn_offer_yes">Yes, please</string>
+    <string name="forge_gn_offer_no">No thanks</string>
+    <string name="forge_gn_tick">Tick off</string>
+    <string name="forge_gn_snooze">Remind me in 1 hour</string>
 </resources>

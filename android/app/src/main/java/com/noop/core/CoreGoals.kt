@@ -177,7 +177,8 @@ object CoreGoals {
     }
 
     /** One goal notification the core decided on (`GoalEventPlan`), and the state to keep for the next run. */
-    data class Notice(val id: String, val title: String, val body: String)
+    data class Notice(val id: String, val title: String, val body: String, val evening: Boolean = false,
+                      val tickGoalId: String? = null, val tickDay: String? = null)
     data class Notices(val messages: List<Notice>, val state: String)
 
     /**
@@ -198,7 +199,8 @@ object CoreGoals {
         if (json == "null" || json.contains("\"error\"")) return null
         val o = JSONObject(json)
         return Notices(o.optJSONArray("messages").objects().map {
-            Notice(it.getString("id"), it.getString("title"), it.optString("body"))
+            Notice(it.getString("id"), it.getString("title"), it.optString("body"), it.optBoolean("evening"),
+                   it.optString("tickGoalId").takeIf { id -> id.isNotEmpty() }, it.optString("tickDay").takeIf { d -> d.isNotEmpty() })
         }, o.optString("state", "{}"))
     }
 

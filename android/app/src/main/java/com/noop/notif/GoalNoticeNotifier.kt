@@ -41,13 +41,30 @@ object GoalNoticeNotifier {
         val prefs = NoopPrefs.of(context)
         val result = CoreGoals.notices(
             context, dismissedWorkouts, kinds, quiet = NotifPrefs.inQuietHours(context),
-            // Apple places the evening reminder three hours before the wind-down bedtime; Android has no wind-down
-            // schedule yet, so it takes Apple's own fallback, 19:00.
-            eveningMinute = 19 * 60, workoutInProgress = workoutInProgress, appIsActive = appIsActive(),
+            eveningMinute = eveningMinute(context), workoutInProgress = workoutInProgress, appIsActive = appIsActive(),
             state = prefs.getString(STATE_KEY, null),
         ) ?: return
         prefs.edit().putString(STATE_KEY, result.state).apply()
         result.messages.forEachIndexed { index, message -> post(context, NOTICE_ID_BASE + index, message) }
+    }
+
+    /** Never later than this minute of the day (21:00), as `GoalEventPlan.latestMinute`. */
+    private const val LATEST_MINUTE = 21 * 60
+
+    /**
+     * Three hours before the usual bedtime (tomorrow's wake time minus the sleep need, from the wind-down and alarm
+     * settings), 19:00 when that lands oddly (`GoalEventNotifier.eveningMinute`).
+     */
+    internal fun eveningMinute(context: Context, now: java.util.Calendar = java.util.Calendar.getInstance()): Int {
+        val tomorrow = (now.clone() as java.util.Calendar).apply { add(java.util.Calendar.DAY_OF_YEAR, 1) }
+        val wake = com.noop.alarm.SmartAlarmStore.from(context).targetFor(tomorrow.get(java.util.Calendar.DAY_OF_WEEK))
+        return eveningMinuteFor(wake, com.noop.alarm.WindDownStore.from(context).sleepNeedMinutes)
+    }
+
+    /** The reminder minute for a wake time and sleep need: three hours before bedtime, 19:00 outside 16:00 to 20:45. */
+    internal fun eveningMinuteFor(wakeMinutes: Int, sleepNeedMinutes: Int): Int {
+        val reminder = wakeMinutes - sleepNeedMinutes + 24 * 60 - 180
+        return if (reminder in (16 * 60)..(LATEST_MINUTE - 15)) reminder else 19 * 60
     }
 
     /** While the app is on screen the ring's own moment says it instead, as on iOS. */
@@ -64,7 +81,7 @@ object GoalNoticeNotifier {
             ensureChannel(context)
             val open = PendingIntent.getActivity(context, 7, appLaunchIntent(context),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val n = NotificationCompat.Builder(context, CHANNEL_ID)
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_heart)
                 .setContentTitle(message.title)
                 .setContentText(message.body)
@@ -73,10 +90,59 @@ object GoalNoticeNotifier {
                 .setAutoCancel(true)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .build()
-            NotificationManagerCompat.from(context).notify(id, n)
+            // The evening reminder: "Remind me in 1 hour", and "Tick off" when exactly one box is open.
+            if (message.evening) {
+                if (message.tickGoalId != null && message.tickDay != null) {
+                    builder.addAction(0, context.getString(R.string.forge_gn_tick),
+                        actionIntent(context, id, ACTION_TICK, message))
+                }
+                builder.addAction(0, context.getString(R.string.forge_gn_snooze), actionIntent(context, id, ACTION_SNOOZE, message))
+            }
+            NotificationManagerCompat.from(context).notify(id, builder.build())
         }
     }
+
+    private const val ACTION_TICK = "com.noop.goal.TICK"
+    private const val ACTION_SNOOZE = "com.noop.goal.SNOOZE"
+
+    private fun actionIntent(context: Context, id: Int, action: String, m: CoreGoals.Notice): PendingIntent =
+        PendingIntent.getBroadcast(context, id * 4 + if (action == ACTION_TICK) 1 else 2,
+            android.content.Intent(context, GoalNoticeActionReceiver::class.java).setAction(action)
+                .putExtra("id", id).putExtra("noticeId", m.id).putExtra("title", m.title).putExtra("body", m.body)
+                .putExtra("goalId", m.tickGoalId).putExtra("day", m.tickDay),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+    /** A tap on a notification button: tick the one open box, or post the same reminder again in an hour. */
+    internal fun handle(context: Context, intent: android.content.Intent) {
+        val id = intent.getIntExtra("id", NOTICE_ID_BASE)
+        when (intent.action) {
+            ACTION_TICK -> {
+                val goal = intent.getStringExtra("goalId") ?: return
+                val day = intent.getStringExtra("day") ?: return
+                if (!CoreRead.isOpen) CoreRead.open(context)
+                CoreGoals.toggleAction(goal, day)
+                NotificationManagerCompat.from(context).cancel(id)
+            }
+            ACTION_SNOOZE -> {
+                NotificationManagerCompat.from(context).cancel(id)
+                val fire = java.util.Calendar.getInstance().apply { add(java.util.Calendar.HOUR_OF_DAY, 1) }
+                val minute = fire.get(java.util.Calendar.HOUR_OF_DAY) * 60 + fire.get(java.util.Calendar.MINUTE)
+                // As iOS: not past 21:00, not in the quiet hours.
+                if (minute >= LATEST_MINUTE || NotifPrefs.inQuietHours(context)) return
+                val again = CoreGoals.Notice(intent.getStringExtra("noticeId").orEmpty(), intent.getStringExtra("title").orEmpty(),
+                    intent.getStringExtra("body").orEmpty(), evening = true,
+                    tickGoalId = intent.getStringExtra("goalId"), tickDay = intent.getStringExtra("day"))
+                val repost = actionIntent(context, id, ACTION_SNOOZE_FIRE, again)
+                (context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
+                    .setAndAllowWhileIdle(android.app.AlarmManager.RTC, fire.timeInMillis, repost)
+            }
+            ACTION_SNOOZE_FIRE -> post(context, id, CoreGoals.Notice(intent.getStringExtra("noticeId").orEmpty(),
+                intent.getStringExtra("title").orEmpty(), intent.getStringExtra("body").orEmpty(), true,
+                intent.getStringExtra("goalId"), intent.getStringExtra("day")))
+        }
+    }
+
+    private const val ACTION_SNOOZE_FIRE = "com.noop.goal.SNOOZE_FIRE"
 
     private fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -86,5 +152,13 @@ object GoalNoticeNotifier {
             mgr.createNotificationChannel(NotificationChannel(CHANNEL_ID, context.getString(R.string.forge_gn_channel),
                 NotificationManager.IMPORTANCE_DEFAULT))
         }
+    }
+}
+
+/** Receives the goal notification buttons (see [GoalNoticeNotifier.handle]). */
+class GoalNoticeActionReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: android.content.Intent) {
+        val pending = goAsync()
+        Thread { try { GoalNoticeNotifier.handle(context.applicationContext, intent) } finally { pending.finish() } }.start()
     }
 }

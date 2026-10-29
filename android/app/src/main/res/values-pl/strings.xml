@@ -4959,4 +4959,10 @@
     <string name="forge_gd_s4">Utrzymaj rytm: 3× w tygodniu</string>
     <string name="forge_gd_s5">Podnieś średnią: 7 h 34 min</string>
     <string name="forge_db_style_classic">Klasyczny</string>
+    <string name="forge_gn_offer_title">Chcesz powiadomienie po osiągnięciu celu?</string>
+    <string name="forge_gn_offer_body">NOOP może dać znać, gdy zamkniesz pierścień, zdobędziesz odznakę lub wieczorem seria będzie zagrożona. Najwyżej dwa razy dziennie, nigdy w godzinach ciszy.</string>
+    <string name="forge_gn_offer_yes">Tak, poproszę</string>
+    <string name="forge_gn_offer_no">Nie, dziękuję</string>
+    <string name="forge_gn_tick">Odhacz</string>
+    <string name="forge_gn_snooze">Przypomnij za 1 godzinę</string>
 </resources>

@@ -197,6 +197,7 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
             })
         }
 
+        GoalNotifyOffer(output.today)
         if (output.today.isNotEmpty()) {
             GoalSectionHeader(stringResource(R.string.forge_goals_today))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
@@ -288,6 +289,37 @@ private fun GoalsOverview(output: CoreGoals.Output?, loaded: Boolean, onBack: ()
             }
         })
         GoalNotificationsCard()
+    }
+}
+
+/** The one question about goal notifications, asked the first time a ring closes (`GoalNotifyOffer`). */
+@Composable
+private fun GoalNotifyOffer(today: List<CoreGoals.Action>) {
+    val context = LocalContext.current
+    val prefs = remember { com.noop.ui.NoopPrefs.of(context) }
+    var answered by remember { mutableStateOf(false) }
+    val asked = prefs.getBoolean("goals.notify.consentAsked", false)
+    val anyOn = com.noop.notif.GoalNoticeNotifier.Kind.values().any { com.noop.notif.GoalNoticeNotifier.isOn(context, it) }
+    if (answered || asked || anyOn || today.none { it.isCompleted }) return
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
+    val colors = Forge.colors
+    fun answer(yes: Boolean) {
+        prefs.edit().putBoolean("goals.notify.consentAsked", true).apply()
+        answered = true
+        if (!yes) return
+        com.noop.notif.GoalNoticeNotifier.Kind.values().forEach { com.noop.notif.GoalNoticeNotifier.setOn(context, it, true) }
+        if (android.os.Build.VERSION.SDK_INT >= 33) permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            Text(stringResource(R.string.forge_gn_offer_title), style = Forge.type.footnote.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = colors.text)
+            Text(stringResource(R.string.forge_gn_offer_body), style = Forge.type.caption, color = colors.textSecondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+                androidx.compose.material3.Button(onClick = { answer(true) }) { Text(stringResource(R.string.forge_gn_offer_yes), style = Forge.type.footnote) }
+                androidx.compose.material3.OutlinedButton(onClick = { answer(false) }) { Text(stringResource(R.string.forge_gn_offer_no), style = Forge.type.footnote) }
+            }
+        }
     }
 }
 

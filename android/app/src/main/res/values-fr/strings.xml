@@ -4942,4 +4942,10 @@
     <string name="forge_gd_s4">Tenir un rythme : 3× par semaine</string>
     <string name="forge_gd_s5">Relever une moyenne : 7 h 34 min</string>
     <string name="forge_db_style_classic">Classique</string>
+    <string name="forge_gn_offer_title">Veux-tu un message quand tu atteins un objectif ?</string>
+    <string name="forge_gn_offer_body">NOOP peut te prévenir quand tu fermes un anneau, gagnes un badge ou qu’une série est en danger le soir. Au plus deux fois par jour, jamais pendant tes heures calmes.</string>
+    <string name="forge_gn_offer_yes">Oui, volontiers</string>
+    <string name="forge_gn_offer_no">Non merci</string>
+    <string name="forge_gn_tick">Cocher</string>
+    <string name="forge_gn_snooze">Me le rappeler dans 1 heure</string>
 </resources>

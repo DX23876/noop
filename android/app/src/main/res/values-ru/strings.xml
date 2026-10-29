@@ -4844,4 +4844,10 @@
     <string name="forge_gd_s4">Держать ритм: 3× в неделю</string>
     <string name="forge_gd_s5">Поднять среднее: 7 ч 34 мин</string>
     <string name="forge_db_style_classic">Классический режим</string>
+    <string name="forge_gn_offer_title">Получать уведомление, когда вы достигаете цели?</string>
+    <string name="forge_gn_offer_body">NOOP может сообщать, когда вы закрываете кольцо, получаете значок или вечером серия под угрозой. Не чаще двух раз в день и никогда в тихие часы.</string>
+    <string name="forge_gn_offer_yes">Да, пожалуйста</string>
+    <string name="forge_gn_offer_no">Нет, спасибо</string>
+    <string name="forge_gn_tick">Отметить</string>
+    <string name="forge_gn_snooze">Напомнить через 1 час</string>
 </resources>
