@@ -101,8 +101,8 @@ internal fun ForgeCoachButton(viewModel: AppViewModel) {
             else -> bottom
         }
         var drag by remember { mutableStateOf(Offset.Zero) }
-        val x by animateFloatAsState(baseX, label = "coachButtonX")
-        val y by animateFloatAsState(baseY, label = "coachButtonY")
+        val x by animateFloatAsState(baseX)
+        val y by animateFloatAsState(baseY)
         val cx = (x + drag.x).coerceIn(leading, trailing)
         val cy = (y + drag.y).coerceIn(half + margin, h - half - margin)
 

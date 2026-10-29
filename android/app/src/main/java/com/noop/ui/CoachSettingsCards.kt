@@ -142,7 +142,7 @@ private fun CoachEntryCard(labels: Map<String, String>) {
                         }
                     }
                 }
-                Text(labels[if (corner == "custom") "dragged" else "pinned.$corner"].orEmpty(),
+                Text((if (corner == "custom") labels["dragged"] else labels["pinned.$corner"]).orEmpty(),
                      style = NoopType.footnote, color = Palette.textSecondary)
                 ToggleRow(labels["lock"].orEmpty(), labels["lockDetail"], CoachTodayPrefs.locked(context)) {
                     CoachTodayPrefs.setLocked(context, it)
