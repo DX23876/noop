@@ -188,7 +188,8 @@ internal class DashboardDay(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun DashboardHeader(date: LocalDate, isToday: Boolean, battery: String?, unread: Int, onBattery: () -> Unit,
-                             onQuickActions: () -> Unit, onUpdates: () -> Unit, onCoach: (() -> Unit)?, onArrange: () -> Unit) {
+                             onQuickActions: () -> Unit, onUpdates: () -> Unit, onCoach: (() -> Unit)?, onArrange: () -> Unit,
+                             onPickDay: () -> Unit = {}) {
     val colors = Forge.colors
     val ink = Forge.sceneInk
     Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space6), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -226,7 +227,8 @@ internal fun DashboardHeader(date: LocalDate, isToday: Boolean, battery: String?
             }
         }
         val locale = Locale.getDefault()
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.clickable(onClick = onPickDay), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(if (isToday) stringResource(R.string.nav_today)
                  else date.format(DateTimeFormatter.ofPattern(LONG_DAY_PATTERN, locale)).replaceFirstChar { it.titlecase(locale) },
                  style = Forge.type.caption, color = ink.secondary)
@@ -849,4 +851,31 @@ internal fun ForgeClassicToday(padding: androidx.compose.foundation.layout.Paddi
         }
     }
     }
+}
+
+/** The day picker the header's "Today · Swipe to change day" opens (iOS `showDayPicker`): any day up to today. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+internal fun ForgeDayPicker(selected: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    val today = LocalDate.now()
+    val zone = java.time.ZoneOffset.UTC
+    val state = androidx.compose.material3.rememberDatePickerState(
+        initialSelectedDateMillis = selected.atStartOfDay(zone).toInstant().toEpochMilli(),
+        selectableDates = object : androidx.compose.material3.SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) =
+                java.time.Instant.ofEpochMilli(utcTimeMillis).atZone(zone).toLocalDate() <= today
+        },
+    )
+    androidx.compose.material3.DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = {
+                state.selectedDateMillis?.let { onPick(java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate()) }
+                onDismiss()
+            }) { Text(stringResource(R.string.forge_lay_save)) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_lay_cancel)) }
+        },
+    ) { androidx.compose.material3.DatePicker(state = state) }
 }

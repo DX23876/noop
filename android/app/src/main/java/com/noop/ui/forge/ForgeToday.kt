@@ -132,6 +132,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var liveSession by remember { mutableStateOf(false) }
     var arranging by remember { mutableStateOf<String?>(null) }
     var updatesOpen by remember { mutableStateOf(false) }
+    var dayPicker by remember { mutableStateOf(false) }
     val more = rememberMoreNavigator()
     val selectTab = LocalForgeTabSelect.current
     if (quickActions) {
@@ -167,6 +168,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             com.noop.ui.LiveWorkoutScreen(vm = viewModel, onClose = { liveWorkout = false })
         }
     }
+    if (dayPicker) ForgeDayPicker(shown, onPick = { date = it.toEpochDay() }, onDismiss = { dayPicker = false })
     if (updatesOpen) {
         ForgeOverlayPage(onDismiss = { updatesOpen = false }) {
             com.noop.ui.UpdatesInboxScreen(store = com.noop.ui.UpdateStore.from(context), onClose = { updatesOpen = false },
@@ -257,7 +259,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             unread = updateStore.unreadCount, onBattery = { selectTab(ForgeTab.More) },
                             onQuickActions = { quickActions = true }, onUpdates = { updatesOpen = true },
                             onCoach = if (coachOn) ({ more.push(MoreRoute.Dest(MoreDest.Coach)) }) else null,
-                            onArrange = { arranging = style })
+                            onArrange = { arranging = style }, onPickDay = { dayPicker = true })
             if (shown == today) ForgeMorningSuggestion()
             ForgeStyledDashboard(style, layoutRevision, shown, model?.day, viewModel,
                 onSection = { drawSection(it) },
