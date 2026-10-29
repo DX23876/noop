@@ -22,9 +22,12 @@ object CoreWorkoutRows {
 
     /**
      * Apple's rows carry no device id and no GPS route: the source names the row, and a route lives beside it.
-     * The device id is the source, which is how the core keeps them apart.
+     * The device id is set to the source here; [withRoomKeys] replaces it with the Room row's own. Null for
+     * anything but the expected shape (a missing field included), so the caller reads Room instead.
      */
-    internal fun parse(json: String): List<WorkoutRow>? {
+    internal fun parse(json: String): List<WorkoutRow>? = runCatching { parseOrThrow(json) }.getOrNull()
+
+    private fun parseOrThrow(json: String): List<WorkoutRow>? {
         val a = runCatching { JSONArray(json) }.getOrNull() ?: return null
         return (0 until a.length()).map { i ->
             val o = a.getJSONObject(i)
@@ -40,10 +43,26 @@ object CoreWorkoutRows {
         }
     }
 
-    /** Lays each Room row's GPS route onto the core's row for the same session, until routes have a core lane. */
-    fun withRoutes(core: List<WorkoutRow>, room: List<WorkoutRow>): List<WorkoutRow> {
-        val routes = room.filter { it.routePolyline != null }.associateBy({ it.startTs to it.sport }, { it.routePolyline })
-        return core.map { r -> routes[r.startTs to r.sport]?.let { r.copy(routePolyline = it) } ?: r }
+    /**
+     * Gives each core row the stored Room row it mirrors: Room's device id, which is part of Room's key and what
+     * delete, dismiss and the HR lookups go by, and its GPS route, until routes have a core lane. Matched by
+     * source, start and sport, then by source and start alone for a row whose sport the core normalised. The
+     * first stored row wins, as Room's union lists the active strap first. A row Room does not hold keeps its
+     * source as device id, which [compare] reports.
+     */
+    fun withRoomKeys(core: List<WorkoutRow>, room: List<WorkoutRow>): List<WorkoutRow> {
+        val exact = HashMap<Triple<String, Long, String>, WorkoutRow>()
+        val bySpan = HashMap<Pair<String, Long>, MutableList<WorkoutRow>>()
+        for (w in room) {
+            exact.putIfAbsent(Triple(w.source, w.startTs, w.sport), w)
+            bySpan.getOrPut(w.source to w.startTs) { mutableListOf() } += w
+        }
+        return core.map { r ->
+            val stored = exact[Triple(r.source, r.startTs, r.sport)]
+                ?: bySpan[r.source to r.startTs]?.takeIf { it.distinctBy { w -> w.sport }.size == 1 }?.first()
+                ?: return@map r
+            r.copy(deviceId = stored.deviceId, routePolyline = stored.routePolyline)
+        }
     }
 
     /** One field of one session (start and sport) where the two lists disagree. */
@@ -65,6 +84,7 @@ object CoreWorkoutRows {
                 }
                 if (!same) out += Deviation(k, name, x.toString(), y.toString())
             }
+            cmp("deviceId", a.deviceId, b.deviceId)
             cmp("endTs", a.endTs, b.endTs); cmp("source", a.source, b.source); cmp("durationS", a.durationS, b.durationS)
             cmp("energyKcal", a.energyKcal, b.energyKcal); cmp("avgHr", a.avgHr, b.avgHr); cmp("maxHr", a.maxHr, b.maxHr)
             cmp("strain", a.strain, b.strain); cmp("distanceM", a.distanceM, b.distanceM); cmp("steps", a.steps, b.steps)

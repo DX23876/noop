@@ -151,6 +151,11 @@ enum CoreCoach {
                               String(localized: "Is this good, or something to watch?")]))
             Task { @MainActor in await coach.runCardAnalysisIfNeeded() }
             return #"{"ok":true}"#
+        case "coach.card.allowed":
+            // Whether a metric card may offer "Ask coach": iOS hides the card buttons when the Data access
+            // purposes a card read draws on are off (`CoachCardContext.isAllowed`); the read would stop silently.
+            // Data access itself is Kotlin's to check (`AiKeyStore.readConsent`), which hands it in on configure.
+            return CoreRead.json(["allowed": CoachCardContext(title: "", summary: "").isAllowed(by: coach.toolConsent)])
         case "coach.test":
             // "Test connection" (`connectionTestRow`): the coach's own wire format, no health data read.
             await coach.testConnection()

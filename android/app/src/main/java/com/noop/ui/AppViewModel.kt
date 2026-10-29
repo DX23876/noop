@@ -771,7 +771,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // (`CoreDailyRows`), Room's flow serving only as the change signal; off, Room's merge as before.
         repository.recentDaysMergedFlow(deviceId)
             .map { room ->
-                if (room.isEmpty() || !com.noop.core.CoreDailyRows.coreReads(appContext)) room
+                if (room.isEmpty() || !coreReadsReady()) room
                 else com.noop.core.CoreDailyRows.rows(room.first().day, room.last().day, deviceId) ?: room
             }
             .flowOn(Dispatchers.IO)
@@ -2089,13 +2089,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun loadWorkouts() {
         viewModelScope.launch {
-            val room = roomWorkouts()
-            // Parity plan 1.3: with the Lab switch on, the list is the shared core's (`Repository.workoutRows`),
-            // carrying Room's GPS routes until routes have a core lane.
-            val sorted = if (!com.noop.core.CoreDailyRows.coreReads(appContext)) room
-                else withContext(Dispatchers.IO) {
-                    com.noop.core.CoreWorkoutRows.rows(4000, com.noop.ui.forge.dismissedTrainingWorkouts(appContext))
-                }?.let { com.noop.core.CoreWorkoutRows.withRoutes(it, room) } ?: room
+            // Parity plan 1.3: with the Lab switch on, the list is the shared core's (`Repository.workoutRows`);
+            // Room's own assembly, with its strap HR fill, runs only when the switch is off or the core cannot answer.
+            val sorted = (if (coreReadsReady()) coreWorkouts() else null) ?: roomWorkouts()
             _workouts.value = sorted
             // Post-workout summary (#517) — opt-in, default OFF. The newest session (by start) drives a
             // one-shot Effort + duration + avg-HR notification when it's strictly newer than the last one
@@ -2111,22 +2107,47 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     suspend fun mergedDays(deviceId: String): List<com.noop.data.DailyMetric> = withContext(Dispatchers.IO) {
         val room = repository.daysMerged(deviceId)
-        if (room.isEmpty() || !com.noop.core.CoreDailyRows.coreReads(appContext)) room
+        if (room.isEmpty() || !coreReadsReady()) room
         else com.noop.core.CoreDailyRows.rows(room.first().day, room.last().day, deviceId) ?: room
+    }
+
+    /**
+     * The Lab switch (`CoreDailyRows.coreReads`), once the core's input lanes hold Room's rows: adopted first if
+     * this process has not checked them yet, off while they are missing or wait for a repair, so the core's
+     * imports never read as empty days or a short workout list.
+     */
+    private suspend fun coreReadsReady(): Boolean {
+        if (!com.noop.core.CoreDailyRows.coreReads(appContext)) return false
+        if (!com.noop.core.CoreInputLanes.ready) {
+            runCatching { repository.ensureSharedJournalHydration() }
+                .onFailure { if (it is kotlin.coroutines.cancellation.CancellationException) throw it }
+        }
+        return com.noop.core.CoreInputLanes.ready
     }
 
     /** Room's and the core's workout lists side by side for the Lab check; null without a core. */
     suspend fun compareWorkoutsWithCore(): List<com.noop.core.CoreWorkoutRows.Deviation>? {
-        val room = roomWorkouts()
+        val core = coreWorkouts() ?: return null
+        return com.noop.core.CoreWorkoutRows.compare(roomWorkouts(), core)
+    }
+
+    /**
+     * The shared core's workout list, each row keyed back onto the Room row it mirrors (device id and GPS route), so
+     * delete, dismiss and the HR lookups find it; null without a core.
+     */
+    private suspend fun coreWorkouts(): List<WorkoutRow>? {
         val core = withContext(Dispatchers.IO) {
             com.noop.core.CoreWorkoutRows.rows(4000, com.noop.ui.forge.dismissedTrainingWorkouts(appContext))
         } ?: return null
-        return com.noop.core.CoreWorkoutRows.compare(room, core)
+        return com.noop.core.CoreWorkoutRows.withRoomKeys(core, storedWorkouts().all)
     }
 
-    /** The Workouts list as Android assembled it from Room before the shared core, newest first. The whole
-     *  history, as `Repository.workoutRows` reads 4000 days. */
-    private suspend fun roomWorkouts(): List<WorkoutRow> {
+    /** Room's stored workout rows across every namespace the Workouts list reads, before any HR fill or dedup. */
+    private class StoredWorkouts(val cardio: List<WorkoutRow>, val lifting: List<WorkoutRow>) {
+        val all get() = cardio + lifting
+    }
+
+    private suspend fun storedWorkouts(): StoredWorkouts {
         val now = System.currentTimeMillis() / 1000
         // #28: read across the strap-id + "my-whoop" union (like HR/sleep), so a re-added/newly-paired
         // strap whose workouts live under "my-whoop" isn't shown an empty Workouts screen.
@@ -2144,6 +2165,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // HR-fill below like the imported Apple sessions — a GPX with no HR borrows the strap's, while a
         // FIT that already carries HR is untouched (fill only fills nulls).
         val activityFiles = repository.workouts(ActivityFileImporter.SOURCE_ID, 0L, now)
+        return StoredWorkouts(whoop + apple + detected + activityFiles, lifting)
+    }
+
+    /** The Workouts list as Android assembled it from Room before the shared core, newest first. The whole
+     *  history, as `Repository.workoutRows` reads 4000 days. */
+    private suspend fun roomWorkouts(): List<WorkoutRow> {
+        val stored = storedWorkouts()
         val markers = repository.dismissedDetectedUnion(deviceId)
         // Fill imported sessions' missing HR from strap samples (#77), same as before; detected /
         // manual rows already carry their own HR so they pass through unchanged. #961: also backfill a
@@ -2158,7 +2186,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // have. The fill's own doc promises "display == graph == zones == effort by construction";
         // this is the line that has to pass the same id for that to hold.
         val filled = repository.fillWorkoutHrFromStrap(
-            (whoop + apple + detected + activityFiles),
+            stored.cardio,
             strapDeviceId = deviceId,
             strainMaxHR = profileStore.hrMax.toDouble(),
             strainSex = profileStore.sex,
@@ -2167,7 +2195,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // #687: collapse the SAME activity tracked live under the strap AND imported from Health
         // Connect / Apple Health into one richer entry — they sit under different sources so without
         // this they show as two sessions. Dedup runs on the dismissed-filtered set, before the sort.
-        val filteredRows = WorkoutEditing.filterDismissed(filled + lifting, markers)
+        val filteredRows = WorkoutEditing.filterDismissed(filled + stored.lifting, markers)
         // Workouts & GPS test mode: when on, run the dedup twin which returns the BYTE-IDENTICAL kept list
         // plus a trace line per collapsed cross-source pair, tagged .workouts. Zero-cost when off (the gate
         // is one SharedPreferences bool read), and the kept list equals dedupCrossSource exactly, so the

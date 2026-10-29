@@ -17,7 +17,10 @@ object CoreResolvedSeries {
         return parse(json)
     }
 
-    internal fun parse(json: String): WhoopRepository.MetricSeriesResolution? {
+    /** Null for anything but the expected shape (a missing field included), so the caller reads Room instead. */
+    internal fun parse(json: String): WhoopRepository.MetricSeriesResolution? = runCatching { parseOrThrow(json) }.getOrNull()
+
+    private fun parseOrThrow(json: String): WhoopRepository.MetricSeriesResolution? {
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return null
         if (!o.has("points")) return null
         val c = o.getJSONArray("candidates"); val p = o.getJSONArray("points")

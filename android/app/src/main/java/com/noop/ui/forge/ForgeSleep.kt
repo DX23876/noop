@@ -5,6 +5,8 @@ import com.noop.ui.ClockPrefs
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.WbSunny
@@ -43,6 +46,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import com.noop.ui.SleepLayoutPrefs
+import com.noop.ui.SleepSection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -127,6 +133,16 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
             SleepModel(nights, rest.associate { it.day to it.value })
         }
     }
+    var customizing by remember { mutableStateOf(false) }
+    var layoutRevision by remember { mutableIntStateOf(0) }
+    val sections = remember(layoutRevision) {
+        SleepLayoutDefaults.visible(SleepLayoutPrefs.orderRaw(context), SleepLayoutPrefs.hiddenRaw(context))
+    }
+    if (customizing) {
+        ForgeOverlayPage(onDismiss = { customizing = false }) {
+            ForgeSleepCustomization { saved -> customizing = false; if (saved) layoutRevision++ }
+        }
+    }
     val nights = model?.nights.orEmpty()
     val i = if (index < 0 || index >= nights.size) nights.lastIndex else index
     val night = nights.getOrNull(i)
@@ -160,7 +176,17 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
                 }
             }
             Times(night, zone)
-            Breakdown(night, zone)
+            // Customize sits at the end of the hero, as on iOS (`sleepArrangeAffordance`).
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Row(Modifier.clickable(role = Role.Button) { customizing = true }.padding(ForgeMetrics.space2),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Tune, contentDescription = null, tint = Forge.colors.textTertiary,
+                         modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(ForgeMetrics.space1))
+                    Text(stringResource(R.string.forge_lay_customize), style = Forge.type.footnote,
+                         color = Forge.colors.textTertiary)
+                }
+            }
         }
         // Where this night stands in the week's sleep goals (iOS `SleepGoalNightLine`), then the week's sleep goal
         // itself, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); neither draws without a goal.
@@ -173,7 +199,14 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth) {
             ForgeGoalLines(nightLines)
         }
         ForgeGoalsContextCard("sleep")
-        SleepDebtLedger()
+        // The arrangeable cards in the saved order, minus the hidden ones (`SleepLayoutDefaults`).
+        sections.forEach { section ->
+            when (section) {
+                SleepSection.STAGES -> if (night != null) Breakdown(night, zone)
+                SleepSection.SLEEP_DEBT -> SleepDebtLedger()
+                else -> Unit
+            }
+        }
         Spacer(Modifier.height(ForgeMetrics.space2))
         }
     }

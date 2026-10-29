@@ -89,7 +89,7 @@ ANDROID_INDIRECT_NON_UI_LITERALS = {
     # Stable KeyMetric raw values + preferences.
     "charge", "effort", "rest", "restingHr", "bloodOxygen", "respiratory", "steps",
     "weight", "calories", "today.keyMetrics", "today.keyMetricsDetailed",
-    "today.keyMetricsWindowDays", ",",
+    "today.keyMetricsWindowDays", "today.keyMetricsColumns", ",",
     # Stable DashboardCard raw values + preference; units remain measurement metadata.
     "stress", "fitnessAge", "vo2max", "vitality", "skinTemp", "sleep", "hydration", "coupled",
     "coach", "stepsAverage30",
@@ -116,6 +116,7 @@ ANDROID_HELPER_NON_UI_LITERALS = {
     # TodayLayoutPrefs stable backup/persistence wire values.
     "hero", "liveSession", "synthesis", "keyMetrics", "workouts", "heartRate",
     "recoveryVitals", "yourCards", "menstrualCycle", "journal", "addedCards",
+    "coach", "goals", "trainingLoad", "energy", "dataSources",
     "today.sectionOrder", "today.hiddenSections",
     # TodayScoring parse/default formats.
     "9999-12-31", "d MMM", "24h", "12h", "6h", "3h", "1h",

@@ -128,7 +128,7 @@ fun ForgeColors.chargeRing(score: Double): Color = recoveryStops[ChargeBand.of(s
 /** A key metric tile: icon plate, small caps label, the value with its unit. */
 @Composable
 fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, unit: String?, noData: String,
-               modifier: Modifier = Modifier, delta: String? = null) {
+               modifier: Modifier = Modifier, delta: String? = null, below: (@Composable () -> Unit)? = null) {
     val colors = Forge.colors
     ForgeCard(modifier, contentPadding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -177,6 +177,10 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
                              .padding(horizontal = 5.dp, vertical = 2.dp))
                 }
             }
+        }
+        if (below != null) {
+            Spacer(Modifier.padding(top = ForgeMetrics.space2))
+            below()
         }
     }
 }

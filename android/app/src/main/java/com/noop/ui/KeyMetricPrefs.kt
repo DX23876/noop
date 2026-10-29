@@ -81,6 +81,25 @@ object KeyMetricPrefs {
         NoopPrefs.of(context).edit().putInt(KEY_WINDOW, value).apply()
     }
 
+    private const val KEY_COLUMNS = "today.keyMetricsColumns"
+
+    /** Tiles per row the grid can draw, narrowest first; also the editor's choices. Key shared with iOS. */
+    val columnChoices = listOf(2, 3)
+
+    /** A stored column count clamped to one the grid can draw; anything else reads as 3, as on iOS. */
+    fun columns(raw: Int): Int = if (raw in columnChoices) raw else 3
+
+    /** The stored column choice, null while unset (the Today style then picks its own). */
+    fun storedColumns(context: Context): Int? =
+        NoopPrefs.of(context).takeIf { it.contains(KEY_COLUMNS) }?.getInt(KEY_COLUMNS, 3)
+
+    fun setColumns(context: Context, value: Int) {
+        NoopPrefs.of(context).edit().putInt(KEY_COLUMNS, value).apply()
+    }
+
+    /** The stored tile list as written, null while unset. */
+    fun enabledRaw(context: Context): String? = NoopPrefs.of(context).getString(KEY_LAYOUT, null)
+
     /** The enabled tiles in display order. An empty/unset string yields the full default order. */
     fun enabled(context: Context): List<KeyMetric> =
         decodeEnabled(NoopPrefs.of(context).getString(KEY_LAYOUT, null))

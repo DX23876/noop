@@ -189,6 +189,9 @@ object CoreCoach {
     fun card(title: String, summary: String): Boolean =
         call("coach.card", JSONObject().put("title", title).put("summary", summary).toString())?.optBoolean("ok") ?: false
 
+    /** Whether a metric may offer "Ask coach": the Data access purposes a card read draws on are on. Blocking. */
+    fun cardAllowed(): Boolean = call("coach.card.allowed", "{}")?.optBoolean("allowed") ?: false
+
     /** "Test connection": whether the provider answered, and the line saying so (`connectionTestRow`). */
     fun testConnection(context: Context, settings: Settings, dismissedWorkouts: List<String>): Pair<Boolean, String>? {
         configure(context, settings, dismissedWorkouts)
