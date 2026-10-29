@@ -769,7 +769,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Vitality windows) keeps its data. Same oldest-first ordering as before.
         // Parity plan 1.3: with the Lab switch on, the same window is read from the shared core's merge
         // (`CoreDailyRows`), Room's flow serving only as the change signal; off, Room's merge as before.
-        repository.recentDaysMergedFlow(deviceId)
+        combine(repository.recentDaysMergedFlow(deviceId), com.noop.core.CoreShadow.dataRevision) { room, _ -> room }
             .map { room ->
                 if (room.isEmpty() || !coreReadsReady()) room
                 else com.noop.core.CoreDailyRows.rows(room.first().day, room.last().day, deviceId) ?: room
@@ -3025,28 +3025,31 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { rescoreAfterEdit() }
     }
 
-    /** Recompute the selected shared-core sleep pipeline from stored data, including while offline. */
+    /** Recompute the selected sleep pipeline from stored data, including while offline. */
     fun setSleepStagerMethod(method: String) {
         val experiment = PuffinExperiment.from(appContext)
         experiment.sleepStagerMethod = method
         NoopPrefs.setAnalyzeWatermark(appContext, "")
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                com.noop.core.CoreShadow.ensureStarted(appContext, deviceId)
-                val profile = currentProfile()
-                com.noop.core.CoreShadow.analyze(
-                    profile.age.toInt(), profile.sex, profile.weightKg, profile.heightCm,
-                    profileStore.hrMaxOverride, effortBanister = NoopPrefs.banisterEffort(appContext),
-                    sleepStagerV2 = experiment.experimentalSleepV2,
-                    motionAwareWake = experiment.motionAwareWake,
-                    deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
-                    dayCycleMode = NoopPrefs.dayCycleMode(appContext).persistedValue,
-                    healthspan = com.noop.core.CoreFeatures.healthspan(appContext),
-                    rhythmAge = com.noop.core.CoreFeatures.rhythmAge(appContext),
-                    extras = com.noop.core.CoreShadow.extras(appContext, profileStore,
-                        dismissedSleep = repository.dismissedSleeps(deviceId).map { it.startTs to it.endTs },
-                        dismissedWorkouts = repository.dismissedDetectedUnion(deviceId).map { it.startTs to it.endTs },
-                        spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(appContext)))
+            if (com.noop.core.CoreDailyRows.coreReads(appContext)) {
+                withContext(Dispatchers.IO) {
+                    com.noop.core.CoreShadow.ensureStarted(appContext, deviceId)
+                    val profile = currentProfile()
+                    com.noop.core.CoreShadow.analyze(
+                        profile.age.toInt(), profile.sex, profile.weightKg, profile.heightCm,
+                        profileStore.hrMaxOverride, effortBanister = NoopPrefs.banisterEffort(appContext),
+                        sleepStagerV2 = experiment.experimentalSleepV2,
+                        motionAwareWake = experiment.motionAwareWake,
+                        deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
+                        dayCycleMode = NoopPrefs.dayCycleMode(appContext).persistedValue,
+                        healthspan = com.noop.core.CoreFeatures.healthspan(appContext),
+                        rhythmAge = com.noop.core.CoreFeatures.rhythmAge(appContext),
+                        extras = com.noop.core.CoreShadow.extras(appContext, profileStore,
+                            dismissedSleep = repository.dismissedSleeps(deviceId).map { it.startTs to it.endTs },
+                            dismissedWorkouts = repository.dismissedDetectedUnion(deviceId).map { it.startTs to it.endTs },
+                            spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(appContext)))
+                    com.noop.core.CoreShadow.awaitQueuedAnalysis()
+                }
             }
             rescoreAfterEdit()
         }

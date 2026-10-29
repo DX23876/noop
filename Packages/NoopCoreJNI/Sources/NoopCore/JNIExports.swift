@@ -115,6 +115,11 @@ public func jniShadowAnalyze(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclas
     ShadowSession.send(.analyze(profile, settings))
 }
 
+@_cdecl("Java_com_noop_core_SwiftCore_shadowAwaitQueuedEvents")
+public func jniShadowAwaitQueuedEvents(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jboolean {
+    jboolean(ShadowSession.awaitQueuedEvents() ? JNI_TRUE : JNI_FALSE)
+}
+
 @_cdecl("Java_com_noop_core_SwiftCore_shadowToday")
 public func jniShadowToday(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -> jstring? {
     guard let env, let fns = env.pointee?.pointee, let line = ShadowSession.today else { return nil }

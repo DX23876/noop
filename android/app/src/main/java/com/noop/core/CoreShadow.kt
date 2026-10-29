@@ -127,6 +127,14 @@ object CoreShadow {
         }
     }
 
+    /** Publish a new read revision only after the queued analysis has committed its rows. Blocking IO call. */
+    fun awaitQueuedAnalysis(): Boolean {
+        check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
+        val completed = started && SwiftCore.shadowAwaitQueuedEvents()
+        if (completed) noteDataChanged()
+        return completed
+    }
+
     /**
      * The further choices the core's pass reads (`CoreAnalysis.applyExtras`): the deleted nights and detected
      * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors and the Lab's
