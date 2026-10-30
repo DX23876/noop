@@ -1067,6 +1067,8 @@ class WhoopRepository(
      *  the Swift heal, which calls the tombstone-free store-level delete directly. */
     suspend fun deleteSleepSessionRowOnly(session: SleepSession) {
         dao.deleteSleepSession(session.deviceId, session.startTs)
+        // An imported or hand-edited duplicate sits in the core's lanes too.
+        mirrorSleep(listOf(session))
     }
 
     /**
@@ -1115,8 +1117,16 @@ class WhoopRepository(
         // (b) computed daily metrics (by day key) + sleep sessions (by startTs). The prune queries apply
         // the far-past floor ONLY to `-noop` computed rows, so a multi-year import (bare "my-whoop")
         // survives; future rows are always purged (v8.2.1).
+        // The lane rows among them (imported days and nights, hand-edited computed nights), read before the
+        // deletes with the DAO's own predicates so the core's lanes lose them too.
+        val laneDays = keysWhere("dailyMetric", "day > ? OR (day < ? AND deviceId LIKE '%-noop')", today, minDay)
+        val laneNights = keysWhere("sleepSession",
+            "(startTs > ? OR (startTs < ? AND deviceId LIKE '%-noop')) AND (deviceId NOT LIKE '%-noop' OR userEdited = 1)",
+            maxTs, minTs)
         deleted += dao.pruneDailyMetricByDay(today, minDay)
         deleted += dao.pruneSleepSessionByTs(minTs, maxTs)
+        mirror("dailyMetric", laneDays)
+        mirror("sleepSession", laneNights)
         return deleted
     }
 
@@ -1183,7 +1193,10 @@ class WhoopRepository(
      *  the corrected bed/wake bounds and the userEdited flag untouched. Scoped to userEdited=1 rows by
      *  the DAO query; keyed by the IMMUTABLE detected [detectedStartTs]. Returns rows changed. */
     suspend fun updateSleepStages(deviceId: String, detectedStartTs: Long, stagesJSON: String): Int =
-        dao.updateSleepStages(deviceId, detectedStartTs, stagesJSON)
+        dao.updateSleepStages(deviceId, detectedStartTs, stagesJSON).also { changed ->
+            // Only hand-edited rows change, and those are mirrored into the core's lanes.
+            if (changed > 0) mirror("sleepSession", listOf(listOf(deviceId, detectedStartTs)))
+        }
 
     // MARK: - Per-epoch sleep analytics (v18: motionJSON / sleepStateJSON). Banked beside stagesJSON on
     // the sleepSession row; written/read through targeted methods, then carried through recompute/import
