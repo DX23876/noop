@@ -64,6 +64,9 @@ public enum CoreAnalysis {
         public var spo2CandidateDisplay = false
         /// Lab: rated strength sessions add to Effort (`StrengthEffort`); the extras key `effortStrengthBonus`.
         public var effortStrengthBonus = false
+        /// One pass over every day with raw heart rate, unchanged days reused, as Apple runs when the strength
+        /// switch flips (`reanalyzeHistoryReusingUnchangedDays`); the extras key `historyRescore`.
+        public var historyRescore = false
         public init(effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool,
                     dayCycleMode: String?, healthspan: Bool = false, rhythmAge: Bool = false,
                     dismissedSleepSpans: [String] = [], dismissedWorkoutSpans: [String] = [],
@@ -129,6 +132,7 @@ public enum CoreAnalysis {
         if let v = double("recoveryBaselineEpoch") { settings.recoveryBaselineEpoch = v }
         if let v = bool("spo2CandidateDisplay") { settings.spo2CandidateDisplay = v }
         if let v = bool("effortStrengthBonus") { settings.effortStrengthBonus = v }
+        if let v = bool("historyRescore") { settings.historyRescore = v }
         if let v = double("waistCm") { profile.waistCm = v }
         if let v = double("stepTicksPerStep"), v > 0 { profile.stepTicksPerStep = v }
         if let v = double("stepsManualCoefficient") { profile.stepsManualCoefficient = v }
@@ -162,7 +166,11 @@ public enum CoreAnalysis {
                                      profile: { [source] in source.analyticsProfile() })
         let engine = DailyAnalysis(services: services, profile: source, deviceId: deviceId, host: host,
                                    messages: { "\($0)" })
-        await engine.analyzeRecent(maxDays: days, force: true, allowDayReuse: false)
+        if settings.historyRescore {
+            await engine.reanalyzeHistoryReusingUnchangedDays()
+        } else {
+            await engine.analyzeRecent(maxDays: days, force: true, allowDayReuse: false)
+        }
         let today = StoreReader.localDayKey(Date())
         guard let row = try? await store.dailyMetrics(deviceId: deviceId + "-noop", from: today, to: today).first
         else { return nil }
