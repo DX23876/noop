@@ -39,13 +39,35 @@ object GoalNoticeNotifier {
         val kinds = Kind.values().filter { isOn(context, it) }.map { it.key }
         if (kinds.isEmpty() || !CoreRead.isOpen) return
         val prefs = NoopPrefs.of(context)
-        val result = CoreGoals.notices(
-            context, dismissedWorkouts, kinds, quiet = NotifPrefs.inQuietHours(context),
-            eveningMinute = eveningMinute(context), workoutInProgress = workoutInProgress, appIsActive = appIsActive(),
-            state = prefs.getString(STATE_KEY, null),
-        ) ?: return
-        prefs.edit().putString(STATE_KEY, result.state).apply()
-        result.messages.forEachIndexed { index, message -> post(context, NOTICE_ID_BASE + index, message) }
+        serializedPass(
+            read = { prefs.getString(STATE_KEY, null) },
+            compute = { state ->
+                CoreGoals.notices(
+                    context, dismissedWorkouts, kinds, quiet = NotifPrefs.inQuietHours(context),
+                    eveningMinute = eveningMinute(context), workoutInProgress = workoutInProgress,
+                    appIsActive = appIsActive(), state = state,
+                )?.let { it.state to it.messages }
+            },
+            write = { prefs.edit().putString(STATE_KEY, it).commit() },
+            deliver = { messages -> messages.forEachIndexed { index, message -> post(context, NOTICE_ID_BASE + index, message) } },
+        )
+    }
+
+    private val passLock = Any()
+
+    /**
+     * One pass at a time: read the count, let the core decide, store the new count, post. The view model starts a
+     * pass on every data update, so two can overlap; without this both read the same count and both post the
+     * same notice. The count is written before the next pass may read it.
+     */
+    internal fun <T> serializedPass(read: () -> String?, compute: (String?) -> Pair<String, T>?,
+                                    write: (String) -> Unit, deliver: (T) -> Unit) {
+        val delivery = synchronized(passLock) {
+            val (state, messages) = compute(read()) ?: return
+            write(state)
+            messages
+        }
+        deliver(delivery)
     }
 
     /** Never later than this minute of the day (21:00), as `GoalEventPlan.latestMinute`. */
@@ -127,8 +149,8 @@ object GoalNoticeNotifier {
                 NotificationManagerCompat.from(context).cancel(id)
                 val fire = java.util.Calendar.getInstance().apply { add(java.util.Calendar.HOUR_OF_DAY, 1) }
                 val minute = fire.get(java.util.Calendar.HOUR_OF_DAY) * 60 + fire.get(java.util.Calendar.MINUTE)
-                // As iOS: not past 21:00, not in the quiet hours.
-                if (minute >= LATEST_MINUTE || NotifPrefs.inQuietHours(context)) return
+                // As iOS (`isQuiet(fire)`): not past 21:00, not in the quiet hours when it would fire.
+                if (!snoozeMayFire(minute, NotifPrefs.inQuietHours(context, fire))) return
                 val again = CoreGoals.Notice(intent.getStringExtra("noticeId").orEmpty(), intent.getStringExtra("title").orEmpty(),
                     intent.getStringExtra("body").orEmpty(), evening = true,
                     tickGoalId = intent.getStringExtra("goalId"), tickDay = intent.getStringExtra("day"))
@@ -143,6 +165,9 @@ object GoalNoticeNotifier {
     }
 
     private const val ACTION_SNOOZE_FIRE = "com.noop.goal.SNOOZE_FIRE"
+
+    /** A snoozed reminder fires only before 21:00 and outside the quiet hours at its fire time ([fireMinute]). */
+    internal fun snoozeMayFire(fireMinute: Int, quietAtFire: Boolean): Boolean = fireMinute < LATEST_MINUTE && !quietAtFire
 
     private fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return

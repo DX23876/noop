@@ -36,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -81,7 +80,41 @@ internal object RestTimerPrefs {
 
 /** The rest in progress: which set it follows, when it started and ends (epoch ms), and the time left while paused. */
 internal data class RunningRest(val setId: String, val endsAtMs: Long, val startedAtMs: Long = System.currentTimeMillis(),
-                                val pausedLeftMs: Long? = null)
+                                val pausedLeftMs: Long? = null) {
+    companion object {
+        /** Keeps a running rest across an activity recreation (rotation, dark mode, language). */
+        val Saver: androidx.compose.runtime.saveable.Saver<RunningRest?, Any> = androidx.compose.runtime.saveable.Saver(
+            save = { r -> r?.let(::toSaved) },
+            restore = { saved -> fromSaved(saved as? List<*>) },
+        )
+
+        internal fun fromSaved(saved: List<*>?): RunningRest? {
+            if (saved == null || saved.size != 4) return null
+            val setId = saved[0] as? String ?: return null
+            val ends = saved[1] as? Long ?: return null
+            val started = saved[2] as? Long ?: return null
+            val paused = (saved[3] as? Long)?.takeIf { it >= 0 }
+            return RunningRest(setId, ends, started, paused)
+        }
+
+        internal fun toSaved(rest: RunningRest): List<Any> =
+            arrayListOf(rest.setId, rest.endsAtMs, rest.startedAtMs, rest.pausedLeftMs ?: -1L)
+    }
+}
+
+/**
+ * Whether a rest band leaving the screen withdraws its alarm: not when the activity is only being recreated for a
+ * configuration change (the saved rest comes straight back and schedules it again), nor for a rest that ran out
+ * (its alarm fires now); otherwise a rest skipped, changed or left early does.
+ */
+internal fun restDisposeCancels(changingConfigurations: Boolean, paused: Boolean, nowMs: Long, endsAtMs: Long): Boolean =
+    !changingConfigurations && (paused || nowMs < endsAtMs - 500)
+
+private tailrec fun Context.activity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.activity()
+    else -> null
+}
 
 /**
  * The running rest, pinned above the bottom edge so it never scrolls away while logging (iOS `WorkoutRestDock`):
@@ -97,8 +130,12 @@ internal fun RestDock(rest: RunningRest, onChange: (RunningRest?) -> Unit, onStr
     // The notification that announces the end while NOOP is in the background (`TrainingRestNotification`).
     DisposableEffect(rest) {
         if (!paused) RestNotification.schedule(context, rest.endsAtMs)
-        // A rest changed, skipped or left early withdraws it; one that ran out keeps its alarm, which fires now.
-        onDispose { if (paused || System.currentTimeMillis() < rest.endsAtMs - 500) RestNotification.cancel(context) }
+        // A rest changed, skipped or left early withdraws it; one that ran out keeps its alarm, which fires now, and
+        // a recreation for a rotation, dark mode or a language keeps it, since the saved rest resumes.
+        onDispose {
+            val recreating = context.activity()?.isChangingConfigurations == true
+            if (restDisposeCancels(recreating, paused, System.currentTimeMillis(), rest.endsAtMs)) RestNotification.cancel(context)
+        }
     }
     LaunchedEffect(rest) {
         while (!paused) {
@@ -143,7 +180,7 @@ internal fun RestDock(rest: RunningRest, onChange: (RunningRest?) -> Unit, onStr
                               else rest.copy(pausedLeftMs = (rest.endsAtMs - t).coerceAtLeast(0)))
                  })
             Text(stringResource(R.string.forge_lg_skip), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                 color = Color.White,
+                 color = Forge.colors.onDark,
                  modifier = Modifier.background(accent, RoundedCornerShape(50)).clickable { onChange(null) }
                      .padding(horizontal = 14.dp, vertical = 7.dp))
         }
@@ -174,8 +211,15 @@ private fun restEnded(context: Context) {
  * the band itself plays the sound and vibrates, so no notification is posted then.
  */
 internal object RestNotification {
-    private const val CHANNEL_ID = "training_rest"
-    private const val CHANNEL_SILENT_ID = "training_rest_silent"
+    /**
+     * A channel's sound and vibration are fixed once it exists, so each combination of the two Training settings has
+     * its own channel, and a change in Settings picks the matching one instead of re-creating a channel the system
+     * keeps as it was first made. The two channels before this split carried whatever vibration they were created
+     * with; they are deleted.
+     */
+    internal fun channelId(sound: Boolean, haptics: Boolean): String =
+        "training_rest_" + (if (sound) "sound" else "silent") + "_" + (if (haptics) "vibrate" else "still")
+    internal val LEGACY_CHANNEL_IDS = listOf("training_rest", "training_rest_silent")
     private const val NOTIFICATION_ID = 7310
     @Volatile var loggerOnScreen = false
 
@@ -197,18 +241,28 @@ internal object RestNotification {
         (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(pending(context))
     }
 
+    /** Creates the channel for these settings (a no-op when it exists) and drops the pre-split ones; its id. */
+    internal fun ensureChannel(context: Context, sound: Boolean, haptics: Boolean,
+                               name: () -> String = { context.getString(R.string.forge_rest_channel) }): String {
+        val id = channelId(sound, haptics)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            LEGACY_CHANNEL_IDS.forEach { legacy -> if (manager.getNotificationChannel(legacy) != null) manager.deleteNotificationChannel(legacy) }
+            if (manager.getNotificationChannel(id) == null) {
+                val c = NotificationChannel(id, name(), NotificationManager.IMPORTANCE_HIGH)
+                if (!sound) c.setSound(null, null)
+                c.enableVibration(haptics)
+                manager.createNotificationChannel(c)
+            }
+        }
+        return id
+    }
+
     @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled()
     fun post(context: Context) {
         if (loggerOnScreen || !RestTimerPrefs.feedback(context) ||
             !NotificationManagerCompat.from(context).areNotificationsEnabled()) return
-        val sound = RestTimerPrefs.sound(context)
-        val channel = if (sound) CHANNEL_ID else CHANNEL_SILENT_ID
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val c = NotificationChannel(channel, context.getString(R.string.forge_rest_channel), NotificationManager.IMPORTANCE_HIGH)
-            if (!sound) c.setSound(null, null)
-            c.enableVibration(RestTimerPrefs.haptics(context))
-            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(c)
-        }
+        val channel = ensureChannel(context, RestTimerPrefs.sound(context), RestTimerPrefs.haptics(context))
         val n = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_stat_heart)
             .setContentTitle(context.getString(R.string.forge_rest_done_title))

@@ -4087,6 +4087,7 @@
     <string name="forge_body_height">Рост</string>
     <string name="forge_body_cm">%1$s см</string>
     <string name="forge_body_kg">%1$s кг</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Пока нет замеров лентой. Нажмите «Измерить», чтобы записать сессию.</string>
     <string name="forge_body_cancel">Отмена</string>
     <string name="forge_body_weigh_ins">Взвешивания</string>

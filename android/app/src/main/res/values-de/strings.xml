@@ -4205,6 +4205,7 @@
     <string name="forge_body_height">Größe</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Noch keine Bandmessungen. Tippe auf Messen, um eine Sitzung zu erfassen.</string>
     <string name="forge_body_cancel">Abbrechen</string>
     <string name="forge_body_weigh_ins">Messungen</string>

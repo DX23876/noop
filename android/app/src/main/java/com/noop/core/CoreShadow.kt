@@ -27,18 +27,60 @@ object CoreShadow {
     val dataRevision = revision.asStateFlow()
     fun noteDataChanged() { revision.update { it + 1 } }
 
-    /** Opens the core's store and starts the session once per process. */
-    fun ensureStarted(context: Context, deviceId: String) {
-        if (started || !SwiftCore.available) return
-        synchronized(this) {
-            if (started) return
+    /**
+     * Opens the core's store and starts the session once per process; after that, re-points the running session
+     * at [deviceId] when the strap changed inside the process ([followActive] false keeps the session's strap: a
+     * screen's id can lag the Bluetooth client's), and hands the core every registered WHOOP. Blocks on the
+     * registry read; call off the main thread.
+     */
+    fun ensureStarted(context: Context, deviceId: String, followActive: Boolean = true) {
+        if (!SwiftCore.available) return
+        if (!started) synchronized(this) {
+            if (started) return@synchronized
             if (!installResources(context)) return
             val store = File(context.filesDir, "core/noop-core.sqlite").apply { parentFile?.mkdirs() }
             val result = SwiftCore.shadowStart(store.path, deviceId)
             started = result == 0
             Log.i(TAG, "shadow session start=$result for $deviceId")
         }
+        if (started) followDevices(context, deviceId.takeIf { followActive })
     }
+
+    /**
+     * The active strap and every registered WHOOP for the core's union reads (`ShadowSession.setDevices`): the
+     * same set the Room fallback reads (`WhoopRepository.rawWhoopSourceIds`), archived straps included, so a
+     * retired strap's nights and workouts stay on the screens with the Lab switch on. A changed [activeId] also
+     * re-points the core's writers, in order with the frames already queued; null keeps the session's strap.
+     * Blocks on the registry read.
+     */
+    fun followDevices(context: Context, activeId: String?) {
+        if (!started) return
+        val app = context.applicationContext as? com.noop.NoopApplication
+        // An unreadable registry keeps the list the core already has (null) instead of narrowing it.
+        val registered = app?.let { a ->
+            runCatching {
+                kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { a.deviceRegistry.all() }
+            }.onFailure { Log.w(TAG, "registry unreadable; the core keeps its registered straps: ${it.message}") }
+                .getOrNull()
+        }?.let(::registeredWhoopIds)
+        SwiftCore.call("shadow.devices", devicesArgs(activeId.orEmpty(), registered))
+    }
+
+    /**
+     * Re-points the running session at [activeId] without reading the registry, so frames the client sends after
+     * a strap switch reach the core under the new id. Cheap; safe on the Bluetooth thread.
+     */
+    fun followActive(activeId: String) {
+        if (started) SwiftCore.call("shadow.devices", devicesArgs(activeId, null))
+    }
+
+    /** The registry's WHOOP ids in registry order, as Room's `rawWhoopSourceIds` filters them. */
+    internal fun registeredWhoopIds(rows: List<com.noop.data.PairedDeviceRow>): List<String> =
+        rows.filter { it.brand.equals("WHOOP", ignoreCase = true) }.map { it.id }
+
+    internal fun devicesArgs(activeId: String, registered: List<String>?): String =
+        org.json.JSONObject().put("active", activeId)
+            .apply { if (registered != null) put("registered", org.json.JSONArray(registered)) }.toString()
 
     /**
      * The core's protocol schema and exercise catalogue, shipped as APK assets because Android has

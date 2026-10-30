@@ -71,4 +71,49 @@ final class ShadowSessionTests: XCTestCase {
                        "A barrier also covers ordinary events queued after the analysis")
         XCTAssertEqual(completion.3.hr, 0)
     }
+
+    /// A retired strap's nights stay in the screens' reads, and an in-process strap switch re-points the reader
+    /// and the writers: the Room fallback reads every registered WHOOP, so the core must too.
+    func testRegisteredStrapsStayInTheReadsAndASwitchFollowsTheActiveStrap() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("shadow-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer {
+            ShadowSession.stop()
+            ShadowSession.setDevices(activeDeviceId: "", registeredWhoopIds: [])
+            try? FileManager.default.removeItem(at: dir)
+        }
+        let path = dir.appendingPathComponent("core.sqlite").path
+        XCTAssertEqual(ShadowSession.start(path: path, deviceId: "whoop-old"), 0)
+        let store = try XCTUnwrap(ShadowSession.storeAndPath?.store)
+        let night = CachedSleepSession(startTs: 1_700_000_000, endTs: 1_700_028_000, efficiency: 90,
+                                       restingHr: 50, avgHrv: 60, stagesJSON: "[]")
+        _ = try await store.upsertSleepSessions([night], deviceId: "whoop-old")
+
+        // The wearer switched to a new strap; the old one stays registered (archived).
+        ShadowSession.setDevices(activeDeviceId: "whoop-new", registeredWhoopIds: ["whoop-old", "whoop-new", "whoop-old"])
+        let reader = try XCTUnwrap(ShadowSession.reader)
+        XCTAssertEqual(reader.activeDeviceId, "whoop-new")
+        XCTAssertEqual(reader.rawPhysiologyReadIds, ["whoop-new", "whoop-old", "my-whoop"])
+        let nights = await reader.unionSleepSessions(from: 1_699_990_000, to: 1_700_100_000)
+        XCTAssertEqual(nights.map(\.startTs), [1_700_000_000], "the retired strap's night is still read")
+
+        // Without the registry the retired strap's night is gone, which is the bug this guards.
+        ShadowSession.setDevices(activeDeviceId: "whoop-new", registeredWhoopIds: [])
+        let bare = await ShadowSession.reader?.unionSleepSessions(from: 1_699_990_000, to: 1_700_100_000)
+        XCTAssertEqual(bare?.count, 0)
+
+        // The writers follow too: an offload after the switch is banked under the new strap's id.
+        ShadowSession.send(.family(whoop5: false))
+        ShadowSession.send(.offloadBegin(continuedAfterRows: false))
+        for record in v25Records { ShadowSession.send(.offload(record)) }
+        ShadowSession.send(.offload(historyEnd(trim: 70_476)))
+        let completed: Bool = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async { continuation.resume(returning: ShadowSession.awaitQueuedEvents()) }
+        }
+        XCTAssertTrue(completed)
+        let newGravity = try await store.gravitySamples(deviceId: "whoop-new", from: 0, to: Int.max, limit: 10)
+        let oldGravity = try await store.gravitySamples(deviceId: "whoop-old", from: 0, to: Int.max, limit: 10)
+        XCTAssertFalse(newGravity.isEmpty, "frames after the switch belong to the new strap")
+        XCTAssertTrue(oldGravity.isEmpty)
+    }
 }

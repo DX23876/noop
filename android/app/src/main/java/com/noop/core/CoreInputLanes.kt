@@ -53,6 +53,58 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
 
         /** Columns Room carries and the core does not: a route stays on Android, as Apple keeps routes outside. */
         private val ROOM_ONLY = mapOf("workout" to setOf("routePolyline"))
+
+        /**
+         * Mirror failures in this process. [ensure] clears the repair mark only when none came in while it staged:
+         * a failure during a repair may concern a write the snapshot already missed, so its mark must survive.
+         */
+        private val failures = java.util.concurrent.atomic.AtomicLong(0)
+
+        /**
+         * Set once a backup restore replaced the core's store file: until the restart that opens it, no repair may
+         * be marked, since a repair restages Room's pre-restore rows with `replace` over the restored lanes.
+         */
+        @Volatile
+        private var restored = false
+
+        /**
+         * A `.noopbak` restore replaced the core's store: forgets a repair waiting for the next [ensure] (it would
+         * write Room's pre-restore snapshot over the restored lanes) and keeps later mirror failures in this
+         * process from marking one. Written synchronously, as the wearer restarts the app next.
+         */
+        fun forgetRepairAfterRestore(context: Context) {
+            restored = true
+            ready = false
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_REPAIR, false).commit()
+        }
+
+        /** Whether a repair waits for the next [ensure]. */
+        internal fun repairPending(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_REPAIR, false)
+
+        /** The failures so far, read by [ensure] before it stages. */
+        internal fun failureCount(): Long = failures.get()
+
+        /** Clears the repair mark only when no mirror failed since [seen] was read. */
+        internal fun mayClearRepair(seen: Long): Boolean = seen == failures.get()
+
+        /**
+         * A mirror failed: the lanes are behind Room until a repair restages them, which is marked for the next
+         * [ensure] unless a restore replaced the store since (`restored`).
+         */
+        internal fun noteMirrorFailure(context: Context, table: String, error: Throwable) {
+            ready = false
+            failures.incrementAndGet()
+            if (restored) {
+                Log.w(TAG, "mirror of $table failed after a restore; the restored store opens on restart: ${error.message}")
+                return
+            }
+            Log.w(TAG, "mirror of $table failed; repair on next adoption check: ${error.message}")
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_REPAIR, true).apply()
+        }
+
+        @androidx.annotation.VisibleForTesting
+        internal fun resetRestoreForTest() { restored = false }
     }
 
     private val prefs get() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -61,7 +113,10 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
     suspend fun ensure() = withContext(Dispatchers.IO) {
         if (!SwiftCore.available) return@withContext
         mutex.withLock {
+            // The restored store opens only after the restart; the open one must not be restaged meanwhile.
+            if (restored) return@withLock
             CoreRead.open(context)
+            val seen = failureCount()
             val owned = JSONObject(call("lanes.owned", JSONObject())).getBoolean("owned")
             val repair = prefs.getBoolean(KEY_REPAIR, false)
             if (owned && !repair) { ready = true; return@withLock }
@@ -80,6 +135,13 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
                 }
             }
             val moved = JSONObject(call("lanes.commit", JSONObject().put("replace", owned))).optInt("moved")
+            // A mirror that failed while this pass staged keeps its mark, and the lanes stay unready until the
+            // next pass repairs them again.
+            if (!mayClearRepair(seen)) {
+                Log.w(TAG, "a mirror failed during the ${if (owned) "repair" else "adoption"}; repairing again next time")
+                CoreShadow.noteDataChanged()
+                return@withLock
+            }
             prefs.edit().putBoolean(KEY_REPAIR, false).apply()
             ready = true
             Log.i(TAG, "input lanes ${if (owned) "repaired" else "adopted"}: $moved rows")
@@ -122,11 +184,7 @@ class CoreInputLanes(private val context: Context, private val db: WhoopDatabase
         (0 until rows.length()).map { i -> keyColumns.map { rows.getJSONObject(i).opt(it).takeUnless { v -> v == JSONObject.NULL } } }
     }
 
-    private fun markForRepair(table: String, error: Throwable) {
-        Log.w(TAG, "mirror of $table failed; repair on next adoption check: ${error.message}")
-        ready = false
-        prefs.edit().putBoolean(KEY_REPAIR, true).apply()
-    }
+    private fun markForRepair(table: String, error: Throwable) = noteMirrorFailure(context, table, error)
 
     /** Longs and whole doubles compare as the same key whichever way the column handed them back. */
     private fun comparable(value: Any?): Any? = when (value) {

@@ -127,7 +127,12 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     val zone = ZoneId.systemDefault()
     var model by remember { mutableStateOf<SleepModel?>(null) }
     var index by rememberSaveable { mutableIntStateOf(-1) }   // -1: the latest night
-    LaunchedEffect(Unit) {
+    // One data revision for the nights and the Night detail tiles below, so a sync refreshes both together
+    // instead of the tiles moving to the new night while the ring and stages still show the old one: Room's
+    // recent days (the tiles' fallback and every Room write) and the core's own revision (its passes and lanes).
+    val recentDays by viewModel.recentDays.collectAsState()
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(recentDays, coreRevision) {
         model = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             val now = Instant.now().epochSecond
@@ -145,8 +150,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     val v5 by viewModel.v5Signals.collectAsState()
     // The Night detail tiles' model, built as the former Android Sleep screen built it (`fallbackSleepModel`
     // over the daily rows, the export-verbatim sleep figures and the merged sessions with their naps).
-    val recentDays by viewModel.recentDays.collectAsState()
-    val tiles by androidx.compose.runtime.produceState<com.noop.ui.SleepModel?>(null, recentDays) {
+    val tiles by androidx.compose.runtime.produceState<com.noop.ui.SleepModel?>(null, recentDays, coreRevision) {
         value = withContext(Dispatchers.IO) {
             // The daily rows come from the shared core (the merged rows iOS's `repo.days` reads); Room's recent days
             // stand in only when the core is not open.
