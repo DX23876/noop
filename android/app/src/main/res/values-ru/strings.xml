@@ -4862,4 +4862,5 @@
     <string name="forge_profile_not_set">Не задано</string>
     <string name="forge_profile_change_photo">Изменить фото</string>
     <string name="forge_profile_choose_photo">Выбрать фото</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Усилие откалибровано заново</string>
 </resources>

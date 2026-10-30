@@ -4931,4 +4931,5 @@
     <string name="forge_profile_not_set">未设置</string>
     <string name="forge_profile_change_photo">更改照片</string>
     <string name="forge_profile_choose_photo">选择照片</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">消耗重新校准</string>
 </resources>

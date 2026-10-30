@@ -4960,4 +4960,5 @@
     <string name="forge_profile_not_set">Non défini</string>
     <string name="forge_profile_change_photo">Changer de photo</string>
     <string name="forge_profile_choose_photo">Choisir une photo</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Effort recalibré</string>
 </resources>

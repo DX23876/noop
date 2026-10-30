@@ -566139,6 +566139,296 @@
           }
         }
       }
+    },
+    "Effort, recalibrated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belastung neu kalibriert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esfuerzo recalibrado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort recalibré"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sforzo ricalibrato"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysiłek na nowo skalibrowany"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esforço recalibrado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Усилие откалибровано заново"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗重新校准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗重新校準"
+          }
+        }
+      }
+    },
+    "**Effort, recalibrated.** One curve, fitted on 3,760 workouts that 15 people shared. A quiet day no longer adds up to a moderate one, and hard training counts for more." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Belastung neu kalibriert.** Eine Kurve, angepasst an 3.760 Workouts, die 15 Personen geteilt haben. Ein ruhiger Tag summiert sich nicht mehr zu einem mittleren, hartes Training zählt mehr."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Esfuerzo recalibrado.** Una sola curva, ajustada con 3.760 entrenamientos que compartieron 15 personas. Un día tranquilo ya no suma lo de un día moderado, y el entrenamiento duro cuenta más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**L'Effort recalibré.** Une seule courbe, ajustée sur 3 760 séances partagées par 15 personnes. Une journée calme ne s'additionne plus en journée modérée, et l'entraînement intense compte davantage."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Sforzo ricalibrato.** Una sola curva, adattata su 3.760 allenamenti condivisi da 15 persone. Una giornata tranquilla non si somma più a una moderata, e l'allenamento intenso conta di più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Wysiłek na nowo skalibrowany.** Jedna krzywa dopasowana do 3760 treningów udostępnionych przez 15 osób. Spokojny dzień nie sumuje się już do umiarkowanego, a ciężki trening liczy się bardziej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Esforço recalibrado.** Uma só curva, ajustada a 3760 treinos partilhados por 15 pessoas. Um dia calmo já não soma o mesmo que um dia moderado, e o treino intenso conta mais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Усилие откалибровано заново.** Одна кривая, подобранная по 3760 тренировкам, которыми поделились 15 человек. Спокойный день больше не складывается в умеренный, а тяжёлая тренировка весит больше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**消耗重新校准。** 一条曲线，依据 15 人分享的 3760 次锻炼拟合。平静的一天不再累计成中等强度，高强度训练分量更重。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**消耗重新校準。** 一條曲線，依據 15 人分享的 3760 次鍛鍊擬合。平靜的一天不再累計成中等強度，高強度訓練分量更重。"
+          }
+        }
+      }
+    },
+    "**Your own maximum heart rate.** NOOP learns it from the peaks you hold in workouts. Settings shows where the value comes from, and a value you enter always wins." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Dein eigener Maximalpuls.** NOOP lernt ihn aus den Spitzen, die du in Workouts hältst. Die Einstellungen zeigen, woher der Wert kommt; ein eingetragener Wert hat immer Vorrang."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Tu propia frecuencia cardíaca máxima.** NOOP la aprende de los picos que mantienes en tus entrenamientos. Ajustes muestra de dónde sale el valor, y un valor que introduzcas siempre manda."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Votre propre fréquence cardiaque maximale.** NOOP l'apprend des pics que vous tenez pendant vos séances. Les Paramètres indiquent d'où vient la valeur, et une valeur saisie l'emporte toujours."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**La tua frequenza cardiaca massima.** NOOP la impara dai picchi che mantieni negli allenamenti. Le Impostazioni mostrano da dove viene il valore, e un valore inserito da te vale sempre."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Twoje własne tętno maksymalne.** NOOP uczy się go ze szczytów, które utrzymujesz podczas treningów. Ustawienia pokazują, skąd pochodzi wartość, a wpisana przez ciebie wartość zawsze ma pierwszeństwo."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**A tua frequência cardíaca máxima.** O NOOP aprende-a com os picos que manténs nos treinos. As Definições mostram de onde vem o valor, e um valor que introduzas prevalece sempre."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ваш собственный максимальный пульс.** NOOP узнаёт его по пикам, которые вы удерживаете на тренировках. В Настройках видно, откуда взято значение, а введённое вами значение всегда в приоритете."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**你自己的最大心率。** NOOP 从你在锻炼中保持的峰值学习它。设置会显示数值的来源，你输入的数值始终优先。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**你自己的最大心率。** NOOP 從你在鍛鍊中維持的峰值學習它。設定會顯示數值的來源，你輸入的數值始終優先。"
+          }
+        }
+      }
+    },
+    "**Every day scored the same way.** After the update NOOP calculates your whole history again, once. Keep NOOP open; if it is closed, it continues where it stopped." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Jeder Tag gleich bewertet.** Nach dem Update berechnet NOOP deinen ganzen Verlauf einmal neu. Lass NOOP dabei offen; wird es geschlossen, macht es an der Stelle weiter."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Todos los días puntuados igual.** Tras la actualización, NOOP vuelve a calcular todo tu historial una vez. Mantén NOOP abierta; si se cierra, continúa donde lo dejó."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Chaque jour évalué de la même façon.** Après la mise à jour, NOOP recalcule tout votre historique, une seule fois. Gardez NOOP ouverte ; si elle est fermée, elle reprend là où elle s'était arrêtée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ogni giorno valutato allo stesso modo.** Dopo l'aggiornamento NOOP ricalcola una volta tutta la tua cronologia. Tieni NOOP aperta; se viene chiusa, riprende da dove si era fermata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Każdy dzień oceniany tak samo.** Po aktualizacji NOOP jednorazowo przelicza całą twoją historię. Nie zamykaj NOOP; jeśli zostanie zamknięta, wznowi pracę od miejsca, w którym przerwała."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Todos os dias avaliados da mesma forma.** Depois da atualização, o NOOP volta a calcular todo o teu histórico, uma vez. Mantém o NOOP aberto; se for fechado, continua onde parou."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Каждый день оценивается одинаково.** После обновления NOOP один раз пересчитывает всю вашу историю. Не закрывайте NOOP; если его закрыть, он продолжит с того места, где остановился."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**每一天都按同一方式评分。** 更新后，NOOP 会把你的全部历史重新计算一次。请保持 NOOP 打开；若被关闭，它会从中断处继续。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**每一天都按同一方式評分。** 更新後，NOOP 會把你的全部歷史重新計算一次。請保持 NOOP 開啟；若被關閉，它會從中斷處繼續。"
+          }
+        }
+      }
+    },
+    "**A calmer start to the night.** Short quiet spells before you fall asleep no longer pull the start of the night forward. The earlier method stays in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ein ruhigerer Start in die Nacht.** Kurze ruhige Phasen vor dem Einschlafen ziehen den Beginn der Nacht nicht mehr nach vorn. Die bisherige Methode bleibt in den Einstellungen wählbar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un inicio de la noche más prudente.** Los breves ratos de calma antes de dormirte ya no adelantan el inicio de la noche. El método anterior sigue disponible en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un début de nuit plus prudent.** Les courts moments de calme avant l'endormissement n'avancent plus le début de la nuit. L'ancienne méthode reste disponible dans les Paramètres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Un inizio della notte più prudente.** I brevi momenti di quiete prima di addormentarti non anticipano più l'inizio della notte. Il metodo precedente resta disponibile nelle Impostazioni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Ostrożniejszy początek nocy.** Krótkie chwile spokoju przed zaśnięciem nie przesuwają już początku nocy wcześniej. Poprzednia metoda pozostaje dostępna w Ustawieniach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Um início de noite mais prudente.** Breves momentos de calma antes de adormeceres já não antecipam o início da noite. O método anterior continua disponível nas Definições."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Более осторожное начало ночи.** Короткие спокойные промежутки перед засыпанием больше не сдвигают начало ночи раньше. Прежний метод по-прежнему доступен в Настройках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**更稳妥的入夜起点。** 入睡前短暂的安静时段不再把夜晚的开始提前。之前的方法仍可在设置中选择。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**更穩妥的入夜起點。** 入睡前短暫的安靜時段不再把夜晚的開始提前。之前的方法仍可在設定中選擇。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
