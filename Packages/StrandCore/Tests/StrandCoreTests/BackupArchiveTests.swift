@@ -40,8 +40,14 @@ final class BackupArchiveTests: XCTestCase {
         XCTAssertEqual(BackupArchive.verifyWritten(at: backup), .intact)
 
         var appliedSettings: Data?
+        var replacedBeforeSwap: Bool?
         let outcome = BackupArchive.restore(from: backup, toDatabaseAt: live.path, scratchRoot: dir,
+                                            willReplaceDatabase: {
+                                                // Called while the live file is still the old store.
+                                                replacedBeforeSwap = FileManager.default.fileExists(atPath: live.path)
+                                            },
                                             applySettings: { appliedSettings = $0 })
+        XCTAssertEqual(replacedBeforeSwap, true, "an open store hears of the swap before its file goes")
         guard case .imported(let sidecar) = outcome else { return XCTFail("restore failed: \(outcome)") }
         XCTAssertTrue(FileManager.default.fileExists(atPath: sidecar.path), "the previous store is kept beside")
         XCTAssertEqual(appliedSettings, Data("{}".utf8))
@@ -56,6 +62,7 @@ final class BackupArchiveTests: XCTestCase {
         let junk = dir.appendingPathComponent("junk.noopbak")
         try Data("not a backup".utf8).write(to: junk)
         let outcome = BackupArchive.restore(from: junk, toDatabaseAt: live.path, scratchRoot: dir,
+                                            willReplaceDatabase: { XCTFail("a refused file never swaps the store") },
                                             applySettings: { _ in XCTFail("no settings from a failed restore") })
         guard case .failure(.notSQLite) = outcome else { return XCTFail("expected notSQLite, got \(outcome)") }
     }

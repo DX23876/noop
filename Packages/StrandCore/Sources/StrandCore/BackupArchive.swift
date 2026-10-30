@@ -148,9 +148,12 @@ public enum BackupArchive {
     /// touches settings; legacy backups without one restore exactly as before. The optional preparation
     /// hook receives a disposable database copy and the settings entry before the swap. It must checkpoint
     /// and close its writes before returning; a thrown error leaves both the picked and live files intact.
+    /// `willReplaceDatabase` runs immediately before the first byte of the database at `dbPath` moves, and only
+    /// when the swap is about to happen, so a caller that holds that file open can stop trusting its writes.
     public static func restore(from pickedSource: URL, toDatabaseAt dbPath: String, scratchRoot: URL,
                                allowOversize: Bool = false,
                                prepareStagedDatabase: ((URL, Data?) throws -> Void)? = nil,
+                               willReplaceDatabase: (() -> Void)? = nil,
                                applySettings: (Data) -> Void) -> RestoreOutcome {
         // If the picked file is a .noopbak ZIP, extract the SQLite entry to a temp dir first.
         // Legacy plain-SQLite files fall straight through. The extracted dir is cleaned up below.
@@ -266,7 +269,9 @@ public enum BackupArchive {
                 sidecar = dbURL
             }
 
-            // Remove the live DB and its WAL/SHM siblings, then drop the backup in.
+            // Remove the live DB and its WAL/SHM siblings, then drop the backup in. A failed copy below rolls
+            // back by copying too, so the file under an open store is replaced either way.
+            willReplaceDatabase?()
             removeIfPresent(dbURL)
             removeIfPresent(URL(fileURLWithPath: dbPath + "-wal"))
             removeIfPresent(URL(fileURLWithPath: dbPath + "-shm"))
