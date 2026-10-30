@@ -51,6 +51,11 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         func fillAppleWorkoutHeartRate(from: Int, to: Int) async throws -> Int { 0 }
         func ensureEnergyHistoryCurrent(profile: UserProfile, waitIfRunning: Bool) async {}
         func dismissedSleepWindows() -> [(start: Int, end: Int)] { [] }
+        var dismissedWorkoutSpans: [String] = []
+        func rawWorkoutRows(from lo: Int, to hi: Int) async -> [WorkoutRow] {
+            await reader.rawWorkoutRows(from: lo, to: hi, dismissedDetectedSpans: dismissedWorkoutSpans)
+        }
+        func dismissedDetectedWorkoutWindows() -> [Range<Int>] { WorkoutSource.dismissedWindows(dismissedWorkoutSpans) }
         func correctLegacyWorkoutEnergy(profile base: UserProfile) async throws -> Int? { nil }
         func bodyMetrics(days: Int) async -> BodyMetrics {
             await BodyMetricsReader.read(reader: reader, activeDeviceId: reader.activeDeviceId, days: days)
@@ -91,9 +96,10 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         var bools: [String: Bool] = [:]
         var strings: [String: String] = [:]
         var sleepStagerMethod: SleepStager.Method = .v1
+        var dayCycleMode: DayCycleMode = .persisted(nil)
         func analysisSettings() -> AnalysisSettings {
             AnalysisSettings(spo2CandidateDisplay: false, sleepStagerV2: false,
-                             motionAwareWake: false, deepHrvWindow: false, dayCycleMode: .persisted(nil),
+                             motionAwareWake: false, deepHrvWindow: false, dayCycleMode: dayCycleMode,
                              rhythmAge: false, healthspan: false, hrvBaselineEpoch: 0, recoveryBaselineEpoch: 0,
                              traces: [], sleepStagerMethod: sleepStagerMethod)
         }
@@ -260,6 +266,138 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         XCTAssertEqual(services.refreshes, 1, "only the publish step ran")
         let recipe = try await store.cursor(AnalysisRecipe.cursor)
         XCTAssertEqual(recipe, target)
+    }
+
+    // MARK: - Effort's workout time (#2438)
+
+    /// Yesterday as the smoke tests above build it (a night at 50 bpm after a day at 70), then a still day at
+    /// 70 once a minute. `walk` adds a detected bout at 15:00: a 15-minute warm-up at 100 bpm (below 50 % HRR)
+    /// and 20 minutes at 155, both moving, once a second. `lowHour` adds an hour at 100 bpm sitting still from
+    /// 18:00, once a second, which no detector takes for a workout.
+    private func seedYesterday(_ store: WhoopStore, walk: Bool, lowHour: Bool) async throws -> (start: Int, day: String) {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date()))!
+        let start = Int(yesterday.timeIntervalSince1970)
+        let walkStart = start + 15 * 3_600, walkEnd = walkStart + 35 * 60
+        let lowStart = start + 18 * 3_600, lowEnd = lowStart + 3_600
+        var hr = stride(from: start - 24 * 3_600, to: start + 22 * 3_600, by: 60).filter {
+            !(walk && $0 >= walkStart && $0 < walkEnd) && !(lowHour && $0 >= lowStart && $0 < lowEnd)
+        }.map { HRSample(ts: $0, bpm: $0 < start || $0 >= start + 8 * 3_600 ? 70 : 50) }
+        var gravity = hr.filter { $0.ts >= start }.map { GravitySample(ts: $0.ts, x: 0, y: 0, z: 1) }
+        if walk {
+            for t in walkStart ..< walkEnd {
+                hr.append(HRSample(ts: t, bpm: t < walkStart + 15 * 60 ? 100 : 155))
+                gravity.append(GravitySample(ts: t, x: Double(t % 2) * 0.5, y: 0, z: 1))
+            }
+        }
+        if lowHour {
+            for t in lowStart ..< lowEnd {
+                hr.append(HRSample(ts: t, bpm: 100))
+                gravity.append(GravitySample(ts: t, x: 0, y: 0, z: 1))
+            }
+        }
+        try await store.insert(Streams(hr: hr.sorted { $0.ts < $1.ts }, gravity: gravity.sorted { $0.ts < $1.ts }),
+                               deviceId: "my-whoop")
+        return (start, StoreReader.localDayKey(yesterday))
+    }
+
+    private func storedEffort(_ store: WhoopStore, _ day: String) async throws -> Double {
+        let row = try await store.dailyMetrics(deviceId: "my-whoop-noop", from: day, to: day).first
+        return try XCTUnwrap(row?.strain)
+    }
+
+    private func workout(_ start: Int, _ end: Int, sport: String, source: String) -> WorkoutRow {
+        WorkoutRow(startTs: start, endTs: end, sport: sport, source: source, durationS: Double(end - start),
+                   energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil, distanceM: nil, zonesJSON: nil,
+                   notes: nil, steps: nil)
+    }
+
+    /// The stored day and `LiveEffort` read one resolver, the union the Workouts list shows: an activity file,
+    /// a lifting session and a retained strap's recording count, a dismissed detected row does not.
+    func testEffortWorkoutTimeIsTheUnionTheWorkoutsListShows() async throws {
+        let store = try await WhoopStore.inMemory()
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "new-mg",
+                                                         registeredWhoopIds: ["new-mg", "old-five"]))
+        let t = Int(Date().timeIntervalSince1970) - 10 * 3_600
+        _ = try await store.upsertWorkouts([workout(t, t + 600, sport: "Walking", source: "activity-file")],
+                                           deviceId: "activity-file")
+        _ = try await store.upsertWorkouts([workout(t + 1_000, t + 1_600, sport: "Squat", source: "lifting")],
+                                           deviceId: "lifting")
+        _ = try await store.upsertWorkouts([workout(t + 2_000, t + 2_600, sport: "Running", source: "manual")],
+                                           deviceId: "old-five")
+        _ = try await store.upsertWorkouts([workout(t + 3_000, t + 3_600, sport: "detected", source: "my-whoop-noop")],
+                                           deviceId: "my-whoop-noop")
+        services.dismissedWorkoutSpans = ["\(t + 3_000):\(t + 3_600)"]
+
+        let spans = await DailyAnalysis.effortWorkoutSpans(services: services, from: t - 60, to: t + 4_000)
+
+        XCTAssertEqual(Set(spans.map(\.lowerBound)), [t, t + 1_000, t + 2_000])
+    }
+
+    /// A workout imported after its day was scored reaches that day's stored Effort: the pass reads it
+    /// (the activity-file namespace was never read for the stored day) and the day's signature sees it, so a
+    /// pass allowed to reuse days re-derives this one instead of keeping the old Effort.
+    func testAWorkoutImportedLaterReachesTheStoredDay() async throws {
+        let store = try await WhoopStore.inMemory()
+        let (start, day) = try await seedYesterday(store, walk: false, lowHour: true)
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let host = Host()
+        host.dayCycleMode = .midnight
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: true)
+        let before = try await storedEffort(store, day)
+
+        let lowStart = start + 18 * 3_600
+        _ = try await store.upsertWorkouts([workout(lowStart, lowStart + 3_600, sport: "Walking",
+                                                    source: "activity-file")], deviceId: "activity-file")
+        host.lines.removeAll()
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: true)
+
+        let after = try await storedEffort(store, day)
+        XCTAssertGreaterThan(after, before,
+                             "the hour below 50 % HRR counts once it is workout time")
+        XCTAssertTrue(host.lines.contains {
+            $0.hasPrefix("reuse day=\(day) reuse=false miss=") && $0.contains("semanticSignature")
+        }, "the import must re-derive the day, not reuse it: \(host.lines)")
+    }
+
+    /// The activity refresh stores what the full pass stores from the same streams, detected bout included,
+    /// and a dismissed bout leaves both. It never lowers the value already stored for the day.
+    func testTheActivityRefreshScoresTheDayAsTheFullPassDoes() async throws {
+        let store = try await WhoopStore.inMemory()
+        let (start, day) = try await seedYesterday(store, walk: true, lowHour: false)
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let host = Host()
+        host.dayCycleMode = .midnight
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        let lateThatDay = Date(timeIntervalSince1970: TimeInterval(start + 23 * 3_600))
+
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        let passed = try await storedEffort(store, day)
+        // Clear the stored value so the refresh's own score is what lands.
+        _ = try await store.updateDailyStrains([(day: day, strain: 0)], deviceId: "my-whoop-noop")
+        _ = await engine.refreshCurrentDayActivity(now: lateThatDay)
+        let refreshed = try await storedEffort(store, day)
+        XCTAssertEqual(refreshed, passed, accuracy: 1e-9,
+                       "the refresh counts the warm-up inside the detected bout, as the pass does")
+
+        services.dismissedWorkoutSpans = ["\(start + 15 * 3_600):\(start + 15 * 3_600 + 60)"]
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        let dismissed = try await storedEffort(store, day)
+        XCTAssertLessThan(dismissed, passed, "a dismissed bout's warm-up is not workout time")
+        _ = try await store.updateDailyStrains([(day: day, strain: 0)], deviceId: "my-whoop-noop")
+        _ = await engine.refreshCurrentDayActivity(now: lateThatDay)
+        let refreshedDismissed = try await storedEffort(store, day)
+        XCTAssertEqual(refreshedDismissed, dismissed, accuracy: 1e-9)
+
+        _ = try await store.updateDailyStrains([(day: day, strain: dismissed + 5)], deviceId: "my-whoop-noop")
+        _ = await engine.refreshCurrentDayActivity(now: lateThatDay)
+        let floored = try await storedEffort(store, day)
+        XCTAssertEqual(floored, dismissed + 5, accuracy: 1e-9,
+                       "the refresh never lowers the stored value; the next full pass decides")
     }
 
     // MARK: - Rebuild

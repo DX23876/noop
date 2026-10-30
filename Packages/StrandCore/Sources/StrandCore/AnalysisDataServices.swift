@@ -29,6 +29,11 @@ public protocol AnalysisDataServices: AnyObject {
     func fillAppleWorkoutHeartRate(from: Int, to: Int) async throws -> Int
     func ensureEnergyHistoryCurrent(profile: UserProfile, waitIfRunning: Bool) async
     func dismissedSleepWindows() -> [(start: Int, end: Int)]
+    /// The workout rows the Workouts list reads in `[lo, hi]` (`StoreReader.rawWorkoutRows`, dismissed detected
+    /// rows left out). Effort's workout time (`DailyAnalysis.effortWorkoutSpans`) and the workout peaks read it.
+    func rawWorkoutRows(from lo: Int, to hi: Int) async -> [WorkoutRow]
+    /// The detected bouts the wearer dismissed, as `[start, end)` (`WorkoutSource.dismissedDefaultsKey`).
+    func dismissedDetectedWorkoutWindows() -> [Range<Int>]
     func correctLegacyWorkoutEnergy(profile base: UserProfile) async throws -> Int?
     func bodyMetrics(days: Int) async -> BodyMetrics
     func weightSeries(days: Int) async -> [WeightPoint]

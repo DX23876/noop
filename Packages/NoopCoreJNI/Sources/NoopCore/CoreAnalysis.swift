@@ -266,6 +266,12 @@ public enum CoreAnalysis {
         func dismissedSleepWindows() -> [(start: Int, end: Int)] {
             DismissedSleepSpans.windows(from: settings.dismissedSleepSpans)
         }
+        func rawWorkoutRows(from lo: Int, to hi: Int) async -> [WorkoutRow] {
+            await reader.rawWorkoutRows(from: lo, to: hi, dismissedDetectedSpans: settings.dismissedWorkoutSpans)
+        }
+        func dismissedDetectedWorkoutWindows() -> [Range<Int>] {
+            WorkoutSource.dismissedWindows(settings.dismissedWorkoutSpans)
+        }
 
         // MARK: Steps, body, weight
 

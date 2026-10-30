@@ -95,7 +95,7 @@ public final class DailyAnalysis {
 
     private let dayCycleWorker = DayCycleIntelligenceIntegration()
 
-    private let repo: any AnalysisDataServices
+    let repo: any AnalysisDataServices
     private let profile: any AnalysisProfileSource
     /// The CANONICAL id under whose `-noop` sibling this engine WRITES the computed daily rows, and from
     /// which it reads the imported-only baseline (`hist`). STABLE on "my-whoop", it must NOT follow the
@@ -919,9 +919,9 @@ public final class DailyAnalysis {
         case .healthspanReset:
             try await Self.deleteHealthspanWeeks(store: store, deviceId: deviceId)
         case .workoutPeaks:
-            try await Self.bankWorkoutPeaks(store: store, strapId: deviceId, computedId: deviceId + "-noop",
-                                            fromDay: firstDay, toDay: today,
-                                            tzOffset: TimeZone.current.secondsFromGMT())
+            try await bankWorkoutPeaks(store: store, strapId: deviceId, computedId: deviceId + "-noop",
+                                       fromDay: firstDay, toDay: today,
+                                       tzOffset: TimeZone.current.secondsFromGMT())
         case .dailyHistory:
             try await runDailyHistoryPass(days: days)
         case .weeklyScores:
@@ -1070,20 +1070,27 @@ public final class DailyAnalysis {
             deviceId: owner, from: dayStart, to: dayEnd, limit: Int.max)
         async let stepRead = try? store.stepSamples(
             deviceId: owner, from: dayStart, to: dayEnd, limit: Int.max)
+        async let gravityRead = try? store.gravitySamples(
+            deviceId: owner, from: dayStart, to: dayEnd, limit: Int.max)
         async let existingRead = try? store.dailyMetrics(
             deviceId: computedId, from: day, to: day)
-        let (hrOptional, stepOptional, existingOptional) = await (hrRead, stepRead, existingRead)
+        let (hrOptional, stepOptional, gravityOptional, existingOptional)
+            = await (hrRead, stepRead, gravityRead, existingRead)
         let hr = hrOptional ?? []
         let stepSamples = stepOptional ?? []
+        let gravity = gravityOptional ?? []
         let existing = existingOptional?.first
 
         let maxHR = maxHeartRateToday.bpm
-        let restingHR = existing?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
+        let restingHR = existing?.restingHr
         let ticksPerStep = profile.stepTicksPerStep
-        // Today's recorded workouts. The bouts the daily pass detects are not known here, so their time
-        // below 50 % HRR reaches today's Effort with the next pass (`LiveEffort` shows the larger value).
-        let spans = await Self.workoutSpans(store: store, deviceId: deviceId, from: dayStart - 86_400,
-                                            to: dayEnd + 1)
+        let analyticsProfile = profile.analyticsProfile()
+        // Today's workouts through the one resolver, and the bouts the daily pass would detect in the same
+        // streams (`dayEffort`). This refresh writes the stored value the full pass wrote before it, so it
+        // must score what that pass scores: with the recorded workouts alone, every offload LOWERED today's
+        // stored Effort below the pass's value until the next pass raised it again.
+        let spans = await Self.effortWorkoutSpans(services: repo, from: dayStart - 86_400, to: dayEnd + 1)
+        let dismissedBouts = repo.dismissedDetectedWorkoutWindows()
         // The same strength load the full pass gives today (Lab, #2438).
         let strengthLoad = host.analysisSettings().effortStrengthBonus
             ? StrengthEffort.load(await StrengthEffort.read(services: repo, store: store, from: dayStart,
@@ -1092,8 +1099,9 @@ public final class DailyAnalysis {
             : 0
 
         let activity = await Task.detached(priority: .userInitiated) {
-            let strain = StrainScorer.strain(
-                hr, maxHR: maxHR, restingHR: restingHR, lowIntensity: .countedIn(spans), strengthLoad: strengthLoad)
+            let strain = Self.dayEffort(hr: hr, gravity: gravity, restingHR: restingHR, maxHR: maxHR,
+                                        profile: analyticsProfile, workoutSpans: spans,
+                                        dismissedBouts: dismissedBouts, strengthLoad: strengthLoad)
             let steps: Int? = {
                 guard let ticks = StepsCounter.stepsInWindow(stepSamples) else { return nil }
                 let value = Int((Double(ticks) / max(ticksPerStep, 0.5)).rounded())
@@ -1102,11 +1110,18 @@ public final class DailyAnalysis {
             return (strain: strain, steps: steps)
         }.value
 
+        // Never below the value already stored for today. Within a day every input of this refresh only
+        // accumulates (heart rate offloads, workouts are recorded), so between two full passes a lower result
+        // cannot be a correct update: it is a different window (in sleep-onset mode the pass stores the wake
+        // cycle, which this calendar-day read cannot reproduce) or a change only the pass applies (a dismissed
+        // bout or a removed workout, which move the day's signature). The full pass writes its own value
+        // unconditionally, so this floor never holds a value the pass has replaced.
+        let strain = activity.strain.map { max($0, existing?.strain ?? 0) }
         do {
             _ = try await store.upsertDailyActivity(
-                day: day, strain: activity.strain, steps: activity.steps, deviceId: computedId)
+                day: day, strain: strain, steps: activity.steps, deviceId: computedId)
             await repo.refresh(days: 120)
-            let strainLog = activity.strain.map { String(format: "%.1f", $0) } ?? "nil"
+            let strainLog = strain.map { String(format: "%.1f", $0) } ?? "nil"
             let stepsLog = activity.steps.map(String.init) ?? "nil"
             host.diagnostic(
                 "activity refresh day=\(day) owner=\(owner) hr=\(hr.count) stepsRaw=\(stepSamples.count) "
@@ -1152,6 +1167,12 @@ public final class DailyAnalysis {
         let devices = (try? registry.all()) ?? []
         let activeId = (try? registry.activeDeviceId()) ?? fallbackId
 
+        let analyticsProfile = profile.analyticsProfile()
+        let dismissedBouts = repo.dismissedDetectedWorkoutWindows()
+        // The batch's workout time, read once over every day in it (the one resolver, `effortWorkoutSpans`).
+        let batchStarts = batch.compactMap { Self.midnightForDayKey($0.day, offsetSec: offset) }
+        let spans = await Self.effortWorkoutSpans(services: repo, from: (batchStarts.min() ?? 0) - 86_400,
+                                                  to: (batchStarts.max() ?? 0) + 2 * 86_400)
         let updates: [(day: String, strain: Double?)] = await runUnescalated(priority: .background) {
             var result: [(day: String, strain: Double?)] = []
             result.reserveCapacity(batch.count)
@@ -1167,11 +1188,12 @@ public final class DailyAnalysis {
                 let hr = (try? await store.hrSamples(deviceId: owner, from: dayStart,
                                                      to: dayStart + 86_400 - 1,
                                                      limit: Int.max)) ?? []
-                let resting = row.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-                let spans = await Self.workoutSpans(store: store, deviceId: fallbackId, from: dayStart - 86_400,
-                                                    to: dayStart + 2 * 86_400)
-                let strain = StrainScorer.strain(hr, maxHR: maxHR, restingHR: resting,
-                                                 lowIntensity: .countedIn(spans))
+                let gravity = (try? await store.gravitySamples(deviceId: owner, from: dayStart,
+                                                               to: dayStart + 86_400 - 1,
+                                                               limit: Int.max)) ?? []
+                let strain = Self.dayEffort(hr: hr, gravity: gravity, restingHR: row.restingHr, maxHR: maxHR,
+                                            profile: analyticsProfile, workoutSpans: spans,
+                                            dismissedBouts: dismissedBouts, strengthLoad: 0)
                 result.append((row.day, strain))
             }
             return result
@@ -1376,14 +1398,54 @@ public final class DailyAnalysis {
         MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(profile.age), measured: measuredMaxHeartRate)
     }
 
-    /// Recorded and imported workouts `[start, end)` in `[from, to]`: the strap's rows, NOOP's own and
-    /// Apple Health's. Inside them heart rate below 50 % HRR counts toward the day's Effort (#2438).
-    nonisolated static func workoutSpans(store: WhoopStore, deviceId: String, from: Int, to: Int) async -> [Range<Int>] {
-        var rows: [WorkoutRow] = []
-        for source in [deviceId, deviceId + "-noop", MetricResolver.appleHealthSource] {
-            rows += (try? await store.workouts(deviceId: source, from: from, to: to, limit: 100_000)) ?? []
+    /// Recorded and imported workouts `[start, end)` in `[from, to]`: inside them heart rate below 50 % HRR
+    /// counts toward the day's Effort (#2438). Every row the Workouts list shows, read through the one union
+    /// (`AnalysisDataServices.rawWorkoutRows`: every registered and retired strap, NOOP's own sessions, Apple
+    /// Health, lifting and activity files, Oura; dismissed detected rows left out).
+    ///
+    /// The ONE resolver for this fact. The stored day, the activity refresh and `LiveEffort` all read it, so
+    /// the live Effort of today and the value stored for it once it is history cannot count different workout
+    /// time. They did: the stored day read three namespaces of the canonical id while the live value read the
+    /// whole union, so a lifting session or an activity file raised today's Effort and fell out of it the
+    /// next morning.
+    public static func effortWorkoutSpans(services: any AnalysisDataServices, from: Int, to: Int) async -> [Range<Int>] {
+        effortWorkoutSpans(await services.rawWorkoutRows(from: from, to: to))
+    }
+
+    /// The `[start, end)` of each row with a positive length.
+    public nonisolated static func effortWorkoutSpans(_ rows: [WorkoutRow]) -> [Range<Int>] {
+        rows.filter { $0.endTs > $0.startTs }.map { $0.startTs ..< $0.endTs }
+    }
+
+    /// The workout part of a day's reuse signature: an FNV-1a hash of the workout time and the dismissed bouts
+    /// that overlap the local day starting at `dayStart`, nil on a day with neither. Stable across runs and
+    /// platforms (never `hashValue`), and short however many workouts the day holds.
+    nonisolated static func effortWorkoutSignature(dayStart: Int, spans: [Range<Int>],
+                                                   dismissed: [Range<Int>]) -> String? {
+        let day = dayStart ..< dayStart + 86_400
+        let parts = spans.filter { $0.overlaps(day) }.map { "w\($0.lowerBound)-\($0.upperBound)" }
+            + dismissed.filter { $0.overlaps(day) }.map { "d\($0.lowerBound)-\($0.upperBound)" }
+        guard !parts.isEmpty else { return nil }
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in parts.sorted().joined(separator: ",").utf8 {
+            hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01b3
         }
-        return rows.filter { $0.endTs > $0.startTs }.map { $0.startTs ..< $0.endTs }
+        return String(hash, radix: 16)
+    }
+
+    /// A calendar day's Effort from its own streams, as `AnalyticsEngine.analyzeDay` scores it: the bouts the
+    /// day detects (`AnalyticsEngine.detectDayBouts`, same arguments) join the workout time, a dismissed bout
+    /// does not (`AnalyticsEngine.effortSpans`), and `restingHR` nil falls back as the pass does. For the paths
+    /// that score Effort without the full pass, so the value they store is the one the pass would store.
+    nonisolated static func dayEffort(hr: [HRSample], gravity: [GravitySample], restingHR: Int?, maxHR: Double?,
+                                      profile: UserProfile, workoutSpans: [Range<Int>],
+                                      dismissedBouts: [Range<Int>], strengthLoad: Double) -> Double? {
+        let bouts = AnalyticsEngine.detectDayBouts(hr: hr, gravity: gravity, restingHR: restingHR.map(Double.init),
+                                                   maxHR: maxHR, profile: profile)
+        return StrainScorer.strain(hr, maxHR: maxHR, restingHR: restingHR.map(Double.init) ?? StrainScorer.defaultRestingHR,
+                                   lowIntensity: .countedIn(AnalyticsEngine.effortSpans(
+                                    workouts: workoutSpans, detected: bouts, dismissed: dismissedBouts)),
+                                   strengthLoad: strengthLoad)
     }
 
     /// The strength load per local day of each session's start, leaving out days without one.
@@ -1852,9 +1914,18 @@ public final class DailyAnalysis {
         host.store(measuredByDay[newestScanDay]?.stored, forKey: MaxHeartRate.measuredLevelKey)
         // #2438 step 1: the recorded and imported workouts of the window, read once. Each day's Effort
         // counts heart rate below 50 % HRR only inside them and inside the bouts that day detects.
-        let effortWorkoutSpans = await Self.workoutSpans(
-            store: store, deviceId: deviceId, from: nowLocalMidnight - (maxDays + 2) * 86_400,
-            to: nowLocalMidnight + 2 * 86_400)
+        let effortWorkoutSpans = await Self.effortWorkoutSpans(
+            services: repo, from: nowLocalMidnight - (maxDays + 2) * 86_400, to: nowLocalMidnight + 2 * 86_400)
+        // Detected bouts the wearer dismissed are not workout time (`AnalyticsEngine.effortSpans`).
+        let dismissedBouts = repo.dismissedDetectedWorkoutWindows()
+        // Workouts are an Effort input since AI-32, and nothing in a day's input revision sees them: a workout
+        // imported from Apple Health, Hevy or a file after its day was scored left the day reused with the old
+        // Effort. Each day's workout time and dismissals go into its signature instead.
+        let workoutSignatureByDay = (0..<maxDays).reduce(into: [String: String]()) { out, offset in
+            let dayStart = nowLocalMidnight - offset * 86_400
+            out[AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)] = Self.effortWorkoutSignature(
+                dayStart: dayStart, spans: effortWorkoutSpans, dismissed: dismissedBouts)
+        }
         // Lab (#2438): the load rated strength sessions add to the day they start on. A day's value is part of
         // its signature, so rating a session or turning the switch re-derives exactly the days it moves.
         let strengthSessions: [StrengthEffort.Session] = settings.effortStrengthBonus
@@ -1900,6 +1971,8 @@ public final class DailyAnalysis {
                 + "|weight=\((weightByDay[day] ?? profileWeightKg).bitPattern)"
                 // Only on a day with strength load, so every other day keeps its signature.
                 + (strengthLoadByDay[day].map { "|strength=\($0.bitPattern)" } ?? "")
+                // Only on a day with workout time or a dismissed bout, likewise.
+                + (workoutSignatureByDay[day].map { "|workouts=\($0)" } ?? "")
         }
         // ── Per-day skip (#launch-rescore) ───────────────────────────────────────────────────────────
         // Re-deriving a day costs a ~54 h read (~950 k rows on a fully-worn library) plus sleep staging,
@@ -2369,6 +2442,7 @@ public final class DailyAnalysis {
                                                          $0.lowerBound < dayStart + 2 * 86_400
                                                              && dayStart - 86_400 < $0.upperBound
                                                      },
+                                                     dismissedBouts: dismissedBouts,
                                                      strengthLoad: strengthLoadByDay[day] ?? 0,
                                                      workoutPeakMET: EnergyModelRefresh.peakMET(
                                                         on: day, in: workoutPeakByDay),
@@ -3023,6 +3097,8 @@ public final class DailyAnalysis {
             candidates: cycleCandidates,
             physiologyOwners: physiologyOwners,
             workouts: cycleWorkouts,
+            effortWorkoutSpans: effortWorkoutSpans,
+            dismissedBouts: dismissedBouts,
             strengthSessions: strengthSessions,
             windowStart: windowStart,
             now: now,
@@ -3510,8 +3586,8 @@ public final class DailyAnalysis {
         // Fork: each day's sustained workout peak, which the next pass reads for the measured maximum heart
         // rate (MaxHRPeakSeries.swift, `MaxHeartRate.measuredLevels`). Banked after the days are scored, so a
         // workout this pass detected counts from the next day on, never for its own day.
-        await Self.bankWorkoutPeaks(store: store, strapId: deviceId, computedId: computedId,
-                                    oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
+        await bankWorkoutPeaks(store: store, strapId: deviceId, computedId: computedId,
+                               oldestDay: oldestDay, newestDay: newestDay, tzOffset: tzOffset)
         // Fork: daily-rhythm readout (CosinorAge beta), once per local day (DailyAnalysis+RhythmAge.swift).
         if settings.rhythmAge {
             await Self.runRhythmAgePass(store: store, strapId: deviceId, computedId: computedId, age: profile.age,

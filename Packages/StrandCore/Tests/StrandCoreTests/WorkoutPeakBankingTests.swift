@@ -16,8 +16,8 @@ final class WorkoutPeakBankingTests: XCTestCase {
 
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: dir) }
 
-    private func workout(_ start: Int, minutes: Int) -> WorkoutRow {
-        WorkoutRow(startTs: start, endTs: start + minutes * 60, sport: "Running", source: "manual",
+    private func workout(_ start: Int, minutes: Int, source: String = "manual") -> WorkoutRow {
+        WorkoutRow(startTs: start, endTs: start + minutes * 60, sport: "Running", source: source,
                    durationS: Double(minutes * 60), energyKcal: nil, avgHr: nil, maxHr: 230, strain: nil,
                    distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
     }
@@ -33,9 +33,9 @@ final class WorkoutPeakBankingTests: XCTestCase {
         hr[700] = HRSample(ts: start + 700, bpm: 205)
         hr += (0..<30).map { HRSample(ts: start + 3_600 + $0, bpm: 199) }
         _ = try await store.insert(Streams(hr: hr), deviceId: "strap")
-        _ = try await store.upsertWorkouts([workout(start, minutes: 20)], deviceId: "strap")
 
-        try await DailyAnalysis.bankWorkoutPeaks(store: store, strapId: "strap", computedId: "strap-noop",
+        try await DailyAnalysis.bankWorkoutPeaks(store: store, workouts: [workout(start, minutes: 20)],
+                                                 strapId: "strap", computedId: "strap-noop",
                                                  fromDay: day, toDay: day, tzOffset: 0)
 
         let banked = try await store.metricSeries(deviceId: "strap-noop", key: DailyAnalysis.workoutPeakKey,
@@ -48,13 +48,40 @@ final class WorkoutPeakBankingTests: XCTestCase {
         let day = "2026-10-21"
         let start = try XCTUnwrap(DailyAnalysis.midnightForDayKey(day, offsetSec: 0)) + 8 * 3_600
         _ = try await store.insert(Streams(hr: (0..<600).map { HRSample(ts: start + $0, bpm: 176) }), deviceId: "strap")
-        _ = try await store.upsertWorkouts([workout(start, minutes: 10)], deviceId: MetricResolver.appleHealthSource)
+        let imported = workout(start, minutes: 10, source: "apple_health")
 
-        try await DailyAnalysis.bankWorkoutPeaks(store: store, strapId: "strap", computedId: "strap-noop",
+        try await DailyAnalysis.bankWorkoutPeaks(store: store, workouts: [imported],
+                                                 strapId: "strap", computedId: "strap-noop",
                                                  fromDay: day, toDay: day, tzOffset: 0)
 
         let banked = try await store.metricSeries(deviceId: "strap-noop", key: DailyAnalysis.workoutPeakKey,
                                                   from: day, to: day)
         XCTAssertEqual(banked.map(\.value), [176], "the imported row's own maxHr of 230 is never read")
+    }
+
+    /// A day worn on a strap that has since been replaced banks that strap's peak: the trace is read from the
+    /// day's owner, not from the strap connected now (the WHOOP 5.0 to MG change of 2026-10-01).
+    func testADayOfARetiredStrapBanksThatStrapsPeak() async throws {
+        let store = try await WhoopStore(path: dir.appendingPathComponent("s.sqlite").path)
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        for id in ["old-five", "new-mg"] {
+            try registry.add(PairedDevice(id: id, brand: "WHOOP", model: id == "old-five" ? "5.0" : "MG",
+                                          sourceKind: .liveBLE, capabilities: [.hr], status: .paired,
+                                          addedAt: 1, lastSeenAt: 1))
+        }
+        try registry.setActive("new-mg")
+        try registry.archive("old-five")
+        let day = "2026-09-20"
+        let start = try XCTUnwrap(DailyAnalysis.midnightForDayKey(day, offsetSec: 0)) + 9 * 3_600
+        _ = try await store.insert(Streams(hr: (0..<600).map { HRSample(ts: start + $0, bpm: 181) }),
+                                   deviceId: "old-five")
+
+        try await DailyAnalysis.bankWorkoutPeaks(store: store, workouts: [workout(start, minutes: 10)],
+                                                 strapId: "my-whoop", computedId: "my-whoop-noop",
+                                                 fromDay: day, toDay: day, tzOffset: 0)
+
+        let banked = try await store.metricSeries(deviceId: "my-whoop-noop", key: DailyAnalysis.workoutPeakKey,
+                                                  from: day, to: day)
+        XCTAssertEqual(banked.map(\.value), [181])
     }
 }
