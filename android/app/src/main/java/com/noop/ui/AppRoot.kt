@@ -438,13 +438,13 @@ object BottomBarStyleStore {
     }
 
     /**
-     * Whether the AI Coach is offered at all. Default ON, so every existing install is unchanged.
+     * Whether the AI Coach is offered at all, as [NoopPrefs.coachEnabled] stores it ([load] sets it at start).
      *
      * Lives here rather than being read straight from prefs at the call site because the bar has to
      * RECOMPOSE when it flips: a plain `NoopPrefs.coachEnabled(ctx)` read inside the bar would be a
      * snapshot taken once, and the tab would not appear or vanish until the next process start.
      */
-    var coachEnabled by mutableStateOf(true)
+    var coachEnabled by mutableStateOf(false)
         private set
 
     /**
