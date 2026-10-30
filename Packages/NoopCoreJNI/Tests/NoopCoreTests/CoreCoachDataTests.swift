@@ -53,22 +53,40 @@ final class CoreCoachDataTests: XCTestCase {
         XCTAssertEqual(vo2.map(\.value), [44])
     }
 
-    /// Lanes the core cannot read yet answer nothing, and the profile feeds the cardio pricing inputs.
-    func testUnreadLanesAnswerNothing() async throws {
+    /// The lanes Apple's `Repository` answers are answered here too: mood from the check-in lane, the Training Load
+    /// reading rendered as Apple renders it, and a weigh-in on the core's weight lane; the profile feeds the cardio
+    /// pricing inputs. An empty history still has no cardio room.
+    func testCoachLanesAnswerAsOnApple() async throws {
         let store = try await WhoopStore.inMemory()
         let reader = StoreReader(store: store, activeDeviceId: "owned-strap", registeredWhoopIds: [])
+        _ = try await store.upsertMetricSeries([.init(day: today, key: MoodStore.moodKey, value: 4)],
+                                               deviceId: MoodStore.moodDeviceId)
         let coach = CoreCoachData(reader: reader, settings: settings, now: now)
+        await coach.load()
         let cardio = await coach.cardioRoomToday()
         let brief = await coach.trainingLoadBrief()
         let mood = await coach.moodSeries(days: 30)
         XCTAssertNil(cardio)
-        XCTAssertEqual(brief, "")
-        XCTAssertTrue(mood.isEmpty)
+        XCTAssertTrue(brief.hasPrefix("TRAINING LOAD"), brief)
+        XCTAssertEqual(mood.map(\.value), [4])
+        let row = await coach.logWeight(kg: 81.5, at: now, note: nil, source: .manual)
+        XCTAssertEqual(row?.weightKg, 81.5)
+        XCTAssertEqual(row?.deviceId, WhoopStore.noopWeightSourceId)
+        let weights = await coach.weightSeries(days: 2)
+        XCTAssertEqual(weights.last?.value, 81.5)
         XCTAssertEqual(coach.strainProfileSex, "female")
         XCTAssertEqual(coach.cardioLoadMaxHR, Double(StrainScorer.defaultMaxHR()))
         XCTAssertEqual(coach.deviceId, "owned-strap")
         let profile = coach.coachProfile()
         XCTAssertEqual(profile.sex, "female")
         XCTAssertEqual(profile.hrZoneSet.zones.count, 5)
+    }
+
+    /// Momentum's cycle line takes the same phase words and day range as Apple's dashboards.
+    func testCyclePhaseWording() {
+        XCTAssertEqual(MomentumCopy.cyclePhaseTitle(.luteal), "Luteal")
+        XCTAssertEqual(MomentumCopy.cycleDayRange(low: 12, high: 12), "~day 12")
+        XCTAssertEqual(MomentumCopy.cycleDayRange(low: 12, high: 15), "~day 12-15")
+        XCTAssertNil(MomentumCopy.cycleDayRange(low: nil, high: 15))
     }
 }

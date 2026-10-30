@@ -132,4 +132,22 @@ enum MomentumCopy {
             }
         }
     }
+
+    /// The phase name `MenstrualCycleHomeCard`, both dashboards' cycle sections and Momentum use — one vocabulary for
+    /// a phase, not a second guess at what to call each `CyclePhaseEngine.Phase`. Shared with the Android core.
+    static func cyclePhaseTitle(_ phase: CyclePhaseEngine.Phase) -> String {
+        switch phase {
+        case .follicular:    return String(localized: "Follicular")
+        case .periOvulatory: return String(localized: "Mid-cycle shift")
+        case .luteal:        return String(localized: "Luteal")
+        case .unknown:       return String(localized: "No clear pattern")
+        case .learning:      return String(localized: "Learning your pattern")
+        }
+    }
+
+    /// The phase's day range ("~day 12" or "~day 12-15"), nil without both ends.
+    static func cycleDayRange(low: Int?, high: Int?) -> String? {
+        guard let lo = low, let hi = high else { return nil }
+        return lo == hi ? String(localized: "~day \(lo)") : String(localized: "~day \(lo)-\(hi)")
+    }
 }

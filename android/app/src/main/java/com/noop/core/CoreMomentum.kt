@@ -32,7 +32,14 @@ object CoreMomentum {
         return runCatching { JSONObject(json).getString("day") }.getOrNull()
     }
 
-    fun feed(context: Context, dismissedWorkouts: List<String>): List<Message>? {
+    /**
+     * What only the app holds (`DashboardMomentum.LiveInput`): the health alert in the banner's own words, the strap's
+     * remaining runtime and the cycle phase with its day range, the phase only while cycle tracking is on.
+     */
+    data class Live(val healthAlert: String? = null, val strapHoursRemaining: Double? = null,
+                    val cyclePhase: String? = null, val cycleDayLow: Int? = null, val cycleDayHigh: Int? = null)
+
+    fun feed(context: Context, dismissedWorkouts: List<String>, live: Live = Live()): List<Message>? {
         if (!SwiftCore.available) return null
         if (!CoreUserInputs.ensure(context)) return null
         val prefs = NoopPrefs.of(context)
@@ -46,6 +53,11 @@ object CoreMomentum {
             .put("lastKind", prefs.getString(LAST_KIND, "") ?: "")
             .put("lastAt", if (prefs.contains(LAST_AT_MILLIS)) prefs.getLong(LAST_AT_MILLIS, 0L) / 1000.0
                  else (prefs.all[LAST_AT] as? Number)?.toDouble() ?: 0.0)
+        live.healthAlert?.let { args.put("healthAlert", it) }
+        live.strapHoursRemaining?.let { args.put("strapHoursRemaining", it) }
+        live.cyclePhase?.let { args.put("cyclePhase", it) }
+        live.cycleDayLow?.let { args.put("cycleDayLow", it) }
+        live.cycleDayHigh?.let { args.put("cycleDayHigh", it) }
         return SwiftCore.call("momentum.feed", args.toString())?.let(::parse)
     }
 

@@ -350,7 +350,12 @@ public enum CoreCall {
                     hrvEpoch: (args["hrvEpoch"] as? NSNumber)?.doubleValue ?? 0,
                     recoveryEpoch: (args["recoveryEpoch"] as? NSNumber)?.doubleValue ?? 0,
                     snoozedRaw: string("snoozed"), lastKind: string("lastKind"),
-                    lastAt: (args["lastAt"] as? NSNumber)?.doubleValue ?? 0))
+                    lastAt: (args["lastAt"] as? NSNumber)?.doubleValue ?? 0,
+                    healthAlertCopy: (args["healthAlert"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                    strapHoursRemaining: (args["strapHoursRemaining"] as? NSNumber)?.doubleValue,
+                    cyclePhase: args["cyclePhase"] as? String,
+                    cycleDayLow: (args["cycleDayLow"] as? NSNumber)?.intValue,
+                    cycleDayHigh: (args["cycleDayHigh"] as? NSNumber)?.intValue))
             } catch {
                 return #"{"error":"goalState"}"#
             }
