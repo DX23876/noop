@@ -1972,6 +1972,13 @@ public final class DailyAnalysis {
                 if offset > 0 { await host.paceIfBackgrounded(since: &paceMark) }
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
+                // #2517: the day window is a fixed 86,400 seconds and a transition day is not, so the hour it
+                // misplaces is RECORDED here rather than corrected (upstream 6d750391b). Nil on ordinary days.
+                let dayWindowSkew = AnalyticsEngine.dayWindowSkewLine(
+                    day: day,
+                    offsetAtStart: TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: Double(dayStart))),
+                    offsetAtFixedEnd: TimeZone.current.secondsFromGMT(
+                        for: Date(timeIntervalSince1970: Double(dayStart + 86_400))))
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
                 let from = dayStart - StreamReadCap.lookbackSeconds
                 // Sleep read-window END — see `sleepReadWindowEnd`.
@@ -2624,7 +2631,9 @@ public final class DailyAnalysis {
                                    rhrLine: rhrLine, rhrBinLine: rhrBinLine, respLine: respLine,
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
-                                   hrvDiag: hrvDiag, spo2Candidate: spo2CandidateMean,
+                                   hrvDiag: hrvDiag.map { line in dayWindowSkew.map { line + "\n" + $0 } ?? line }
+                                       ?? dayWindowSkew,
+                                   spo2Candidate: spo2CandidateMean,
                                    hrvOverCounted: hrvOverCounted,
                                    primarySessionRHR: primarySessionRHR,
                                    primarySessionRHRCoverage: primarySessionRHRCoverage))

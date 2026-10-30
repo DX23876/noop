@@ -81,7 +81,8 @@
   "v77-ecg-reading",
   "v78-workout-elevation",
   "v79-goal-preference-state",
-  "v80-host-input-ownership"
+  "v80-host-input-ownership",
+  "v81-ecg-waveform"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -5141,6 +5142,41 @@
    ],
    "primaryKey": [
     "key"
+   ],
+   "indices": []
+  },
+  "ecgWaveformSample": {
+   "platform": "both",
+   "columns": [
+    {
+     "name": "deviceId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "ts",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sequence",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "record",
+     "affinity": "BLOB",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "deviceId",
+    "ts",
+    "sequence"
    ],
    "indices": []
   }
