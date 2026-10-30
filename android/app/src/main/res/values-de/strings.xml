@@ -4993,4 +4993,6 @@
     <string name="forge_library_region">Körperregion</string>
     <string name="forge_library_any_region">Beliebige Körperregion</string>
     <string name="forge_tile_rest_hr">Ruhe-HF</string>
+    <string name="forge_lab_strength_effort">Kraft in der Belastung</string>
+    <string name="forge_lab_strength_effort_detail">Krafteinheiten, die du nach dem Training bewertest, erhöhen die Belastung über deinen Puls hinaus, stärker bei härterer Bewertung und längerer Einheit. Unbewertete Einheiten zählen nicht. An WHOOP abgestimmt, mit einer angenommenen Anstrengung von 7 von 10.</string>
 </resources>

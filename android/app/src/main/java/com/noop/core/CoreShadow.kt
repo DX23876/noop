@@ -179,14 +179,15 @@ object CoreShadow {
 
     /**
      * The further choices the core's pass reads (`CoreAnalysis.applyExtras`): the deleted nights and detected
-     * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors and the Lab's
-     * SpO₂ estimate, and the Energy Plan's basal formula.
+     * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors, the Lab's
+     * SpO₂ estimate and strength share of Effort, and the Energy Plan's basal formula.
      */
     fun extras(context: Context, profile: com.noop.ui.ProfileStore, dismissedSleep: List<Pair<Long, Long>>,
                dismissedWorkouts: List<Pair<Long, Long>>, spo2CandidateDisplay: Boolean): String =
         org.json.JSONObject().apply {
             put("sleepStagerMethod", com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod)
             put("spo2CandidateDisplay", spo2CandidateDisplay)
+            put("effortStrengthBonus", CoreFeatures.effortStrengthBonus(context))
             put("hrvBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble())
             put("recoveryBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble())
             put("dismissedSleep", org.json.JSONArray(dismissedSleep.map { "${it.first}:${it.second}" }))

@@ -1230,6 +1230,14 @@ private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Un
             com.noop.core.CoreFeatures.setExerciseVO2max(context, it)
         }
         RowDivider()
+        // #2438: rated strength sessions add to Effort, as iOS's Lab switch; the core's next pass rescores its days.
+        var strengthEffort by remember { mutableStateOf(com.noop.core.CoreFeatures.effortStrengthBonus(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_strength_effort),
+                  stringResource(R.string.forge_lab_strength_effort_detail), strengthEffort) {
+            strengthEffort = it
+            com.noop.core.CoreFeatures.setEffortStrengthBonus(context, it)
+        }
+        RowDivider()
         // Parity plan 1.3: the classic screens' daily rows from the shared core, and the check that they agree.
         var coreDays by remember { mutableStateOf(com.noop.core.CoreDailyRows.coreReads(context)) }
         ToggleRow(stringResource(R.string.forge_lab_core_days), stringResource(R.string.forge_lab_core_days_detail), coreDays) {

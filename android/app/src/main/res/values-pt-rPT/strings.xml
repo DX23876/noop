@@ -4972,4 +4972,6 @@
     <string name="forge_library_region">Região do corpo</string>
     <string name="forge_library_any_region">Qualquer região do corpo</string>
     <string name="forge_tile_rest_hr">FC repouso</string>
+    <string name="forge_lab_strength_effort">Força no esforço</string>
+    <string name="forge_lab_strength_effort_detail">As sessões de força que avalias depois do treino somam ao esforço para lá do teu pulso, mais quanto mais dura for a avaliação e mais longa a sessão. Sessões sem avaliação não somam nada. Calibrado com a WHOOP assumindo um esforço de 7 em 10.</string>
 </resources>

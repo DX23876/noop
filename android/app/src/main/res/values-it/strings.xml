@@ -4948,4 +4948,6 @@
     <string name="forge_library_region">Regione del corpo</string>
     <string name="forge_library_any_region">Qualsiasi regione del corpo</string>
     <string name="forge_tile_rest_hr">FC riposo</string>
+    <string name="forge_lab_strength_effort">Forza nello sforzo</string>
+    <string name="forge_lab_strength_effort_detail">Le sessioni di forza che valuti dopo l’allenamento si aggiungono allo sforzo oltre il battito, di più per una valutazione più dura e una sessione più lunga. Le sessioni non valutate non aggiungono nulla. Calibrato su WHOOP con uno sforzo presunto di 7 su 10.</string>
 </resources>

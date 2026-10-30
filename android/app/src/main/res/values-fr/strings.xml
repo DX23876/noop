@@ -4979,4 +4979,6 @@
     <string name="forge_library_region">Région du corps</string>
     <string name="forge_library_any_region">Toute région du corps</string>
     <string name="forge_tile_rest_hr">FC repos</string>
+    <string name="forge_lab_strength_effort">Force dans l’effort</string>
+    <string name="forge_lab_strength_effort_detail">Les séances de force que vous évaluez après l’entraînement s’ajoutent à l’effort au-delà de votre pouls, davantage pour une évaluation plus dure et une séance plus longue. Les séances non évaluées n’ajoutent rien. Calibré sur WHOOP avec un effort supposé de 7 sur 10.</string>
 </resources>

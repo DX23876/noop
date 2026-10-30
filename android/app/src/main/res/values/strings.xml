@@ -5015,4 +5015,6 @@
     <string name="forge_library_region">Body region</string>
     <string name="forge_library_any_region">Any body region</string>
     <string name="forge_tile_rest_hr">Rest HR</string>
+    <string name="forge_lab_strength_effort">Strength in Effort</string>
+    <string name="forge_lab_strength_effort_detail">Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.</string>
 </resources>

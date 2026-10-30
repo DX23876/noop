@@ -4881,4 +4881,6 @@
     <string name="forge_library_region">Часть тела</string>
     <string name="forge_library_any_region">Любая часть тела</string>
     <string name="forge_tile_rest_hr">Пульс покоя</string>
+    <string name="forge_lab_strength_effort">Сила в усилии</string>
+    <string name="forge_lab_strength_effort_detail">Силовые тренировки, которые вы оцениваете после занятия, добавляют к усилию сверх пульса, тем больше, чем выше оценка и длиннее тренировка. Неоценённые тренировки ничего не добавляют. Откалибровано по WHOOP при предполагаемом усилии 7 из 10.</string>
 </resources>

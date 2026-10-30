@@ -11,6 +11,7 @@ object CoreFeatures {
     const val HEALTHSPAN_KEY = "noopHealthspanAge"
     const val RHYTHM_AGE_KEY = "noopRhythmAge"
     const val EXERCISE_VO2MAX_KEY = "noopExerciseVO2max"
+    const val EFFORT_STRENGTH_BONUS_KEY = "noopEffortStrengthBonus"
 
     /** AgeLess: an age from nine measures of sleep, activity and fitness. */
     fun healthspan(context: Context): Boolean = NoopPrefs.of(context).getBoolean(HEALTHSPAN_KEY, false)
@@ -23,6 +24,13 @@ object CoreFeatures {
 
     fun setExerciseVO2max(context: Context, on: Boolean) =
         NoopPrefs.of(context).edit().putBoolean(EXERCISE_VO2MAX_KEY, on).apply()
+
+    /** Rated strength sessions add to Effort (`PuffinExperiment.effortStrengthBonusKey`), read by the core's pass. */
+    fun effortStrengthBonus(context: Context): Boolean =
+        NoopPrefs.of(context).getBoolean(EFFORT_STRENGTH_BONUS_KEY, false)
+
+    fun setEffortStrengthBonus(context: Context, on: Boolean) =
+        NoopPrefs.of(context).edit().putBoolean(EFFORT_STRENGTH_BONUS_KEY, on).apply()
 
     fun setHealthspan(context: Context, on: Boolean) =
         NoopPrefs.of(context).edit().putBoolean(HEALTHSPAN_KEY, on).apply()

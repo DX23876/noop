@@ -4950,4 +4950,6 @@
     <string name="forge_library_region">身体部位</string>
     <string name="forge_library_any_region">任意身体部位</string>
     <string name="forge_tile_rest_hr">静息心率</string>
+    <string name="forge_lab_strength_effort">力量计入消耗</string>
+    <string name="forge_lab_strength_effort_detail">你在训练后评分的力量训练会在心率之外计入消耗，评分越高、时长越长，计入越多。未评分的训练不计入。按假定强度 7/10 与 WHOOP 校准。</string>
 </resources>
