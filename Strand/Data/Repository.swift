@@ -2084,7 +2084,7 @@ final class Repository: ObservableObject {
 
     /// The Lab staging switches as `EditedSleepHeal` takes them.
     private static var currentStaging: EditedSleepHeal.Staging {
-        .init(sleepV2: PuffinExperiment.experimentalSleepV2Enabled, motionAwareWake: PuffinExperiment.motionAwareWakeEnabled)
+        .init(method: PuffinExperiment.sleepStagerMethod(), motionAwareWake: PuffinExperiment.motionAwareWakeEnabled)
     }
 
     /// Self-heal pass for the edit-races-sync bug. A night edited BEFORE the strap sync imported its raw
@@ -3250,8 +3250,7 @@ final class Repository: ObservableObject {
                             let samples = (try? await store.hrSamples(deviceId: hrIds[0],
                                                                       from: startTs, to: endTs,
                                                                       limit: 8000)) ?? []
-                            strain = StrainScorer.strain(samples, maxHR: p.hrMax,
-                                                method: PuffinExperiment.effortMethod, sex: p.sex)
+                            strain = StrainScorer.strain(samples, maxHR: p.hrMax, lowIntensity: .counted)
                         } else {
                             strain = nil
                         }

@@ -52,9 +52,23 @@ final class ShadowSessionTests: XCTestCase {
         // The daily pass runs on the same store, in order after the offload, and leaves an answer.
         ShadowSession.send(.analyze(.init(age: 40, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0),
                                     .standard))
-        for _ in 0..<500 where ShadowSession.today == nil {
-            try await Task.sleep(nanoseconds: 10_000_000)
+        // A settings save must not refresh platform screens before the queued analysis publishes
+        // its result. Check the snapshots on the same background thread as the blocking barrier,
+        // before any additional await could let an unfinished worker catch up.
+        ShadowSession.send(.resetTally)
+        let completion: (Bool, String?, Int, ShadowSession.Tally) = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                let completed = ShadowSession.awaitQueuedEvents()
+                continuation.resume(returning: (completed, ShadowSession.today,
+                                                 ShadowSession.processedEvents, ShadowSession.tally))
+            }
         }
-        XCTAssertNotNil(ShadowSession.today)
+        XCTAssertTrue(completion.0)
+        XCTAssertNotNil(completion.1, "The analysis result is published before the barrier returns")
+        XCTAssertGreaterThanOrEqual(completion.2, expected + 2,
+                                    "Both analysis and the following reset have completed")
+        XCTAssertEqual(completion.3.gravity, 0,
+                       "A barrier also covers ordinary events queued after the analysis")
+        XCTAssertEqual(completion.3.hr, 0)
     }
 }

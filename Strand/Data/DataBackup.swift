@@ -226,24 +226,23 @@ enum DataBackup {
                                    scratchRoot: NoopScratch.directory())
     }
 
-    /// This device's whitelisted profile/display settings (see `BackupSettings.whitelist`) as the
-    /// `settings.json` payload, or nil when nothing whitelisted was ever set (a fresh install then
-    /// exports a legacy DB-only ZIP, which is the right degrade). UserDefaults is thread-safe, so
-    /// the detached export tasks may call this off the main actor.
-    private static func currentSettingsJSON() -> Data? {
-        var values = BackupSettings.snapshot(from: .standard)
+    /// This device's whitelisted settings, including the resolved sleep pipeline when only its legacy
+    /// preference is stored. UserDefaults is thread-safe, so detached exports can read the same values.
+    static func currentSettingsJSON(defaults: UserDefaults = .standard) -> Data? {
+        var values = BackupSettings.snapshot(from: defaults)
+        values["sleep.stagerMethod"] = PuffinExperiment.sleepStagerMethod(in: defaults).rawValue
         // #1361: bridge the user's custom journal BEHAVIOURS into the whitelisted `journal.customBehaviors`
         // as a newline-joined name list (byte-identical to Android's `noop.journalCustomQuestions`). The
         // journal EFFECTS ride the DB backup, but the DEFINITIONS live only here. `JournalCatalogStore`
         // is @MainActor and this may run off it, so decode the items blob directly and take the custom
         // canonicals. Skipped when there are none.
-        if let blob = UserDefaults.standard.data(forKey: JournalCatalogBackupKeys.items),
+        if let blob = defaults.data(forKey: JournalCatalogBackupKeys.items),
            let items = try? JSONDecoder().decode([JournalCatalogItem].self, from: blob) {
             let customs = items.filter(\.custom).map(\.canonical)
             if !customs.isEmpty { values["journal.customBehaviors"] = customs.joined(separator: "\n") }
         }
         // Every goal, daily goal, attribution, frozen period result and goal preference, as one string.
-        if let goals = GoalBackupBundle.encode(from: UserDefaults.standard) {
+        if let goals = GoalBackupBundle.encode(from: defaults) {
             values[GoalBackupBundle.settingsKey] = goals
         }
         return BackupSettings.encode(values)

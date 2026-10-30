@@ -351,7 +351,20 @@ Source: `SleepStager.swift`. Detects in-bed sessions from gravity/HR/RR/respirat
 - Per-record movement proxy = L2 magnitude of the gravity-vector change vs the previous record (`gravityDeltas`).
 - A sample is "still" if its delta < `gravityStillThresholdG = 0.01 g`. A rolling window (`stillWindowMin = 15` min) calls its center "sleep" when ≥ `stillFraction = 0.70` of samples are still.
 - Contiguous runs are built, breaking on a class change or a data gap > `maxGapMin = 20` min; runs shorter than `mergeMin = 15` min are absorbed into neighbours.
-- A run must exceed `minSleepMin = 60` min to count, and is **HR-confirmed**: mean HR over the run must be ≤ `hrSleepBaselineMult = 1.05 ×` the day's median HR (skipped when fewer than 30 HR samples — gravity is trusted alone).
+- A run must exceed `minSleepMin = 60` min to count, and is **HR-confirmed**: median HR over the run must be ≤ `hrSleepBaselineMult = 1.05 ×` the day's median HR, widened for deeply quiescent motion as described below (skipped when fewer than 30 HR samples — gravity is trusted alone).
+- **V3 conservative onset after bridging (fork).** Onset evidence is rebuilt from raw stillness flags
+  before permissive gap bridging or short-run absorption. Bare missing-motion gaps can join evidence
+  runs within the existing gap bound only when both median and mean HR support them; the continuity
+  path keeps its existing median guard. If a joined candidate contains an evidence run that already
+  exceeds the existing 60-minute floor, and activity separates short leading bouts from that run,
+  its onset moves to the first independently qualifying run. This deliberately prefers omitting
+  uncertain initial rest over admitting a chain of short bouts as hours of sleep. A qualifying first
+  run, a bare missing-data gap and a candidate with no independently qualifying run retain the previous
+  behavior. Interior interruptions remain bridgeable; this is a boundary-selection rule and does not
+  change the light/deep/REM formulas. Stillness does not prove sleep, so uninterrupted quiet wake can
+  remain indistinguishable from sleep. V3 uses the existing V2 phase engine. The explicit V2 and V1
+  pipelines retain the original detector. Legacy Boolean APIs still select V1/V2; the app resolves the
+  default V3 preference separately and includes the method in detection and persisted-day cache keys.
 - A citable **te Lindert 30 s Cole–Kripke** index (`SI = 0.001 · Σ wᵢ·Aᵢ`, sleep iff `SI < 1`, weights `[106, 54, 58, 76, 230, 74, 67]`) is computed per epoch as a cross-check and to find onset / final-wake.
 
 ### Stage 1 — per-epoch cardiorespiratory features

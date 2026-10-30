@@ -20,17 +20,17 @@ final class AnalysisRecipeTests: XCTestCase {
     }
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names AI-31, the first recipe under the one rule, and requires every older
-    /// stored recipe to request that migration.
+    /// witnessing one. This one names AI-32 (the maximum heart rate of #2438 step 0) and requires every
+    /// older stored recipe, AI-31 included, to request that migration.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer "Analysis migration required: yes/no" for whatever the bump carries.
-    func testRecipeVersionIsThirtyOneAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(AnalysisRecipe.currentVersion, 31,
+    func testRecipeVersionIsThirtyTwoAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(AnalysisRecipe.currentVersion, 32,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [0, 8, 11, 15, 19, 20, 28, 29, 30] {
+        for stored in [0, 8, 11, 15, 19, 20, 28, 29, 30, 31] {
             XCTAssertEqual(AnalysisRecipe.decision(storedVersion: stored),
-                           .migrate(from: stored, to: 31))
+                           .migrate(from: stored, to: 32))
         }
     }
 
@@ -40,7 +40,7 @@ final class AnalysisRecipeTests: XCTestCase {
     /// rebuild reads what they fix, and the screens refresh last, right before the recipe cursor moves.
     func testEveryBumpRunsTheSameRebuildInOrder() {
         XCTAssertEqual(AnalysisRecipe.RebuildStep.allCases,
-                       [.legacyRepairs, .healthspanReset, .dailyHistory, .weeklyScores, .stressProxy,
+                       [.legacyRepairs, .healthspanReset, .workoutPeaks, .dailyHistory, .weeklyScores, .stressProxy,
                         .rhythmDays, .workoutHeartRate, .cardioLoad, .energyHistory, .publish])
     }
 
@@ -51,6 +51,9 @@ final class AnalysisRecipeTests: XCTestCase {
         XCTAssertEqual(AnalysisRecipe.firstOwedStep(target: 31, storedPosition: afterDaily), .weeklyScores)
         // A position left by an older bump that never finished starts the newer rebuild from the beginning.
         XCTAssertEqual(AnalysisRecipe.firstOwedStep(target: 32, storedPosition: afterDaily), .legacyRepairs)
+        // A finished AI-31 rebuild (the testing build of 2026-10-26) owes the whole AI-32 rebuild.
+        let finished31 = AnalysisRecipe.rebuildPosition(target: 31, after: .publish)
+        XCTAssertEqual(AnalysisRecipe.firstOwedStep(target: 32, storedPosition: finished31), .legacyRepairs)
         let afterCardio = AnalysisRecipe.rebuildPosition(target: 31, after: .cardioLoad)
         XCTAssertEqual(AnalysisRecipe.firstOwedStep(target: 31, storedPosition: afterCardio), .energyHistory)
     }
@@ -80,10 +83,10 @@ final class AnalysisRecipeTests: XCTestCase {
     /// build number here would cause. Pinned because the mistake is invisible until someone's phone
     /// spends twenty minutes re-scoring after a cosmetic update.
     func testAnInstallAlreadyAtTheCurrentRecipeNeverRescoresOnRelaunch() {
-        XCTAssertEqual(AnalysisRecipe.decision(storedVersion: 31), .upToDate)
+        XCTAssertEqual(AnalysisRecipe.decision(storedVersion: AnalysisRecipe.currentVersion), .upToDate)
         // And a database written by a NEWER build that was rolled back stays put rather than
         // "migrating" backwards into a rescore that would overwrite better values with worse ones.
-        XCTAssertEqual(AnalysisRecipe.decision(storedVersion: 32), .upToDate)
+        XCTAssertEqual(AnalysisRecipe.decision(storedVersion: AnalysisRecipe.currentVersion + 1), .upToDate)
     }
 
     // MARK: - The fork's own recipe lineage

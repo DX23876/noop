@@ -5,7 +5,7 @@ import WhoopStore
 
 /// #1391: VO₂max is offered even WITHOUT a waist. `fitnessAgeRows` persists `vo2max_est` = the Nes 2011
 /// waist-based estimate when a waist is set, else falls back to the Uth 2004 HR-ratio estimate
-/// (15.3·HRmax/RHR, HRmax = Tanaka(age)) — so a user past the age+RHR fitness-age gate gets a VO₂max
+/// (15.3·HRmax/RHR, HRmax = the one in force, Gellish(age) without a setting) — so a user past the age+RHR fitness-age gate gets a VO₂max
 /// instead of a blank. Twin of the Android Vo2maxFallbackTest.
 ///
 /// `@MainActor`: `IntelligenceEngine.fitnessAgeRows` is main-actor-isolated, so the whole fixture
@@ -32,8 +32,8 @@ final class Vo2maxFallbackTests: XCTestCase {
     func testNoWaistFallsBackToUthHrRatioEstimate() {
         let vo2 = vo2maxEst(waistCm: 0)   // no waist → Nes value is nil
         XCTAssertNotNil(vo2, "without a waist, VO₂max must still be offered via the Uth fallback")
-        // Uth: 15.3 × Tanaka(40)=180 / RHR 60 = 45.9
-        XCTAssertEqual(vo2!, 15.3 * StrainScorer.tanakaHRmax(age: 40) / 60.0, accuracy: 1e-6)
+        // Uth: 15.3 × Gellish(40)=181 / RHR 60 = 46.155 (no HRmax passed: the resolver's formula)
+        XCTAssertEqual(vo2!, 15.3 * 181.0 / 60.0, accuracy: 1e-6)
     }
 
     func testWaistSetUsesTheNesWaistBasedEstimate() {

@@ -12,10 +12,17 @@ import WhoopStore
 public enum EditedSleepHeal {
     /// Which stager and refinement re-stage a window; both are Lab switches the wearer can flip.
     public struct Staging: Sendable, Equatable {
-        public var sleepV2: Bool, motionAwareWake: Bool
-        public init(sleepV2: Bool, motionAwareWake: Bool) { self.sleepV2 = sleepV2; self.motionAwareWake = motionAwareWake }
+        public var method: SleepStager.Method
+        public var motionAwareWake: Bool
+        public var sleepV2: Bool { method.usesV2Stages }
+        public init(method: SleepStager.Method, motionAwareWake: Bool) {
+            self.method = method; self.motionAwareWake = motionAwareWake
+        }
+        public init(sleepV2: Bool, motionAwareWake: Bool) {
+            self.init(method: sleepV2 ? .v2 : .v1, motionAwareWake: motionAwareWake)
+        }
         /// The value stored after a heal; a change re-stages every edited night once.
-        public var signature: String { "sleepV2=\(sleepV2 ? 1 : 0)|motionAwareWake=\(motionAwareWake ? 1 : 0)" }
+        public var signature: String { "sleepMethod=\(method.rawValue)|motionAwareWake=\(motionAwareWake ? 1 : 0)" }
     }
 
     /// The stage JSON the raw streams give over `[start, end]` on `deviceId`, nil while the raw is not dense

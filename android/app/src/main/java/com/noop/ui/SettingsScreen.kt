@@ -684,7 +684,7 @@ fun SettingsScreen(
     val ecgVariantIsMG = ecgVariant.isMG
     // "Sleep staging (V2)" — V2 is the DEFAULT for every strap (WHOOP 4 and 5/MG); turn it OFF to fall back
     // to V1. Model-agnostic, so it lives outside the 5/MG-only card. 4.0 is unvalidated either way (#319/#347).
-    var experimentalSleepV2 by remember { mutableStateOf(puffinExperiment.experimentalSleepV2) }
+    var sleepStagerMethod by remember { mutableStateOf(puffinExperiment.sleepStagerMethod) }
     // "Motion-aware wake refinement" (#364 follow-up) — OFF by default. Self-gates on observed gravity +
     // step density, so it is a no-op on a sparse (e.g. WHOOP 4.0) night regardless of this switch.
     var motionAwareWake by remember { mutableStateOf(puffinExperiment.motionAwareWake) }
@@ -3116,42 +3116,55 @@ fun SettingsScreen(
             blurb = "A read-only export of the decoded sensor streams NOOP already stores. Works on any strap. Nothing is written to your device, and nothing is uploaded.",
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // --- Sleep staging (V2) — the DEFAULT engine after the 44-subject benchmark; toggle off to
-                //     fall back to V1. Every model. (V7 Pillar 3b) ---
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
+                if (com.noop.core.CoreDailyRows.coreReads(context)) {
+                    Text(uiString(R.string.sleep_stager_method), style = NoopType.subhead,
+                         color = Palette.textPrimary)
+                    com.noop.ui.forge.Segmented(
+                        com.noop.ble.PuffinExperiment.SLEEP_METHODS, sleepStagerMethod,
+                        label = { it.uppercase(java.util.Locale.ROOT) }, onSelect = { method ->
+                            sleepStagerMethod = method
+                            vm.setSleepStagerMethod(method)
+                        })
+                    Text(uiString(R.string.sleep_stager_method_detail), style = NoopType.caption,
+                         color = Palette.textTertiary)
+                } else {
+                    // --- Sleep staging (V2) — the DEFAULT engine after the 44-subject benchmark; toggle off to
+                    //     fall back to V1. Every model. (V7 Pillar 3b) ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            uiString(R.string.l10n_settings_screen_sleep_staging_v2_a4176770),
+                            style = NoopType.subhead,
+                            color = Palette.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(
+                            checked = sleepStagerMethod != "v1",
+                            onCheckedChange = {
+                                sleepStagerMethod = if (it) "v2" else "v1"
+                                vm.setSleepStagerMethod(sleepStagerMethod)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Palette.surfaceBase,
+                                checkedTrackColor = Palette.accent,
+                                uncheckedThumbColor = Palette.textSecondary,
+                                uncheckedTrackColor = Palette.surfaceInset,
+                                uncheckedBorderColor = Palette.hairline,
+                            ),
+                            modifier = Modifier.semantics {
+                                contentDescription = uiString(R.string.l10n_settings_screen_sleep_staging_v2_3a007e4a)
+                            },
+                        )
+                    }
                     Text(
-                        uiString(R.string.l10n_settings_screen_sleep_staging_v2_a4176770),
-                        style = NoopType.subhead,
-                        color = Palette.textPrimary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Switch(
-                        checked = experimentalSleepV2,
-                        onCheckedChange = {
-                            experimentalSleepV2 = it
-                            puffinExperiment.experimentalSleepV2 = it
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Palette.surfaceBase,
-                            checkedTrackColor = Palette.accent,
-                            uncheckedThumbColor = Palette.textSecondary,
-                            uncheckedTrackColor = Palette.surfaceInset,
-                            uncheckedBorderColor = Palette.hairline,
-                        ),
-                        modifier = Modifier.semantics {
-                            contentDescription = uiString(R.string.l10n_settings_screen_sleep_staging_v2_3a007e4a)
-                        },
+                        uiString(R.string.l10n_settings_screen_a_transparent_cardiorespiratory_recipe_that_recovers_eebe00c2),
+                        style = NoopType.caption,
+                        color = Palette.textTertiary,
                     )
                 }
-                Text(
-                    uiString(R.string.l10n_settings_screen_a_transparent_cardiorespiratory_recipe_that_recovers_eebe00c2),
-                    style = NoopType.caption,
-                    color = Palette.textTertiary,
-                )
 
                 // --- Motion-aware wake refinement (#364 follow-up) — OFF by default. ---
                 Row(

@@ -52,6 +52,9 @@ final class DailyAnalysisSmokeTests: XCTestCase {
             await WeightSeries.series(reader: reader, from: "0000-01-01", to: "9999-12-31")
         }
         func agelessLongSessions(days: Int) async -> [HealthspanVO2.LongSession] { [] }
+        func trainingSessions(from lo: Int, to hi: Int) async -> TrainingSessionFusionResult {
+            TrainingSessionResolver.resolve(rows: [], metadata: [], links: [], preferences: [])
+        }
     }
 
     private final class Profile: AnalysisProfileSource {
@@ -80,11 +83,12 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         var lines: [String] = []
         var bools: [String: Bool] = [:]
         var strings: [String: String] = [:]
+        var sleepStagerMethod: SleepStager.Method = .v1
         func analysisSettings() -> AnalysisSettings {
-            AnalysisSettings(effortMethod: .banister, spo2CandidateDisplay: false, sleepStagerV2: false,
+            AnalysisSettings(spo2CandidateDisplay: false, sleepStagerV2: false,
                              motionAwareWake: false, deepHrvWindow: false, dayCycleMode: .persisted(nil),
                              rhythmAge: false, healthspan: false, hrvBaselineEpoch: 0, recoveryBaselineEpoch: 0,
-                             traces: [])
+                             traces: [], sleepStagerMethod: sleepStagerMethod)
         }
         func diagnostic(_ line: String, domain: TestDomain?) { lines.append(line) }
         func storedBool(_ key: String) -> Bool { bools[key] ?? false }
@@ -120,6 +124,59 @@ final class DailyAnalysisSmokeTests: XCTestCase {
 
     private func dayKey(_ daysAgo: Int) -> String {
         StoreReader.localDayKey(Date().addingTimeInterval(-Double(daysAgo) * 86_400))
+    }
+
+    func testSwitchingSleepMethodInvalidatesPersistedDayReuseInBothDirections() async throws {
+        let store = try await WhoopStore.inMemory()
+        let deviceId = "my-whoop"
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1,
+                                              to: Calendar.current.startOfDay(for: Date()))!
+        let start = Int(yesterday.timeIntervalSince1970)
+        let day = StoreReader.localDayKey(yesterday)
+        let end = start + 8 * 3_600
+        let hr = stride(from: start - 24 * 3_600, to: end, by: 60).map {
+            HRSample(ts: $0, bpm: $0 < start ? 70 : 50)
+        }
+        let gravity = stride(from: start, to: end, by: 60).map {
+            GravitySample(ts: $0, x: 0, y: 0, z: 1)
+        }
+        try await store.insert(Streams(hr: hr, gravity: gravity), deviceId: deviceId)
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: deviceId,
+                                                         registeredWhoopIds: []))
+        let host = Host()
+        host.sleepStagerMethod = .v2
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: deviceId,
+                                   host: host, messages: { "\($0)" })
+
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: true)
+        let originalRows = try await store.dayScanFingerprints(deviceId: deviceId + "-noop",
+                                                              from: day, to: day)
+        let original = try XCTUnwrap(originalRows[day], "The real pass must persist a reusable day")
+        let originalSignature = try XCTUnwrap(original.semanticSignature)
+
+        // No raw, profile, recipe or calendar input changes between these passes. The persisted
+        // semantic fingerprint must prevent the previous method's result from being reused.
+        for method in [SleepStager.Method.v3, .v2] {
+            host.sleepStagerMethod = method
+            host.lines.removeAll()
+            await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: true)
+            let rows = try await store.dayScanFingerprints(deviceId: deviceId + "-noop", from: day, to: day)
+            let updated = try XCTUnwrap(rows[day])
+            XCTAssertEqual(updated.inputRevision, original.inputRevision)
+            XCTAssertEqual(updated.deviceRevision, original.deviceRevision)
+            let signature = try XCTUnwrap(updated.semanticSignature)
+            if method == .v3 {
+                XCTAssertNotEqual(signature, originalSignature)
+            } else {
+                XCTAssertEqual(signature, originalSignature)
+            }
+            XCTAssertTrue(host.lines.contains {
+                $0.hasPrefix("reuse day=\(day) reuse=false miss=") && $0.contains("semanticSignature")
+            }, "A method switch must recompute the stored day even when reuse is allowed: \(host.lines)")
+            XCTAssertTrue(host.lines.contains {
+                $0.hasPrefix("reuse semantic diff") && $0.contains("sleepMethod:")
+            }, "The cache miss must be attributed to the pipeline method")
+        }
     }
 
     /// A store one recipe behind runs the whole rebuild: every step once, the weekly scores for every week

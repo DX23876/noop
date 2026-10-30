@@ -23,6 +23,8 @@ public enum ShadowSession {
         case resetTally
         /// Runs the daily analysis on the core's store with the wearer's profile; `today` holds the result.
         case analyze(CoreAnalysis.Profile, CoreAnalysis.Settings)
+        /// Marks completion of the events queued before this callback.
+        case barrier(@Sendable () -> Void)
     }
 
     /// What the core banked from history since the session started, per stream.
@@ -86,6 +88,20 @@ public enum ShadowSession {
         let continuation = state.continuation
         state.lock.unlock()
         continuation?.yield(event)
+    }
+
+    /// Waits for events already queued, including analysis and its stored results. Call only from a
+    /// background thread: the worker needs the main actor. False when no worker accepts the barrier.
+    public static func awaitQueuedEvents() -> Bool {
+        guard !Thread.isMainThread else { return false }
+        let completed = DispatchSemaphore(value: 0)
+        state.lock.lock()
+        guard let continuation = state.continuation else { state.lock.unlock(); return false }
+        let queued = continuation.yield(.barrier { completed.signal() })
+        state.lock.unlock()
+        guard case .enqueued = queued else { return false }
+        completed.wait()
+        return true
     }
 
     /// The history the core banked so far, and how many events it has worked through.
@@ -195,6 +211,8 @@ public enum ShadowSession {
                 await collector.flush()
                 let result = await CoreAnalysis.run(store: store, deviceId: deviceId, profile: profile, settings: settings)
                 state.lock.withLock { state.today = result?.line ?? "no computed row for today" }
+            case .barrier(let completed):
+                completed()
             }
             state.lock.withLock { state.processed += 1 }
         }

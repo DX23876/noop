@@ -49,8 +49,6 @@ public enum ManualWorkoutRescore {
     /// measured resting yet), so existing callers are byte-identical until they thread one.
     public static func scored(windowSamples: [HRSample], profile: UserProfile, hrMax: Double,
                               restingHR: Double? = nil,
-                              // #1545: see WorkoutDetector.detect — Edwards by default, threaded by the app.
-                              effortMethod: StrainScorer.Method = .edwards,
                               // The row's sport, which picks its curve and its table MET
                               // (`WorkoutEnergyEstimate.boutKcal`).
                               sport: String = "",
@@ -65,7 +63,7 @@ public enum ManualWorkoutRescore {
         let peak = bpms.max() ?? 0
         let strain = StrainScorer.strain(windowSamples, maxHR: hrMax,
                                          restingHR: restingHR ?? StrainScorer.defaultRestingHR,
-                                         method: effortMethod, sex: profile.sex)
+                                         lowIntensity: .counted)
         let kcalRaw = WorkoutEnergyEstimate.boutKcal(windowSamples, sport: sport, profile: profile,
                                                      hrMax: hrMax, restingHR: restingHR,
                                                      peakMET: peakMET, distanceM: distanceM)

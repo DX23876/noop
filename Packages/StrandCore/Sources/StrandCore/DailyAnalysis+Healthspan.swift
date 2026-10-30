@@ -65,7 +65,8 @@ extension DailyAnalysis {
     /// then the phone's, then the estimate from motion), since AI-29; a day missing from it falls back to the
     /// strap's own daily row.
     public nonisolated static func runHealthspanPass(store: WhoopStore, strapId: String, computedId: String, age: Int,
-                                              sex: String, hrMaxOverride: Int, oldestDay: String,
+                                              sex: String, hrMaxOverride: Int, measuredMaxHR: Double? = nil,
+                                              oldestDay: String,
                                               newestDay: String, tzOffset: Int,
                                               manualVO2max: (day: String, value: Double)? = nil,
                                               longSessions: [HealthspanVO2.LongSession] = [],
@@ -74,7 +75,8 @@ extension DailyAnalysis {
         guard age > 0, let sex = HealthspanEngine.Sex(profileValue: sex) else { return }
         do {
             try await healthspanPass(store: store, strapId: strapId, computedId: computedId, age: age, sex: sex,
-                                     hrMaxOverride: hrMaxOverride, oldestDay: oldestDay, newestDay: newestDay,
+                                     hrMaxOverride: hrMaxOverride, measuredMaxHR: measuredMaxHR,
+                                     oldestDay: oldestDay, newestDay: newestDay,
                                      tzOffset: tzOffset, manualVO2max: manualVO2max,
                                      longSessions: longSessions, bodyFat: bodyFat, steps: steps)
         } catch {
@@ -100,7 +102,8 @@ extension DailyAnalysis {
     }
 
     private nonisolated static func healthspanPass(store: WhoopStore, strapId: String, computedId: String, age: Int,
-                                                   sex: HealthspanEngine.Sex, hrMaxOverride: Int, oldestDay: String,
+                                                   sex: HealthspanEngine.Sex, hrMaxOverride: Int,
+                                                   measuredMaxHR: Double?, oldestDay: String,
                                                    newestDay: String, tzOffset: Int,
                                                    manualVO2max: (day: String, value: Double)?,
                                                    longSessions: [HealthspanVO2.LongSession],
@@ -112,7 +115,7 @@ extension DailyAnalysis {
         guard let windowStart = midnightForDayKey(bankFrom, offsetSec: tzOffset),
               let windowEndDay = midnightForDayKey(newestDay, offsetSec: tzOffset) else { return }
         let windowEnd = windowEndDay + 86_400
-        let maxHR = hrMaxOverride > 0 ? Double(hrMaxOverride) : StrainScorer.tanakaHRmax(age: Double(age))
+        let maxHR = MaxHeartRate.resolve(overrideBpm: hrMaxOverride, age: Double(age), measured: measuredMaxHR).bpm ?? 0
 
         // (1) Bank zone minutes while raw HR exists. A day counts as worn when it has a computed daily row; a
         // worn day whose raw HR is already gone keeps the value banked while it still existed.

@@ -28,12 +28,13 @@ final class CoachEffortFeasibilityTests: XCTestCase {
     private var today: String { Repository.localDayKey(Date()) }
 
     /// THE case. An impossible target is replaced, the reply says so in terms the model can act on,
-    /// and what gets STORED is the reachable figure — the Today card can no longer show 15.
+    /// and what gets STORED is the reachable figure. The reported 15 is within reach of a 20-minute Zone 2
+    /// ride under the curve of #2438 (about 20), so the impossibility is pinned with 5.
     func testImpossibleTargetIsReplacedAndTheReplyExplains() async throws {
         let engine = makeEngine()
         let reply = await engine.proposePlanTool(
             day: today, sport: "Zone 2 ride", intent: "easy",
-            targetEffort: 15, rationale: "rest day spin", time: nil,
+            targetEffort: 5, rationale: "rest day spin", time: nil,
             zone: 2, durationMin: 20)
 
         XCTAssertTrue(reply.contains("replaced"), reply)
@@ -41,7 +42,7 @@ final class CoachEffortFeasibilityTests: XCTestCase {
 
         let stored = try XCTUnwrap(CoachPlanStore.shared.proposals(forDay: today).first)
         let effort = try XCTUnwrap(stored.targetEffort)
-        XCTAssertGreaterThan(effort, 20, "stored target was \(effort); 15 must not survive")
+        XCTAssertGreaterThan(effort, 12, "stored target was \(effort); 5 must not survive")
         XCTAssertEqual(stored.zone, 2)
         XCTAssertEqual(stored.durationMin, 20)
     }

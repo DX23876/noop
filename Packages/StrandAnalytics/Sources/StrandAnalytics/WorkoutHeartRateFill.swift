@@ -65,29 +65,27 @@ public enum WorkoutHeartRateFill {
     /// values (so the peak is the highest minute, a few beats under the highest beat). Effort needs the
     /// day's resting rate; without one it stays nil rather than being scored against a default.
     public static func resolve(band: [HRSample], watchMinutes: [(start: Int, bpm: Double)],
-                               start: Int, end: Int, maxHR: Double, restingHR: Double?,
-                               method: StrainScorer.Method, sex: String) -> Result? {
+                               start: Int, end: Int, maxHR: Double, restingHR: Double?) -> Result? {
         guard end > start else { return nil }
         let window = band.filter { $0.ts >= start && $0.ts <= end && $0.bpm > 0 }
         if hasUsableCoverage(window, start: start, end: end) {
             let values = window.map { Double($0.bpm) }
             return make(values: values, trace: window, source: .band, start: start, end: end,
-                        maxHR: maxHR, restingHR: restingHR, method: method, sex: sex)
+                        maxHR: maxHR, restingHR: restingHR)
         }
         let minutes = watchMinutes.filter { $0.start >= start && $0.start <= end && $0.bpm.isFinite && $0.bpm > 0 }
         let trace = minuteTrace(minutes)
         guard hasUsableCoverage(trace, start: start, end: end) else { return nil }
         return make(values: minutes.map(\.bpm), trace: trace, source: .watch, start: start, end: end,
-                    maxHR: maxHR, restingHR: restingHR, method: method, sex: sex)
+                    maxHR: maxHR, restingHR: restingHR)
     }
 
     private static func make(values: [Double], trace: [HRSample], source: Source, start: Int, end: Int,
-                             maxHR: Double, restingHR: Double?, method: StrainScorer.Method,
-                             sex: String) -> Result? {
+                             maxHR: Double, restingHR: Double?) -> Result? {
         guard !values.isEmpty, let peak = values.max() else { return nil }
         let mean = values.reduce(0, +) / Double(values.count)
         let strain = restingHR.flatMap {
-            StrainScorer.strain(trace, maxHR: maxHR, restingHR: $0, method: method, sex: sex)
+            StrainScorer.strain(trace, maxHR: maxHR, restingHR: $0, lowIntensity: .counted)
         }
         let span = coverage(trace, start: start, end: end)
         return Result(averageHR: Int(mean.rounded()), maxHR: Int(peak.rounded()), strain: strain,

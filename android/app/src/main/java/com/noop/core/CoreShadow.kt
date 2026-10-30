@@ -127,6 +127,14 @@ object CoreShadow {
         }
     }
 
+    /** Publish a new read revision only after the queued analysis has committed its rows. Blocking IO call. */
+    fun awaitQueuedAnalysis(): Boolean {
+        check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
+        val completed = started && SwiftCore.shadowAwaitQueuedEvents()
+        if (completed) noteDataChanged()
+        return completed
+    }
+
     /**
      * The further choices the core's pass reads (`CoreAnalysis.applyExtras`): the deleted nights and detected
      * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors and the Lab's
@@ -135,6 +143,7 @@ object CoreShadow {
     fun extras(context: Context, profile: com.noop.ui.ProfileStore, dismissedSleep: List<Pair<Long, Long>>,
                dismissedWorkouts: List<Pair<Long, Long>>, spo2CandidateDisplay: Boolean): String =
         org.json.JSONObject().apply {
+            put("sleepStagerMethod", com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod)
             put("spo2CandidateDisplay", spo2CandidateDisplay)
             put("hrvBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble())
             put("recoveryBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble())

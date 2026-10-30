@@ -4481,6 +4481,9 @@
     <string name="forge_lt_aside_none">没有特别原因</string>
     <string name="coach_goals_journey">目标与历程</string>
     <string name="coach_goals_journey_subtitle">设定目标，查看进展。</string>
+
+    <string name="sleep_stager_method">睡眠阶段方法</string>
+    <string name="sleep_stager_method_detail">V3 更谨慎地识别入睡时间，并使用 V2 的睡眠阶段。V2 保留之前的识别方式；V1 是经典方法。切换后会重新计算最近几晚。</string>
     <string name="forge_lay_section_coach">教练</string>
     <string name="forge_lay_section_momentum">Momentum</string>
     <string name="forge_lay_section_goals">目标</string>

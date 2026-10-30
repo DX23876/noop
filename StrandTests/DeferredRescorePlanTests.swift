@@ -121,7 +121,7 @@ final class SemanticSignatureDiffTests: XCTestCase {
 
     private let base = "weight=4641576901735455130|height=4641135337865740288|age=35|sex=male"
         + "|hrmax=193|stepTicks=4609434218613702656|tz=7200|deepHrv=1|spo2Candidate=1"
-        + "|effortMethod=edwards|hrvEpoch=0.0|recoveryEpoch=0.0"
+        + "|effortMethod=curve2438|hrvEpoch=0.0|recoveryEpoch=0.0"
 
     func testIdenticalSignaturesDifferInNothing() {
         XCTAssertEqual(IntelligenceEngine.semanticSignatureDiff(stored: base, current: base), [])

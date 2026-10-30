@@ -3356,5 +3356,7 @@
   "Your AgeLess age appears after 30 nights of sleep data. %lld so far.": "积累 30 晚睡眠数据后即可显示 AgeLess 年龄。目前已有 %lld 晚。",
   "Support the project": "支持本项目",
   "Optional: buy a coffee on Ko-fi. NOOP stays free either way.": "可选：在 Ko-fi 上请开发者喝杯咖啡。无论如何 NOOP 都免费。",
-  "Support the project on Ko-fi": "在 Ko-fi 上支持本项目"
+  "Support the project on Ko-fi": "在 Ko-fi 上支持本项目",
+  "Measured in your workouts, confirmed %@": "根据你的训练测得，确认于 %@",
+  "Estimated from your age": "根据年龄估算"
 }

@@ -4510,6 +4510,9 @@
     <string name="forge_lt_aside_none">Sans raison particulière</string>
     <string name="coach_goals_journey">Objectifs et parcours</string>
     <string name="coach_goals_journey_subtitle">Fixe un objectif et suis tes progrès.</string>
+
+    <string name="sleep_stager_method">Méthode des phases du sommeil</string>
+    <string name="sleep_stager_method_detail">V3 détecte le début du sommeil avec plus de prudence et utilise les phases de V2. V2 conserve la détection précédente ; V1 est la méthode classique. Le changement recalcule les nuits récentes.</string>
     <string name="forge_lay_section_coach">Coach</string>
     <string name="forge_lay_section_momentum">Momentum</string>
     <string name="forge_lay_section_goals">Objectifs</string>

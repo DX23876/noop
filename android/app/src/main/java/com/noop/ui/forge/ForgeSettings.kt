@@ -1110,9 +1110,23 @@ private fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) ->
              style = Forge.type.caption, color = Forge.colors.textTertiary)
     }
     SettingsCard(title = stringResource(R.string.forge_settings_sleep), blurb = null) {
-        ToggleRow(stringResource(R.string.l10n_settings_screen_sleep_staging_v2_a4176770),
-                  stringResource(R.string.l10n_settings_screen_a_transparent_cardiorespiratory_recipe_that_recovers_eebe00c2),
-                  experiment.experimentalSleepV2) { on -> change { experiment.experimentalSleepV2 = on } }
+        // V3 runs in the shared Swift core; the optional legacy Kotlin screen keeps its V1/V2 choice.
+        if (com.noop.core.CoreDailyRows.coreReads(context)) {
+            Text(stringResource(R.string.sleep_stager_method), style = Forge.type.body,
+                 color = Forge.colors.text)
+            Segmented(com.noop.ble.PuffinExperiment.SLEEP_METHODS, experiment.sleepStagerMethod,
+                      label = { it.uppercase(java.util.Locale.ROOT) }, onSelect = { method ->
+                          change {
+                              viewModel.setSleepStagerMethod(method)
+                          }
+                      })
+            Text(stringResource(R.string.sleep_stager_method_detail), style = Forge.type.caption,
+                 color = Forge.colors.textTertiary)
+        } else {
+            ToggleRow(stringResource(R.string.l10n_settings_screen_sleep_staging_v2_a4176770),
+                      stringResource(R.string.l10n_settings_screen_a_transparent_cardiorespiratory_recipe_that_recovers_eebe00c2),
+                      experiment.experimentalSleepV2) { on -> change { viewModel.setSleepStagerMethod(if (on) "v2" else "v1") } }
+        }
         RowDivider()
         ToggleRow(stringResource(R.string.l10n_settings_screen_motion_aware_wake_refinement_67a91e47),
                   stringResource(R.string.l10n_settings_screen_reviews_each_scored_wake_block_for_537924ea),

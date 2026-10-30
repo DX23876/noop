@@ -105,16 +105,10 @@ struct SettingsView: View {
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
     /// [PuffinExperiment.exerciseVO2maxKey].
     @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
-    /// A measured maximum the wearer declined; the suggestion returns only for a higher one.
-    @AppStorage("noopMaxHRSuggestionDeclined") private var maxHRSuggestionDeclined = 0
-    /// The measured maximum to offer (`MaxHRSuggestion`), nil when there is none.
-    @State private var maxHRSuggestion: Int?
+    /// [PuffinExperiment.effortStrengthBonusKey].
+    @AppStorage(PuffinExperiment.effortStrengthBonusKey) private var effortStrengthBonusEnabled = false
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
     @AppStorage(RhythmAgeFeature.defaultsKey) private var rhythmAgeEnabled = false
-    /// #1545 opt-in: score Effort with Banister's exponential TRIMP instead of Edwards' heart-rate zones.
-    /// Default OFF — it re-scores the whole window against a different recipe. See
-    /// [PuffinExperiment.banisterEffortKey].
-    @AppStorage(PuffinExperiment.banisterEffortKey) private var banisterEffortEnabled = false
 
     /// Opt-in WHOOP 5/MG protocol experiments (off by default). See [PuffinExperiment].
     @AppStorage(PuffinExperiment.defaultsKey) private var puffinExperiments = false
@@ -193,11 +187,8 @@ struct SettingsView: View {
     // iPhone (between Test Centre and Settings) and its own sidebar item on macOS. Its `@AppStorage`
     // keys live there now; nothing here reads them.
 
-    /// "Experimental sleep staging (V2)" (ON by default, promoted after the 44-subject cross-subject
-    /// benchmark). When on, detected nights are re-staged with `SleepStagerV2` (the transparent
-    /// cardiorespiratory recipe) instead of the older V1 stager. Read at the staging call site in
-    /// `Repository`. See [PuffinExperiment.experimentalSleepV2Key].
-    @AppStorage(PuffinExperiment.experimentalSleepV2Key) private var experimentalSleepV2Enabled = true
+    /// Persist the complete pipeline; an absent new key resolves the legacy choice once read.
+    @AppStorage(PuffinExperiment.sleepStagerMethodKey) private var sleepStagerMethodRaw = ""
 
     /// "Motion-aware wake refinement" (#364 follow-up, OFF by default). A post-pass over the already-staged
     /// hypnogram: reclassifies a scored WAKE segment to `light` when its per-minute step-tick cadence shows
@@ -718,15 +709,13 @@ struct SettingsView: View {
                 FormRow(label: "Max heart rate") {
                     VStack(alignment: .trailing, spacing: 6) {
                         hrMaxField
-                        Text(profile.hrMaxOverride > 0 ? "Manual override" : "Automatic")
+                        Text(maxHeartRateCaption)
                             .font(StrandFont.footnote)
                             .foregroundStyle(profile.hrMaxOverride > 0
                                              ? StrandPalette.accent
                                              : StrandPalette.textTertiary)
                     }
                 }
-                .task(id: "\(profile.hrMaxOverride)|\(profile.hrMax)|\(maxHRSuggestionDeclined)") { await loadMaxHRSuggestion() }
-                if let suggested = maxHRSuggestion { maxHRSuggestionRow(suggested) }
                 rowDivider
                 // The aerobic capacity the energy model scales workouts to (`PeakMETResolver`). Empty is
                 // the normal state: a fresh Apple Watch reading or the Jurca estimate then applies.
@@ -1208,49 +1197,32 @@ struct SettingsView: View {
         return String(localized: "Entered \(date)")
     }
 
-    /// Offers a measured maximum the band has seen held above the value in use; the wearer decides.
-    private func maxHRSuggestionRow(_ suggested: Int) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-            Text("Your workouts reached \(suggested) bpm, held for 30 seconds on at least two days. Use it as your maximum heart rate?")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Applies from now on; Effort already scored stays as it is.")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textSecondary)
-            HStack(spacing: NoopMetrics.space3) {
-                Button("Use \(suggested) bpm") {
-                    profile.hrMaxOverride = suggested
-                    maxHRSuggestion = nil
-                }
-                .buttonStyle(.borderedProminent)
-                Button("Not now") {
-                    maxHRSuggestionDeclined = suggested
-                    maxHRSuggestion = nil
-                }
-                .buttonStyle(.bordered)
-            }
+    /// Where the maximum heart rate in use comes from (`MaxHeartRate`), so the number beside it is never
+    /// unexplained: the wearer's own value, the level measured in workouts with the day it was last
+    /// confirmed, or the estimate from age.
+    private var maxHeartRateCaption: String {
+        switch profile.maxHeartRate.source {
+        case .override:
+            return String(localized: "Manual override")
+        case .measured:
+            let day = ProfileStore.measuredMaxHeartRate?.confirmedOn ?? ""
+            let date = WeightSeries.date(forDay: day)
+                .map { $0.formatted(date: .abbreviated, time: .omitted) } ?? day
+            return String(localized: "Measured in your workouts, confirmed \(date)")
+        case .gellish:
+            return String(localized: "Estimated from your age")
+        case .default:
+            return String(localized: "Automatic")
         }
-        .padding(.vertical, NoopMetrics.space2)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func loadMaxHRSuggestion() async {
-        let peaks = await model.repo.exploreSeries(key: IntelligenceEngine.heldPeakKey, source: Repository.whoopSource,
-                                                   days: MaxHRSuggestion.windowDays)
-        let current = Double(profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax)
-        maxHRSuggestion = MaxHRSuggestion.suggestion(dayPeaks: peaks.map { (day: $0.day, value: $0.value) },
-                                                     current: current, declined: maxHRSuggestionDeclined,
-                                                     today: Repository.localDayKey(Date()))
     }
 
     /// HR-max override: 0 = auto. Shown as a compact tabular value with a stepper.
     private var hrMaxField: some View {
         HStack(spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
-                // Always a number: the Tanaka value when automatic (muted), so the column never has to
-                // fit a word, and the caption below says which of the two it is.
-                Text("\(profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax)")
+                // Always a number: the measured or estimated value when automatic (muted), so the column
+                // never has to fit a word, and the caption below says where it comes from.
+                Text("\(profile.hrMax)")
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(profile.hrMaxOverride > 0
                                      ? StrandPalette.textPrimary
@@ -1263,13 +1235,13 @@ struct SettingsView: View {
             }
             .fixedSize()
             if profileEditing {
-                // Steps from the value on screen: from automatic, one beat either side of the Tanaka
-                // estimate rather than from 0; below 120 it returns to automatic.
+                // Steps from the value on screen: from automatic, one beat either side of the automatic
+                // value rather than from 0; below 120 it returns to automatic.
                 Stepper("Max heart rate override") {
-                    let current = profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax
+                    let current = profile.hrMax
                     profile.hrMaxOverride = min(230, current + 1)
                 } onDecrement: {
-                    let current = profile.hrMaxOverride > 0 ? profile.hrMaxOverride : profile.hrMax
+                    let current = profile.hrMax
                     profile.hrMaxOverride = current - 1 < 120 ? 0 : current - 1
                 }
                     .labelsHidden()
@@ -3587,27 +3559,6 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
-                // #1545 Effort model — Banister exponential TRIMP instead of Edwards zones. The display
-                // AXIS (0-100 / 0-21) stays under Units; this is the computation RECIPE.
-                FormRow(label: "Effort model") {
-                    Picker("Effort model", selection: $banisterEffortEnabled) {
-                        Text("Heart-rate zones").tag(false)
-                        Text("Exponential").tag(true)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("Effort model")
-                }
-                .onChangeCompat(of: banisterEffortEnabled) { _ in
-                    // Re-score immediately: the recipe changes stored Effort for every day in the window.
-                    Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                }
-                Text("Heart-rate zones is the default and counts nothing below half your heart-rate reserve, so lifting with long rests can score near zero. Exponential also counts light effort and weights short hard efforts more. Switching recalculates your history.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                rowDivider
                 // HRV window (#141) — Whole night (NOOP's long-standing value) or DEEP sleep only
                 // (WHOOP-style, reads lower). Unlike the Effort scale this CHANGES the number, so a switch
                 // re-scores + re-baselines (like a sleep edit).
@@ -3634,19 +3585,26 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
-                // Sleep staging engine. V2 (the transparent cardiorespiratory recipe) is the DEFAULT after
-                // a 44-subject benchmark; Classic falls back to the older V1 stager. Future nights only.
                 FormRow(label: "Sleep stage method") {
-                    Picker("Sleep stage method", selection: $experimentalSleepV2Enabled) {
-                        Text("Current").tag(true)
-                        Text("Classic").tag(false)
+                    Picker("Sleep stage method", selection: Binding(
+                        get: { SleepStager.Method.resolvedPreference(
+                            rawValue: sleepStagerMethodRaw,
+                            legacyV2: UserDefaults.standard.object(forKey: PuffinExperiment.experimentalSleepV2Key) as? Bool) },
+                        set: { sleepStagerMethodRaw = $0.rawValue }
+                    )) {
+                        Text(verbatim: "V3").tag(SleepStager.Method.v3)
+                        Text(verbatim: "V2").tag(SleepStager.Method.v2)
+                        Text(verbatim: "V1").tag(SleepStager.Method.v1)
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Sleep stage method")
+                    .onChange(of: sleepStagerMethodRaw) { _ in
+                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                    }
                 }
-                Text("Current finds deep and REM sleep better. Classic is the older method. Applies from the next night.")
+                Text("V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -3706,6 +3664,25 @@ struct SettingsView: View {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Estimates VO₂max from runs and walks with distance and heart rate, including measured climbs. Shown on Training Load beside the weekly estimate, compared with Apple Watch. Not counted as evidence until that comparison passes.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // MARK: Strength share of Effort (#2438). Off by default.
+                Divider().overlay(StrandPalette.hairline)
+
+                Toggle(isOn: $effortStrengthBonusEnabled) {
+                    Text("Strength in Effort")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: effortStrengthBonusEnabled) { _ in
+                    // Only days with a rated strength session change; every other day is reused.
+                    Task { await model.intelligence.reanalyzeHistoryReusingUnchangedDays(); await model.repo.refresh() }
+                }
+                Text("Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

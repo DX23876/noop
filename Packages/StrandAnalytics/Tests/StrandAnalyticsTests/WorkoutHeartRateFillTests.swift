@@ -20,7 +20,7 @@ final class WorkoutHeartRateFillTests: XCTestCase {
     private func resolve(band: [HRSample], watch: [(start: Int, bpm: Double)], minutes: Int = 30,
                          resting: Double? = 60) -> WorkoutHeartRateFill.Result? {
         WorkoutHeartRateFill.resolve(band: band, watchMinutes: watch, start: start, end: start + minutes * 60,
-                                     maxHR: 190, restingHR: resting, method: .edwards, sex: "male")
+                                     maxHR: 190, restingHR: resting)
     }
 
     func testBandWinsWhenItCoversTheWindow() throws {

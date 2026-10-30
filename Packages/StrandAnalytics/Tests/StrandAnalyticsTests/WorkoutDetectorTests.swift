@@ -93,7 +93,7 @@ final class WorkoutDetectorTests: XCTestCase {
         // Zone breakdown sums to ~100.
         let total = w.zoneTimePct.values.reduce(0, +)
         XCTAssertEqual(total, 100.0, accuracy: 0.5)
-        XCTAssertEqual(w.hrmaxSource, "tanaka")  // age supplied, thin observed history
+        XCTAssertEqual(w.hrmaxSource, "gellish")  // age supplied, no HRmax passed: the resolver's formula
     }
 
     func testDetectWithProfileEstimatesCalories() {

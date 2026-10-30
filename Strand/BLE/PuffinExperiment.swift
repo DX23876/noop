@@ -94,26 +94,12 @@ enum PuffinExperiment {
 
     static var exerciseVO2maxEnabled: Bool { UserDefaults.standard.bool(forKey: exerciseVO2maxKey) }
 
-    /// Opt-in "Banister Effort" (#1545): score Effort with Banister's EXPONENTIAL TRIMP instead of the
-    /// default Edwards 5-zone summation.
-    ///
-    /// Edwards is time-in-zone and pays **nothing** below 50% HRR. A reporter's weightlifting session
-    /// scored 1.7 while a walk scored higher — working that number backwards gives a TRIMP of about 1,
-    /// i.e. the model saw essentially no time above the floor for the whole session. An hour held at 45%
-    /// HRR scores 0.00 under Edwards and about 43 under Banister; that is the difference between
-    /// under-rating intermittent work and not seeing it at all.
-    ///
-    /// Default OFF, and it must stay a choice rather than become the default: it re-scores every day in
-    /// the window against a different recipe, so flipping it silently would move a headline metric's
-    /// whole history. Each method maps a theoretical maximum day to exactly 100 via its own log
-    /// denominator (`StrainScorer.logMapDenominator`), so the two are on the same axis and switching does
-    /// not rescale the axis under the user. Mirrors the Android `NoopPrefs.KEY_BANISTER_EFFORT`.
-    static let banisterEffortKey = "noopBanisterEffort"
+    /// Opt-in strength share of Effort (#2438, `StrengthEffort`): a rated strength session adds session RPE ×
+    /// minutes to its day's load before the curve. Default OFF: the scale rests on an assumed RPE 7 in the WHOOP
+    /// exports it was fitted on.
+    static let effortStrengthBonusKey = "noopEffortStrengthBonus"
 
-    static var banisterEffortEnabled: Bool { UserDefaults.standard.bool(forKey: banisterEffortKey) }
-
-    /// The TRIMP recipe every Effort computation on this device should use.
-    static var effortMethod: StrainScorer.Method { banisterEffortEnabled ? .banister : .edwards }
+    static var effortStrengthBonusEnabled: Bool { UserDefaults.standard.bool(forKey: effortStrengthBonusKey) }
 
     /// Opt-in "Continuous HRV capture": hold the dense realtime HR stream armed even with no Live screen
     /// open, so the strap banks beat-to-beat R-R intervals 24/7 for far better overnight HRV/recovery/
@@ -216,21 +202,17 @@ enum PuffinExperiment {
 
     /// "Experimental sleep staging (V2)": re-stage each detected night with `SleepStagerV2` — a transparent
     /// cardiorespiratory recipe (reimplemented from contributor PR #600) — instead of the older V1 stager.
-    /// Pure analysis switch: it changes ONLY which staging engine runs over an already-detected sleep window;
-    /// sleep DETECTION, scoring and the V1 path are all untouched. Model-agnostic (WHOOP 4 and 5). **Default
-    /// ON**: V2 was promoted to the default staging engine after a 44-subject cross-subject benchmark (AAUWSS
-    /// + Walch sleep-accel, leave-one-subject-out) showed V2 strictly dominates V1 (kappa 0.35 vs 0.03, deep
-    /// recall 55 % vs 1 %) — the multi-subject validation this recipe originally lacked. V1 remains available.
-    /// Read at the staging call site (Repository). Mirrors the Android `PuffinExperiment.KEY_EXPERIMENTAL_SLEEP_V2`.
+    /// Legacy phase-engine preference, retained for migration from V1/V2 installs.
     static let experimentalSleepV2Key = "noopExperimentalSleepV2"
+    static let sleepStagerMethodKey = "noopSleepStagerMethod"
 
-    /// Default ON when the key is unset (mirrors the Android `getBoolean(KEY, true)`): a `bool(forKey:)` alone
-    /// reads a missing key as false, so an absent preference must resolve to the promoted V2 default explicitly.
-    static var experimentalSleepV2Enabled: Bool {
-        UserDefaults.standard.object(forKey: experimentalSleepV2Key) == nil
-            ? true
-            : UserDefaults.standard.bool(forKey: experimentalSleepV2Key)
+    static func sleepStagerMethod(in defaults: UserDefaults = .standard) -> SleepStager.Method {
+        SleepStager.Method.resolvedPreference(
+            rawValue: defaults.string(forKey: sleepStagerMethodKey),
+            legacyV2: defaults.object(forKey: experimentalSleepV2Key) as? Bool)
     }
+
+    static var experimentalSleepV2Enabled: Bool { sleepStagerMethod().usesV2Stages }
 
     /// Opt-in "HR-from-PPG sub-lag interpolation" (default off): the v26 optical-PPG gap-fill HR estimator
     /// (`PpgHr`) refines its integer autocorrelation lag with a parabolic (Variant A) interpolation of the

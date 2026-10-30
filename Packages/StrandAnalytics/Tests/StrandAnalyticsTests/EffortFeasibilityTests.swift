@@ -10,25 +10,25 @@ final class EffortFeasibilityTests: XCTestCase {
     private let zoneSet = HRZones.zones(maxHR: 190)
     private let restingHR: Double = 50
 
-    /// THE reported case: the coach offered 15 for a 20-minute Zone 2 ride. What the session is
-    /// TYPICALLY worth is in the thirties — the wearer's own "27 or so" was the right order, and 15 is
-    /// far enough away that the app must override it rather than record it.
+    /// THE reported case: the coach offered 15 for a 20-minute Zone 2 ride. Under the curve of #2438 the
+    /// session is TYPICALLY worth about 23 (about 4.8 on WHOOP's 0–21 axis), and 15 is far enough away
+    /// that the app must override it rather than record it.
     func testTwentyMinutesInZoneTwoIsWorthFarMoreThanFifteen() throws {
         let range = try XCTUnwrap(
             EffortFeasibility.sessionEffortRange(zone: 2, minutes: 20, zoneSet: zoneSet, restingHR: restingHR))
-        XCTAssertGreaterThan(range.typical, 27, "typical was \(range.typical); the report put it around 27+")
+        XCTAssertGreaterThan(range.typical, 21, "typical was \(range.typical)")
         XCTAssertGreaterThan(range.distanceFromTypical(15), EffortFeasibility.targetTolerance,
                              "15 must be far enough from \(range.typical) to be overridden")
     }
 
-    /// The honest floor of a DISPLAY band can be zero, because the band straddles an Edwards threshold
-    /// — 46 % HRR at the bottom of Zone 2 is below the 50 % cut-off. That is a real property of the two
-    /// zone models, and the reason `typical` exists: prescribing against the floor would be its own
-    /// kind of nonsense.
-    func testTheBandFloorCanBeZeroWhichIsWhyTypicalExists() throws {
+    /// The floor of a DISPLAY band scores well below its middle, because the weight grows exponentially
+    /// with intensity: 46 % HRR at the bottom of Zone 2 weighs about half of 59 % at its top. That is the
+    /// reason `typical` exists: prescribing against the floor would be its own kind of nonsense.
+    func testTheBandFloorScoresWellBelowTypicalWhichIsWhyTypicalExists() throws {
         let range = try XCTUnwrap(
             EffortFeasibility.sessionEffortRange(zone: 2, minutes: 20, zoneSet: zoneSet, restingHR: restingHR))
-        XCTAssertEqual(range.low, 0, accuracy: 1e-9)
+        XCTAssertGreaterThan(range.low, 0)
+        XCTAssertLessThan(range.low, range.typical - 3)
         XCTAssertGreaterThan(range.typical, range.low)
         XCTAssertGreaterThanOrEqual(range.high, range.typical)
     }

@@ -5,10 +5,21 @@ import StrandCore
 final class AnalysisSettingsTests: XCTestCase {
     private func settings(hrvEpoch: Double = 0, recoveryEpoch: Double = 0,
                           traces: Set<TestDomain> = []) -> AnalysisSettings {
-        AnalysisSettings(effortMethod: .edwards, spo2CandidateDisplay: false, sleepStagerV2: false,
+        AnalysisSettings(spo2CandidateDisplay: false, sleepStagerV2: false,
                          motionAwareWake: false, deepHrvWindow: false, dayCycleMode: .persisted(nil),
                          rhythmAge: false, healthspan: false, hrvBaselineEpoch: hrvEpoch,
                          recoveryBaselineEpoch: recoveryEpoch, traces: traces)
+    }
+
+    func testSleepMethodSurvivesCapturedSettingsAndHealSignatures() {
+        var captured = settings()
+        XCTAssertEqual(captured.sleepStagerMethod, .v1)
+        captured.sleepStagerMethod = .v3
+        XCTAssertTrue(captured.sleepStagerV2)
+        let v2 = EditedSleepHeal.Staging(method: .v2, motionAwareWake: false)
+        let v3 = EditedSleepHeal.Staging(method: .v3, motionAwareWake: false)
+        XCTAssertNotEqual(v2.signature, v3.signature)
+        XCTAssertTrue(v3.sleepV2)
     }
 
     func testOnlyTheCapturedDomainsTrace() {

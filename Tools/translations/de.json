@@ -3255,5 +3255,7 @@
   "Your AgeLess age appears after 30 nights of sleep data. %lld so far.": "Dein AgeLess-Alter erscheint nach 30 Nächten mit Schlafdaten. Bisher sind es %lld.",
   "Support the project": "Projekt unterstützen",
   "Optional: buy a coffee on Ko-fi. NOOP stays free either way.": "Freiwillig: ein Kaffee auf Ko-fi. NOOP bleibt so oder so kostenlos.",
-  "Support the project on Ko-fi": "Projekt auf Ko-fi unterstützen"
+  "Support the project on Ko-fi": "Projekt auf Ko-fi unterstützen",
+  "Measured in your workouts, confirmed %@": "In deinen Workouts gemessen, bestätigt am %@",
+  "Estimated from your age": "Aus deinem Alter geschätzt"
 }

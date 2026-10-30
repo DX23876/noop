@@ -13,9 +13,9 @@ final class EffortScoreFunnelTests: XCTestCase {
         XCTAssertEqual(
             StrainScorer.scoreFunnelLine(day: "2026-08-31", hrSamples: 39339, enough: true,
                                          maxHR: 185.0, maxHRProvided: true, restingHR: 58.0,
-                                         method: .edwards, trimp: 0.0, strain: 0.0),
+                                         trimp: 0.0, strain: 0.0),
             "effort score day=2026-08-31 hr=39339 enough=true hrMax=185.0(provided) rhr=58.0"
-                + " reserve=127.0 method=edwards trimp=0.0 strain=0.0 zones=n/a"
+                + " reserve=127.0 method=curve2438 trimp=0.0 strain=0.0 zones=n/a"
         )
     }
 
@@ -25,9 +25,9 @@ final class EffortScoreFunnelTests: XCTestCase {
         XCTAssertEqual(
             StrainScorer.scoreFunnelLine(day: "2026-08-31", hrSamples: 12, enough: false,
                                          maxHR: 185.0, maxHRProvided: false, restingHR: 58.0,
-                                         method: .edwards, trimp: nil, strain: nil),
+                                         trimp: nil, strain: nil),
             "effort score day=2026-08-31 hr=12 enough=false hrMax=185.0(default) rhr=58.0"
-                + " reserve=127.0 method=edwards trimp=n/a strain=n/a zones=n/a"
+                + " reserve=127.0 method=curve2438 trimp=n/a strain=n/a zones=n/a"
         )
     }
 
@@ -85,12 +85,12 @@ final class EffortScoreFunnelTests: XCTestCase {
     func testTheLineCarriesSixZoneFields() {
         let line = StrainScorer.scoreFunnelLine(day: "2026-08-31", hrSamples: 13, enough: true,
                                                 maxHR: 180.0, maxHRProvided: true, restingHR: 60.0,
-                                                method: .edwards, trimp: 26.0, strain: 40.0,
+                                                trimp: 26.0, strain: 40.0,
                                                 zoneMinutes: [4.0, 2.0, 2.0, 2.0, 2.0, 1.0])
         XCTAssertEqual(
             line,
             "effort score day=2026-08-31 hr=13 enough=true hrMax=180.0(provided) rhr=60.0"
-                + " reserve=120.0 method=edwards trimp=26.0 strain=40.0"
+                + " reserve=120.0 method=curve2438 trimp=26.0 strain=40.0"
                 + " z0=4.0 z1=2.0 z2=2.0 z3=2.0 z4=2.0 z5=1.0"
         )
     }
@@ -100,7 +100,7 @@ final class EffortScoreFunnelTests: XCTestCase {
     func testAWrongLengthListRendersAsNotAvailable() {
         let line = StrainScorer.scoreFunnelLine(day: "2026-08-31", hrSamples: 13, enough: true,
                                                 maxHR: 180.0, maxHRProvided: true, restingHR: 60.0,
-                                                method: .edwards, trimp: 26.0, strain: 40.0,
+                                                trimp: 26.0, strain: 40.0,
                                                 zoneMinutes: [1.0, 2.0])
         XCTAssertTrue(line.hasSuffix(" zones=n/a"), line)
     }

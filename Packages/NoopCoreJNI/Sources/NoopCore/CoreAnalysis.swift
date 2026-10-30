@@ -34,11 +34,17 @@ public enum CoreAnalysis {
     }
 
     /// The wearer's analysis choices as the Android app holds them (the same keys the Apple `AppAnalysisHost` reads):
-    /// the Effort model, the sleep stager, the wake check, the nightly HRV window, the day start and the two Lab
+    /// the sleep stager, the wake check, the nightly HRV window, the day start and the two Lab
     /// passes, AgeLess and the daily rhythm. `standard` is what an install that never touched them gets on either
     /// platform.
     public struct Settings: Sendable, Equatable {
-        public var effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool
+        /// The Android Banister switch, ignored by the core since #2438; retained for the legacy JNI ABI.
+        public var effortBanister: Bool, motionAwareWake: Bool, deepHrvWindow: Bool
+        public var sleepStagerMethod: SleepStager.Method
+        public var sleepStagerV2: Bool {
+            get { sleepStagerMethod.usesV2Stages }
+            set { sleepStagerMethod = newValue ? .v2 : .v1 }
+        }
         public var dayCycleMode: String?
         public var healthspan: Bool, rhythmAge: Bool
         /// The nights and detected workouts the wearer deleted, as "startTs:endTs" tokens (Apple: UserDefaults
@@ -56,12 +62,16 @@ public enum CoreAnalysis {
         public var hrvBaselineEpoch: Double = 0, recoveryBaselineEpoch: Double = 0
         /// Lab: the strap's SpO₂ estimate is kept for the Blood Oxygen tile (Apple `noopSpo2CandidateDisplay`).
         public var spo2CandidateDisplay = false
+        /// Lab: rated strength sessions add to Effort (`StrengthEffort`); the extras key `effortStrengthBonus`.
+        public var effortStrengthBonus = false
         public init(effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool,
                     dayCycleMode: String?, healthspan: Bool = false, rhythmAge: Bool = false,
                     dismissedSleepSpans: [String] = [], dismissedWorkoutSpans: [String] = [],
                     manualVO2max: Double = 0, manualVO2maxDay: String = "", manualVO2maxWeightKg: Double = 0,
-                    activityLevelOverride: Int = 0, energyCalibration: Bool = false) {
-            self.effortBanister = effortBanister; self.sleepStagerV2 = sleepStagerV2
+                    activityLevelOverride: Int = 0, energyCalibration: Bool = false,
+                    sleepStagerMethod: SleepStager.Method? = nil) {
+            self.effortBanister = effortBanister
+            self.sleepStagerMethod = sleepStagerMethod ?? (sleepStagerV2 ? .v2 : .v1)
             self.motionAwareWake = motionAwareWake; self.deepHrvWindow = deepHrvWindow; self.dayCycleMode = dayCycleMode
             self.healthspan = healthspan; self.rhythmAge = rhythmAge
             self.dismissedSleepSpans = dismissedSleepSpans; self.dismissedWorkoutSpans = dismissedWorkoutSpans
@@ -78,16 +88,17 @@ public enum CoreAnalysis {
         }
 
         public static let standard = Settings(effortBanister: false, sleepStagerV2: true, motionAwareWake: false,
-                                              deepHrvWindow: false, dayCycleMode: nil)
+                                              deepHrvWindow: false, dayCycleMode: nil, sleepStagerMethod: .v3)
 
         /// What the pass reads, the experiments the Android app has no switch for left off.
         public var analysisSettings: AnalysisSettings {
-            AnalysisSettings(effortMethod: effortBanister ? .banister : .edwards, spo2CandidateDisplay: spo2CandidateDisplay,
+            AnalysisSettings(spo2CandidateDisplay: spo2CandidateDisplay,
                              sleepStagerV2: sleepStagerV2, motionAwareWake: motionAwareWake,
                              deepHrvWindow: deepHrvWindow, dayCycleMode: .persisted(dayCycleMode),
                              rhythmAge: rhythmAge, healthspan: healthspan,
                              hrvBaselineEpoch: hrvBaselineEpoch, recoveryBaselineEpoch: recoveryBaselineEpoch,
-                             traces: [])
+                             traces: [], effortStrengthBonus: effortStrengthBonus,
+                             sleepStagerMethod: sleepStagerMethod)
         }
     }
 
@@ -100,6 +111,9 @@ public enum CoreAnalysis {
     public static func applyExtras(_ json: String, to settings: inout Settings, profile: inout Profile) {
         guard let data = json.data(using: .utf8),
               let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        if let raw = o["sleepStagerMethod"] as? String, let method = SleepStager.Method(rawValue: raw) {
+            settings.sleepStagerMethod = method
+        }
         if let raw = o["formulaLog"] as? String { settings.basalFormula = BmrFormulaLog.decode(raw).current }
         func double(_ k: String) -> Double? { (o[k] as? NSNumber)?.doubleValue }
         func int(_ k: String) -> Int? { (o[k] as? NSNumber)?.intValue }
@@ -114,6 +128,7 @@ public enum CoreAnalysis {
         if let v = double("hrvBaselineEpoch") { settings.hrvBaselineEpoch = v }
         if let v = double("recoveryBaselineEpoch") { settings.recoveryBaselineEpoch = v }
         if let v = bool("spo2CandidateDisplay") { settings.spo2CandidateDisplay = v }
+        if let v = bool("effortStrengthBonus") { settings.effortStrengthBonus = v }
         if let v = double("waistCm") { profile.waistCm = v }
         if let v = double("stepTicksPerStep"), v > 0 { profile.stepTicksPerStep = v }
         if let v = double("stepsManualCoefficient") { profile.stepsManualCoefficient = v }
@@ -172,7 +187,6 @@ public enum CoreAnalysis {
 
         private var maxHR: Double { profile().maxHR ?? Double(StrainScorer.defaultMaxHR()) }
         private var sex: String { profile().sex }
-        private var effortMethod: StrainScorer.Method { settings.analysisSettings.effortMethod }
 
         func storeHandle() async -> WhoopStore? { reader.store }
         func refresh(days nDays: Int) async {
@@ -205,6 +219,10 @@ public enum CoreAnalysis {
             _ = await price(await sessions(days: TrainingHistoryWindow.allDays), budget: Int.max, recompute: true)
             await cardioCache.removeAll()
         }
+        func trainingSessions(from lo: Int, to hi: Int) async -> TrainingSessionFusionResult {
+            await TrainingSessionResolver.read(reader: reader, from: lo, to: hi,
+                                               dismissedDetectedSpans: settings.dismissedWorkoutSpans)
+        }
         func agelessLongSessions(days: Int) async -> [HealthspanVO2.LongSession] {
             let unified = await sessions(days: days)
             let resolution = await price(unified, budget: CardioLoadPricing.cardioLoadSessionBudget, recompute: false).resolution
@@ -225,12 +243,12 @@ public enum CoreAnalysis {
             return await WorkoutHeartRateFills.overlay(deduped.sorted { $0.startTs > $1.startTs }, store: reader.store)
         }
         func fillRecordedWorkoutHeartRate(from: Int, to: Int) async throws -> Int {
-            try await WorkoutHeartRateFills.fillRecorded(reader: reader, from: from, to: to, maxHR: maxHR, sex: sex,
-                                                         method: effortMethod).filled
+            try await WorkoutHeartRateFills.fillRecorded(reader: reader, from: from, to: to, maxHR: maxHR,
+                                                         sex: sex).filled
         }
         func fillAppleWorkoutHeartRate(from: Int, to: Int) async throws -> Int {
-            try await WorkoutHeartRateFills.fillApple(reader: reader, from: from, to: to, maxHR: maxHR, sex: sex,
-                                                      method: effortMethod).filled
+            try await WorkoutHeartRateFills.fillApple(reader: reader, from: from, to: to, maxHR: maxHR,
+                                                      sex: sex).filled
         }
 
         // MARK: Sleep (Apple: Repository.selfHealEditedStages, dismissedSleepWindows)
@@ -240,7 +258,7 @@ public enum CoreAnalysis {
             await EditedSleepHeal.heal(
                 store: reader.store, strapId: reader.activeDeviceId, computedId: reader.activeDeviceId + "-noop",
                 from: windowStart, to: windowEnd, unchangedDays: unchangedDays, tzOffsetSeconds: tzOffsetSeconds,
-                staging: .init(sleepV2: settings.sleepStagerV2, motionAwareWake: settings.motionAwareWake),
+                staging: .init(method: settings.sleepStagerMethod, motionAwareWake: settings.motionAwareWake),
                 lastSignature: host.storedString(Self.stagerSignatureKey),
                 saveSignature: { [host] in host.store($0, forKey: Self.stagerSignatureKey) })
         }
@@ -318,7 +336,13 @@ public enum CoreAnalysis {
         var heightCm: Double { p.heightCm }
         var waistCm: Double { p.waistCm }
         var hrMaxOverride: Int { p.hrMaxOverride }
-        var hrMax: Int { p.hrMaxOverride > 0 ? p.hrMaxOverride : Int(StrainScorer.tanakaHRmax(age: Double(max(p.age, 1)))) }
+        /// The setting, the level the core's last pass measured (kept by `Host` like the rest of the pass's
+        /// bookkeeping), else Gellish: `MaxHeartRate`, as `ProfileStore.hrMax` on Apple.
+        var hrMax: Int {
+            MaxHeartRate.resolve(overrideBpm: p.hrMaxOverride, age: Double(p.age),
+                                 measured: MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])?.bpm)
+                .wholeBpm
+        }
         var stepTicksPerStep: Double { p.stepTicksPerStep }
         var stepsManualOverride: Double? { p.stepsManualCoefficient > 0 ? p.stepsManualCoefficient : nil }
         var stepsCalibrationCoefficient: Double

@@ -39,8 +39,8 @@ public enum WorkoutHeartRateFills {
     /// Throws when a stored read fails, so the recipe that runs it (AI-16) stays pending instead of marking
     /// a partial pass done. The band trace is read through the ordinary facade, which reads an unreachable
     /// strap as empty; its raw history spans only the recent weeks, which every sync fills again.
-    public static func fillApple(reader: StoreReader, from: Int, to: Int, maxHR: Double, sex: String,
-                                 method: StrainScorer.Method) async throws -> Outcome {
+    public static func fillApple(reader: StoreReader, from: Int, to: Int, maxHR: Double,
+                                 sex: String) async throws -> Outcome {
         let store = reader.store
         var rows: [WorkoutRow] = []
         var offset = 0
@@ -89,7 +89,7 @@ public enum WorkoutHeartRateFills {
             let resting = WorkoutHeartRateFill.restingHR(on: day, own: own, apple: apple)
             guard let result = WorkoutHeartRateFill.resolve(
                 band: band, watchMinutes: minutes, start: row.startTs, end: row.endTs,
-                maxHR: maxHR, restingHR: resting, method: method, sex: sex) else { continue }
+                maxHR: maxHR, restingHR: resting) else { continue }
             fills.append(WorkoutHeartRateFillRow(
                 key: key, avgHr: result.averageHR, maxHr: result.maxHR, strain: result.strain,
                 hrSource: result.source.rawValue, restingHrUsed: result.restingHR,
@@ -115,8 +115,8 @@ public enum WorkoutHeartRateFills {
     /// was saved without one, from the band's own trace, and removes fills whose trace no longer covers their
     /// session. A live recording takes its heart rate from the stream; with the link down while it ran it is
     /// saved empty, though the strap kept the trace and hands it over at the next sync. Says what it did.
-    public static func fillRecorded(reader: StoreReader, from: Int, to: Int, maxHR: Double, sex: String,
-                                    method: StrainScorer.Method) async throws -> Outcome {
+    public static func fillRecorded(reader: StoreReader, from: Int, to: Int, maxHR: Double,
+                                    sex: String) async throws -> Outcome {
         let store = reader.store
         var rows: [WorkoutRow] = []
         for id in StoreReader.rawWhoopSourceIds(activeDeviceId: reader.activeDeviceId, registeredWhoopIds: []) {
@@ -146,7 +146,7 @@ public enum WorkoutHeartRateFills {
             let resting = WorkoutHeartRateFill.restingHR(on: day, own: own, apple: [:])
             guard let result = WorkoutHeartRateFill.resolve(
                 band: band, watchMinutes: [], start: row.startTs, end: row.endTs,
-                maxHR: maxHR, restingHR: resting, method: method, sex: sex) else { continue }
+                maxHR: maxHR, restingHR: resting) else { continue }
             fills.append(WorkoutHeartRateFillRow(
                 key: key, avgHr: result.averageHR, maxHr: result.maxHR, strain: result.strain,
                 hrSource: result.source.rawValue, restingHrUsed: result.restingHR,

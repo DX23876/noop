@@ -11,12 +11,12 @@ final class HRZonesTests: XCTestCase {
 
     func testZonesFromAge() {
         let zs = HRZones.zones(age: 30)
-        XCTAssertEqual(zs.source, "tanaka")
-        XCTAssertEqual(zs.maxHR, 187.0, accuracy: 1e-9)
+        XCTAssertEqual(zs.source, "gellish")
+        XCTAssertEqual(zs.maxHR, 186.0, accuracy: 1e-9)   // Gellish 185.7, whole bpm (`MaxHeartRate`)
         XCTAssertEqual(zs.zones.count, 5)
-        // Zone 1 lower = 50% of 187 = 93.5; Zone 5 upper = 187.
-        XCTAssertEqual(zs.zones[0].lower, 93.5, accuracy: 1e-9)
-        XCTAssertEqual(zs.zones[4].upper, 187.0, accuracy: 1e-9)
+        // Zone 1 lower = 50% of 186 = 93; Zone 5 upper = 186.
+        XCTAssertEqual(zs.zones[0].lower, 93.0, accuracy: 1e-9)
+        XCTAssertEqual(zs.zones[4].upper, 186.0, accuracy: 1e-9)
     }
 
     func testManualOverride() {
