@@ -1,6 +1,5 @@
 package com.noop.ui.forge
 
-import com.noop.ui.noopFieldColors
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -126,7 +125,7 @@ private fun TodayCard(p: CoreEnergyPlan.Plan, onSave: (Double, (Boolean) -> Unit
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(value = text, onValueChange = { text = it.filter(Char::isDigit).take(5); saved = null },
                               singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                              suffix = { Text("kcal") }, modifier = Modifier.weight(1f), colors = noopFieldColors())
+                              suffix = { Text("kcal") }, modifier = Modifier.weight(1f), colors = forgeFieldColors())
             Spacer(Modifier.width(ForgeMetrics.space2))
             TextButton(enabled = text.isNotEmpty(), onClick = { onSave(text.toDouble()) { saved = it } }) {
                 Text(stringResource(R.string.forge_energy_save))

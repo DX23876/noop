@@ -4932,4 +4932,19 @@
     <string name="forge_profile_not_set">未设置</string>
     <string name="forge_profile_change_photo">更改照片</string>
     <string name="forge_profile_choose_photo">选择照片</string>
+    <string name="forge_library_find_muscle">按肌肉查找</string>
+    <string name="forge_library_create_own">创建自定义动作</string>
+    <string name="forge_library_exercises_for">%1$s的训练动作</string>
+    <string name="forge_library_main_target">主要目标</string>
+    <string name="forge_library_also_trains">同时训练</string>
+    <string name="forge_library_no_exercises_match">没有匹配的动作。</string>
+    <string name="forge_library_search_muscle">动作或器械</string>
+    <string name="forge_library_more">更多</string>
+    <string name="forge_library_animations">动作动画</string>
+    <string name="forge_library_animations_text">没有它们也能使用每个动作。下载一次可选资源包，即可查看每个动作的做法。</string>
+    <string name="forge_library_hide">隐藏</string>
+    <string name="forge_library_front_body">身体正面</string>
+    <string name="forge_library_back_body">身体背面</string>
+    <string name="forge_library_region">身体部位</string>
+    <string name="forge_library_any_region">任意身体部位</string>
 </resources>

@@ -22,6 +22,29 @@ public enum CoreTrainingLibrary {
         public var exercises: [Row], muscles: [String], equipment: [String], regions: [String], modes: [String]
         public var provider: String, licence: String, attribution: String?
         public var availableExerciseIds: [String]
+        /// "Find by muscle" (`ExerciseMusclePickerView`): each group with the exercises that train it.
+        public var groups: [Group]
+    }
+
+    /// A muscle group the wearer picks on the body (`ExerciseMuscleGroup`), with its NOOP muscle ids for the artwork
+    /// and the exercises it is the main target of or also trains, in library order.
+    public struct Group: Encodable {
+        public var id: String, title: String, muscleIds: [String], primary: [String], secondary: [String]
+    }
+
+    static func groups(_ exercises: [TrainingExercise]) -> [Group] {
+        ExerciseMuscleGroup.allCases.map { group in
+            var primary: [String] = [], secondary: [String] = []
+            for exercise in exercises {
+                switch group.involvement(of: exercise) {
+                case .primary: primary.append(exercise.id)
+                case .secondary: secondary.append(exercise.id)
+                case nil: break
+                }
+            }
+            return Group(id: group.rawValue, title: group.title, muscleIds: group.muscleIds.sorted(),
+                         primary: primary, secondary: secondary)
+        }
     }
 
     public struct Records: Encodable {
@@ -55,7 +78,8 @@ public enum CoreTrainingLibrary {
             regions: TrainingBodyRegion.allCases.filter { $0 != .other }.map(\.rawValue),
             modes: TrainingMeasurementMode.allCases.map(\.rawValue),
             provider: rights.provider, licence: rights.licence, attribution: rights.attribution,
-            availableExerciseIds: exercises.filter { TrainingEquipmentCatalog.matches($0.equipmentIds, available: availableEquipment) }.map(\.id))
+            availableExerciseIds: exercises.filter { TrainingEquipmentCatalog.matches($0.equipmentIds, available: availableEquipment) }.map(\.id),
+            groups: groups(exercises))
     }
 
     public static func detail(reader: StoreReader, id: String, dismissedWorkouts: [String],

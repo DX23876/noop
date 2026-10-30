@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import com.noop.core.CoreGoalEditor
 import com.noop.core.CoreRead
 import com.noop.ui.ProfileStore
-import com.noop.ui.noopFieldColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -186,7 +185,7 @@ internal fun GoalEditorPage(goalId: String, onClose: (saved: Boolean) -> Unit) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(l["reasonText"].orEmpty())
-                    OutlinedTextField(reason, { reason = it }, placeholder = { Text(l["reasonHint"].orEmpty()) }, colors = noopFieldColors())
+                    OutlinedTextField(reason, { reason = it }, placeholder = { Text(l["reasonHint"].orEmpty()) }, colors = forgeFieldColors())
                 }
             },
             confirmButton = {

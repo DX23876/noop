@@ -307,6 +307,19 @@ public enum CoreCall {
         case "read.labMarkers":
             // The Lab Book's readings for one category, as Apple's `LabBookView` reads them.
             return await stored { try await reader.store.labMarkers(deviceId: string("deviceId"), category: string("category")) }
+        case "read.sleepSessions":
+            // `StoreReader.unionSleepSessions` and its computed twin: every block of the union with near-identical
+            // nights collapsed, naps kept, as `Repository` reads them for the Sleep screens.
+            let from = int("from", 0), to = int("to", Int(Date().timeIntervalSince1970)), limit = int("limit", 4000)
+            let sessions = int("computed", 0) == 1
+                ? await reader.unionComputedSleepSessions(from: from, to: to, limit: limit)
+                : await reader.unionSleepSessions(from: from, to: to, limit: limit)
+            return CoreRead.json(["sessions": sessions])
+        case "read.habitualMidsleep":
+            // `Repository.habitualMidsleepSec`: the learned habitual midsleep, nil during the cold start (#547).
+            let value = await reader.habitualMidsleepSec(from: int("from", 0), to: int("to", Int(Date().timeIntervalSince1970)),
+                                                         offsetSec: int("offsetSec", TimeZone.current.secondsFromGMT()))
+            return CoreRead.json(CoreRead.OptionalValue(value: value))
         case "read.workouts":
             return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))

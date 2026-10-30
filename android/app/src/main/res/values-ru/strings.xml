@@ -4863,4 +4863,19 @@
     <string name="forge_profile_not_set">Не задано</string>
     <string name="forge_profile_change_photo">Изменить фото</string>
     <string name="forge_profile_choose_photo">Выбрать фото</string>
+    <string name="forge_library_find_muscle">Найти по мышце</string>
+    <string name="forge_library_create_own">Создать своё упражнение</string>
+    <string name="forge_library_exercises_for">Упражнения: %1$s</string>
+    <string name="forge_library_main_target">Основная мышца</string>
+    <string name="forge_library_also_trains">Также нагружает</string>
+    <string name="forge_library_no_exercises_match">Подходящих упражнений нет.</string>
+    <string name="forge_library_search_muscle">Упражнение или инвентарь</string>
+    <string name="forge_library_more">Ещё</string>
+    <string name="forge_library_animations">Анимации упражнений</string>
+    <string name="forge_library_animations_text">Все упражнения работают и без них. Загрузите необязательный пакет один раз, чтобы видеть технику каждого.</string>
+    <string name="forge_library_hide">Скрыть</string>
+    <string name="forge_library_front_body">Передняя сторона тела</string>
+    <string name="forge_library_back_body">Задняя сторона тела</string>
+    <string name="forge_library_region">Часть тела</string>
+    <string name="forge_library_any_region">Любая часть тела</string>
 </resources>

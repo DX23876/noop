@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import com.noop.core.CoreGoalOnboarding
 import com.noop.core.CoreRead
 import com.noop.ui.ProfileStore
-import com.noop.ui.noopFieldColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -227,7 +226,7 @@ internal fun GoalOnboardingPage(onClose: (saved: Boolean) -> Unit) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(l["reasonText"].orEmpty())
-                    OutlinedTextField(reason, { reason = it }, placeholder = { Text(l["reasonHint"].orEmpty()) }, colors = noopFieldColors())
+                    OutlinedTextField(reason, { reason = it }, placeholder = { Text(l["reasonHint"].orEmpty()) }, colors = forgeFieldColors())
                 }
             },
             confirmButton = {
@@ -286,7 +285,7 @@ internal fun Field(label: String, value: String, placeholder: String, numeric: B
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label.uppercase(), style = Forge.type.overline, color = Forge.colors.textTertiary)
         OutlinedTextField(value, onChange, Modifier.fillMaxWidth(), singleLine = true,
-                          placeholder = { Text(placeholder) }, colors = noopFieldColors(),
+                          placeholder = { Text(placeholder) }, colors = forgeFieldColors(),
                           keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default)
     }
 }

@@ -7,6 +7,16 @@ import WhoopStore
 /// the core's computed ("-noop") rows fill the rest, and the active strap wins over the canonical import. Values
 /// the store does not have stay null.
 public enum CoreRead {
+    /// One optional number for a read whose answer may be absent (`read.habitualMidsleep`): `{"value": null}` then.
+    public struct OptionalValue: Encodable {
+        public var value: Int?
+        public func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(value, forKey: .value)
+        }
+        enum CodingKeys: String, CodingKey { case value }
+    }
+
     /// One day as the Today screen shows it.
     public struct Day: Codable, Equatable, Sendable {
         public var day: String

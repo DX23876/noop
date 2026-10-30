@@ -1,10 +1,10 @@
 import Foundation
-import MuscleMap
 import StrandTraining
 
 /// The muscle groups a wearer picks on the body to find exercises. Each group is a set of NOOP muscle
 /// ids, so it matches exercises the same way the muscle analytics count them, and each draws on the body
-/// through the one existing id-to-artwork mapping (`TrainingMuscleMapAppearance.muscle`).
+/// through the one existing id-to-artwork mapping (`TrainingMuscleMapAppearance.muscle`, Apple's
+/// `ExerciseMuscleGroup+Art.swift`). Shared with the Android core, which hands the groups to its picker.
 ///
 /// A group here never splits one analytics group (`HevyMuscleGroup.forTrainingMuscle`) across two chips.
 /// It may join two — upper back takes the lats, glutes take the abductors — exactly as the load map draws
@@ -68,16 +68,6 @@ enum ExerciseMuscleGroup: String, CaseIterable, Identifiable, Sendable {
         case .calves: return String(localized: "Calves")
         case .shins: return String(localized: "Shins")
         }
-    }
-
-    /// The artwork regions lit for this group.
-    var renderedMuscles: Set<Muscle> {
-        Set(muscleIds.compactMap(TrainingMuscleMapAppearance.muscle))
-    }
-
-    /// The group a tapped part of the body belongs to.
-    static func group(for muscle: Muscle) -> ExerciseMuscleGroup? {
-        allCases.first { $0.renderedMuscles.contains(muscle) }
     }
 
     /// Main target when the exercise's primary muscle is in the group, "also trains" when only a secondary

@@ -4978,4 +4978,19 @@
     <string name="forge_profile_not_set">Nie ustawiono</string>
     <string name="forge_profile_change_photo">Zmień zdjęcie</string>
     <string name="forge_profile_choose_photo">Wybierz zdjęcie</string>
+    <string name="forge_library_find_muscle">Szukaj według mięśnia</string>
+    <string name="forge_library_create_own">Utwórz własne ćwiczenie</string>
+    <string name="forge_library_exercises_for">Ćwiczenia: %1$s</string>
+    <string name="forge_library_main_target">Główny cel</string>
+    <string name="forge_library_also_trains">Angażuje też</string>
+    <string name="forge_library_no_exercises_match">Brak pasujących ćwiczeń.</string>
+    <string name="forge_library_search_muscle">Ćwiczenie lub sprzęt</string>
+    <string name="forge_library_more">Więcej</string>
+    <string name="forge_library_animations">Animacje ćwiczeń</string>
+    <string name="forge_library_animations_text">Każde ćwiczenie działa i bez nich. Pobierz raz opcjonalny pakiet, aby zobaczyć, jak wykonać każde z nich.</string>
+    <string name="forge_library_hide">Ukryj</string>
+    <string name="forge_library_front_body">Przód ciała</string>
+    <string name="forge_library_back_body">Tył ciała</string>
+    <string name="forge_library_region">Część ciała</string>
+    <string name="forge_library_any_region">Dowolna część ciała</string>
 </resources>

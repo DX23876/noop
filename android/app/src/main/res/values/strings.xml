@@ -4997,4 +4997,19 @@
     <string name="forge_profile_not_set">Not set</string>
     <string name="forge_profile_change_photo">Change photo</string>
     <string name="forge_profile_choose_photo">Choose photo</string>
+    <string name="forge_library_find_muscle">Find by muscle</string>
+    <string name="forge_library_create_own">Create your own exercise</string>
+    <string name="forge_library_exercises_for">Exercises for %1$s</string>
+    <string name="forge_library_main_target">Main target</string>
+    <string name="forge_library_also_trains">Also trains</string>
+    <string name="forge_library_no_exercises_match">No exercises match.</string>
+    <string name="forge_library_search_muscle">Exercise or equipment</string>
+    <string name="forge_library_more">More</string>
+    <string name="forge_library_animations">Exercise animations</string>
+    <string name="forge_library_animations_text">Every exercise works without them. Download the optional pack once to see how each one is done.</string>
+    <string name="forge_library_hide">Hide</string>
+    <string name="forge_library_front_body">Front of body</string>
+    <string name="forge_library_back_body">Back of body</string>
+    <string name="forge_library_region">Body region</string>
+    <string name="forge_library_any_region">Any body region</string>
 </resources>

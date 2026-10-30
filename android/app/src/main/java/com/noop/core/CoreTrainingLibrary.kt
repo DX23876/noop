@@ -10,7 +10,10 @@ object CoreTrainingLibrary {
                    val primary: List<String>, val secondary: List<String>, val equipment: List<String>, val matchingMuscles: List<String>)
     data class Catalog(val exercises: List<Row>, val muscles: List<String>, val equipment: List<String>,
                        val regions: List<String>, val modes: List<String>, val provider: String,
-                       val licence: String, val attribution: String?, val availableExerciseIds: List<String> = emptyList())
+                       val licence: String, val attribution: String?, val availableExerciseIds: List<String> = emptyList(),
+                       val groups: List<Group> = emptyList())
+    /** A muscle group of "Find by muscle" (`ExerciseMuscleGroup`), with the exercises it is the main or a side target of. */
+    data class Group(val id: String, val title: String, val muscleIds: List<String>, val primary: List<String>, val secondary: List<String>)
     data class Records(val sessions: Int, val heaviestKg: Double?, val estimatedOneRepMaxKg: Double?, val lastPerformedTs: Long?)
     data class Recent(val startTs: Long, val isNative: Boolean, val workingSets: Int, val heaviestKg: Double?)
     data class Detail(val exercise: Row, val instructions: List<String>, val attribution: String?,
@@ -28,7 +31,9 @@ object CoreTrainingLibrary {
 
     internal fun parseCatalog(json: String): Catalog? = parse(json) { o -> Catalog(
         o.getJSONArray("exercises").objects().map(::row), o.strings("muscles"), o.strings("equipment"),
-        o.strings("regions"), o.strings("modes"), o.getString("provider"), o.getString("licence"), o.string("attribution"), o.strings("availableExerciseIds")) }
+        o.strings("regions"), o.strings("modes"), o.getString("provider"), o.getString("licence"), o.string("attribution"), o.strings("availableExerciseIds"),
+        o.optJSONArray("groups")?.objects()?.map { Group(it.getString("id"), it.getString("title"), it.strings("muscleIds"),
+            it.strings("primary"), it.strings("secondary")) }.orEmpty()) }
     internal fun parseDetail(json: String): Detail? = parse(json) { o ->
         val r = o.getJSONObject("records")
         Detail(row(o.getJSONObject("exercise")), o.strings("instructions"), o.string("attribution"),

@@ -1376,6 +1376,29 @@ internal fun ToggleRow(title: String, detail: String?, checked: Boolean, enabled
     }
 }
 
+/**
+ * A text field in Forge's own colours: the quiet inset grey iOS uses for fields inside a card, not the classic screens'
+ * paper tone. A search field on the page itself passes the card surface as [container], so it stands off the canvas.
+ */
+@Composable
+internal fun forgeFieldColors(container: androidx.compose.ui.graphics.Color = Forge.colors.inset) =
+    androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Forge.colors.text,
+    unfocusedTextColor = Forge.colors.text,
+    disabledTextColor = Forge.colors.textTertiary,
+    focusedPlaceholderColor = Forge.colors.textTertiary,
+    unfocusedPlaceholderColor = Forge.colors.textTertiary,
+    focusedLeadingIconColor = Forge.colors.textSecondary,
+    unfocusedLeadingIconColor = Forge.colors.textSecondary,
+    cursorColor = Forge.colors.accent,
+    focusedBorderColor = Forge.colors.accent,
+    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    disabledBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    focusedContainerColor = container,
+    unfocusedContainerColor = container,
+    disabledContainerColor = container,
+)
+
 /** The switch as iOS draws it: green when on, a quiet grey track when off, a white thumb and no outline. */
 @Composable
 internal fun forgeSwitchColors() = SwitchDefaults.colors(
