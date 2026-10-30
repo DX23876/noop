@@ -54,6 +54,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
@@ -307,6 +308,8 @@ private fun Header(date: LocalDate, isToday: Boolean, onProfile: () -> Unit, onQ
 @Composable
 private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
     val colors = Forge.colors
+    // Each ring opens its trend, as iOS's `HeroScoreCell` pushes its `detailRoute`.
+    var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, glass = true, contentPadding = 0.dp) {
         Box(Modifier.fillMaxWidth()) {
             BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = HeroRingLayout.horizontalPadding,
@@ -314,10 +317,10 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
                 val diameter = HeroRingLayout.diameter(maxWidth)
                 Row(Modifier.fillMaxWidth()) {
                     ScoreSlot(R.string.forge_charge, day?.charge, day?.charge?.let { colors.chargeRing(it) } ?: colors.charge,
-                              diameter, OrganicMetric.Charge, Modifier.weight(1f))
+                              diameter, OrganicMetric.Charge, Modifier.weight(1f)) { open = CoreRead.Metric.Charge }
                     ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort, Modifier.weight(1f),
-                          format = rememberEffortFormat())
-                    ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f))
+                          format = rememberEffortFormat()) { open = CoreRead.Metric.Effort }
+                    ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f)) { open = CoreRead.Metric.Rest }
                 }
             }
             // The hero's provenance, a quiet caption in its top corner as on iOS: who supplied the inputs, from the
@@ -330,6 +333,7 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
             }
         }
     }
+    ForgeMetricDetail(open) { open = null }
 }
 
 /** The hero's source caption: the names joined with " + ", the translated words resolved; null without any. */
@@ -348,12 +352,14 @@ internal fun heroSourceLabel(tokens: List<String>): String? {
 
 @Composable
 private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: androidx.compose.ui.unit.Dp,
-                      metric: OrganicMetric, modifier: Modifier = Modifier, format: (Double) -> String = WHOLE_NUMBER) {
+                      metric: OrganicMetric, modifier: Modifier = Modifier, format: (Double) -> String = WHOLE_NUMBER,
+                      onOpen: () -> Unit) {
     val label = stringResource(labelRes)
     val spoken = if (score == null) stringResource(R.string.forge_score_missing, label, stringResource(R.string.forge_no_data))
                  else stringResource(R.string.forge_score_spoken, label, score.roundToInt())
     Column(horizontalAlignment = Alignment.CenterHorizontally,
-           modifier = modifier.semantics(mergeDescendants = true) { contentDescription = spoken }) {
+           modifier = modifier.clickable(role = Role.Button, onClick = onOpen)
+               .semantics(mergeDescendants = true) { contentDescription = spoken }) {
         // The drawn ring may be a little wider than its slot; its glow overlaps the neighbour's, as on iOS.
         Box(Modifier.fillMaxWidth().height(diameter), contentAlignment = Alignment.Center) {
             OrganicRing(score, tint, diameter, metric, Modifier.requiredSize(diameter), format)
