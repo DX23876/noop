@@ -153,4 +153,40 @@ final class EffectRankerTests: XCTestCase {
                              effect: e, confidence: .building)
         XCTAssertTrue(r.sentence().hasSuffix("(next morning)."))
     }
+
+    // MARK: - Benjamini–Hochberg
+
+    func testBenjaminiHochbergTextbookExample() {
+        // Benjamini & Hochberg (1995) Table 1: 15 p-values, q = 0.05 rejects the 4 smallest.
+        let p = [0.0001, 0.0004, 0.0019, 0.0095, 0.0201, 0.0278, 0.0298, 0.0344,
+                 0.0459, 0.3240, 0.4262, 0.5719, 0.6528, 0.7590, 1.000]
+        let r = EffectRanker.benjaminiHochberg(pValues: p, q: 0.05)
+        XCTAssertEqual(r, p.indices.map { $0 < 4 })
+        // Shuffled input keeps per-index verdicts.
+        let reversed = Array(p.reversed())
+        XCTAssertEqual(EffectRanker.benjaminiHochberg(pValues: reversed, q: 0.05),
+                       reversed.map { $0 <= 0.0095 })
+        // Adjusted p-values agree with the verdict.
+        let adj = EffectRanker.benjaminiHochbergAdjusted(p)
+        XCTAssertEqual(adj.map { $0 <= 0.05 }, r)
+        XCTAssertEqual(adj[14], 1.0, accuracy: 1e-12)
+    }
+
+    func testBenjaminiHochbergAllNull() {
+        let p = [0.2, 0.5, 0.7, 0.9, 0.99]
+        XCTAssertEqual(EffectRanker.benjaminiHochberg(pValues: p, q: 0.10), [false, false, false, false, false])
+        XCTAssertEqual(EffectRanker.benjaminiHochberg(pValues: [], q: 0.10), [])
+    }
+
+    func testBenjaminiHochbergTiesAreNotSplit() {
+        // m = 4, q = 0.10: thresholds .025/.05/.075/.10. The tied 0.05 pair straddles ranks 2 and 3;
+        // rank 3 (0.05 <= 0.075) passes, so both tied values must pass.
+        let p = [0.05, 0.05, 0.90, 0.01]
+        XCTAssertEqual(EffectRanker.benjaminiHochberg(pValues: p, q: 0.10), [true, true, false, true])
+    }
+
+    func testLoneNominalHitDoesNotSurviveFamily() {
+        let adj = EffectRanker.benjaminiHochbergAdjusted([0.04, 0.5, 0.6])
+        XCTAssertGreaterThan(adj[0], 0.10)
+    }
 }

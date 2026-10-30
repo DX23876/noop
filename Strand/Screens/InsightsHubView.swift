@@ -95,7 +95,7 @@ struct InsightsHubView: View {
         let movedGood: Bool? = e.delta == 0 ? nil : ((e.delta > 0) == outcome.higherIsBetter)
         let tint: StrandTone = {
             guard let good = movedGood else { return .neutral }
-            if e.significant { return good ? .positive : .critical }
+            if r.fdrSignificant { return good ? .positive : .critical }
             return good ? .positive : .warning
         }()
         let tintColor = toneColor(tint)
