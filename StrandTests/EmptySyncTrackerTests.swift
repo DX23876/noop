@@ -73,4 +73,21 @@ final class EmptySyncTrackerTests: XCTestCase {
         XCTAssertFalse(t.recordCompletedSync(bankedSensorRecords: false, consoleOnly: true))
         XCTAssertTrue(t.recordCompletedSync(bankedSensorRecords: false, consoleOnly: true))
     }
+
+    // An off-wrist strap handing over nothing says nothing about its clock: the cycle neither counts nor clears.
+    func testAnOffWristEmptyCycleNeitherCountsNorClears() {
+        var t = EmptySyncTracker()
+        _ = t.recordCompletedSync(bankedSensorRecords: false, consoleOnly: true)
+        XCTAssertFalse(t.recordCompletedSync(bankedSensorRecords: false, consoleOnly: true, strapOffWrist: true))
+        XCTAssertFalse(t.recordCompletedSync(bankedSensorRecords: false, consoleOnly: true, strapOffWrist: true))
+        XCTAssertEqual(t.consecutiveEmptySyncs, 1)
+    }
+
+    // ...but a banner on-wrist cycles already raised stays up while the strap sits on a charger.
+    func testAnOffWristCycleKeepsABannerAlreadyRaised() {
+        var t = EmptySyncTracker()
+        for _ in 0..<3 { _ = t.recordCompletedSync(bankedSensorRecords: false, consoleOnly: true) }
+        XCTAssertTrue(t.recordCompletedSync(bankedSensorRecords: false, consoleOnly: true, strapOffWrist: true))
+        XCTAssertEqual(t.consecutiveEmptySyncs, 3)
+    }
 }

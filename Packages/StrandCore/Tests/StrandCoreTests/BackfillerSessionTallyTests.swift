@@ -158,6 +158,16 @@ final class BackfillerSessionTallyTests: XCTestCase {
         XCTAssertFalse(line.contains("fully charge"))
     }
 
+    // An off-wrist strap's empty offload is not read as a clock/charge state, and gives no charge advice.
+    func testNoCursorLineOffWristStatesTheWristNotTheCharge() {
+        let line = Backfiller.noCursorLine(rowsPersisted: 0, strapOffWrist: true)
+        XCTAssertTrue(line.contains("WRIST_OFF"))
+        XCTAssertFalse(line.contains("fully charge"))
+        XCTAssertFalse(line.contains("\u{2014}"))
+        // Rows this run still read as caught up, whatever the wrist did.
+        XCTAssertTrue(Backfiller.noCursorLine(rowsPersisted: 5, strapOffWrist: true).contains("caught up"))
+    }
+
     // No em-dash leaks into either branch (project hard rule).
     func testNoCursorLineHasNoEmDash() {
         XCTAssertFalse(Backfiller.noCursorLine(rowsPersisted: 0).contains("\u{2014}"))
