@@ -59,13 +59,25 @@ final class CoreGoalsTests: XCTestCase {
             try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: file)
         }
-        func shape(_ value: Any) -> Any {
-            if let object = value as? [String: Any] { return object.mapValues(shape) as NSDictionary }
-            if let array = value as? [Any] { return (array.first.map { [shape($0)] } ?? []) as NSArray }
-            return "value"
+        // Every key the answer carries must be one the pinned file carries, at every level. What the day of the week
+        // decides may be absent on either side: an optional value left out, or a list that is empty today (suggested
+        // days, spotlight rows), so the pin does not fail on a Friday for what it passed on a Wednesday.
+        func fits(_ value: Any, _ pinned: Any, _ path: String) -> [String] {
+            if let object = value as? [String: Any] {
+                guard let other = pinned as? [String: Any] else { return [path] }
+                return object.flatMap { key, child in
+                    other[key].map { fits(child, $0, path + "/" + key) } ?? [path + "/" + key]
+                }
+            }
+            if let array = value as? [Any] {
+                guard let other = pinned as? [Any] else { return [path] }
+                guard let first = array.first, let pinnedFirst = other.first else { return [] }
+                return fits(first, pinnedFirst, path + "[0]")
+            }
+            return []
         }
         let pinned = try JSONSerialization.jsonObject(with: Data(contentsOf: file))
-        XCTAssertEqual(shape(try JSONSerialization.jsonObject(with: data)) as? NSDictionary, shape(pinned) as? NSDictionary)
+        XCTAssertEqual(fits(try JSONSerialization.jsonObject(with: data), pinned, ""), [])
     }
 
     func testASavedWorkoutNamesTheGoalItCountedToward() async throws {
