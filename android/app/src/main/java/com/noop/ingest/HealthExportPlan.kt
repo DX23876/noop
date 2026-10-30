@@ -94,6 +94,25 @@ object HealthExportPlan {
         val absorbedClientIds: List<String> = emptyList(),
     )
 
+    /**
+     * When each day's nightly vitals are stamped: the midpoint of the LONGEST night whose wake falls on that day.
+     * [dayOf] maps a unix second to the day string the daily rows are keyed by. Inside the night, not at noon or on
+     * its edge: the values are nightly aggregates, and a reader of Health Connect picks them by the sleep window they
+     * describe. The longest night rather than the latest, so a nap does not carry the night's values out of it.
+     * From Iskrata/noop; mirrors Swift `HealthWriteback.vitalsInstantByDay`.
+     */
+    fun vitalsInstantByDay(plans: List<SleepPlan>, dayOf: (Long) -> String): Map<String, Long> {
+        val longest = HashMap<String, SleepPlan>()
+        for (p in plans) {
+            if (p.endSec <= p.startSec) continue
+            val day = dayOf(p.endSec)
+            val cur = longest[day]
+            if (cur != null && cur.endSec - cur.startSec >= p.endSec - p.startSec) continue
+            longest[day] = p
+        }
+        return longest.mapValues { (_, p) -> p.startSec + (p.endSec - p.startSec) / 2 }
+    }
+
     /** Finalized sessions (endTs <= [nowSec]) only; never the currently-open night. Fragments are
      *  grouped into BRIDGED NIGHTS (#364) via [SleepStageTotals.bridgedNightGroups] — the SAME
      *  two-tier bridge the daily totals score with (#561/#861) — so a night the detector split on a

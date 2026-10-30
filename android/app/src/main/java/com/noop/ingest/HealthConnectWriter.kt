@@ -135,14 +135,27 @@ object HealthConnectWriter {
         // replaces the whole day consistently.
         val version = System.currentTimeMillis() / 1000
 
+        // The nightly vitals are stamped inside the night they describe: the midpoint of that day's longest bridged
+        // night, from the same plan the sleep write exports. A day without a night keeps local noon. A failed read
+        // only costs the in-night stamp.
+        val nowSec = System.currentTimeMillis() / 1000
+        val vitalsAt: Map<String, Long> = runCatching {
+            val sessions = repo.sleepSessionsMerged(deviceId, from = nowSec - WINDOW_DAYS * 86_400, to = nowSec)
+                .map { HealthExportPlan.SleepInput(it.startTs, it.effectiveStartTs, it.endTs, it.stagesJSON) }
+            val offsetSec = (java.util.TimeZone.getDefault().getOffset(nowSec * 1000) / 1000).toLong()
+            HealthExportPlan.vitalsInstantByDay(HealthExportPlan.sleepSessions(sessions, nowSec, offsetSec)) {
+                Instant.ofEpochSecond(it).atZone(zone).toLocalDate().toString()
+            }
+        }.getOrDefault(emptyMap())
+
         val records = ArrayList<Record>()
         for (d in days) {
-            // Noon local on the metric's day: an unambiguous, stable instant for a daily summary
-            // (midnight would straddle the previous night across DST shifts).
+            // Noon local on the metric's day when it has no night: an unambiguous, stable instant for a daily
+            // summary (midnight would straddle the previous night across DST shifts).
             val date = runCatching { LocalDate.parse(d.day) }.getOrNull() ?: continue
-            val time = date.atTime(LocalTime.NOON).atZone(zone)
-            val instant: Instant = time.toInstant()
-            val offset = time.offset
+            val noon = date.atTime(LocalTime.NOON).atZone(zone)
+            val instant: Instant = vitalsAt[d.day]?.let { Instant.ofEpochSecond(it) } ?: noon.toInstant()
+            val offset = zone.rules.getOffset(instant)
 
             d.restingHr?.let {
                 records.add(RestingHeartRateRecord(

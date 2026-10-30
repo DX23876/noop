@@ -1294,6 +1294,62 @@ public enum SleepStager {
         return Double(covered) / Double(dur)
     }
 
+    /// The off-wrist time of a run as disjoint `[start, end)` intervals, clipped to it: the union of the HR-gap
+    /// proxy spans and the WRIST_OFF→WRIST_ON intervals, merged and sorted. The same spans `offWristFraction`
+    /// measures, kept as intervals so the run can be cut.
+    static func offWristUnion(_ p: Period, hr: [HRSample], wristOff: [(start: Int, end: Int)]) -> [(start: Int, end: Int)] {
+        var spans = offWristHRGapSpans(p, hr: hr)
+        for w in wristOff {
+            let s = max(w.start, p.start), e = min(w.end, p.end)
+            if e > s { spans.append((start: s, end: e)) }
+        }
+        if spans.isEmpty { return [] }
+        spans.sort { $0.start < $1.start }
+        var out: [(start: Int, end: Int)] = []
+        var cur = spans[0]
+        for sp in spans.dropFirst() {
+            if sp.start <= cur.end { cur.end = max(cur.end, sp.end) } else { out.append(cur); cur = sp }
+        }
+        out.append(cur)
+        return out
+    }
+
+    /// Cut the time the strap was off the wrist out of a sleep run that the fractional rule keeps (some
+    /// off-wrist time, but under `maxOffWristSleepFraction`). Without this the whole run is kept and its start
+    /// or end sweeps the off-wrist stretch in: a still, worn evening followed by an hour with the strap on the
+    /// desk read as one nap that ended an hour after the strap was taken off. The worn pieces stay separate
+    /// candidates for every other gate (`minSleepMin` drops the short ones). Runs with no off-wrist time, and
+    /// runs the fractional rule drops anyway, are returned untouched, so a worn night is unchanged.
+    ///
+    /// `passesEarlierGates` is whatever the loop asks of a whole run before the off-wrist step (long enough,
+    /// not an impossible span, confirmed by heart rate). A run that fails those is left whole so it is dropped
+    /// for the same reason as before; cutting it first would hand a bad-clock artefact pieces short enough to
+    /// slip under the span cap. From aansun/PHMNoop (a3dd71e44).
+    static func trimOffWrist(_ runs: [Period], hr: [HRSample], wristOff: [(start: Int, end: Int)],
+                             passesEarlierGates: (Period) -> Bool) -> [Period] {
+        var out: [Period] = []
+        for p in runs {
+            guard p.stage == "sleep", passesEarlierGates(p) else { out.append(p); continue }
+            let frac = offWristFraction(p, hr: hr, wristOff: wristOff)
+            guard frac > 0, frac < maxOffWristSleepFraction else { out.append(p); continue }
+            // Only the stretches that matter are cut: one that reaches the start or end of the run (the strap
+            // came off at the end, or went on late) and one at least `offWristHRGapMin` long. A brief WRIST_OFF
+            // blip in the middle of a worn night is not a reason to split it into two pieces too short to count.
+            let gapS = offWristHRGapMin * 60
+            let cuts = offWristUnion(p, hr: hr, wristOff: wristOff).filter {
+                $0.start <= p.start || $0.end >= p.end || ($0.end - $0.start) >= gapS
+            }
+            guard !cuts.isEmpty else { out.append(p); continue }
+            var cursor = p.start
+            for span in cuts {
+                if span.start > cursor { out.append(Period(stage: p.stage, start: cursor, end: span.start)) }
+                cursor = max(cursor, span.end)
+            }
+            if p.end > cursor { out.append(Period(stage: p.stage, start: cursor, end: p.end)) }
+        }
+        return out
+    }
+
     // MARK: - detectSleep (public)
 
     /// Detect sleep sessions from biometric streams. Empty/absent gravity → [].
@@ -1504,6 +1560,12 @@ public enum SleepStager {
             }
         }
 
+        // Off-wrist time inside a run the fractional rule keeps is cut out of it (see `trimOffWrist`), so a
+        // session never claims the hours the strap was off the wrist.
+        runs = trimOffWrist(runs, hr: hrS, wristOff: wristOff) { p in
+            (p.end - p.start) > minSleepS && (p.end - p.start) <= maxMainSleepSpanS
+                && confirmSleepWithHR(p, hr: hrS, baseline: baseline, grav: grav, sleepHRBaseline: sleepHRBaseline)
+        }
         var sessions: [SleepSession] = []
         // Continuous-sleep chain tracking so a real overnight sleep that runs PAST the daytime-band
         // start (a late wake, or a brief morning stir then back to sleep that leaves the tail as its
@@ -2080,6 +2142,32 @@ public enum SleepStager {
     static let rsaMinBreathIntervalS = 2.5   // 24 bpm
     static let rsaMaxBreathIntervalS = 10.0  // 6 bpm
 
+    /// Half-width, as a fraction of the window's median breath interval, of the intervals averaged into
+    /// that window's rate (`rsaAnchoredMeanInterval`).
+    static let rsaIntervalBand = 0.4
+
+    /// One window's breath interval: the MEAN of the intervals within ±`rsaIntervalBand` of their median.
+    ///
+    /// Peak positions sit on the 0.25 s resample grid and, on a piecewise-linear tachogram, near beat
+    /// times, so single intervals come in coarse steps. The median of such values is itself one of those
+    /// steps, which left the nightly rate on a handful of values (60/4.25 = 14.12 for every true rate
+    /// from about 13.3 to 15.0 in a 7 h synthetic replay). Averaging the ~60 intervals of a window
+    /// cancels the grid jitter; anchoring on the median keeps the #958 protection, since a missed
+    /// breath (≈2× the median) or a split one (≈0.5×) falls outside the band and is not averaged in.
+    /// Replay over 11–17 bpm, three nights each: mean absolute error 0.63 → 0.06 bpm. From
+    /// bogaczcyprien-svg/noop (d1219e3d3).
+    static func rsaAnchoredMeanInterval(_ intervals: [Double]) -> Double {
+        let med = HRVAnalyzer.median(intervals)
+        guard med > 0.0 else { return med }
+        var sum = 0.0
+        var count = 0
+        for iv in intervals where abs(iv - med) <= rsaIntervalBand * med {
+            sum += iv
+            count += 1
+        }
+        return count > 0 ? sum / Double(count) : med
+    }
+
     /// THE canonical plausible sleeping-respiratory-rate band (bpm). The RSA peak-pick below can
     /// yield 6–8 bpm at its noise floor, but every consumer (illness/readiness gates) only acts on
     /// 8–25 — so respRateFromRR clamps its output to this band (NaN outside it) and the stored
@@ -2251,8 +2339,8 @@ public enum SleepStager {
                         }
                     }
                     if intervals.count >= 2 {
-                        let med = HRVAnalyzer.median(intervals)
-                        if med > 0.0 { perWindowRates.append(60.0 / med) }
+                        let mean = rsaAnchoredMeanInterval(intervals)
+                        if mean > 0.0 { perWindowRates.append(60.0 / mean) }
                     }
                 }
             }

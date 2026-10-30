@@ -1355,12 +1355,10 @@ final class HealthKitBridge: ObservableObject {
         let to = toDay
         let from = fromDay
 
-        // day (of wake) → wake instant. Ascending session order means the latest wake of a day wins,
-        // matching collectSleep's end-date day attribution.
-        var wakeByDay: [String: Date] = [:]
-        for s in sessions where s.endTs > s.effectiveStartTs {
-            let wake = Date(timeIntervalSince1970: TimeInterval(s.endTs))
-            wakeByDay[HealthKitBridge.dayString(wake)] = wake
+        // day (of wake) → mid-night instant of that day's longest bridged night, attributed by wake like
+        // collectSleep's end-date attribution, from the same night plan the sleep write exports.
+        let instantByDay = HealthWriteback.vitalsInstantByDay(Self.sleepPlan(sessions: sessions)) {
+            HealthKitBridge.dayString(Date(timeIntervalSince1970: TimeInterval($0)))
         }
         let rows = try await repo.healthExportDailies(from: from, to: to).filter { !holdingDays.contains($0.day) }
 
@@ -1399,7 +1397,7 @@ final class HealthKitBridge: ObservableObject {
         for row in rows {
             guard let date = HealthKitBridge.date(from: row.day) else { continue }
             let noon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date
-            let at = wakeByDay[row.day] ?? noon
+            let at = instantByDay[row.day].map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? noon
             if let rhr = row.restingHr {
                 add(.restingHeartRate, HKUnit.count().unitDivided(by: .minute()), Double(rhr), row.day, at)
             }
@@ -1613,6 +1611,21 @@ final class HealthKitBridge: ObservableObject {
         return samples
     }
 
+    /// The bridged nights (#364) the write-back exports, shared by the sleep write and the vitals stamps so
+    /// both describe the same night.
+    private static func sleepPlan(sessions: [CachedSleepSession]) -> [HealthWriteback.MergedSleepEntry] {
+        let blocks = sessions.map { SleepStageTotals.NightBlock(start: $0.effectiveStartTs, end: $0.endTs) }
+        let groups = SleepStageTotals.bridgedNightGroups(blocks, offsetSec: TimeZone.current.secondsFromGMT())
+            .map { g in
+                g.indices.map { i -> HealthWriteback.SleepFragment in
+                    let s = sessions[i]
+                    return .init(startTs: s.startTs, effectiveStartTs: s.effectiveStartTs,
+                                 endTs: s.endTs, stagesJSON: s.stagesJSON)
+                }
+            }
+        return HealthWriteback.mergedSleepPlan(groups: groups)
+    }
+
     /// Write each BRIDGED NIGHT (#364) as one `.inBed` sample plus one category sample per stage
     /// segment (`deep → .asleepDeep`, `rem → .asleepREM`, `light → .asleepCore`, `wake → .awake`) —
     /// the same shape Oura and Apple Watch write, so Health renders the full hypnogram. A night the
@@ -1627,18 +1640,9 @@ final class HealthKitBridge: ObservableObject {
     private func writeSleep(sessions: [CachedSleepSession], whoopStore: WhoopStore, fromTs: Int, toTs: Int, holdingStarts: Set<Int> = []) async throws -> Int {
         guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis),
               store.authorizationStatus(for: type) == .sharingAuthorized else { return 0 }
-        let blocks = sessions.map { SleepStageTotals.NightBlock(start: $0.effectiveStartTs, end: $0.endTs) }
-        let groups = SleepStageTotals.bridgedNightGroups(blocks, offsetSec: TimeZone.current.secondsFromGMT())
-            .map { g in
-                g.indices.map { i -> HealthWriteback.SleepFragment in
-                    let s = sessions[i]
-                    return .init(startTs: s.startTs, effectiveStartTs: s.effectiveStartTs,
-                                 endTs: s.endTs, stagesJSON: s.stagesJSON)
-                }
-            }
         var samples: [HKCategorySample] = []
         var keys: [String] = []
-        for entry in HealthWriteback.mergedSleepPlan(groups: groups) {
+        for entry in Self.sleepPlan(sessions: sessions) {
             keys.append(contentsOf: entry.allKeyStartTs.map { HealthWriteback.appleHealthSleepKey(startTs: $0) })
             samples.append(contentsOf: Self.sleepSamples(for: entry))
         }

@@ -33,8 +33,14 @@ public final class FrameRouter {
         // connection by BLEManager (connectCore), so this is the per-session reset hook.
         didSet {
             rawDumpedRespCmds.removeAll(); loggedFirmwareGate = nil; deviceId = nil
-            rejectTally = FrameRejectTally(); loggedRejectReasons.removeAll()
+            resetLinkTally()
         }
+    }
+
+    /// Start the reject tally afresh for a new link. BLEManager also calls it when a link drops, with a fresh
+    /// reassembler, since a standing reconnect never sets `family`.
+    func resetLinkTally() {
+        rejectTally = FrameRejectTally(); loggedRejectReasons.removeAll()
     }
 
     /// Rejected frames on this connection, per reason, plus the one named counter for the class that
@@ -874,6 +880,7 @@ public final class FrameRouter {
     /// live decides how soon the Live HR banner can show the dash — a WHOOP 5.0 does, about two seconds after it
     /// leaves the wrist (a tester's log, 24 Sep 2026, read from the silence that followed, since nothing named them).
     private func handleWrist(on: Bool, duringSync: Bool) {
+        state.wristEventThisLink = on
         let changes = state.worn != on
         state.append(log: AppModel.stamped("Strap: \(on ? "WRIST_ON" : "WRIST_OFF")"
                                            + (duringSync ? " during a sync" : "")

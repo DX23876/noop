@@ -198,4 +198,37 @@ class SleepStagerOffWristTest {
             SleepStager.offWristFraction(p, sparse, listOf(0L to 3_000L)) >= 0.5,
         )
     }
+
+    /**
+     * Off-wrist time inside a kept run is cut out of it. Worn and still 20:00-22:00, the strap on the desk
+     * 22:00-23:00 (still gravity, no HR), worn again, then a real night: the evening session must stop where
+     * the HR stopped, not run on into the off-wrist hour. Twin of Swift testOffWristHourIsNotInsideTheSession.
+     */
+    @Test
+    fun offWristHourIsNotInsideTheSession() {
+        fun at(h: Double) = refMidnight + (h * 3600).toLong()
+        fun still(a: Double, b: Double) = stillGravity(at(a), (at(b) - at(a)).toInt())
+        fun moving(a: Double, b: Double) = activeGravity(at(a), (at(b) - at(a)).toInt())
+        fun hr(a: Double, b: Double, bpm: Int) = hrStream(at(a), (at(b) - at(a)).toInt(), bpm)
+        val g = moving(12.0, 20.0) + still(20.0, 23.0) + moving(23.0, 24.5) + still(24.5, 31.0)
+        val h = hr(12.0, 20.0, 72) + hr(20.0, 22.0, 60) + hr(23.0, 24.5, 70) + hr(24.5, 31.0, 52)
+        val sessions = SleepStager.detectSleep(hr = h, gravity = g)
+        for (s in sessions.filter { it.start < at(24.0) }) {
+            assertTrue("an evening session must stop where the HR stopped, not run into the off-wrist hour",
+                s.end <= at(22.0) + 120)
+        }
+        assertTrue("the real night after it is still found", sessions.any { it.start >= at(24.0) })
+    }
+
+    /** A brief WRIST_OFF blip in the middle of a worn night is not cut: the night stays one session. */
+    @Test
+    fun briefMidNightWristOffBlipDoesNotSplitTheNight() {
+        val start = startAtHour(2)
+        val dur = 90 * 60
+        val sessions = SleepStager.detectSleep(
+            hr = hrStream(start, dur, 50), gravity = stillGravity(start, dur),
+            wristOff = listOf((start + 30 * 60) to (start + 35 * 60)),
+        )
+        assertEquals(1, sessions.size)
+    }
 }

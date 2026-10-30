@@ -289,11 +289,19 @@ struct EmptySyncTracker {
     /// emptiness is SUSTAINED (≥ threshold consecutive console-only cycles) — the caller shows the
     /// "clock has lost sync" banner only then. Any banking cycle, or a caught-up cycle with nothing to
     /// offload, clears the streak.
-    mutating func recordCompletedSync(bankedSensorRecords: Bool, consoleOnly: Bool) -> Bool {
+    ///
+    /// `strapOffWrist` = the strap's last wrist event on this link was WRIST_OFF when the offload began
+    /// (`LiveState.wristEventThisLink`). An off-wrist strap handing over nothing says nothing about its clock,
+    /// so such a cycle neither counts toward the streak nor clears it, and it returns the streak it leaves
+    /// standing: a banner on-wrist cycles already raised stays up while the strap sits on a charger.
+    /// Adapted from ayiskakov/noop (W06-109, W06-116).
+    mutating func recordCompletedSync(bankedSensorRecords: Bool, consoleOnly: Bool,
+                                      strapOffWrist: Bool = false) -> Bool {
         guard consoleOnly, !bankedSensorRecords else {
             consecutiveEmptySyncs = 0
             return false
         }
+        if strapOffWrist { return consecutiveEmptySyncs >= threshold }
         consecutiveEmptySyncs += 1
         return consecutiveEmptySyncs >= threshold
     }
@@ -951,12 +959,19 @@ public final class BLEManager: NSObject, ObservableObject {
     private var rawCaptureInFlight = false
     private var rawCaptureStoppedAt = Date.distantPast
     private var unexpectedImuStopAt = Date.distantPast
-    /// Ordered queue of frames awaiting drain through the serial Backfiller task.
-    private var backfillFrameQueue: [[UInt8]] = []
-    /// True while the drain task is running (prevents a second drain task from launching).
-    private var backfillDraining = false
     /// Keep each main-actor drain slice small enough that SwiftUI can process input/paint between slices.
     private static let backfillDrainBatchSize = 12
+    /// Ordered queue of offload frames and the serial task that drains it into the Backfiller, single-flight
+    /// across links (`BackfillDrain`). Settable so a test can drive an ingest across a link change.
+    lazy var backfillDrain = BackfillDrain(
+        batchSize: Self.backfillDrainBatchSize,
+        ingest: { [weak self] frame in await self?.backfiller?.ingest(frame) },
+        afterIngest: { [weak self] in
+            guard let self else { return false }
+            self.afterBackfillIngest()
+            return self.backfilling
+        },
+        log: { [weak self] line in self?.log(line) })
 
     /// Records WHOOP 5/MG puffin frames to a JSON file for protocol mapping. Passive (read-only on the
     /// strap) and gated by the Settings → Experimental "Record puffin frames" toggle; a no-op for
@@ -1135,7 +1150,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Once-per-connection guard for the 5/MG offload kick (connectHandshakeDone + requestSync +
     /// startBackfillTimer). Stops the HISTORY_END acks re-entering didWriteValueFor from re-triggering
     /// the offload mid-stream (the 5/MG twin of the WHOOP4 connectHandshakeDone ack-storm guard).
-    private var whoop5SessionStarted = false
+    var whoop5SessionStarted = false   // internal for RadioPowerOffTeardownTests
     /// Backfill ACKs can arrive hundreds or thousands of times in one offload. Keep the strap log
     /// readable and avoid forcing SwiftUI to auto-scroll on every ACK row.
     private var historicalAckLogCounter = 0
@@ -1165,6 +1180,11 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Retry count for WHOOP 4 GET_CLOCK when correlation has not arrived before backfill starts.
     private var clockRetries = 0
     private var intentionalDisconnect = false
+    /// The identifier of a link that a Bluetooth power-off or reset ended (`endLinkForRadioState`). iOS sends no
+    /// `didDisconnectPeripheral` for a power-off; if one for that same peripheral still arrives, it must not run
+    /// a second teardown over whatever connected since. Any other peripheral's disconnect, and the user's own
+    /// Disconnect, run normally.
+    private var linkEndedAtRadioLoss: String?
     /// Consecutive `didFailToConnect` count, for the auto-reconnect backoff (#414). Reset to 0 on a
     /// successful connect; grows the reschedule delay so a strap that's genuinely out of range doesn't
     /// hammer Bluetooth (vs the disconnect path's flat 3s, which is fine for an already-bonded drop).
@@ -1478,7 +1498,30 @@ public final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    /// The store bootstrap in flight, so a second caller waits for it instead of opening a second store.
+    private var bootstrapInFlight: Task<Void, Never>?
+
+    /// Opens the store and builds the Collector and Backfiller, once. Single-flight: the open is awaited, so two
+    /// callers arriving together both used to pass `collector == nil`. An iOS state-restoration relaunch does
+    /// exactly that (`willRestoreState` and `poweredOn` each start a bootstrap). Each opened a store and built its
+    /// own pipeline and the second replaced the first, dropping the first Collector's buffered HR and able to end
+    /// an offload the first Backfiller was running. A failed bootstrap leaves `collector` nil, so the next backfill
+    /// tick retries as before (#222). Adapted from ayiskakov/noop (W06-014).
     func bootstrapStore() async {
+        guard collector == nil else { return }
+        if let running = bootstrapInFlight {
+            // Always-on: the only trace that the relaunch race fired.
+            log("Backfill: store bootstrap already in flight — waiting for it")
+            await running.value
+            return
+        }
+        let task = Task { @MainActor in await self.bootstrapStoreOnce() }
+        bootstrapInFlight = task
+        await task.value
+        bootstrapInFlight = nil
+    }
+
+    private func bootstrapStoreOnce() async {
         guard collector == nil else { return }
         // Surface store-open failures instead of swallowing them with `try?` (#222): a silent failure
         // here left `backfiller` nil forever and the only visible symptom was the downstream
@@ -1589,6 +1632,8 @@ public final class BLEManager: NSObject, ObservableObject {
                                 // universal clock-drift line is firmware-aware on every export. Unconditional.
                                 firmwareLayout: { [weak self] v in self?.state.setStrapFirmwareLayout(v) },
                                 subLagInterp: { PuffinExperiment.ppgHrSubLagInterpEnabled })
+        // A restore that swapped the file under this store holds every ack until the relaunch.
+        backfiller?.storeReplaced = { LiveStoreReplacement.happened }
         // Strand: no server uploader/sync — all data stays on-device.
 
         // Retro-decode: when the decoder gains a historical layout (e.g. WHOOP 4.0 v25), re-run every
@@ -1741,6 +1786,7 @@ public final class BLEManager: NSObject, ObservableObject {
         // device (registry said B, radio stayed on A). No pin (single-WHOOP) → always true, unchanged.
         if let p = peripheral, p.state == .connected, isPreferredPeripheral(p) {
             state.connected = true
+            linkEndedAtRadioLoss = nil   // a new link: its own disconnect must run
             p.delegate = self
             log("Already connected to \(model.displayName) — refreshing services and notifications")
             discoverPrimaryServices(on: p)
@@ -2576,6 +2622,16 @@ public final class BLEManager: NSObject, ObservableObject {
     /// The `trim` argument (= end_data first u32) is already persisted as the strap_trim cursor by
     /// the Backfiller; it is passed here only for logging.
     func ackHistoricalChunk(trim: UInt32, endData: [UInt8]) {
+        // A chunk whose END began ingesting on a link that has since ended is not acked on the one now up. Its
+        // rows are persisted, so the ack would be honest, but it would reach the strap out of sequence on a link
+        // that never delivered that chunk, and an ack frees flash. Not sending it costs one re-sent chunk, which
+        // dedupes by timestamp. The Backfiller stops such an END before it asks for an ack (every boundary that
+        // moves the drain's link moves its session too), so this is a second guard behind it. Always-on: rare,
+        // and the only trace of the case.
+        if backfillDrain.ingestOutlivedItsLink {
+            log("Backfill: chunk ack (trim=\(trim)) not sent — its END began on a link that has since ended, so the chunk stays on the strap to be re-sent")
+            return
+        }
         send(.historicalDataResult, payload: [0x01] + endData, writeType: .withResponse)
         // Progress signal for the "Syncing strap history…" UI (#77). Same main-queue delegate path as
         // the other state mutations (e.g. lastSyncedAt in exitBackfilling). NOT historicalAckLogCounter
@@ -2639,7 +2695,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // #42/#364: consecutiveAutoContinues > 0 means this offload is re-kicked after an EARLIER session in
         // the same burst banked rows — tell the backfiller so its no-cursor END reads as "caught up", not
         // "no banked history / charge to 100%". A fresh offload (count 0) keeps the honest guidance.
-        backfiller.begin(family: selectedModel.deviceFamily, continuedAfterRows: consecutiveAutoContinues > 0)
+        backfiller.begin(family: selectedModel.deviceFamily, continuedAfterRows: consecutiveAutoContinues > 0,
+                         strapOffWrist: state.wristEventThisLink == false)
         backfilling = true
         state.backfilling = true
         state.syncChunksThisSession = 0
@@ -2664,32 +2721,15 @@ public final class BLEManager: NSObject, ObservableObject {
     /// synchronously (delegate order) and drained sequentially in small slices, so START /
     /// data / END chunk assembly is never reordered while the UI still gets time to paint.
     private func routeBackfillFrame(_ frame: [UInt8]) {
-        backfillFrameQueue.append(frame)
-        guard !backfillDraining else { return }
-        backfillDraining = true
-        Task { @MainActor in await drainBackfillFrames() }
+        backfillDrain.route(frame)
     }
 
-    private func drainBackfillFrames() async {
-        while !backfillFrameQueue.isEmpty {
-            let count = min(Self.backfillDrainBatchSize, backfillFrameQueue.count)
-            let batch = Array(backfillFrameQueue.prefix(count))
-            backfillFrameQueue.removeFirst(count)
-
-            for f in batch {
-                await backfiller?.ingest(f)
-                afterBackfillIngest()
-                if !backfilling {
-                    backfillFrameQueue.removeAll(keepingCapacity: true)
-                    break
-                }
-            }
-
-            if !backfillFrameQueue.isEmpty {
-                await Task.yield()
-            }
-        }
-        backfillDraining = false
+    /// A link ended or began: the drain's queue and draining flag belong to the next link, and an END still
+    /// writing from the previous one stops at its next resume and acks nothing. Called from the link teardown
+    /// and from `didConnect`; a second call for one boundary is harmless.
+    func offloadLinkBoundary() {
+        backfillDrain.linkEnded()
+        backfiller?.linkEnded()
     }
 
     /// Called after every Backfiller.ingest completes. If the Backfiller has consumed all
@@ -2791,7 +2831,7 @@ public final class BLEManager: NSObject, ObservableObject {
         lastOffloadFrameAt = Date()
         backfillTimeout?.cancel()
         backfillTimeout = nil
-        backfillFrameQueue.removeAll()
+        backfillDrain.dropQueued()
         log("Backfill: session ended — reason=\(reason)"
             + BLEManager.sessionEndedOutcome(reason: reason,
                                              bankedRows: (backfiller?.sessionRowsPersisted ?? 0) > 0))
@@ -2912,9 +2952,18 @@ public final class BLEManager: NSObject, ObservableObject {
             // confirms we're caught up. Don't surface the "charge to 100%" framing, and don't count it toward
             // the sustained-empty streak (the productive session already cleared it).
             let productiveBurstTail = consecutiveAutoContinues > 0
-            let bankedNothing = banking.bankedNothing && !productiveBurstTail
+            // An empty offload from a strap whose last wrist event was WRIST_OFF is not a clock or charge state.
+            // Read from the Backfiller's snapshot, the one its no-cursor line used, so the line and the banner
+            // cannot disagree about the wrist. It is excused only from raising the banner: one the streak already
+            // holds keeps its branch below, so `lastSyncError` and `sustainedEmptyOffload` agree with the streak.
+            let strapOffWrist = backfiller?.strapOffWrist == true
             let sustainedEmpty = productiveBurstTail ? false : emptySyncTracker.recordCompletedSync(
-                bankedSensorRecords: bankedSensorRecords, consoleOnly: banking.bankedNothing)
+                bankedSensorRecords: bankedSensorRecords, consoleOnly: banking.bankedNothing,
+                strapOffWrist: strapOffWrist)
+            let bankedNothing = banking.bankedNothing && !productiveBurstTail && (!strapOffWrist || sustainedEmpty)
+            if banking.bankedNothing, strapOffWrist, !productiveBurstTail {
+                log("Backfill: completed with no sensor history while the strap's last wrist event was WRIST_OFF; not counted as an empty sync (consecutive empty syncs stay \(emptySyncTracker.consecutiveEmptySyncs)).")
+            }
             // #612: expose the streak as a queryable flag (previously only reached UI as `lastSyncError`
             // free text below). Set on EVERY HISTORY_COMPLETE, not just the empty branch, so a productive
             // sync clears it immediately.
@@ -6054,6 +6103,32 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(BLEManager.unauthorizedSettleSeconds), execute: work)
     }
 
+    /// Ends a held link when the radio drops every link. CoreBluetooth on iOS sends no `didDisconnectPeripheral`
+    /// for a Bluetooth power-off, so the link's state outlived it: `didBond` and `connectHandshakeDone` stayed
+    /// set and the reconnect skipped the 5/MG handshake and SET_CLOCK, and the offload's drain and session
+    /// were never reset. Handles `.poweredOff` and `.resetting` only. A launch's `.unknown` and macOS's
+    /// transient `.unauthorized` (#391) can arrive while a restored link is being re-discovered, and
+    /// `.unsupported` has no link. The drop detectors (#80, #617) and the bond-refusal count (#1635) are not
+    /// fed: a radio switched off says nothing about the strap. Adapted from ayiskakov/noop (W06-083, W06-148).
+    func endLinkForRadioState(_ radio: CBManagerState, peripheralUUID: String?) {
+        let cause: String
+        switch radio {
+        case .poweredOff: cause = "Bluetooth off"
+        case .resetting: cause = "Bluetooth resetting"
+        default: return
+        }
+        guard state.connected || linkUpSince != nil else { return }
+        endLinkReadouts(ended: cause)
+        resetLinkState()
+        linkEndedAtRadioLoss = peripheralUUID
+        log("Link ended: \(cause) — torn down at the radio state change")
+        if TestCentre.active(.connection) {
+            let held = ConnectionTrace.sessionHeldSuffix(
+                millis: connSessionStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1)
+            state.append(log: "connect down (\(cause)\(held))", domain: .connection)
+        }
+    }
+
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         log("Central state: \(central.state.rawValue) (5 = poweredOn)")
         // #391: ANY state update means the cold-start settling window moved on — a pending
@@ -6062,6 +6137,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         unauthorizedSettleWork?.cancel()
         unauthorizedSettleWork = nil
         guard central.state == .poweredOn else {
+            endLinkForRadioState(central.state, peripheralUUID: peripheral?.identifier.uuidString)
             // #280: a non-poweredOn radio state used to be a SILENT return — the strap log showed only
             // "Central state: 3" and the UI just read "not connected", so a user whose Mac had denied NOOP
             // Bluetooth (.unauthorized == raw 3) had nothing explaining why no strap was ever found. This is
@@ -6234,6 +6310,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         liveHr = 0; liveRr = 0; offloadHr = 0; offloadRr = 0
         offloadGravity = 0; offloadResp = 0; offloadSkinTemp = 0; offloadSpo2 = 0; offloadChunks = 0
         linkUpSince = DispatchTime.now()
+        // Also at the start of a link, not only in the teardown: a link can begin without one (a restored or
+        // radio-ended link), and an END still writing from the previous one must then be judged stale too.
+        offloadLinkBoundary()
         standingConnectAt = nil     // #1413: a live link means no standing connect is outstanding
         restoredPeripheral = nil
         preparePeripheral(peripheral)
@@ -6243,6 +6322,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // The bond is re-proved per connection. Re-adoption no longer reads this flag (it listens on
         // `readoptionConfirmed`), so the ordering against the publish below is no longer load-bearing.
         state.encryptedBond = false   // re-proved per connection at the genuine-bond site (#69)
+        state.wristEventThisLink = nil   // only a wrist event seen on this link may excuse an empty offload
         // Multi-WHOOP: publish the strap's stable BLE identity so the app can persist it onto the active
         // registry device (it observes this and calls registry.setPeripheralId). Additive observation
         // only — BLEManager stays decoupled from the store and the connect flow below is unchanged.
@@ -6251,6 +6331,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // (the Sync Strap shortcut, a state-restoration relaunch) reconnects by identifier, not by scan.
         UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: Self.lastConnectedPeripheralKey)
         state.connected = true
+        linkEndedAtRadioLoss = nil   // a new link: its own disconnect must run
         // A connect succeeded → clear the stale-bond re-pair guide UNLESS we are in a known bond-loop
         // (#617). In that loop the strap "connects" every ~3 s before timing out again, so clearing here
         // wiped the guide on EVERY cycle: it flashed for ~1 s and vanished, so the user could never read it
@@ -6376,7 +6457,22 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
     public func centralManager(_ central: CBCentralManager,
                                didDisconnectPeripheral peripheral: CBPeripheral,
                                error: Error?) {
-        Task { @MainActor in await collector?.flush() }
+        linkDropped(peripheralUUID: peripheral.identifier.uuidString, error: error)
+    }
+
+    /// `didDisconnectPeripheral`'s body. It needs only the peripheral's identifier, so a test, which cannot make a
+    /// `CBPeripheral`, can end a link through it.
+    func linkDropped(peripheralUUID: String, error: Error?) {
+        // A link a Bluetooth power-off or reset already ended gets no second teardown should its disconnect still
+        // arrive; poweredOn's connect owns what happens now. Only for that peripheral, and never the user's own
+        // Disconnect, whose branch below must run.
+        if let ended = linkEndedAtRadioLoss, ended == peripheralUUID {
+            linkEndedAtRadioLoss = nil
+            if !intentionalDisconnect {
+                log("Disconnected — that link already ended at the radio state change")
+                return
+            }
+        }
         // Reboot trail: if a user reboot is in flight, this drop is the strap acting on it. Log how long
         // the link stayed up (a real reboot drops within ~1-2 s) and cancel the no-disconnect watchdog. The
         // reconnect time is logged separately once the handshake completes. `rebootRequestedAt` stays set so
@@ -6411,6 +6507,116 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         } else {
             endedReason = "no error reported"
         }
+        endLinkReadouts(ended: endedReason)
+
+        let timedOut = !intentionalDisconnect && error != nil
+        let sinceArm = realtimeArmedAt.map { Date().timeIntervalSince($0) }
+        if marginalRadio.connectionEnded(wasArmed: realtimeArmedAt != nil,
+                                         secondsSinceArm: sinceArm,
+                                         timedOut: timedOut) {
+            standardHRFallback = true
+            log("Marginal radio (#80): \(marginalRadio.consecutiveArmTimeouts) arm-then-timeout cycles — next connect uses standard-HR mode (0x2A37 only)")
+        }
+        // #617 bond-loop detection: same pre-reset read. The bond-loop tell is a CONNECTION TIMEOUT that
+        // lands within seconds of a genuine bond — bond → drop → rescan → bond → drop, forever. We require
+        // the OS to classify the drop as a connection timeout (`CBError.connectionTimeout`), not merely any
+        // error, so a one-off radio blip or a different failure doesn't get mistaken for the loop. Once it
+        // trips, surface the EXISTING re-pair guide (the same forget-and-re-pair steps the #74/firmware-reset
+        // path shows) rather than letting the link loop silently and drain the battery.
+        let connTimedOut: Bool = (error as? CBError)?.code == .connectionTimeout
+        let sinceBond = bondedAt.map { Date().timeIntervalSince($0) }
+        if postBondLoop.connectionEnded(wasBonded: bondedAt != nil,
+                                        secondsSinceBond: sinceBond,
+                                        timedOut: connTimedOut && !intentionalDisconnect) {
+            log("Bond-loop (#617): \(postBondLoop.consecutiveBondTimeouts) bond-then-timeout cycles — surfacing the re-pair guide and pausing auto-reconnect")
+            // #844 — the loop is bond → drop → 3s rescan → bond → drop, forever, draining the battery.
+            // Surfacing the guide alone left the involuntary-drop rescan (below) running. Pause auto-reconnect
+            // too: the disconnect rescan and didFailToConnect both already skip while this is set, and a user
+            // Connect (connect()) or a genuine bond re-arms it. We do NOT touch the bond/parse path — the bond
+            // is real; the stale OS pairing is the problem, which the guide tells the user how to clear.
+            autoReconnectPausedForBondLoop = true
+            bondLoopPauseCause = .droppedAfterPairing(cycles: postBondLoop.consecutiveBondTimeouts)
+            bondLoopPausedAt = Date()   // the #78 hole-4 salvage probe covers this pause too (one bounded cycle)
+            // #1539: arm the parked connect in the same breath as the pause. The salvage probe only fires on
+            // app-foreground, so without this a pause tripped with the phone in a pocket strands the strap
+            // until someone opens the app.
+            standingConnectWhilePausedIfDue(justTripped: true)
+            if TestCentre.active(.connection) {
+                state.append(log: "reconnect paused=bondLoop (#617: \(postBondLoop.consecutiveBondTimeouts) bond-then-timeout cycles)", domain: .connection)
+            }
+            if state.reconnectGuide == nil {
+                state.reconnectGuide = """
+                Your strap keeps connecting and then dropping a second later. This is almost always a stale Bluetooth pairing - usually after a WHOOP firmware update, or the official WHOOP app holding the strap. NOOP works fine once it's re-paired:
+
+                1. Quit the official WHOOP app (or turn off Bluetooth on that phone).
+                2. Open System Settings → Bluetooth and Forget your WHOOP if it's listed.
+                3. Tap the strap repeatedly until its LEDs flash blue (pairing mode).
+                4. Come back here and reconnect.
+                """
+            }
+        }
+        // #1635: an unanswered CLIENT_HELLO produces no write error at all - the link simply drops a few
+        // seconds later - so it never reached the give-up on this platform and nothing could end the loop.
+        // Read it HERE, while `clientHelloWriteAt` and `didBond` are both still valid, and feed it in
+        // through the same split the auth path uses. `countsAsBondRefusal` gates on family, so a 4.0 (which
+        // bonds cleanly) can never latch the suppression. Recorded once the link state is reset, as before
+        // with `state.connected` already false.
+        let helloRefused = countsAsBondRefusal(isAuthRefusalStatus: false,
+                                               helloUnacked: clientHelloWriteAt != nil,
+                                               alreadyBonded: didBond,
+                                               family: selectedModel.deviceFamily)
+        resetLinkState()
+        if helloRefused {
+            recordWhoop5BondRefusal(authRefusal: false, peripheralUUID: peripheralUUID)
+        }
+        if autoReconnectPausedForBondLoop {
+            // #747: the bond keeps being refused, so auto-reconnect is paused: we stop hammering a strap that
+            // can't bond (the epitaph + paused hint were already surfaced when the give-up tripped). The user
+            // re-arms it by tapping Connect. We do NOT schedule a rescan here.
+            log("Disconnected\(error.map { ": \($0.localizedDescription)" } ?? "")\(BLEManager.bleErrorSuffix(error)); auto-reconnect paused (\(bondLoopPauseCause.pausedReason); tap Connect once it's free)")
+            // #1539: a connect attempt CONSUMES the parked request, so re-park it — floored, so a reachable
+            // strap that keeps refusing gets one attempt per window instead of a connect/refuse spin.
+            standingConnectWhilePausedIfDue()
+            if TestCentre.active(.connection) {
+                state.append(log: "connect down (uptime ends)", domain: .connection)
+                state.append(log: "reconnect paused=bondLoop (\(bondLoopPauseCause.pausedReason))", domain: .connection)
+            }
+        } else if !intentionalDisconnect {
+            log("Disconnected\(error.map { " — \($0.localizedDescription)" } ?? "")\(BLEManager.bleErrorSuffix(error))")
+            // Connection test mode: count + describe the involuntary reconnect churn, and mark the link
+            // down for the uptime readout. Gated zero-cost (the .connection bool is read before any string
+            // is built). Diagnostic only - the rescan above is unchanged. The count increments only on an
+            // INVOLUNTARY drop, mirroring an actual reconnect cycle.
+            connReconnectCount += 1
+            if TestCentre.active(.connection) {
+                let reason = (error as? CBError)?.code == .connectionTimeout
+                    ? "connectionTimeout" : connErrorToken(error)
+                // #1020: the session's length separates the causes of a drop at a glance. Same suffix the
+                // Android twin emits, so the shared ConnectionReadout parser sees one format.
+                let held = ConnectionTrace.sessionHeldSuffix(
+                    millis: connSessionStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1)
+                state.append(log: "connect down (uptime ends\(held))", domain: .connection)
+                state.append(log: "reconnect n=\(connReconnectCount) reason=\(reason)", domain: .connection)
+            }
+            // #1413: route through the standing-connect regime, not a bare timer, so a suspension in the
+            // reconnect window can't leave the link dead until the phone is next picked up. The regime keeps
+            // the same guards (#78 hole-3): the give-up pause and an intentional teardown both stop it.
+            scheduleReconnect()
+        } else {
+            log("Disconnected (intentional)")
+            // A user-initiated teardown ends the churn count for the run and marks the link down so the
+            // uptime readout reads "not connected" rather than a stale uptime. Gated zero-cost.
+            connReconnectCount = 0
+            if TestCentre.active(.connection) {
+                state.append(log: "connect down (intentional)", domain: .connection)
+            }
+        }
+    }
+
+    /// The per-link readouts a link's end owes the strap log: the epitaph, the banked summary and the reject
+    /// tally, then the counters they read, cleared so a second teardown for the same link cannot re-report it.
+    /// Shared by `didDisconnectPeripheral` and `endLinkForRadioState`.
+    private func endLinkReadouts(ended endedReason: String) {
         // Only for a link we actually held. Emitting without one would report "the strap sent NOTHING on
         // this link" using the PREVIOUS link's counters, fabricating the very symptom #1809 is about.
         if let since = linkUpSince {
@@ -6462,53 +6668,21 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // asked THIS link", and carrying it over would make a reconnect inside the window wait out the
         // previous link's timer before taking its first reading, on exactly the churn this is for.
         lastRssiDbm = nil; lastRssiAt = nil; lastRssiReadAt = nil
+        // The link's bytes die with it. A frame half-received when the link dropped has a real header, so the
+        // gate passes it and it swallows the next link's first frames (normally the handshake replies); a
+        // standing reconnect never runs connectCore, where the reassembler is otherwise rebuilt. The reject
+        // tally goes with it, because it folds the reassembler's drop counts as growth past the total it last
+        // saw. Adapted from ayiskakov/noop (W06-033).
+        reassembler = Reassembler(family: selectedModel.deviceFamily)
+        router.resetLinkTally()
+    }
 
-        let timedOut = !intentionalDisconnect && error != nil
-        let sinceArm = realtimeArmedAt.map { Date().timeIntervalSince($0) }
-        if marginalRadio.connectionEnded(wasArmed: realtimeArmedAt != nil,
-                                         secondsSinceArm: sinceArm,
-                                         timedOut: timedOut) {
-            standardHRFallback = true
-            log("Marginal radio (#80): \(marginalRadio.consecutiveArmTimeouts) arm-then-timeout cycles — next connect uses standard-HR mode (0x2A37 only)")
-        }
-        // #617 bond-loop detection: same pre-reset read. The bond-loop tell is a CONNECTION TIMEOUT that
-        // lands within seconds of a genuine bond — bond → drop → rescan → bond → drop, forever. We require
-        // the OS to classify the drop as a connection timeout (`CBError.connectionTimeout`), not merely any
-        // error, so a one-off radio blip or a different failure doesn't get mistaken for the loop. Once it
-        // trips, surface the EXISTING re-pair guide (the same forget-and-re-pair steps the #74/firmware-reset
-        // path shows) rather than letting the link loop silently and drain the battery.
-        let connTimedOut: Bool = (error as? CBError)?.code == .connectionTimeout
-        let sinceBond = bondedAt.map { Date().timeIntervalSince($0) }
-        if postBondLoop.connectionEnded(wasBonded: bondedAt != nil,
-                                        secondsSinceBond: sinceBond,
-                                        timedOut: connTimedOut && !intentionalDisconnect) {
-            log("Bond-loop (#617): \(postBondLoop.consecutiveBondTimeouts) bond-then-timeout cycles — surfacing the re-pair guide and pausing auto-reconnect")
-            // #844 — the loop is bond → drop → 3s rescan → bond → drop, forever, draining the battery.
-            // Surfacing the guide alone left the involuntary-drop rescan (below) running. Pause auto-reconnect
-            // too: the disconnect rescan and didFailToConnect both already skip while this is set, and a user
-            // Connect (connect()) or a genuine bond re-arms it. We do NOT touch the bond/parse path — the bond
-            // is real; the stale OS pairing is the problem, which the guide tells the user how to clear.
-            autoReconnectPausedForBondLoop = true
-            bondLoopPauseCause = .droppedAfterPairing(cycles: postBondLoop.consecutiveBondTimeouts)
-            bondLoopPausedAt = Date()   // the #78 hole-4 salvage probe covers this pause too (one bounded cycle)
-            // #1539: arm the parked connect in the same breath as the pause. The salvage probe only fires on
-            // app-foreground, so without this a pause tripped with the phone in a pocket strands the strap
-            // until someone opens the app.
-            standingConnectWhilePausedIfDue(justTripped: true)
-            if TestCentre.active(.connection) {
-                state.append(log: "reconnect paused=bondLoop (#617: \(postBondLoop.consecutiveBondTimeouts) bond-then-timeout cycles)", domain: .connection)
-            }
-            if state.reconnectGuide == nil {
-                state.reconnectGuide = """
-                Your strap keeps connecting and then dropping a second later. This is almost always a stale Bluetooth pairing - usually after a WHOOP firmware update, or the official WHOOP app holding the strap. NOOP works fine once it's re-paired:
-
-                1. Quit the official WHOOP app (or turn off Bluetooth on that phone).
-                2. Open System Settings → Bluetooth and Forget your WHOOP if it's listed.
-                3. Tap the strap repeatedly until its LEDs flash blue (pairing mode).
-                4. Come back here and reconnect.
-                """
-            }
-        }
+    /// Clears everything that belongs to one link, so the next connect starts over: the bond and handshake
+    /// flags (a 5/MG must re-prove its bond and redo SET_CLOCK), the offload session and its drain, the
+    /// probes and the per-link displays. Runs after the drop detectors have read their timestamps. Shared by
+    /// `didDisconnectPeripheral` and `endLinkForRadioState`.
+    private func resetLinkState() {
+        Task { @MainActor in await collector?.flush() }
         bondedAt = nil   // cleared after the bond-loop detector above read it (#617)
         state.connected = false
         ecgReadingLinkLost()
@@ -6560,18 +6734,6 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         }
         state.clearBiometrics()       // and a stale HR / R-R must not outlive the link either
         state.liveFeedActive = false  // a drop while Live is open must not leave a stale "Stop live feed"
-        // #1635: an unanswered CLIENT_HELLO produces no write error at all - the link simply drops a few
-        // seconds later - so it never reached the give-up on this platform and nothing could end the loop.
-        // Read it HERE, while `clientHelloWriteAt` and `didBond` are both still valid, and feed it in
-        // through the same split the auth path uses. `countsAsBondRefusal` gates on family, so a 4.0 (which
-        // bonds cleanly) can never latch the suppression.
-        if countsAsBondRefusal(isAuthRefusalStatus: false,
-                               helloUnacked: clientHelloWriteAt != nil,
-                               alreadyBonded: didBond,
-                               family: selectedModel.deviceFamily) {
-            recordWhoop5BondRefusal(authRefusal: false,
-                                    peripheralUUID: peripheral.identifier.uuidString)
-        }
         didBond = false
         clientHelloWriteAt = nil   // #1635: no hello survives the link that carried it
         whoop5RealtimeArmed = false
@@ -6633,8 +6795,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.sustainedEmptyOffload = false
         backfillTimeout?.cancel()
         backfillTimeout = nil
-        backfillFrameQueue.removeAll()
-        backfillDraining = false
+        offloadLinkBoundary()
         backfillTimer?.cancel()
         backfillTimer = nil
         keepAliveTimer?.cancel()
@@ -6646,48 +6807,6 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         puffinEventLog.close()   // release the event-log handle so the file is safe to export
         puffinDeepBufferLog.close()   // same for the high-rate deep-buffer log (#423)
         Task { @MainActor in await collector?.flushStandardHR(reason: .disconnect) }   // persist any buffered 0x2A37 HR
-        if autoReconnectPausedForBondLoop {
-            // #747: the bond keeps being refused, so auto-reconnect is paused: we stop hammering a strap that
-            // can't bond (the epitaph + paused hint were already surfaced when the give-up tripped). The user
-            // re-arms it by tapping Connect. We do NOT schedule a rescan here.
-            log("Disconnected\(error.map { ": \($0.localizedDescription)" } ?? "")\(BLEManager.bleErrorSuffix(error)); auto-reconnect paused (\(bondLoopPauseCause.pausedReason); tap Connect once it's free)")
-            // #1539: a connect attempt CONSUMES the parked request, so re-park it — floored, so a reachable
-            // strap that keeps refusing gets one attempt per window instead of a connect/refuse spin.
-            standingConnectWhilePausedIfDue()
-            if TestCentre.active(.connection) {
-                state.append(log: "connect down (uptime ends)", domain: .connection)
-                state.append(log: "reconnect paused=bondLoop (\(bondLoopPauseCause.pausedReason))", domain: .connection)
-            }
-        } else if !intentionalDisconnect {
-            log("Disconnected\(error.map { " — \($0.localizedDescription)" } ?? "")\(BLEManager.bleErrorSuffix(error))")
-            // Connection test mode: count + describe the involuntary reconnect churn, and mark the link
-            // down for the uptime readout. Gated zero-cost (the .connection bool is read before any string
-            // is built). Diagnostic only - the rescan above is unchanged. The count increments only on an
-            // INVOLUNTARY drop, mirroring an actual reconnect cycle.
-            connReconnectCount += 1
-            if TestCentre.active(.connection) {
-                let reason = (error as? CBError)?.code == .connectionTimeout
-                    ? "connectionTimeout" : connErrorToken(error)
-                // #1020: the session's length separates the causes of a drop at a glance. Same suffix the
-                // Android twin emits, so the shared ConnectionReadout parser sees one format.
-                let held = ConnectionTrace.sessionHeldSuffix(
-                    millis: connSessionStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1)
-                state.append(log: "connect down (uptime ends\(held))", domain: .connection)
-                state.append(log: "reconnect n=\(connReconnectCount) reason=\(reason)", domain: .connection)
-            }
-            // #1413: route through the standing-connect regime, not a bare timer, so a suspension in the
-            // reconnect window can't leave the link dead until the phone is next picked up. The regime keeps
-            // the same guards (#78 hole-3): the give-up pause and an intentional teardown both stop it.
-            scheduleReconnect()
-        } else {
-            log("Disconnected (intentional)")
-            // A user-initiated teardown ends the churn count for the run and marks the link down so the
-            // uptime readout reads "not connected" rather than a stale uptime. Gated zero-cost.
-            connReconnectCount = 0
-            if TestCentre.active(.connection) {
-                state.append(log: "connect down (intentional)", domain: .connection)
-            }
-        }
     }
 
     public func centralManager(_ central: CBCentralManager,
@@ -6813,6 +6932,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         }
         if p.state == .connected {
             state.connected = true
+            linkEndedAtRadioLoss = nil   // a new link: its own disconnect must run
             // #613: the inherited notify subscriptions come back reported-active but dead. Force one real
             // off→on re-subscribe this session (see `requestNotify`) so live HR/R-R resume AND
             // `didUpdateNotificationStateFor` fires → `cmdNotifyConfirmedActive` → `connectSettled` → the
