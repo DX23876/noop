@@ -390,11 +390,13 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
     // The stores are plain preferences; one counter re-reads them after a change, as the classic screen does.
     var revision by remember { mutableIntStateOf(0) }
     fun change(block: () -> Unit) { block(); revision++ }
+    // Outside the revision key, so a change made while editing the profile keeps the page in edit mode.
+    var profileEditing by remember { mutableStateOf(false) }
     SettingsColumn {
         PageTitle(stringResource(page.titleRes), onBack)
         key(revision) {
             when (page) {
-                ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen)
+                ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen, profileEditing) { profileEditing = it }
                 ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
                 ForgeSettingsPage.Training -> TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
@@ -663,15 +665,14 @@ internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = n
 
 @Composable
 private fun ProfileSection(profile: ProfileStore, viewModel: AppViewModel, change: (() -> Unit) -> Unit,
-                           onOpen: (ForgeSettingsSub) -> Unit) {
+                           onOpen: (ForgeSettingsSub) -> Unit, editing: Boolean, onEditing: (Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val imperial = UnitPrefs.system(context) == UnitSystem.IMPERIAL
     // iOS keeps the fields still until "Edit" (`profileEditing`): plain values, then steppers and pickers.
-    var editing by remember { mutableStateOf(false) }
     SettingsCard(title = null, blurb = stringResource(R.string.forge_settings_profile_detail)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { editing = !editing }) {
+            TextButton(onClick = { onEditing(!editing) }) {
                 Text(stringResource(if (editing) R.string.forge_profile_done else R.string.forge_profile_edit),
                      style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.accent)
             }
