@@ -28,12 +28,18 @@ class EmptySyncTracker(
      * emptiness is SUSTAINED (>= [threshold] consecutive console-only cycles) — the caller shows the
      * "clock has lost sync" banner only then. Any banking cycle, or a caught-up cycle with nothing to
      * offload, clears the streak.
+     *
+     * [strapOffWrist] = the strap's last wrist event on this link was WRIST_OFF when the offload began. An off-wrist
+     * strap handing over nothing says nothing about its clock, so such a cycle neither counts toward the streak nor
+     * clears it, and it returns the streak it leaves standing: a banner on-wrist cycles already raised stays up.
+     * Adapted from ayiskakov/noop (W06-109, W06-116); mirrors Swift.
      */
-    fun recordCompletedSync(bankedSensorRecords: Boolean, consoleOnly: Boolean): Boolean {
+    fun recordCompletedSync(bankedSensorRecords: Boolean, consoleOnly: Boolean, strapOffWrist: Boolean = false): Boolean {
         if (!consoleOnly || bankedSensorRecords) {
             consecutiveEmptySyncs = 0
             return false
         }
+        if (strapOffWrist) return consecutiveEmptySyncs >= threshold
         consecutiveEmptySyncs += 1
         return consecutiveEmptySyncs >= threshold
     }

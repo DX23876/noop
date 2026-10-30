@@ -3643,6 +3643,11 @@ class WhoopBleClient(
 
     /** Ordered queue + generation-safe owner for the serial Backfiller drain. */
     private val backfillDrain = BackfillDrainGate<ByteArray>()
+    /** The drain coroutine most recently started, which the next link's drain waits for (see [routeBackfillFrame]). */
+    @Volatile private var lastBackfillDrainJob: kotlinx.coroutines.Job? = null
+    /** The last wrist event on the CURRENT link (true = WRIST_ON, false = WRIST_OFF), null until one arrives; cleared
+     *  with the link. `worn` survives a disconnect, so an empty offload is excused as off-wrist only by this. */
+    @Volatile private var wristEventThisLink: Boolean? = null
 
     /** Periodic re-offload + idle-watchdog tokens (handler-posted; cancelled on disconnect). */
     private val periodicBackfillRunnable = Runnable { triggerPeriodicBackfill() }
@@ -9206,9 +9211,11 @@ class WhoopBleClient(
                                     // and runs the user's chosen DoubleTapAction (parity since 4.2.8).
                                 }
                                 ev.startsWith("WRIST_ON") -> {
+                                    wristEventThisLink = true
                                     if (!_state.value.worn) _state.update { it.copy(worn = true) }
                                 }
                                 ev.startsWith("WRIST_OFF") -> {
+                                    wristEventThisLink = false
                                     if (_state.value.worn) _state.update { it.copy(worn = false) }
                                 }
                             }
@@ -10961,7 +10968,8 @@ class WhoopBleClient(
         // in the same burst banked rows — tell the backfiller so its no-cursor END reads as "caught up",
         // not "no banked history / charge to 100%". A fresh offload (count 0) keeps the honest guidance.
         com.noop.core.CoreShadow.offloadBegin(continuedAfterRows = consecutiveAutoContinues > 0)
-        backfiller.begin(connectedFamily, continuedAfterRows = consecutiveAutoContinues > 0)   // family drives the +4 puffin offset for 5/MG (#78)
+        backfiller.begin(connectedFamily, continuedAfterRows = consecutiveAutoContinues > 0,
+            strapOffWrist = wristEventThisLink == false)   // family drives the +4 puffin offset for 5/MG (#78)
         backfilling = true
         lastBackfillAtMs = System.currentTimeMillis()   // the BackfillPolicy floor is measured from the last KICK
         ackedChunksThisSession = 0
@@ -11113,7 +11121,13 @@ class WhoopBleClient(
      */
     private fun routeBackfillFrame(frame: ByteArray) {
         val lease = backfillDrain.enqueue(frame) ?: return
-        ioScope.launch {
+        // Single-flight across links: a previous link's drain can still be suspended in an ingest (a chunk's END in
+        // its store write) after [BackfillDrainGate.reset] handed this link a fresh lease. Waiting for it keeps the
+        // Backfiller from running two ingests at once; its stale lease then polls nothing and it ends. Adapted from
+        // ayiskakov/noop (W06-008); the Swift twin is `BackfillDrain`.
+        val previous = lastBackfillDrainJob
+        lastBackfillDrainJob = ioScope.launch {
+            previous?.join()
             var ownsDrain = true
             // A throw from ingest() must NEVER leave the drain stuck owned (that would wedge the
             // offload — every later frame returns early and the queue never drains). finally guarantees
@@ -11272,7 +11286,10 @@ class WhoopBleClient(
         // confirms we're caught up. Don't surface the "charge to 100%" framing, and don't count it toward
         // the sustained-empty streak (the productive session already cleared it).
         val productiveBurstTail = consecutiveAutoContinues > 0
-        val bankedNothing = reason == "HISTORY_COMPLETE" && bankedNothingRaw && !productiveBurstTail
+        // An empty offload from a strap whose last wrist event was WRIST_OFF is not a clock or charge state. Read from
+        // the Backfiller's snapshot, the one its no-cursor line used, so the line and the banner cannot disagree. It is
+        // excused only from raising the banner: one the streak already holds keeps its branch. Mirrors Swift.
+        val strapOffWrist = backfiller.strapOffWrist
         // #126: only escalate to the clock-lost banner once emptiness is SUSTAINED. A banking cycle (any
         // decoded records / rows persisted) clears the streak, so a single transient empty cycle on a
         // healthy strap stays silent. Track on every completed sync so banking cycles reset it.
@@ -11280,7 +11297,14 @@ class WhoopBleClient(
             emptySyncTracker.recordCompletedSync(
                 bankedSensorRecords = bankedSensorRecords,
                 consoleOnly = bankedNothingRaw,
+                strapOffWrist = strapOffWrist,
             ) else false
+        val bankedNothing = reason == "HISTORY_COMPLETE" && bankedNothingRaw && !productiveBurstTail &&
+            (!strapOffWrist || sustainedEmpty)
+        if (reason == "HISTORY_COMPLETE" && bankedNothingRaw && strapOffWrist && !productiveBurstTail) {
+            log("Backfill: completed with no sensor history while the strap's last wrist event was WRIST_OFF; " +
+                "not counted as an empty sync (consecutive empty syncs stay ${emptySyncTracker.consecutiveEmptySyncs}).")
+        }
         // #1683: the strap's newest stored record, ONLY when it is stale enough to be worth naming.
         // Declared out here because both the log line inside the block below and the user-facing banner
         // further down consume it, and they must not disagree about whether the strap is stale.
@@ -12324,6 +12348,8 @@ class WhoopBleClient(
         }
         backfilling = false
         backfillDrain.reset()
+        backfiller.linkEnded()   // an END still writing from this link must not ack on the next one
+        wristEventThisLink = null   // only a wrist event seen on the next link may excuse its empty offload
         strapNewestTs = null
         strapNewestTsWall = null
         offloadFramesThisSession = 0

@@ -286,4 +286,28 @@ class EffectRankerTest {
         assertEquals("Half", ranked.first().behavior)
     }
 
+
+    // Benjamini–Hochberg: the same vectors as Swift EffectRankerTests.
+
+    @Test
+    fun benjaminiHochbergTextbookExample() {
+        val p = listOf(0.0001, 0.0004, 0.0019, 0.0095, 0.0201, 0.0278, 0.0298, 0.0344,
+            0.0459, 0.3240, 0.4262, 0.5719, 0.6528, 0.7590, 1.000)
+        val r = EffectRanker.benjaminiHochberg(p, 0.05)
+        assertEquals(p.indices.map { it < 4 }, r)
+        val adj = EffectRanker.benjaminiHochbergAdjusted(p)
+        assertEquals(r, adj.map { it <= 0.05 })
+        assertEquals(1.0, adj[14], 1e-12)
+    }
+
+    @Test
+    fun benjaminiHochbergTiesAreNotSplit() {
+        assertEquals(listOf(true, true, false, true), EffectRanker.benjaminiHochberg(listOf(0.05, 0.05, 0.90, 0.01), 0.10))
+        assertEquals(emptyList<Boolean>(), EffectRanker.benjaminiHochberg(emptyList(), 0.10))
+    }
+
+    @Test
+    fun loneNominalHitDoesNotSurviveFamily() {
+        assertTrue(EffectRanker.benjaminiHochbergAdjusted(listOf(0.04, 0.5, 0.6))[0] > 0.10)
+    }
 }
