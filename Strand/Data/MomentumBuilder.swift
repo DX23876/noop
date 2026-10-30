@@ -141,14 +141,20 @@ enum MomentumBuilder {
     ///
     /// Evening and night only: "lights out by 22:40" at nine in the morning is noise, not advice.
     private static func appendSleepAction(_ i: Inputs, into out: inout [MomentumMessage]) {
-        guard i.isToday, let hour = i.hourOfDay, hour >= 18 || hour < 4,
-              let owed = sleepOwedMinutes(i) else { return }
+        guard isBedtimeWindow(i), let owed = sleepOwedMinutes(i) else { return }
         let shift = bedtimeShiftMinutes(owed)
         out.append(MomentumMessage(
             kind: .bedtimeTarget, tone: .neutral,
             headline: String(localized: "Turn in \(shift) minutes earlier tonight"),
             detail: String(localized: "You are \(durationText(owed)) short against your own need this week."),
             actionLine: String(localized: "One earlier night, not the whole debt at once.")))
+    }
+
+    /// Today's evening and night, when the debt is said as tonight's action (`bedtimeTarget`) rather than as a
+    /// standing note (`sleepCatchUp`).
+    static func isBedtimeWindow(_ i: Inputs) -> Bool {
+        guard i.isToday, let hour = i.hourOfDay else { return false }
+        return hour >= 18 || hour < 4
     }
 
     /// The strap will not last the night. A battery percentage is not news — a night about to be missed
@@ -335,7 +341,9 @@ enum MomentumBuilder {
                                        label: "\(steps) / \(typical)")))
         }
 
-        if let owed = sleepOwedMinutes(i), owed >= 30 {
+        // In the bedtime window the same debt is already said as tonight's action (`appendSleepAction`), with the
+        // same owed minutes and shift; both at once read as one message twice.
+        if !isBedtimeWindow(i), let owed = sleepOwedMinutes(i), owed >= 30 {
             out.append(MomentumMessage(
                 kind: .sleepCatchUp, tone: .caution,
                 headline: String(localized: "You're short on sleep this week"),

@@ -195,6 +195,20 @@ final class MomentumBuilderTests: XCTestCase {
         XCTAssertEqual(MomentumBuilder.sleepOwedMinutes(i), 90)
     }
 
+    /// One debt, one card: by day it is a note, in the evening it is tonight's action, never both at once.
+    func testSleepDebtIsSaidOnceAtAnyHour() {
+        var i = MomentumBuilder.Inputs()
+        i.sleepNeedHours = 8
+        i.weekSleepHours = [7, 7, 7, 7, 7]
+        for hour in 0..<24 {
+            i.hourOfDay = hour
+            let out = kinds(i)
+            let evening = hour >= 18 || hour < 4
+            XCTAssertEqual(out.contains(.bedtimeTarget), evening, "hour \(hour)")
+            XCTAssertEqual(out.contains(.sleepCatchUp), !evening, "hour \(hour)")
+        }
+    }
+
     /// A week's debt in raw minutes ("About 339 min behind") is arithmetically right and useless to
     /// read. Anything past an hour reads in hours.
     func testDurationTextIsReadablePastAnHour() {
