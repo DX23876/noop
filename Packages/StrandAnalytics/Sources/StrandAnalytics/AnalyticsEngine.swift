@@ -527,6 +527,9 @@ public enum AnalyticsEngine {
                                   // seconds). Inside them and inside the bouts detected here, heart rate
                                   // below 50 % HRR counts toward the day's Effort (#2438); elsewhere not.
                                   workoutSpans: [Range<Int>] = [],
+                                  // Detected bouts the wearer dismissed (`[start, end)`). A bout overlapping
+                                  // one is not workout time for Effort (`effortSpans`).
+                                  dismissedBouts: [Range<Int>] = [],
                                   // Load the day's rated strength sessions add before the curve (#2438).
                                   strengthLoad: Double = 0,
                                   // The day's aerobic ceiling (stored by the energy model), so a detected
@@ -974,7 +977,7 @@ public enum AnalyticsEngine {
         // to the night window for pure-function callers/tests. restingHR still comes from the night's
         // sleep sessions; nil → WorkoutDetector derives it from the day's own HR floor.
         var detectionFunnel: WorkoutDetector.DetectionFunnel? = nil
-        let workouts = WorkoutDetector.detect(
+        let workouts = detectDayBouts(
             hr: dayHr ?? hr, gravity: dayGravity ?? gravity,
             restingHR: restingHRDaily.map(Double.init),
             // #1545: the DAY's effective HRmax, not just the override. Passing `maxHROverride` meant an
@@ -991,7 +994,6 @@ public enum AnalyticsEngine {
             // its own day never applied. Still nil for an age-less profile, where the detector's own
             // estimate remains the only available fallback.
             maxHR: effMaxHR,
-            age: profile.age > 0 ? profile.age : nil,
             profile: profile,
             peakMET: workoutPeakMET,
             funnel: { detectionFunnel = $0 })
@@ -1000,7 +1002,7 @@ public enum AnalyticsEngine {
         // diagnostics pays nothing; IntelligenceEngine passes its per-day recorder, the same one the
         // `workout detect` and `sleep-detect` lines beside it already use.
         // Scored after the workouts are known: below 50 % HRR only their time counts (#2438).
-        let effortSpans = workoutSpans + workouts.map { $0.start ..< $0.end }
+        let effortSpans = Self.effortSpans(workouts: workoutSpans, detected: workouts, dismissed: dismissedBouts)
         let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
                                          lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad,
                                          diag: strainDiag, day: day)
@@ -1186,6 +1188,27 @@ public enum AnalyticsEngine {
                          skinTempRelative: skinTempRelative,
                          detectionFunnel: detectionFunnel,
                          mainNightBlocks: mainGroup.map { SleepStageTotals.NightBlock(start: $0.start, end: $0.end) })
+    }
+
+    /// The day's workout detection (`WorkoutDetector.detect`) with the arguments `analyzeDay` gives it. The
+    /// current-day activity refresh detects through here too, so its bouts are the ones the daily pass finds
+    /// from the same streams.
+    public static func detectDayBouts(hr: [HRSample], gravity: [GravitySample], restingHR: Double?,
+                                      maxHR: Double?, profile: UserProfile, peakMET: Double? = nil,
+                                      funnel: ((WorkoutDetector.DetectionFunnel) -> Void)? = nil) -> [ExerciseSession] {
+        WorkoutDetector.detect(hr: hr, gravity: gravity, restingHR: restingHR, maxHR: maxHR,
+                               age: profile.age > 0 ? profile.age : nil, profile: profile,
+                               peakMET: peakMET, funnel: funnel)
+    }
+
+    /// The time in which heart rate below 50 % HRR counts toward Effort (#2438): the recorded and imported
+    /// workouts, and the detected bouts except one the wearer dismissed (half-open overlap, the rule the
+    /// Workouts list hides a dismissed row by). The daily pass, the activity refresh and the wake-day cycle
+    /// all take it from here, so a dismissed bout leaves every one of them.
+    public static func effortSpans(workouts: [Range<Int>], detected: [ExerciseSession],
+                                   dismissed: [Range<Int>]) -> [Range<Int>] {
+        workouts + detected.map { $0.start ..< $0.end }
+            .filter { bout in !dismissed.contains { $0.overlaps(bout) } }
     }
 
     /// The R-R rows the always-on `hrv diag` line describes (#2425). Pure. Byte-parity twin of Kotlin

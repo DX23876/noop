@@ -28,17 +28,39 @@ final class StrainScorerTests: XCTestCase {
         XCTAssertEqual(load.trimp, 33.4522, accuracy: 0.001)
     }
 
-    /// Q13: 1.92 male, 1.67 female, 1.795 for anyone else — including an unset or nonbinary profile.
+    /// Q13: the men's pair for "male", the women's for "female", the neutral pair for anyone else —
+    /// including an unset or nonbinary profile.
+    ///
+    /// REPINNED with the published women's multiplier (upstream #2835): at ΔHRR 0.69 the larger multiplier
+    /// more than offsets the smaller exponent (0.86·e^1.156 = 2.73 against 0.64·e^1.329 = 2.42), so the
+    /// order is now women, neutral, men. With one shared 0.64 it was the reverse, decided by the exponent alone.
     func testBanisterCoefficientFollowsTheProfile() {
-        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: "male"), 1.92)
-        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: " Female "), 1.67)
-        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: "nonbinary"), 1.795)
-        XCTAssertEqual(StrainScorer.banisterCoefficient(sex: ""), 1.795)
+        XCTAssertEqual(StrainScorer.banisterCoefficients(sex: "male").b, 1.92)
+        XCTAssertEqual(StrainScorer.banisterCoefficients(sex: " Female ").b, 1.67)
+        XCTAssertEqual(StrainScorer.banisterCoefficients(sex: "nonbinary").b, 1.795)
+        XCTAssertEqual(StrainScorer.banisterCoefficients(sex: "").b, 1.795)
         let male = StrainScorer.banisterTrainingLoad(hr(150, 1_800), maxHR: 190, restingHR: 60, sex: "male")!.trimp
         let neutral = StrainScorer.banisterTrainingLoad(hr(150, 1_800), maxHR: 190, restingHR: 60, sex: "nonbinary")!.trimp
         let female = StrainScorer.banisterTrainingLoad(hr(150, 1_800), maxHR: 190, restingHR: 60, sex: "female")!.trimp
-        XCTAssertGreaterThan(male, neutral)
-        XCTAssertGreaterThan(neutral, female)
+        XCTAssertGreaterThan(female, neutral)
+        XCTAssertGreaterThan(neutral, male)
+    }
+
+    /// An hour at ΔHRR 0.5 (125 bpm, resting 60, maximum 190) with each published pair, worked
+    /// independently: women 60 × 0.5 × 0.86 × e^(1.67 × 0.5) = 59.4642 TRIMP (44.2524 with the men's 0.64
+    /// beside her exponent, the old lane), men 50.1446 as before, neutral 60 × 0.5 × 0.75 × e^(1.795 × 0.5)
+    /// = 55.2029.
+    func testBanisterLanePricesEachSexWithItsPublishedPair() throws {
+        let trimp = { (sex: String) in
+            try XCTUnwrap(StrainScorer.banisterTrainingLoad(self.hr(125, 3_600), maxHR: 190, restingHR: 60,
+                                                            sex: sex)).trimp
+        }
+        XCTAssertEqual(try trimp("female"), 59.4642, accuracy: 0.001)
+        XCTAssertEqual(try trimp("male"), 50.1446, accuracy: 0.001)
+        XCTAssertEqual(try trimp("nonbinary"), 55.2029, accuracy: 0.001)
+        let average = try XCTUnwrap(StrainScorer.banisterAverageTRIMP(minutes: 60, averageHR: 125, maxHR: 190,
+                                                                      restingHR: 60, sex: "female"))
+        XCTAssertEqual(average, 59.4642, accuracy: 0.001, "the average estimate reads the same pair")
     }
 
     /// The reason for the switch (B8): Edwards moved a whole weight step when one beat crossed a zone
