@@ -147,7 +147,7 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
                                             deltaText(day?.restingHr?.toDouble(), base[CoreRead.Metric.RestingHr], 0),
                                             CoreRead.Metric.RestingHr)
             KeyMetric.BLOOD_OXYGEN -> KeyTile(day?.spo2?.roundToInt()?.toString(), "%")
-            KeyMetric.RESPIRATORY -> KeyTile(day?.respRate?.let { "%.1f".format(it) }, stringResource(R.string.forge_unit_breaths),
+            KeyMetric.RESPIRATORY -> KeyTile(day?.respRate?.let { "%.1f".format(it) }, "rpm",
                                              deltaText(day?.respRate, base[CoreRead.Metric.RespRate], 1), CoreRead.Metric.RespRate)
             KeyMetric.STEPS -> KeyTile(day?.steps?.let { whole.format(it.toLong()) }, null)
             KeyMetric.WEIGHT -> KeyTile(weightKg?.let { "%.1f".format(if (units == UnitSystem.IMPERIAL) UnitFormatter.kgToPounds(it) else it) },
@@ -187,13 +187,13 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
         @Composable
         fun Tile(metric: KeyMetric, modifier: Modifier) {
             val t = tiles.getValue(metric)
-            val tint = metric.tint()
+            val tint = metric.tileTint()
             val tap = when {
                 t.opens != null -> Modifier.clickable { open = t.opens }
                 t.opensEnergy && t.value != null -> Modifier.clickable { energyOpen = true }
                 else -> Modifier
             }
-            MetricTile(metric.icon, tint, stringResource(metric.titleRes), t.value, t.unit, noData, modifier.then(tap), t.delta,
+            MetricTile(metric.icon, tint, metric.tileLabel(), t.value, t.unit, noData, modifier.then(tap), t.delta,
                        below = sparks[metric]?.let { values -> @Composable { Spark(values, tint) } })
         }
         gridded.chunked(columns).forEach { row ->
@@ -245,6 +245,25 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
             }
         }
     }
+}
+
+/** The tile's own short label, as iOS's `ktileFor` writes it ("Rest HR", "SpO₂"); the editor keeps the long names. */
+@Composable
+private fun KeyMetric.tileLabel(): String = when (this) {
+    KeyMetric.RESTING_HR -> stringResource(R.string.forge_tile_rest_hr)
+    KeyMetric.BLOOD_OXYGEN -> "SpO₂"
+    else -> stringResource(titleRes)
+}
+
+/** The tile's tint as iOS's `ktileFor` gives it: colour on the icon and the bar only. */
+@Composable
+private fun KeyMetric.tileTint(): Color = when (this) {
+    KeyMetric.HRV, KeyMetric.BLOOD_OXYGEN -> ForgeTokens.StrandPalette.metricCyan.resolve()
+    KeyMetric.RESTING_HR -> ForgeTokens.StrandPalette.metricRose.resolve()
+    KeyMetric.STEPS -> Forge.colors.charge
+    KeyMetric.WEIGHT -> ForgeTokens.StrandPalette.metricAmber.resolve()
+    KeyMetric.CALORIES -> ForgeTokens.StrandPalette.energyHighlight.resolve()
+    else -> tint()
 }
 
 /** A detailed tile's trend: the window's values as one line, scaled to their own range. */

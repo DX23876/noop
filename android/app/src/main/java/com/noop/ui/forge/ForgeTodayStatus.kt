@@ -102,7 +102,8 @@ internal fun TodayStatusPills(onReadiness: (() -> Unit)? = null) {
     val activityColor = activity.color.resolve()
     Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
         if (word != null) {
-            Text(stringResource(word).uppercase(), style = Forge.type.overline, color = levelColor,
+            // In the word's own case, as iOS's `readinessHeroPill` and `ActivityStatusChipCompact` show it.
+            Text(stringResource(word), style = Forge.type.overline, color = levelColor,
                  // Tapping the verdict opens what shaped the Charge, as iOS's `showChargeBreakdown`.
                  modifier = Modifier.background(levelColor.copy(alpha = 0.12f), CircleShape)
                      .then(if (onReadiness != null) Modifier.clickable(role = Role.Button, onClick = onReadiness) else Modifier)
@@ -114,7 +115,7 @@ internal fun TodayStatusPills(onReadiness: (() -> Unit)? = null) {
             verticalAlignment = Alignment.CenterVertically) {
             Icon(activity.icon, null, tint = activityColor, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(5.dp))
-            Text(stringResource(activity.title).uppercase(), style = Forge.type.overline, color = activityColor, maxLines = 1)
+            Text(stringResource(activity.title), style = Forge.type.overline, color = activityColor, maxLines = 1)
             Spacer(Modifier.width(5.dp))
             Icon(Icons.Rounded.Edit, null, tint = activityColor, modifier = Modifier.size(12.dp))
         }

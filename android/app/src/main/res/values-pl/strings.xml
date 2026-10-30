@@ -4993,4 +4993,5 @@
     <string name="forge_library_back_body">Tył ciała</string>
     <string name="forge_library_region">Część ciała</string>
     <string name="forge_library_any_region">Dowolna część ciała</string>
+    <string name="forge_tile_rest_hr">Odpoczynek HR</string>
 </resources>

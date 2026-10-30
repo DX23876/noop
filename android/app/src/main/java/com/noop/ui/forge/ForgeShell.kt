@@ -28,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MoreHoriz
@@ -48,6 +47,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.rounded.KingBed
 import com.noop.R
 
 /**
@@ -58,7 +61,7 @@ enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: Forg
     Today(R.string.nav_today, Icons.Rounded.GridView, ForgeBackdrop.Scene),
     Trends(R.string.nav_trends, Icons.Rounded.ShowChart, ForgeBackdrop.Sky),
     Training(R.string.forge_training, Icons.Rounded.FitnessCenter, ForgeBackdrop.Canvas),
-    Sleep(R.string.nav_sleep, Icons.Rounded.Bedtime, ForgeBackdrop.Night),
+    Sleep(R.string.nav_sleep, Icons.Rounded.KingBed, ForgeBackdrop.Night),
     More(R.string.nav_more, Icons.Rounded.MoreHoriz, ForgeBackdrop.Sky),
 }
 
@@ -154,19 +157,20 @@ private fun ForgeRail(current: ForgeTab, onSelect: (ForgeTab) -> Unit) {
 @Composable
 private fun TabItem(tab: ForgeTab, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val colors = Forge.colors
-    val tint = if (selected) colors.charge else colors.textSecondary
+    // iOS's tab bar: the chosen tab sits in a quiet grey capsule around icon and label with both in the tint, the
+    // others in the primary ink.
+    val tint = if (selected) colors.charge else colors.text
     Column(
-        modifier.clickable(role = Role.Tab, onClick = onClick).padding(vertical = 2.dp),
+        modifier.padding(horizontal = 2.dp).clip(RoundedCornerShape(percent = 50))
+            .background(if (selected) colors.text.copy(alpha = 0.07f) else Color.Transparent)
+            .clickable(role = Role.Tab, onClick = onClick).padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            Modifier.size(width = 52.dp, height = 30.dp)
-                .background(if (selected) colors.charge.copy(alpha = 0.16f) else colors.charge.copy(alpha = 0f),
-                            RoundedCornerShape(percent = 50)),
-            contentAlignment = Alignment.Center,
-        ) { Icon(tab.icon, contentDescription = null, tint = tint) }
+        // SF Symbols' dumbbell lies flat; Material's stands at an angle, so it turns back by 45° to match.
+        Icon(tab.icon, contentDescription = null, tint = tint,
+             modifier = Modifier.size(26.dp).then(if (tab == ForgeTab.Training) Modifier.rotate(-45f) else Modifier))
         Spacer(Modifier.height(2.dp))
-        Text(stringResource(tab.labelRes), style = Forge.type.caption, color = tint, maxLines = 1,
-             overflow = TextOverflow.Ellipsis)
+        Text(stringResource(tab.labelRes), style = Forge.type.caption.copy(fontWeight = FontWeight.Medium), color = tint,
+             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

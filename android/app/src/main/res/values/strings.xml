@@ -5012,4 +5012,5 @@
     <string name="forge_library_back_body">Back of body</string>
     <string name="forge_library_region">Body region</string>
     <string name="forge_library_any_region">Any body region</string>
+    <string name="forge_tile_rest_hr">Rest HR</string>
 </resources>

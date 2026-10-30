@@ -4990,4 +4990,5 @@
     <string name="forge_library_back_body">Körperrückseite</string>
     <string name="forge_library_region">Körperregion</string>
     <string name="forge_library_any_region">Beliebige Körperregion</string>
+    <string name="forge_tile_rest_hr">Ruhe-HF</string>
 </resources>

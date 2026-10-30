@@ -4878,4 +4878,5 @@
     <string name="forge_library_back_body">Задняя сторона тела</string>
     <string name="forge_library_region">Часть тела</string>
     <string name="forge_library_any_region">Любая часть тела</string>
+    <string name="forge_tile_rest_hr">Пульс покоя</string>
 </resources>

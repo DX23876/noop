@@ -4945,4 +4945,5 @@
     <string name="forge_library_back_body">Retro del corpo</string>
     <string name="forge_library_region">Regione del corpo</string>
     <string name="forge_library_any_region">Qualsiasi regione del corpo</string>
+    <string name="forge_tile_rest_hr">FC riposo</string>
 </resources>

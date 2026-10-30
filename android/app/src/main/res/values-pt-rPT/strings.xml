@@ -4969,4 +4969,5 @@
     <string name="forge_library_back_body">Parte de trás do corpo</string>
     <string name="forge_library_region">Região do corpo</string>
     <string name="forge_library_any_region">Qualquer região do corpo</string>
+    <string name="forge_tile_rest_hr">FC repouso</string>
 </resources>

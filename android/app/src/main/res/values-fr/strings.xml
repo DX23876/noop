@@ -4976,4 +4976,5 @@
     <string name="forge_library_back_body">Arrière du corps</string>
     <string name="forge_library_region">Région du corps</string>
     <string name="forge_library_any_region">Toute région du corps</string>
+    <string name="forge_tile_rest_hr">FC repos</string>
 </resources>

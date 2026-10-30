@@ -4947,4 +4947,5 @@
     <string name="forge_library_back_body">身体背面</string>
     <string name="forge_library_region">身体部位</string>
     <string name="forge_library_any_region">任意身体部位</string>
+    <string name="forge_tile_rest_hr">静息心率</string>
 </resources>

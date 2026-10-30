@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -132,9 +133,10 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
     val colors = Forge.colors
     ForgeCard(modifier, contentPadding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(32.dp).background(tint.copy(alpha = 0.16f), RoundedCornerShape(10.dp)),
+            // iOS's `TodayMetricTile`: a round plate at 13 % of the tint.
+            Box(Modifier.size(30.dp).background(tint.copy(alpha = 0.13f), CircleShape),
                 contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
             }
             Spacer(Modifier.width(ForgeMetrics.space2 + ForgeMetrics.space1))
             Text(label.uppercase(), style = Forge.type.overline, color = colors.textSecondary, maxLines = 1,
