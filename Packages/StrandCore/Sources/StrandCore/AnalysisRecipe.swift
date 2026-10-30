@@ -204,6 +204,10 @@ public enum AnalysisRecipe {
     // AI-31, so a store that ran it would otherwise keep its history on the old maximum (decisions.md).
     // AI-32 also applies the selected V3 conservative sleep-onset pipeline to raw-backed history;
     // imported and wearer-corrected bounds remain authoritative. V2 retains its original detector.
+    // AI-32 also carries three sleep changes adopted from other forks (2026-10-30), riding on it because it has
+    // not shipped: the nightly respiratory rate averages each window's breath intervals around their median
+    // instead of taking the grid-quantised median; off-wrist time inside a kept sleep run is cut out of it; and
+    // the V2 staging (V2 and V3) holds deep back for 20 min after sleep onset. The full rebuild re-derives them.
     public static let currentVersion = 32
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
