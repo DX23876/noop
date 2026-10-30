@@ -4238,6 +4238,7 @@
     <string name="forge_lj_date_passed">Dein Zieldatum ist verstrichen</string>
     <string name="forge_lj_date_passed_text">Wie ist es gelaufen? Schließ es ab, gib ihm mehr Zeit oder leg es beiseite — deine Entscheidung.</string>
     <string name="forge_lj_reached_it">Ich habe es erreicht</string>
+    <string name="forge_lj_extend">Datum verlängern</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Änderungen an diesem Ziel</string>

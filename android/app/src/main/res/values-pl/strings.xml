@@ -4241,6 +4241,7 @@
     <string name="forge_lj_date_passed">Twoja data docelowa minęła</string>
     <string name="forge_lj_date_passed_text">Jak poszło? Zamknij, daj więcej czasu albo odłóż na bok — decyzja należy do Ciebie.</string>
     <string name="forge_lj_reached_it">Osiągnąłem go</string>
+    <string name="forge_lj_extend">Przedłuż termin</string>
     <string name="forge_lj_activities">Aktywności wspierające</string>
     <string name="forge_lj_activities_text">Pokazują wykonanie, a nie dowód na osiągnięcie samego wyniku.</string>
     <string name="forge_lj_changes">Zmiany w tym celu</string>

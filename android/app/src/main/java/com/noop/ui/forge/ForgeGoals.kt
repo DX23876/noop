@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import android.content.Context
 import com.noop.ui.journalDisplayName
 import androidx.compose.ui.draw.alpha
 import com.noop.ui.resolveJournalItems
@@ -1041,32 +1042,50 @@ fun ForgeGoalLines(lines: List<String>) {
 internal fun PublishGoalsWidget(output: CoreGoals.Output?) {
     output ?: return
     val context = LocalContext.current
+    val (goals, summary) = remember(output) { goalsWidgetContent(context, output) }
+    LaunchedEffect(goals, summary) {
+        withContext(Dispatchers.IO) { com.noop.widget.GoalsGlanceWidget.publish(context, goals, summary) }
+    }
+}
+
+/**
+ * Refreshes the goals widget from the core after a data update, as iOS republishes it after each goals refresh
+ * (`GoalTrackingStore.refresh`), so it follows a background sync and not only the screens. Cheap without a goals
+ * widget placed. Blocking; call off the main thread.
+ */
+internal suspend fun refreshGoalsWidget(context: Context) {
+    if (!com.noop.widget.GoalsGlanceWidget.isPlaced(context) || !CoreRead.isOpen) return
+    val output = CoreGoals.snapshot(context, dismissedTrainingWorkouts(context)) ?: return
+    val (goals, summary) = goalsWidgetContent(context, output)
+    com.noop.widget.GoalsGlanceWidget.publish(context, goals, summary)
+}
+
+/** The widget's rows and summary line, as Today's goals card picks and words them. */
+internal fun goalsWidgetContent(context: Context, output: CoreGoals.Output): Pair<List<com.noop.widget.GoalsGlanceWidget.Goal>, String> {
     val spot = output.spotlight
     val chosen = spot.rows.mapNotNull { row ->
-        if (row.kind == "period") output.period.firstOrNull { it.id == row.id }?.let { periodWidgetGoal(it) }
+        if (row.kind == "period") output.period.firstOrNull { it.id == row.id }?.let { periodWidgetGoal(context, it) }
         else output.longTerm.firstOrNull { it.id == row.id }?.let {
             com.noop.widget.GoalsGlanceWidget.Goal(it.title, it.progress?.let { p -> "${(p * 100).roundToInt()} %" } ?: "",
-                it.progress ?: 0.0, it.statusText ?: healthWord(it.health))
+                it.progress ?: 0.0, it.statusText ?: context.getString(healthWordRes(it.health)))
         }
     }
     // Nothing needs a look: the open weekly goals, then the monthly ones, as the iOS widget falls back to every
     // goal (`spot.isEmpty ? goals : spot`), so a goal on course never reads as "set a weekly goal".
     val open = output.period.filter { it.status == "active" }
     val goals = chosen.ifEmpty {
-        (open.filter { it.period == "week" } + open.filter { it.period == "month" }).take(3).map { periodWidgetGoal(it) }
+        (open.filter { it.period == "week" } + open.filter { it.period == "month" }).take(3).map { periodWidgetGoal(context, it) }
     }
     val summary = buildList {
-        if (spot.dailyTotal > 0) add(stringResource(R.string.forge_goals_done_count, spot.dailyDone, spot.dailyTotal))
-        if (spot.weekTotal > 0) add(stringResource(R.string.forge_goals_week_on_course, spot.weekOnCourse, spot.weekTotal))
+        if (spot.dailyTotal > 0) add(context.getString(R.string.forge_goals_done_count, spot.dailyDone, spot.dailyTotal))
+        if (spot.weekTotal > 0) add(context.getString(R.string.forge_goals_week_on_course, spot.weekOnCourse, spot.weekTotal))
     }.joinToString(" · ")
-    LaunchedEffect(goals, summary) {
-        withContext(Dispatchers.IO) { com.noop.widget.GoalsGlanceWidget.publish(context, goals, summary) }
-    }
+    return goals to summary
 }
 
-@Composable
-private fun periodWidgetGoal(goal: CoreGoals.Period) = com.noop.widget.GoalsGlanceWidget.Goal(
-    shortName(goal), progressText(goal), goal.fraction.coerceIn(0.0, 1.0), stateWord(goal.state))
+private fun periodWidgetGoal(context: Context, goal: CoreGoals.Period) = com.noop.widget.GoalsGlanceWidget.Goal(
+    shortName(context, goal), progressText(context, goal), goal.fraction.coerceIn(0.0, 1.0),
+    context.getString(stateWordRes(goal.state)))
 
 /** Goals that were reached, set aside or archived, folded until opened, as the iOS journey's "Past goals". */
 @Composable
@@ -1103,7 +1122,9 @@ private fun PastGoalsCard(past: List<CoreGoals.Past>) {
 // MARK: - Words and numbers (`GoalFormat`, `GoalStatusStyle`)
 
 @Composable
-private fun metricLabel(metric: String): String = stringResource(when (metric) {
+private fun metricLabel(metric: String): String = stringResource(metricLabelRes(metric))
+
+private fun metricLabelRes(metric: String): Int = when (metric) {
     "workouts" -> R.string.forge_goals_m_workouts
     "trainingMinutes" -> R.string.forge_goals_m_training_minutes
     "distance" -> R.string.forge_goals_m_distance
@@ -1119,7 +1140,7 @@ private fun metricLabel(metric: String): String = stringResource(when (metric) {
     "strengthMinutes" -> R.string.forge_goals_m_strength_minutes
     "moderateMinutes" -> R.string.forge_goals_m_moderate_minutes
     else -> R.string.forge_goals_m_vigorous_minutes
-})
+}
 
 @Composable
 private fun metricBlurb(metric: String): String = stringResource(when (metric) {
@@ -1172,24 +1193,27 @@ private fun metricColor(metric: String): Color = when (metric) {
 }.resolve()
 
 @Composable
-private fun unit(metric: String): String = when (metric) {
-    "workouts" -> stringResource(R.string.forge_goals_u_workouts)
+private fun unit(metric: String): String = unit(LocalContext.current, metric)
+
+private fun unit(context: Context, metric: String): String = when (metric) {
+    "workouts" -> context.getString(R.string.forge_goals_u_workouts)
     "trainingMinutes", "zoneMinutes", "strengthMinutes", "moderateMinutes", "vigorousMinutes" ->
-        stringResource(R.string.forge_goals_u_min)
-    "distance" -> if (imperialDistance()) "mi" else "km"
-    "sleepAverage" -> stringResource(R.string.forge_goals_u_h)
-    "workingSets" -> stringResource(R.string.forge_goals_u_sets)
+        context.getString(R.string.forge_goals_u_min)
+    "distance" -> if (imperialDistance(context)) "mi" else "km"
+    "sleepAverage" -> context.getString(R.string.forge_goals_u_h)
+    "workingSets" -> context.getString(R.string.forge_goals_u_sets)
     "activeEnergy" -> "kcal"
-    else -> stringResource(R.string.forge_goals_u_days)
+    else -> context.getString(R.string.forge_goals_u_days)
 }
 
-@Composable
-private fun imperialDistance(): Boolean = UnitPrefs.distanceSystem(LocalContext.current) == UnitSystem.IMPERIAL
+private fun imperialDistance(context: Context): Boolean = UnitPrefs.distanceSystem(context) == UnitSystem.IMPERIAL
 
 /** The number alone: whole for counts and days, one decimal for distance and hours (`GoalFormat.number`). */
 @Composable
-private fun number(value: Double, metric: String): String {
-    val shown = if (metric == "distance" && imperialDistance()) value / 1.609344 else value
+private fun number(value: Double, metric: String): String = number(LocalContext.current, value, metric)
+
+private fun number(context: Context, value: Double, metric: String): String {
+    val shown = if (metric == "distance" && imperialDistance(context)) value / 1.609344 else value
     val format = NumberFormat.getNumberInstance(Locale.getDefault())
     return when (metric) {
         "distance" -> format.apply { maximumFractionDigits = 1; minimumFractionDigits = 0 }.format(shown)
@@ -1199,23 +1223,30 @@ private fun number(value: Double, metric: String): String {
 }
 
 @Composable
-private fun amount(value: Double, metric: String): String = "${number(value, metric)} ${unit(metric)}"
+private fun amount(value: Double, metric: String): String = amount(LocalContext.current, value, metric)
+
+private fun amount(context: Context, value: Double, metric: String): String =
+    "${number(context, value, metric)} ${unit(context, metric)}"
 
 private fun whole(value: Double): String = NumberFormat.getIntegerInstance(Locale.getDefault()).format(value.roundToInt())
 
 @Composable
-private fun progressText(goal: CoreGoals.Period): String =
-    if (goal.aggregation == "average") amount(goal.current, goal.metric)
-    else "${number(goal.current, goal.metric)}/${number(goal.periodTarget, goal.metric)}"
+private fun progressText(goal: CoreGoals.Period): String = progressText(LocalContext.current, goal)
+
+private fun progressText(context: Context, goal: CoreGoals.Period): String =
+    if (goal.aggregation == "average") amount(context, goal.current, goal.metric)
+    else "${number(context, goal.current, goal.metric)}/${number(context, goal.periodTarget, goal.metric)}"
 
 /** Short name for rows: the metric with its threshold (`GoalFormat.shortName`). */
 @Composable
-private fun shortName(goal: CoreGoals.Period): String = when (goal.metric) {
-    "stepDays" -> stringResource(R.string.forge_goals_steps_name, whole(goal.threshold ?: 8_000.0))
-    "sleepNights" -> stringResource(R.string.forge_goals_nights_name, hours(goal.threshold ?: 7.0))
-    "habitDays" -> goal.habitKey?.let { journalDisplayName(loadJournalCatalogItems(LocalContext.current), it) }
-        ?: metricLabel(goal.metric)
-    else -> metricLabel(goal.metric)
+private fun shortName(goal: CoreGoals.Period): String = shortName(LocalContext.current, goal)
+
+private fun shortName(context: Context, goal: CoreGoals.Period): String = when (goal.metric) {
+    "stepDays" -> context.getString(R.string.forge_goals_steps_name, whole(goal.threshold ?: 8_000.0))
+    "sleepNights" -> context.getString(R.string.forge_goals_nights_name, hours(goal.threshold ?: 7.0))
+    "habitDays" -> goal.habitKey?.let { journalDisplayName(loadJournalCatalogItems(context), it) }
+        ?: context.getString(metricLabelRes(goal.metric))
+    else -> context.getString(metricLabelRes(goal.metric))
 }
 
 /** The goal's name as the wearer reads it (`GoalFormat.title`). */
@@ -1289,7 +1320,9 @@ private fun streakLine(goal: CoreGoals.Period): String? {
 }
 
 @Composable
-internal fun stateWord(state: String): String = stringResource(when (state) {
+internal fun stateWord(state: String): String = stringResource(stateWordRes(state))
+
+private fun stateWordRes(state: String): Int = when (state) {
     "achieved" -> R.string.forge_goals_s_achieved
     "ahead" -> R.string.forge_goals_s_ahead
     "onTrack" -> R.string.forge_goals_s_on_track
@@ -1299,7 +1332,7 @@ internal fun stateWord(state: String): String = stringResource(when (state) {
     "protected" -> R.string.forge_goals_s_protected
     "starting" -> R.string.forge_goals_s_starting
     else -> R.string.forge_goals_s_no_data
-})
+}
 
 /** The state's tone (`GoalStatusStyle`): positive, warning, critical, accent or neutral. */
 @Composable
@@ -1326,14 +1359,16 @@ private fun outcomeColor(outcome: String): Color = when (outcome) {
 }
 
 @Composable
-private fun healthWord(health: String): String = stringResource(when (health) {
+private fun healthWord(health: String): String = stringResource(healthWordRes(health))
+
+private fun healthWordRes(health: String): Int = when (health) {
     "decisionNeeded" -> R.string.forge_goals_h_decision
     "atRisk" -> R.string.forge_goals_h_at_risk
     "attention" -> R.string.forge_goals_h_attention
     "onTrack" -> R.string.forge_goals_s_on_track
     "paused" -> R.string.forge_goals_paused_one
     else -> R.string.forge_goals_h_building
-})
+}
 
 @Composable
 private fun healthColor(health: String): Color = when (health) {

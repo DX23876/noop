@@ -264,7 +264,7 @@ internal fun GoalOnboardingPage(onClose: (saved: Boolean) -> Unit) {
 
 /** A goal-kind tile (`GoalKindTile`): label and blurb, the accent marking the chosen one. */
 @Composable
-private fun KindTile(kind: CoreGoalOnboarding.Kind, selected: Boolean, modifier: Modifier, onTap: () -> Unit) {
+internal fun KindTile(kind: CoreGoalOnboarding.Kind, selected: Boolean, modifier: Modifier, onTap: () -> Unit) {
     val colors = Forge.colors
     val shape = RoundedCornerShape(14.dp)
     Column(modifier.heightIn(min = 96.dp).clip(shape)
@@ -281,7 +281,7 @@ private fun KindTile(kind: CoreGoalOnboarding.Kind, selected: Boolean, modifier:
 private fun Note(text: String) = Text(text, style = Forge.type.footnote, color = Forge.colors.textTertiary)
 
 @Composable
-private fun Field(label: String, value: String, placeholder: String, numeric: Boolean = false, modifier: Modifier = Modifier,
+internal fun Field(label: String, value: String, placeholder: String, numeric: Boolean = false, modifier: Modifier = Modifier,
                   onChange: (String) -> Unit) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label.uppercase(), style = Forge.type.overline, color = Forge.colors.textTertiary)
@@ -292,7 +292,7 @@ private fun Field(label: String, value: String, placeholder: String, numeric: Bo
 }
 
 @Composable
-private fun SwitchRow(title: String, note: String, on: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: String, note: String, on: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(title, style = Forge.type.subhead, color = Forge.colors.text)
@@ -306,7 +306,7 @@ private fun SwitchRow(title: String, note: String, on: Boolean, enabled: Boolean
 /** The target date, today or later, as the iOS picker's `in: Date()...`. */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun TargetDateDialog(seconds: Double, onDismiss: () -> Unit, onPick: (Double) -> Unit) {
+internal fun TargetDateDialog(seconds: Double, onDismiss: () -> Unit, onPick: (Double) -> Unit) {
     val today = LocalDate.now()
     val utc = ZoneOffset.UTC
     val initial = Instant.ofEpochSecond(seconds.toLong()).atZone(ZoneId.systemDefault()).toLocalDate().let { if (it.isBefore(today)) today else it }

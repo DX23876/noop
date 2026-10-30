@@ -4224,6 +4224,7 @@
     <string name="forge_lj_date_passed">Ta date cible est passée</string>
     <string name="forge_lj_date_passed_text">Comment ça s\'est passé ? Clôture-le, donne-lui plus de temps ou mets-le de côté — c\'est toi qui décides.</string>
     <string name="forge_lj_reached_it">Je l\'ai atteint</string>
+    <string name="forge_lj_extend">Prolonger la date</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Modifications de cet objectif</string>

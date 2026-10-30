@@ -4193,6 +4193,7 @@
     <string name="forge_lj_date_passed">La data prevista è passata</string>
     <string name="forge_lj_date_passed_text">Com\'è andata? Chiudilo, dagli più tempo o mettilo da parte: la tua chiamata.</string>
     <string name="forge_lj_reached_it">L\'ho raggiunto</string>
+    <string name="forge_lj_extend">Prolungare la data</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Modifiche a questo obiettivo</string>

@@ -4195,6 +4195,7 @@
     <string name="forge_lj_date_passed">您的目标日期已过</string>
     <string name="forge_lj_date_passed_text">进展如何？关闭它，给它更多时间，或者把它放在一边——你的决定。</string>
     <string name="forge_lj_reached_it">我达到了</string>
+    <string name="forge_lj_extend">延长日期</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">此目标的改变</string>

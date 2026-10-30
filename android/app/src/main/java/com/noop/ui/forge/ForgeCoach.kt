@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -35,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreCoach
 import com.noop.core.CoreRead
@@ -151,8 +154,8 @@ private fun ConversationRow(c: CoreCoach.Conversation, onPick: () -> Unit, onRen
 
 /**
  * Fork (DX23876), Android parity plan 2.3: the coach's plan book after `CoachPlanView`: proposals waiting for a
- * yes, what was agreed from today on, and the last ten decided ones with how they went. Accepting here keeps the
- * session untimed; the time, day and swap sheets of the Apple page are not on Android yet.
+ * yes, what was agreed from today on, and the last ten decided ones with how they went, with the Apple page's
+ * time, day and swap sheets.
  */
 @Composable
 internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
@@ -360,12 +363,21 @@ private fun MoveDialog(row: CoreCoach.PlanRow, onDismiss: () -> Unit, onMove: (S
     ) { androidx.compose.material3.DatePicker(state) }
 }
 
-/** `PlanSwapSheet`: another activity in the same slot, with how hard. */
+/**
+ * `PlanSwapSheet`: another activity in the same slot, with how hard, and what the wearer's own history says the new
+ * one costs against the planned one before deciding. It informs and never blocks.
+ */
 @Composable
 private fun SwapDialog(row: CoreCoach.PlanRow, intents: List<Pair<String, String>>, onDismiss: () -> Unit,
                        onSwap: (String, String) -> Unit) {
     var sport by remember(row.id) { mutableStateOf("") }
     var intent by remember(row.id) { mutableStateOf(row.intent.ifEmpty { "moderate" }) }
+    var comparison by remember(row.id) { mutableStateOf<Pair<String, String?>?>(null) }
+    LaunchedEffect(row.id, sport) {
+        if (sport.isBlank()) { comparison = null; return@LaunchedEffect }
+        kotlinx.coroutines.delay(350)
+        comparison = withContext(Dispatchers.IO) { CoreCoach.planCompare(row.id, sport.trim()) }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.forge_cp_instead, row.sport)) },
@@ -378,6 +390,18 @@ private fun SwapDialog(row: CoreCoach.PlanRow, intents: List<Pair<String, String
                     Row(Modifier.fillMaxWidth().clickable { intent = id }, verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.RadioButton(selected = intent == id, onClick = { intent = id })
                         Text(label)
+                    }
+                }
+                comparison?.let { (title, sentence) ->
+                    if (sport.isNotBlank() && sentence != null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                            Icon(Icons.Rounded.Info, contentDescription = null, tint = Forge.colors.accent,
+                                 modifier = Modifier.size(18.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(title.uppercase(), style = Forge.type.overline, color = Forge.colors.textTertiary)
+                                Text(sentence, style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                            }
+                        }
                     }
                 }
             }

@@ -4217,6 +4217,7 @@
     <string name="forge_lj_date_passed">Sua data prevista já passou</string>
     <string name="forge_lj_date_passed_text">Como foi? Encerre, dê mais tempo ou deixe de lado - você decide.</string>
     <string name="forge_lj_reached_it">eu alcancei</string>
+    <string name="forge_lj_extend">Prolongue a data</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Mudanças nesta meta</string>

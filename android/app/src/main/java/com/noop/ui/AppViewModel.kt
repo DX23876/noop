@@ -1108,6 +1108,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 // Parity plan 2.3: the goal notifications iOS sends after each goals refresh (a goal reached, a
                 // streak in danger, a badge, a milestone), decided by the shared core. Nothing while every kind is off.
+                // The goals widget is refreshed beside them.
                 viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     runCatching {
                         com.noop.notif.GoalNoticeNotifier.evaluate(
@@ -1115,6 +1116,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             workoutInProgress = _activeWorkout.value != null,
                         )
                     }
+                    // The goals widget follows the same update, so a background sync moves it without the app open.
+                    runCatching { com.noop.ui.forge.refreshGoalsWidget(appContext) }
                 }
                 // v5 skin-temp suite: run the Cycle / Body-clock / Illness-heads-up engines over the same
                 // cached history and publish their RESULTS for the Health hub. The richer IllnessSignalEngine
