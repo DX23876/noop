@@ -4160,6 +4160,7 @@
     <string name="forge_body_height">Altezza</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Ancora nessuna misura con il metro. Tocca Misura per registrare una sessione.</string>
     <string name="forge_body_cancel">Annulla</string>
     <string name="forge_body_weigh_ins">Pesate</string>

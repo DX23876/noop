@@ -4223,6 +4223,7 @@
     <string name="forge_body_height">Height</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">No tape measurements yet. Tap Measure to record a session.</string>
     <string name="forge_body_cancel">Cancel</string>
     <string name="forge_body_weigh_ins">Weigh-ins</string>

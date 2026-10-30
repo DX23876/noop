@@ -4184,6 +4184,7 @@
     <string name="forge_body_height">Altura</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Ainda não há medidas com fita. Toque em Medir para registar uma sessão.</string>
     <string name="forge_body_cancel">Cancelar</string>
     <string name="forge_body_weigh_ins">Pesagens</string>
