@@ -1,4 +1,5 @@
 import Foundation
+import os
 #if canImport(AppKit)
 import AppKit
 #elseif canImport(UIKit)
@@ -359,6 +360,7 @@ enum DataBackup {
         let outcome = BackupArchive.restore(
             from: pickedSource, toDatabaseAt: dbPath, scratchRoot: NoopScratch.directory(),
             allowOversize: allowOversize,
+            willReplaceDatabase: { if LiveStoreReplacement.isLiveStore(dbPath) { LiveStoreReplacement.markReplaced() } },
             applySettings: { applyRestoredSettings($0, to: settingsDefaults) })
         switch outcome {
         case .imported(let sidecar):
@@ -451,4 +453,31 @@ enum DataBackup {
         BackupArchive.backupOrigin(of: tableNames)
     }
 
+}
+
+/// A restore replaces `whoop.sqlite` while this process still holds it open: the `WhoopStore` pools (BLE's and
+/// the Repository's) keep pointing at the file that was removed, so until the process restarts nothing it writes
+/// reaches the restored store, and the writes do not fail either. An offload in that window would ack, and so let
+/// the strap trim, history that only ever landed in the removed file. reNOOP lost a whole night this way.
+///
+/// The latch is set immediately before the swap and never cleared: a restored store is only safe to write from a
+/// fresh process. `Backfiller.storeReplaced` reads it to hold every ack, so the strap keeps its history for the
+/// relaunched app. The restore alerts already ask for that relaunch. Adapted from denismanulov/reNOOP (815eb6503).
+enum LiveStoreReplacement {
+    private static let lock = OSAllocatedUnfairLock(initialState: false)
+
+    /// True once this process has replaced the file under its own open store.
+    static var happened: Bool { lock.withLock { $0 } }
+
+    static func markReplaced() {
+        lock.withLock { $0 = true }
+    }
+
+    /// Whether `dbPath` is the store this process opened (a unit test restores into a throwaway file, which must
+    /// not latch the test host).
+    static func isLiveStore(_ dbPath: String) -> Bool {
+        guard let live = try? StorePaths.defaultDatabasePath() else { return false }
+        return URL(fileURLWithPath: live).standardizedFileURL.path
+            == URL(fileURLWithPath: dbPath).standardizedFileURL.path
+    }
 }

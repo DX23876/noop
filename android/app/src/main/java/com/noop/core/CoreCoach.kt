@@ -317,6 +317,16 @@ object CoreCoach {
         return call(if (op == null) "coach.plan" else "coach.plan.$op", args.toString())?.let(::parsePlan)
     }
 
+    /**
+     * What the wearer's own history says about swapping proposal [id] for [sport] (`PlanSwapSheet.comparison`): the
+     * card's title and the shared sentence, null while [sport] is empty.
+     */
+    fun planCompare(id: String, sport: String): Pair<String, String?>? {
+        val o = call("coach.plan.compare", JSONObject().put("id", id).put("sport", sport).toString()) ?: return null
+        if (!o.has("title")) return null
+        return o.getString("title") to (if (o.isNull("sentence")) null else o.optString("sentence").takeIf { it.isNotEmpty() })
+    }
+
     internal fun parsePlan(o: JSONObject): Plan? {
         if (!o.has("pending")) return null
         fun rows(key: String) = o.optJSONArray(key).let { a ->

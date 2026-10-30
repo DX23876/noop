@@ -29,12 +29,19 @@ class DesignTokensTests(unittest.TestCase):
         hex_only = self.tokens["colors"]["StrandPalette.onDarkPrimary"]
         self.assertEqual(hex_only["light"], hex_only["dark"], "a Color(hex:) token is the same in both appearances")
 
-    def test_a_chart_style_colour_is_read_in_the_default_style(self):
-        """Signature is what `ChartStyle.resolve` falls back to; its Charge green, not Classic's or Health's."""
-        self.assertEqual({"light": "0C8F62FF", "dark": "31E39CFF"}, self.tokens["colors"]["StrandPalette.chargeColor"])
-        self.assertEqual({"light": "5546C4FF", "dark": "8C7BFFFF"}, self.tokens["colors"]["StrandPalette.restColor"])
-        # `case .titanium, .signature:` names the default style too.
-        self.assertEqual({"light": "C13EC1FF", "dark": "FD96FDFF"}, self.tokens["colors"]["StrandPalette.sleepDeep"])
+    def test_a_chart_style_colour_is_read_in_the_style_the_apps_start_with(self):
+        """Health is what `StrandiOSApp` and `StrandApp` store when nothing was chosen; its Charge green, not
+        Signature's (the fallback for an unknown stored value only)."""
+        self.assertEqual({"light": "34C759FF", "dark": "30D158FF"}, self.tokens["colors"]["StrandPalette.chargeColor"])
+        self.assertEqual({"light": "5856D6FF", "dark": "5E5CE6FF"}, self.tokens["colors"]["StrandPalette.restColor"])
+        self.assertEqual({"light": "FF9500FF", "dark": "FF9F0AFF"}, self.tokens["colors"]["StrandPalette.effortColor"])
+
+    def test_a_health_case_that_names_another_colour_is_resolved(self):
+        """`case .health: return hSleepDeep` and `return restColor` take the colour they name."""
+        colors = self.tokens["colors"]
+        self.assertEqual(colors["StrandPalette.restColor"], colors["StrandPalette.restGlow"])
+        self.assertIn("StrandPalette.sleepDeep", colors)
+        self.assertIn("StrandPalette.zone5", colors)
 
     def test_the_chrome_pairs_are_tokens_under_their_public_name(self):
         """`NoopVisualStyle.ChromeHex` holds the canvas and text colours `StrandPalette.surfaceBase` and

@@ -4242,6 +4242,7 @@
     <string name="forge_lj_date_passed">Twoja data docelowa minęła</string>
     <string name="forge_lj_date_passed_text">Jak poszło? Zamknij, daj więcej czasu albo odłóż na bok — decyzja należy do Ciebie.</string>
     <string name="forge_lj_reached_it">Osiągnąłem go</string>
+    <string name="forge_lj_extend">Przedłuż termin</string>
     <string name="forge_lj_activities">Aktywności wspierające</string>
     <string name="forge_lj_activities_text">Pokazują wykonanie, a nie dowód na osiągnięcie samego wyniku.</string>
     <string name="forge_lj_changes">Zmiany w tym celu</string>
@@ -4979,4 +4980,20 @@
     <string name="forge_profile_change_photo">Zmień zdjęcie</string>
     <string name="forge_profile_choose_photo">Wybierz zdjęcie</string>
     <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Wysiłek na nowo skalibrowany</string>
+    <string name="forge_library_find_muscle">Szukaj według mięśnia</string>
+    <string name="forge_library_create_own">Utwórz własne ćwiczenie</string>
+    <string name="forge_library_exercises_for">Ćwiczenia: %1$s</string>
+    <string name="forge_library_main_target">Główny cel</string>
+    <string name="forge_library_also_trains">Angażuje też</string>
+    <string name="forge_library_no_exercises_match">Brak pasujących ćwiczeń.</string>
+    <string name="forge_library_search_muscle">Ćwiczenie lub sprzęt</string>
+    <string name="forge_library_more">Więcej</string>
+    <string name="forge_library_animations">Animacje ćwiczeń</string>
+    <string name="forge_library_animations_text">Każde ćwiczenie działa i bez nich. Pobierz raz opcjonalny pakiet, aby zobaczyć, jak wykonać każde z nich.</string>
+    <string name="forge_library_hide">Ukryj</string>
+    <string name="forge_library_front_body">Przód ciała</string>
+    <string name="forge_library_back_body">Tył ciała</string>
+    <string name="forge_library_region">Część ciała</string>
+    <string name="forge_library_any_region">Dowolna część ciała</string>
+    <string name="forge_tile_rest_hr">Odpoczynek HR</string>
 </resources>

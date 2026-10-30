@@ -504,6 +504,20 @@ object SleepStagerV2 {
     internal fun remLatencyGuard(minutesSinceOnset: Double): Double =
         remLatencyPenalty * minOf(1.0, maxOf(0.0, 1.0 - minutesSinceOnset / remLatencyMinutes))
 
+    /** Log-odds penalty applied to the DEEP emission at sleep onset: the twin of [remLatencyPenalty], same magnitude.
+     *  Descent into N3 runs through N1 and N2, so the first N3 comes minutes after onset; without this guard the
+     *  recipe staged deep within 5 min of onset for 12 of 30 PhysioNet sleep-accel subjects (1 of 30 in the PSG
+     *  truth). From ayiskakov/noop. Mirrors Swift `deepLatencyPenalty`. */
+    internal const val deepLatencyPenalty = 3.0
+
+    /** Minutes over which [deepLatencyPenalty] decays linearly to zero, from sleep ONSET. Twenty minutes is where
+     *  staged first-deep latency is unbiased against PSG on sleep-accel. Mirrors Swift `deepLatencyMinutes`. */
+    internal const val deepLatencyMinutes = 20.0
+
+    /** The deep guard, clamped to `[0, penalty]` exactly like [remLatencyGuard]. Mirrors Swift. */
+    internal fun deepLatencyGuard(minutesSinceOnset: Double): Double =
+        deepLatencyPenalty * minOf(1.0, maxOf(0.0, 1.0 - minutesSinceOnset / deepLatencyMinutes))
+
     /** Soft sleep-cycle prior added to the log-emission: deep concentrated early (decays, never hard-wiped);
      *  REM suppressed around sleep onset (REM latency) then rising toward morning.
      *
@@ -647,9 +661,10 @@ object SleepStagerV2 {
         // minutes [features] stamped on every epoch. No sustained run → 0.0, i.e. the window start.
         val originMin = sustainedSleepOnset(provisional)?.let { feats[it].minutesSinceOnset } ?: 0.0
 
-        // PASS 2 — apply the guard against minutes since THAT onset and re-run the lattice.
+        // PASS 2 — apply the REM- and deep-latency guards against minutes since THAT onset and re-run the lattice.
         for (i in feats.indices) {
             seq[i]["rem"] = seq[i]["rem"]!! - remLatencyGuard(feats[i].minutesSinceOnset - originMin)
+            seq[i]["deep"] = seq[i]["deep"]!! - deepLatencyGuard(feats[i].minutesSinceOnset - originMin)
         }
         return viterbi(seq)
     }

@@ -68,11 +68,16 @@ class GoalsGlanceWidget : GlanceAppWidget() {
         private const val PREFS = "noop_widget"
         private const val KEY = "goalsWidget"
 
+        /** Whether a goals widget is on the home screen; without one there is nothing to refresh. */
+        fun isPlaced(context: Context): Boolean {
+            val app = context.applicationContext
+            return AppWidgetManager.getInstance(app).getAppWidgetIds(ComponentName(app, GoalsWidgetReceiver::class.java)).isNotEmpty()
+        }
+
         /** Stores what the widget draws and redraws it, only when a goals widget is placed and something changed. */
         suspend fun publish(context: Context, goals: List<Goal>, summary: String) {
             val app = context.applicationContext
-            val ids = AppWidgetManager.getInstance(app).getAppWidgetIds(ComponentName(app, GoalsWidgetReceiver::class.java))
-            if (ids.isEmpty()) return
+            if (!isPlaced(app)) return
             val json = JSONObject().put("summary", summary).put("goals", JSONArray(goals.map {
                 JSONObject().put("name", it.name).put("progress", it.progress).put("fraction", it.fraction).put("state", it.state)
             })).toString()

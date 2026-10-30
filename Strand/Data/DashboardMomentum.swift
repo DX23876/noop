@@ -45,9 +45,8 @@ enum DashboardMomentum {
             healthAlertCopy = model?.healthAlert.map { localizedHealthAlertCopy($0) }
             strapHoursRemaining = model?.live.batteryEstimate?.hoursRemaining
             cyclePhaseTitle = model?.cyclePhase.map { DashboardMomentum.cyclePhaseTitle($0.phase) }
-            if let phase = model?.cyclePhase, let lo = phase.cycleDayLow, let hi = phase.cycleDayHigh {
-                cycleDayRange = lo == hi ? String(localized: "~day \(lo)") : String(localized: "~day \(lo)-\(hi)")
-            } else { cycleDayRange = nil }
+            cycleDayRange = MomentumCopy.cycleDayRange(low: model?.cyclePhase?.cycleDayLow,
+                                                       high: model?.cyclePhase?.cycleDayHigh)
         }
     }
 
@@ -112,13 +111,7 @@ enum DashboardMomentum {
     /// The same wording `MenstrualCycleHomeCard` and both dashboards' cycle sections use — one vocabulary
     /// for a phase name, not a second guess at what to call each `CyclePhaseEngine.Phase`.
     static func cyclePhaseTitle(_ phase: CyclePhaseEngine.Phase) -> String {
-        switch phase {
-        case .follicular:    return String(localized: "Follicular")
-        case .periOvulatory: return String(localized: "Mid-cycle shift")
-        case .luteal:        return String(localized: "Luteal")
-        case .unknown:       return String(localized: "No clear pattern")
-        case .learning:      return String(localized: "Learning your pattern")
-        }
+        MomentumCopy.cyclePhaseTitle(phase)
     }
 
     /// Resolve and publish. Call from a `.task(id:)`, never from a body: the publish writes to an

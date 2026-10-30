@@ -4194,6 +4194,7 @@
     <string name="forge_lj_date_passed">La data prevista è passata</string>
     <string name="forge_lj_date_passed_text">Com\'è andata? Chiudilo, dagli più tempo o mettilo da parte: la tua chiamata.</string>
     <string name="forge_lj_reached_it">L\'ho raggiunto</string>
+    <string name="forge_lj_extend">Prolungare la data</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Modifiche a questo obiettivo</string>
@@ -4931,4 +4932,20 @@
     <string name="forge_profile_change_photo">Cambia foto</string>
     <string name="forge_profile_choose_photo">Scegli foto</string>
     <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Sforzo ricalibrato</string>
+    <string name="forge_library_find_muscle">Cerca per muscolo</string>
+    <string name="forge_library_create_own">Crea il tuo esercizio</string>
+    <string name="forge_library_exercises_for">Esercizi per %1$s</string>
+    <string name="forge_library_main_target">Obiettivo principale</string>
+    <string name="forge_library_also_trains">Allena anche</string>
+    <string name="forge_library_no_exercises_match">Nessun esercizio corrispondente.</string>
+    <string name="forge_library_search_muscle">Esercizio o attrezzo</string>
+    <string name="forge_library_more">Altro</string>
+    <string name="forge_library_animations">Animazioni degli esercizi</string>
+    <string name="forge_library_animations_text">Ogni esercizio funziona anche senza. Scarica una volta il pacchetto opzionale per vedere come si esegue ciascuno.</string>
+    <string name="forge_library_hide">Nascondi</string>
+    <string name="forge_library_front_body">Fronte del corpo</string>
+    <string name="forge_library_back_body">Retro del corpo</string>
+    <string name="forge_library_region">Regione del corpo</string>
+    <string name="forge_library_any_region">Qualsiasi regione del corpo</string>
+    <string name="forge_tile_rest_hr">FC riposo</string>
 </resources>

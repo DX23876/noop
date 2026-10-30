@@ -233,7 +233,10 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             }
         }
         // The alarms one tap from the night, as iOS puts its Alarms row under the Rest hero.
-        LargeRow(Icons.Rounded.Alarm, Forge.colors.rest, stringResource(R.string.nav_alarms), "",
+        // The bare alarm glyph in the Rest colour, no plate, as iOS's `alarmsEntry` draws it.
+        LargeRow(null, Forge.colors.rest, stringResource(R.string.nav_alarms), "",
+                 leading = { Icon(Icons.Rounded.Alarm, contentDescription = null, tint = Forge.colors.rest,
+                                  modifier = Modifier.size(24.dp)) },
                  detail = {}) { alarms = true }
         // Where this night stands in the week's sleep goals (iOS `SleepGoalNightLine`), then the week's sleep goal
         // itself, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); neither draws without a goal.

@@ -86,6 +86,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -310,9 +311,13 @@ fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: For
     // Opened on one page (More's profile row, as iOS opens `SettingsView(initialPage: .profile)`), Back from it closes.
     var stackRaw by rememberSaveable { mutableStateOf(initialPage?.let { listOf<Route>(Route.Page(it)).encode() } ?: "") }
     val stack = decodeRoutes(stackRaw)
+    // Each page on the stack keeps its own saved state, its scroll position above all, while a page above it is
+    // shown, so Back returns to where the wearer left it, as a navigation stack does. A popped page's state goes.
+    val pageStates = rememberSaveableStateHolder()
     fun push(route: Route) { stackRaw = (stack + route).encode() }
     fun pop() {
-        if (initialPage != null && stack.size == 1) onClose() else stackRaw = stack.dropLast(1).encode()
+        if (initialPage != null && stack.size == 1) onClose()
+        else { pageStates.removeState(stack.encode()); stackRaw = stack.dropLast(1).encode() }
     }
     BackHandler(enabled = stack.isNotEmpty()) { pop() }
     ForgeSceneBackdrop(ForgeBackdrop.Sky) {
@@ -325,12 +330,14 @@ fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: For
                     (slideOutHorizontally { w -> if (forward) -w / 3 else w } + fadeOut())
             },
         ) { shown ->
+            pageStates.SaveableStateProvider(shown.encode()) {
             when (val top = shown.lastOrNull()) {
                 null -> Hub(onClose, onOpen = { push(Route.Page(it)) }, onAll = { push(Route.Sub(ForgeSettingsSub.AllSettings)) })
                 is Route.Page ->
                     if (top.page.hosted) HostedPage(top.page, viewModel, onBack = ::pop)
                     else Page(top.page, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) })
                 is Route.Sub -> SubScreen(top.sub, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) })
+            }
             }
         }
     }
@@ -1375,6 +1382,29 @@ internal fun ToggleRow(title: String, detail: String?, checked: Boolean, enabled
         Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = forgeSwitchColors())
     }
 }
+
+/**
+ * A text field in Forge's own colours: the quiet inset grey iOS uses for fields inside a card, not the classic screens'
+ * paper tone. A search field on the page itself passes the card surface as [container], so it stands off the canvas.
+ */
+@Composable
+internal fun forgeFieldColors(container: androidx.compose.ui.graphics.Color = Forge.colors.inset) =
+    androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Forge.colors.text,
+    unfocusedTextColor = Forge.colors.text,
+    disabledTextColor = Forge.colors.textTertiary,
+    focusedPlaceholderColor = Forge.colors.textTertiary,
+    unfocusedPlaceholderColor = Forge.colors.textTertiary,
+    focusedLeadingIconColor = Forge.colors.textSecondary,
+    unfocusedLeadingIconColor = Forge.colors.textSecondary,
+    cursorColor = Forge.colors.accent,
+    focusedBorderColor = Forge.colors.accent,
+    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    disabledBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    focusedContainerColor = container,
+    unfocusedContainerColor = container,
+    disabledContainerColor = container,
+)
 
 /** The switch as iOS draws it: green when on, a quiet grey track when off, a white thumb and no outline. */
 @Composable

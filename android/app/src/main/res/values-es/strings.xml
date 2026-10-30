@@ -4226,6 +4226,7 @@
     <string name="forge_lj_date_passed">Tu fecha objetivo ha pasado</string>
     <string name="forge_lj_date_passed_text">¿Cómo fue? Ciérralo, dale más tiempo o déjalo a un lado — tú decides.</string>
     <string name="forge_lj_reached_it">Lo logré</string>
+    <string name="forge_lj_extend">Ampliar la fecha</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Cambios en este objetivo</string>
@@ -4963,4 +4964,20 @@
     <string name="forge_profile_change_photo">Cambiar foto</string>
     <string name="forge_profile_choose_photo">Elegir foto</string>
     <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Esfuerzo recalibrado</string>
+    <string name="forge_library_find_muscle">Buscar por músculo</string>
+    <string name="forge_library_create_own">Crear tu propio ejercicio</string>
+    <string name="forge_library_exercises_for">Ejercicios para %1$s</string>
+    <string name="forge_library_main_target">Objetivo principal</string>
+    <string name="forge_library_also_trains">También trabaja</string>
+    <string name="forge_library_no_exercises_match">No hay ejercicios que coincidan.</string>
+    <string name="forge_library_search_muscle">Ejercicio o equipo</string>
+    <string name="forge_library_more">Más</string>
+    <string name="forge_library_animations">Animaciones de ejercicios</string>
+    <string name="forge_library_animations_text">Todos los ejercicios funcionan sin ellas. Descarga una vez el paquete opcional para ver cómo se hace cada uno.</string>
+    <string name="forge_library_hide">Ocultar</string>
+    <string name="forge_library_front_body">Parte frontal del cuerpo</string>
+    <string name="forge_library_back_body">Parte posterior del cuerpo</string>
+    <string name="forge_library_region">Región corporal</string>
+    <string name="forge_library_any_region">Cualquier región corporal</string>
+    <string name="forge_tile_rest_hr">FC reposo</string>
 </resources>

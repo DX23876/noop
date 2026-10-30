@@ -67,4 +67,20 @@ class EmptySyncTrackerTest {
         assertFalse(t.recordCompletedSync(bankedSensorRecords = false, consoleOnly = true))
         assertTrue(t.recordCompletedSync(bankedSensorRecords = false, consoleOnly = true))
     }
+
+    // An off-wrist strap handing over nothing says nothing about its clock: the cycle neither counts nor clears.
+    @Test fun offWristEmptyCycleNeitherCountsNorClears() {
+        val t = EmptySyncTracker()
+        t.recordCompletedSync(bankedSensorRecords = false, consoleOnly = true)
+        assertFalse(t.recordCompletedSync(bankedSensorRecords = false, consoleOnly = true, strapOffWrist = true))
+        assertEquals(1, t.consecutiveEmptySyncs)
+    }
+
+    // ...but a banner on-wrist cycles already raised stays up while the strap sits on a charger.
+    @Test fun offWristCycleKeepsABannerAlreadyRaised() {
+        val t = EmptySyncTracker()
+        repeat(3) { t.recordCompletedSync(bankedSensorRecords = false, consoleOnly = true) }
+        assertTrue(t.recordCompletedSync(bankedSensorRecords = false, consoleOnly = true, strapOffWrist = true))
+        assertEquals(3, t.consecutiveEmptySyncs)
+    }
 }

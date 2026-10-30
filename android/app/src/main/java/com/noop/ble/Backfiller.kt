@@ -211,6 +211,10 @@ class Backfiller(
      *  false-fires on the empty tail of a sync that just offloaded real records. */
     var continuedAfterRows = false
         private set
+    /** The strap's last wrist event on this link was WRIST_OFF when this session began. Taken once per session so the
+     *  no-cursor line and the client's empty-sync verdict read the same wrist state. Mirrors Swift. */
+    var strapOffWrist = false
+        private set
     /** #57: set true the moment ANY chunk's persist (decoded rows / reject archive / trim cursor) fails
      *  this session. While set, [finishChunk] must NOT ack — not even a subsequent EMPTY/metadata END, which
      *  skips the insert and would otherwise advance the strap's trim PAST the held records-carrying chunks,
@@ -219,6 +223,15 @@ class Backfiller(
      *  Exposed read-only so the client can surface a "history isn't persisting" signal in the debug export
      *  (#57 was invisible to a report — the UI just showed "0 synced"). */
     var persistStalled = false
+
+    /**
+     * Moves when the next offload session begins or the link ends ([begin], [linkEnded]). A chunk's END reads it on
+     * entry and again after each suspension, and stops when it moved: an END that outlived its session writes nothing
+     * into the next one's state and acks nothing, since on a new link the ack would reach the strap out of sequence
+     * and an ack frees flash. Rows it already stored stay and dedupe when the strap re-sends the chunk. The idle
+     * timeout does not move it. Adapted from ayiskakov/noop (W06-135); mirrors Swift `Backfiller.session`.
+     */
+    @Volatile private var session = 0
         private set
     var sessionMotionRows = 0
         private set
@@ -351,10 +364,12 @@ class Backfiller(
      * HISTORY_START then repeated HISTORY_ENDs, so we must accumulate from the outset.
      * Port of Swift `begin()`.
      */
-    fun begin(family: DeviceFamily = DeviceFamily.WHOOP4, continuedAfterRows: Boolean = false) {
+    fun begin(family: DeviceFamily = DeviceFamily.WHOOP4, continuedAfterRows: Boolean = false, strapOffWrist: Boolean = false) {
         this.family = family
         this.continuedAfterRows = continuedAfterRows
+        this.strapOffWrist = strapOffWrist
         isBackfilling = true
+        session += 1
         sessionRowsPersisted = 0
         sessionPpgWindows = 0
         sessionPpgWithBase = 0
@@ -432,6 +447,7 @@ class Backfiller(
      */
     private suspend fun finishChunk(unix: Long, trim: Long, endFrame: ByteArray) {
         val endData = endData(endFrame, family) ?: return
+        val token = session
 
         // #773: corrupt future-RTC detection. A HISTORY_END carries the strap's own clock; a genuine offload
         // is always PAST-dated (it's banked history), so an end dated days into the future can only be a
@@ -715,6 +731,8 @@ class Backfiller(
                 // key has already absorbed part of it.
                 val rrCensus = com.noop.analytics.RrEmissionStats.compute(decoded.rr.map { it.ts.toInt() to it.rrMs })
                 val counts = repository.insert(decoded, deviceId)
+                // Past this point everything belongs to the session: its tallies, the archive, the cursor and the ack.
+                if (outlived(token, trim, stored = true)) return
                 onBankedOffload(counts)
                 committed = decoded
                 // Success-side observability (#150): tally what actually persisted so the session can emit
@@ -756,6 +774,7 @@ class Backfiller(
                         "sessionRows=$sessionRowsPersisted sessionMotion=$sessionMotionRows nights=$sessionNights"
                 }
             } catch (t: Throwable) {
+                if (outlived(token, trim, stored = false)) return   // not this session's stall
                 // Diag (#601 / #13): the decoded rows couldn't be written, the "history stalls but live HR
                 // works" class. We return WITHOUT acking so the strap keeps this chunk and re-sends it next
                 // session (no data loss), but a silent return left a strap log with no trace of the stall.
@@ -792,7 +811,7 @@ class Backfiller(
         // session (loggedNoCursor) and the ack still proceeds below.
         if (trim == 0xFFFFFFFFL && !loggedNoCursor) {
             loggedNoCursor = true
-            log(noCursorLine(sessionRowsPersisted, continuedAfterRows))
+            log(noCursorLine(sessionRowsPersisted, continuedAfterRows, strapOffWrist))
             // Connection test mode: the no-cursor sentinel as a compact tagged line (gated zero-cost).
             emitConnection { com.noop.analytics.ConnectionTrace.noCursorLine() }
         }
@@ -814,6 +833,7 @@ class Backfiller(
         try {
             cursorStore.set(STRAP_TRIM_CURSOR, trim)
         } catch (t: Throwable) {
+            if (outlived(token, trim, stored = committed != null)) return
             // Diag (#601 / #13): decoded rows are durable but the strap_trim cursor write failed. We return
             // WITHOUT acking, acking now would let the strap trim past records the cursor hasn't recorded, so
             // on reconnect the offload could replay or skip. Holding the ack keeps it safe; the strap re-offers
@@ -824,9 +844,27 @@ class Backfiller(
             return
         }
 
+        // The cursor write is the last suspension; the ack and lastAckedTrim must not follow a stale one.
+        if (outlived(token, trim, stored = committed != null)) return
         ackTrim(trim, endData)
         lastAckedTrim = trim   // #364: record the advanced cursor for the auto-continue spin-detector
         committed?.takeIf { !it.isEmpty }?.let(onChunkCommitted)
+    }
+
+    /** True when the session [token] was read in has ended, with the one line that says so (always-on: rare, and
+     *  the only trace). Mirrors Swift `outlived`. */
+    private fun outlived(token: Int, trim: Long, stored: Boolean): Boolean {
+        if (token == session) return false
+        log("Backfill: the offload session ended while chunk trim=$trim was in progress; " +
+            (if (stored) "its rows are stored, " else "") +
+            "nothing more of it is written and it is not acked, so the strap keeps it to re-send")
+        return true
+    }
+
+    /** The link ended. An END still in its writes stops at its next resume; the chunk being assembled is left for
+     *  [begin] to clear, as before. Mirrors Swift `linkEnded`. */
+    fun linkEnded() {
+        session += 1
     }
 
     /**
@@ -976,7 +1014,7 @@ class Backfiller(
          * > 0 gives a neutral caught-up line; 0 gives the genuine no-history guidance. Pure so a fixture pins both.
          * Twin of the Swift `Backfiller.noCursorLine(rowsPersisted:)`.
          */
-        fun noCursorLine(rowsPersisted: Int, continuedAfterRows: Boolean = false): String =
+        fun noCursorLine(rowsPersisted: Int, continuedAfterRows: Boolean = false, strapOffWrist: Boolean = false): String =
             when {
                 rowsPersisted > 0 ->
                     "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up after " +
@@ -987,6 +1025,11 @@ class Backfiller(
                 continuedAfterRows ->
                     "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up; the " +
                         "strap handed over its banked history earlier this sync. Nothing more to offload."
+                // An off-wrist strap's empty offload is not a clock/charge state: say the wrist fact, no charge advice.
+                strapOffWrist ->
+                    "Backfill: no history to offload (trim=0xFFFFFFFF) and the strap's last wrist event was " +
+                        "WRIST_OFF - an off-wrist strap may have nothing new to bank, so this is not read as a " +
+                        "clock or charge state."
                 else ->
                     "Backfill: strap reported no flash cursor (trim=0xFFFFFFFF) - it has no banked history " +
                         "to offload. This is a clock/charge state on the strap, not a decode problem; fully " +

@@ -1,15 +1,39 @@
 package com.noop.ui.forge
 
-import com.noop.ui.noopFieldColors
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.rounded.AccessibilityNew
+import androidx.compose.material.icons.rounded.AddBox
+import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.FilterAlt
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.Route
+import androidx.compose.material.icons.rounded.SportsGymnastics
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.UnfoldMore
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -68,8 +92,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
     var equipmentDialog by rememberSaveable { mutableStateOf(false) }
     var availablePayload by remember { mutableStateOf(prefs.getString(AVAILABLE_EQUIPMENT, "").orEmpty()) }
     val available = remember(availablePayload) { availablePayload.lineSequence().filter { it.isNotBlank() }.toSet() }
-    var mapSide by rememberSaveable { mutableStateOf("front") }
-    var muscleChoices by remember { mutableStateOf<List<String>>(emptyList()) }
+    var musclePicker by rememberSaveable { mutableStateOf(false) }
     var picked by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var importing by remember { mutableStateOf(false) }
     var importResult by remember { mutableStateOf<Int?>(null) }
@@ -112,7 +135,7 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
             if (count == null) importFailed = true else { importResult = count; revision++ }
         }
     }
-    BackHandler { when { creating -> creating = false; selected != null -> selected = null; else -> onClose() } }
+    BackHandler { when { creating -> creating = false; selected != null -> selected = null; musclePicker -> musclePicker = false; else -> onClose() } }
     if (providerPage) { ForgeExerciseProviderPage(onClose = { providerPage = false }, onImported = { providerPage = false; revision++ }); return }
     if (mediaSettings) { ForgeExerciseMediaSettings { mediaSettings = false; revision++ }; return }
     if (creating) {
@@ -124,6 +147,11 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
     selected?.let { id ->
         LibraryExercisePage(id, id in favorites, { toggleFavorite(id) }, { selected = null },
             if (onPicked != null) ({ choose(id); if (multiple) selected = null }) else null, onAdded)
+        return
+    }
+    if (musclePicker) catalog?.let { cat ->
+        ForgeExerciseMusclePicker(cat, onClose = { musclePicker = false }, onOpen = { selected = it },
+            onPick = if (onPicked != null) ({ id: String -> choose(id) }) else null, picked = picked.toSet())
         return
     }
     if (importResult != null || importFailed) AlertDialog(onDismissRequest = { importResult = null; importFailed = false },
@@ -139,127 +167,321 @@ fun ForgeExerciseLibrary(onClose: () -> Unit, multiple: Boolean = false,
         if (values.isEmpty() && equipment == "available") equipment = null
         equipmentDialog = false
     }
-    if (muscleChoices.isNotEmpty()) AlertDialog(onDismissRequest = { muscleChoices = emptyList() },
-        title = { Text(stringResource(R.string.forge_library_muscle)) },
-        text = { Column { muscleChoices.forEach { id ->
-            TextButton(onClick = { muscle = id; muscleChoices = emptyList() }) { Text(muscleName(id)) }
-        } } },
-        confirmButton = { TextButton(onClick = { muscleChoices = emptyList() }) { Text(stringResource(R.string.forge_library_ok)) } })
     val muscleLabels = c?.muscles.orEmpty().associateWith { muscleName(it) }
     val equipmentLabels = c?.equipment.orEmpty().associateWith { equipmentName(it) }
     val shown = remember(c, query, region, muscle, equipment, mode, favoritesOnly, favorites, muscleLabels, equipmentLabels) {
         ExerciseLibraryFilters(query, region, muscle, equipment, mode, favoritesOnly)
             .apply(c?.exercises.orEmpty(), favorites, muscleLabels, equipmentLabels, c?.availableExerciseIds.orEmpty().toSet())
     }
+    val filtersActive = region != null || muscle != null || mode != null || equipment != null || favoritesOnly
+    val favoriteRows = remember(c, favorites) { c?.exercises.orEmpty().filter { it.id in favorites } }
+    val showFavorites = !favoritesOnly && favoriteRows.isNotEmpty() && query.isBlank() && !filtersActive
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
     LazyColumn(Modifier.fillMaxHeight().widthIn(max = ForgeMetrics.maxContentWidth).fillMaxWidth()
-            .statusBarsPadding().navigationBarsPadding().imePadding(), contentPadding = PaddingValues(ForgeMetrics.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        item {
-            PageTitle(stringResource(R.string.forge_library_title), onClose, trailing = if (multiple && picked.isNotEmpty()) {
-                { TextButton(onClick = { onPicked?.invoke(picked.toList()) }) { Text(stringResource(R.string.forge_training_selected, picked.size)) } }
-            } else null)
+            .statusBarsPadding().navigationBarsPadding().imePadding(), contentPadding = PaddingValues(ForgeMetrics.screenPadding)) {
+        section {
+            // The title with the filter and "More" menus where iOS has them, in the navigation bar.
+            PageTitle(stringResource(R.string.forge_library_title), onClose) {
+                if (multiple && picked.isNotEmpty()) {
+                    TextButton(onClick = { onPicked?.invoke(picked.toList()) }) {
+                        Text(stringResource(R.string.forge_training_selected, picked.size), color = Forge.colors.accent)
+                    }
+                }
+                IconButton(onClick = { filtersOpen = true }, enabled = c != null) {
+                    Icon(if (filtersActive) Icons.Rounded.FilterAlt else Icons.Rounded.FilterList,
+                         stringResource(R.string.forge_library_filter), tint = Forge.colors.accent)
+                }
+                Box {
+                    var more by remember { mutableStateOf(false) }
+                    IconButton(onClick = { more = true }) {
+                        Icon(Icons.Rounded.MoreHoriz, stringResource(R.string.forge_library_more), tint = Forge.colors.accent)
+                    }
+                    DropdownMenu(more, { more = false }) {
+                        if (onPicked == null) {
+                            DropdownMenuItem({ Text(stringResource(R.string.forge_library_new)) }, { more = false; creating = true })
+                            DropdownMenuItem({ Text(stringResource(R.string.forge_provider_title)) }, { more = false; providerPage = true })
+                            DropdownMenuItem({ Text(stringResource(R.string.forge_library_import)) }, enabled = !importing,
+                                onClick = { more = false; importer.launch(arrayOf("application/json", "text/plain")) })
+                        }
+                        DropdownMenuItem({ Text(stringResource(R.string.forge_media_title)) }, { more = false; mediaSettings = true })
+                    }
+                }
+            }
         }
-        item {
+        section {
             OutlinedTextField(query, { query = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.forge_library_search)) },
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) }, colors = noopFieldColors())
+                placeholder = { Text(stringResource(R.string.forge_library_search)) },
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) }, colors = forgeFieldColors(Forge.colors.surface),
+                shape = RoundedCornerShape(ForgeMetrics.groupedRadius))
         }
-        if (!loaded || importing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-        if (loaded && c == null) item { ForgeCard(Modifier.fillMaxWidth()) {
+        if (!loaded || importing) section { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        if (loaded && c == null) section { ForgeCard(Modifier.fillMaxWidth()) {
             ReportNote(stringResource(R.string.forge_library_unavailable))
             TextButton(onClick = { revision++ }) { Text(stringResource(R.string.forge_report_retry)) }
         } }
         if (c != null) {
-            item {
+            section {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
                     item { LibraryChip(region == null && !favoritesOnly, { region = null; favoritesOnly = false }, stringResource(R.string.forge_report_all)) }
-                    item { LibraryChip(favoritesOnly, { favoritesOnly = !favoritesOnly }, stringResource(R.string.forge_library_favorites)) }
+                    if (favorites.isNotEmpty()) item {
+                        LibraryChip(favoritesOnly, { favoritesOnly = !favoritesOnly }, stringResource(R.string.forge_library_favorites), Icons.Rounded.Star)
+                    }
                     items(c.regions) { id -> LibraryChip(region == id, { region = if (region == id) null else id }, regionName(id)) }
                 }
             }
-            item {
-                TextButton(onClick = { filtersOpen = !filtersOpen }) {
-                    Text(stringResource(if (filtersOpen) R.string.forge_library_hide_filters else R.string.forge_library_filter))
-                }
-                if (filtersOpen) ForgeCard(Modifier.fillMaxWidth()) {
-                    ReportNote(stringResource(R.string.forge_library_choose_muscle))
-                    ForgeSegmented(listOf(stringResource(R.string.forge_th_front), stringResource(R.string.forge_th_back)),
-                        if (mapSide == "front") 0 else 1, Modifier.fillMaxWidth()) { mapSide = if (it == 0) "front" else "back" }
-                    val selectedSlug = muscle?.let(MuscleMapArt::muscle)
-                    val fills = selectedSlug?.let { mapOf(it to Forge.colors.accent) }.orEmpty()
-                    ForgeBodyMap(if (ProfileStore.from(context).sex == "female") "female" else "male", mapSide, fills,
-                        Modifier.fillMaxWidth().height(ForgeMetrics.chartHeight), stringResource(R.string.forge_library_choose_muscle)) { slug ->
-                        val choices = MuscleMapArt.ids(slug, c.muscles)
-                        if (choices.size == 1) muscle = choices.single() else muscleChoices = choices
-                    }
-                    ReportNote(stringResource(R.string.forge_library_muscle))
-                    ReportPicker(muscle?.let { muscleName(it) } ?: stringResource(R.string.forge_library_any_muscle),
-                        listOf(stringResource(R.string.forge_library_any_muscle)) + c.muscles.map { muscleName(it) }) { muscle = c.muscles.getOrNull(it - 1) }
-                    ReportNote(stringResource(R.string.forge_library_equipment))
-                    val equipmentIds = (if (available.isNotEmpty()) listOf("available") else emptyList()) + c.equipment
-                    fun equipmentLabel(id: String): String = if (id == "available") context.getString(R.string.forge_library_my_equipment) else equipmentLabels[id] ?: id
-                    ReportPicker(equipment?.let(::equipmentLabel) ?: stringResource(R.string.forge_library_any_equipment),
-                        listOf(stringResource(R.string.forge_library_any_equipment)) + equipmentIds.map(::equipmentLabel)) { equipment = equipmentIds.getOrNull(it - 1) }
-                    TextButton(onClick = { equipmentDialog = true }) { Text(stringResource(R.string.forge_library_available_equipment)) }
-                    ReportNote(stringResource(R.string.forge_library_type))
-                    ReportPicker(mode?.let { measurementName(it) } ?: stringResource(R.string.forge_library_any_type),
-                        listOf(stringResource(R.string.forge_library_any_type)) + c.modes.map { measurementName(it) }) { mode = c.modes.getOrNull(it - 1) }
-                    TextButton(onClick = { query = ""; region = null; muscle = null; equipment = null; mode = null; favoritesOnly = false }) {
-                        Text(stringResource(R.string.forge_library_clear_filters))
+            section {
+                val equipmentIds = (if (available.isNotEmpty()) listOf("available") else emptyList()) + c.equipment
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                    item { LibraryChip(equipment == null, { equipment = null }, stringResource(R.string.forge_library_any_equipment)) }
+                    items(equipmentIds) { id ->
+                        LibraryChip(equipment == id, { equipment = id },
+                            if (id == "available") stringResource(R.string.forge_library_my_equipment) else equipmentLabels[id] ?: id)
                     }
                 }
             }
-            if (onPicked == null) item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-                    TextButton(onClick = { creating = true }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.forge_library_new)) }
-                    TextButton(enabled = !importing, onClick = { importer.launch(arrayOf("application/json", "text/plain")) }, modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.forge_library_import))
-                    }
+            section { ExerciseMediaCard { mediaSettings = true } }
+            section {
+                GroupedRows(listOfNotNull<Pair<ImageVector, Pair<String, () -> Unit>>>(
+                    Icons.Rounded.AccessibilityNew to (stringResource(R.string.forge_library_find_muscle) to { musclePicker = true }),
+                    if (onPicked == null) Icons.Rounded.AddBox to (stringResource(R.string.forge_library_create_own) to { creating = true }) else null,
+                ))
+            }
+            if (showFavorites) {
+                section { LibrarySectionTitle(stringResource(R.string.forge_library_favorites)) }
+                itemsIndexed(favoriteRows, key = { _, row -> "fav-" + row.id }) { index, row ->
+                    LibraryRow(row, libraryMetadata(row, muscleLabels, equipmentLabels), true, index, favoriteRows.size,
+                        onOpen = { selected = row.id }, onPick = if (onPicked != null) ({ choose(row.id) }) else null,
+                        picked = row.id in picked)
                 }
             }
-            item { TextButton(onClick = { providerPage = true }) { Text(stringResource(R.string.forge_provider_title)) } }
-            item { TextButton(onClick = { mediaSettings = true }) { Text(stringResource(R.string.forge_media_title)) } }
-            item { OverlineHeader(stringResource(R.string.forge_library_all_exercises), stringResource(R.string.forge_library_count, shown.size)) }
-            if (shown.isEmpty()) item { ForgeCard(Modifier.fillMaxWidth()) {
+            section { LibrarySectionTitle(stringResource(R.string.forge_library_all_exercises), stringResource(R.string.forge_library_count, shown.size)) }
+            if (shown.isEmpty()) section { ForgeCard(Modifier.fillMaxWidth()) {
                 ReportHeading(stringResource(R.string.forge_library_no_match))
                 ReportNote(stringResource(R.string.forge_library_try_another))
             } }
-            items(shown, key = { it.id }) { row ->
-                ForgeCard(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f).heightIn(min = ForgeMetrics.minHitTarget).clickable { selected = row.id }) {
-                            ReportHeading(row.title)
-                            ReportNote(listOfNotNull(row.primaryMuscle?.let { muscleName(it) }, measurementName(row.mode)).joinToString(" · "))
-                            if (row.equipment.isNotEmpty()) ReportNote(row.equipment.joinToString(", ") { equipmentLabels[it] ?: it })
-                        }
-                        IconButton(onClick = { toggleFavorite(row.id) }) { Icon(if (row.id in favorites) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                            stringResource(if (row.id in favorites) R.string.forge_library_unfavorite else R.string.forge_library_favorite),
-                            tint = if (row.id in favorites) Forge.colors.accent else Forge.colors.textTertiary) }
-                        if (onPicked != null) IconButton(onClick = { choose(row.id) }) { Icon(if (row.id in picked) Icons.Rounded.Check else Icons.Rounded.Add,
-                            stringResource(R.string.forge_library_add), tint = Forge.colors.accent) }
-                        else IconButton(onClick = { selected = row.id }) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            stringResource(R.string.forge_library_open), tint = Forge.colors.textTertiary) }
-                    }
-                }
+            itemsIndexed(shown, key = { _, row -> row.id }) { index, row ->
+                LibraryRow(row, libraryMetadata(row, muscleLabels, equipmentLabels), row.id in favorites, index, shown.size,
+                    onOpen = { selected = row.id }, onPick = if (onPicked != null) ({ choose(row.id) }) else null,
+                    picked = row.id in picked)
             }
-            item { ForgeCard(Modifier.fillMaxWidth()) {
+            section { Spacer(Modifier.height(ForgeMetrics.space3)) }
+            section { ForgeCard(Modifier.fillMaxWidth()) {
                 ReportHeading(stringResource(R.string.forge_library_content_source))
                 ReportNote("${c.provider} · ${c.licence}")
                 c.attribution?.let { ReportNote(it) }
             } }
         }
-        item { Spacer(Modifier.height(ForgeMetrics.tabBarClearance)) }
+        section { Spacer(Modifier.height(ForgeMetrics.tabBarClearance)) }
     }
+    }
+    if (filtersOpen && c != null) LibraryFilterSheet(c, region, muscle, mode, filtersActive, muscleLabels,
+        onRegion = { region = it }, onMuscle = { muscle = it }, onMode = { mode = it },
+        onAvailableEquipment = { filtersOpen = false; equipmentDialog = true },
+        onClear = { region = null; muscle = null; equipment = null; mode = null; favoritesOnly = false },
+        onDismiss = { filtersOpen = false })
+}
+
+/** A list item that keeps the section gap below itself; rows of one grouped card are plain items and sit flush. */
+internal fun LazyListScope.section(content: @Composable () -> Unit) =
+    item { Box(Modifier.fillMaxWidth().padding(bottom = ForgeMetrics.space2)) { content() } }
+
+/** iOS's `filterChips`: a filled capsule when chosen, a quiet raised one otherwise, never an outline. */
+@Composable
+private fun LibraryChip(selected: Boolean, onClick: () -> Unit, label: String, icon: ImageVector? = null) {
+    val colors = Forge.colors
+    Row(Modifier.clip(CircleShape).background(if (selected) colors.accent else colors.surface)
+            .clickable(role = Role.Tab, onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        val tint = if (selected) Color.White else colors.textSecondary
+        icon?.let { Icon(it, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp)) }
+        Text(label, style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold), color = tint, maxLines = 1)
     }
 }
 
 @Composable
-private fun LibraryChip(selected: Boolean, onClick: () -> Unit, label: String) {
-    FilterChip(selected, onClick, label = { Text(label) }, shape = RoundedCornerShape(ForgeMetrics.groupedRadius),
-        colors = FilterChipDefaults.filterChipColors(containerColor = Forge.colors.canvas, labelColor = Forge.colors.textSecondary,
-            selectedContainerColor = Forge.colors.surface, selectedLabelColor = Forge.colors.text),
-        border = BorderStroke(ForgeMetrics.hairline, if (selected) Forge.colors.accent else Forge.colors.border))
+internal fun LibrarySectionTitle(title: String, trailing: String? = null) {
+    Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2, start = 4.dp, end = 4.dp), verticalAlignment = Alignment.Bottom) {
+        Text(title.uppercase(), style = Forge.type.overline, color = Forge.colors.textTertiary, modifier = Modifier.weight(1f))
+        trailing?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textTertiary) }
+    }
+}
+
+/** The shape of row [index] of [count] in one grouped card, as an inset grouped list draws it. */
+internal fun groupedShape(index: Int, count: Int): RoundedCornerShape {
+    val r = ForgeMetrics.groupedRadius
+    return when {
+        count == 1 -> RoundedCornerShape(r)
+        index == 0 -> RoundedCornerShape(topStart = r, topEnd = r)
+        index == count - 1 -> RoundedCornerShape(bottomStart = r, bottomEnd = r)
+        else -> RoundedCornerShape(0.dp)
+    }
+}
+
+/** "Find by muscle" and "Create your own exercise": one grouped card of tappable rows with their icons. */
+@Composable
+private fun GroupedRows(rows: List<Pair<ImageVector, Pair<String, () -> Unit>>>) {
+    val colors = Forge.colors
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(ForgeMetrics.groupedRadius)).background(colors.surface)) {
+        rows.forEachIndexed { index, (icon, entry) ->
+            if (index > 0) Box(Modifier.padding(start = 52.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider.copy(alpha = 0.4f)))
+            Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClick = entry.second)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
+                Text(entry.first, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent)
+            }
+        }
+    }
+}
+
+/** The row's second line (`ExerciseLibraryRow.metadata`): main muscle and first equipment. */
+@Composable
+internal fun libraryMetadata(row: CoreTrainingLibrary.Row, muscles: Map<String, String>, equipment: Map<String, String>): String {
+    val muscle = row.primaryMuscle?.let { muscles[it] ?: muscleName(it) } ?: ""
+    val tool = row.equipment.firstOrNull()?.let { equipment[it] ?: equipmentName(it) } ?: stringResource(R.string.forge_library_no_equipment)
+    return listOf(muscle, tool).filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+/** The measurement's symbol on its tinted tile when there is no media (`ExerciseLibraryRow.modeIcon`). */
+private fun modeIcon(mode: String): ImageVector = when (mode) {
+    "duration", "weight_duration" -> Icons.Rounded.Timer
+    "distance_duration", "distance_weight" -> Icons.Rounded.Route
+    "bodyweight_reps", "repetitions" -> Icons.Rounded.SportsGymnastics
+    else -> Icons.Rounded.FitnessCenter
+}
+
+/** One exercise as `ExerciseLibraryRow` draws it, a segment of the grouped card it belongs to. */
+@Composable
+internal fun LibraryRow(row: CoreTrainingLibrary.Row, subtitle: String, favorite: Boolean, index: Int, count: Int,
+                        onOpen: () -> Unit, onPick: (() -> Unit)?, picked: Boolean = false) {
+    val colors = Forge.colors
+    Column(Modifier.fillMaxWidth().clip(groupedShape(index, count)).background(colors.surface)) {
+        if (index > 0) Box(Modifier.padding(start = 76.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider.copy(alpha = 0.4f)))
+        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            val still = rememberExerciseStill(row.id, 144)
+            Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))
+                    .background(if (still != null) Color.White else colors.accent.copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center) {
+                if (still != null) androidx.compose.foundation.Image(still, contentDescription = null, modifier = Modifier.size(48.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                else Icon(modeIcon(row.mode), contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(row.title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+                Text(subtitle, style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (favorite) Icon(Icons.Rounded.Star, stringResource(R.string.forge_library_favorites),
+                tint = ForgeTokens.Color.systemYellow.resolve(), modifier = Modifier.size(16.dp))
+            if (onPick != null) {
+                Row(Modifier.clip(CircleShape).background(colors.accent.copy(alpha = 0.14f)).clickable(role = Role.Button, onClick = onPick)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(if (picked) Icons.Rounded.Check else Icons.Rounded.AddCircle, contentDescription = null,
+                         tint = colors.accent, modifier = Modifier.size(14.dp))
+                    Text(stringResource(R.string.forge_library_add), style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold),
+                         color = colors.accent)
+                }
+            } else {
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+/** iOS's `ExerciseMediaDownloadCard`: the optional animation pack, offered until it is installed, disabled or hidden. */
+@Composable
+private fun ExerciseMediaCard(onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember(context) { NoopPrefs.of(context) }
+    var dismissed by remember { mutableStateOf(prefs.getBoolean(MEDIA_BANNER_DISMISSED, false)) }
+    var info by remember { mutableStateOf<com.noop.core.CoreExerciseMedia.Info?>(null) }
+    LaunchedEffect(Unit) { info = withContext(Dispatchers.IO) { com.noop.core.CoreExerciseMedia.info(context) } }
+    val i = info ?: return
+    if (dismissed || i.state == "ready" || i.disabled || i.withdrawn) return
+    val colors = Forge.colors
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(ForgeMetrics.groupedRadius)).background(colors.surface).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Rounded.FitnessCenter, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.forge_library_animations), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = colors.text, modifier = Modifier.weight(1f))
+            Icon(Icons.Rounded.Close, stringResource(R.string.forge_library_hide), tint = colors.textTertiary,
+                 modifier = Modifier.size(18.dp).clickable(role = Role.Button) {
+                     dismissed = true; prefs.edit().putBoolean(MEDIA_BANNER_DISMISSED, true).apply()
+                 })
+        }
+        when (i.state) {
+            "downloading", "installing" -> LinearProgressIndicator({ i.progress ?: 0f }, Modifier.fillMaxWidth())
+            else -> Text(stringResource(R.string.forge_library_animations_text), style = Forge.type.caption, color = colors.textSecondary)
+        }
+        Row(Modifier.clickable(role = Role.Button, onClick = onOpen), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(Icons.Rounded.Download, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.forge_media_download) + " · " +
+                     android.text.format.Formatter.formatShortFileSize(context, i.provider.approximateBytes),
+                 style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent)
+        }
+    }
+}
+
+@Composable
+private fun FilterDivider() = Box(Modifier.fillMaxWidth().height(ForgeMetrics.hairline).background(Forge.colors.divider.copy(alpha = 0.4f)))
+
+/** One line of iOS's filter menu: the facet on the left, its value on the right, the choices in a menu. */
+@Composable
+private fun FilterRow(label: String, value: String?, any: String, choices: List<Pair<String, String>>, onPick: (String?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget).clickable(role = Role.Button) { open = true }
+                .padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Text(value ?: any, style = Forge.type.body, color = if (value != null) Forge.colors.accent else Forge.colors.textSecondary,
+                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp))
+            Spacer(Modifier.width(4.dp))
+            Icon(Icons.Rounded.UnfoldMore, contentDescription = null, tint = Forge.colors.textTertiary, modifier = Modifier.size(16.dp))
+        }
+        DropdownMenu(open, { open = false }, Modifier.heightIn(max = 420.dp)) {
+            DropdownMenuItem({ Text(any) }, { open = false; onPick(null) },
+                trailingIcon = if (value == null) ({ Icon(Icons.Rounded.Check, null, tint = Forge.colors.accent) }) else null)
+            choices.forEach { (id, name) ->
+                DropdownMenuItem({ Text(name) }, { open = false; onPick(id) },
+                    trailingIcon = if (value == name) ({ Icon(Icons.Rounded.Check, null, tint = Forge.colors.accent) }) else null)
+            }
+        }
+    }
+}
+
+private const val MEDIA_BANNER_DISMISSED = "training.exerciseMedia.bannerDismissed"
+
+/** iOS's filter menu: body region, muscle and type, then clear; the equipment chips sit on the page itself. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibraryFilterSheet(c: CoreTrainingLibrary.Catalog, region: String?, muscle: String?, mode: String?, active: Boolean,
+                               muscleLabels: Map<String, String>, onRegion: (String?) -> Unit, onMuscle: (String?) -> Unit,
+                               onMode: (String?) -> Unit, onAvailableEquipment: () -> Unit, onClear: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Forge.colors.canvas) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.screenPadding).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            Text(stringResource(R.string.forge_library_filter), style = Forge.type.headline, color = Forge.colors.text)
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(ForgeMetrics.groupedRadius)).background(Forge.colors.surface)
+                    .padding(horizontal = 16.dp)) {
+                FilterRow(stringResource(R.string.forge_library_region), region?.let { regionName(it) },
+                    stringResource(R.string.forge_library_any_region), c.regions.map { it to regionName(it) }, onRegion)
+                FilterDivider()
+                FilterRow(stringResource(R.string.forge_library_muscle), muscle?.let { muscleLabels[it] ?: it },
+                    stringResource(R.string.forge_library_any_muscle), c.muscles.map { it to (muscleLabels[it] ?: it) }, onMuscle)
+                FilterDivider()
+                FilterRow(stringResource(R.string.forge_library_type), mode?.let { measurementName(it) },
+                    stringResource(R.string.forge_library_any_type), c.modes.map { it to measurementName(it) }, onMode)
+                FilterDivider()
+                LinkRow(stringResource(R.string.forge_library_available_equipment), null, onAvailableEquipment)
+            }
+            if (active) TextButton(onClick = { onClear(); onDismiss() }) {
+                Text(stringResource(R.string.forge_library_clear_filters), color = Forge.colors.accent)
+            }
+        }
+    }
 }
 
 @Composable
@@ -385,7 +607,7 @@ private fun CustomExercisePage(catalog: CoreTrainingLibrary.Catalog, onClose: ()
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_library_new), onBack = { if (!saving) onClose() })
         ForgeCard(Modifier.fillMaxWidth()) {
-            OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.forge_library_name)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
+            OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.forge_library_name)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
             ReportNote(stringResource(R.string.forge_library_tracking))
             if (!saving) ReportPicker(measurementName(mode), catalog.modes.map { measurementName(it) }) {
                 mode = catalog.modes[it]
@@ -399,8 +621,8 @@ private fun CustomExercisePage(catalog: CoreTrainingLibrary.Catalog, onClose: ()
         ForgeCard(Modifier.fillMaxWidth()) {
             ReportNote(stringResource(R.string.forge_report_primary_muscle))
             if (!saving) ReportPicker(muscleName(primary), catalog.muscles.map { muscleName(it) }) { primary = catalog.muscles[it] }
-            OutlinedTextField(equipment, { equipment = it }, label = { Text(stringResource(R.string.forge_library_equipment_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
-            OutlinedTextField(instructions, { instructions = it }, label = { Text(stringResource(R.string.forge_library_instruction_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
+            OutlinedTextField(equipment, { equipment = it }, label = { Text(stringResource(R.string.forge_library_equipment_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
+            OutlinedTextField(instructions, { instructions = it }, label = { Text(stringResource(R.string.forge_library_instruction_optional)) }, enabled = !saving, modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
             ReportNote(stringResource(R.string.forge_library_custom_local))
         }
         if (failed) ReportNote(stringResource(R.string.forge_library_save_failed))

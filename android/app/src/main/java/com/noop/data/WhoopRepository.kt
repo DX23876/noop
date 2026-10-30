@@ -1942,6 +1942,11 @@ class WhoopRepository(
         val now = System.currentTimeMillis() / 1000L
         val lo = now - days * 86_400L
         val hi = now + 86_400L
+        // Parity plan 1.3: the core learns it from the mirrored sleep lane (`StoreReader.habitualMidsleepSec`).
+        coreLaneRead {
+            com.noop.core.CoreSleepSessions.habitualMidsleep(lo, hi,
+                (java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000).toLong())
+        }?.let { return it.getOrNull() }
         // UNION every registered WHOOP (active first, including archived, canonical last) and their
         // computed siblings,
         // de-duplicating identical (startTs, endTs) blocks recorded under both ids so a night present in
@@ -2376,13 +2381,16 @@ class WhoopRepository(
      *  caller's, exactly as before). Mirrors Swift Repository.unionSleepSessions. */
     suspend fun sleepSessionsUnion(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
         List<SleepSession> =
-        dedupSleepBlocks(rawWhoopSourceIds(deviceId).flatMap { dao.sleepSessions(it, from, to, limit) })
+        // Parity plan 1.3: the core's union over the mirrored sleep lane (`StoreReader.unionSleepSessions`).
+        coreLaneRead { com.noop.core.CoreSleepSessions.union(false, from, to, limit, deviceId) }
+            ?: dedupSleepBlocks(rawWhoopSourceIds(deviceId).flatMap { dao.sleepSessions(it, from, to, limit) })
 
     /** The COMPUTED ("-noop") twin of [sleepSessionsUnion]: all computed sleep blocks across the computed
      *  union ids, near-identical nights collapsed (active's computed sibling first). Mirrors Swift
      *  Repository.unionComputedSleepSessions. */
     suspend fun computedSleepSessionsUnion(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
         List<SleepSession> {
+        coreLaneRead { com.noop.core.CoreSleepSessions.union(true, from, to, limit, "$deviceId-noop") }?.let { return it }
         val ids = rawWhoopSourceIds(deviceId).map { "$it-noop" }
         return dedupSleepBlocks(ids.flatMap { dao.sleepSessions(it, from, to, limit) })
     }

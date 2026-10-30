@@ -40,7 +40,6 @@ import com.noop.core.CoreRead
 import com.noop.ui.CoachHandoff
 import com.noop.ui.CoachViewModel
 import com.noop.ui.NoopPrefs
-import com.noop.ui.noopFieldColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -154,7 +153,7 @@ private fun CoachLauncher(card: CoreCoach.TodayCard, onCancel: () -> Unit, onHan
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(draft, { draft = it }, placeholder = { Text(card.ask) }, maxLines = 3,
-                              colors = noopFieldColors(), modifier = Modifier.weight(1f))
+                              colors = forgeFieldColors(), modifier = Modifier.weight(1f))
             IconButton(onClick = { draft.trim().takeIf { it.isNotEmpty() }?.let(onHand) }, enabled = draft.isNotBlank()) {
                 Icon(Icons.Rounded.ArrowUpward, contentDescription = card.ask, tint = colors.accent, modifier = Modifier.size(24.dp))
             }

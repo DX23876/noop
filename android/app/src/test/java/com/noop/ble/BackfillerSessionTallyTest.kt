@@ -274,4 +274,12 @@ class BackfillerSessionTallyTest {
             line.contains("no banked history to offload"))
         assertTrue(line.contains("fully charge"))
     }
+
+    // An off-wrist strap's empty offload is not read as a clock/charge state, and gives no charge advice.
+    @Test fun noCursorLineOffWristStatesTheWristNotTheCharge() {
+        val line = Backfiller.noCursorLine(0, strapOffWrist = true)
+        assertTrue(line.contains("WRIST_OFF"))
+        assertFalse(line.contains("fully charge"))
+        assertTrue(Backfiller.noCursorLine(5, strapOffWrist = true).contains("caught up"))
+    }
 }

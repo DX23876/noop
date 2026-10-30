@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,11 +35,39 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Today's host inputs for Momentum, as iOS's `DashboardMomentum.LiveInput` reads them from `AppModel`: the health
+ * alert the banner shows, the strap's runtime left on this discharge (Classic Today's `BatteryEstimator` read, none
+ * while charging or disconnected) and the cycle phase while cycle tracking is on.
+ */
+@Composable
+private fun rememberMomentumLive(viewModel: com.noop.ui.AppViewModel): CoreMomentum.Live {
+    val alert by viewModel.healthAlert.collectAsState()
+    val signals by viewModel.v5Signals.collectAsState()
+    val cycleOn by viewModel.cycleTrackingEnabled.collectAsState()
+    val live by viewModel.live.collectAsState()
+    val hours by produceState<Double?>(null, live.connected, live.charging, live.batteryPct, live.whoop5Detected) {
+        value = if (!live.connected || live.charging == true) null else withContext(Dispatchers.IO) {
+            runCatching {
+                val now = System.currentTimeMillis() / 1000
+                val samples = viewModel.repo.batterySamples(viewModel.activeStrapId, now - 14L * 86_400, now, limit = 2_000)
+                    .mapNotNull { s -> s.soc?.let { s.ts to it } }
+                val rated = if (live.whoop5Detected) com.noop.analytics.BatteryEstimator.ratedLifeHoursWhoop5
+                            else com.noop.analytics.BatteryEstimator.ratedLifeHoursWhoop4
+                com.noop.analytics.BatteryEstimator.estimate(samples, rated)?.hoursRemaining?.takeIf { it.isFinite() && it > 0 }
+            }.getOrNull()
+        }
+    }
+    val cycle = signals?.cycle?.takeIf { cycleOn }
+    return CoreMomentum.Live(healthAlert = alert, strapHoursRemaining = hours, cyclePhase = cycle?.phase?.raw,
+                             cycleDayLow = cycle?.cycleDayLow, cycleDayHigh = cycle?.cycleDayHigh)
+}
+
 private data class MomentumFeedState(val loaded: Boolean = false, val messages: List<CoreMomentum.Message>? = null)
 
 /** Distinguishes an unresolved feed, a failed read and an honestly empty result. */
 @Composable
-private fun momentumFeed(retry: Int): MomentumFeedState {
+private fun momentumFeed(retry: Int, live: CoreMomentum.Live = CoreMomentum.Live()): MomentumFeedState {
     val context = LocalContext.current
     val revision by CoreShadow.dataRevision.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -58,11 +87,11 @@ private fun momentumFeed(retry: Int): MomentumFeedState {
         }
     }
     var state by remember { mutableStateOf(MomentumFeedState()) }
-    LaunchedEffect(revision, retry, foregroundRefresh) {
+    LaunchedEffect(revision, retry, foregroundRefresh, live) {
         state = state.copy(loaded = false)
         val messages = withContext(Dispatchers.IO) {
             CoreRead.open(context)
-            CoreMomentum.feed(context, dismissedTrainingWorkouts(context))
+            CoreMomentum.feed(context, dismissedTrainingWorkouts(context), live)
         }
         state = MomentumFeedState(loaded = true, messages = messages)
     }
@@ -77,7 +106,7 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var retry by remember { mutableIntStateOf(0) }
-    val state = momentumFeed(retry)
+    val state = momentumFeed(retry, rememberMomentumLive(viewModel))
     var hideFailed by remember { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     val top = state.messages?.firstOrNull()

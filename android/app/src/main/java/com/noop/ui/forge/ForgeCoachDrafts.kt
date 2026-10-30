@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import com.noop.core.CoreCoachDrafts
 import com.noop.core.CoreRead
 import com.noop.ui.ProfileStore
-import com.noop.ui.noopFieldColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -421,7 +420,7 @@ internal fun GoalDraftReviewPage(proposalId: String, onClose: () -> Unit) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(l["reasonText"].orEmpty())
-                    OutlinedTextField(reason, { reason = it }, placeholder = { Text(l["reasonHint"].orEmpty()) }, colors = noopFieldColors())
+                    OutlinedTextField(reason, { reason = it }, placeholder = { Text(l["reasonHint"].orEmpty()) }, colors = forgeFieldColors())
                 }
             },
             confirmButton = {
@@ -493,7 +492,7 @@ private fun Pill(label: String, selected: Boolean, modifier: Modifier = Modifier
 private fun ReviewField(label: String, value: String, numeric: Boolean = false, onChange: (String) -> Unit) {
     var text by remember(label) { mutableStateOf(value) }
     OutlinedTextField(text, { text = it; onChange(it) }, Modifier.fillMaxWidth(), singleLine = true,
-                      label = { Text(label) }, colors = noopFieldColors(),
+                      label = { Text(label) }, colors = forgeFieldColors(),
                       keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default)
 }
 
@@ -522,7 +521,7 @@ private fun RoutineEditorDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth(), label = { Text(l["name"].orEmpty()) },
-                                  singleLine = true, colors = noopFieldColors())
+                                  singleLine = true, colors = forgeFieldColors())
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("steps" to l["steps"], "workout" to l["workout"], "manual" to l["manual"]).forEach { (id, label) ->
                         Pill(label.orEmpty(), kind == id, Modifier.weight(1f)) { kind = id }
@@ -536,7 +535,7 @@ private fun RoutineEditorDialog(
                     }
                     "workout" -> {
                         OutlinedTextField(sports, { sports = it }, Modifier.fillMaxWidth(), label = { Text(l["activities"].orEmpty()) },
-                                          singleLine = true, colors = noopFieldColors())
+                                          singleLine = true, colors = forgeFieldColors())
                         ToggleLine(l["minimum"].orEmpty(), hasMinimum) { hasMinimum = it }
                         // The core's "%lld minutes", filled in here as the count moves.
                         val minutesText = l["minutes"].orEmpty().replace("%lld", minutes.toString())

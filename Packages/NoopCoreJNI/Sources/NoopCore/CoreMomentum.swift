@@ -8,8 +8,10 @@ import WhoopStore
 /// ranked and worded by the shared `MomentumResolver` and `MomentumBuilder`. Texts arrive in the wearer's language
 /// through `CoreLocalization`.
 ///
-/// Left nil here as on the Apple dashboards: the explicit sick or injured status, the calibration copy, a health
-/// alert, the strap's remaining runtime and the cycle phase. Each simply yields no message of its kind.
+/// The host supplies what only it holds, as `DashboardMomentum.LiveInput` does on Apple: the health alert in its own
+/// banner's words, the strap's remaining runtime and the cycle phase (only when cycle tracking is on). Today's steps
+/// are measured when the strap or Apple Health counted them, else the strap estimate flagged as one. Left nil as on
+/// the Apple dashboards: the explicit sick or injured status and the calibration copy.
 public enum CoreMomentum {
     public struct Message: Encodable {
         public var kind: String, tone: String, headline: String, detail: String, actionLine: String?
@@ -24,6 +26,8 @@ public enum CoreMomentum {
     @MainActor
     public static func feed(reader: StoreReader, settings: CoreGoals.Settings, hrvEpoch: Double,
                             recoveryEpoch: Double, snoozedRaw: String, lastKind: String, lastAt: Double,
+                            healthAlertCopy: String? = nil, strapHoursRemaining: Double? = nil,
+                            cyclePhase: String? = nil, cycleDayLow: Int? = nil, cycleDayHigh: Int? = nil,
                             now: Date = Date()) async throws -> Output {
         let todayKey = LogicalDay.key(now)
         let from = StoreReader.localDayKey(now.addingTimeInterval(-60 * 86_400))
@@ -50,8 +54,21 @@ public enum CoreMomentum {
                                                     todayScored: display?.recovery != nil, isCalibrating: false)
         c.lastScoredDay = lastScored
         c.carriedCaption = lastScored.map { CarriedRecovery.caption(priorDayKey: $0.day, todayKey: todayKey) }
-        // Measured steps only: the strap's own count for the day, else Apple Health's for the same day.
-        if let steps = display?.steps ?? appleSteps { c.measuredSteps = steps }
+        // `DailyStepsReading.resolve`: the strap's own count, else Apple Health's for the same day, else the strap
+        // estimate for the day, which the builder only reads qualitatively.
+        if let steps = display?.steps ?? appleSteps {
+            c.measuredSteps = steps
+        } else if let estimate = await reader.exploreSeries(key: "steps_est", source: MetricResolver.whoopSource,
+                                                            from: todayKey, to: todayKey, dailyRows: days,
+                                                            suppressedSleepWakeDays: []).last(where: { $0.day == todayKey }) {
+            c.estimatedSteps = Int(estimate.value.rounded())
+        }
+        c.healthAlertCopy = healthAlertCopy
+        c.strapHoursRemaining = strapHoursRemaining
+        if let phase = cyclePhase.flatMap(CyclePhaseEngine.Phase.init(rawValue:)) {
+            c.cyclePhaseTitle = MomentumCopy.cyclePhaseTitle(phase)
+            c.cycleDayRange = MomentumCopy.cycleDayRange(low: cycleDayLow, high: cycleDayHigh)
+        }
         // A session agreed for today and not yet recorded, through the selector the plan card uses
         // (`DashboardMomentum.context`).
         if let next = PlanTodaySelection.next(from: CoachPlanStore.shared.proposals, today: todayKey, now: now),

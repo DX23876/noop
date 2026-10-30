@@ -1,6 +1,5 @@
 package com.noop.ui.forge
 
-import com.noop.ui.noopFieldColors
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -250,7 +249,7 @@ internal fun LongTermSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.forge_lt_risk_text, draft?.rate ?: ""))
                     OutlinedTextField(value = reason, onValueChange = { reason = it },
-                                      label = { Text(stringResource(R.string.forge_lt_risk_reason)) }, colors = noopFieldColors())
+                                      label = { Text(stringResource(R.string.forge_lt_risk_reason)) }, colors = forgeFieldColors())
                 }
             },
             confirmButton = {
@@ -407,9 +406,9 @@ private fun PreviewStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.C
     SettingsCard(title = null, blurb = null) {
         OutlinedTextField(value = s.title.ifEmpty { template?.title?.let { catalogText(it) } ?: "" },
                           onValueChange = { change(s.copy(title = it)) },
-                          label = { Text(stringResource(R.string.forge_lt_name)) }, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
+                          label = { Text(stringResource(R.string.forge_lt_name)) }, modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
         OutlinedTextField(value = s.motivation, onValueChange = { change(s.copy(motivation = it)) },
-                          label = { Text(stringResource(R.string.forge_lt_why)) }, modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
+                          label = { Text(stringResource(R.string.forge_lt_why)) }, modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
         Spacer(Modifier.height(ForgeMetrics.space2))
         SettingRow(stringResource(R.string.forge_goals_target)) {
             Text(if (d.shape == "consistency") whole(s.target) + " · " + stringResource(R.string.forge_goals_a_week)
@@ -721,7 +720,7 @@ private fun LongTermHero(p: CoreLongTermGoals.Page) {
 /**
  * A goal's journey as Apple shows it for a catalog goal (`JourneyView`): how it ended, or a passed date or an
  * apparently reached target with the wearer's choice; the countdown; the workouts confirmed toward it; the changes.
- * NOOP never closes a goal by itself. "Extend the date" needs the goal editor, which Android does not have yet.
+ * NOOP never closes a goal by itself. "Extend the date" opens the goal editor (`CoachGoalEditorView`) on this goal.
  */
 @Composable
 private fun LongTermJourneyPage(id: String, onBack: () -> Unit, onChanged: () -> Unit) {
@@ -731,6 +730,14 @@ private fun LongTermJourneyPage(id: String, onBack: () -> Unit, onChanged: () ->
     var revision by remember { mutableIntStateOf(0) }
     var keepWorking by rememberSaveable { mutableStateOf(false) }
     var choosingAside by remember { mutableStateOf(false) }
+    var editing by rememberSaveable { mutableStateOf(false) }
+    if (editing) {
+        GoalEditorPage(id) { saved ->
+            editing = false
+            if (saved) { revision++; onChanged() }
+        }
+        return
+    }
     LaunchedEffect(id, revision) {
         journey = withContext(Dispatchers.IO) { CoreLongTermGoals.journey(context, dismissedTrainingWorkouts(context), id) }
     }
@@ -758,6 +765,7 @@ private fun LongTermJourneyPage(id: String, onBack: () -> Unit, onChanged: () ->
             j.datePassed -> JourneyCard(stringResource(R.string.forge_lj_date_passed),
                                         stringResource(R.string.forge_lj_date_passed_text)) {
                 TextButton(onClick = { change("close") }) { Text(stringResource(R.string.forge_lj_reached_it)) }
+                TextButton(onClick = { editing = true }) { Text(stringResource(R.string.forge_lj_extend)) }
                 TextButton(onClick = { choosingAside = true }) {
                     Text(stringResource(R.string.forge_lt_set_aside), color = colors.textSecondary)
                 }

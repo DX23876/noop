@@ -184,7 +184,7 @@ private fun MoverCard(r: RankedEffect, outcome: InsightsOutcome) {
     val tone: StrandTone = when (movedGood) {
         null -> StrandTone.Neutral
         true -> StrandTone.Positive
-        false -> if (e.significant) StrandTone.Critical else StrandTone.Warning
+        false -> if (r.fdrSignificant) StrandTone.Critical else StrandTone.Warning
     }
     val tintColor = tone.color
     val arrow = if (e.delta > 0) "↑" else if (e.delta < 0) "↓" else "→"

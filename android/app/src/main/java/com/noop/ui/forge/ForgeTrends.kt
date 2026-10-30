@@ -60,6 +60,9 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.geometry.Size
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.unit.Dp
 import com.noop.R
 import com.noop.core.CoreRead
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +157,7 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.
             ?: stringResource(R.string.forge_tr_all_history)
         val tall = width != ForgeWidth.Compact
         RangeCard(stringResource(R.string.forge_charge), subtitle, "", window(CoreRead.Metric.Charge), range, today,
-                  colors.charge, higherIsBetter = true, tall = tall)
+                  colors.charge, higherIsBetter = true, tall = tall, fixedRange = 0.0..100.0)
         SectionHeader(stringResource(R.string.forge_tr_daily_signals))
         RangeCard(stringResource(R.string.forge_tr_hrv), subtitle, stringResource(R.string.forge_unit_ms),
                   window(CoreRead.Metric.Hrv), range, today, colors.accent, higherIsBetter = true, tall = tall)
@@ -243,15 +246,21 @@ private fun WeekReview(all: Map<CoreRead.Metric, List<CoreRead.Point>>, today: L
             }
             return@Column
         }
-        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                val charge = digest.summary(WeeklyMetric.CHARGE)
-                WeekRing(R.string.forge_charge, charge,
-                         charge?.thisWeek?.takeIf { it.n > 0 }?.mean?.let { colors.chargeRing(it) } ?: colors.charge,
-                         OrganicMetric.Charge)
-                WeekRing(R.string.forge_effort, digest.summary(WeeklyMetric.EFFORT), colors.effort, OrganicMetric.Effort,
-                         rememberEffortFormat())
-                WeekRing(R.string.forge_rest, digest.summary(WeeklyMetric.REST), colors.rest, OrganicMetric.Rest)
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, contentPadding = 0.dp) {
+            // Today's ring layout, as iOS's `DigestOrganicRingRow` sizes them with `LiquidHeroRingLayout`.
+            BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = HeroRingLayout.horizontalPadding,
+                                                               vertical = ForgeMetrics.space4)) {
+                val diameter = HeroRingLayout.diameter(maxWidth)
+                Row(Modifier.fillMaxWidth()) {
+                    val charge = digest.summary(WeeklyMetric.CHARGE)
+                    WeekRing(R.string.forge_charge, charge,
+                             charge?.thisWeek?.takeIf { it.n > 0 }?.mean?.let { colors.chargeRing(it) } ?: colors.charge,
+                             OrganicMetric.Charge, diameter, colors.charge, Modifier.weight(1f))
+                    WeekRing(R.string.forge_effort, digest.summary(WeeklyMetric.EFFORT), colors.effort, OrganicMetric.Effort,
+                             diameter, colors.effort, Modifier.weight(1f), rememberEffortFormat())
+                    WeekRing(R.string.forge_rest, digest.summary(WeeklyMetric.REST), colors.rest, OrganicMetric.Rest,
+                             diameter, colors.rest, Modifier.weight(1f))
+                }
             }
         }
         if (digest.focalPoints.isNotEmpty()) {
@@ -260,7 +269,7 @@ private fun WeekReview(all: Map<CoreRead.Metric, List<CoreRead.Point>>, today: L
                     Row(verticalAlignment = Alignment.Top) {
                         Icon(Icons.Rounded.AutoAwesome, null, tint = colors.accent, modifier = Modifier.size(18.dp).padding(top = 2.dp))
                         Spacer(Modifier.width(ForgeMetrics.space2))
-                        Text(line, style = Forge.type.body, color = colors.text)
+                        Text(line, style = Forge.type.subhead, color = colors.text)
                     }
                 }
             }
@@ -314,12 +323,15 @@ private fun weekRange(start: String, end: String): String {
 
 /** One week mean as Today's organic ring, its label above and its week-over-week change as a chip below. */
 @Composable
-private fun WeekRing(labelRes: Int, s: WeeklyMetricSummary?, tint: Color, metric: OrganicMetric,
-                     format: (Double) -> String = WHOLE_NUMBER) {
+private fun WeekRing(labelRes: Int, s: WeeklyMetricSummary?, tint: Color, metric: OrganicMetric, diameter: Dp,
+                     labelTint: Color, modifier: Modifier = Modifier, format: (Double) -> String = WHOLE_NUMBER) {
     val colors = Forge.colors
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(stringResource(labelRes).uppercase(), style = Forge.type.overline, color = tint, maxLines = 1)
-        OrganicRing(s?.thisWeek?.takeIf { it.n > 0 }?.mean, tint, 96.dp, metric, format = format)
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        // The label keeps its domain's colour; only the ring follows the value (`DigestOrganicRingRow.cell`).
+        Text(stringResource(labelRes).uppercase(), style = Forge.type.overline, color = labelTint, maxLines = 1)
+        Box(Modifier.fillMaxWidth().height(diameter), contentAlignment = Alignment.Center) {
+            OrganicRing(s?.thisWeek?.takeIf { it.n > 0 }?.mean, tint, diameter, metric, Modifier.requiredSize(diameter), format)
+        }
         val pct = s?.weekOverWeek?.pctChange
         if (s != null && pct != null && s.weekOverWeek.current.n > 0 && s.weekOverWeek.previous.n > 0) {
             val chip = when {
@@ -379,13 +391,14 @@ private fun RangeBar(range: TrendRange, charge: List<CoreRead.Point>, today: Loc
 }
 
 /**
- * One metric over the range as iOS's `ChartCard`: the title and the trailing caption, the latest reading on the right,
- * the line with its mean, the axis dates, and the trend chip (the recent half against the earlier half).
+ * One metric over the range as iOS's `ChartCard`: the title and the trailing caption, the window's average on the right
+ * (`trailing: avg`), the line with its mean, the axis dates, and the trend chip (the recent half against the earlier
+ * half). A score passes [fixedRange] to keep its whole scale, as the Charge chart's `valueRange: 0...106` does.
  */
 @Composable
 private fun RangeCard(title: String, subtitle: String, unit: String, points: List<CoreRead.Point>, range: TrendRange,
                       today: LocalDate, tint: Color, higherIsBetter: Boolean?, tall: Boolean,
-                      format: (Double) -> String = WHOLE_NUMBER) {
+                      format: (Double) -> String = WHOLE_NUMBER, fixedRange: ClosedFloatingPointRange<Double>? = null) {
     val colors = Forge.colors
     val locale = Locale.getDefault()
     ForgeCard(Modifier.fillMaxWidth()) {
@@ -395,8 +408,8 @@ private fun RangeCard(title: String, subtitle: String, unit: String, points: Lis
                      overflow = TextOverflow.Ellipsis)
                 Text(subtitle, style = Forge.type.subhead, color = colors.textSecondary)
             }
-            points.lastOrNull()?.let {
-                Text(withUnit(format(it.value), unit), style = Forge.type.title2, color = colors.text)
+            if (points.isNotEmpty()) {
+                Text(withUnit(format(points.map { it.value }.average()), unit), style = Forge.type.title2, color = colors.text)
             }
         }
         if (points.size < 2) {
@@ -406,8 +419,8 @@ private fun RangeCard(title: String, subtitle: String, unit: String, points: Lis
         }
         Spacer(Modifier.height(ForgeMetrics.space4))
         val values = points.map { it.value }
-        val lo = floor(values.min() / 5) * 5
-        val hi = ceil(values.max() / 5) * 5 + if (values.max() == values.min()) 5 else 0
+        val lo = fixedRange?.start ?: (floor(values.min() / 5) * 5)
+        val hi = fixedRange?.endInclusive ?: (ceil(values.max() / 5) * 5 + if (values.max() == values.min()) 5 else 0)
         val first = range.days?.let { today.minusDays(it - 1L) } ?: LocalDate.parse(points.first().day)
         val span = (today.toEpochDay() - first.toEpochDay() + 1).toInt()
         Row(Modifier.fillMaxWidth().height(if (tall) 200.dp else 150.dp)) {

@@ -1,6 +1,5 @@
 package com.noop.ui.forge
 
-import com.noop.ui.noopFieldColors
 
 import android.content.Intent
 import android.net.Uri
@@ -73,7 +72,7 @@ internal fun ForgeHevyCard(onRoutines: () -> Unit) {
             OutlinedTextField(draft, onValueChange = { if (it.length <= 4096) draft = it },
                 label = { Text(stringResource(R.string.forge_hevy_key)) }, enabled = !busy, singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth(), colors = noopFieldColors())
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
             Button(enabled = !busy && draft.isNotBlank(), onClick = { val key = draft; draft = ""; sync(key) }) {
                 Text(stringResource(R.string.forge_hevy_connect))
             }

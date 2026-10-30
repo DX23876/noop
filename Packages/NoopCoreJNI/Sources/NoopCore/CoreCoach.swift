@@ -29,6 +29,11 @@ enum CoreCoach {
     }
 
     private static func perform(_ op: String, args: [String: Any], reader: StoreReader) async -> String {
+        // The swap sheet's comparison reads the wearer's own history through the engine (`planInputs`).
+        if op == "coach.plan.compare" {
+            let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
+            return CoreRead.json(await CorePlan.compare(coach, args: args))
+        }
         // The plan book needs no engine: it is the shared store the coach's tools write into.
         if op.hasPrefix("coach.plan") { return CorePlan.run(op, args: args) }
         // The daily check-in needs no engine either: the learned wake time and its words.
@@ -407,6 +412,34 @@ enum CorePlan {
         }
         let scale = EffortScale(rawValue: args["effortScale"] as? String ?? "") ?? .hundred
         return CoreRead.json(output(store: store, scale: scale))
+    }
+
+    struct Comparison: Encodable { var title: String, sentence: String? }
+
+    /// The inputs `PlanSwapSheet` is handed: read once per sheet on Apple, here kept for a minute so typing an
+    /// activity does not read a year of workouts on every keystroke.
+    private static var inputs: (PlanConsequence.Inputs, Date)?
+
+    /// `PlanSwapSheet.comparison`: what the wearer's own history says the typed activity costs against the planned
+    /// one, nil while the field is empty. The sentence is the shared `PlanConsequence` one, worded as on Apple.
+    static func compare(_ coach: AICoachEngine, args: [String: Any]) async -> Comparison {
+        let title = "What your history says".localizedCatalogValue
+        let sport = (args["sport"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !sport.isEmpty, let id = (args["id"] as? String).flatMap(UUID.init(uuidString:)),
+              let proposal = CoachPlanStore.shared.proposals.first(where: { $0.id == id }) else {
+            return Comparison(title: title, sentence: nil)
+        }
+        let now = Date()
+        let current: PlanConsequence.Inputs
+        if let (cached, at) = inputs, now.timeIntervalSince(at) < 60 {
+            current = cached
+        } else {
+            current = await coach.planInputs()
+            inputs = (current, now)
+        }
+        let comparison = PlanConsequence.compare(from: proposal.sport, fromEffort: proposal.targetEffort,
+                                                 to: sport, toEffort: nil, inputs: current)
+        return Comparison(title: title, sentence: comparison.sentence())
     }
 
     /// What `PlanReminder.schedule` posts: every agreed, not yet done session with a time still ahead.

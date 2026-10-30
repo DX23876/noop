@@ -1,10 +1,10 @@
 import Foundation
 import StrandAnalytics
 
-/// The Training Load screen's reading (`TrainingLoadModel`) rendered for the model. App-side because the screen
-/// model is; the formatting pieces that read only analytics types stay in `CoachTrainingLoad.swift`.
+/// The Training Load screen's reading (`TrainingLoadPreparation.Prepared`, what `TrainingLoadModel` shows) rendered for
+/// the model. Shared with the Android core, which prepares the same reading (`CoreTrainingLoad`).
 extension CoachTrainingLoadBrief {
-    static func text(_ p: TrainingLoadModel.Prepared) -> String {
+    static func text(_ p: TrainingLoadPreparation.Prepared) -> String {
         var lines = ["TRAINING LOAD (the app's Training Load screen; three lanes, each in its own unit — never add "
                      + "or convert them)"]
         lines.append("Statement: " + statement(p.statement))
@@ -40,7 +40,7 @@ extension CoachTrainingLoadBrief {
         return lines.joined(separator: "\n")
     }
 
-    static func laneLines(_ name: String, unit: String, lane: TrainingLoadModel.Lane, verdict: LaneVerdict?,
+    static func laneLines(_ name: String, unit: String, lane: TrainingLoadPreparation.Lane, verdict: LaneVerdict?,
                           coverage: String) -> [String] {
         var head = "\(name) (\(unit)): last 7 days \(number(lane.sevenDayTotal))"
         if lane.isLowerBound { head += " (lower bound: some days could not be measured)" }
@@ -67,7 +67,7 @@ extension CoachTrainingLoadBrief {
     }
 
     /// Room left today and the settling day, per lane — where the edges are, not a target.
-    static func outlookLines(_ outlook: TrainingLoadModel.Outlook) -> [String] {
+    static func outlookLines(_ outlook: TrainingLoadPreparation.Outlook) -> [String] {
         var lines: [String] = []
         for (name, unit, room, settles) in [("Strength", "weighted sets", outlook.strengthRoom, outlook.strengthSettles),
                                             ("Cardio", "TRIMP", outlook.cardioRoom, outlook.cardioSettles)] {

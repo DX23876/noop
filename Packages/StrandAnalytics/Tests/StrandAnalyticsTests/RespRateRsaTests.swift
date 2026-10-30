@@ -203,4 +203,28 @@ final class RespRateRsaTests: XCTestCase {
         XCTAssertTrue(SleepStager.respRateFromRR(rows, start: start, end: start + 10).isNaN)
         XCTAssertTrue(SleepStager.respRateFromRR([], start: start, end: start + 10).isNaN)
     }
+
+    /// The per-window median of grid-quantised intervals stepped in coarse values (13.5 bpm read 14.12,
+    /// 14.0 and 14.5 both read 15.0). Three planted rates half a breath apart must now each read back to
+    /// within 0.1 bpm, so neighbouring nights are told apart.
+    func testRespRateFromRRResolvesRatesHalfABreathApart() {
+        let start = 1_700_000_000
+        for bpm in [13.5, 14.0, 14.5] {
+            var rows: [RRInterval] = []
+            var tSec = 0.0
+            while tSec < 1200.0 {
+                let rrMs = 1000.0 + 40.0 * sin(2.0 * Double.pi * (bpm / 60.0) * tSec)
+                tSec += rrMs / 1000.0
+                rows.append(RRInterval(ts: start + Int(tSec), rrMs: Int(rrMs)))
+            }
+            let est = SleepStager.respRateFromRR(rows, start: start, end: start + Int(tSec))
+            XCTAssertEqual(est, bpm, accuracy: 0.1, "planted \(bpm) bpm")
+        }
+    }
+
+    /// A missed breath (about twice the median) and a split one (about half) stay out of the average.
+    func testAnchoredMeanIntervalIgnoresMissedAndSplitBreaths() {
+        XCTAssertEqual(SleepStager.rsaAnchoredMeanInterval([4.0, 4.25, 4.25, 4.5, 8.5, 2.0]), 4.25, accuracy: 1e-12)
+        XCTAssertEqual(SleepStager.rsaAnchoredMeanInterval([4.0, 4.5]), 4.25, accuracy: 1e-12)
+    }
 }

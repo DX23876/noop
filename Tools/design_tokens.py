@@ -10,7 +10,7 @@ generated, so no value the iOS app shows can change through this.
     python3 Tools/design_tokens.py           # regenerate both files
     python3 Tools/design_tokens.py --check   # exit 1 when either file no longer matches the Swift source
 
-A colour that follows the chart style is read in the default style (Signature). A token is "<Scope>.<name>", the Swift type that declares it and the constant's name. Values built from other
+A colour that follows the chart style is read in the style the app starts with (Health). A token is "<Scope>.<name>", the Swift type that declares it and the constant's name. Values built from other
 tokens, system colours or gradients are not tokens here; the screens compose them from these.
 """
 import json
@@ -38,11 +38,16 @@ TEXT_STYLES = {"largeTitle": 34, "title": 28, "title2": 22, "title3": 20, "headl
 STYLE_FONT = re.compile(STATIC + r"Font\.(?:system\(\.([A-Za-z0-9]+)(?:\s*,\s*design:\s*\.([a-z]+))?\s*\)|"
                                  r"([A-Za-z0-9]+))(?:\.weight\(\.([a-z]+)\))?")
 # A colour that follows the chart style (`static var chargeColor: Color { switch chartStyle { ... } }`): the token is
-# its value in the default style, which `ChartStyle.resolve` falls back to.
-DEFAULT_STYLE = "signature"
+# its value in the style the apps start with (`@AppStorage(ChartStyle.storageKey) ... = ChartStyle.health.rawValue` in
+# `StrandiOSApp` and `StrandApp`), which is what an iPhone that never changed the style shows. `ChartStyle.resolve`
+# falls back to Signature only for an unknown stored value.
+DEFAULT_STYLE = "health"
 STYLED_VAR = re.compile(r"^\s+(?:public\s+)?static\s+var\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Color\s*\{")
 STYLED_CASE = re.compile(r'^\s+case\s+(?:\.[a-z]+\s*,\s*)*\.' + DEFAULT_STYLE + r':\s*return\s+Color\(light:\s*"#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})",'
                          r'\s*dark:\s*"#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})"\)')
+# The same case naming another colour instead of a literal (`case .health: return hSleepDeep`, `return restColor`,
+# `return .systemIndigo`): resolved once every literal is read, from the same scope first.
+STYLED_REF = re.compile(r'^\s+case\s+(?:\.[a-z]+\s*,\s*)*\.' + DEFAULT_STYLE + r':\s*return\s+(?:Color)?\.?([A-Za-z_][A-Za-z0-9_.]*)\s*$')
 WEIGHTS = {"ultraLight": 100, "thin": 200, "light": 300, "regular": 400, "medium": 500, "semibold": 600,
            "bold": 700, "heavy": 800, "black": 900}
 
@@ -81,6 +86,7 @@ def source_lines(text: str) -> list[str]:
 
 def extract() -> dict:
     colors, dimensions, fonts = {}, {}, {}
+    references: dict[str, tuple[str, str]] = {}   # token -> (scope, the colour it names)
     for path in sorted(SOURCES.glob("*.swift")):
         scope = None
         styled = None   # the `static var …: Color` whose switch the following lines are in
@@ -99,6 +105,9 @@ def extract() -> dict:
             if styled and (m := STYLED_CASE.match(line)):
                 colors.setdefault(f"{scope}.{styled}", {"light": rgba(m.group(1)), "dark": rgba(m.group(2))})
                 continue
+            if styled and (m := STYLED_REF.match(line)):
+                references.setdefault(f"{scope}.{styled}", (scope, m.group(1)))
+                continue
             if m := PAIR_COLOR.match(line):
                 colors[f"{scope}.{m.group(1)}"] = {"light": rgba(m.group(2)), "dark": rgba(m.group(3))}
             elif m := HEX_COLOR.match(line):
@@ -114,6 +123,19 @@ def extract() -> dict:
                 fonts[f"{scope}.{m.group(1)}"] = {"size": float(TEXT_STYLES[style]),
                                                  "weight": WEIGHTS.get(m.group(5) or "", default),
                                                  "rounded": m.group(3) == "rounded"}
+    # A reference may name another styled colour, so resolve until nothing more resolves.
+    pending = {k: v for k, v in references.items() if k not in colors}
+    while pending:
+        progressed = False
+        for key, (scope, name) in list(pending.items()):
+            for candidate in (f"{scope}.{name}", name, f"Color.{name}"):
+                if candidate in colors:
+                    colors[key] = colors[candidate]
+                    del pending[key]
+                    progressed = True
+                    break
+        if not progressed:
+            break
     return {"colors": dict(sorted(colors.items())), "dimensions": dict(sorted(dimensions.items())),
             "fonts": dict(sorted(fonts.items()))}
 

@@ -215,4 +215,24 @@ class HealthExportPlanTest {
         assertEquals("noop-sleep-$t", p.clientId)   // immutable detected key
         assertEquals(t + 600, p.startSec)           // edited onset drives the span
     }
+
+    // Vitals stamped inside the night: the same vectors as Swift HealthWritebackTests.
+
+    private fun plan(start: Long, end: Long) = HealthExportPlan.SleepPlan("n$start", start, end, emptyList())
+    private val base = 1_700_000_000L
+    private fun dayOf(ts: Long) = "d${(ts - base) / 86_400}"
+
+    @Test
+    fun vitalsAreStampedAtTheNightsMidpoint() {
+        assertEquals(mapOf("d0" to base + 4 * 3600), HealthExportPlan.vitalsInstantByDay(listOf(plan(base, base + 8 * 3600)), ::dayOf))
+    }
+
+    @Test
+    fun theLongestNightOwnsTheDayNotTheLatest() {
+        val night = plan(base, base + 8 * 3600)
+        val nap = plan(base + 14 * 3600, base + 15 * 3600)
+        assertEquals(mapOf("d0" to base + 4 * 3600), HealthExportPlan.vitalsInstantByDay(listOf(night, nap), ::dayOf))
+        assertEquals(mapOf("d0" to base + 4 * 3600), HealthExportPlan.vitalsInstantByDay(listOf(nap, night), ::dayOf))
+        assertEquals(emptyMap<String, Long>(), HealthExportPlan.vitalsInstantByDay(listOf(plan(base, base)), ::dayOf))
+    }
 }

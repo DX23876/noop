@@ -72,6 +72,12 @@ data class RankedEffect(
     val lag: Int,
     val effect: BehaviorEffect,
     val confidence: ScoreConfidence,
+    /** Benjamini–Hochberg adjusted p-value across every behaviour×lag test of the run that produced this row;
+     *  null for a row built outside [EffectRanker.rank]. Mirrors Swift. */
+    val adjustedP: Double? = null,
+    /** The verdict to show: FDR-significant at q = [EffectRanker.fdrQ] across the whole run. Rows built outside
+     *  [EffectRanker.rank] fall back to the uncorrected [BehaviorEffect.significant]. */
+    val fdrSignificant: Boolean = effect.significant,
 ) {
     /** Plain-English lead/lag chip text. */
     val leadLagText: String
@@ -106,6 +112,9 @@ object EffectRanker {
 
     /** Paired-day count at/above which a chosen lag's confidence is SOLID (else BUILDING). */
     const val solidPairs: Int = 10
+    /** False-discovery rate for the Benjamini–Hochberg correction over one [rank] run. From bitsandben/zoop.
+     *  Mirrors Swift `fdrQ`. */
+    const val fdrQ: Double = 0.10
 
     // Rank.
 
@@ -127,11 +136,28 @@ object EffectRanker {
         outcomeByDay: Map<String, Double>,
         outcome: String,
     ): List<RankedEffect> {
-        val rows = ArrayList<RankedEffect>()
+        // Family = EVERY gated (behaviour, lag) test of this run, not just each behaviour's winning lag:
+        // choosing the best of three lags is itself a selection step. Mirrors Swift.
+        val perBehavior = ArrayList<Pair<String, List<Pair<Int, BehaviorEffect>>>>()
+        val familyP = ArrayList<Double>()
         for (name in behaviors.keys.sorted()) {
-            val days = behaviors.getValue(name)
-            val r = bestLag(days, controls[name].orEmpty(), outcomeByDay, name, outcome)
-            if (r != null) rows.add(r)
+            val cands = lagCandidates(behaviors.getValue(name), controls[name].orEmpty(), outcomeByDay, name, outcome)
+            perBehavior.add(name to cands)
+            familyP.addAll(cands.map { it.second.pApprox })
+        }
+        val adjusted = benjaminiHochbergAdjusted(familyP)
+        val passes = benjaminiHochberg(familyP, fdrQ)
+        val rows = ArrayList<RankedEffect>()
+        var offset = 0
+        for ((name, cands) in perBehavior) {
+            val best = pickBest(cands)
+            if (best != null) {
+                val idx = cands.indexOfFirst { it.first == best.first }
+                val pairs = minOf(best.second.nWith, best.second.nWithout)
+                rows.add(RankedEffect(name, outcome, best.first, best.second, confidence(pairs),
+                    adjustedP = adjusted[offset + idx], fdrSignificant = passes[offset + idx]))
+            }
+            offset += cands.size
         }
         return sorted(rows)
     }
@@ -166,6 +192,71 @@ object EffectRanker {
                 .thenByDescending { abs(it.cohensD) }
                 .thenBy { it.behavior },
         )
+    }
+
+    /** Benjamini–Hochberg step-up procedure: per input p-value (same order), whether it is rejected at false-discovery
+     *  rate [q]. Ties share the verdict of the tied group; non-finite p-values are never rejected but count towards m.
+     *  Mirrors Swift. */
+    fun benjaminiHochberg(pValues: List<Double>, q: Double): List<Boolean> {
+        val m = pValues.size
+        if (m == 0) return emptyList()
+        val order = pValues.indices.sortedBy { pValues[it] }
+        var cutoff = -1
+        for ((pos, i) in order.withIndex()) {
+            if (pValues[i].isFinite() && pValues[i] <= (pos + 1).toDouble() / m * q) cutoff = pos
+        }
+        val out = MutableList(m) { false }
+        if (cutoff < 0) return out
+        val cutP = pValues[order[cutoff]]
+        for (i in pValues.indices) if (pValues[i].isFinite() && pValues[i] <= cutP) out[i] = true
+        return out
+    }
+
+    /** BH-adjusted p-values (q-values), same order as the input, monotone and capped at 1. Mirrors Swift. */
+    fun benjaminiHochbergAdjusted(pValues: List<Double>): List<Double> {
+        val m = pValues.size
+        if (m == 0) return emptyList()
+        val order = pValues.indices.sortedBy { pValues[it] }
+        val out = MutableList(m) { 1.0 }
+        var running = 1.0
+        for (pos in m - 1 downTo 0) {
+            val i = order[pos]
+            if (!pValues[i].isFinite()) continue
+            running = minOf(running, pValues[i] * m / (pos + 1))
+            out[i] = minOf(1.0, running)
+        }
+        return out
+    }
+
+    /** Every lag in [lagSet] whose effect computed and cleared the group gate. Mirrors Swift. */
+    internal fun lagCandidates(
+        behaviorDays: Set<String>,
+        controlDays: Set<String>,
+        outcomeByDay: Map<String, Double>,
+        behavior: String,
+        outcome: String,
+    ): List<Pair<Int, BehaviorEffect>> {
+        val out = ArrayList<Pair<Int, BehaviorEffect>>()
+        for (lag in lagSet) {
+            val shifted = shiftedOutcome(outcomeByDay, lag)
+            val e = effect(behaviorDays, controlDays, shifted, behavior, outcome) ?: continue
+            if (minOf(e.nWith, e.nWithout) < minGroupForSignificance) continue
+            out.add(lag to e)
+        }
+        return out
+    }
+
+    /** Largest |cohensD| wins; ties break to the SMALLER lag. Mirrors Swift. */
+    internal fun pickBest(cands: List<Pair<Int, BehaviorEffect>>): Pair<Int, BehaviorEffect>? {
+        var best: Pair<Int, BehaviorEffect>? = null
+        for (c in cands) {
+            val cur = best
+            if (cur == null) { best = c; continue }
+            val better = abs(c.second.cohensD) > abs(cur.second.cohensD) ||
+                (abs(c.second.cohensD) == abs(cur.second.cohensD) && c.first < cur.first)
+            if (better) best = c
+        }
+        return best
     }
 
     /** Find the best-lag RankedEffect for ONE behaviour against ONE outcome, or null. */
@@ -314,7 +405,7 @@ object EffectRanker {
     /** Stable rank: significant first, |cohensD| desc, then behaviour name ascending. */
     internal fun sorted(rows: List<RankedEffect>): List<RankedEffect> =
         rows.sortedWith(
-            compareByDescending<RankedEffect> { it.effect.significant }
+            compareByDescending<RankedEffect> { it.fdrSignificant }
                 .thenByDescending { abs(it.effect.cohensD) }
                 .thenBy { it.behavior },
         )

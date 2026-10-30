@@ -225,7 +225,8 @@ class SleepStagerV2Test {
             start = v2.start, end = v2.end, grav = grav, hr = hr, rr = rr, resp = emptyList())
         assertEquals("flag ON must produce the V2 hypnogram", v2Direct, v2.stages)
         val v2Stages = v2.stages.map { it.stage }.toSet()
-        assertTrue("V2 night should express deep", "deep" in v2Stages)
+        // This uniform synthetic night staged its only deep right at onset, which the deep-latency guard now
+        // holds back, so deep is not asserted here; the golden hypnogram pins where deep lands.
         assertTrue("V2 night should express REM", "rem" in v2Stages)
     }
 
@@ -274,7 +275,9 @@ class SleepStagerV2Test {
         }
         val segs = SleepStagerV2.stageSession(start, start + dur, grav, hr, rr, emptyList())
         val golden = listOf(
-            Triple(0L, 5070L, "deep"),
+            // The deep-latency guard holds the first minutes to light; every later boundary is unchanged.
+            Triple(0L, 450L, "light"),
+            Triple(450L, 5070L, "deep"),
             Triple(5070L, 5310L, "light"),
             Triple(5310L, 5550L, "rem"),
             Triple(5550L, 10740L, "light"),
@@ -458,5 +461,15 @@ class SleepStagerV2Test {
         // A zeroed entry must reach the lattice as a large finite penalty, never -Inf.
         val lp = ln(maxOf(SleepStagerV2.transition["awake"]!!["deep"]!!, 1e-9))
         assertTrue("a zeroed transition must not produce a non-finite log-weight", lp.isFinite())
+    }
+
+    @Test
+    fun deepLatencyGuardShape() {
+        assertEquals(3.0, SleepStagerV2.deepLatencyGuard(0.0), 1e-12)
+        assertEquals(1.5, SleepStagerV2.deepLatencyGuard(10.0), 1e-12)
+        assertEquals(0.0, SleepStagerV2.deepLatencyGuard(20.0), 1e-12)
+        assertEquals(0.0, SleepStagerV2.deepLatencyGuard(45.0), 1e-12)
+        assertEquals(3.0, SleepStagerV2.deepLatencyGuard(-90.0), 1e-12)
+        assertEquals(SleepStagerV2.remLatencyPenalty, SleepStagerV2.deepLatencyPenalty, 0.0)
     }
 }

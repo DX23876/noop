@@ -1,6 +1,7 @@
 package com.noop.ui.forge
 
 import android.graphics.ImageDecoder
+import androidx.compose.ui.graphics.asImageBitmap
 import android.graphics.drawable.AnimatedImageDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
@@ -170,6 +171,31 @@ internal fun ForgeLocalExerciseMedia(exerciseId: String, title: String, thumbnai
         }
         if (drawable != null || !videoFailed && File(local).extension.lowercase() in listOf("mp4", "mov", "m4v")) ReportNote(stringResource(R.string.forge_media_credit))
     }
+}
+
+/**
+ * The exercise's still decoded to a small tile (`ExerciseMediaThumbnail`), or null while there is none: no pack, the
+ * presentation hidden, or a file that will not decode. Decoded at the tile's size, so scrolling the library never
+ * decodes an animation.
+ */
+@Composable
+internal fun rememberExerciseStill(exerciseId: String, sizePx: Int): androidx.compose.ui.graphics.ImageBitmap? {
+    val context = LocalContext.current
+    val mediaRevision by CoreExerciseMedia.changes.collectAsStateWithLifecycle()
+    var still by remember(exerciseId) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(exerciseId, mediaRevision) {
+        still = withContext(Dispatchers.IO) {
+            if (NoopPrefs.of(context).getString("training.mediaPresentation", "large") == "hidden") return@withContext null
+            val file = CoreExerciseMedia.resolve(context, exerciseId, true)?.let(::File) ?: return@withContext null
+            if (file.extension.lowercase() in listOf("mp4", "mov", "m4v")) return@withContext null
+            runCatching {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
+                    decoder.setTargetSampleSize((maxOf(info.size.width, info.size.height) / sizePx).coerceAtLeast(1))
+                }.asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    return still
 }
 
 private fun mediaErrorResource(code: String): Int = when (code) {

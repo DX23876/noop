@@ -121,12 +121,15 @@ public enum CoreCall {
         }
         if op.hasPrefix("input.") || op.hasPrefix("lanes.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
         // The coach and the goal screens built on its stores run over the persisted goals (`CoreGoalHost`).
-        if op.hasPrefix("coach.") || op.hasPrefix("goals.onboarding") {
+        if op.hasPrefix("coach.") || op.hasPrefix("goals.onboarding") || op.hasPrefix("goals.editor") {
             return await CoreGoalHost.with(store) {
                 if op.hasPrefix("coach.drafts.goal") { return CoreRead.json(await CoreGoalReview.run(op, args)) }
                 if op.hasPrefix("coach.drafts") { return CoreRead.json(await CoreCoachDrafts.run(op, args, store: reader.store)) }
                 if op.hasPrefix("goals.onboarding") {
                     return CoreRead.json(await CoreGoalOnboarding.run(op, args, weightKg: (args["weightKg"] as? NSNumber)?.doubleValue ?? 0))
+                }
+                if op.hasPrefix("goals.editor") {
+                    return CoreRead.json(await CoreGoalEditor.run(op, args, weightKg: (args["weightKg"] as? NSNumber)?.doubleValue ?? 0))
                 }
                 return await CoreCoach.run(op, args: args, reader: reader)
             }
@@ -312,6 +315,19 @@ public enum CoreCall {
         case "read.labMarkers":
             // The Lab Book's readings for one category, as Apple's `LabBookView` reads them.
             return await stored { try await reader.store.labMarkers(deviceId: string("deviceId"), category: string("category")) }
+        case "read.sleepSessions":
+            // `StoreReader.unionSleepSessions` and its computed twin: every block of the union with near-identical
+            // nights collapsed, naps kept, as `Repository` reads them for the Sleep screens.
+            let from = int("from", 0), to = int("to", Int(Date().timeIntervalSince1970)), limit = int("limit", 4000)
+            let sessions = int("computed", 0) == 1
+                ? await reader.unionComputedSleepSessions(from: from, to: to, limit: limit)
+                : await reader.unionSleepSessions(from: from, to: to, limit: limit)
+            return CoreRead.json(["sessions": sessions])
+        case "read.habitualMidsleep":
+            // `Repository.habitualMidsleepSec`: the learned habitual midsleep, nil during the cold start (#547).
+            let value = await reader.habitualMidsleepSec(from: int("from", 0), to: int("to", Int(Date().timeIntervalSince1970)),
+                                                         offsetSec: int("offsetSec", TimeZone.current.secondsFromGMT()))
+            return CoreRead.json(CoreRead.OptionalValue(value: value))
         case "read.workouts":
             return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
@@ -342,7 +358,12 @@ public enum CoreCall {
                     hrvEpoch: (args["hrvEpoch"] as? NSNumber)?.doubleValue ?? 0,
                     recoveryEpoch: (args["recoveryEpoch"] as? NSNumber)?.doubleValue ?? 0,
                     snoozedRaw: string("snoozed"), lastKind: string("lastKind"),
-                    lastAt: (args["lastAt"] as? NSNumber)?.doubleValue ?? 0))
+                    lastAt: (args["lastAt"] as? NSNumber)?.doubleValue ?? 0,
+                    healthAlertCopy: (args["healthAlert"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                    strapHoursRemaining: (args["strapHoursRemaining"] as? NSNumber)?.doubleValue,
+                    cyclePhase: args["cyclePhase"] as? String,
+                    cycleDayLow: (args["cycleDayLow"] as? NSNumber)?.intValue,
+                    cycleDayHigh: (args["cycleDayHigh"] as? NSNumber)?.intValue))
             } catch {
                 return #"{"error":"goalState"}"#
             }

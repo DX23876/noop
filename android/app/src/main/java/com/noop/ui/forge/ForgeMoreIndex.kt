@@ -75,6 +75,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.Handyman
 import com.noop.R
 import com.noop.ui.AppViewModel
 import com.noop.ui.BreatheScreen
@@ -99,9 +101,10 @@ import com.noop.ui.WorkoutsScreen
 
 /** The More categories, as iOS groups them (`MoreCategory`). */
 enum class MoreCategory(val titleRes: Int, val subtitleRes: Int, val icon: ImageVector) {
-    Analysis(R.string.forge_more_analysis, R.string.forge_more_analysis_sub, Icons.Rounded.AutoAwesome),
-    HealthBody(R.string.forge_more_health_body, R.string.forge_more_health_body_sub, Icons.Rounded.Favorite),
-    Tools(R.string.forge_more_tools, R.string.forge_more_tools_sub, Icons.Rounded.Build),
+    // The nearest Material glyphs to iOS's `wand.and.sparkles`, `heart.text.square.fill` and `wrench.and.screwdriver.fill`.
+    Analysis(R.string.forge_more_analysis, R.string.forge_more_analysis_sub, Icons.Rounded.AutoFixHigh),
+    HealthBody(R.string.forge_more_health_body, R.string.forge_more_health_body_sub, Icons.Rounded.MonitorHeart),
+    Tools(R.string.forge_more_tools, R.string.forge_more_tools_sub, Icons.Rounded.Handyman),
 }
 
 /**

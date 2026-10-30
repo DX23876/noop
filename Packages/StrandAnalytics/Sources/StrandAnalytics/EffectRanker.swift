@@ -16,7 +16,9 @@ import Foundation
 //   3. Run the EXISTING BehaviorInsights.effect on the shifted outcome map → meanWith,
 //      meanWithout, delta, cohensD, Welch pApprox, significant (already gated at
 //      min(nWith, nWithout) ≥ 5).
-//   4. Keep, per (b, o), the lag L* with the LARGEST |cohensD| among lags whose effect
+//   4. FDR: every gated (b, L) test of one `rank` run forms ONE family; Benjamini–Hochberg at
+//      q = 0.10 over their Welch p-values gives `fdrSignificant`/`adjustedP` (the verdict shown).
+//   5. Keep, per (b, o), the lag L* with the LARGEST |cohensD| among lags whose effect
 //      computed AND cleared the significance group gate, carrying L* as the lead/lag.
 //
 // HONESTY (effect-size first, not stargazing): the primary signal is the effect SIZE +
@@ -47,14 +49,23 @@ public struct RankedEffect: Equatable, Sendable {
     public let effect: BehaviorEffect
     /// Per-result certainty tier from the smaller group's size at the chosen lag.
     public let confidence: ScoreConfidence
+    /// Benjamini–Hochberg adjusted p-value across every behaviour×lag test of the run that
+    /// produced this row. `nil` for a row built outside `rank` (no family to correct over).
+    public let adjustedP: Double?
+    /// The verdict to show: FDR-significant at q = `EffectRanker.fdrQ` across the whole run.
+    /// Rows built outside `rank` fall back to the uncorrected `effect.significant`.
+    public let fdrSignificant: Bool
 
     public init(behavior: String, outcome: String, lag: Int,
-                effect: BehaviorEffect, confidence: ScoreConfidence) {
+                effect: BehaviorEffect, confidence: ScoreConfidence,
+                adjustedP: Double? = nil, fdrSignificant: Bool? = nil) {
         self.behavior = behavior
         self.outcome = outcome
         self.lag = lag
         self.effect = effect
         self.confidence = confidence
+        self.adjustedP = adjustedP
+        self.fdrSignificant = fdrSignificant ?? effect.significant
     }
 
     /// Plain-English lead/lag chip text, e.g. "same day" / "next morning" / "2 mornings later".
@@ -90,6 +101,10 @@ public enum EffectRanker {
     public static let calibratingBelow: Int = BehaviorInsights.minGroupForSignificance  // 5
     /// Paired-day count at/above which a chosen lag's confidence is `.solid` (else `.building`).
     public static let solidPairs: Int = 10
+    /// False-discovery rate for the Benjamini–Hochberg correction over one `rank` run. Every habit is
+    /// tested at three lags, so without it a single "clear" row among many habits can still be chance.
+    /// From bitsandben/zoop (e6764c16d).
+    public static let fdrQ: Double = 0.10
 
     // MARK: - Rank
 
@@ -107,20 +122,74 @@ public enum EffectRanker {
                             controls: [String: Set<String>],
                             outcomeByDay: [String: Double],
                             outcome: String) -> [RankedEffect] {
-        var rows: [RankedEffect] = []
+        // Family = EVERY gated (behaviour, lag) test of this run, not just each behaviour's
+        // winning lag: choosing the best of three lags is itself a selection step.
+        var perBehavior: [(name: String, cands: [(lag: Int, effect: BehaviorEffect)])] = []
+        var familyP: [Double] = []
         // Sort behaviour names so the build order is deterministic regardless of dict order.
         for name in behaviors.keys.sorted() {
-            let days = behaviors[name]!
             // Absent from `controls` means no control group, which yields nothing — see
             // BehaviorInsights.effect. Failing closed is deliberate: a caller that forgets loses the
             // insight rather than getting one measured against every unlogged day.
-            if let row = bestLag(behaviorDays: days, controlDays: controls[name] ?? [],
-                                 outcomeByDay: outcomeByDay,
-                                 behavior: name, outcome: outcome) {
-                rows.append(row)
-            }
+            let cands = lagCandidates(behaviorDays: behaviors[name]!, controlDays: controls[name] ?? [],
+                                      outcomeByDay: outcomeByDay, behavior: name, outcome: outcome)
+            perBehavior.append((name, cands))
+            familyP.append(contentsOf: cands.map { $0.effect.pApprox })
+        }
+        let adjusted = benjaminiHochbergAdjusted(familyP)
+        let passes = benjaminiHochberg(pValues: familyP, q: fdrQ)
+        var rows: [RankedEffect] = []
+        var offset = 0
+        for (name, cands) in perBehavior {
+            defer { offset += cands.count }
+            guard let best = pickBest(cands),
+                  let idx = cands.firstIndex(where: { $0.lag == best.lag }) else { continue }
+            let pairs = Swift.min(best.effect.nWith, best.effect.nWithout)
+            rows.append(RankedEffect(behavior: name, outcome: outcome, lag: best.lag,
+                                     effect: best.effect, confidence: confidence(forPairs: pairs),
+                                     adjustedP: adjusted[offset + idx],
+                                     fdrSignificant: passes[offset + idx]))
         }
         return sorted(rows)
+    }
+
+    // MARK: - Benjamini–Hochberg FDR
+
+    /// Benjamini–Hochberg step-up procedure. Returns, per input p-value (same order), whether it is
+    /// rejected (a discovery) at false-discovery rate `q`: sort ascending, find the largest rank k with
+    /// p(k) <= k/m * q, and reject every hypothesis ranked <= k. Ties share the verdict of the tied
+    /// group, so equal p-values are never split. Non-finite p-values are never rejected but still
+    /// count towards m.
+    public static func benjaminiHochberg(pValues: [Double], q: Double) -> [Bool] {
+        let m = pValues.count
+        guard m > 0 else { return [] }
+        let order = pValues.indices.sorted { pValues[$0] < pValues[$1] }
+        var cutoff = -1   // largest 0-based sorted position that passes
+        for (pos, i) in order.enumerated() where pValues[i].isFinite {
+            if pValues[i] <= Double(pos + 1) / Double(m) * q { cutoff = pos }
+        }
+        var out = [Bool](repeating: false, count: m)
+        guard cutoff >= 0 else { return out }
+        let cutP = pValues[order[cutoff]]
+        for i in pValues.indices where pValues[i].isFinite && pValues[i] <= cutP { out[i] = true }
+        return out
+    }
+
+    /// BH-adjusted p-values (q-values), same order as the input, monotone and capped at 1. A test is
+    /// rejected at level q exactly when its adjusted value is <= q.
+    public static func benjaminiHochbergAdjusted(_ pValues: [Double]) -> [Double] {
+        let m = pValues.count
+        guard m > 0 else { return [] }
+        let order = pValues.indices.sorted { pValues[$0] < pValues[$1] }
+        var out = [Double](repeating: 1, count: m)
+        var running = 1.0
+        for pos in stride(from: m - 1, through: 0, by: -1) {
+            let i = order[pos]
+            guard pValues[i].isFinite else { continue }
+            running = Swift.min(running, pValues[i] * Double(m) / Double(pos + 1))
+            out[i] = Swift.min(1, running)
+        }
+        return out
     }
 
     /// Find the best-lag RankedEffect for ONE behaviour against ONE outcome, or nil when no
@@ -130,7 +199,20 @@ public enum EffectRanker {
                                outcomeByDay: [String: Double],
                                behavior: String,
                                outcome: String) -> RankedEffect? {
-        var best: (lag: Int, effect: BehaviorEffect)?
+        let cands = lagCandidates(behaviorDays: behaviorDays, controlDays: controlDays,
+                                  outcomeByDay: outcomeByDay, behavior: behavior, outcome: outcome)
+        guard let chosen = pickBest(cands) else { return nil }
+        let pairs = Swift.min(chosen.effect.nWith, chosen.effect.nWithout)
+        return RankedEffect(behavior: behavior, outcome: outcome, lag: chosen.lag,
+                            effect: chosen.effect, confidence: confidence(forPairs: pairs))
+    }
+
+    /// Every lag in `lagSet` whose effect computed and cleared the group gate (a lag only competes if
+    /// both sides reach the significance minimum, so a 2-day lag can't win on a fluke).
+    static func lagCandidates(behaviorDays: Set<String>, controlDays: Set<String>,
+                              outcomeByDay: [String: Double], behavior: String,
+                              outcome: String) -> [(lag: Int, effect: BehaviorEffect)] {
+        var out: [(lag: Int, effect: BehaviorEffect)] = []
         for lag in lagSet {
             let shifted = shiftedOutcome(outcomeByDay, byLag: lag)
             guard let e = BehaviorInsights.effect(behaviorDays: behaviorDays,
@@ -138,24 +220,24 @@ public enum EffectRanker {
                                                   outcomeByDay: shifted,
                                                   behavior: behavior,
                                                   outcome: outcome) else { continue }
-            // Group gate: a lag only competes if both sides clear the significance minimum,
-            // so a 2-day lag can't win on a fluke. (Mirrors BehaviorInsights.significant's n-gate.)
             guard Swift.min(e.nWith, e.nWithout) >= BehaviorInsights.minGroupForSignificance else { continue }
-
-            if let cur = best {
-                // Largest |cohensD| wins; ties break to the SMALLER lag (prefer same-day /
-                // shorter lead over a longer one when the effect size is identical).
-                let better = abs(e.cohensD) > abs(cur.effect.cohensD)
-                    || (abs(e.cohensD) == abs(cur.effect.cohensD) && lag < cur.lag)
-                if better { best = (lag, e) }
-            } else {
-                best = (lag, e)
-            }
+            out.append((lag, e))
         }
-        guard let chosen = best else { return nil }
-        let pairs = Swift.min(chosen.effect.nWith, chosen.effect.nWithout)
-        return RankedEffect(behavior: behavior, outcome: outcome, lag: chosen.lag,
-                            effect: chosen.effect, confidence: confidence(forPairs: pairs))
+        return out
+    }
+
+    /// Largest |cohensD| wins; ties break to the SMALLER lag (prefer same-day / shorter lead over a
+    /// longer one when the effect size is identical).
+    static func pickBest(_ cands: [(lag: Int, effect: BehaviorEffect)]) -> (lag: Int, effect: BehaviorEffect)? {
+        var best: (lag: Int, effect: BehaviorEffect)?
+        for c in cands {
+            if let cur = best {
+                let better = abs(c.effect.cohensD) > abs(cur.effect.cohensD)
+                    || (abs(c.effect.cohensD) == abs(cur.effect.cohensD) && c.lag < cur.lag)
+                if better { best = c }
+            } else { best = c }
+        }
+        return best
     }
 
     // MARK: - Lag alignment
@@ -193,7 +275,7 @@ public enum EffectRanker {
     /// behaviour name ascending.
     static func sorted(_ rows: [RankedEffect]) -> [RankedEffect] {
         rows.sorted { a, b in
-            if a.effect.significant != b.effect.significant { return a.effect.significant }
+            if a.fdrSignificant != b.fdrSignificant { return a.fdrSignificant }
             let la = abs(a.effect.cohensD), lb = abs(b.effect.cohensD)
             if la != lb { return la > lb }
             return a.behavior < b.behavior

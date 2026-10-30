@@ -46,22 +46,45 @@ class CoachTabVisibilityTest {
 }
 
 /**
- * The stored default, which is the invariant that actually matters on upgrade.
- *
- * Separate from the filter tests because it needs a Context. The first version of this asserted
- * `BottomBarStyleStore.coachEnabled`, which is an in-memory singleton seeded to true -- that passes
- * whatever the PREF does, so it would not have noticed the one mistake worth catching here: a pref
- * default of false, which silently removes the Coach tab from every existing install on upgrade.
+ * The stored default, which is the invariant that actually matters on upgrade: a fresh install starts with the
+ * Coach off, as the fork's iOS does, and an install that already used the app keeps it on, so an update never
+ * removes the Coach tab. Decided once at launch (`migrateCoachEnabledDefault`), never at read time.
  */
 @RunWith(RobolectricTestRunner::class)
 class CoachEnabledPrefDefaultTest {
 
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
+    private fun reset() {
+        NoopPrefs.of(context).edit().remove(NoopPrefs.KEY_COACH_ENABLED).remove(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION).commit()
+    }
+
     @Test
-    fun `an install that never touched the toggle has coach enabled`() {
-        NoopPrefs.of(context).edit().remove(NoopPrefs.KEY_COACH_ENABLED).commit()
-        assertTrue("unset must read as ON, or upgrades lose the tab", NoopPrefs.coachEnabled(context))
+    fun `a fresh install starts with the coach off`() {
+        reset()
+        NoopPrefs.migrateCoachEnabledDefault(context)
+        assertFalse(NoopPrefs.coachEnabled(context))
+    }
+
+    @Test
+    fun `an install that already used the app keeps the coach on`() {
+        reset()
+        NoopPrefs.of(context).edit().putString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, "1").commit()
+        NoopPrefs.migrateCoachEnabledDefault(context)
+        assertTrue("an update must not take the Coach away", NoopPrefs.coachEnabled(context))
+    }
+
+    @Test
+    fun `the decision is taken once and a choice is never overwritten`() {
+        reset()
+        NoopPrefs.migrateCoachEnabledDefault(context)
+        // Accepting the terms later must not flip a fresh install's recorded value.
+        NoopPrefs.of(context).edit().putString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, "1").commit()
+        NoopPrefs.migrateCoachEnabledDefault(context)
+        assertFalse(NoopPrefs.coachEnabled(context))
+        NoopPrefs.setCoachEnabled(context, true)
+        NoopPrefs.migrateCoachEnabledDefault(context)
+        assertTrue(NoopPrefs.coachEnabled(context))
     }
 
     @Test

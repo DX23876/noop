@@ -114,11 +114,17 @@ public enum CoreTrainingLoad {
         public var day: String, strength: String?, cardio: String?
     }
 
-    /// Reads what `TrainingLoadModel.snapshot` reads and runs the shared computation. `maxHR` and `sex` are the
-    /// wearer's, as the cardio load is priced on the iPhone (`Repository.cardioLoadMaxHR`).
-    public static func read(reader: StoreReader, maxHR: Double, sex: String, dismissedWorkoutSpans: [String],
-                            exerciseVO2max: Bool = false,
-                            now: Int = Int(Date().timeIntervalSince1970)) async -> Output {
+    /// What one reading rests on: the prepared lanes and the inputs the experimental VO2max reuses.
+    struct LoadReading {
+        var prepared: TrainingLoadPreparation.Prepared
+        var fusion: TrainingSessionFusionResult, resolution: TrainingCardioLoadResolution
+        var from: Int, today: String, offset: Int
+    }
+
+    /// Reads what `TrainingLoadModel.snapshot` reads and runs the shared computation (`TrainingLoadPreparation`).
+    /// Shared by the screen's `read` and the coach's brief (`CoreCoachData.trainingLoadBrief`).
+    static func reading(reader: StoreReader, maxHR: Double, sex: String, dismissedWorkoutSpans: [String],
+                        now: Int = Int(Date().timeIntervalSince1970)) async -> LoadReading {
         let store = reader.store
         let cache = CardioLoadCache()
         let days = TrainingLoadPreparation.historyDays
@@ -140,6 +146,18 @@ public enum CoreTrainingLoad {
             strengthHistory: strengthHistory, unified: fusion.sessions, cardioResolution: resolution,
             rpeEntries: ratings, dailyRows: dailyRows, vo2Estimates: vo2.estimates, vo2Apple: vo2.apple,
             today: today, now: now, offset: offset)
+        return LoadReading(prepared: prepared, fusion: fusion, resolution: resolution, from: from, today: today, offset: offset)
+    }
+
+    /// The screen's output: `reading` mapped for Android, with the experimental VO2max when it is switched on.
+    /// `maxHR` and `sex` are the wearer's, as the cardio load is priced on the iPhone (`Repository.cardioLoadMaxHR`).
+    public static func read(reader: StoreReader, maxHR: Double, sex: String, dismissedWorkoutSpans: [String],
+                            exerciseVO2max: Bool = false,
+                            now: Int = Int(Date().timeIntervalSince1970)) async -> Output {
+        let store = reader.store
+        let r = await reading(reader: reader, maxHR: maxHR, sex: sex, dismissedWorkoutSpans: dismissedWorkoutSpans, now: now)
+        let prepared = r.prepared, fusion = r.fusion, resolution = r.resolution
+        let from = r.from, today = r.today, offset = r.offset
         var out = output(prepared)
         if exerciseVO2max {
             // As `TrainingLoadModel.snapshot`: the cardio load's resting rates and maximum, measured climbs, and

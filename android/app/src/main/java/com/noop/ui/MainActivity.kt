@@ -1053,11 +1053,11 @@ object NoopPrefs {
      *  [showDayCycleBackground] — no effect when the scene is off. Read once on Today entry. */
     const val KEY_SKY_BEHIND_CARDS = "noop.skyBehindCards"
 
-    // Default ON: the day-cycle sky extends behind the whole scroll out of the box. Still user-toggleable
-    // in Settings ("Sky behind cards"); only never-toggled users pick up the new default. Twin of the iOS
-    // @AppStorage(SkyBehindCardsPrefs.enabledKey) defaults.
+    // Default OFF, as iOS reads it (`@AppStorage(SkyBehindCardsPrefs.enabledKey) ... = false`): Today keeps its
+    // scene band and the other tabs their sky band over the plain canvas. Still user-toggleable in Settings
+    // ("Sky behind cards"); only never-toggled users pick up the default.
     fun skyBehindCards(context: Context): Boolean =
-        of(context).getBoolean(KEY_SKY_BEHIND_CARDS, true)
+        of(context).getBoolean(KEY_SKY_BEHIND_CARDS, false)
 
     fun setSkyBehindCards(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_SKY_BEHIND_CARDS, enabled).apply()
@@ -1156,8 +1156,9 @@ object NoopPrefs {
     }
 
     /** Master switch for the AI Coach, offered in Settings under Bottom bar because the Coach tab is
-     *  what a wearer sees it as (#2218 promoted Coach to a top-level tab). Default ON, matching every
-     *  install that shipped with the tab.
+     *  what a wearer sees it as (#2218 promoted Coach to a top-level tab). A fresh install starts with it
+     *  OFF, as the fork's iOS `CoachFeaturePrefs` does; an install that already used the app keeps it ON
+     *  ([migrateCoachEnabledDefault], decided once at launch), so an update never takes the Coach away.
      *
      *  This is NOT tab chrome. Turning it off disables the AI itself: the tab goes, the Today launcher
      *  card goes, and the daily brief scheduler is cancelled. That last one is why this is a single pref
@@ -1171,7 +1172,24 @@ object NoopPrefs {
     const val KEY_COACH_ENABLED = "noop.coachEnabled"
 
     fun coachEnabled(context: Context): Boolean =
-        of(context).getBoolean(KEY_COACH_ENABLED, true)
+        of(context).getBoolean(KEY_COACH_ENABLED, false)
+
+    /** Records the switch's starting value once, at launch, before anything reads it (the #1008 pattern). */
+    fun migrateCoachEnabledDefault(context: Context) {
+        val prefs = of(context)
+        coachEnabledStartingValue(hasCoachChoice = prefs.contains(KEY_COACH_ENABLED),
+                                  hasAcceptedTerms = !prefs.getString(KEY_ACCEPTED_TERMS_VERSION, null).isNullOrEmpty())
+            ?.let { prefs.edit().putBoolean(KEY_COACH_ENABLED, it).apply() }
+    }
+
+    /**
+     * The value to record, or null when the wearer already chose. An install past the terms gate used the app
+     * while the Coach was on by default, so it stays on; anything else is a fresh install and starts off. Keyed
+     * on the terms, not on anything the Coach itself creates, so the answer cannot change once the wearer
+     * starts using it.
+     */
+    internal fun coachEnabledStartingValue(hasCoachChoice: Boolean, hasAcceptedTerms: Boolean): Boolean? =
+        if (hasCoachChoice) null else hasAcceptedTerms
 
     fun setCoachEnabled(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_COACH_ENABLED, enabled).apply()

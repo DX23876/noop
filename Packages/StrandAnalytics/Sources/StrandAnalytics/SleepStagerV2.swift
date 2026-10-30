@@ -546,6 +546,29 @@ public enum SleepStagerV2 {
         remLatencyPenalty * min(1.0, max(0.0, 1.0 - minutesSinceOnset / remLatencyMinutes))
     }
 
+    // ── the deep-latency guard ─────────────────────────────────────────────────────────────────────────
+
+    /// Log-odds penalty applied to the DEEP emission at sleep onset: the twin of `remLatencyPenalty`, with the
+    /// same magnitude for the same reason (strong suppression that sufficient evidence still overcomes).
+    /// Descent into N3 runs through N1 and N2, so the first N3 comes minutes after onset, not at it. The
+    /// recipe's deep terms (the HR-flatness gate and the early-night cycle prior) are strongest at onset
+    /// itself, and without this guard it staged deep within 5 min of onset for 12 of 30 PhysioNet sleep-accel
+    /// subjects, against 1 of 30 in the PSG truth. From ayiskakov/noop (f72432822).
+    static let deepLatencyPenalty = 3.0
+
+    /// Minutes over which `deepLatencyPenalty` decays linearly to zero, measured from sleep ONSET (the same
+    /// origin as the REM guard). Twenty minutes sits inside the classic first-cycle descent (N1 for a few
+    /// minutes, N2 for roughly 10–25 before the first N3). On sleep-accel (31 subjects) it is also where staged
+    /// first-deep latency is unbiased against PSG (−3.3 min, from −12.5); kappa 0.363 → 0.373, deep F1
+    /// 0.498 → 0.523, pooled deep bias +5.2 → +3.6 pp, REM and wake unchanged.
+    static let deepLatencyMinutes = 20.0
+
+    /// The deep guard: `deepLatencyPenalty` at (and before) sleep onset, decaying linearly to 0 at
+    /// `deepLatencyMinutes` after it. Clamped to `[0, penalty]` exactly like `remLatencyGuard`.
+    static func deepLatencyGuard(_ minutesSinceOnset: Double) -> Double {
+        deepLatencyPenalty * min(1.0, max(0.0, 1.0 - minutesSinceOnset / deepLatencyMinutes))
+    }
+
     /// Soft sleep-cycle prior added to the log-emission: deep concentrated early (decays, never hard-wiped);
     /// REM suppressed around sleep onset (REM latency) then rising toward morning.
     ///
@@ -688,9 +711,10 @@ public enum SleepStagerV2 {
         // minutes `features()` stamped on every epoch. No sustained run → 0.0, i.e. the window start.
         let originMin = sustainedSleepOnset(provisional).map { feats[$0].minutesSinceOnset } ?? 0.0
 
-        // PASS 2 — apply the guard against minutes since THAT onset and re-run the lattice.
+        // PASS 2 — apply the REM- and deep-latency guards against minutes since THAT onset and re-run the lattice.
         for i in feats.indices {
             seq[i]["rem"]! -= remLatencyGuard(feats[i].minutesSinceOnset - originMin)
+            seq[i]["deep"]! -= deepLatencyGuard(feats[i].minutesSinceOnset - originMin)
         }
         return viterbi(seq)
     }

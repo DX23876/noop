@@ -4225,6 +4225,7 @@
     <string name="forge_lj_date_passed">Ta date cible est passée</string>
     <string name="forge_lj_date_passed_text">Comment ça s\'est passé ? Clôture-le, donne-lui plus de temps ou mets-le de côté — c\'est toi qui décides.</string>
     <string name="forge_lj_reached_it">Je l\'ai atteint</string>
+    <string name="forge_lj_extend">Prolonger la date</string>
     <string name="forge_lj_activities">Supporting activities</string>
     <string name="forge_lj_activities_text">These show execution, not proof that the outcome itself was reached.</string>
     <string name="forge_lj_changes">Modifications de cet objectif</string>
@@ -4962,4 +4963,20 @@
     <string name="forge_profile_change_photo">Changer de photo</string>
     <string name="forge_profile_choose_photo">Choisir une photo</string>
     <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Effort recalibré</string>
+    <string name="forge_library_find_muscle">Chercher par muscle</string>
+    <string name="forge_library_create_own">Créer votre propre exercice</string>
+    <string name="forge_library_exercises_for">Exercices pour %1$s</string>
+    <string name="forge_library_main_target">Cible principale</string>
+    <string name="forge_library_also_trains">Sollicite aussi</string>
+    <string name="forge_library_no_exercises_match">Aucun exercice ne correspond.</string>
+    <string name="forge_library_search_muscle">Exercice ou équipement</string>
+    <string name="forge_library_more">Plus</string>
+    <string name="forge_library_animations">Animations des exercices</string>
+    <string name="forge_library_animations_text">Chaque exercice fonctionne sans elles. Téléchargez une fois le pack facultatif pour voir comment chacun s’exécute.</string>
+    <string name="forge_library_hide">Masquer</string>
+    <string name="forge_library_front_body">Avant du corps</string>
+    <string name="forge_library_back_body">Arrière du corps</string>
+    <string name="forge_library_region">Région du corps</string>
+    <string name="forge_library_any_region">Toute région du corps</string>
+    <string name="forge_tile_rest_hr">FC repos</string>
 </resources>

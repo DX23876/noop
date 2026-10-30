@@ -322,13 +322,14 @@ final class SleepStagerV2Tests: XCTestCase {
         XCTAssertEqual(v2.start, v1.start)
         XCTAssertEqual(v2.end, v1.end)
         // The hypnogram is V2's: it matches a direct V2 stageSession over the accepted span, and (proof
-        // the flag actually flipped the engine) it expresses both deep and REM.
+        // the flag actually flipped the engine) it expresses REM. This uniform synthetic night staged its only
+        // deep right at onset, which the deep-latency guard now holds back, so deep is not asserted here; the
+        // golden hypnogram below pins where deep lands.
         let v2Direct = SleepStagerV2.stageSession(start: v2.start, end: v2.end,
                                                   grav: grav, hr: hr, rr: rr, resp: [])
         XCTAssertEqual(v2.stages.map { $0.stage }, v2Direct.map { $0.stage },
                        "flag ON must produce the V2 hypnogram")
         let v2Stages = Set(v2.stages.map { $0.stage })
-        XCTAssertTrue(v2Stages.contains("deep"), "V2 night should express deep")
         XCTAssertTrue(v2Stages.contains("rem"), "V2 night should express REM")
     }
 
@@ -372,8 +373,9 @@ final class SleepStagerV2Tests: XCTestCase {
             rr.append(RRInterval(ts: ts, rrMs: (60_000 / bpm) + rsaWave(ph, i)))
         }
         let segs = SleepStagerV2.stageSession(start: start, end: start + dur, grav: grav, hr: hr, rr: rr, resp: [])
+        // The deep-latency guard holds the first 7.5 min to light; every later boundary is unchanged.
         let golden: [(Int, Int, String)] = [
-            (0, 5070, "deep"), (5070, 5310, "light"), (5310, 5550, "rem"),
+            (0, 450, "light"), (450, 5070, "deep"), (5070, 5310, "light"), (5310, 5550, "rem"),
             (5550, 10740, "light"), (10740, 16290, "rem"), (16290, 21600, "wake")]
         XCTAssertEqual(segs.count, golden.count, "segment count")
         for k in 0..<min(segs.count, golden.count) {

@@ -146,10 +146,10 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
             KeyMetric.RESTING_HR -> KeyTile(day?.restingHr?.toString(), stringResource(R.string.forge_unit_bpm),
                                             deltaText(day?.restingHr?.toDouble(), base[CoreRead.Metric.RestingHr], 0),
                                             CoreRead.Metric.RestingHr)
-            KeyMetric.BLOOD_OXYGEN -> KeyTile(day?.spo2?.roundToInt()?.toString(), "%")
-            KeyMetric.RESPIRATORY -> KeyTile(day?.respRate?.let { "%.1f".format(it) }, stringResource(R.string.forge_unit_breaths),
+            KeyMetric.BLOOD_OXYGEN -> KeyTile(day?.spo2?.roundToInt()?.toString(), "%", opens = CoreRead.Metric.Spo2)
+            KeyMetric.RESPIRATORY -> KeyTile(day?.respRate?.let { "%.1f".format(it) }, "rpm",
                                              deltaText(day?.respRate, base[CoreRead.Metric.RespRate], 1), CoreRead.Metric.RespRate)
-            KeyMetric.STEPS -> KeyTile(day?.steps?.let { whole.format(it.toLong()) }, null)
+            KeyMetric.STEPS -> KeyTile(day?.steps?.let { whole.format(it.toLong()) }, null, opens = CoreRead.Metric.Steps)
             KeyMetric.WEIGHT -> KeyTile(weightKg?.let { "%.1f".format(if (units == UnitSystem.IMPERIAL) UnitFormatter.kgToPounds(it) else it) },
                                         UnitFormatter.massUnit(units))
             KeyMetric.CALORIES -> KeyTile(energyTotal?.let { whole.format(kotlin.math.round(it).toLong()) }, "kcal", opensEnergy = true)
@@ -163,7 +163,6 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
 
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
     var energyOpen by remember { mutableStateOf(false) }
-    var coachOpen by remember { mutableStateOf(false) }
     val noData = stringResource(R.string.forge_no_data)
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         val editLabel = stringResource(R.string.forge_lay_edit_key_metrics)
@@ -187,13 +186,13 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
         @Composable
         fun Tile(metric: KeyMetric, modifier: Modifier) {
             val t = tiles.getValue(metric)
-            val tint = metric.tint()
+            val tint = metric.tileTint()
             val tap = when {
                 t.opens != null -> Modifier.clickable { open = t.opens }
                 t.opensEnergy && t.value != null -> Modifier.clickable { energyOpen = true }
                 else -> Modifier
             }
-            MetricTile(metric.icon, tint, stringResource(metric.titleRes), t.value, t.unit, noData, modifier.then(tap), t.delta,
+            MetricTile(metric.icon, tint, metric.tileLabel(), t.value, t.unit, noData, modifier.then(tap), t.delta,
                        below = sparks[metric]?.let { values -> @Composable { Spark(values, tint) } })
         }
         gridded.chunked(columns).forEach { row ->
@@ -204,7 +203,24 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
         }
         if (spansLast) Tile(ordered.last(), Modifier.fillMaxWidth())
     }
-    open?.let { metric ->
+    ForgeMetricDetail(open) { open = null }
+    if (energyOpen) {
+        ForgeOverlayPage(onDismiss = { energyOpen = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { energyOpen = false }) }
+        }
+    }
+}
+
+/**
+ * A metric's trend page over the screen, from a Key Metric tile or a hero ring ([metric] null while closed), with
+ * "Ask coach" handing the page to the chat, which then opens in its place.
+ */
+@Composable
+internal fun ForgeMetricDetail(metric: CoreRead.Metric?, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val colors = Forge.colors
+    var coachOpen by remember { mutableStateOf(false) }
+    if (metric != null) {
         val unitMs = stringResource(R.string.forge_unit_ms)
         val unitBpm = stringResource(R.string.forge_unit_bpm)
         val unitBreaths = stringResource(R.string.forge_unit_breaths)
@@ -215,27 +231,27 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
         var purposesOn by remember { mutableStateOf(false) }
         LaunchedEffect(coachOn) { purposesOn = coachOn && withContext(Dispatchers.IO) { CoreCoach.cardAllowed() } }
         val ask: ((String, String) -> Unit)? = if (!coachOn || !purposesOn) null
-            else { title, summary -> com.noop.ui.CoachHandoff.pendingCard = title to summary; open = null; coachOpen = true }
-        ForgeOverlayPage(onDismiss = { open = null }) {
+            else { title, summary -> com.noop.ui.CoachHandoff.pendingCard = title to summary; onDismiss(); coachOpen = true }
+        ForgeOverlayPage(onDismiss = onDismiss) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {
                 when (metric) {
-                    CoreRead.Metric.Hrv -> ForgeMetricTrendPage(metric, R.string.forge_hrv_long, unitMs, colors.accent, true, ask) { open = null }
-                    CoreRead.Metric.RestingHr -> ForgeMetricTrendPage(metric, R.string.forge_rhr_long, unitBpm, colors.heart, false, ask) { open = null }
-                    CoreRead.Metric.RespRate -> ForgeMetricTrendPage(metric, R.string.forge_breathing, unitBreaths, colors.sleepRem, false, ask) { open = null }
-                    CoreRead.Metric.Charge -> ForgeMetricTrendPage(metric, R.string.forge_charge, "%", colors.charge, true, ask) { open = null }
-                    CoreRead.Metric.Effort -> ForgeMetricTrendPage(metric, R.string.forge_effort, "", colors.effort, true, ask) { open = null }
-                    CoreRead.Metric.Rest -> ForgeMetricTrendPage(metric, R.string.forge_rest, "%", colors.rest, true, ask) { open = null }
+                    CoreRead.Metric.Hrv -> ForgeMetricTrendPage(metric, R.string.forge_hrv_long, unitMs, colors.accent, true, ask, onDismiss)
+                    CoreRead.Metric.RestingHr -> ForgeMetricTrendPage(metric, R.string.forge_rhr_long, unitBpm, colors.heart, false, ask, onDismiss)
+                    CoreRead.Metric.RespRate -> ForgeMetricTrendPage(metric, R.string.forge_breathing, unitBreaths, colors.sleepRem, false, ask, onDismiss)
+                    CoreRead.Metric.Charge -> ForgeMetricTrendPage(metric, R.string.forge_charge, "%", colors.charge, true, ask, onDismiss)
+                    CoreRead.Metric.Effort -> ForgeMetricTrendPage(metric, R.string.forge_effort, "", colors.effort, true, ask, onDismiss)
+                    CoreRead.Metric.Rest -> ForgeMetricTrendPage(metric, R.string.forge_rest, "%", colors.rest, true, ask, onDismiss)
                     CoreRead.Metric.SleepMinutes -> ForgeMetricTrendPage(metric, R.string.forge_sleep,
-                        stringResource(R.string.forge_unit_min), colors.rest, true, ask) { open = null }
-                    // SpO2, steps and skin temperature draw a tile line only; their tiles open no page, as on iOS.
-                    CoreRead.Metric.Spo2, CoreRead.Metric.Steps, CoreRead.Metric.SkinTemp -> Unit
+                        stringResource(R.string.forge_unit_min), colors.rest, true, ask, onDismiss)
+                    // SpO2 and steps open their trend as on iOS (`MetricDetailView`); skin temperature's tile reads a
+                    // deviation, which this page cannot chart, so it opens none.
+                    CoreRead.Metric.Spo2 -> ForgeMetricTrendPage(metric, R.string.today_metric_blood_oxygen, "%",
+                        KeyMetric.BLOOD_OXYGEN.tileTint(), true, ask, onDismiss)
+                    CoreRead.Metric.Steps -> ForgeMetricTrendPage(metric, R.string.today_metric_steps, "",
+                        KeyMetric.STEPS.tileTint(), true, ask, onDismiss)
+                    CoreRead.Metric.SkinTemp -> Unit
                 }
             }
-        }
-    }
-    if (energyOpen) {
-        ForgeOverlayPage(onDismiss = { energyOpen = false }) {
-            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { energyOpen = false }) }
         }
     }
     if (coachOpen) {
@@ -245,6 +261,25 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
             }
         }
     }
+}
+
+/** The tile's own short label, as iOS's `ktileFor` writes it ("Rest HR", "SpO₂"); the editor keeps the long names. */
+@Composable
+private fun KeyMetric.tileLabel(): String = when (this) {
+    KeyMetric.RESTING_HR -> stringResource(R.string.forge_tile_rest_hr)
+    KeyMetric.BLOOD_OXYGEN -> "SpO₂"
+    else -> stringResource(titleRes)
+}
+
+/** The tile's tint as iOS's `ktileFor` gives it: colour on the icon and the bar only. */
+@Composable
+private fun KeyMetric.tileTint(): Color = when (this) {
+    KeyMetric.HRV, KeyMetric.BLOOD_OXYGEN -> ForgeTokens.StrandPalette.metricCyan.resolve()
+    KeyMetric.RESTING_HR -> ForgeTokens.StrandPalette.metricRose.resolve()
+    KeyMetric.STEPS -> Forge.colors.charge
+    KeyMetric.WEIGHT -> ForgeTokens.StrandPalette.metricAmber.resolve()
+    KeyMetric.CALORIES -> ForgeTokens.StrandPalette.energyHighlight.resolve()
+    else -> tint()
 }
 
 /** A detailed tile's trend: the window's values as one line, scaled to their own range. */
