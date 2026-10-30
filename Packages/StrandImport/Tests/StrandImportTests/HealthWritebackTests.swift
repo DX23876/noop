@@ -519,4 +519,37 @@ extension HealthWritebackTests {
            fromDay: "2020-01-01", toDay: "2020-01-03", holdingDays: ["2020-01-02"])
         XCTAssertEqual(retired, ["noop:rhr:2020-01-01"])
     }
+
+    // MARK: - Vitals stamp inside the night
+
+    private func entry(_ spanStart: Int, _ spanEnd: Int) -> HealthWriteback.MergedSleepEntry {
+        .init(keyStartTs: spanStart, spanStart: spanStart, spanEnd: spanEnd, intervals: [], allKeyStartTs: [spanStart])
+    }
+
+    /// Day = whole days since `start`, so attribution is by wake and independent of the test host's zone.
+    private func dayOf(_ ts: Int) -> String { "d\((ts - start) / 86_400)" }
+
+    func testVitalsAreStampedAtTheNightsMidpointNotItsWake() {
+        let night = entry(start, start + 8 * 3600)
+        XCTAssertEqual(HealthWriteback.vitalsInstantByDay([night], dayOf: dayOf), ["d0": start + 4 * 3600])
+    }
+
+    /// A nap that wakes later the same day must not pull the night's values out of the night.
+    func testTheLongestNightOwnsTheDayNotTheLatest() {
+        let night = entry(start, start + 8 * 3600)
+        let nap = entry(start + 14 * 3600, start + 15 * 3600)
+        XCTAssertEqual(HealthWriteback.vitalsInstantByDay([night, nap], dayOf: dayOf), ["d0": start + 4 * 3600])
+        XCTAssertEqual(HealthWriteback.vitalsInstantByDay([nap, night], dayOf: dayOf), ["d0": start + 4 * 3600])
+    }
+
+    func testEachDayIsStampedByTheNightThatWokeOnIt() {
+        let first = entry(start, start + 8 * 3600)
+        let second = entry(start + 86_400, start + 86_400 + 6 * 3600)
+        XCTAssertEqual(HealthWriteback.vitalsInstantByDay([first, second], dayOf: dayOf),
+                       ["d0": start + 4 * 3600, "d1": start + 86_400 + 3 * 3600])
+    }
+
+    func testANightWithNoSpanStampsNothing() {
+        XCTAssertEqual(HealthWriteback.vitalsInstantByDay([entry(start, start)], dayOf: dayOf), [:])
+    }
 }

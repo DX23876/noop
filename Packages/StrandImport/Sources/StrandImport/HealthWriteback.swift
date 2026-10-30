@@ -329,6 +329,26 @@ public enum HealthWriteback {
         "noop:\(kind):\(identity)"
     }
 
+    /// When each day's nightly vitals are stamped: the midpoint of the LONGEST night whose wake falls on
+    /// that day. `dayOf` maps a unix second to the day string the vitals rows are keyed by.
+    ///
+    /// Inside the night, not on its edge. The values are nightly aggregates, and a reader of Health picks
+    /// them by the sleep window they describe (Bevel shows no Recovery when HRV or resting HR is not
+    /// captured during the sleep window). A sample stamped exactly at wake sits on that boundary. The
+    /// longest night rather than the latest, so a nap after the main sleep does not carry the night's
+    /// values out of the night they came from. From Iskrata/noop (cf3e0a1f9).
+    public static func vitalsInstantByDay(_ entries: [MergedSleepEntry],
+                                          dayOf: (Int) -> String) -> [String: Int] {
+        var longest: [String: MergedSleepEntry] = [:]
+        for entry in entries where entry.spanEnd > entry.spanStart {
+            let day = dayOf(entry.spanEnd)
+            if let current = longest[day],
+               current.spanEnd - current.spanStart >= entry.spanEnd - entry.spanStart { continue }
+            longest[day] = entry
+        }
+        return longest.mapValues { $0.spanStart + ($0.spanEnd - $0.spanStart) / 2 }
+    }
+
     /// The vitals key: `noop:<metricId>:<day>`.
     public static func appleHealthVitalKey(metricId: String, day: String) -> String {
         appleHealthExternalUUID(kind: metricId, identity: day)
