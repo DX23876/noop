@@ -359,9 +359,13 @@ internal fun LibraryRow(row: CoreTrainingLibrary.Row, subtitle: String, favorite
         if (index > 0) Box(Modifier.padding(start = 76.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider.copy(alpha = 0.4f)))
         Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)).background(colors.accent.copy(alpha = 0.10f)),
+            val still = rememberExerciseStill(row.id, 144)
+            Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))
+                    .background(if (still != null) Color.White else colors.accent.copy(alpha = 0.10f)),
                 contentAlignment = Alignment.Center) {
-                Icon(modeIcon(row.mode), contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
+                if (still != null) androidx.compose.foundation.Image(still, contentDescription = null, modifier = Modifier.size(48.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                else Icon(modeIcon(row.mode), contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(row.title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
