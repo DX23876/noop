@@ -25,6 +25,8 @@ public enum ShadowSession {
         case analyze(CoreAnalysis.Profile, CoreAnalysis.Settings)
         /// Marks completion of the events queued before this callback.
         case barrier(@Sendable () -> Void)
+        /// The strap the frames that follow belong to, after an in-process strap switch (`setDevices`).
+        case device(String)
     }
 
     /// What the core banked from history since the session started, per stream.
@@ -48,6 +50,9 @@ public enum ShadowSession {
         var store: WhoopStore?
         var path = ""
         var deviceId = ""
+        /// Every registered WHOOP, archived ones included, in registry order: the union reads cover them all
+        /// as Apple's `Repository.registeredWhoopIds` and Android's Room `rawWhoopSourceIds` do.
+        var registeredWhoopIds: [String] = []
     }
     private static let state = State()
 
@@ -113,7 +118,34 @@ public enum ShadowSession {
     /// A reader over the session's store for the screens (`CoreRead`); nil before a session started.
     public static var reader: StoreReader? {
         state.lock.lock(); defer { state.lock.unlock() }
-        return state.store.map { StoreReader(store: $0, activeDeviceId: state.deviceId, registeredWhoopIds: []) }
+        return state.store.map {
+            StoreReader(store: $0, activeDeviceId: state.deviceId, registeredWhoopIds: state.registeredWhoopIds)
+        }
+    }
+
+    /// The active strap and every registered WHOOP, from Android's device registry. A changed active id also
+    /// re-points the session's writers, in order with the frames already queued, so a strap switch inside one
+    /// process files the new strap's frames, its scores and the screens' reads under the new id. Before a session
+    /// starts only the registered ids are kept: `start` names the active strap. Nil registered ids keep the list.
+    public static func setDevices(activeDeviceId: String, registeredWhoopIds: [String]?) {
+        let active = activeDeviceId.trimmingCharacters(in: .whitespaces)
+        let registered = registeredWhoopIds?.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+        state.lock.lock()
+        if let registered { state.registeredWhoopIds = registered }
+        var continuation: AsyncStream<Event>.Continuation?
+        if let running = state.continuation, !active.isEmpty, active != state.deviceId {
+            state.deviceId = active
+            continuation = running
+        }
+        // Yielded under the lock, so two switches reach the worker in the order they changed the id.
+        continuation?.yield(.device(active))
+        state.lock.unlock()
+    }
+
+    /// The active strap id the session files frames and reads under; empty before a session started.
+    public static var activeDeviceId: String {
+        state.lock.lock(); defer { state.lock.unlock() }
+        return state.deviceId
     }
 
     /// The open store and the file it lives in, for the backup export and import; nil before a session started.
@@ -184,6 +216,7 @@ public enum ShadowSession {
                 }
             })
         var family = DeviceFamily.whoop4
+        var deviceId = deviceId
         for await event in stream {
             switch event {
             case .family(let whoop5):
@@ -213,6 +246,12 @@ public enum ShadowSession {
                 state.lock.withLock { state.today = result?.line ?? "no computed row for today" }
             case .barrier(let completed):
                 completed()
+            case .device(let id):
+                // The live rows buffered so far belong to the previous strap.
+                await collector.flush()
+                deviceId = id
+                collector.deviceId = id
+                backfiller.deviceId = id
             }
             state.lock.withLock { state.processed += 1 }
         }

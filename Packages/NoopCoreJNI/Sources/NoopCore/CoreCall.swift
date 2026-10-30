@@ -58,6 +58,14 @@ public enum CoreCall {
                 return #"{"error":"protocolSchemaUnavailable"}"#
             }
         }
+        if op == "shadow.devices" {
+            // The active strap and every registered WHOOP (archived ones too), from Android's device registry;
+            // without "registered" only the active strap moves.
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            ShadowSession.setDevices(activeDeviceId: args["active"] as? String ?? "",
+                                     registeredWhoopIds: args["registered"] as? [String])
+            return #"{"ok":true}"#
+        }
         if op == "core.setLanguage" {
             // A language picked in Settings, applied without a restart.
             let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]

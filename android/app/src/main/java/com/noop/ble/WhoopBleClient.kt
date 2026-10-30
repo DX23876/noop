@@ -4254,6 +4254,10 @@ class WhoopBleClient(
         if (id.isEmpty()) return
         deviceId = id
         backfiller.deviceId = id
+        // Fork (DX23876): the shared core banks the same frames and must file them under the same strap; its
+        // union reads also pick up the registry as it stands now.
+        com.noop.core.CoreShadow.followActive(id)
+        ioScope.launch { com.noop.core.CoreShadow.followDevices(context, id) }
     }
 
     /**
