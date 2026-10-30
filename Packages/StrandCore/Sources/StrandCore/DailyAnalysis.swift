@@ -197,6 +197,11 @@ public final class DailyAnalysis {
 
     private var pendingAnalysis: PendingAnalysis?
     private var analysisRunnerActive = false
+    /// Callers of `waitForAnalysisQueueToDrain`, resumed when the runner stops.
+    private var analysisDrainWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Passes that returned without finishing their work (no store, no metric config, a failed day-cycle
+    /// read or sleep write), so the rebuild can tell a scored history from one that was not.
+    private(set) var unfinishedPasses = 0
     /// Coalesce foreground, backfill, and workout-finish requests onto one small current-day read.
     /// These signals often arrive together; letting each one scan the same day independently would
     /// recreate the contention this fast path is intended to avoid.
@@ -837,10 +842,11 @@ public final class DailyAnalysis {
         let days = AnalysisRecipe.rebuildDays(earliestRawDay: earliestRawDay, today: StoreReader.localDayKey(Date()))
         let startReading = host.costReading()
         let startUptime = ProcessInfo.processInfo.systemUptime
-        host.diagnostic("rebuild \(label): \(first == .legacyRepairs ? "start" : "resume at \(first)") from "
+        let start = first.map { $0 == .legacyRepairs ? "start" : "resume at \($0)" } ?? "every step done"
+        host.diagnostic("rebuild \(label): \(start) from "
             + "\(AnalysisRecipe.label(from)), \(days) days, raw from \(earliestRawDay ?? "none")"
             + Self.batteryText(startReading.batteryPercent), domain: nil)
-        for step in AnalysisRecipe.RebuildStep.allCases where step.rawValue >= first.rawValue {
+        for step in AnalysisRecipe.RebuildStep.allCases where step.rawValue >= first?.rawValue ?? Int.max {
             try Task.checkCancellation()
             let stepReading = host.costReading()
             let stepUptime = ProcessInfo.processInfo.systemUptime
@@ -917,13 +923,7 @@ public final class DailyAnalysis {
                                             fromDay: firstDay, toDay: today,
                                             tzOffset: TimeZone.current.secondsFromGMT())
         case .dailyHistory:
-            await analyzeRecent(maxDays: days, force: true, allowDayReuse: false, reason: .semanticChange)
-            // A pass that heals duplicate sleep sessions queues one forced re-pass over the same window. The
-            // later steps read its result, so it runs here, before them, instead of after the recipe moved:
-            // a request that joins the queued pass waits for it and adds none when nothing is queued.
-            if pendingAnalysis != nil {
-                await analyzeRecent(maxDays: days, force: true, allowDayReuse: false, reason: .semanticChange)
-            }
+            try await runDailyHistoryPass(days: days)
         case .weeklyScores:
             try await rebuildWeeklyScores(store: store, firstDay: firstDay, today: today)
         case .stressProxy:
@@ -950,6 +950,21 @@ public final class DailyAnalysis {
         case .publish:
             await repo.refresh(days: 120)
         }
+    }
+
+    /// The rebuild's daily step: every day scored again, and done only once the queue has drained.
+    ///
+    /// A pass that heals duplicate sleep sessions queues one forced re-pass over the same window. The later
+    /// steps read its result, so the step waits for it. Checking for a queued request after `analyzeRecent`
+    /// returned never saw it: the queue resumes a pass's waiters and takes the next request in the same
+    /// synchronous stretch, so by the time this ran the re-pass was already running, nothing was queued, and
+    /// the later steps ran beside it. A pass that gave up without scoring leaves the step owed.
+    func runDailyHistoryPass(days: Int) async throws {
+        let unfinishedBefore = unfinishedPasses
+        await analyzeRecent(maxDays: days, force: true, allowDayReuse: false, reason: .semanticChange)
+        await waitForAnalysisQueueToDrain()
+        try Task.checkCancellation()
+        if unfinishedPasses != unfinishedBefore { throw RebuildUnfinished() }
     }
 
     /// Writes the Saturday-keyed weekly scores for every week from the one holding `firstDay` through the
@@ -1442,6 +1457,13 @@ public final class DailyAnalysis {
         }
     }
 
+    /// Returns once no pass runs and none is queued, including a follow-up a pass queued for itself
+    /// (`enqueueFollowup`).
+    func waitForAnalysisQueueToDrain() async {
+        guard analysisRunnerActive else { return }
+        await withCheckedContinuation { analysisDrainWaiters.append($0) }
+    }
+
     private func runAnalysisQueue() async {
         while let request = pendingAnalysis {
             pendingAnalysis = nil
@@ -1461,11 +1483,14 @@ public final class DailyAnalysis {
             request.waiters.forEach { $0.resume() }
         }
         analysisRunnerActive = false
+        let drained = analysisDrainWaiters
+        analysisDrainWaiters = []
+        drained.forEach { $0.resume() }
     }
 
     /// Queue an engine-internal corrective pass without detaching an untracked Task. The active queue
     /// consumes it after the current generation and retains the same conservative merge rules.
-    private func enqueueFollowup(maxDays: Int, reason: AnalysisReason) {
+    func enqueueFollowup(maxDays: Int, reason: AnalysisReason) {
         if pendingAnalysis != nil {
             pendingAnalysis!.merge(maxDays: maxDays, force: true,
                                    skipIfUnchanged: false, allowDayReuse: false,
@@ -1495,11 +1520,13 @@ public final class DailyAnalysis {
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
         // until the next cycle. Re-arm instead: flag it so the running pass's `defer` re-invokes once.
-        guard let store = await repo.storeHandle() else { note = messages(.noStore); return }
+        guard let store = await repo.storeHandle() else {
+            note = messages(.noStore); unfinishedPasses += 1; return
+        }
         guard let hrvCfg = Baselines.metricCfg["hrv"],
               let rhrCfg = Baselines.metricCfg["resting_hr"],
               let respCfg = Baselines.metricCfg["resp"],
-              let skinCfg = Baselines.metricCfg["skin_temp"] else { return }
+              let skinCfg = Baselines.metricCfg["skin_temp"] else { unfinishedPasses += 1; return }
 
         // #836 (idle-tick gate): re-scoring a 21-day window re-reads ~21×54 h of raw HR and re-runs
         // analyzeDay over it. After a big Apple Health import (a reporter's: 2.1 M rows, ~190 k HR/day) that
@@ -3011,7 +3038,7 @@ public final class DailyAnalysis {
             // narrower correctness is the one this fix was for. Naming the gap rather than hiding it.
             // The value is already resolved (`maxHRByDay`), so it reaches the cycle path as given.
             maxHROverride: maxHRByDay[newestScanDay]?.bpm,
-            trace: cycleTraceSink) else { return }
+            trace: cycleTraceSink) else { unfinishedPasses += 1; return }
         guard !Task.isCancelled else { return }
         for line in cycleTrace.lines { host.diagnostic(line, domain: .steps) }
         markPostLoopPhase("dayCycle")
@@ -3754,6 +3781,7 @@ public final class DailyAnalysis {
             }
         } catch {
             host.diagnostic("re-score: sleep persistence failed; history repair remains pending", domain: nil)
+            unfinishedPasses += 1
             return
         }
         // ── Persist per-epoch motion (H8) beside each kept session's stagesJSON ──────────────────────────

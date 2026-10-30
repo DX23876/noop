@@ -1,6 +1,6 @@
 import XCTest
 import StrandAnalytics
-import StrandCore
+@testable import StrandCore
 import WhoopProtocol
 import WhoopStore
 
@@ -17,7 +17,14 @@ final class DailyAnalysisSmokeTests: XCTestCase {
 
         init(reader: StoreReader) { self.reader = reader }
 
-        func storeHandle() async -> WhoopStore? { reader.store }
+        /// Runs once, inside the next `storeHandle` call (the first read of a pass), then clears itself.
+        var onStoreHandle: (@MainActor () -> Void)?
+        private(set) var storeHandleCalls = 0
+        func storeHandle() async -> WhoopStore? {
+            storeHandleCalls += 1
+            if let hook = onStoreHandle { onStoreHandle = nil; hook() }
+            return reader.store
+        }
         func refresh(days nDays: Int) async { refreshes += 1 }
         func dailyMetrics(fromDay: String, toDay: String) async -> [DailyMetric] {
             await reader.unionDailyMetrics(from: fromDay, to: toDay)
@@ -253,5 +260,25 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         XCTAssertEqual(services.refreshes, 1, "only the publish step ran")
         let recipe = try await store.cursor(AnalysisRecipe.cursor)
         XCTAssertEqual(recipe, target)
+    }
+
+    // MARK: - Rebuild
+
+    /// The daily step returns only once the heal re-pass a pass queued for itself has finished. The queue
+    /// resumes a pass's waiters and starts the queued re-pass in one synchronous stretch, so a check for a
+    /// queued request after `analyzeRecent` returned found none and the later steps ran beside the re-pass.
+    func testTheDailyHistoryStepWaitsForTheHealRepass() async throws {
+        let store = try await WhoopStore.inMemory()
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: Host(),
+                                   messages: { "\($0)" })
+        // The first pass queues a follow-up while it runs, as the #899 heal does.
+        services.onStoreHandle = { [weak engine] in engine?.enqueueFollowup(maxDays: 3, reason: .semanticChange) }
+
+        try await engine.runDailyHistoryPass(days: 3)
+
+        XCTAssertGreaterThanOrEqual(services.storeHandleCalls, 2, "the step's pass and the queued re-pass both ran")
+        XCTAssertFalse(engine.computing, "no pass is still running when the step returns")
     }
 }

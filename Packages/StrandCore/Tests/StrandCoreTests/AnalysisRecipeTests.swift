@@ -58,6 +58,15 @@ final class AnalysisRecipeTests: XCTestCase {
         XCTAssertEqual(AnalysisRecipe.firstOwedStep(target: 31, storedPosition: afterCardio), .energyHistory)
     }
 
+    /// A rebuild stopped after its last step but before the recipe cursor moved owes no step: the position
+    /// after `.publish` used to read as no position at all and start the whole rebuild again.
+    func testARebuildPastItsLastStepOwesNoStep() {
+        let finished = AnalysisRecipe.rebuildPosition(target: 32, after: .publish)
+        XCTAssertNil(AnalysisRecipe.firstOwedStep(target: 32, storedPosition: finished))
+        let afterEnergy = AnalysisRecipe.rebuildPosition(target: 32, after: .energyHistory)
+        XCTAssertEqual(AnalysisRecipe.firstOwedStep(target: 32, storedPosition: afterEnergy), .publish)
+    }
+
     /// The repairs of stored inputs that older recipes shipped still run for a store that predates them;
     /// everything the other old recipes derived is part of the rebuild.
     func testOnlyStoresThatPredateTheInputRepairsOweThem() {
