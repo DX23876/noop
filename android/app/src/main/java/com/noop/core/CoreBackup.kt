@@ -53,6 +53,7 @@ object CoreBackup {
         staged.outputStream().use { input.copyTo(it) }
         val result = parse(SwiftCore.importBackup(staged.path, dir.path, allowOversize))
         if (result !is Result.TooLarge) staged.delete()
+        if (result == Result.Imported) CoreInputLanes.forgetRepairAfterRestore(context)
         return result
     }
 
@@ -61,6 +62,9 @@ object CoreBackup {
         val dir = scratch(context)
         val staged = File(dir, "import.noopbak")
         if (!staged.isFile) return Result.Failed("noStagedFile")
-        return parse(SwiftCore.importBackup(staged.path, dir.path, true)).also { staged.delete() }
+        return parse(SwiftCore.importBackup(staged.path, dir.path, true)).also {
+            staged.delete()
+            if (it == Result.Imported) CoreInputLanes.forgetRepairAfterRestore(context)
+        }
     }
 }
