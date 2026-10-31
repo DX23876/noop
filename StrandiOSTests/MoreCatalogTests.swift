@@ -5,11 +5,15 @@ import XCTest
 /// The More tab's rows moved out of the view into `MoreCatalog` so the search could read them. That
 /// makes two things worth pinning: every final destination must remain reachable or searchable, and the
 /// compact root must keep the approved category order.
+///
+/// The 2026-10 reorganisation moved the settings-like screens (Coach, Apple Health and imports, backup,
+/// Automations, Power saving, Siri, Test Centre) into Settings pages. The More search still reaches them
+/// through `SettingsSearchCatalog`, which is what the keyword test below asserts for those words.
 final class MoreCatalogTests: XCTestCase {
 
     func testCompactRootCategoryOrder() {
         XCTAssertEqual(MoreCatalog.groups.map(\.category),
-                       [.analysis, .healthBody, .tools, .data, .app])
+                       [.analysis, .healthBody, .tools])
     }
 
     func testNoRouteAppearsTwice() {
@@ -18,21 +22,21 @@ final class MoreCatalogTests: XCTestCase {
     }
 
     func testTheIndexStillCarriesEveryRowItShipped() {
-        // The list as it stood before the catalog extraction. A row leaving the index is a screen a
+        // The list as it stands after the 2026-10 reorganisation. A row leaving the index is a screen a
         // person can no longer reach from the iPhone, which is exactly the #805/#811 regression that
-        // dropped Alarms once already.
+        // dropped Alarms once already. A screen moving into Settings belongs in the keyword test below.
         let expected: Set<MoreDestination> = [
-            .momentum, .insightsHub, .intelligence, .goalJourney, .insights, .explore, .compare, .coachSettings,
-            .training, .live, .workouts, .strength, .cardio, .trainingLoad, .body, .energyPlan,
-            .health, .labBook, .stress, .breathe, .intervals, .rhythm,
-            .fusedRecord, .appleHealth, .miBand, .dataSources, .backupSync, .shortcutsExport, .noopLimitations,
-            .alarms, .automations, .testCentre, .siriShortcuts, .powerSaving, .settings,
+            .momentum, .insightsHub, .intelligence, .goalJourney, .insights, .explore, .compare, .fusedRecord,
+            .training, .body, .energyPlan, .health, .ageless, .rhythmAge, .labBook, .stress, .rhythm, .ecg,
+            .live, .breathe, .intervals,
+            .settings, .alarms,
+            .workouts, .strength, .cardio, .trainingLoad, .miBand,
         ]
         XCTAssertEqual(Set(MoreCatalog.allEntries.map(\.route)), expected)
     }
 
-    func testRootKeepsSettingsAndTestCentreOneTapAway() {
-        XCTAssertEqual(MoreCatalog.rootEntries.map(\.route), [.settings, .testCentre])
+    func testRootKeepsSettingsAndAlarmsOneTapAway() {
+        XCTAssertEqual(MoreCatalog.rootEntries.map(\.route), [.settings, .alarms])
     }
 
     func testEveryRowCarriesKeywords() {
@@ -43,7 +47,8 @@ final class MoreCatalogTests: XCTestCase {
     }
 
     func testAnEmptyQueryReturnsTheWholeIndex() {
-        XCTAssertEqual(MoreCatalog.matching("").count, MoreCatalog.allEntries.count)
+        // Lab rows (AgeLess, Daily rhythm) are listed only while their switch is on, in search as well.
+        XCTAssertEqual(MoreCatalog.matching("").count, MoreCatalog.allEntries.filter(\.isAvailable).count)
     }
 
     /// The point of the keywords: the words people use are rarely the words on the row.
@@ -54,9 +59,10 @@ final class MoreCatalogTests: XCTestCase {
     /// Keywords are English aliases for that reason — the row's TITLE is the localized half.
     func testKeywordsReachRowsTheTitleWouldNot() {
         XCTAssertTrue(MoreCatalog.matching("blood pressure").contains { $0.route == .labBook })
-        XCTAssertTrue(MoreCatalog.matching("healthkit").contains { $0.route == .appleHealth })
-        XCTAssertTrue(MoreCatalog.matching("api key").contains { $0.route == .coachSettings })
-        XCTAssertTrue(MoreCatalog.matching("whoop export").contains { $0.route == .dataSources })
+        // Screens that moved into Settings are found through its index, shown in the same result list.
+        XCTAssertTrue(SettingsSearchCatalog.matching("healthkit").contains { $0.id == .dataConnections })
+        XCTAssertTrue(SettingsSearchCatalog.matching("api key").contains { $0.id == .coach })
+        XCTAssertTrue(SettingsSearchCatalog.matching("whoop export").contains { $0.id == .dataConnections })
     }
 
     func testTitleSearchStillWorksAndNarrows() {
