@@ -2049,6 +2049,12 @@ extension WhoopStore {
                 t.primaryKey(["deviceId", "ts", "sequence"])
             }
         }
+        // The wearer's answers to activity-detection suggestions (fork decision 2026-10-31). Wearer input,
+        // not a derivation: it cannot be recomputed, so it travels in the `.noopbak` copy of the database.
+        // One answer per suggestion; Undo deletes the row. Additive, so no score goes stale.
+        migrator.registerMigration("v82-activity-suggestion-answer") { db in
+            try WhoopStore.createActivitySuggestionAnswerTable(db)
+        }
         return migrator
     }
 }

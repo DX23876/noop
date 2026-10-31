@@ -149,7 +149,8 @@ public enum EnergySummaryPreparation {
         case .whoop:        return .whoop
         case .apple:        return .apple
         case .detected:     return .detected
-        case .manual:       return .manual
+        // A confirmed suggestion is priced as the hand-logged session it now is.
+        case .manual, .confirmed: return .manual
         case .lifting:      return .lifting
         case .activityFile: return .activityFile
         case .hevy:         return .hevy

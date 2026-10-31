@@ -324,7 +324,7 @@ struct TrainingLoadView: View {
         case .lifting: return String(localized: "Imported file")
         case .activityFile: return String(localized: "Activity file")
         case .manual: return "NOOP"
-        case .detected, .whoop: return String(localized: "NOOP band")
+        case .detected, .confirmed, .whoop: return String(localized: "NOOP band")
         case .oura: return String(localized: "Oura")
         }
     }

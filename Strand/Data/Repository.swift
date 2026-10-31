@@ -3071,7 +3071,7 @@ final class Repository: ObservableObject {
     nonisolated static func healthExportWorkoutRows(_ rows: [WorkoutRow]) -> [WorkoutRow] {
         func rank(_ row: WorkoutRow) -> Int {
             if row.source.hasPrefix("native-training") { return 3 }
-            if WorkoutSource.classify(row.source) == .manual { return 2 }
+            if WorkoutSource.classify(row.source).isWearerLogged { return 2 }
             return WorkoutSource.classify(row.source) == .detected ? 0 : 1
         }
         var chosen: [String: WorkoutRow] = [:]
@@ -3188,7 +3188,7 @@ final class Repository: ObservableObject {
         var eligibleIndices: [Int] = []
         for (i, row) in rows.enumerated() {
             let cls = WorkoutSource.classify(row.source)
-            let strapNative = cls == .manual || cls == .detected
+            let strapNative = cls.isStrapNative
             // #961: a strap-native row whose Effort (strain) is nil is ALSO eligible even when its avgHr is
             // already present, so a session that ended with an HR but no strain (sparse live HR at save)
             // still gets its Effort backfilled once the strap trace covers the window. Needs the injected
@@ -3219,7 +3219,7 @@ final class Repository: ObservableObject {
                     // own. Resolve this on the main actor (WorkoutSource.classify) and capture the plain Bool,
                     // so the child task crosses only Sendable scalars.
                     let cls = WorkoutSource.classify(rows[idx].source)
-                    let wantStrain = (cls == .manual || cls == .detected) && rows[idx].strain == nil
+                    let wantStrain = cls.isStrapNative && rows[idx].strain == nil
                     // #510: read HR under the workout's OWN recording strap, not a single active id. A detected
                     // row's `source` IS its computed strap id ("<base>-noop"), so a bout auto-detected on a 2nd
                     // WHOOP reads "<base>" instead of the active strap's empty window. Resolved on the main actor;
@@ -3269,7 +3269,7 @@ final class Repository: ObservableObject {
         return zip(rows.indices, rows).map { i, row in
             guard let r = reduced[i] else { return row }
             let cls = WorkoutSource.classify(row.source)
-            let strapNative = cls == .manual || cls == .detected
+            let strapNative = cls.isStrapNative
             let newMax = strapNative ? r.peak : (row.maxHr ?? r.peak)
             // #961: FILL a nil Effort from the recomputed strain (never override a stored one). Display-only,
             // like the avg/max reconcile , the workout-PK upsert would wipe it, and the backend rescore
@@ -3591,7 +3591,7 @@ final class Repository: ObservableObject {
         for r in rows where !(r.startTs == merged.startTs && r.sport == merged.sport) {
             switch WorkoutSource.classify(r.source) {
             case .detected: await dismissDetected(r)
-            case .manual:   await deleteWorkout(r)
+            case .manual, .confirmed: await deleteWorkout(r)
             case .whoop, .apple, .lifting, .activityFile, .hevy, .oura:
                 // Defensive: canMerge already excludes imported rows; never rewrite imported history.
                 continue
@@ -3616,7 +3616,7 @@ final class Repository: ObservableObject {
         for r in rows {
             switch WorkoutSource.classify(r.source) {
             case .detected: await dismissDetected(r)
-            case .manual:   await deleteWorkout(r)
+            case .manual, .confirmed: await deleteWorkout(r)
             case .whoop, .apple, .lifting, .activityFile, .hevy, .oura: continue
             }
         }

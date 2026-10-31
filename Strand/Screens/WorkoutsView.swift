@@ -702,6 +702,8 @@ struct WorkoutsView: View {
         case .apple:        return String(localized: "Apple")
         case .detected:     return String(localized: "Detected")
         case .manual:       return String(localized: "Manual")
+        // Not a filter option of its own: `WorkoutFilter.filterClass` files it under Detected.
+        case .confirmed:    return String(localized: "Detected")
         case .hevy:         return String(localized: "Hevy")
         case .lifting:      return String(localized: "Lifting")
         case .activityFile: return String(localized: "File")
@@ -1815,7 +1817,7 @@ struct WorkoutsView: View {
             Button("Edit details…") { editWorkout(row) }
             Divider()
             Button("Dismiss (not a workout)", role: .destructive) { dismiss(row) }
-        case .manual:
+        case .manual, .confirmed:
             Button("Edit…") { editWorkout(row) }
             Divider()
             Button("Delete", role: .destructive) { delete(row) }
@@ -1857,7 +1859,8 @@ struct WorkoutsView: View {
             switch WorkoutSource.classify(source) {
             case .whoop:    return (String(localized: "Whoop"), StrandPalette.accent, String(localized: "Source Whoop"))
             case .apple:    return (String(localized: "Apple"), StrandPalette.metricCyan, String(localized: "Source Apple Health"))
-            case .detected: return (String(localized: "Detected"), StrandPalette.metricPurple, String(localized: "Source on-device detected"))
+            case .detected, .confirmed:
+                return (String(localized: "Detected"), StrandPalette.metricPurple, String(localized: "Source on-device detected"))
             case .manual:   return (String(localized: "Manual"), StrandPalette.statusWarning, String(localized: "Source manual entry"))
             case .hevy:     return (String(localized: "Hevy"), StrandPalette.zone2, String(localized: "Source synced from Hevy"))
             case .lifting:  return (String(localized: "Lifting"), StrandPalette.zone2, String(localized: "Source imported lifting log"))

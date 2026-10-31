@@ -129,7 +129,7 @@ public enum WorkoutHeartRateFills {
             }
         }
         let candidates = rows.filter {
-            WorkoutSource.classify($0.source) == .manual && $0.avgHr == nil && $0.endTs > $0.startTs
+            WorkoutSource.classify($0.source).isWearerLogged && $0.avgHr == nil && $0.endTs > $0.startTs
         }
         guard let first = candidates.map(\.startTs).min(),
               let last = candidates.map(\.startTs).max() else { return .untouched }
@@ -161,7 +161,7 @@ public enum WorkoutHeartRateFills {
     /// The fill namespace a row's stored fill lives in, or nil for a source that is never filled.
     public static func fillNamespace(for row: WorkoutRow) -> String? {
         if WorkoutSource.isAppleHealth(row.source) { return MetricResolver.appleHealthSource }
-        if WorkoutSource.classify(row.source) == .manual { return recordedWorkoutFillNamespace }
+        if WorkoutSource.classify(row.source).isWearerLogged { return recordedWorkoutFillNamespace }
         return nil
     }
 

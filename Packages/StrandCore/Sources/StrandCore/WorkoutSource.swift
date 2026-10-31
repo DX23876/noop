@@ -15,6 +15,8 @@ import StrandAnalytics   // WorkoutsTrace: the dedup-decision line formatter for
 ///   - "oura-api"     — Oura cloud sync (`OuraSyncWriter`). The stored `source` column carries Oura's
 ///                       OWN origin ("manual", "autodetected", "confirmed"), so `Repository` rewrites it to
 ///                       this id on read — see `normalizedOuraRow`.
+///   - "detected-confirmed" — an activity-detection suggestion the wearer confirmed (decision 2026-10-31).
+///                       Behaves like a hand-logged row; kept apart so it never counts as ground truth.
 ///   - "my-whoop-noop"— legacy IntelligenceEngine detected bouts (source == the computed deviceId,
 ///                       i.e. it ends in "-noop"). These remain readable/editable but are no longer
 ///                       created or reconciled by `analyzeRecent`.
@@ -22,7 +24,18 @@ import StrandAnalytics   // WorkoutsTrace: the dedup-decision line formatter for
 /// Classification order matters: "-noop" is checked BEFORE "whoop" because the computed id
 /// "my-whoop-noop" also contains the substring "whoop".
 public enum WorkoutSource: Equatable, Sendable {
-    case whoop, apple, detected, manual, lifting, activityFile, hevy, oura
+    case whoop, apple, detected, manual, confirmed, lifting, activityFile, hevy, oura
+
+    /// The source a confirmed activity-detection suggestion is stored under. It must not end in "-noop",
+    /// which reads as a legacy detected bout.
+    public static let confirmedSuggestionSource = "detected-confirmed"
+
+    /// Rows the wearer put there: a hand-logged session or a suggestion they confirmed. Both can be edited
+    /// and deleted, and both read the strap trace for the heart rate they lack.
+    public var isWearerLogged: Bool { self == .manual || self == .confirmed }
+
+    /// Rows whose heart rate and Effort come from the strap trace rather than from an importer.
+    public var isStrapNative: Bool { isWearerLogged || self == .detected }
 
     /// Canonical Apple Health source id written by new imports. The early rows used the underscore
     /// spelling, so reads must accept both — see `isAppleHealth`.
@@ -39,6 +52,7 @@ public enum WorkoutSource: Equatable, Sendable {
         if s == ouraSource { return .oura }
         if s.hasSuffix("-noop") { return .detected }   // BEFORE whoop: "my-whoop-noop" contains "whoop"
         if s == "manual" { return .manual }
+        if s == confirmedSuggestionSource { return .confirmed }
         if s == "lifting" { return .lifting }          // imported Hevy / Liftosaur strength CSV/JSON
         // API-synced Hevy sessions. A source of their OWN, not folded into `.lifting`: the two lanes can
         // hold the SAME session (someone who imported a CSV export before connecting the API), and
@@ -321,6 +335,7 @@ public enum WorkoutSource: Equatable, Sendable {
         case .apple:        return "apple"
         case .detected:     return "detected"
         case .manual:       return "manual"
+        case .confirmed:    return "confirmed"
         case .lifting:      return "lifting"
         case .activityFile: return "activityFile"
         case .hevy:         return "hevy"

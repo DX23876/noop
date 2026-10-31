@@ -405,7 +405,7 @@ struct PeriodGoalDetailView: View {
         switch WorkoutSource.classify(source) {
         case .whoop:        return String(localized: "Strap")
         case .apple:        return String(localized: "Health")
-        case .detected:     return String(localized: "Detected")
+        case .detected, .confirmed: return String(localized: "Detected")
         case .manual:       return String(localized: "Manual")
         case .lifting:      return String(localized: "Lifting log")
         case .activityFile: return String(localized: "File")

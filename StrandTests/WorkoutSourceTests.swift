@@ -55,6 +55,16 @@ final class WorkoutSourceTests: XCTestCase {
         XCTAssertEqual(f.apply(rows), rows)
     }
 
+    func testAConfirmedSuggestionIsFiledUnderDetectedAndCanBeMerged() {
+        let confirmed = WorkoutRow(startTs: 0, endTs: 600, sport: "Walking",
+                                   source: WorkoutSource.confirmedSuggestionSource, durationS: 600,
+                                   energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil, distanceM: nil,
+                                   zonesJSON: nil, notes: nil, steps: nil)
+        XCTAssertEqual(WorkoutFilter(sourceClass: .detected).apply([confirmed]), [confirmed])
+        XCTAssertEqual(WorkoutFilter(sourceClass: .manual).apply([confirmed]), [])
+        XCTAssertTrue(WorkoutMerge.isMergeable(confirmed))
+    }
+
     func testFilterSportSourceAndSearchCompose() {
         let run = fullRow(start: 100, end: 3700, sport: "Running", source: "whoop")
         let manualRun = fullRow(start: 5000, end: 8600, sport: "Running", source: "manual")

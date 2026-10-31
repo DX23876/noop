@@ -522,7 +522,7 @@ struct WorkoutDetailView: View {
         // audit checks locale coverage OF catalog entries, not that a `String(localized:)` literal has one.
         // It would have read English on every non-English device while the gate stayed green.
         case .apple, .whoop, .lifting, .activityFile, .hevy, .oura: return "Imported"
-        case .detected, .manual: return "Recorded on device"
+        case .detected, .manual, .confirmed: return "Recorded on device"
         }
     }
 
@@ -533,7 +533,7 @@ struct WorkoutDetailView: View {
         // string opens with, which is the part that was untrue for a route another app collected.
         case .apple, .whoop, .lifting, .activityFile, .hevy, .oura:
             return String(localized: "This stays on your device. It is never uploaded, never synced, never shared.")
-        case .detected, .manual:
+        case .detected, .manual, .confirmed:
             return String(localized: "Your GPS route for this session, recorded and stored on your device. Nothing leaves your phone.")
         }
     }
@@ -723,7 +723,7 @@ struct WorkoutDetailView: View {
             switch WorkoutSource.classify(source) {
             case .whoop:    return (String(localized: "Whoop"), StrandPalette.accent)
             case .apple:    return (String(localized: "Apple"), StrandPalette.metricCyan)
-            case .detected: return (String(localized: "Detected"), StrandPalette.metricPurple)
+            case .detected, .confirmed: return (String(localized: "Detected"), StrandPalette.metricPurple)
             case .manual:   return (String(localized: "Manual"), StrandPalette.statusWarning)
             case .hevy:     return (String(localized: "Hevy"), StrandPalette.zone2)
             case .lifting:  return (String(localized: "Lifting"), StrandPalette.zone2)

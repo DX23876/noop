@@ -16,6 +16,26 @@ final class WorkoutSourceTests: XCTestCase {
                    strain: strain, distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
     }
 
+    // MARK: - confirmed activity-detection suggestions (decision 2026-10-31)
+
+    func testAConfirmedSuggestionHasItsOwnClassAndBehavesLikeAHandLoggedRow() {
+        let source = WorkoutSource.confirmedSuggestionSource
+        XCTAssertFalse(source.hasSuffix("-noop"), "would read as a legacy detected bout")
+        XCTAssertEqual(WorkoutSource.classify(source), .confirmed)
+        XCTAssertEqual(WorkoutSource.classify("DETECTED-CONFIRMED"), .confirmed)
+        XCTAssertEqual(WorkoutSource.sourceLabel(row(start: 0, end: 60, sport: "Walking", source: source)),
+                       "confirmed")
+        XCTAssertTrue(WorkoutSource.confirmed.isWearerLogged)
+        XCTAssertTrue(WorkoutSource.confirmed.isStrapNative)
+        XCTAssertEqual(EnergySummaryPreparation.contributionSource(source), .manual)
+    }
+
+    func testOnlyRowsFromTheStrapTraceAreStrapNative() {
+        let strapNative = [WorkoutSource.whoop, .apple, .detected, .manual, .confirmed, .lifting, .activityFile,
+                           .hevy, .oura].filter(\.isStrapNative)
+        XCTAssertEqual(strapNative, [.detected, .manual, .confirmed])
+    }
+
     // MARK: - cross-source dedup (#687)
 
     private func richRow(start: Int, end: Int, sport: String, source: String) -> WorkoutRow {

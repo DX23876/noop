@@ -82,7 +82,8 @@
   "v78-workout-elevation",
   "v79-goal-preference-state",
   "v80-host-input-ownership",
-  "v81-ecg-waveform"
+  "v81-ecg-waveform",
+  "v82-activity-suggestion-answer"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -5179,6 +5180,115 @@
     "sequence"
    ],
    "indices": []
+  },
+  "activitySuggestionAnswer": {
+   "platform": "ios_only",
+   "reason": "Fork activity-detection answers (GRDB v82, decision 2026-10-31). Android reads this store through the shared core; Room has no twin.",
+   "columns": [
+    {
+     "name": "track",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "candidateStartTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "candidateEndTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "answer",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "sport",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "origin",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "shownKind",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "shownScore",
+     "affinity": "REAL",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "modelVersion",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startWeightVersion",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "shownAtTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "answeredAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "workoutDeviceId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "workoutStartTs",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "workoutSport",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "track",
+    "candidateStartTs"
+   ],
+   "indices": [
+    {
+     "name": "idx_activitySuggestionAnswer_candidateEndTs",
+     "unique": false,
+     "columns": [
+      "candidateEndTs"
+     ]
+    }
+   ]
   }
  }
 }

@@ -66,12 +66,18 @@ struct WorkoutFilter: Equatable {
             || !search.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// The class a row is filed under in the source filter: a confirmed suggestion carries the Detected
+    /// badge, so it is found under Detected rather than as an option of its own.
+    static func filterClass(_ source: WorkoutSource) -> WorkoutSource {
+        source == .confirmed ? .detected : source
+    }
+
     /// Does one row pass every active facet? Sport matches on the DISPLAYED name (so "detected" folds to
     /// "Activity", camelCase splits) exactly as the picker lists it; source matches on `classify`; search
     /// is a case-insensitive substring of the displayed sport.
     func matches(_ row: WorkoutRow) -> Bool {
         if let sport, WorkoutSource.displaySport(row.sport) != sport { return false }
-        if let sourceClass, WorkoutSource.classify(row.source) != sourceClass { return false }
+        if let sourceClass, Self.filterClass(WorkoutSource.classify(row.source)) != sourceClass { return false }
         let q = search.trimmingCharacters(in: .whitespaces)
         if !q.isEmpty,
            WorkoutSource.displaySport(row.sport).range(of: q, options: .caseInsensitive) == nil {
@@ -101,7 +107,7 @@ enum WorkoutMerge {
     /// least two eligible rows.
     static func isMergeable(_ row: WorkoutRow) -> Bool {
         switch WorkoutSource.classify(row.source) {
-        case .manual, .detected: return true
+        case .manual, .confirmed, .detected: return true
         case .whoop, .apple, .lifting, .activityFile, .hevy, .oura: return false
         }
     }
