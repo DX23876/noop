@@ -363,6 +363,34 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         }, "the import must re-derive the day, not reuse it: \(host.lines)")
     }
 
+    /// With activity detection on, the pass stores the day's suggestions for the screens to read; off, it
+    /// stores nothing. The walk-shaped bout of the fixture has no step stream, so it is a heart-rate span.
+    func testThePassStoresActivitySuggestionsOnlyWhenDetectionIsOn() async throws {
+        let store = try await WhoopStore.inMemory()
+        let (start, _) = try await seedYesterday(store, walk: true, lowHour: false)
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let host = Host()
+        host.dayCycleMode = .midnight
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        let walkStart = start + 15 * 3_600
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        var stored = try await store.activityCandidates(deviceId: "my-whoop", from: start, to: start + 86_400)
+        XCTAssertTrue(stored.isEmpty)
+
+        host.bools[ActivitySuggestions.enabledKey] = true
+        host.traces = [.workouts]
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        stored = try await store.activityCandidates(deviceId: "my-whoop", from: start, to: start + 86_400)
+        let hit = try XCTUnwrap(stored.first { $0.track == "heartRate" && abs($0.startTs - walkStart) <= 120 },
+                                "got \(stored)")
+        XCTAssertEqual((hit.endTs - hit.startTs) / 60, 35, accuracy: 2)
+        XCTAssertEqual(hit.ruleVersion, ActivityCandidates.ruleVersion)
+        XCTAssertTrue(host.lines.contains { $0.hasPrefix("activityShadow") && $0.contains("track=heartRate rule=activity-v1") },
+                      "got \(host.lines.filter { $0.hasPrefix("activityShadow") })")
+    }
+
     /// The Workouts test mode writes one shadow line per bout of the day, scored against the wearer's own
     /// entries; a confirmed suggestion is not ground truth, a hand-logged session is. Off, nothing is written.
     func testShadowLinesScoreEachBoutAgainstTheWearersOwnEntries() async throws {

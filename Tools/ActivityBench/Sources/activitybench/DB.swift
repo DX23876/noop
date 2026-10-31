@@ -129,3 +129,35 @@ extension ReadOnlyDB {
         return out
     }
 }
+
+extension ReadOnlyDB {
+    /// Minutes as the candidate tracks read them: mean heart rate where at least 30 seconds were measured,
+    /// the step counter's rise and the strap's class seconds where a step stream exists, and whether the
+    /// minute lies in a sleep session.
+    func minutes(device: String, from: Int, to: Int,
+                 sleep: [ActivityDetectionScore.Span]) throws -> [ActivityCandidates.Minute] {
+        var hr: [Int: Double] = [:]
+        try query("""
+            SELECT (ts / 60) * 60, AVG(bpm), COUNT(*) FROM hrSample
+            WHERE deviceId = '\(device)' AND ts >= \(from) AND ts < \(to) GROUP BY ts / 60
+            """) { s in
+            if ReadOnlyDB.int(s, 2) >= 30 { hr[ReadOnlyDB.int(s, 0)] = sqlite3_column_double(s, 1) }
+        }
+        var steps: [Int: (steps: Int, walk: Int, run: Int, classed: Int)] = [:]
+        try query("""
+            SELECT (ts / 60) * 60, MAX(counter) - MIN(counter), SUM(activityClass = 1), SUM(activityClass = 2),
+                   SUM(activityClass IS NOT NULL) FROM stepSample
+            WHERE deviceId = '\(device)' AND ts >= \(from) AND ts < \(to) GROUP BY ts / 60
+            """) { s in
+            steps[ReadOnlyDB.int(s, 0)] = (max(0, ReadOnlyDB.int(s, 1)), ReadOnlyDB.int(s, 2), ReadOnlyDB.int(s, 3),
+                                           ReadOnlyDB.int(s, 4))
+        }
+        let sortedSleep = sleep.sorted { $0.start < $1.start }
+        return Set(hr.keys).union(steps.keys).sorted().map { ts in
+            let st = steps[ts]
+            let asleep = sortedSleep.contains { ts >= $0.start && ts < $0.end }
+            return ActivityCandidates.Minute(ts: ts, bpm: hr[ts], steps: st?.steps, walkSeconds: st?.walk,
+                                             runSeconds: st?.run, classSeconds: st?.classed, asleep: asleep)
+        }
+    }
+}

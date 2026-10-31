@@ -4101,6 +4101,23 @@ public final class DailyAnalysis {
             _ = try? await store.upsertDayScanFingerprints(scanFingerprints, deviceId: computedId)
         }
 
+        markPostLoopPhase("activity")
+        // Activity detection (plan blocks 5 and 6): the recent days' suggestions, stored for the Today prompt,
+        // the inbox, the logging sheet and notifications. Shown, never scored; off unless the wearer turned it on.
+        if host.storedBool(ActivitySuggestions.enabledKey),
+           let found = try? await ActivitySuggestions.refresh(store: store, deviceId: deviceId, computedId: computedId,
+                                                              hrMax: maxHeartRateToday.wholeBpm, now: now),
+           workoutsTraceActive {
+            let spans = found.map { ActivityDetectionScore.Span(start: $0.start, end: $0.end) }
+            let matched = ActivityDetectionScore.match(candidates: spans, labels: activityShadowLabels)
+            for (i, c) in found.enumerated() {
+                host.diagnostic(ActivityDetectionScore.shadowLine(
+                    day: ActivitySuggestions.dayKey(c.start, .current), track: c.track.rawValue,
+                    ruleVersion: ActivityCandidates.ruleVersion, span: spans[i], avgBpm: c.avgBpm ?? 0,
+                    matchedKind: matched[i].map { activityShadowLabels[$0].kind }), domain: .workouts)
+            }
+        }
+
         markPostLoopPhase("workouts")
         // Fork: a workout recorded while the strap link was down was saved without heart rate; once a sync
         // has brought the strap's own trace for it, its average, peak and Effort come from that trace

@@ -2,7 +2,7 @@ import Foundation
 import StrandAnalytics
 
 // activitybench --db PATH --from YYYY-MM-DD --to YYYY-MM-DD [--device my-whoop] [--split YYYY-MM-DD]
-//               [--own-bundle-marker noop] [--min-awake-hours 8]
+//               [--own-bundle-marker noop] [--min-awake-hours 8] [--hr-max BPM] [--dump YYYY-MM-DD]
 //
 // Prints, per detector, hits per kind, suggestions without an entry per worn awake day and the start and
 // end error, with week-bootstrap intervals. `--split` reports the days before and from that date apart
@@ -16,6 +16,8 @@ struct Options {
     var split: String?
     var ownBundleMarker = "noop"
     var minAwakeHours = 8.0
+    var hrMax: Int?
+    var dump: String?
 
     static func parse(_ args: [String]) -> Options? {
         var o = Options()
@@ -32,6 +34,8 @@ struct Options {
             case "--split": o.split = value
             case "--own-bundle-marker": o.ownBundleMarker = value
             case "--min-awake-hours": o.minAwakeHours = Double(value) ?? o.minAwakeHours
+            case "--hr-max": o.hrMax = Int(value)
+            case "--dump": o.dump = value
             default: return nil
             }
             i += 2
@@ -40,24 +44,48 @@ struct Options {
     }
 }
 
+/// What a detector sees for one local day: that day's minutes and heart rate, the two weeks of minutes
+/// before it, and the day's resting and maximum heart rate. Never a later day.
+struct DayInput {
+    let hr: [(ts: Int, bpm: Int)]
+    let minutes: [ActivityCandidates.Minute]
+    let history: [ActivityCandidates.Minute]
+    let restingHR: Int?
+    let hrMax: Int
+}
+
 /// A detector as the bench runs it: the shipped rule, fed one local day.
 struct Detector {
     let name: String
-    let run: (_ hr: [(ts: Int, bpm: Int)], _ restingBpm: Int?) -> [ActivityDetectionScore.Span]
+    let run: (DayInput) -> [ActivityDetectionScore.Span]
+}
+
+func newTracks(_ d: DayInput, level: ActivityCandidates.Level?, tracks: Set<ActivityCandidates.Track>)
+    -> [ActivityDetectionScore.Span] {
+    guard let resting = d.restingHR else { return [] }
+    let everyday = ActivityCandidates.everydayHRR(history: d.history, restingHR: resting, hrMax: d.hrMax)
+    return ActivityCandidates.candidates(d.minutes, restingHR: resting, hrMax: d.hrMax, everydayHRR: everyday)
+        .filter { tracks.contains($0.track) && (level.map($0.asks) ?? true) }
+        .map { .init(start: $0.start, end: $0.end) }
 }
 
 let detectors: [Detector] = [
     // Today's published rule (resting + 30 bpm, 12 min), the "old" side of every paired comparison.
-    Detector(name: "today") { hr, resting in
-        AutoWorkoutDetector.detect(hr: hr, restingBpm: resting)
+    Detector(name: "today") { d in
+        AutoWorkoutDetector.detect(hr: d.hr, restingBpm: d.restingHR)
             .map { .init(start: $0.startSec, end: $0.endSec) }
     },
+    Detector(name: "walk") { newTracks($0, level: nil, tracks: [.walk]) },
+    Detector(name: "heartRate (no minimum load)") { newTracks($0, level: nil, tracks: [.heartRate]) },
+    Detector(name: "both, more") { newTracks($0, level: .more, tracks: [.walk, .heartRate]) },
+    Detector(name: "both, balanced") { newTracks($0, level: .balanced, tracks: [.walk, .heartRate]) },
+    Detector(name: "both, only clear") { newTracks($0, level: .onlyClear, tracks: [.walk, .heartRate]) },
 ]
 
 guard let opts = Options.parse(CommandLine.arguments) else {
     FileHandle.standardError.write(Data("""
         usage: activitybench --db PATH --from YYYY-MM-DD --to YYYY-MM-DD [--device my-whoop]
-                             [--split YYYY-MM-DD] [--own-bundle-marker noop] [--min-awake-hours 8]
+                             [--split YYYY-MM-DD] [--own-bundle-marker noop] [--min-awake-hours 8] [--hr-max BPM]
 
         """.utf8))
     exit(2)
@@ -115,6 +143,20 @@ do {
         let awake = Set(hr.lazy.filter { s in !sleep.contains { s.ts >= $0.start && s.ts < $0.end } }.map(\.ts)).count
         if Double(awake) >= opts.minAwakeHours * 3_600 { wornDays.append(start) }
     }
+    // Two weeks of history before the first day, for the everyday level; sixty days for the maximum.
+    let historyStart = rangeStart - 14 * 86_400
+    let allMinutes = try db.minutes(device: opts.device, from: historyStart - 46 * 86_400, to: rangeEndExclusive,
+                                    sleep: try db.sleepSpans(device: opts.device, from: historyStart - 47 * 86_400,
+                                                             to: rangeEndExclusive))
+    func minutes(_ from: Int, _ to: Int) -> [ActivityCandidates.Minute] {
+        let lo = allMinutes.partitionIndex { $0.ts >= from }, hi = allMinutes.partitionIndex { $0.ts >= to }
+        return Array(allMinutes[lo..<hi])
+    }
+    /// The highest minute mean of the sixty days before, at least 150: the maximum the app could have known.
+    func trailingHRMax(before start: Int) -> Int {
+        let peak = minutes(start - 60 * 86_400, start).compactMap(\.bpm).max() ?? 0
+        return max(150, Int(peak.rounded()))
+    }
 
     print("activitybench \(opts.from) to \(opts.to), device \(opts.device): \(dayStarts.count) days, "
           + "\(wornDays.count) worn awake days (≥ \(opts.minAwakeHours) h), \(entries.count) unique entries")
@@ -126,7 +168,21 @@ do {
             // one takes the day before. Never a later day: the bench must not see what the app could not.
             let day = dayFormat.string(from: Date(timeIntervalSince1970: TimeInterval(start + 43_200)))
             let previousDay = dayFormat.string(from: Date(timeIntervalSince1970: TimeInterval(start - 43_200)))
-            candidates += detector.run(hrByDay[start] ?? [], resting[day] ?? resting[previousDay])
+            let end = start + 86_400 + 3_600
+            let input = DayInput(hr: hrByDay[start] ?? [],
+                                 minutes: minutes(start, end).filter { $0.ts < start + 86_400 },
+                                 history: minutes(start - 14 * 86_400, start),
+                                 restingHR: resting[day] ?? resting[previousDay],
+                                 hrMax: opts.hrMax ?? trailingHRMax(before: start))
+            let found = detector.run(input)
+            if opts.dump == day {
+                let f = DateFormatter()
+                f.dateFormat = "HH:mm"
+                print("dump \(detector.name) \(day) resting \(input.restingHR.map(String.init) ?? "-") max \(input.hrMax): "
+                      + found.map { "\(f.string(from: Date(timeIntervalSince1970: TimeInterval($0.start))))"
+                          + "-\(f.string(from: Date(timeIntervalSince1970: TimeInterval($0.end))))" }.joined(separator: ", "))
+            }
+            candidates += found
         }
         let matched = ActivityDetectionScore.match(candidates: candidates, labels: entries)
         func outcomes(_ keep: (Int) -> Bool) -> [Outcome] {

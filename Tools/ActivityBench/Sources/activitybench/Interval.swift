@@ -80,3 +80,16 @@ struct SplitMix64 {
         return z ^ (z >> 31)
     }
 }
+
+extension Array {
+    /// The first index whose element satisfies `isAtOrAfter`, for an array sorted so that the predicate is
+    /// false then true. Binary search, so a day's slice of two months of minutes is cheap.
+    func partitionIndex(_ isAtOrAfter: (Element) -> Bool) -> Int {
+        var lo = 0, hi = count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if isAtOrAfter(self[mid]) { hi = mid } else { lo = mid + 1 }
+        }
+        return lo
+    }
+}

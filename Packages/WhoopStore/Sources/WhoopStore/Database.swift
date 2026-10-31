@@ -2055,6 +2055,11 @@ extension WhoopStore {
         migrator.registerMigration("v82-activity-suggestion-answer") { db in
             try WhoopStore.createActivitySuggestionAnswerTable(db)
         }
+        // The daily pass's activity-detection suggestions, a rolling window the pass rewrites (decision
+        // 2026-10-31). Read by screens and notifications, never scored. Additive, so no score goes stale.
+        migrator.registerMigration("v83-activity-candidate") { db in
+            try WhoopStore.createActivityCandidateTable(db)
+        }
         return migrator
     }
 }
