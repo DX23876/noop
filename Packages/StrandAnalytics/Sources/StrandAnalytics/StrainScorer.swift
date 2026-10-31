@@ -22,7 +22,9 @@ import WhoopProtocol
 // log map (`trimpToStrain`, `strainDenominator`) for its Effort view.
 //
 // References: Karvonen 1957 (%HRR); Edwards 1993 (5-zone TRIMP, zone buckets); Banister 1991
-// (exponential TRIMP, Training Load lane); Gellish 2007 (HRmax start value).
+// (exponential TRIMP, Training Load lane; Morton, Fitz-Clarke and Banister 1990 publish 0.64·e^(1.92x) for
+// men and 0.86·e^(1.67x) for women, selected together, see `BanisterCoefficients`); Gellish 2007 (HRmax
+// start value).
 
 public enum StrainScorer {
 
@@ -82,12 +84,13 @@ public enum StrainScorer {
     static var lnStrainDenominator: Double { log(strainDenominator) }
 
     /// Banister's daily ceiling: 24 h held at ΔHRR = 1.0. Unlike Edwards' 7200 this is SEX-DEPENDENT,
-    /// because the exponent `b` differs — which is the whole reason `strainDenominator` cannot be reused
+    /// because BOTH coefficients differ — which is the whole reason `strainDenominator` cannot be reused
     /// for it. Feeding Banister TRIMP through the Edwards denominator would score every day against a
-    /// ceiling ~14% (men) or ~32% (women) higher than Banister can actually reach, so nobody would ever
-    /// see 100 and the two methods would not be on the same axis. (#1545)
-    static func banisterDailyCeiling(b: Double) -> Double {
-        24.0 * 60.0 * 1.0 * banisterScale * exp(b)
+    /// ceiling ~13% (men) or ~9% (women) higher than Banister can actually reach, so nobody would ever
+    /// see 100 and the two methods would not be on the same axis. (#1545; women's ceiling 6,579 with the
+    /// published 0.86 since upstream #2835, men's unchanged at 6,286.)
+    static func banisterDailyCeiling(_ c: BanisterCoefficients) -> Double {
+        24.0 * 60.0 * 1.0 * c.scale * exp(c.b)
     }
 
     /// Fallback per-sample duration (minutes) — 1 s at 1 Hz.
@@ -101,8 +104,28 @@ public enum StrainScorer {
     /// Upper percentile for the observed-HRmax estimate.
     public static let hrmaxPercentile: Double = 99.5
 
-    /// Banister coefficients.
+    /// Banister's two coefficients, which are a PAIR and travel as one (upstream #2835, ported to the fork's
+    /// Training Load lane).
+    ///
+    /// Morton, Fitz-Clarke and Banister (1990) publish `0.64·e^(1.92x)` for men and `0.86·e^(1.67x)` for
+    /// women. The lane held the exponent per sex and the multiplier as a single 0.64 for everyone, so a
+    /// woman was priced with the women's exponent and the men's multiplier: neither published pair. One
+    /// value for both makes selecting half of a pair impossible to express.
+    public struct BanisterCoefficients: Equatable, Sendable {
+        /// The multiplier: 0.64 men, 0.86 women, 0.75 neither.
+        public let scale: Double
+        /// The exponent: 1.92 men, 1.67 women, 1.795 neither.
+        public let b: Double
+        public init(scale: Double, b: Double) {
+            self.scale = scale
+            self.b = b
+        }
+    }
+
+    /// The published numbers, as named constants. `banisterScale` is the men's multiplier (upstream keeps
+    /// the name for its parity ledger). Read them through `banisterCoefficients(sex:)`, never one half alone.
     public static let banisterScale: Double = 0.64
+    public static let banisterScaleWomen: Double = 0.86
     public static let banisterBMen: Double = 1.92
     public static let banisterBWomen: Double = 1.67
 
@@ -385,13 +408,13 @@ public enum StrainScorer {
     ///   day would net negative and clamp to zero — erasing exactly the intermittent effort this recipe
     ///   exists to capture.
     static func banisterTRIMP(_ hr: [HRSample], restingHR: Double, hrReserve: Double,
-                              durations: [Double], b: Double,
+                              durations: [Double], _ c: BanisterCoefficients,
                               floorRatePerMinute: Double = 0.0) -> Double {
         var acc = 0.0
         for i in hr.indices {
             let x = pctHRR(Double(hr[i].bpm), restingHR: restingHR, hrReserve: hrReserve) / 100.0
             if x > 0 {
-                let rate = x * banisterScale * exp(b * x)
+                let rate = x * c.scale * exp(c.b * x)
                 acc += durations[i] * max(rate - floorRatePerMinute, 0.0)
             }
         }
@@ -496,28 +519,32 @@ public enum StrainScorer {
 
     // MARK: - Training Load cardio lane (Banister)
 
-    /// Banister's coefficient when the profile names neither male nor female: the mean of the two
-    /// published values (1.92 and 1.67), NOOP's own choice rather than a published one.
+    /// Banister's exponent when the profile names neither male nor female: the mean of the two published
+    /// values (1.92 and 1.67), NOOP's own choice rather than a published one.
     public static let banisterBNeutral: Double = 1.795
+    /// The multiplier paired with `banisterBNeutral`: the mean of the published 0.64 and 0.86. A fork
+    /// decision like the exponent (2026-10-30), so a profile without a sex sits between the two published
+    /// pairs in both halves instead of taking the men's multiplier.
+    public static let banisterScaleNeutral: Double = 0.75
 
-    /// The coefficient for the cardio lane: 1.92 for "male", 1.67 for "female", `banisterBNeutral`
-    /// for anything else. Daily Effort keeps its own male/female rule (`logMapDenominator`).
-    public static func banisterCoefficient(sex: String) -> Double {
+    /// The pair for the cardio lane: the men's for "male", the women's for "female", the neutral pair
+    /// for anything else (an unset or nonbinary profile).
+    public static func banisterCoefficients(sex: String) -> BanisterCoefficients {
         switch sex.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "male": return banisterBMen
-        case "female": return banisterBWomen
-        default: return banisterBNeutral
+        case "male": return BanisterCoefficients(scale: banisterScale, b: banisterBMen)
+        case "female": return BanisterCoefficients(scale: banisterScaleWomen, b: banisterBWomen)
+        default: return BanisterCoefficients(scale: banisterScaleNeutral, b: banisterBNeutral)
         }
     }
 
     /// Banister TRIMP (1991) for the Training Load cardio lane: every reading contributes its minutes ×
-    /// ΔHRR × 0.64 × e^(b·ΔHRR), ΔHRR = (HR − resting) / (HRmax − resting) clamped to [0, 1].
+    /// ΔHRR × scale × e^(b·ΔHRR) (`banisterCoefficients(sex:)`), ΔHRR = (HR − resting) / (HRmax − resting) clamped to [0, 1].
     ///
     /// Continuous where Edwards is a step function: one beat across a zone edge moved a whole weight
     /// step. No sedentary floor — a training session is priced whole, unlike the daily Effort scorer,
     /// which subtracts the cost of a waking day. The same reading guards as daily Effort, but a gap longer
     /// than two minutes contributes nothing rather than two minutes. `effort` is the result
-    /// mapped onto Effort's Banister axis for this coefficient.
+    /// mapped onto Effort's Banister axis for this pair.
     public static func banisterTrainingLoad(_ hr: [HRSample], maxHR: Double, restingHR: Double,
                                             sex: String) -> CardioLoadResult? {
         let reserve = maxHR - restingHR
@@ -525,19 +552,18 @@ public enum StrainScorer {
         let ordered = hr.sorted { $0.ts < $1.ts }
         let span = max(0, (ordered.last?.ts ?? 0) - (ordered.first?.ts ?? 0))
         guard hasEnoughReadings(ordered, span: span) else { return nil }
-        let b = banisterCoefficient(sex: sex)
         let trimp = banisterTRIMP(ordered, restingHR: restingHR, hrReserve: reserve,
-                                  durations: laneDurations(ordered), b: b)
+                                  durations: laneDurations(ordered), banisterCoefficients(sex: sex))
         return CardioLoadResult(trimp: trimp, effort: banisterLaneEffort(trimp, sex: sex),
                                 sampleCount: ordered.count, spanSeconds: span)
     }
 
-    /// A lane TRIMP on Effort's 0–100 axis, against Banister's daily ceiling for the same coefficient.
+    /// A lane TRIMP on Effort's 0–100 axis, against Banister's daily ceiling for the same pair.
     public static func banisterLaneEffort(_ trimp: Double, sex: String) -> Double {
-        trimpToStrain(trimp, denominator: banisterDailyCeiling(b: banisterCoefficient(sex: sex)) + 1.0)
+        trimpToStrain(trimp, denominator: banisterDailyCeiling(banisterCoefficients(sex: sex)) + 1.0)
     }
 
-    /// Banister's original form from a session's average heart rate: minutes × ΔHRR × 0.64 × e^(b·ΔHRR).
+    /// Banister's original form from a session's average heart rate: minutes × ΔHRR × scale × e^(b·ΔHRR).
     ///
     /// Only an estimate — an average hides the intervals the exponential weights most, so it reads low
     /// for uneven sessions. The Training Load history uses it for old workouts that kept no trace, marked
@@ -547,7 +573,8 @@ public enum StrainScorer {
         let reserve = maxHR - restingHR
         guard minutes > 0, averageHR > 0, restingHR > 0, reserve > 0 else { return nil }
         let x = pctHRR(averageHR, restingHR: restingHR, hrReserve: reserve) / 100.0
-        return minutes * x * banisterScale * exp(banisterCoefficient(sex: sex) * x)
+        let c = banisterCoefficients(sex: sex)
+        return minutes * x * c.scale * exp(c.b * x)
     }
 
     /// The reading guard both lane recipes share: a dense stream, or a sparse one spanning ten minutes.

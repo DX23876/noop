@@ -222,6 +222,62 @@ class FramingTest {
         assertEquals(0, r.parsed["battery_charging"])
     }
 
+    private fun hexBytes(s: String): ByteArray = ByteArray(s.length / 2) { s.substring(2 * it, 2 * it + 2).toInt(16).toByte() }
+
+    @Test
+    fun parse_whoop5BatteryLevel_onCharger_flagAtByte29_highVoltageKept() {
+        // Real BATTERY_LEVEL(3) from a WHOOP MG on its charger (fw 50.41.1.0, 2026-10-31): 99.7 % at
+        // 4472 mV, byte 29 = 1, byte 30 = 0. Byte 30 is 0 in every one of that capture's 185 on-charger
+        // events, so reading it reported "not charging" throughout; 4472 is above the old 4300 cap.
+        // Twin of Whoop5EventTests.testBatteryLevelEventOnChargerReadsFlagAndHighVoltage.
+        val r = Framing.parseFrame(
+            hexBytes("aa01240001002eb130f3030057b0e56a9939140002e50300007811000001003611030007000000008eb2a782"),
+            DeviceFamily.WHOOP5,
+        )
+        assertEquals(true, r.crcOk)
+        assertEquals("BATTERY_LEVEL(3)", r.parsed["event"])
+        assertEquals(99.7, r.parsed["battery_pct"] as Double, 1e-9)
+        assertEquals(4472, r.parsed["battery_mV"])
+        assertEquals(1, r.parsed["battery_charging"])
+    }
+
+    @Test
+    fun parse_whoop5BatteryLevel_offCharger_flagZero() {
+        // Real worn, not-charging BATTERY_LEVEL(3): 49.9 %, 3833 mV, byte 29 = 0. Twin of
+        // Whoop5EventTests.testBatteryLevelEventDecodesPayload.
+        val r = Framing.parseFrame(
+            hexBytes("aa01240001002eb130350300a589266a5118140002f3010000f90e00000000340806003500000000358eb56f"),
+            DeviceFamily.WHOOP5,
+        )
+        assertEquals(3833, r.parsed["battery_mV"])
+        assertEquals(0, r.parsed["battery_charging"])
+    }
+
+    @Test
+    fun parse_whoop5Hello_publishesStrapSerialNotDeviceName() {
+        // SYNTHETIC GET_HELLO(145), the Swift fixture: "WHOOP-FAKE01" at pay[16], fw 50.38.1.0 at pay[93].
+        // The text at pay[16] is the strap serial (it starts with the MG prefix "5AM" on a real MG), so it
+        // is published as strap_serial and never as a device name. Twin of
+        // Whoop5CommandResponseTests.testHelloStrapSerialAndFirmware / testHelloWordAt89IsCarriedRaw.
+        val fixture = hexBytes(
+            "aa0174000001ffe12401910000000000000000000000000000000057484f4f502d46414b453031000000000000000000" +
+                "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+                "000000000000000032260100000000000000000000000000a30d90ed",
+        )
+        val r = Framing.parseFrame(fixture, DeviceFamily.WHOOP5)
+        assertEquals(true, r.crcOk)
+        assertEquals("WHOOP-FAKE01", r.parsed["strap_serial"])
+        assertNull(r.parsed["device_name"])
+        assertEquals("50.38.1.0", r.parsed["fw_version"])
+        assertEquals(0L, (r.parsed["hello_u32_89"] as Number).toLong())
+
+        val pay = fixture.copyOfRange(11, fixture.size - 4)
+        pay[89] = 82
+        val rebuilt = Framing.parseFrame(Framing.puffinCommandFrame(cmd = 145, seq = 1, payload = pay, type = 36), DeviceFamily.WHOOP5)
+        assertEquals(true, rebuilt.crcOk)
+        assertEquals(82L, (rebuilt.parsed["hello_u32_89"] as Number).toLong())
+    }
+
     @Test
     fun parse_metadata_historyEnd() {
         // METADATA HISTORY_END(2): unix=1699999999, trim=123456.

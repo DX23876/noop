@@ -102,6 +102,11 @@ public enum WorkoutSource: Equatable, Sendable {
         }
     }
 
+    /// The dismissed spans as `[start, end)` ranges, as the daily analysis excludes them from Effort.
+    public static func dismissedWindows(_ raw: [String]) -> [Range<Int>] {
+        parseDismissedSpans(raw).map { $0.start ..< $0.end }
+    }
+
     /// The "startTs:endTs" token persisted for a dismissed row (caller appends it to the defaults list).
     public static func dismissedToken(for row: WorkoutRow) -> String { "\(row.startTs):\(row.endTs)" }
 

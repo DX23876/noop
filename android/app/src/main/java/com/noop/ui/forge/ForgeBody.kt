@@ -85,16 +85,19 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
 @Composable
 private fun WeightCard(b: CoreBody.Snapshot, onLog: (Double) -> Unit, onDelete: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
+    // Settings › Units: weights show and are typed in pounds for an imperial wearer; the core stores kilograms.
+    val units = com.noop.ui.UnitPrefs.system(androidx.compose.ui.platform.LocalContext.current)
     SettingsCard(title = stringResource(R.string.forge_body_weight), blurb = null) {
         b.weight.lastOrNull()?.let {
-            Text(stringResource(R.string.forge_body_kg, one(it.value)), style = Forge.type.title2, color = Forge.colors.text)
+            Text(weightLabel(it.value, units), style = Forge.type.title2, color = Forge.colors.text)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(value = text, onValueChange = { v -> text = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6) },
                               singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                              suffix = { Text("kg") }, modifier = Modifier.weight(1f), colors = forgeFieldColors())
+                              suffix = { Text(com.noop.ui.UnitFormatter.massUnit(units)) }, modifier = Modifier.weight(1f),
+                              colors = forgeFieldColors())
             Spacer(Modifier.width(ForgeMetrics.space2))
-            val kg = text.replace(',', '.').toDoubleOrNull()
+            val kg = weightForStore(text, units)
             TextButton(enabled = kg != null && kg > 0, onClick = { kg?.let(onLog); text = "" }) {
                 Text(stringResource(R.string.forge_body_log_weight))
             }
@@ -104,7 +107,7 @@ private fun WeightCard(b: CoreBody.Snapshot, onLog: (Double) -> Unit, onDelete: 
             b.weighIns.take(5).forEach { w ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(w.day, style = Forge.type.body, color = Forge.colors.textSecondary, modifier = Modifier.weight(1f))
-                    Text(stringResource(R.string.forge_body_kg, one(w.value)), style = Forge.type.body, color = Forge.colors.text)
+                    Text(weightLabel(w.value, units), style = Forge.type.body, color = Forge.colors.text)
                     w.id?.let { id -> TextButton(onClick = { onDelete(id) }) { Text(stringResource(R.string.forge_body_delete)) } }
                 }
             }
@@ -177,6 +180,16 @@ private fun MeasureCard(b: CoreBody.Snapshot, onCancel: () -> Unit, onSave: (Map
 }
 
 private val Int.dp1 get() = androidx.compose.ui.unit.Dp(this.toFloat())
+
+/** A stored weight (kg) as the wearer's units show it. */
+@Composable
+private fun weightLabel(kg: Double, units: com.noop.ui.UnitSystem): String =
+    if (units == com.noop.ui.UnitSystem.IMPERIAL) stringResource(R.string.forge_body_lb, one(com.noop.ui.UnitFormatter.kgToPounds(kg)))
+    else stringResource(R.string.forge_body_kg, one(kg))
+
+/** The typed weight in kilograms: pounds converted for an imperial wearer; null when it is not a number. */
+internal fun weightForStore(text: String, units: com.noop.ui.UnitSystem): Double? =
+    text.replace(',', '.').toDoubleOrNull()?.takeIf { it.isFinite() }?.let { TrainingSetInput.massForStore(it, units) }
 
 private fun one(v: Double): String =
     NumberFormat.getNumberInstance(Locale.getDefault()).apply { minimumFractionDigits = 1; maximumFractionDigits = 1 }.format(v)

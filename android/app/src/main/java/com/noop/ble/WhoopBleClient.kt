@@ -58,6 +58,7 @@ import com.noop.protocol.FeatureFlagProbeReport
 import com.noop.protocol.Framing
 import com.noop.protocol.HapticClock
 import com.noop.protocol.Reassembler
+import com.noop.protocol.SetClockPayload
 import com.noop.protocol.Whoop5Variant
 import com.noop.protocol.RebootProbeVariant
 import com.noop.protocol.Streams
@@ -2666,7 +2667,30 @@ class WhoopBleClient(
         }
     }
 
-    /** Fail-safe for a producer left armed by a crash, another client, or a lost stop write. */
+    /**
+     * Fail-safe for a producer left armed by a crash, another client, or a lost stop write.
+     *
+     * A live MG ECG record is EXEMPT (#2846). Type 43 is `REALTIME_RAW_DATA`, which is also the type an
+     * MG emits during an ECG capture: an R17 record is type 43, revision 17. Nothing else in this guard
+     * knows a capture exists, so before the exemption the fail-safe fired every 30 s for as long as
+     * generation ran, which was measured as 49 unrequested `STOP_RAW_DATA` + `TOGGLE_IMU_MODE` pairs in
+     * one 25-minute session (#891). The recording survived it; the app was still telling the strap to
+     * stop a producer it had started itself.
+     *
+     * The exemption keys on the FRAME, not on probe state, and that is the load-bearing choice. Neither
+     * flag describes generation's lifetime: [ecgProbeListening] covers the 60 s listen window and
+     * [ecgProbeArmed] only a send burst, while generation runs to the strap's own 10-minute limit, so a
+     * state-keyed carve-out would go quiet for a minute and then resume writing into the rest of the
+     * recording. [ecgMayBeRunning] does outlive the window, and is the worse choice for the opposite
+     * reason: it stays latched until a completed stop, so keying on it would disarm the fail-safe for
+     * exactly the abandoned sessions it exists to recover. Per-frame keeps that recovery intact, because
+     * an orphaned IMU producer streaming alongside a capture emits frames that do not decode as R17.
+     *
+     * [Whoop5Ecg.r17FromFrame] is the same predicate [noteEcgProbeCandidate] counts a packet with, so the
+     * probe and this guard cannot disagree about whether a frame is ECG. It is checked last because it is
+     * the only test that walks the body: the state and rate-limit checks short-circuit ahead of it.
+     * Swift twin: `BLEManager.stopUnexpectedRealtimeImu`.
+     */
     @Synchronized
     private fun stopUnexpectedRealtimeImu(frame: ByteArray, replayedOffload: Boolean) {
         if (connectedFamily != DeviceFamily.WHOOP5 || replayedOffload || frame.size <= 8) return
@@ -2676,6 +2700,7 @@ class WhoopBleClient(
         val now = System.currentTimeMillis()
         if (now - groundTruthImuStoppedAtMs < 3_000L || now - unexpectedImuStopAtMs < 30_000L) return
         if (gatt == null || cmdCharacteristic == null) return
+        if (Whoop5Ecg.r17FromFrame(frame) != null) return
         unexpectedImuStopAtMs = now
         groundTruthImuCommandAllowed = true
         try {
@@ -4235,6 +4260,10 @@ class WhoopBleClient(
         if (id.isEmpty()) return
         deviceId = id
         backfiller.deviceId = id
+        // Fork (DX23876): the shared core banks the same frames and must file them under the same strap; its
+        // union reads also pick up the registry as it stands now.
+        com.noop.core.CoreShadow.followActive(id)
+        ioScope.launch { com.noop.core.CoreShadow.followDevices(context, id) }
     }
 
     /**
@@ -6180,7 +6209,7 @@ class WhoopBleClient(
         // SEND_HISTORICAL_DATA with response through the ordinary path, so if with-response is the thing
         // this strap will not do, the log separates that cleanly from the stages above rather than
         // wedging the queue before any of them can be read.
-        send(CommandNumber.SET_CLOCK, setClockPayload())
+        send(CommandNumber.SET_CLOCK, SetClockPayload.withSubseconds(System.currentTimeMillis()))
         send(CommandNumber.GET_CLOCK, byteArrayOf())
         if (!backfillStarted) {
             backfillStarted = true
@@ -10120,14 +10149,17 @@ class WhoopBleClient(
     /**
      * Send SET_CLOCK in every payload form the WHOOP 4 firmware family is known to accept (8-byte for
      * newer firmware, 9-byte for 41.17.x — each a no-op on the other). Both carry the same `now`, so
-     * double-latching is harmless. WHOOP 5/MG keeps its single hardware-validated 8-byte send, so the
-     * legacy form is gated to WHOOP 4. Port of `BLEManager.sendSetClockBothForms`. (#120)
+     * double-latching is harmless. WHOOP 5/MG keeps its single 8-byte send, with real subseconds
+     * ([SetClockPayload]), so the legacy form is gated to WHOOP 4. Port of `BLEManager.sendSetClockBothForms`. (#120)
      */
     private fun sendSetClockBothForms(withResponse: Boolean = false) {
-        val now = System.currentTimeMillis() / 1000L
-        send(CommandNumber.SET_CLOCK, setClockPayload(now), withResponse = withResponse)
+        val nowMs = System.currentTimeMillis()
         if (selectedModel == WhoopModel.WHOOP4) {
+            val now = nowMs / 1000L
+            send(CommandNumber.SET_CLOCK, setClockPayload(now), withResponse = withResponse)
             send(CommandNumber.SET_CLOCK, setClockPayloadLegacy(now), withResponse = withResponse)
+        } else {
+            send(CommandNumber.SET_CLOCK, SetClockPayload.withSubseconds(nowMs), withResponse = withResponse)
         }
     }
 
@@ -10654,7 +10686,8 @@ class WhoopBleClient(
                 connectHandshakeDone = true
                 _state.update { it.copy(historyReady = true) }
                 noteRebootReconnectIfNeeded()
-                send(CommandNumber.SET_CLOCK, setClockPayload(), withResponse = true)
+                // Real subseconds (1/32768 s) so the strap is not floored up to a second behind.
+                send(CommandNumber.SET_CLOCK, SetClockPayload.withSubseconds(System.currentTimeMillis()), withResponse = true)
                 send(CommandNumber.GET_CLOCK, byteArrayOf(), withResponse = true)
                 // Populate the battery ring right after connect, not only once the Live screen opens. Posted
                 // after the clock writes settle so the 0x2A19 read does not race them on a slow stack.

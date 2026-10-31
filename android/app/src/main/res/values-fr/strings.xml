@@ -4191,6 +4191,7 @@
     <string name="forge_body_height">Taille</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Pas encore de mesures au mètre. Touchez Mesurer pour enregistrer une séance.</string>
     <string name="forge_body_cancel">Annuler</string>
     <string name="forge_body_weigh_ins">Pesées</string>
@@ -4961,6 +4962,7 @@
     <string name="forge_profile_not_set">Non défini</string>
     <string name="forge_profile_change_photo">Changer de photo</string>
     <string name="forge_profile_choose_photo">Choisir une photo</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Effort recalibré</string>
     <string name="forge_library_find_muscle">Chercher par muscle</string>
     <string name="forge_library_create_own">Créer votre propre exercice</string>
     <string name="forge_library_exercises_for">Exercices pour %1$s</string>
@@ -4977,4 +4979,6 @@
     <string name="forge_library_region">Région du corps</string>
     <string name="forge_library_any_region">Toute région du corps</string>
     <string name="forge_tile_rest_hr">FC repos</string>
+    <string name="forge_lab_strength_effort">Force dans l’effort</string>
+    <string name="forge_lab_strength_effort_detail">Les séances de force que vous évaluez après l’entraînement s’ajoutent à l’effort au-delà de votre pouls, davantage pour une évaluation plus dure et une séance plus longue. Les séances non évaluées n’ajoutent rien. Calibré sur WHOOP avec un effort supposé de 7 sur 10.</string>
 </resources>

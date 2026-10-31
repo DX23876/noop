@@ -2375,12 +2375,33 @@ public final class BLEManager: NSObject, ObservableObject {
     }
 
     /// Stop a realtime IMU producer left armed after a crash, lost stop write, or another client.
+    ///
+    /// A live MG ECG record is EXEMPT (#2846). Type 43 is `REALTIME_RAW_DATA`, which is also the type an
+    /// MG emits during an ECG capture: an R17 record is type 43, revision 17. Nothing else in this guard
+    /// knows a capture exists, so before the exemption the fail-safe fired every 30 s for as long as
+    /// generation ran — 49 unrequested `stopRawData` + `toggleIMUMode` pairs measured in one 25-minute
+    /// session (#891). The recording survived it; the app was still telling the strap to stop a producer
+    /// it had started itself.
+    ///
+    /// The exemption keys on the FRAME, not on probe state, and that is the load-bearing choice. Neither
+    /// flag describes generation's lifetime: `ecgProbeArmed` covers only the listen window while
+    /// generation runs to the strap's own 10-minute limit, so a state-keyed carve-out would go quiet for
+    /// a minute and then resume writing into the rest of the recording. `ecgMayBeRunning` does outlive
+    /// the window, and is the worse choice for the opposite reason: it stays latched until a completed
+    /// stop, so keying on it would disarm the fail-safe for exactly the abandoned sessions it exists to
+    /// recover. Per-frame keeps that recovery intact, because an orphaned IMU producer streaming
+    /// alongside a capture emits frames that do not decode as R17.
+    ///
+    /// `r17FromFrame` is the same predicate `noteEcgProbeCandidate` counts a packet with, so the probe
+    /// and this guard cannot disagree about whether a frame is ECG. It is last in the guard because it is
+    /// the only clause that walks the body: the state and rate-limit checks short-circuit ahead of it.
     private func stopUnexpectedRealtimeImu(_ frame: [UInt8], isOffload: Bool, now: Date = Date()) {
         guard selectedModel.deviceFamily == .whoop5, !isOffload, frame.count > 8,
               frame[8] == 43 || frame[8] == 51,
               !rawCaptureInFlight, !UserDefaults.standard.bool(forKey: "enableRawCapture"),
               now.timeIntervalSince(rawCaptureStoppedAt) >= 3,
-              now.timeIntervalSince(unexpectedImuStopAt) >= 30 else { return }
+              now.timeIntervalSince(unexpectedImuStopAt) >= 30,
+              Whoop5Ecg.r17FromFrame(frame) == nil else { return }
         unexpectedImuStopAt = now
         send(.stopRawData, payload: [0x01], writeType: .withResponse)
         send(.toggleIMUMode, payload: [0x01, 0x00], writeType: .withResponse)
@@ -7365,8 +7386,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // with metadata only. Same 8-byte payload as the WHOOP4 handshake, puffin-framed;
                 // GET_CLOCK's reply rides the puffin notify chars and never touches the WHOOP4
                 // clockRef correlation path. The 1.5s deferral below keeps clock-before-history.
-                // Hardware-validated ordering (#78 fork).
-                send(.setClock, payload: BLEManager.setClockPayload())
+                // Hardware-validated ordering (#78 fork). Real subseconds (1/32768 s): the zero fraction
+                // floored the strap up to a second behind (`SetClockPayload`).
+                send(.setClock, payload: SetClockPayload.withSubseconds(epochMs: BLEManager.nowEpochMs()))
                 send(.getClock, payload: [])
                 // #1823: say what was SENT, not what resulted. This previously read "clock synced —
                 // strap can persist history now", logged before any reply had arrived, so a log could
@@ -7510,7 +7532,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
     }
 
     /// SET_CLOCK(10) payload — the 8-byte form `[seconds u32 LE][subseconds u32 LE]`, subseconds in
-    /// 1/32768 s (0 is fine). The payload LENGTH is firmware-specific and LOAD-BEARING: newer WHOOP 4
+    /// 1/32768 s, left 0 here for WHOOP 4 (WHOOP 5/MG sends `SetClockPayload.withSubseconds`). The payload LENGTH is firmware-specific and LOAD-BEARING: newer WHOOP 4
     /// firmware latches this form, but fw 41.17.x ignores it outright — no COMMAND_RESPONSE, RTC
     /// unchanged — and latches only the legacy 9-byte form below. A strap that misses the set keeps an
     /// invalid RTC and stops banking sensor data to flash entirely, which surfaces as endless
@@ -7536,15 +7558,23 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
 
     /// Send SET_CLOCK in every payload form the WHOOP 4 firmware family is known to accept (8-byte for
     /// newer firmware, 9-byte for 41.17.x — each a no-op on the other). Both carry the same `now`, so
-    /// double-latching is harmless. WHOOP 5/MG keeps its single hardware-validated 8-byte send (its
-    /// connect path calls setClockPayload() directly; the 9-byte form is unverified on that family), so
-    /// the legacy form is gated to WHOOP 4. (#120)
+    /// double-latching is harmless. WHOOP 5/MG keeps its single 8-byte send, with real subseconds
+    /// (`SetClockPayload`; the 9-byte form is unverified on that family), so the legacy form is gated to
+    /// WHOOP 4. (#120)
     func sendSetClockBothForms() {
-        let now = UInt32(Date().timeIntervalSince1970)
-        send(.setClock, payload: BLEManager.setClockPayload(now: now))
-        if selectedModel.deviceFamily == .whoop4 {
+        switch selectedModel.deviceFamily {
+        case .whoop4:
+            let now = UInt32(Date().timeIntervalSince1970)
+            send(.setClock, payload: BLEManager.setClockPayload(now: now))
             send(.setClock, payload: BLEManager.setClockPayloadLegacy(now: now))
+        case .whoop5:
+            send(.setClock, payload: SetClockPayload.withSubseconds(epochMs: BLEManager.nowEpochMs()))
         }
+    }
+
+    /// The phone's Unix time in whole milliseconds, for a clock body that carries the fraction.
+    static func nowEpochMs() -> Int64 {
+        Int64((Date().timeIntervalSince1970 * 1000).rounded(.down))
     }
 
     /// Newest plausible-unix marker in a GET_DATA_RANGE COMMAND_RESPONSE = the strap's newest stored

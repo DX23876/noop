@@ -253,12 +253,15 @@ public enum AnalysisRecipe {
         target * 100 + step.rawValue + 1
     }
 
-    /// The first step still owed for `target`, given the stored rebuild cursor. A position written for
-    /// another target (an older bump that never finished, or none) starts the rebuild from the beginning.
-    public static func firstOwedStep(target: Int, storedPosition: Int?) -> RebuildStep {
-        guard let storedPosition, storedPosition / 100 == target,
-              let step = RebuildStep(rawValue: storedPosition % 100) else { return .legacyRepairs }
-        return step
+    /// The first step still owed for `target`, given the stored rebuild cursor, or nil once every step is
+    /// done (the position after the last step: a rebuild stopped between that write and the recipe cursor's
+    /// only has the recipe cursor left to write). A position written for another target (an older bump that
+    /// never finished, or none) starts the rebuild from the beginning.
+    public static func firstOwedStep(target: Int, storedPosition: Int?) -> RebuildStep? {
+        guard let storedPosition, storedPosition / 100 == target else { return .legacyRepairs }
+        let next = storedPosition % 100
+        if next > RebuildStep.allCases.last!.rawValue { return nil }
+        return RebuildStep(rawValue: next) ?? .legacyRepairs
     }
 
     /// Repairs of stored INPUTS that older recipes shipped. They fix rows the rebuild reads, so a store that

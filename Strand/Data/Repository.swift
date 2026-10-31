@@ -3319,6 +3319,11 @@ final class Repository: ObservableObject {
     /// `dismissedDetectedSpans` for the Repository extensions in other files.
     var dismissedDetectedWorkoutSpans: [String] { dismissedDetectedSpans }
 
+    /// The same spans as windows, for the daily analysis (`AnalysisDataServices`).
+    func dismissedDetectedWorkoutWindows() -> [Range<Int>] {
+        WorkoutSource.dismissedWindows(dismissedDetectedSpans)
+    }
+
     private var dismissedDetectedSpans: [String] {
         get { UserDefaults.standard.stringArray(forKey: WorkoutSource.dismissedDefaultsKey) ?? [] }
         set { UserDefaults.standard.set(newValue, forKey: WorkoutSource.dismissedDefaultsKey) }

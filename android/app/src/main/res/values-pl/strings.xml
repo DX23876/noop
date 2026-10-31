@@ -4208,6 +4208,7 @@
     <string name="forge_body_height">Wysokość</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Brak pomiarów taśmą. Dotknij Zmierz, aby zapisać sesję.</string>
     <string name="forge_body_cancel">Anuluj</string>
     <string name="forge_body_weigh_ins">Pomiary masy ciała</string>
@@ -4978,6 +4979,7 @@
     <string name="forge_profile_not_set">Nie ustawiono</string>
     <string name="forge_profile_change_photo">Zmień zdjęcie</string>
     <string name="forge_profile_choose_photo">Wybierz zdjęcie</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Wysiłek na nowo skalibrowany</string>
     <string name="forge_library_find_muscle">Szukaj według mięśnia</string>
     <string name="forge_library_create_own">Utwórz własne ćwiczenie</string>
     <string name="forge_library_exercises_for">Ćwiczenia: %1$s</string>
@@ -4994,4 +4996,6 @@
     <string name="forge_library_region">Część ciała</string>
     <string name="forge_library_any_region">Dowolna część ciała</string>
     <string name="forge_tile_rest_hr">Odpoczynek HR</string>
+    <string name="forge_lab_strength_effort">Siła w wysiłku</string>
+    <string name="forge_lab_strength_effort_detail">Sesje siłowe, które oceniasz po treningu, zwiększają wysiłek ponad to, co pokazuje tętno, tym bardziej, im wyższa ocena i dłuższa sesja. Sesje bez oceny nic nie dodają. Skalibrowane względem WHOOP przy założonym wysiłku 7 na 10.</string>
 </resources>

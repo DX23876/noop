@@ -3034,6 +3034,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { rescoreAfterEdit() }
     }
 
+    /**
+     * Lab: rated strength sessions add to Effort (#2438). As on iOS the flip scores the whole history again in the
+     * core, unchanged days reused, so a store imported from an iPhone moves too, not only the last three weeks.
+     */
+    fun setEffortStrengthBonus(enabled: Boolean) {
+        com.noop.core.CoreFeatures.setEffortStrengthBonus(appContext, enabled)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                com.noop.core.CoreShadow.ensureStarted(appContext, deviceId)
+                val experiment = PuffinExperiment.from(appContext)
+                val profile = currentProfile()
+                com.noop.core.CoreShadow.analyze(
+                    profile.age.toInt(), profile.sex, profile.weightKg, profile.heightCm,
+                    profileStore.hrMaxOverride, effortBanister = NoopPrefs.banisterEffort(appContext),
+                    sleepStagerV2 = experiment.experimentalSleepV2,
+                    motionAwareWake = experiment.motionAwareWake,
+                    deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
+                    dayCycleMode = NoopPrefs.dayCycleMode(appContext).persistedValue,
+                    healthspan = com.noop.core.CoreFeatures.healthspan(appContext),
+                    rhythmAge = com.noop.core.CoreFeatures.rhythmAge(appContext),
+                    extras = com.noop.core.CoreShadow.extras(appContext, profileStore,
+                        dismissedSleep = repository.dismissedSleeps(deviceId).map { it.startTs to it.endTs },
+                        dismissedWorkouts = repository.dismissedDetectedUnion(deviceId).map { it.startTs to it.endTs },
+                        spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(appContext),
+                        historyRescore = true))
+                com.noop.core.CoreShadow.awaitQueuedAnalysis()
+            }
+            rescoreAfterEdit()
+        }
+    }
+
     /** Recompute the selected sleep pipeline from stored data, including while offline. */
     fun setSleepStagerMethod(method: String) {
         val experiment = PuffinExperiment.from(appContext)

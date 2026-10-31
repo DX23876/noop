@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "12.0.0"
+    const val CURRENT_VERSION = "13.0.0"
 
     data class Release(
         val version: String,
@@ -37,6 +37,17 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "13.0.0",
+            title = uiString(R.string.l10n_app_changelog_effort_recalibrated_2e0ebab7),
+            date = "October 2026",
+            items = listOf(
+                "**Effort, recalibrated.** One curve, fitted on 3,760 workouts that 15 people shared. A quiet day no longer adds up to a moderate one, and hard training counts for more.",
+                "**Your own maximum heart rate.** NOOP learns it from the peaks you hold in workouts. Settings shows where the value comes from, and a value you enter always wins.",
+                "**Every day scored the same way.** After the update NOOP calculates your whole history again, once. Keep NOOP open; if it is closed, it continues where it stopped.",
+                "**A calmer start to the night.** Short quiet spells before you fall asleep no longer pull the start of the night forward. The earlier method stays in Settings.",
+            ),
+        ),
         Release(
             version = "12.0.0",
             title = uiString(R.string.l10n_app_changelog_today_your_way_heart_rate_any_5e1308b3),

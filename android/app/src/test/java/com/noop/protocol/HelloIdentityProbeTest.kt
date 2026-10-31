@@ -50,10 +50,11 @@ class HelloIdentityProbeTest {
         assertEquals("off=40 len=64 alnum (withheld)", lines[0])
     }
 
-    /** The device name is already surfaced by the decoder, so it is labelled rather than quoted. */
+    /** The run at pay[16] is the strap serial the decoder already publishes, so a mixed run there is
+     *  labelled rather than quoted. */
     @Test fun theKnownNameRunIsLabelledNotQuoted() {
         val lines = HelloIdentityProbe.candidateLines(payload(120, listOf(16 to "WHOOP-FAKE01")))
-        assertEquals("off=16 len=12 mixed (device name, already decoded)", lines[0])
+        assertEquals("off=16 len=12 mixed (strap serial, decoded)", lines[0])
     }
 
     /**
@@ -65,7 +66,7 @@ class HelloIdentityProbeTest {
      */
     @Test fun aSerialShapedRunAtTheNameOffsetIsStillPrinted() {
         val lines = HelloIdentityProbe.candidateLines(payload(120, listOf(16 to "3A1B2405003655")))
-        assertEquals("off=16 len=14 alnum (device name, already decoded) \"3A1B2405003655\"", lines[0])
+        assertEquals("off=16 len=14 alnum (strap serial, decoded) \"3A1B2405003655\"", lines[0])
     }
 
     /** Short runs are dropped. Binary payloads throw off two- and three-byte printable sequences by
@@ -83,7 +84,7 @@ class HelloIdentityProbeTest {
         )
         assertEquals(
             listOf(
-                "off=16 len=12 mixed (device name, already decoded)",
+                "off=16 len=12 mixed (strap serial, decoded)",
                 "off=40 len=10 alnum \"SER1234567\"",
                 "off=80 len=8 mixed (withheld)",
             ),

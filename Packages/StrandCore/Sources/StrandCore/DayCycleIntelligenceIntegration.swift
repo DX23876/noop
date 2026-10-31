@@ -142,7 +142,9 @@ public actor DayCycleIntelligenceIntegration {
 
     public func compute(nights: [Night], editedRows: [CachedSleepSession], store: WhoopStore,
                         candidates: [(owner: String, priority: Int)], physiologyOwners: [String],
-                        workouts: [WorkoutRow], strengthSessions: [StrengthEffort.Session] = [], windowStart: Int,
+                        workouts: [WorkoutRow], effortWorkoutSpans: [Range<Int>]? = nil,
+                        dismissedBouts: [Range<Int>] = [],
+                        strengthSessions: [StrengthEffort.Session] = [], windowStart: Int,
                         now: Int, offsetSec: Int, habitualMidsleepSec: Int?, ticksPerStep: Double,
                         mode: DayCycleMode,
                         profile: UserProfile, maxHROverride: Double?,
@@ -283,10 +285,12 @@ public actor DayCycleIntelligenceIntegration {
                         hrWitness.append("\(owner)=\(fp.map { "\($0.count):\($0.maxTs)" } ?? "unread")")
                     }
                 }
-                // Below 50 % HRR only workout time counts toward Effort (#2438): the stored workouts and
-                // the bouts detected for these nights, clipped to the cycle.
-                let effortSpans = (workouts.map { $0.startTs ..< $0.endTs }
-                                   + nights.flatMap(\.workouts).map { $0.start ..< $0.end })
+                // Below 50 % HRR only workout time counts toward Effort (#2438): the stored workouts (the
+                // pass's own `effortWorkoutSpans` when given, so the cycle reads the calendar day's funnel) and
+                // the bouts detected for these nights less the dismissed ones, clipped to the cycle.
+                let effortSpans = AnalyticsEngine.effortSpans(
+                    workouts: effortWorkoutSpans ?? workouts.map { $0.startTs ..< $0.endTs },
+                    detected: nights.flatMap(\.workouts), dismissed: dismissedBouts)
                     .filter { $0.lowerBound < window.endExclusive && window.onset < $0.upperBound }
                 let spanKey = effortSpans.map { "\($0.lowerBound)-\($0.upperBound)" }.sorted().joined(separator: ",")
                 // Rated strength sessions starting in the cycle (Lab, #2438).

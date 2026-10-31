@@ -210,15 +210,17 @@ internal object NotifPrefs {
 
     fun callLoops(ctx: Context): Int = callPattern(ctx).loops
 
-    fun inQuietHours(ctx: Context): Boolean {
+    /** Whether [at] (now by default) falls in the quiet hours; a snoozed notice asks for its fire time. */
+    fun inQuietHours(ctx: Context, at: Calendar = Calendar.getInstance()): Boolean {
         if (!getBool(ctx, QUIET, false)) return false
         val start = getInt(ctx, QUIET_START, 22 * 60)
         val end = getInt(ctx, QUIET_END, 7 * 60)
-        val cal = Calendar.getInstance()
-        val now = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-        // Quiet window may wrap midnight (e.g. 22:00 -> 07:00).
-        return if (start <= end) now in start until end else (now >= start || now < end)
+        return quietAt(at.get(Calendar.HOUR_OF_DAY) * 60 + at.get(Calendar.MINUTE), start, end)
     }
+
+    /** The quiet window may wrap midnight (e.g. 22:00 -> 07:00); [minute] is the minute of the day. */
+    internal fun quietAt(minute: Int, start: Int, end: Int): Boolean =
+        if (start <= end) minute in start until end else (minute >= start || minute < end)
 }
 
 // MARK: - Screen

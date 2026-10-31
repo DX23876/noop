@@ -4223,6 +4223,7 @@
     <string name="forge_body_height">Height</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">No tape measurements yet. Tap Measure to record a session.</string>
     <string name="forge_body_cancel">Cancel</string>
     <string name="forge_body_weigh_ins">Weigh-ins</string>
@@ -4997,6 +4998,7 @@
     <string name="forge_profile_not_set">Not set</string>
     <string name="forge_profile_change_photo">Change photo</string>
     <string name="forge_profile_choose_photo">Choose photo</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Effort, recalibrated</string>
     <string name="forge_library_find_muscle">Find by muscle</string>
     <string name="forge_library_create_own">Create your own exercise</string>
     <string name="forge_library_exercises_for">Exercises for %1$s</string>
@@ -5013,4 +5015,6 @@
     <string name="forge_library_region">Body region</string>
     <string name="forge_library_any_region">Any body region</string>
     <string name="forge_tile_rest_hr">Rest HR</string>
+    <string name="forge_lab_strength_effort">Strength in Effort</string>
+    <string name="forge_lab_strength_effort_detail">Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.</string>
 </resources>

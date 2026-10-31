@@ -4160,6 +4160,7 @@
     <string name="forge_body_height">Altezza</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Ancora nessuna misura con il metro. Tocca Misura per registrare una sessione.</string>
     <string name="forge_body_cancel">Annulla</string>
     <string name="forge_body_weigh_ins">Pesate</string>
@@ -4930,6 +4931,7 @@
     <string name="forge_profile_not_set">Non impostato</string>
     <string name="forge_profile_change_photo">Cambia foto</string>
     <string name="forge_profile_choose_photo">Scegli foto</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Sforzo ricalibrato</string>
     <string name="forge_library_find_muscle">Cerca per muscolo</string>
     <string name="forge_library_create_own">Crea il tuo esercizio</string>
     <string name="forge_library_exercises_for">Esercizi per %1$s</string>
@@ -4946,4 +4948,6 @@
     <string name="forge_library_region">Regione del corpo</string>
     <string name="forge_library_any_region">Qualsiasi regione del corpo</string>
     <string name="forge_tile_rest_hr">FC riposo</string>
+    <string name="forge_lab_strength_effort">Forza nello sforzo</string>
+    <string name="forge_lab_strength_effort_detail">Le sessioni di forza che valuti dopo l’allenamento si aggiungono allo sforzo oltre il battito, di più per una valutazione più dura e una sessione più lunga. Le sessioni non valutate non aggiungono nulla. Calibrato su WHOOP con uno sforzo presunto di 7 su 10.</string>
 </resources>

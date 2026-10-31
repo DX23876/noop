@@ -125,6 +125,12 @@ internal suspend fun dismissedTrainingWorkouts(context: android.content.Context)
     return app.repository.dismissedDetectedUnion(app.activeDeviceId).map { "${it.startTs}:${it.endTs}" }
 }
 
+/** Keeps only the live session page across an activity recreation; [TrainingPage.Session] has nothing to save. */
+private val SessionPageSaver = androidx.compose.runtime.saveable.Saver<TrainingPage?, String>(
+    save = { if (it == TrainingPage.Session) "session" else null },
+    restore = { if (it == "session") TrainingPage.Session else null },
+)
+
 /** What the Training tab has open over itself; one page at a time, as the Forge overlay host holds one. */
 private sealed interface TrainingPage {
     data object RatingPreferences : TrainingPage
@@ -162,7 +168,11 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     val scope = rememberCoroutineScope()
     var snapshot by remember { mutableStateOf<CoreTraining.Snapshot?>(null) }
     var revision by remember { mutableIntStateOf(0) }
-    var page by remember { mutableStateOf<TrainingPage?>(null) }
+    // The open strength session survives a rotation, dark mode or a language change (its draft is in the core);
+    // other pages hold objects that are not saved and close as before.
+    var page by androidx.compose.runtime.saveable.rememberSaveable(stateSaver = SessionPageSaver) {
+        mutableStateOf<TrainingPage?>(null)
+    }
     var deleting by remember { mutableStateOf<CoreTraining.Routine?>(null) }
     var showLive by remember { mutableStateOf(false) }
     var showAll by remember { mutableStateOf(false) }
@@ -796,7 +806,10 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // The rest after a completed set (`LiftSessionView.restBand`); the screen stays on while logging when asked.
-    var rest by remember { mutableStateOf<RunningRest?>(null) }
+    // Saveable, so a rotation, a dark-mode switch or a language change keeps the rest and its alarm running.
+    var rest by androidx.compose.runtime.saveable.rememberSaveable(stateSaver = RunningRest.Saver) {
+        mutableStateOf<RunningRest?>(null)
+    }
     KeepScreenOnWhileLogging()
     TrackLoggerOnScreen()
     var draft by remember { mutableStateOf<CoreTraining.Draft?>(null) }

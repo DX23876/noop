@@ -3351,5 +3351,10 @@
   "Optional: buy a coffee on Ko-fi. NOOP stays free either way.": "Facoltativo: offri un caffè su Ko-fi. NOOP resta gratuito in ogni caso.",
   "Support the project on Ko-fi": "Sostieni il progetto su Ko-fi",
   "Measured in your workouts, confirmed %@": "Misurata nei tuoi allenamenti, confermata il %@",
-  "Estimated from your age": "Stimata in base alla tua età"
+  "Estimated from your age": "Stimata in base alla tua età",
+  "Effort, recalibrated": "Sforzo ricalibrato",
+  "**Effort, recalibrated.** One curve, fitted on 3,760 workouts that 15 people shared. A quiet day no longer adds up to a moderate one, and hard training counts for more.": "**Sforzo ricalibrato.** Una sola curva, adattata su 3.760 allenamenti condivisi da 15 persone. Una giornata tranquilla non si somma più a una moderata, e l'allenamento intenso conta di più.",
+  "**Your own maximum heart rate.** NOOP learns it from the peaks you hold in workouts. Settings shows where the value comes from, and a value you enter always wins.": "**La tua frequenza cardiaca massima.** NOOP la impara dai picchi che mantieni negli allenamenti. Le Impostazioni mostrano da dove viene il valore, e un valore inserito da te vale sempre.",
+  "**Every day scored the same way.** After the update NOOP calculates your whole history again, once. Keep NOOP open; if it is closed, it continues where it stopped.": "**Ogni giorno valutato allo stesso modo.** Dopo l'aggiornamento NOOP ricalcola una volta tutta la tua cronologia. Tieni NOOP aperta; se viene chiusa, riprende da dove si era fermata.",
+  "**A calmer start to the night.** Short quiet spells before you fall asleep no longer pull the start of the night forward. The earlier method stays in Settings.": "**Un inizio della notte più prudente.** I brevi momenti di quiete prima di addormentarti non anticipano più l'inizio della notte. Il metodo precedente resta disponibile nelle Impostazioni."
 }

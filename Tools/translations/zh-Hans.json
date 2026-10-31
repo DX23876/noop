@@ -3358,5 +3358,10 @@
   "Optional: buy a coffee on Ko-fi. NOOP stays free either way.": "可选：在 Ko-fi 上请开发者喝杯咖啡。无论如何 NOOP 都免费。",
   "Support the project on Ko-fi": "在 Ko-fi 上支持本项目",
   "Measured in your workouts, confirmed %@": "根据你的训练测得，确认于 %@",
-  "Estimated from your age": "根据年龄估算"
+  "Estimated from your age": "根据年龄估算",
+  "Effort, recalibrated": "消耗重新校准",
+  "**Effort, recalibrated.** One curve, fitted on 3,760 workouts that 15 people shared. A quiet day no longer adds up to a moderate one, and hard training counts for more.": "**消耗重新校准。** 一条曲线，依据 15 人分享的 3760 次锻炼拟合。平静的一天不再累计成中等强度，高强度训练分量更重。",
+  "**Your own maximum heart rate.** NOOP learns it from the peaks you hold in workouts. Settings shows where the value comes from, and a value you enter always wins.": "**你自己的最大心率。** NOOP 从你在锻炼中保持的峰值学习它。设置会显示数值的来源，你输入的数值始终优先。",
+  "**Every day scored the same way.** After the update NOOP calculates your whole history again, once. Keep NOOP open; if it is closed, it continues where it stopped.": "**每一天都按同一方式评分。** 更新后，NOOP 会把你的全部历史重新计算一次。请保持 NOOP 打开；若被关闭，它会从中断处继续。",
+  "**A calmer start to the night.** Short quiet spells before you fall asleep no longer pull the start of the night forward. The earlier method stays in Settings.": "**更稳妥的入夜起点。** 入睡前短暂的安静时段不再把夜晚的开始提前。之前的方法仍可在设置中选择。"
 }

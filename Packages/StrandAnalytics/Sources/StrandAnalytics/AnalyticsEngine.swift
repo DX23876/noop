@@ -194,11 +194,50 @@ public enum AnalyticsEngine {
     /// This is a UTC midnight that callers pair with one captured offset and fixed 86,400-second blocks,
     /// so every boundary beyond a clock change sits an hour from the local midnight it names.
     /// `LocalDayWindows` is the zone-rule-correct primitive built to replace that, and is deliberately
-    /// called by nothing yet. This function remains the shipped answer until a switch-over lands; the two
-    /// disagree by an hour on the far side of a transition, and `LocalDayWindowsTests` pins both answers
-    /// so the difference is visible rather than discovered.
+    /// called by nothing yet. This function remains the shipped answer; the two disagree by an hour on
+    /// the far side of a transition, and `LocalDayWindowsTests` pins both answers so the difference is
+    /// visible rather than discovered.
+    ///
+    /// THE 24-HOUR DAY IS NOW A DECISION RATHER THAN AN OPEN QUESTION (#2517). A transition day stays
+    /// 86,400 seconds wide and the hour it misplaces is RECORDED instead of corrected, by
+    /// `dayWindowSkewLine` below. What that buys is stated plainly on that function: scoring keeps
+    /// one definition of a day, the per-sample integer window keeps its cost, and no stored day row moves.
     static func dayStartUtcSeconds(_ day: String) -> Int {
         Int(isoDay.date(from: day)?.timeIntervalSince1970 ?? 0)
+    }
+
+    /// The line a scored day emits when the local day it names is NOT the 86,400 seconds the day window
+    /// assumes (#2517). `nil` on every ordinary day, which is the point: this costs one integer compare
+    /// on the 363 days a year that have nothing to say.
+    ///
+    /// ALWAYS-ON rather than Test-Centre gated, and deliberately so. A clock change is the textbook
+    /// rare-event evidence the contribution guide says to leave always-on: it costs nothing when nothing
+    /// happens, it is exactly what is missing when somebody reports a strange day without a diagnostic
+    /// profile enabled, and it happens twice a year rather than twice a minute.
+    ///
+    /// WHAT IT ASSERTS, and no more. The day window is 86,400 seconds; the local day is
+    /// `86400 + (offsetAtStart - offsetAtFixedEnd)` seconds, because an offset that drops by an hour
+    /// lengthens the day by one. So the line names the real length, the window's length, and the signed
+    /// difference. It does NOT say which samples moved or which day they landed in: knowing that needs a
+    /// scan of the samples, this is derived from two offsets, and a line that claimed it would be
+    /// asserting more than it observed.
+    ///
+    /// Offsets rather than a zone identifier, and integers rather than names, for two reasons. A strap
+    /// log already carries the UTC offset, so this adds no new location detail about the person reading
+    /// it, where a zone name would. And the arithmetic is exact for any transition size, including the
+    /// 30- and 45-minute ones, which a hardcoded 3,600 would quietly get wrong.
+    ///
+    /// Cross-checked against `LocalDayWindows`, which computes the same length from the zone rules
+    /// instead: `AnalyticsEngineDayWindowSkewTests` asserts this arithmetic reproduces the 90,000 and
+    /// 82,800 second days that the committed `local_day_windows_oracle.json` already pins, so the cheap
+    /// path and the correct one are held to the same answer. Kotlin twin: `dayWindowSkewLine`.
+    public static func dayWindowSkewLine(day: String, offsetAtStart: Int,
+                                             offsetAtFixedEnd: Int) -> String? {
+        guard offsetAtStart != offsetAtFixedEnd else { return nil }
+        let realSeconds = 86_400 + (offsetAtStart - offsetAtFixedEnd)
+        let skewMin = (realSeconds - 86_400) / 60
+        return "day-window-skew day=\(day) realS=\(realSeconds) windowS=86400 skewMin=\(skewMin) "
+            + "offsetStart=\(offsetAtStart) offsetEnd=\(offsetAtFixedEnd) policy=keep-24h"
     }
 
     /// Skip the redundant calendar-day re-read in analyzeRecent's per-day scan (#997, ryanbr). For a
@@ -488,6 +527,9 @@ public enum AnalyticsEngine {
                                   // seconds). Inside them and inside the bouts detected here, heart rate
                                   // below 50 % HRR counts toward the day's Effort (#2438); elsewhere not.
                                   workoutSpans: [Range<Int>] = [],
+                                  // Detected bouts the wearer dismissed (`[start, end)`). A bout overlapping
+                                  // one is not workout time for Effort (`effortSpans`).
+                                  dismissedBouts: [Range<Int>] = [],
                                   // Load the day's rated strength sessions add before the curve (#2438).
                                   strengthLoad: Double = 0,
                                   // The day's aerobic ceiling (stored by the energy model), so a detected
@@ -935,7 +977,7 @@ public enum AnalyticsEngine {
         // to the night window for pure-function callers/tests. restingHR still comes from the night's
         // sleep sessions; nil → WorkoutDetector derives it from the day's own HR floor.
         var detectionFunnel: WorkoutDetector.DetectionFunnel? = nil
-        let workouts = WorkoutDetector.detect(
+        let workouts = detectDayBouts(
             hr: dayHr ?? hr, gravity: dayGravity ?? gravity,
             restingHR: restingHRDaily.map(Double.init),
             // #1545: the DAY's effective HRmax, not just the override. Passing `maxHROverride` meant an
@@ -952,7 +994,6 @@ public enum AnalyticsEngine {
             // its own day never applied. Still nil for an age-less profile, where the detector's own
             // estimate remains the only available fallback.
             maxHR: effMaxHR,
-            age: profile.age > 0 ? profile.age : nil,
             profile: profile,
             peakMET: workoutPeakMET,
             funnel: { detectionFunnel = $0 })
@@ -961,7 +1002,7 @@ public enum AnalyticsEngine {
         // diagnostics pays nothing; IntelligenceEngine passes its per-day recorder, the same one the
         // `workout detect` and `sleep-detect` lines beside it already use.
         // Scored after the workouts are known: below 50 % HRR only their time counts (#2438).
-        let effortSpans = workoutSpans + workouts.map { $0.start ..< $0.end }
+        let effortSpans = Self.effortSpans(workouts: workoutSpans, detected: workouts, dismissed: dismissedBouts)
         let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
                                          lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad,
                                          diag: strainDiag, day: day)
@@ -1147,6 +1188,27 @@ public enum AnalyticsEngine {
                          skinTempRelative: skinTempRelative,
                          detectionFunnel: detectionFunnel,
                          mainNightBlocks: mainGroup.map { SleepStageTotals.NightBlock(start: $0.start, end: $0.end) })
+    }
+
+    /// The day's workout detection (`WorkoutDetector.detect`) with the arguments `analyzeDay` gives it. The
+    /// current-day activity refresh detects through here too, so its bouts are the ones the daily pass finds
+    /// from the same streams.
+    public static func detectDayBouts(hr: [HRSample], gravity: [GravitySample], restingHR: Double?,
+                                      maxHR: Double?, profile: UserProfile, peakMET: Double? = nil,
+                                      funnel: ((WorkoutDetector.DetectionFunnel) -> Void)? = nil) -> [ExerciseSession] {
+        WorkoutDetector.detect(hr: hr, gravity: gravity, restingHR: restingHR, maxHR: maxHR,
+                               age: profile.age > 0 ? profile.age : nil, profile: profile,
+                               peakMET: peakMET, funnel: funnel)
+    }
+
+    /// The time in which heart rate below 50 % HRR counts toward Effort (#2438): the recorded and imported
+    /// workouts, and the detected bouts except one the wearer dismissed (half-open overlap, the rule the
+    /// Workouts list hides a dismissed row by). The daily pass, the activity refresh and the wake-day cycle
+    /// all take it from here, so a dismissed bout leaves every one of them.
+    public static func effortSpans(workouts: [Range<Int>], detected: [ExerciseSession],
+                                   dismissed: [Range<Int>]) -> [Range<Int>] {
+        workouts + detected.map { $0.start ..< $0.end }
+            .filter { bout in !dismissed.contains { $0.overlaps(bout) } }
     }
 
     /// The R-R rows the always-on `hrv diag` line describes (#2425). Pure. Byte-parity twin of Kotlin

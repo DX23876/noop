@@ -212,7 +212,7 @@ opaque, not silently converted to zero measurements.
 | Offset | Width / type | Meaning |
 |---:|---|---|
 | 10 | 4 / u32 | Unix-seconds timestamp |
-| 14 | 2 / u16 | Additional time field; scale and epoch coupling unresolved |
+| 14 | 2 / u16 | Sub-second part of the timestamp at 10, as OpenStrap and meta1971/noop-mg-ecg both read it; scale unconfirmed (the one real frame in the tests reads 18350, below 32768, consistent with the 1/32768 s of the event header) |
 | 16 | 1 / u8 | Heart rate, bpm |
 | 17 | 1 / u8 | Declared interval count |
 | 18 + 2i | 2 / u16 | R-R ticks, 1/1024 second |
@@ -221,8 +221,8 @@ Read at most the declared number of complete words before the CRC trailer. Omit
 zero intervals and never consume an incomplete word. For positive ticks, integer
 milliseconds are `(ticks * 1000 + 512) // 1024`. Use a wide enough intermediate
 for multiplication. No packet-local quality flag or independent absolute timestamp
-per interval is established. Do not reuse the unknown additional time field's
-scale from an unrelated clock command.
+per interval is established. Do not convert the sub-second field with the clock
+commands' 1/32768 s until a capture of live frames confirms that scale.
 
 ### R18: biometric summary
 

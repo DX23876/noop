@@ -54,11 +54,10 @@ enum LiveEffort {
         // the stored row simply won), which is why it went unnoticed. 200_000 is what every other
         // whole-window HR consumer passes. Found while merging upstream's inline twin of this read.
         let hr = await repo.hrSamples(from: from, to: to, limit: 200_000)
-        // Below 50 % HRR only workout time counts (#2438). The recorded and imported workouts are known
-        // here; the bouts the daily pass detects reach the stored value, which `effectiveEffort` prefers
-        // when it is larger.
-        let spans = await repo.rawWorkoutRows(from: from - 86_400, to: to + 1)
-            .filter { $0.endTs > $0.startTs }.map { $0.startTs ..< $0.endTs }
+        // Below 50 % HRR only workout time counts (#2438). The recorded and imported workouts come from the
+        // resolver the stored day reads (`DailyAnalysis.effortWorkoutSpans`); the bouts the daily pass detects
+        // reach the stored value, which `effectiveEffort` prefers when it is larger.
+        let spans = await DailyAnalysis.effortWorkoutSpans(services: repo, from: from - 86_400, to: to + 1)
         guard !Task.isCancelled else { return nil }
         return await runUnescalated {
             StrainScorer.strain(hr, maxHR: maxHR, restingHR: restHR, lowIntensity: .countedIn(spans))

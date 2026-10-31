@@ -4087,6 +4087,7 @@
     <string name="forge_body_height">Рост</string>
     <string name="forge_body_cm">%1$s см</string>
     <string name="forge_body_kg">%1$s кг</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Пока нет замеров лентой. Нажмите «Измерить», чтобы записать сессию.</string>
     <string name="forge_body_cancel">Отмена</string>
     <string name="forge_body_weigh_ins">Взвешивания</string>
@@ -4863,6 +4864,7 @@
     <string name="forge_profile_not_set">Не задано</string>
     <string name="forge_profile_change_photo">Изменить фото</string>
     <string name="forge_profile_choose_photo">Выбрать фото</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Усилие откалибровано заново</string>
     <string name="forge_library_find_muscle">Найти по мышце</string>
     <string name="forge_library_create_own">Создать своё упражнение</string>
     <string name="forge_library_exercises_for">Упражнения: %1$s</string>
@@ -4879,4 +4881,6 @@
     <string name="forge_library_region">Часть тела</string>
     <string name="forge_library_any_region">Любая часть тела</string>
     <string name="forge_tile_rest_hr">Пульс покоя</string>
+    <string name="forge_lab_strength_effort">Сила в усилии</string>
+    <string name="forge_lab_strength_effort_detail">Силовые тренировки, которые вы оцениваете после занятия, добавляют к усилию сверх пульса, тем больше, чем выше оценка и длиннее тренировка. Неоценённые тренировки ничего не добавляют. Откалибровано по WHOOP при предполагаемом усилии 7 из 10.</string>
 </resources>

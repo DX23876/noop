@@ -4184,6 +4184,7 @@
     <string name="forge_body_height">Altura</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Ainda não há medidas com fita. Toque em Medir para registar uma sessão.</string>
     <string name="forge_body_cancel">Cancelar</string>
     <string name="forge_body_weigh_ins">Pesagens</string>
@@ -4954,6 +4955,7 @@
     <string name="forge_profile_not_set">Não definido</string>
     <string name="forge_profile_change_photo">Alterar foto</string>
     <string name="forge_profile_choose_photo">Escolha a foto</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Esforço recalibrado</string>
     <string name="forge_library_find_muscle">Procurar por músculo</string>
     <string name="forge_library_create_own">Criar o seu próprio exercício</string>
     <string name="forge_library_exercises_for">Exercícios para %1$s</string>
@@ -4970,4 +4972,6 @@
     <string name="forge_library_region">Região do corpo</string>
     <string name="forge_library_any_region">Qualquer região do corpo</string>
     <string name="forge_tile_rest_hr">FC repouso</string>
+    <string name="forge_lab_strength_effort">Força no esforço</string>
+    <string name="forge_lab_strength_effort_detail">As sessões de força que avalias depois do treino somam ao esforço para lá do teu pulso, mais quanto mais dura for a avaliação e mais longa a sessão. Sessões sem avaliação não somam nada. Calibrado com a WHOOP assumindo um esforço de 7 em 10.</string>
 </resources>

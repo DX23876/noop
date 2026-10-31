@@ -102,7 +102,12 @@ public enum CardioLoadPricing {
     /// The version of `cardioLoadMethod`; bump it when that method's arithmetic changes. It is part of the
     /// ledger key and the in-memory memo key, so a new build cannot reuse a result produced by other
     /// semantics. Counted per method: a new method starts again at 1.
-    public static let cardiovascularLoadRecipeVersion = 1
+    ///
+    /// 2 (2026-10-30): Banister's published coefficients travel as a pair (`StrainScorer.BanisterCoefficients`,
+    /// upstream #2835): a woman is priced with 0.86·e^(1.67x) instead of the men's 0.64 beside her exponent, and
+    /// a profile without a sex with the mean pair 0.75·e^(1.795x). Men's loads are unchanged; every row is
+    /// priced again (`AnalysisRecipe.RebuildStep.cardioLoad`, and the ledger backfill for a store past it).
+    public static let cardiovascularLoadRecipeVersion = 2
     /// Sessions shorter than this are not priced: a TRIMP over a couple of minutes is dominated by the
     /// ramp in and out, and the coverage rule below could not tell a real trace from two stray samples.
     public static let cardioLoadMinimumSeconds = 600

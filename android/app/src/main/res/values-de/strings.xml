@@ -4205,6 +4205,7 @@
     <string name="forge_body_height">Größe</string>
     <string name="forge_body_cm">%1$s cm</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">Noch keine Bandmessungen. Tippe auf Messen, um eine Sitzung zu erfassen.</string>
     <string name="forge_body_cancel">Abbrechen</string>
     <string name="forge_body_weigh_ins">Messungen</string>
@@ -4975,6 +4976,7 @@
     <string name="forge_profile_not_set">Nicht festgelegt</string>
     <string name="forge_profile_change_photo">Foto ändern</string>
     <string name="forge_profile_choose_photo">Foto auswählen</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">Belastung neu kalibriert</string>
     <string name="forge_library_find_muscle">Nach Muskel suchen</string>
     <string name="forge_library_create_own">Eigene Übung erstellen</string>
     <string name="forge_library_exercises_for">Übungen für %1$s</string>
@@ -4991,4 +4993,6 @@
     <string name="forge_library_region">Körperregion</string>
     <string name="forge_library_any_region">Beliebige Körperregion</string>
     <string name="forge_tile_rest_hr">Ruhe-HF</string>
+    <string name="forge_lab_strength_effort">Kraft in der Belastung</string>
+    <string name="forge_lab_strength_effort_detail">Krafteinheiten, die du nach dem Training bewertest, erhöhen die Belastung über deinen Puls hinaus, stärker bei härterer Bewertung und längerer Einheit. Unbewertete Einheiten zählen nicht. An WHOOP abgestimmt, mit einer angenommenen Anstrengung von 7 von 10.</string>
 </resources>

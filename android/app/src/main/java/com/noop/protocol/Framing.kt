@@ -626,8 +626,9 @@ object Framing {
      * EVENT (type 48) for WHOOP 5.0/MG — the 4.0 layout + 4: event@10 (u8, EventNumber),
      * event_timestamp@12 (u32), opaque payload bytes @16..size-4 (kept as hex for protocol research —
      * real captures show uncatalogued events, e.g. 0x1D(29) with a 16-byte payload). For
-     * BATTERY_LEVEL the 4.0 payload decode shifts with it: soc%=u16@21/10, mV=u16@25, charging@30
-     * bit0 (mirrors Swift Interpreter's whoop5 event decode; all gated, fail closed). (#78 fork)
+     * BATTERY_LEVEL the 4.0 payload decode shifts with it: soc%=u16@21/10, mV=u16@25; the charger flag
+     * is @29, not the +4 image of 4.0's @26 (mirrors Swift Interpreter's whoop5 event decode; all gated,
+     * fail closed). (#78 fork)
      */
     private fun decodeEventWhoop5(frame: ByteArray, limit: Int, parsed: MutableMap<String, Any?>) {
         val evVal = frame.u8(10, limit) ?: return
@@ -639,8 +640,11 @@ object Framing {
         }
         if (EventNumber.fromRaw(evVal) == EventNumber.BATTERY_LEVEL) {
             frame.u16(21, limit)?.let { raw -> if (raw <= 1100) parsed["battery_pct"] = raw.toDouble() / 10.0 }
-            frame.u16(25, limit)?.let { mv -> if (mv in 3000..4300) parsed["battery_mV"] = mv }
-            frame.u8(30, limit)?.let { ch -> if (ch <= 1) parsed["battery_charging"] = ch and 1 }
+            // 4500, not 4300: an MG on its charger reports up to 4472 mV (2026-10-31 capture). The charger
+            // flag is byte 29: in that capture's 185 on-charger events byte 29 is 1 and byte 30 is 0 in
+            // every one, so reading byte 30 said "not charging" throughout.
+            frame.u16(25, limit)?.let { mv -> if (mv in 3000..4500) parsed["battery_mV"] = mv }
+            frame.u8(29, limit)?.let { ch -> if (ch <= 1) parsed["battery_charging"] = ch and 1 }
         }
     }
 
@@ -651,6 +655,20 @@ object Framing {
      * and 3=UNSUPPORTED matches our own MG haptics rejection, #48). GET_BATTERY_LEVEL carries a
      * direct percent at @13 (gated ≤100, fail closed; Swift parity — unused until the 5/MG
      * allowlist grows).
+     *
+     * WHICH COUNTER IS WHICH, measured, and the opposite of what #891 first recorded. Byte 11 is the ECHO
+     * of the seq THIS HOST sent: @meta1971's paired TX/RX capture matched it in 53 of 53 replies, and
+     * @vishk23 and @DX23876 agreed independently. Byte 9, which the parsed `seq` carries for a response,
+     * is the STRAP's own counter and matches nothing we sent. The first reading had the two the other way
+     * round and no frame could have settled it, because both counters were incrementing together at a
+     * near-constant offset; the paired capture is what separated them. Structurally the echo is also the
+     * more natural reading, since each sender's own seq sits at inner offset 1 in both directions.
+     *
+     * So `resp_seq` names the host's number coming back, not a strap sequence, and a duplicated value in
+     * a log is OUR write queue repeating a send (#791) rather than the strap repeating itself. The KEY
+     * keeps the name: it is published in strap logs and pinned by fixtures and tests on both platforms and
+     * on the 4.0 path, so renaming it is a contract change and belongs in its own commit rather than
+     * riding along with a comment correction. Swift twin: `decodeWhoop5CommandResponse`.
      */
     private fun decodeCommandResponseWhoop5(frame: ByteArray, limit: Int, parsed: MutableMap<String, Any?>) {
         val cmd = frame.u8(10, limit) ?: return
@@ -660,10 +678,11 @@ object Framing {
         if (CommandNumber.fromRaw(cmd) == CommandNumber.GET_BATTERY_LEVEL) {
             frame.u8(13, limit)?.let { pct -> if (pct <= 100) parsed["battery_pct"] = pct.toDouble() }
         }
-        // GET_HELLO (145): device name + firmware version. Mirrors the Swift Interpreter decode of the
-        // same 50.38.1.0 capture: payload base is frame[11]; the name is printable ASCII at pay[16],
-        // the firmware is 4 bytes at pay[93] gated on pay[93]==50 (the "5.x" generation). The session
-        // token in the same block is deliberately never read. Surfaced on the Devices card.
+        // GET_HELLO (145): strap serial + firmware version. Mirrors the Swift Interpreter decode: payload
+        // base is frame[11]; the serial is printable ASCII at pay[16] (first read as a device name, but
+        // on a WHOOP MG it starts with the MG serial prefix "5AM", #1303; nothing logs it), the firmware
+        // is 4 bytes at pay[93] gated on pay[93]==50 (the "5.x" generation). The session token in the
+        // same block is deliberately never read.
         if (cmd == 145) {
             val payEnd = limit // payload only: stops where the CRC32 trailer starts (D7)
             if (payEnd > 11) {
@@ -675,7 +694,12 @@ object Framing {
                 ) {
                     name.append((pay[i].toInt() and 0xFF).toChar()); i++
                 }
-                if (name.length >= 6) parsed["device_name"] = name.toString()
+                if (name.length >= 6) parsed["strap_serial"] = name.toString()
+                // Carried raw for comparison across straps: 0 on the MG capture. Meaning not established.
+                if (pay.size >= 93) {
+                    parsed["hello_u32_89"] = (pay[89].toLong() and 0xFF) or ((pay[90].toLong() and 0xFF) shl 8) or
+                        ((pay[91].toLong() and 0xFF) shl 16) or ((pay[92].toLong() and 0xFF) shl 24)
+                }
                 if (pay.size >= 97 && (pay[93].toInt() and 0xFF) == 50) {
                     parsed["fw_version"] = "${pay[93].toInt() and 0xFF}.${pay[94].toInt() and 0xFF}." +
                         "${pay[95].toInt() and 0xFF}.${pay[96].toInt() and 0xFF}"

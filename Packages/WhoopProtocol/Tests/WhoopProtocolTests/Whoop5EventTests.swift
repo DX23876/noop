@@ -41,6 +41,22 @@ final class Whoop5EventTests: XCTestCase {
         XCTAssertEqual(f.parsed["battery_charging"]?.intValue, 0)
     }
 
+    /// Real BATTERY_LEVEL(3) event from a WHOOP MG on its charger (fw 50.41.1.0, 2026-10-31 capture):
+    /// 99.7 % at 4472 mV. Every one of the capture's 185 battery events, all taken on the charger, has
+    /// byte 29 = 1 and byte 30 = 0, so the charger flag is byte 29; the old read of byte 30 reported
+    /// "not charging" for every one. 4472 mV is above the old 4300 cap, which dropped the voltage.
+    private let chargingBatteryEventHex =
+        "aa01240001002eb130f3030057b0e56a9939140002e50300007811000001003611030007000000008eb2a782"
+
+    func testBatteryLevelEventOnChargerReadsFlagAndHighVoltage() {
+        let f = parseFrame(bytes(chargingBatteryEventHex), family: .whoop5)
+        XCTAssertEqual(f.crcOK, true)
+        XCTAssertEqual(f.parsed["event"]?.stringValue, "BATTERY_LEVEL(3)")
+        XCTAssertEqual(f.parsed["battery_pct"]?.doubleValue, 99.7)
+        XCTAssertEqual(f.parsed["battery_mV"]?.intValue, 4472)
+        XCTAssertEqual(f.parsed["battery_charging"]?.intValue, 1)
+    }
+
     /// Real DOUBLE_TAP(14) event — a simple event with no payload. The static +4 walk alone must
     /// surface the event name and real-unix timestamp (regression guard for the basic path).
     private let doubleTapHex = "aa0110000100208130340e008089266a3d2a000030b8df92"

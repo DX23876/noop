@@ -275,12 +275,12 @@ applications generally need selected identity/version fields, not a raw body dum
 | 5 | 1 | Opaque state byte |
 | 6 | 4 | Unix seconds |
 | 10 | 4 | Fractional ticks, units 1/32768 second |
-| 14 | 11 | Identity text block A |
+| 14 | 11 | Identity text block A: the strap serial. On a WHOOP MG (50.41.1.0) it starts with `5AM`, the MG prefix of the Device Information serial; NOOP decodes it as `strap_serial` and does not log it |
 | 25 | 24 | Opaque identity block |
 | 49 | 30 | Identity text block B |
 | 79 | 4 | Version-specific word, value 13 |
 | 83 | 4 | Opaque cached word |
-| 87 | 4 | Opaque state word |
+| 87 | 4 | Opaque state word; 0 on a WHOOP MG (50.41.1.0), carried raw as `hello_u32_89` |
 | 91 | 3 | Version components 50, 42, 1 |
 | 94 | 4 | Version suffix 0 |
 | 98 | 3 | Opaque three-byte field |

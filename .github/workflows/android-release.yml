@@ -109,8 +109,10 @@ jobs:
             echo "keyPassword=$KEYSTORE_PASSWORD"
           } > keystore.properties
 
+      # R8 runs inside the Gradle daemon, and gradle.properties gives it 2 GB for contributors' laptops. On
+      # 2026-10-30 minifyFullReleaseWithR8 ran that heap full and thrashed for half an hour; the runner has 16 GB.
       - name: Build the release APK
-        run: ./gradlew assembleFullRelease
+        run: ./gradlew assembleFullRelease "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
 
       - name: Check the signature
         id: apk

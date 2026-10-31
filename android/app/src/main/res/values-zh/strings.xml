@@ -4162,6 +4162,7 @@
     <string name="forge_body_height">身高</string>
     <string name="forge_body_cm">%1$s 厘米</string>
     <string name="forge_body_kg">%1$s kg</string>
+    <string name="forge_body_lb">%1$s lb</string>
     <string name="forge_body_no_tape">尚无皮尺测量。点按“测量”记录一次。</string>
     <string name="forge_body_cancel">取消</string>
     <string name="forge_body_weigh_ins">称重记录</string>
@@ -4932,6 +4933,7 @@
     <string name="forge_profile_not_set">未设置</string>
     <string name="forge_profile_change_photo">更改照片</string>
     <string name="forge_profile_choose_photo">选择照片</string>
+    <string name="l10n_app_changelog_effort_recalibrated_2e0ebab7">消耗重新校准</string>
     <string name="forge_library_find_muscle">按肌肉查找</string>
     <string name="forge_library_create_own">创建自定义动作</string>
     <string name="forge_library_exercises_for">%1$s的训练动作</string>
@@ -4948,4 +4950,6 @@
     <string name="forge_library_region">身体部位</string>
     <string name="forge_library_any_region">任意身体部位</string>
     <string name="forge_tile_rest_hr">静息心率</string>
+    <string name="forge_lab_strength_effort">力量计入消耗</string>
+    <string name="forge_lab_strength_effort_detail">你在训练后评分的力量训练会在心率之外计入消耗，评分越高、时长越长，计入越多。未评分的训练不计入。按假定强度 7/10 与 WHOOP 校准。</string>
 </resources>

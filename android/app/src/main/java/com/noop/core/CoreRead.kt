@@ -65,7 +65,8 @@ object CoreRead {
         // reading before it exists and getting nothing.
         if (opened || !SwiftCore.available) return
         val app = context.applicationContext as NoopApplication
-        CoreShadow.ensureStarted(app, app.activeDeviceId)
+        // The session's strap is the Bluetooth client's to move (it follows a switch); this only starts it.
+        CoreShadow.ensureStarted(app, app.activeDeviceId, followActive = false)
         if (BuildConfig.ENABLE_DEMO) Log.i("CoreRead", "demo days written=${SwiftCore.seedDemo()}")
         opened = true
     }

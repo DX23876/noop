@@ -8,9 +8,10 @@ import Foundation
 ///
 /// The 4.0 hunt has a capture aid already (the `GET_HELLO_HARVARD` (35) branch, which now reports
 /// through this same probe — its payload carries a device key beside the serial). This is the 5/MG
-/// half, and it needs no new traffic: the GET_HELLO block is ALREADY decoded — for the device name at
-/// `pay[16]` and the firmware version at `pay[93]` — and everything else in it is simply discarded. If
-/// the serial is in there, it is arriving on every connect and being thrown away.
+/// half, and it needs no new traffic: the GET_HELLO block is ALREADY decoded for the text at `pay[16]`
+/// and the firmware version at `pay[93]`. That text turned out to be the serial itself: on a WHOOP MG
+/// (fw 50.41.1.0, 2026-10-31) it starts with the MG prefix "5AM", so the decoder publishes it as
+/// `strap_serial`. The probe stays for firmwares where the block may be laid out differently.
 ///
 /// ## Why this reports structure instead of dumping the block
 ///
@@ -37,9 +38,8 @@ public enum HelloIdentityProbe {
     /// - Parameters:
     ///   - payload: the GET_HELLO (145) response payload, token region included — nothing is stripped
     ///     before this call; the withholding happens here so a caller cannot get it wrong.
-    ///   - knownNameOffset: where the decoder already reads the device name (16 on the pinned capture).
-    ///     A run starting there is labelled rather than printed, since it is not a serial candidate and
-    ///     is already surfaced elsewhere.
+    ///   - knownNameOffset: where the decoder already reads the strap serial (16 on the pinned captures).
+    ///     A mixed run starting there is labelled rather than printed.
     ///   - minRun: shortest printable run worth reporting. Below this, a binary payload produces noise.
     ///   - serialLength: run lengths that could be a serial. Outside it, contents are withheld.
     public static func candidateLines(payload: [UInt8],
@@ -60,9 +60,10 @@ public enum HelloIdentityProbe {
             // The known-name offset is LABELLED but not suppressed. `knownNameOffset` is an assumption
             // taken from one firmware capture, and this is a discovery tool: if a firmware moved the name
             // and the serial landed here, suppressing the value would hide the exact thing being hunted.
-            // Showing it costs nothing — the device name is already surfaced on the Devices card, so it is
-            // not what the withholding rule exists to protect.
-            if start == knownNameOffset { line += " (device name, already decoded)" }
+            // On a real MG the run at 16 IS the strap serial (it starts with the MG prefix "5AM"), which the
+            // decoder now publishes as `strap_serial`; this probe sits behind an opt-in diagnostic, so
+            // printing it here is the same exposure as before.
+            if start == knownNameOffset { line += " (strap serial, decoded)" }
             if alnum, serialLength.contains(run.count) {
                 line += " \"\(String(decoding: run, as: UTF8.self))\""
             } else if start != knownNameOffset {
