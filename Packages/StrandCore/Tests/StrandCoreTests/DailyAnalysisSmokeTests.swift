@@ -136,8 +136,14 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         XCTAssertNotNil(engine.note, "a pass with nothing to score says so")
     }
 
+    /// Local midnight `daysAgo` calendar days back. Counted in days, not 24-hour steps, so a DST change
+    /// inside the window cannot fold two keys onto one date late in the evening.
+    private func dayStart(_ daysAgo: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: -daysAgo, to: Calendar.current.startOfDay(for: Date()))!
+    }
+
     private func dayKey(_ daysAgo: Int) -> String {
-        StoreReader.localDayKey(Date().addingTimeInterval(-Double(daysAgo) * 86_400))
+        StoreReader.localDayKey(dayStart(daysAgo))
     }
 
     func testSwitchingSleepMethodInvalidatesPersistedDayReuseInBothDirections() async throws {
@@ -199,7 +205,7 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         let store = try await WhoopStore.inMemory()
         try await store.setCursor(AnalysisRecipe.cursor, AnalysisRecipe.currentVersion - 1)
         // A few raw samples 20 days back mark where the raw history begins (too few to score a day).
-        let rawStart = Int(Date().timeIntervalSince1970) - 20 * 86_400
+        let rawStart = Int(dayStart(20).timeIntervalSince1970) + 12 * 3_600
         try await store.insert(Streams(hr: (0..<10).map { HRSample(ts: rawStart + $0 * 60, bpm: 60) }),
                                deviceId: "my-whoop")
         // Three weeks of computed days with a slowly moving resting rate and HRV.
