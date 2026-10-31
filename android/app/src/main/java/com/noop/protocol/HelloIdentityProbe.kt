@@ -9,9 +9,10 @@ package com.noop.protocol
  *
  * The 4.0 hunt has a capture aid already (the `GET_HELLO_HARVARD` (35) branch, which now reports
  * through this same probe — its payload carries a device key beside the serial). This is the 5/MG
- * half, and it needs no new traffic: the GET_HELLO block is ALREADY decoded — for the device name at
- * `pay[16]` and the firmware version at `pay[93]` — and everything else in it is simply discarded. If
- * the serial is in there, it is arriving on every connect and being thrown away.
+ * half, and it needs no new traffic: the GET_HELLO block is ALREADY decoded for the text at `pay[16]`
+ * and the firmware version at `pay[93]`. That text turned out to be the serial itself: on a WHOOP MG
+ * (fw 50.41.1.0, 2026-10-31) it starts with the MG prefix "5AM", so the decoder publishes it as
+ * `strap_serial`. The probe stays for firmwares where the block may be laid out differently.
  *
  * ## Why this reports structure instead of dumping the block
  *
@@ -67,10 +68,11 @@ object HelloIdentityProbe {
             // The known-name offset is LABELLED but not suppressed. [knownNameOffset] is an assumption
             // taken from one firmware capture, and this is a discovery tool: if a firmware moved the name
             // and the serial landed here, suppressing the value would hide the exact thing being hunted.
-            // Showing it costs nothing — the device name is already surfaced on the Devices card, so it is
-            // not what the withholding rule exists to protect.
+            // On a real MG the run at 16 IS the strap serial (MG prefix "5AM"), which the decoder now
+            // publishes as `strap_serial`; this probe sits behind an opt-in diagnostic, so printing it
+            // here is the same exposure as before.
             var line = "off=$start len=${run.size} ${if (alnum) "alnum" else "mixed"}"
-            if (start == knownNameOffset) line += " (device name, already decoded)"
+            if (start == knownNameOffset) line += " (strap serial, decoded)"
             line += when {
                 alnum && run.size in serialLenMin..serialLenMax -> " \"${String(run, Charsets.US_ASCII)}\""
                 start != knownNameOffset -> " (withheld)"

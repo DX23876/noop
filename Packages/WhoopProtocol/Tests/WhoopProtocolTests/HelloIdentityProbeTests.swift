@@ -47,12 +47,12 @@ final class HelloIdentityProbeTests: XCTestCase {
         XCTAssertEqual(lines.first, "off=40 len=64 alnum (withheld)")
     }
 
-    /// The device name is already surfaced by the decoder, so it is labelled rather than quoted — it is
-    /// not a serial candidate and repeating it would only pad the line.
+    /// The run at pay[16] is the strap serial the decoder already publishes, so a mixed run there is
+    /// labelled rather than quoted.
     func testTheKnownNameRunIsLabelledNotQuoted() {
         let p = payload(length: 120, runs: [(16, "WHOOP-FAKE01")])
         let lines = HelloIdentityProbe.candidateLines(payload: p)
-        XCTAssertEqual(lines.first, "off=16 len=12 mixed (device name, already decoded)")
+        XCTAssertEqual(lines.first, "off=16 len=12 mixed (strap serial, decoded)")
     }
 
     /// The known-name offset must LABEL, not suppress.
@@ -63,7 +63,7 @@ final class HelloIdentityProbeTests: XCTestCase {
     func testASerialShapedRunAtTheNameOffsetIsStillPrinted() {
         let p = payload(length: 120, runs: [(16, "3A1B2405003655")])
         XCTAssertEqual(HelloIdentityProbe.candidateLines(payload: p).first,
-                       #"off=16 len=14 alnum (device name, already decoded) "3A1B2405003655""#)
+                       #"off=16 len=14 alnum (strap serial, decoded) "3A1B2405003655""#)
     }
 
     /// Short runs are dropped. Binary payloads throw off two- and three-byte printable sequences by
@@ -78,7 +78,7 @@ final class HelloIdentityProbeTests: XCTestCase {
         let p = payload(length: 200, runs: [(16, "WHOOP-FAKE01"), (40, "SER1234567"), (80, "zz!!zz??")])
         let lines = HelloIdentityProbe.candidateLines(payload: p)
         XCTAssertEqual(lines, [
-            "off=16 len=12 mixed (device name, already decoded)",
+            "off=16 len=12 mixed (strap serial, decoded)",
             #"off=40 len=10 alnum "SER1234567""#,
             "off=80 len=8 mixed (withheld)",
         ])

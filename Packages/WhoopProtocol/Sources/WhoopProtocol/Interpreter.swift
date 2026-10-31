@@ -1042,19 +1042,26 @@ private func decodeWhoop5CommandResponse(_ frame: [UInt8], fb: FieldBuilder, sch
             fb.parsed["history_newest"] = .int(Int(newest))
         }
     } else if respCmd == 145, pay.count >= 26 {
-        // GET_HELLO info block. We surface the two user-facing fields the app shows — the device NAME
-        // (the model-style label the strap calls itself) and the firmware VERSION — and deliberately never
-        // read the session token (also in this response). Both offsets are anchored to a real
-        // 50.38.1.0 capture: the name is printable ASCII at pay[16]; the version is 4 bytes at pay[93],
-        // after the (fixed-width on this firmware) name+token region. Re-verify the version offset
-        // across firmwares; the guards (printable name / pay[93]==50 "5.0" generation) fail closed.
-        var nameBytes: [UInt8] = []
+        // GET_HELLO info block: the strap SERIAL and the firmware VERSION; the session token (also in this
+        // response) is deliberately never read. The printable ASCII at pay[16] was first read as a
+        // model-style device name, but on a WHOOP MG (fw 50.41.1.0, 2026-10-31) it starts with "5AM", the
+        // MG prefix of the DIS serial (`Whoop5Variant.mgSerialPrefix`), so it is published as
+        // `strap_serial` (#1303). Nothing logs it. The version is 4 bytes at pay[93], after the
+        // (fixed-width on this firmware) serial+token region. Re-verify the version offset across
+        // firmwares; the guards (printable serial / pay[93]==50 "5.0" generation) fail closed.
+        var serialBytes: [UInt8] = []
         var i = 16
-        while i < pay.count, pay[i] != 0, (32...126).contains(pay[i]), nameBytes.count < 24 {
-            nameBytes.append(pay[i]); i += 1
+        while i < pay.count, pay[i] != 0, (32...126).contains(pay[i]), serialBytes.count < 24 {
+            serialBytes.append(pay[i]); i += 1
         }
-        if nameBytes.count >= 6 {
-            fb.parsed["device_name"] = .string(String(decoding: nameBytes, as: UTF8.self))
+        if serialBytes.count >= 6 {
+            fb.parsed["strap_serial"] = .string(String(decoding: serialBytes, as: UTF8.self))
+        }
+        // Carried raw for comparison across straps: 0 on that MG capture. Meaning not established, so it
+        // keeps an offset name and nothing reads it.
+        if pay.count >= 93 {
+            let word = UInt32(pay[89]) | (UInt32(pay[90]) << 8) | (UInt32(pay[91]) << 16) | (UInt32(pay[92]) << 24)
+            fb.parsed["hello_u32_89"] = .int(Int(word))
         }
         if pay.count >= 97, pay[93] == 50 {
             fb.parsed["fw_version"] = .string("\(pay[93]).\(pay[94]).\(pay[95]).\(pay[96])")

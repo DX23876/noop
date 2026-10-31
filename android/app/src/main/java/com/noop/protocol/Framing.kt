@@ -678,10 +678,11 @@ object Framing {
         if (CommandNumber.fromRaw(cmd) == CommandNumber.GET_BATTERY_LEVEL) {
             frame.u8(13, limit)?.let { pct -> if (pct <= 100) parsed["battery_pct"] = pct.toDouble() }
         }
-        // GET_HELLO (145): device name + firmware version. Mirrors the Swift Interpreter decode of the
-        // same 50.38.1.0 capture: payload base is frame[11]; the name is printable ASCII at pay[16],
-        // the firmware is 4 bytes at pay[93] gated on pay[93]==50 (the "5.x" generation). The session
-        // token in the same block is deliberately never read. Surfaced on the Devices card.
+        // GET_HELLO (145): strap serial + firmware version. Mirrors the Swift Interpreter decode: payload
+        // base is frame[11]; the serial is printable ASCII at pay[16] (first read as a device name, but
+        // on a WHOOP MG it starts with the MG serial prefix "5AM", #1303; nothing logs it), the firmware
+        // is 4 bytes at pay[93] gated on pay[93]==50 (the "5.x" generation). The session token in the
+        // same block is deliberately never read.
         if (cmd == 145) {
             val payEnd = limit // payload only: stops where the CRC32 trailer starts (D7)
             if (payEnd > 11) {
@@ -693,7 +694,12 @@ object Framing {
                 ) {
                     name.append((pay[i].toInt() and 0xFF).toChar()); i++
                 }
-                if (name.length >= 6) parsed["device_name"] = name.toString()
+                if (name.length >= 6) parsed["strap_serial"] = name.toString()
+                // Carried raw for comparison across straps: 0 on the MG capture. Meaning not established.
+                if (pay.size >= 93) {
+                    parsed["hello_u32_89"] = (pay[89].toLong() and 0xFF) or ((pay[90].toLong() and 0xFF) shl 8) or
+                        ((pay[91].toLong() and 0xFF) shl 16) or ((pay[92].toLong() and 0xFF) shl 24)
+                }
                 if (pay.size >= 97 && (pay[93].toInt() and 0xFF) == 50) {
                     parsed["fw_version"] = "${pay[93].toInt() and 0xFF}.${pay[94].toInt() and 0xFF}." +
                         "${pay[95].toInt() and 0xFF}.${pay[96].toInt() and 0xFF}"

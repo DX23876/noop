@@ -254,6 +254,31 @@ class FramingTest {
     }
 
     @Test
+    fun parse_whoop5Hello_publishesStrapSerialNotDeviceName() {
+        // SYNTHETIC GET_HELLO(145), the Swift fixture: "WHOOP-FAKE01" at pay[16], fw 50.38.1.0 at pay[93].
+        // The text at pay[16] is the strap serial (it starts with the MG prefix "5AM" on a real MG), so it
+        // is published as strap_serial and never as a device name. Twin of
+        // Whoop5CommandResponseTests.testHelloStrapSerialAndFirmware / testHelloWordAt89IsCarriedRaw.
+        val fixture = hexBytes(
+            "aa0174000001ffe12401910000000000000000000000000000000057484f4f502d46414b453031000000000000000000" +
+                "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+                "000000000000000032260100000000000000000000000000a30d90ed",
+        )
+        val r = Framing.parseFrame(fixture, DeviceFamily.WHOOP5)
+        assertEquals(true, r.crcOk)
+        assertEquals("WHOOP-FAKE01", r.parsed["strap_serial"])
+        assertNull(r.parsed["device_name"])
+        assertEquals("50.38.1.0", r.parsed["fw_version"])
+        assertEquals(0L, (r.parsed["hello_u32_89"] as Number).toLong())
+
+        val pay = fixture.copyOfRange(11, fixture.size - 4)
+        pay[89] = 82
+        val rebuilt = Framing.parseFrame(Framing.puffinCommandFrame(cmd = 145, seq = 1, payload = pay, type = 36), DeviceFamily.WHOOP5)
+        assertEquals(true, rebuilt.crcOk)
+        assertEquals(82L, (rebuilt.parsed["hello_u32_89"] as Number).toLong())
+    }
+
+    @Test
     fun parse_metadata_historyEnd() {
         // METADATA HISTORY_END(2): unix=1699999999, trim=123456.
         val frame = bytes(
