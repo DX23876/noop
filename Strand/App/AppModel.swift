@@ -8,7 +8,7 @@ import StrandImport
 import StrandDesign
 import OuraProtocol
 #if os(iOS)
-import UserNotifications
+@preconcurrency import UserNotifications
 #endif
 
 /// Data source currently running an import from the Data Sources screen.
@@ -692,7 +692,7 @@ final class AppModel: ObservableObject {
             await GoalTrackingStore.shared.refresh(repo: self.repo)
             await self.recordAppVersionChangeIfNeeded()        // #1410: stamp an update transition once
             // Move GPS points out of the preferences file into their own files. A no-op once done.
-            await Task.detached(priority: .utility) { RoutePointStore.migrateFromDefaults() }.value
+            _ = await Task.detached(priority: .utility) { RoutePointStore.migrateFromDefaults() }.value
             // Retire the undated body scalars into dated readings. Runs after the first refresh so
             // `days` is populated — the migration stamps the readings at the wearer's earliest
             // recorded day, which is what makes it behaviour-preserving. Latched, so this is a single
@@ -1380,7 +1380,7 @@ final class AppModel: ObservableObject {
     /// as a `WorkoutRow`. Duration is the durable base fact: after the minimum length, a session is kept
     /// even when neither a heart-rate source nor a usable route was available. Double-buzz confirms.
     /// Shortest live session worth keeping. Below this a start/stop is an accident, not training (#2278).
-    static let minimumWorkoutSeconds: TimeInterval = 60
+    nonisolated static let minimumWorkoutSeconds: TimeInterval = 60
 
     /// Whether a finished live session is too short to save.
     ///
@@ -1397,7 +1397,6 @@ final class AppModel: ObservableObject {
         let route = wasGps ? gpsRecorder.capturedRoute() : nil
         let samples = w.samples
         let end = Date.now
-        let elapsed = w.elapsed(at: end)
         let avg = samples.isEmpty ? nil
             : Int((Double(samples.map(\.bpm).reduce(0, +)) / Double(samples.count)).rounded())
         let peak = w.savedPeak
@@ -2665,7 +2664,7 @@ final class AppModel: ObservableObject {
         // change. The UserDefaults timestamp list and confirming buzz above retain the existing path.
         Task { [weak self] in
             guard let self, let store = await self.repo.storeHandle() else { return }
-            try? await store.upsertMetricSeries([mark.metricPoint], deviceId: self.repo.deviceId)
+            _ = try? await store.upsertMetricSeries([mark.metricPoint], deviceId: self.repo.deviceId)
         }
     }
 

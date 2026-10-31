@@ -271,7 +271,6 @@ struct TrendsView: View {
                 let strain = metrics["strain"] ?? emptyMetric
                 // Rest = the sleep_performance composite — the same number the Today Rest score shows
                 // (#732); see sleepPerfByDay. resolve() still does the windowing/widening.
-                let rest = metrics["rest"] ?? emptyMetric
                 Group {
                     // The main card list ripples in once on appear (Reduce-Motion safe).
                     Group {

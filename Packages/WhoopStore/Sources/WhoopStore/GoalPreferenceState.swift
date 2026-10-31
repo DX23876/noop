@@ -44,7 +44,7 @@ extension WhoopStore {
                 ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
                 """, arguments: [replacement])
         }
-        try database.writeWithoutTransaction { db in
+        _ = try database.writeWithoutTransaction { db in
             try db.checkpoint(.truncate)
         }
         try database.close()

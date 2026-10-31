@@ -14,15 +14,15 @@ import StrandAnalytics
 
 extension DailyAnalysis {
 
-    public static let healthspanAgeKey = "healthspan_age"
-    public static let healthspanPaceKey = "healthspan_pace"
-    public static let healthspanCoveredDaysKey = "healthspan_covered_days"
-    public static let healthspanZone13Key = "hs_zone13_min"
-    public static let healthspanZone45Key = "hs_zone45_min"
+    public nonisolated static let healthspanAgeKey = "healthspan_age"
+    public nonisolated static let healthspanPaceKey = "healthspan_pace"
+    public nonisolated static let healthspanCoveredDaysKey = "healthspan_covered_days"
+    public nonisolated static let healthspanZone13Key = "hs_zone13_min"
+    public nonisolated static let healthspanZone45Key = "hs_zone45_min"
     /// Training VO₂max days AI-21 banked before the estimator moved to Training Load's; AI-22 deletes them.
-    public static let healthspanLegacyTrainingVO2Key = "hs_vo2_training"
+    public nonisolated static let healthspanLegacyTrainingVO2Key = "hs_vo2_training"
     /// Which `HealthspanVO2.Source` a week's VO₂max came from.
-    public static let healthspanVO2SourceKey = "hs_vo2_source"
+    public nonisolated static let healthspanVO2SourceKey = "hs_vo2_source"
     /// The window input behind a week's age, so the card's breakdown is computed from the same numbers.
     public nonisolated static func healthspanInputKey(_ c: HealthspanEngine.Component) -> String { "hs_in_" + c.rawValue }
     /// The last-30-days input behind a week's pace, for the detail screen's second marker.
@@ -32,16 +32,16 @@ extension DailyAnalysis {
     /// What a week's input stands on (`HealthspanBasis.counts`; for VO₂max, its readings), since AI-23.
     public nonisolated static func healthspanCountKey(_ c: HealthspanEngine.Component) -> String { "hs_n_" + c.rawValue }
     /// The day of the newest VO₂max reading behind a week, as `HealthspanBasis.dayNumber`.
-    public static let healthspanVO2DayKey = "hs_vo2_day"
+    public nonisolated static let healthspanVO2DayKey = "hs_vo2_day"
     /// The least VO₂max the week's long walks and runs allow (`HealthspanVO2.enduranceFloor`), since AI-26. A
     /// plausibility bound shown beside the measure, never its value.
-    public static let healthspanVO2FloorKey = "hs_vo2_floor"
+    public nonisolated static let healthspanVO2FloorKey = "hs_vo2_floor"
     /// The day of the body-fat reading behind a week's lean mass, as `HealthspanBasis.dayNumber`.
-    public static let healthspanBodyFatDayKey = "hs_fat_day"
+    public nonisolated static let healthspanBodyFatDayKey = "hs_fat_day"
     /// For the current week only, when it has no age: its nights of sleep data and the core measures it lacks
     /// (`HealthspanWindow.Gap`), since AI-29, so the screen says what is missing.
-    public static let healthspanGapNightsKey = "hs_gap_nights"
-    public static let healthspanGapMissingKey = "hs_gap_missing"
+    public nonisolated static let healthspanGapNightsKey = "hs_gap_nights"
+    public nonisolated static let healthspanGapMissingKey = "hs_gap_missing"
 
     /// Every key a weekly row writes, so a rewrite can clear what a week no longer has.
     public nonisolated static var healthspanWeeklyKeys: [String] {

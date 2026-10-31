@@ -59,7 +59,7 @@ extension AICoachEngine {
         // coach can prescribe zones/loads for THIS user. Consent-gated like the rest — buildContext()
         // is only reached with data access on.
         let profile = repo.coachProfile()
-        var profileParts = ["age \(profile.age)", profile.sex,
+        let profileParts = ["age \(profile.age)", profile.sex,
                             "\(Int(profile.weightKg.rounded())) kg",
                             "\(Int(profile.heightCm.rounded())) cm",
                             "HRmax \(profile.hrMax) bpm"]

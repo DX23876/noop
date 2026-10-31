@@ -124,8 +124,6 @@ final class TrainingLoadModel: ObservableObject {
         let snapshot = await Self.snapshot(repo: repo, now: now)
         let prepared = snapshot.prepared
         let fusion = snapshot.fusion
-        let unified = fusion.sessions
-        let rpeEntries = snapshot.rpeEntries
 
         guard !Task.isCancelled else { return }
         await repo.refreshSessionRatingReminders(now: now)

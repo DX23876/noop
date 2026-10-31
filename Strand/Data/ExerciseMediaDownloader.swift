@@ -131,7 +131,7 @@ final class ExerciseMediaDownloader: NSObject, URLSessionDownloadDelegate, @unch
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
-                    totalBytesExpectedToWrite totalBytesExpectedToWrite: Int64) {
+                    totalBytesExpectedToWrite: Int64) {
         lock.lock(); let handler = onProgress; let fallback = fallbackExpectedBytes; lock.unlock()
         let value: Double
         if totalBytesExpectedToWrite > 0 {

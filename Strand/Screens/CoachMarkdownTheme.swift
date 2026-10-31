@@ -1,5 +1,5 @@
 import SwiftUI
-import MarkdownUI
+@preconcurrency import MarkdownUI
 import StrandDesign
 
 /// The MarkdownUI theme for Coach replies.

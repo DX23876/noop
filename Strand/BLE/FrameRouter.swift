@@ -578,7 +578,7 @@ public final class FrameRouter {
 
     /// Offset of the inner `[type][seq][cmd][origin_seq][result][payload…]` in a WHOOP 4.0 frame:
     /// SOF(1) + length(2) + crc8(1). Mirrors `WhoopCommand.frame` / `parseFrame`.
-    private static let whoop4InnerOffset = 4
+    private nonisolated static let whoop4InnerOffset = 4
 
     /// Extract the advertising name from a GET_ADVERTISING_NAME COMMAND_RESPONSE: printable ASCII from
     /// the payload that follows [type,seq,cmd,origin_seq,result] (payload starts at inner+5), up to the

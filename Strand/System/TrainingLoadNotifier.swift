@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 import StrandAnalytics
 
 // MARK: - Training load alert (P6)

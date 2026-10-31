@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// Surfaces the illness early-warning as a macOS user notification when the banner transitions
 /// from clear to raised — today it is silent unless the window is open (the menu-bar extra keeps

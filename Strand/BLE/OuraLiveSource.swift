@@ -157,7 +157,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// request→response +1 convention seen elsewhere (GetBattery `0x0C` request → `0x0D` reply) the reply may
     /// be `0x19`. We capture both so the fixture lands whatever the firmware uses (#771/#772 capture). Neither
     /// is an event tag (tags are ≥ 0x41), so peeking them never disturbs the TLV decode.
-    private static let productInfoResponseOps: Set<UInt8> = [0x18, 0x19]
+    private nonisolated static let productInfoResponseOps: Set<UInt8> = [0x18, 0x19]
 
     /// A GetProductInfo string is a usable ring SERIAL only when it is plain alphanumeric and a sane length —
     /// so a misframed/garbage reply can never mint a bogus `oura-<serial>` identity (#771 honest-data guard).

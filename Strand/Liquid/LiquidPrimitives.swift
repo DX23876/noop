@@ -194,7 +194,7 @@ enum LiquidRender {
                      usesCleanFill: Bool = false, outlined: Bool = true) {
         let w = size.width, h = size.height, r = h / 2
         let outline = Path(roundedRect: CGRect(x: 0.5, y: 0.5, width: w - 1, height: h - 1), cornerRadius: r)
-        var ctx = base
+        let ctx = base
         ctx.fill(outline, with: .color(NoopVisualStyle.inset))
         // On a light card the track reads from its fill alone; the grey outline was the last frame left on it.
         if outlined {
@@ -290,7 +290,7 @@ enum LiquidRender {
             for r in runs { appendRun(&p, r.lowerBound, r.upperBound) }
             return p
         }
-        var ctx = base
+        let ctx = base
         // Built ONCE. The glint strokes the same geometry as the line under it, and this runs inside a
         // 60fps TimelineView, so building it per stroke walked the whole series twice a frame for two
         // identical paths.

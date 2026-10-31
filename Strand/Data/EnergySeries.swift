@@ -584,7 +584,7 @@ extension Repository {
     /// and is still owed.
     static let energyHealthRefreshPendingKey = "energy.healthRefreshPending.v1"
     /// At most one Health-sync-driven refresh per hour.
-    static let energyHealthRefreshInterval: TimeInterval = 3_600
+    nonisolated static let energyHealthRefreshInterval: TimeInterval = 3_600
 
     /// The 30-day refresh a completed Apple Health sync asks for, at most once an hour.
     ///

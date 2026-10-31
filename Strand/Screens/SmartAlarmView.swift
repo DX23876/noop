@@ -38,7 +38,7 @@ struct SmartAlarmView: View {
     // which the strapRejectedCard surfaces with reset guidance. @AppStorage so it updates live.
     @AppStorage("alarm.rejectStreak") private var alarmRejectStreak = 0
     /// Calendar weekday numbers laid out Monday-first (Mon…Sun → 2,3,4,5,6,7,1), matching AutomationsView.
-    private static let weekdayOrder = [2, 3, 4, 5, 6, 7, 1]
+    private nonisolated static let weekdayOrder = [2, 3, 4, 5, 6, 7, 1]
 
     var body: some View {
         // #766: retitled to "Alarms" because it now holds BOTH the strap's silent wake-alarm and the

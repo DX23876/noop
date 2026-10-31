@@ -970,6 +970,6 @@ struct EnergyPlanView: View {
     }
 }
 
-extension BasalFormula: Identifiable {
+extension BasalFormula: @retroactive Identifiable {
     public var id: String { rawValue }
 }

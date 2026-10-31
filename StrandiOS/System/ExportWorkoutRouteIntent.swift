@@ -40,11 +40,11 @@ enum RouteExportFormatChoice: String, AppEnum, CaseIterable {
     case gpx
     case fit
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Route Format")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Route Format")
 
     // FIT carries a session summary that GPX has no element for, and the parts of it this path cannot
     // supply are named here rather than left for a wearer to discover in Strava. See the `render` call.
-    static var caseDisplayRepresentations: [RouteExportFormatChoice: DisplayRepresentation] = [
+    static let caseDisplayRepresentations: [RouteExportFormatChoice: DisplayRepresentation] = [
         .gpx: DisplayRepresentation(title: "GPX"),
         .fit: DisplayRepresentation(title: "FIT", subtitle: "Route and GPS distance, without the heart-rate and calorie summary"),
     ]
@@ -60,11 +60,11 @@ enum RouteExportFormatChoice: String, AppEnum, CaseIterable {
 /// values" — so a route saved before that field existed is reported as unavailable rather than
 /// shipped with an invented timeline.
 struct ExportWorkoutRouteIntent: AppIntent {
-    static var title: LocalizedStringResource = "Export Workout Route"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Export Workout Route"
+    static let description = IntentDescription(
         "Get the most recent recorded GPS route as a GPX or FIT file, ready to hand to Strava, Garmin Connect, or any other app.")
     /// No app UI is needed: the file is built from the on-device side-store and returned.
-    static var openAppWhenRun = false
+    static let openAppWhenRun = false
 
     @Parameter(title: "Format", default: .gpx)
     var format: RouteExportFormatChoice

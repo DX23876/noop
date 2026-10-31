@@ -1980,7 +1980,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Minimum time since the pause tripped (or since the last probe) before another salvage probe may
     /// fire. 10 minutes: long enough that a still-held strap sees a handful of bounded attempts per day,
     /// short enough that a strap the user freed reconnects on the next natural app open.
-    static let bondLoopSalvageFloorSeconds: TimeInterval = 10 * 60
+    nonisolated static let bondLoopSalvageFloorSeconds: TimeInterval = 10 * 60
 
     /// Pure gate for the one-shot bond-loop salvage probe: probe ONLY while the pause is latched, with no
     /// live link, no user teardown in force, and at least `bondLoopSalvageFloorSeconds` since the pause

@@ -166,8 +166,7 @@ final class CoachVoiceInput: ObservableObject {
     }
 
     private func requestMicPermission(completion: @escaping (Bool) -> Void) {
-        let session = AVAudioSession.sharedInstance()
-        session.requestRecordPermission { granted in
+        AVAudioApplication.requestRecordPermission { granted in
             Task { @MainActor in completion(granted) }
         }
     }

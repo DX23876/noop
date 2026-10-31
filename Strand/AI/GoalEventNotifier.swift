@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 import StrandAnalytics
 #if canImport(UIKit)
 import UIKit
@@ -36,8 +36,8 @@ enum GoalEventNotifier {
     /// The evening reminder: "remind me in an hour", plus "tick off" when exactly one box is open.
     static let eveningCategory = "noop.goal.evening"
     static let eveningTickCategory = "noop.goal.evening.tick"
-    static let tickAction = "noop.goal.tick"
-    static let snoozeAction = "noop.goal.snooze"
+    nonisolated static let tickAction = "noop.goal.tick"
+    nonisolated static let snoozeAction = "noop.goal.snooze"
     static let dailyLimit = GoalEventPlan.dailyLimit
     /// Never later than this minute of the day (21:00).
     static let latestMinute = GoalEventPlan.latestMinute

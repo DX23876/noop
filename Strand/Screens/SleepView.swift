@@ -1203,9 +1203,9 @@ struct SleepView: View {
     enum SparseStagingNote: Equatable { case none, subtle, prominent }
 
     /// A sparse night reads as possibly cut short only below this share of the wearer's typical sleep.
-    static let sparseShortFraction = 0.70
+    nonisolated static let sparseShortFraction = 0.70
     /// With no typical yet (fewer than five scored nights), a sparse night under this many minutes asleep.
-    static let sparseShortFloorMin = 240.0
+    nonisolated static let sparseShortFloorMin = 240.0
 
     /// Pure gate for the sparse-coverage caveat. `stagingSparse` says the night was staged on patchy motion,
     /// which can shorten a night but usually does not: on one wearer's history 35 of 56 computed nights were

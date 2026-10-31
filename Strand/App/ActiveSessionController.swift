@@ -532,7 +532,7 @@ final class ActiveSessionController: ObservableObject {
         app.strengthWorkoutWatchStateSink?(.init(
             sessionId: sessionId, revision: draft.updatedAt, title: draft.title,
             exerciseTitle: exerciseTitle, setNumber: setNumber,
-            setCount: draft.exercises.flatMap(\.sets).count, startedAtTs: draft.startedAt,
+            setCount: draft.exercises.reduce(0) { $0 + $1.sets.count }, startedAtTs: draft.startedAt,
             bpm: bpm, heartRateZone: zone, restEndsAtTs: draft.timer?.endsAtTs, phase: phase))
     }
 

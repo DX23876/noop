@@ -12,7 +12,7 @@ extension DailyAnalysis {
 
     /// One value per day: the highest sustained peak of that day's workouts, raw (the plausibility bound
     /// is the resolver's, so a changed age re-reads the same series).
-    public static let workoutPeakKey = "hr_peak_workout_5s"
+    public nonisolated static let workoutPeakKey = "hr_peak_workout_5s"
 
     /// Banks the workout peak of every day in `[oldestDay, newestDay]` that has a workout with a band trace;
     /// on the first run (no banked day yet) back over the whole raw retention. A failed read banks nothing.

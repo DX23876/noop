@@ -151,9 +151,9 @@ enum StrengthHistoryReader {
         async let aliasRead = store.trainingExerciseAnatomyAliases()
         async let fusionRead = fusion()
 
-        let imported = (try? await importedRead) ?? []
+        let imported = await importedRead
         let importedTemplates = (try? await templateRead) ?? [:]
-        let nativeWorkouts = (try? await nativeWorkoutRead) ?? []
+        let nativeWorkouts = await nativeWorkoutRead
         let nativeExercises = (try? await nativeExerciseRead) ?? []
         let aliases = (try? await aliasRead) ?? []
         let fusion = await fusionRead

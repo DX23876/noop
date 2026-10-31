@@ -10,7 +10,7 @@ import StrandCore
 /// The daily analysis as the Apple apps name it.
 typealias IntelligenceEngine = DailyAnalysis
 
-extension DailyAnalysis: ObservableObject {
+extension DailyAnalysis: @retroactive ObservableObject {
     /// SwiftUI's change signal, fired by the core before each published property changes.
     public nonisolated var objectWillChange: ObservableObjectPublisher {
         observation.token({ ObservableObjectPublisher() }, onChange: { $0.send() })

@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 #if os(iOS)
 import BackgroundTasks
 import WidgetKit
@@ -47,8 +47,8 @@ enum CoachBriefScheduler {
 
     /// Category id the posted notification carries, so `NotificationPresenter` can recognise a brief tap
     /// (as opposed to any other local notification) and route it to Coach.
-    static let notificationCategoryId = "coach-brief"
-    private static let requestIdPrefix = "coach-brief-"
+    nonisolated static let notificationCategoryId = "coach-brief"
+    private nonisolated static let requestIdPrefix = "coach-brief-"
 
     /// The Coach master switch. This fork already had one (`CoachFeaturePrefs`, off on a fresh install)
     /// when upstream added its own under `noop.coachEnabled`; the brief obeys the existing switch rather
@@ -280,9 +280,9 @@ enum CoachBriefScheduler {
         guard UserDefaults.standard.string(forKey: K.lastRun) != dayKey(now) else { return true } // already ran today
 
         // One attempt at a time; see `generationInFlight` for why the day guard alone is not enough.
-        guard await claimGeneration() else { return true }
+        guard claimGeneration() else { return true }
         let generated = await generateBrief()
-        await releaseGeneration()
+        releaseGeneration()
 
         guard let text = generated else {
             // No key/consent/network, or the provider returned nothing. Never mark the day done, so the

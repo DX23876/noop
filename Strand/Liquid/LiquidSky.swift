@@ -181,7 +181,7 @@ struct LiquidSky: View {
                         settle: Color, light: Bool) {
         let S = liquidSkyAt(hour, light: light)
         let w = size.width, h = size.height
-        var ctx = base
+        let ctx = base
         // the gradient IS the scene
         ctx.fill(Path(CGRect(x: 0, y: 0, width: w, height: h)),
                  with: .linearGradient(Gradient(stops: [

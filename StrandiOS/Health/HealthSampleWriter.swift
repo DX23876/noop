@@ -99,7 +99,7 @@ enum HealthSampleWriter {
     /// for a day. A save reaching further back than the clean span (a history repair) still sweeps, and
     /// the daily recheck covers legacy objects that come back, for example from a restored backup.
     static let legacyCleanKeyPrefix = "health.legacyClean.v1."
-    static let legacyRecheckSeconds: Double = 86_400
+    nonisolated static let legacyRecheckSeconds: Double = 86_400
 
     /// `clean` is `[earliest clean window start, time of that check]`, both Unix seconds.
     nonisolated static func canSkipLegacyCheck(clean: [Double]?, windowStart: Double, now: Double) -> Bool {

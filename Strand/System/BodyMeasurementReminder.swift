@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// Measurement reminders — a weekly tape reminder and an optional daily weigh-in one.
 ///

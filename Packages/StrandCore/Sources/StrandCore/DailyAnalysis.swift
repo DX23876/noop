@@ -79,7 +79,7 @@ public final class DailyAnalysis {
 
     /// Minimum raw HR samples required before a day is scored. Shared by the gate and its diagnostics so
     /// the threshold cannot drift between code paths (RyanBR #1538 parity).
-    public static let minHrSamples = 200
+    public nonisolated static let minHrSamples = 200
 
     public static let analysisLastRunKey = "noop.analysisMaintenance.lastRun"
 
@@ -1365,7 +1365,7 @@ public final class DailyAnalysis {
         return out
     }
 
-    public static let dayReuseDefault = true
+    public nonisolated static let dayReuseDefault = true
 
     /// Metric-series keys for the cached per-day motion volume the WHOOP-4 steps calibration fits on, and
     /// the two revisions it was folded against.
@@ -4588,7 +4588,7 @@ public final class DailyAnalysis {
     /// Android DailyAnalysis.midnightLocal byte-for-byte.
     /// Fixed-UTC `yyyy-MM-dd` parser — the inverse direction of `AnalyticsEngine.dayString`. Cached
     /// because a `DateFormatter` is expensive to build and this is called per scanned day.
-    private static let dayKeyParser: DateFormatter = {
+    private nonisolated static let dayKeyParser: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.timeZone = TimeZone(secondsFromGMT: 0)

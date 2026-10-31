@@ -1480,7 +1480,7 @@ struct MetricDetailView: View {
                 // well — never over the chart below.
                 HStack {
                     Spacer(minLength: 0)
-                    if let fraction, let v = value {
+                    if fraction != nil, let v = value {
                         VStack(spacing: 10) {
                             ZStack {
                                 // The big hero vessel stays live (animated) — the one sloshing gauge on the

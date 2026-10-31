@@ -169,7 +169,7 @@ enum FileExport {
         guard !entries.isEmpty else { return nil }
         let url = NoopScratch.file("\(baseName).zip")
         try? FileManager.default.removeItem(at: url)
-        guard let archive = try? Archive(url: url, accessMode: .create) else { return nil }
+        guard let archive = try? Archive(url: url, accessMode: .create, pathEncoding: nil) else { return nil }
         for entry in entries {
             try? archive.addEntry(with: entry.name, type: .file, uncompressedSize: Int64(entry.data.count)) { position, size in
                 let start = Int(position)

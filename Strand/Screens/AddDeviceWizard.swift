@@ -1088,7 +1088,7 @@ struct AddDeviceWizard: View {
                 // Heart-rate strap AND Garmin (Broadcast HR is the standard 0x180D path).
                 HRPickList(scanner: hrScanner) { strap in
                     pickedStrap = strap
-                    clearOtherPicks(except: type ?? .hrStrap)
+                    clearOtherPicks(except: type)
                     nameDraft = strap.name
                     hrScanner.stopScan()
                     step = .confirm

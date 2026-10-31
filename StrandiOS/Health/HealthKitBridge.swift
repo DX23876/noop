@@ -695,7 +695,7 @@ final class HealthKitBridge: ObservableObject {
                 // does not support `.beginsWith` for HKExternalUUID in object-query predicates (it raises
                 // an Objective-C exception rather than returning an error), so legacy `noop:` external ids
                 // are deliberately excluded only by this client-side check.
-                let oldest = (samples ?? [])
+                let oldest = samples
                     .filter { !Self.isNoopAuthored($0) }
                     .map { $0.startDate }
                     .min()
@@ -3516,7 +3516,7 @@ final class HealthKitBridge: ObservableObject {
     /// Source tag stamped on workouts imported from Apple Health. Matches the macOS importer's
     /// `WorkoutSource.appleHealthSource` ("apple-health") and `appleDeviceId`, so the workout list and
     /// source filters treat an iOS-read workout exactly like a macOS-imported one.
-    static let appleWorkoutSource = "apple-health"
+    nonisolated static let appleWorkoutSource = "apple-health"
 
     // MARK: - Entitlement detection (#348)
 

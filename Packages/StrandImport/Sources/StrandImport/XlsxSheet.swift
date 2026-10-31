@@ -57,7 +57,7 @@ enum XlsxSheet {
 
     /// Every worksheet as a grid of strings, in workbook (tab) order.
     static func grids(from data: Data) throws -> [[[String]]] {
-        guard let archive = try? Archive(data: data, accessMode: .read) else {
+        guard let archive = try? Archive(data: data, accessMode: .read, pathEncoding: nil) else {
             throw LiftProgramSheetImporter.ImportError.unreadable
         }
         // Shared strings are optional: a sheet written with inline strings has no such part.
@@ -100,7 +100,7 @@ enum XlsxSheet {
     /// One part's raw bytes, by path. Internal, for tests that need to assert on the XML itself —
     /// the shipped template's sheet protection is not visible through the parsed grid.
     static func rawPart(_ data: Data, path: String) -> Data? {
-        guard let archive = try? Archive(data: data, accessMode: .read) else { return nil }
+        guard let archive = try? Archive(data: data, accessMode: .read, pathEncoding: nil) else { return nil }
         return try? entryData(archive, path)
     }
 

@@ -733,7 +733,7 @@ private enum IOSDemoActivitySeeder {
                 if inWalk, t % 60 < 53 { counter += 2 }
                 steps.append(StepSample(ts: t, counter: counter, activityClass: inWalk ? 1 : 0))
             }
-            try? await store.insert(Streams(hr: hr, steps: steps), deviceId: repo.deviceId)
+            _ = try? await store.insert(Streams(hr: hr, steps: steps), deviceId: repo.deviceId)
             ActivitySuggestionCenter.shared.attach(repo)
             await repo.refreshActivitySuggestions(hrMax: 185)
         }

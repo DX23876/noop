@@ -48,7 +48,7 @@ public enum BackupArchive {
     /// archive really is torn, because opening one only reads the central directory a complete ZIP has.
     public static func verifyWritten(at url: URL) -> WriteVerdict {
         guard FileManager.default.isReadableFile(atPath: url.path) else { return .unverifiable }
-        guard let written = try? Archive(url: url, accessMode: .read),
+        guard let written = try? Archive(url: url, accessMode: .read, pathEncoding: nil),
               let dbEntry = written.first(where: { ($0.path as NSString).lastPathComponent == entryName }),
               dbEntry.uncompressedSize >= minimumEntryBytes else { return .torn }
         return .intact

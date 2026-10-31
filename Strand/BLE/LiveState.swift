@@ -985,7 +985,6 @@ public final class LiveState: ObservableObject {
     /// `LiveState` instance. Mirrors `exportableLogText()`'s header so a scheduled drop reads the same as a
     /// manual share (this is a `static` so a background task needs no main-actor instance).
     nonisolated public static func scheduledExportText(extraHeaderLines: [String] = []) -> String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         #if os(iOS)
         let osName = "iOS"
         #else
@@ -1112,7 +1111,7 @@ public final class LiveState: ObservableObject {
     ///
     /// Anything not on this list is DROPPED, which is the point: a naming shape nobody anticipated loses
     /// by default. Kotlin twin: `SAFE_DEVICE_NAME_TOKEN_RE`.
-    private static let safeDeviceNameToken = try? NSRegularExpression(
+    private nonisolated static let safeDeviceNameToken = try? NSRegularExpression(
         pattern: "^(whoop|mg|polar|verity|sense|wahoo|tickr|garmin|hrm|forerunner|fenix|vantage|ignite|amazfit|huami|zepp|xiaomi|mi|band|coospo|magene|suunto|scosche|rhythm|kickr|tacx|elite|cateye|decathlon|kalenji|geonaute|h6|h7|h9|h10|h64|h808s|oh1|dual|\\d+(\\.\\d+)?)$", options: [.caseInsensitive])
 
     /// A device name reduced to what is safe to put in a shared log: the MODEL, never the person.
@@ -1141,7 +1140,7 @@ public final class LiveState: ObservableObject {
         return safe.isEmpty ? "<name>" : "<name> " + safe.joined(separator: " ")
     }
 
-    private static let hexRunRegex = try? NSRegularExpression(pattern: "[0-9a-fA-F]{16,}")
+    private nonisolated static let hexRunRegex = try? NSRegularExpression(pattern: "[0-9a-fA-F]{16,}")
 
     nonisolated static func redactPii(_ s: String) -> String {
         var out = s
@@ -1229,7 +1228,6 @@ public final class LiveState: ObservableObject {
     /// session log. Shared so BOTH the Live screen's log card AND a macOS Settings shortcut (#507 — a 4.0
     /// owner couldn't find the log on Mac) build the SAME text. Call on the main thread (button taps).
     func exportableLogText(extraHeaderLines: [String] = []) -> String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         #if os(iOS)
         let osName = "iOS"
         #else

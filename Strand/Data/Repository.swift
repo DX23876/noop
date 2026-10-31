@@ -249,7 +249,7 @@ final class Repository: ObservableObject {
         }
     }
 
-    static let energyRefreshMaxDays = EnergyModelRefresh.refreshMaxDays
+    nonisolated static let energyRefreshMaxDays = EnergyModelRefresh.refreshMaxDays
 
     private func runScheduledEnergyRefresh() async {
         energyRefreshScheduled = false

@@ -1,6 +1,6 @@
 import Foundation
 #if os(iOS)
-import CoreMotion
+@preconcurrency import CoreMotion
 #endif
 
 /// One-shot HISTORICAL phone step count for a finished workout window `[start, end]` (#398).

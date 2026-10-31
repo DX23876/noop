@@ -33,8 +33,8 @@ enum PendingIntents {
 
 /// Record a timestamped "moment" — the iOS analogue of the strap double-tap "mark a moment" action.
 struct MarkMomentIntent: AppIntent {
-    static var title: LocalizedStringResource = "Mark a Moment"
-    static var description = IntentDescription("Record a timestamped moment in NOOP.")
+    static let title: LocalizedStringResource = "Mark a Moment"
+    static let description = IntentDescription("Record a timestamped moment in NOOP.")
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -46,8 +46,8 @@ struct MarkMomentIntent: AppIntent {
 /// The typed sleep mark selected by a Shortcut; these choices match the existing Sleep card.
 enum SleepMarkShortcutType: String, AppEnum {
     case bedtime, wake
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Sleep Mark"
-    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Sleep Mark"
+    static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .bedtime: "Bedtime", .wake: "Wake"
     ]
     var action: PendingIntents.Action { self == .bedtime ? .markBedtime : .markWake }
@@ -62,9 +62,9 @@ enum SleepMarkShortcutError: Error, CustomLocalizedStringResourceConvertible {
 
 /// Capture the invocation time without foregrounding NOOP; the existing active-scene drain saves it.
 struct LogSleepMarkIntent: AppIntent {
-    static var title: LocalizedStringResource = "Log Sleep Mark"
-    static var description = IntentDescription("Queue a bedtime or wake mark. NOOP saves it when the app next becomes active.")
-    static var openAppWhenRun = false
+    static let title: LocalizedStringResource = "Log Sleep Mark"
+    static let description = IntentDescription("Queue a bedtime or wake mark. NOOP saves it when the app next becomes active.")
+    static let openAppWhenRun = false
 
     @Parameter(title: "Sleep Mark", default: .bedtime)
     var markType: SleepMarkShortcutType
@@ -80,9 +80,9 @@ struct LogSleepMarkIntent: AppIntent {
 
 /// Send a confirming haptic buzz to the strap. Opens the app so the live BLE link can deliver it.
 struct BuzzStrapIntent: AppIntent {
-    static var title: LocalizedStringResource = "Buzz Strap"
-    static var description = IntentDescription("Send a haptic buzz to your WHOOP strap.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Buzz Strap"
+    static let description = IntentDescription("Send a haptic buzz to your WHOOP strap.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -96,8 +96,8 @@ struct BuzzStrapIntent: AppIntent {
 /// opening the app or touching BLE — Siri can answer even with NOOP backgrounded or the strap disconnected.
 /// `openAppWhenRun` stays false; there's nothing for the foreground app to do.
 struct RecoveryStatusIntent: AppIntent {
-    static var title: LocalizedStringResource = "Recovery Status"
-    static var description = IntentDescription("Hear today's Charge (recovery) score.")
+    static let title: LocalizedStringResource = "Recovery Status"
+    static let description = IntentDescription("Hear today's Charge (recovery) score.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let snap = WidgetSnapshot.load(), let recovery = snap.recovery else {
@@ -116,9 +116,9 @@ struct RecoveryStatusIntent: AppIntent {
 /// (the Dynamic Island "Connecting… / Syncing… N chunks" readout) from the background. A plain intent
 /// running in a background-launched app is refused by ActivityKit.
 struct SyncStrapIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Sync Strap"
-    static var description = IntentDescription("Pull your WHOOP strap's stored history into NOOP now.")
-    static var openAppWhenRun = false
+    static let title: LocalizedStringResource = "Sync Strap"
+    static let description = IntentDescription("Pull your WHOOP strap's stored history into NOOP now.")
+    static let openAppWhenRun = false
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -136,9 +136,9 @@ struct SyncStrapIntent: LiveActivityIntent {
 /// to the configured provider and surfaces the response. The question is spoken or typed in Siri;
 /// the app handles the actual network call using the user's saved key.
 struct AskCoachIntent: AppIntent {
-    static var title: LocalizedStringResource = "Ask Coach"
-    static var description = IntentDescription("Ask your NOOP Coach a question about your recovery, sleep, or training.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Ask Coach"
+    static let description = IntentDescription("Ask your NOOP Coach a question about your recovery, sleep, or training.")
+    static let openAppWhenRun = true
 
     /// The question to ask, populated by Siri from the user's spoken phrase.
     @Parameter(title: "Question")
@@ -154,8 +154,8 @@ struct AskCoachIntent: AppIntent {
 /// "How are my goals?" (goals plan §13). A read from the last-published goal snapshot, like Recovery
 /// Status: Siri answers with NOOP in the background, in the same words the app shows.
 struct GoalsStatusIntent: AppIntent {
-    static var title: LocalizedStringResource = "Goals Status"
-    static var description = IntentDescription("Hear how your weekly and monthly goals stand.")
+    static let title: LocalizedStringResource = "Goals Status"
+    static let description = IntentDescription("Hear how your weekly and monthly goals stand.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let snap = GoalWidgetSnapshot.load(), !snap.goals.isEmpty else {
@@ -168,9 +168,9 @@ struct GoalsStatusIntent: AppIntent {
 
 /// Opens the goals overview.
 struct OpenGoalsIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open Goals"
-    static var description = IntentDescription("Open your goals overview in NOOP.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Open Goals"
+    static let description = IntentDescription("Open your goals overview in NOOP.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {

@@ -6,8 +6,8 @@ import StrandDesign
 // MARK: - Configuration (pick a goal, or "most important")
 
 struct GoalWidgetEntity: AppEntity {
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Goal"
-    static var defaultQuery = GoalWidgetEntityQuery()
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Goal"
+    static let defaultQuery = GoalWidgetEntityQuery()
 
     var id: String
     var title: String
@@ -36,8 +36,8 @@ struct GoalWidgetEntityQuery: EntityQuery {
 }
 
 struct SelectGoalIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Choose a goal"
-    static var description = IntentDescription("Pick the goal this widget shows, or let NOOP show the most important one.")
+    static let title: LocalizedStringResource = "Choose a goal"
+    static let description = IntentDescription("Pick the goal this widget shows, or let NOOP show the most important one.")
 
     @Parameter(title: "Goal")
     var goal: GoalWidgetEntity?

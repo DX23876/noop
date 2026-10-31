@@ -49,7 +49,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     ///
     /// Derived from the rebuild-degradation curve rather than chosen: see the gate in `retrieve` for the
     /// measurements and for why the value sits above the measured crossing point instead of on it.
-    static let minimumEmbeddedShareForSemanticSearch = 0.60
+    nonisolated static let minimumEmbeddedShareForSemanticSearch = 0.60
 
     static let enabledKey = "coach.semanticMemory.enabled"
     private static let lastForegroundCatchUpKey = "coach.semanticMemory.lastForegroundCatchUp"
@@ -442,7 +442,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                     let startedAt = DispatchTime.now().uptimeNanoseconds
                     let vector = try await provider.embedQuery(question)
                     let elapsed = Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000
-                    await self?.recordQueryEmbed(milliseconds: elapsed)
+                    self?.recordQueryEmbed(milliseconds: elapsed)
                     let hits = try await store.search(vector: vector,
                                                       allowedScopes: allowedScopes,
                                                       limit: 32)

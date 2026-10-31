@@ -118,7 +118,7 @@ extension WhoopStore {
                 arguments.append(range.from.databaseValue); arguments.append(range.to.databaseValue)
             }
             try db.execute(sql: "DELETE FROM \(table) WHERE \(clauses.joined(separator: " AND "))",
-                           arguments: StatementArguments(arguments) ?? [])
+                           arguments: StatementArguments(arguments))
             let removed = db.changesCount
             if removed > 0, case .text(let device)? = equals["deviceId"] {
                 try Self.markAnalysisDeviceChanged(db, deviceId: device)

@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 import StrandAnalytics
 
 /// Surfaces the strap battery state as a user notification — a LOW warning when the cell falls to

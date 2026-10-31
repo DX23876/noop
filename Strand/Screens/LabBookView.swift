@@ -616,7 +616,7 @@ struct LabBookView: View {
 
     private func save(_ drafts: [LabMarkerRow]) async {
         guard !drafts.isEmpty, let store = await repo.storeHandle() else { return }
-        try? await store.upsertLabMarkers(drafts)
+        _ = try? await store.upsertLabMarkers(drafts)
         await repo.refresh()   // re-resolves the lab-book projection into Compare/Explore/Coach
         await load()
     }
