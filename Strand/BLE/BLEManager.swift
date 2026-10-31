@@ -7386,8 +7386,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // with metadata only. Same 8-byte payload as the WHOOP4 handshake, puffin-framed;
                 // GET_CLOCK's reply rides the puffin notify chars and never touches the WHOOP4
                 // clockRef correlation path. The 1.5s deferral below keeps clock-before-history.
-                // Hardware-validated ordering (#78 fork).
-                send(.setClock, payload: BLEManager.setClockPayload())
+                // Hardware-validated ordering (#78 fork). Real subseconds (1/32768 s): the zero fraction
+                // floored the strap up to a second behind (`SetClockPayload`).
+                send(.setClock, payload: SetClockPayload.withSubseconds(epochMs: BLEManager.nowEpochMs()))
                 send(.getClock, payload: [])
                 // #1823: say what was SENT, not what resulted. This previously read "clock synced —
                 // strap can persist history now", logged before any reply had arrived, so a log could
@@ -7531,7 +7532,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
     }
 
     /// SET_CLOCK(10) payload — the 8-byte form `[seconds u32 LE][subseconds u32 LE]`, subseconds in
-    /// 1/32768 s (0 is fine). The payload LENGTH is firmware-specific and LOAD-BEARING: newer WHOOP 4
+    /// 1/32768 s, left 0 here for WHOOP 4 (WHOOP 5/MG sends `SetClockPayload.withSubseconds`). The payload LENGTH is firmware-specific and LOAD-BEARING: newer WHOOP 4
     /// firmware latches this form, but fw 41.17.x ignores it outright — no COMMAND_RESPONSE, RTC
     /// unchanged — and latches only the legacy 9-byte form below. A strap that misses the set keeps an
     /// invalid RTC and stops banking sensor data to flash entirely, which surfaces as endless
@@ -7557,15 +7558,23 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
 
     /// Send SET_CLOCK in every payload form the WHOOP 4 firmware family is known to accept (8-byte for
     /// newer firmware, 9-byte for 41.17.x — each a no-op on the other). Both carry the same `now`, so
-    /// double-latching is harmless. WHOOP 5/MG keeps its single hardware-validated 8-byte send (its
-    /// connect path calls setClockPayload() directly; the 9-byte form is unverified on that family), so
-    /// the legacy form is gated to WHOOP 4. (#120)
+    /// double-latching is harmless. WHOOP 5/MG keeps its single 8-byte send, with real subseconds
+    /// (`SetClockPayload`; the 9-byte form is unverified on that family), so the legacy form is gated to
+    /// WHOOP 4. (#120)
     func sendSetClockBothForms() {
-        let now = UInt32(Date().timeIntervalSince1970)
-        send(.setClock, payload: BLEManager.setClockPayload(now: now))
-        if selectedModel.deviceFamily == .whoop4 {
+        switch selectedModel.deviceFamily {
+        case .whoop4:
+            let now = UInt32(Date().timeIntervalSince1970)
+            send(.setClock, payload: BLEManager.setClockPayload(now: now))
             send(.setClock, payload: BLEManager.setClockPayloadLegacy(now: now))
+        case .whoop5:
+            send(.setClock, payload: SetClockPayload.withSubseconds(epochMs: BLEManager.nowEpochMs()))
         }
+    }
+
+    /// The phone's Unix time in whole milliseconds, for a clock body that carries the fraction.
+    static func nowEpochMs() -> Int64 {
+        Int64((Date().timeIntervalSince1970 * 1000).rounded(.down))
     }
 
     /// Newest plausible-unix marker in a GET_DATA_RANGE COMMAND_RESPONSE = the strap's newest stored

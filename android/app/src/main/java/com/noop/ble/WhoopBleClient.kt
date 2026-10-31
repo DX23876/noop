@@ -58,6 +58,7 @@ import com.noop.protocol.FeatureFlagProbeReport
 import com.noop.protocol.Framing
 import com.noop.protocol.HapticClock
 import com.noop.protocol.Reassembler
+import com.noop.protocol.SetClockPayload
 import com.noop.protocol.Whoop5Variant
 import com.noop.protocol.RebootProbeVariant
 import com.noop.protocol.Streams
@@ -6208,7 +6209,7 @@ class WhoopBleClient(
         // SEND_HISTORICAL_DATA with response through the ordinary path, so if with-response is the thing
         // this strap will not do, the log separates that cleanly from the stages above rather than
         // wedging the queue before any of them can be read.
-        send(CommandNumber.SET_CLOCK, setClockPayload())
+        send(CommandNumber.SET_CLOCK, SetClockPayload.withSubseconds(System.currentTimeMillis()))
         send(CommandNumber.GET_CLOCK, byteArrayOf())
         if (!backfillStarted) {
             backfillStarted = true
@@ -10148,14 +10149,17 @@ class WhoopBleClient(
     /**
      * Send SET_CLOCK in every payload form the WHOOP 4 firmware family is known to accept (8-byte for
      * newer firmware, 9-byte for 41.17.x — each a no-op on the other). Both carry the same `now`, so
-     * double-latching is harmless. WHOOP 5/MG keeps its single hardware-validated 8-byte send, so the
-     * legacy form is gated to WHOOP 4. Port of `BLEManager.sendSetClockBothForms`. (#120)
+     * double-latching is harmless. WHOOP 5/MG keeps its single 8-byte send, with real subseconds
+     * ([SetClockPayload]), so the legacy form is gated to WHOOP 4. Port of `BLEManager.sendSetClockBothForms`. (#120)
      */
     private fun sendSetClockBothForms(withResponse: Boolean = false) {
-        val now = System.currentTimeMillis() / 1000L
-        send(CommandNumber.SET_CLOCK, setClockPayload(now), withResponse = withResponse)
+        val nowMs = System.currentTimeMillis()
         if (selectedModel == WhoopModel.WHOOP4) {
+            val now = nowMs / 1000L
+            send(CommandNumber.SET_CLOCK, setClockPayload(now), withResponse = withResponse)
             send(CommandNumber.SET_CLOCK, setClockPayloadLegacy(now), withResponse = withResponse)
+        } else {
+            send(CommandNumber.SET_CLOCK, SetClockPayload.withSubseconds(nowMs), withResponse = withResponse)
         }
     }
 
@@ -10682,7 +10686,8 @@ class WhoopBleClient(
                 connectHandshakeDone = true
                 _state.update { it.copy(historyReady = true) }
                 noteRebootReconnectIfNeeded()
-                send(CommandNumber.SET_CLOCK, setClockPayload(), withResponse = true)
+                // Real subseconds (1/32768 s) so the strap is not floored up to a second behind.
+                send(CommandNumber.SET_CLOCK, SetClockPayload.withSubseconds(System.currentTimeMillis()), withResponse = true)
                 send(CommandNumber.GET_CLOCK, byteArrayOf(), withResponse = true)
                 // Populate the battery ring right after connect, not only once the Live screen opens. Posted
                 // after the clock writes settle so the 0x2A19 read does not race them on a slow stack.
