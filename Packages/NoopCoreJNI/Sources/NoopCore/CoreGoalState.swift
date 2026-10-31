@@ -76,22 +76,24 @@ enum CoreGoalState {
 /// the coach sees the wearer's goals and what it drafts survives a restart.
 @MainActor
 enum CoreGoalHost {
-    private static var store: ObjectIdentifier?
+    /// Weak, not an `ObjectIdentifier`: a freed store's address can be reused by the next one, which then
+    /// passed for the store whose goals the host holds and had them installed over its own.
+    private static weak var store: WhoopStore?
     private static var source: Data?
     private static var installed = false
 
     /// Installs the stored image, unless the host already holds exactly that image for this store.
     static func load(_ store: WhoopStore) async {
         let data = try? await store.goalPreferenceState()
-        if installed, self.store == ObjectIdentifier(store), data == source { return }
+        if installed, self.store === store, data == source { return }
         install(data)
-        self.store = ObjectIdentifier(store)
+        self.store = store
     }
 
     /// Saves what changed in the host stores since the last load. A concurrent commit wins: the host then takes
     /// the stored image over rather than overwrite newer input.
     static func persist(_ store: WhoopStore) async {
-        guard installed, self.store == ObjectIdentifier(store),
+        guard installed, self.store === store,
               let image = GoalPreferences.standard as? GoalPreferenceImage,
               let data = try? image.serialized(), data != source else { return }
         if (try? await store.commitGoalPreferenceState(expected: source, replacement: data)) == true {
@@ -103,7 +105,7 @@ enum CoreGoalHost {
 
     /// A transaction committed `data` to `store`; the host follows it when it holds that store's goals.
     static func adopt(_ data: Data, from store: WhoopStore) {
-        if installed, self.store == ObjectIdentifier(store) { install(data) }
+        if installed, self.store === store { install(data) }
     }
 
     /// Runs `body` with the persisted goals installed and saves what it changed.

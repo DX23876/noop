@@ -18,6 +18,9 @@ struct Options {
     var minAwakeHours = 8.0
     var hrMax: Int?
     var dump: String?
+    /// `--review N`: print N randomly chosen suggestions without an entry (both tracks, "balanced") for the
+    /// owner's hand check (plan block 7). Seeded, so the same list comes back.
+    var review: Int?
 
     static func parse(_ args: [String]) -> Options? {
         var o = Options()
@@ -36,6 +39,7 @@ struct Options {
             case "--min-awake-hours": o.minAwakeHours = Double(value) ?? o.minAwakeHours
             case "--hr-max": o.hrMax = Int(value)
             case "--dump": o.dump = value
+            case "--review": o.review = Int(value)
             default: return nil
             }
             i += 2
@@ -193,6 +197,23 @@ do {
             for e in entries where keep(e.span.start) { out.append(.init(week: week(of: e.span.start), what: .entry(e.kind))) }
             for d in wornDays where keep(d) { out.append(.init(week: week(of: d), what: .wornDay)) }
             return out
+        }
+        if let n = opts.review, detector.name == "both, balanced" {
+            var rng = SplitMix64(seed: 31)
+            var pool = candidates.indices.filter { matched[$0] == nil }
+            var picked: [Int] = []
+            while picked.count < n, !pool.isEmpty { picked.append(pool.remove(at: Int(rng.next() % UInt64(pool.count)))) }
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "de_DE")
+            f.dateFormat = "EEE dd.MM. HH:mm"
+            let t = DateFormatter()
+            t.dateFormat = "HH:mm"
+            print("\nreview \(picked.count) of \(pool.count + picked.count) suggestions without an entry")
+            for (k, i) in picked.sorted(by: { candidates[$0].start < candidates[$1].start }).enumerated() {
+                let c = candidates[i]
+                print("\(k + 1)\t\(f.string(from: Date(timeIntervalSince1970: TimeInterval(c.start))))"
+                      + "–\(t.string(from: Date(timeIntervalSince1970: TimeInterval(c.end))))\t\((c.end - c.start) / 60) min")
+            }
         }
         let errors = zip(candidates, matched).compactMap { c, l in l.map { (c, entries[$0].span) } }
         report(name: detector.name, part: "all", outcomes: outcomes { _ in true }, errors: errors)
