@@ -261,6 +261,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             onQuickActions = { quickActions = true }, onUpdates = { updatesOpen = true },
                             onCoach = if (coachOn) ({ more.push(MoreRoute.Dest(MoreDest.Coach)) }) else null,
                             onArrange = { arranging = style }, onPickDay = { dayPicker = true })
+            if (shown == today) ForgeActivityPrompt()
             if (shown == today) ForgeMorningSuggestion()
             ForgeStyledDashboard(style, layoutRevision, shown, model?.day, viewModel,
                 onSection = { drawSection(it) },
@@ -271,7 +272,9 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 onActivity = { more.push(MoreRoute.Dest(MoreDest.Workouts)) })
         } else {
         Header(shown, isToday = shown == today, onProfile = { settingsOpen = true }, onQuickActions = { quickActions = true })
-        // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`).
+        // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`); activity
+        // detection's prompt first, so a suggestion waiting for an answer cannot be arranged below the fold.
+        if (shown == today) ForgeActivityPrompt()
         if (shown == today) ForgeMorningSuggestion()
         // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
         sections.forEach { drawSection(it) }

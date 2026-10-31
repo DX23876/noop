@@ -294,6 +294,8 @@ struct RootTabView: View {
         .sheet(isPresented: $showDevices) {
             devicesScreen
         }
+        // Activity detection: a notification tap or "Other kind…" opens the logging sheet from any tab.
+        .activitySuggestionSheetHost(repo)
         // Live Sessions: a full-screen cover (the guardian owns the display mid-session), presented from
         // the quick-action menu or a coach deep-link. Same helper the macOS Today row uses.
         .liveSessionCover(isPresented: $showLiveSession)

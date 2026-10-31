@@ -2044,7 +2044,7 @@ private fun Cell(text: String, modifier: Modifier, color: Color? = null) {
 // dialog to plain numeric fields — the persisted startTs is identical).
 
 @Composable
-private fun ManualWorkoutDialog(
+internal fun ManualWorkoutDialog(
     editing: WorkoutRow?,
     isCopy: Boolean = false,
     onDismiss: () -> Unit,

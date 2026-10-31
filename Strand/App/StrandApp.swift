@@ -35,6 +35,7 @@ struct StrandApp: App {
         // notification names but nobody registered simply shows no buttons, silently.
         CoachCheckIn.registerCategory()
         GoalEventNotifier.registerCategory()
+        ActivitySuggestionNotifier.registerCategories()
         // K5: tapping a scheduled morning-brief notification routes to Coach via the shared NavRouter.
         let router = NavRouter()
         _router = StateObject(wrappedValue: router)

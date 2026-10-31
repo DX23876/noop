@@ -3339,6 +3339,8 @@ final class Repository: ObservableObject {
     ///    history is never touched.
     func saveManualWorkout(_ row: WorkoutRow, replacing old: WorkoutRow? = nil) async {
         defer { scheduleEnergyRefresh(coveringStart: min(row.startTs, old?.startTs ?? row.startTs)) }
+        // A session logged by hand over an open activity suggestion answers it (decision 2026-10-31).
+        defer { Task { await ActivitySuggestionCenter.shared.noteLogged(row) } }
         guard let store = await ensureStore() else { return }
         if let old, WorkoutSource.classify(old.source) == .detected {
             // Write the replacement first. If that insert fails, the grandfathered source row and its
@@ -3622,196 +3624,21 @@ final class Repository: ObservableObject {
         }
     }
 
-    // MARK: - Auto-detect workouts , the opt-in "Looks like a workout?" Today prompt
+    // MARK: - Activity detection , dismissals carried over from the old Today card
     //
-    // This is the only path that can create a NEW visible automatically suggested workout, and it still
-    // saves nothing until the user taps Save. The analytics detector remains internal for daily scoring
-    // and overlap enrichment; it no longer persists generic `sport="detected"` rows. Both historical
-    // dismissal stores are honored during the transition so retiring that writer cannot resurrect a bout.
+    // The old "Looks like a workout?" card kept two durable dismissal stores. The activity-detection
+    // resolver honours both, so a span the wearer once dismissed is never asked about again
+    // (fork decision 2026-10-31). Nothing writes them any more; the keys stay for backup compatibility.
 
-    /// Dismissed AUTO-DETECT spans ("startSec:endSec"). The key remains distinct for backup compatibility;
-    /// candidate selection also honors the legacy `dismissedDetected` intervals during the transition.
+    /// Dismissed AUTO-DETECT spans ("startSec:endSec").
     private static let autoDetectDismissedKey = "workouts.autoDetectDismissed"
-    private var autoDetectDismissedSpans: [String] {
-        get { UserDefaults.standard.stringArray(forKey: Self.autoDetectDismissedKey) ?? [] }
-        set { UserDefaults.standard.set(newValue, forKey: Self.autoDetectDismissedKey) }
+
+    /// Both dismissal stores as half-open windows.
+    var legacyAutoDetectDismissedWindows: [Range<Int>] {
+        let exact = UserDefaults.standard.stringArray(forKey: Self.autoDetectDismissedKey) ?? []
+        return WorkoutSource.dismissedWindows(exact) + WorkoutSource.dismissedWindows(dismissedDetectedSpans)
     }
 
-    /// Token for one auto-detect span (matches the detector's integer seconds).
-    nonisolated private static func autoDetectToken(_ w: DetectedWorkout) -> String {
-        "\(w.startSec):\(w.endSec)"
-    }
-
-    /// Select the newest published suggestion after applying BOTH durable dismissal contracts. The
-    /// suggestion detector historically used exact span tokens; engine-created rows used half-open overlap
-    /// tombstones because a re-score could shift the inferred boundary by a few seconds. Preserve both
-    /// semantics so neither kind of prior dismissal can reappear during the unification.
-    nonisolated static func selectAutoDetectCandidate(
-        _ candidates: [DetectedWorkout],
-        autoDismissedTokens: [String],
-        detectedDismissedTokens: [String]
-    ) -> DetectedWorkout? {
-        let exact = Set(autoDismissedTokens)
-        let legacy = WorkoutSource.parseDismissedSpans(detectedDismissedTokens)
-        return candidates
-            .filter { candidate in
-                !exact.contains(autoDetectToken(candidate))
-                    && !legacy.contains { span in
-                        candidate.startSec < span.end && span.start < candidate.endSec
-                    }
-            }
-            .max(by: { $0.startSec < $1.startSec })
-    }
-
-    /// Hard cap on the dismissed-span list , a backstop so the UserDefaults array can't grow without
-    /// bound even in pathological use. 200 most-recent (by span END) is far more than detection's ~2-day
-    /// window can ever re-surface; the age prune below normally keeps it much shorter. Mirrors Android.
-    private static let autoDetectDismissedMax = 200
-    /// Spans whose END is older than this many seconds can never be re-suggested (detection only scans
-    /// the last ~2 days), so we drop them. 30 days, matching the Android twin byte-for-byte.
-    private static let autoDetectDismissedMaxAgeSec = 30 * 86_400
-
-    /// Parse the END time (seconds) out of a "startSec:endSec" token; nil if malformed.
-    private func autoDetectTokenEnd(_ token: String) -> Int? {
-        guard let colon = token.lastIndex(of: ":") else { return nil }
-        return Int(token[token.index(after: colon)...])
-    }
-
-    /// Prune the dismissed-span list: drop spans whose END is older than ~30 days (they can never be
-    /// re-suggested anyway), then hard-cap to the `autoDetectDismissedMax` most-recent (by END) as a
-    /// backstop. Malformed tokens are kept (treated as newest) so we never silently lose data on a
-    /// parse miss. Byte-mirrored in the Android `AutoWorkoutPrefs.prune`.
-    private func prunedAutoDetectSpans(_ spans: [String], now: Int) -> [String] {
-        let cutoff = now - Self.autoDetectDismissedMaxAgeSec
-        // Drop anything that aged out; an unparseable token survives the age filter.
-        let fresh = spans.filter { token in
-            guard let end = autoDetectTokenEnd(token) else { return true }
-            return end >= cutoff
-        }
-        guard fresh.count > Self.autoDetectDismissedMax else { return fresh }
-        // Over the cap , keep the most-recent by END (unparseable sort as newest). Sort indices so we
-        // preserve the original list order among the kept entries and never collapse equal tokens.
-        let keepIdx = Set(fresh.indices
-            .sorted { (autoDetectTokenEnd(fresh[$0]) ?? .max) > (autoDetectTokenEnd(fresh[$1]) ?? .max) }
-            .prefix(Self.autoDetectDismissedMax))
-        return fresh.indices.filter { keepIdx.contains($0) }.map { fresh[$0] }
-    }
-
-    /// Run the opt-in detector over the last `daysBack` days of HR and return the single best
-    /// candidate to suggest , newest first , that is NOT already saved and NOT previously dismissed.
-    /// Returns nil when the toggle is off, there's nothing to suggest, or detection finds nothing.
-    /// PURE READ: never writes a workout. The window scans from `daysBack` days ago to now.
-    func autoDetectCandidate(daysBack: Int = 2) async -> DetectedWorkout? {
-        guard PuffinExperiment.autoDetectWorkoutsEnabled else { return nil }
-        let now = Int(Date().timeIntervalSince1970)
-        let from = now - daysBack * 86_400
-        let samples = await hrSamples(from: from, to: now, limit: Int.max)
-        guard samples.count >= 2 else { return nil }
-        let hr = samples.map { (ts: $0.ts, bpm: $0.bpm) }
-
-        // Resting HR: most recent nightly RHR in range, else the detector's own default (60).
-        let restingBpm = days.last(where: { $0.restingHr != nil })?.restingHr
-
-        // Exclude every already-saved workout window (any source , strap, manual, imported, detected).
-        let saved = await workoutRows()
-        let savedSpans = saved.map { SavedWorkoutSpan(startSec: $0.startTs, endSec: $0.endTs) }
-
-        // Workouts & GPS test mode: the published 12-minute result remains byte-identical. Aggregate,
-        // local-only comparisons include that 12-minute baseline plus the 10- and 15-minute alternatives.
-        // Shadow candidates are compared only with manual/imported labels; legacy detector rows are not
-        // ground truth. No shadow output can mutate the DB, visible card, daily scores or anything off-device.
-        let candidates: [DetectedWorkout]
-        if TestCentre.active(.workouts), workoutsLog != nil {
-            let (results, trace) = AutoWorkoutDetector.detectTrace(
-                hr: hr, restingBpm: restingBpm, motion: nil, savedSpans: savedSpans,
-                minimumSustainedMinutes: AutoWorkoutDetector.minSustainedMin,
-                path: "autoDetect")
-            for line in trace { emitWorkouts(line) }
-            let labelledSpans = saved
-                // `workoutRows()` intentionally returns long-lived history for the UI. Shadow candidates
-                // only cover this detector scan, so count labels in that same [from, now] start-time window
-                // (matching Android's range-scoped queries) or old sessions become false "missed" results.
-                .filter {
-                    $0.startTs >= from && $0.startTs <= now
-                        && WorkoutSource.classify($0.source) != .detected
-                }
-                .map { SavedWorkoutSpan(startSec: $0.startTs, endSec: $0.endTs) }
-            for line in AutoWorkoutDetector.shadowComparisonLines(
-                hr: hr, restingBpm: restingBpm, motion: nil, savedSpans: labelledSpans) {
-                emitWorkouts(line)
-            }
-            candidates = results
-        } else {
-            candidates = AutoWorkoutDetector.detect(hr: hr, restingBpm: restingBpm,
-                                                    motion: nil, savedSpans: savedSpans,
-                                                    minimumSustainedMinutes: AutoWorkoutDetector.minSustainedMin)
-        }
-        return Self.selectAutoDetectCandidate(
-            candidates,
-            autoDismissedTokens: autoDetectDismissedSpans,
-            detectedDismissedTokens: dismissedDetectedSpans)
-    }
-
-    /// Windows the published detector finds on the calendar day of `day`, for the HR curve on the workout
-    /// sheet. Unlike `autoDetectCandidate` this runs whether or not the Settings toggle is on and ignores
-    /// earlier dismissals: the wearer opened the sheet to log a session, so every plausible window on that
-    /// day is offered as a starting point. Saved workouts still exclude their own windows, except the row
-    /// being edited, whose span is the one being adjusted. PURE READ: never writes a workout.
-    func workoutSpanSuggestions(day: Date, excluding editing: WorkoutRow?) async -> [DetectedWorkout] {
-        let cal = Calendar.current
-        let dayStart = cal.startOfDay(for: day)
-        let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86_400)
-        let from = Int(dayStart.timeIntervalSince1970)
-        let to = min(Int(dayEnd.timeIntervalSince1970), Int(Date().timeIntervalSince1970))
-        guard to > from else { return [] }
-        let samples = await hrSamples(from: from, to: to, limit: Int.max)
-        guard samples.count >= 2 else { return [] }
-
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
-        f.dateFormat = "yyyy-MM-dd"
-        let key = f.string(from: dayStart)
-        let resting = await restingHrByDay(fromDay: key, toDay: key)[key].map { Int($0.rounded()) }
-            ?? days.last(where: { $0.restingHr != nil })?.restingHr
-
-        let savedSpans = await workoutRows()
-            .filter { row in
-                guard let editing else { return true }
-                return !(row.startTs == editing.startTs && row.sport == editing.sport)
-            }
-            .map { SavedWorkoutSpan(startSec: $0.startTs, endSec: $0.endTs) }
-        return AutoWorkoutDetector.detect(hr: samples.map { (ts: $0.ts, bpm: $0.bpm) },
-                                          restingBpm: resting, motion: nil, savedSpans: savedSpans,
-                                          minimumSustainedMinutes: AutoWorkoutDetector.minSustainedMin)
-    }
-
-    /// SAVE a suggested window as a manual-style "Workout" (generic sport , we don't claim a sport we
-    /// didn't classify). Built through the same `WorkoutSource.buildManualRow` the manual sheet uses, so
-    /// it persists exactly like a hand-entered session under the strap source. After saving, the screen
-    /// re-queries (the new saved span now excludes this window from re-suggestion).
-    @discardableResult
-    func saveDetectedWorkout(_ w: DetectedWorkout) async -> Bool {
-        let durationMin = max(1, w.durationMin)
-        let start = Date(timeIntervalSince1970: TimeInterval(w.startSec))
-        guard let row = WorkoutSource.buildManualRow(start: start, durationMin: durationMin,
-                                                     sport: "Workout", avgHr: w.avgBpm,
-                                                     energyKcal: nil) else { return false }
-        await saveManualWorkout(row)
-        return true
-    }
-
-    /// DISMISS a suggested window: record its span durably so it never re-prompts. Idempotent.
-    /// Prunes the stored list on every add (drop spans older than ~30 days + hard-cap to 200 most-recent)
-    /// so it can never grow unbounded. Byte-mirrored in the Android `AutoWorkoutPrefs.dismiss`.
-    func dismissDetectedSuggestion(_ w: DetectedWorkout) {
-        let token = Self.autoDetectToken(w)
-        var spans = autoDetectDismissedSpans
-        guard !spans.contains(token) else { return }
-        spans.append(token)
-        autoDetectDismissedSpans = prunedAutoDetectSpans(spans, now: Int(Date().timeIntervalSince1970))
-    }
 
     // MARK: - Workout detail (read-only helpers, additive) , #410
     //

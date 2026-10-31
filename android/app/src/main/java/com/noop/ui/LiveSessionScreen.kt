@@ -98,7 +98,7 @@ private const val CHARGE_SENTENCE_MS: Long = 6_000L
 fun startOrResumeLiveSession(vm: AppViewModel, context: Context): LiveSessionRunner {
     val today = vm.today.value
     // Latest known resting HR: today's row first, else the most recent scored day (recentDays is
-    // oldest → newest). 60 bpm is the same neutral default AutoWorkoutDetector uses when nothing is known.
+    // oldest → newest). 60 bpm is the neutral default the old workout detector used when nothing is known.
     val restingHr = today?.restingHr
         ?: vm.recentDays.value.lastOrNull { it.restingHr != null }?.restingHr
         ?: 60

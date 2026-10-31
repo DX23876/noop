@@ -8,7 +8,7 @@ import StrandCore
 // MARK: - Workout span picker (HR curve on the workout sheet)
 //
 // Shows the strap's heart rate around the session being logged, shades the chosen span, marks the windows
-// the published detector finds on that day, and lets the wearer set the span on the curve itself: drag a
+// activity detection finds on that day, and lets the wearer set the span on the curve itself: drag a
 // handle to move the start or the end, drag inside the span to shift it whole, drag anywhere else to draw a
 // new one. The Start / End pickers below stay the precise input; both edit the same `start` / `end`.
 //
@@ -34,7 +34,7 @@ struct WorkoutSpanPicker: View {
     @State private var viewport: ClosedRange<Date>
     @State private var buckets: [HRBucket] = []
     @State private var loadedViewport: ClosedRange<Date>?
-    @State private var suggestions: [DetectedWorkout] = []
+    @State private var suggestions: [ActivitySuggestions.Suggestion] = []
     @State private var drag: DragMode?
 
     enum DragMode {
@@ -86,7 +86,10 @@ struct WorkoutSpanPicker: View {
         }
         .task(id: ViewportKey(viewport)) { await loadBuckets(for: viewport) }
         .task(id: Calendar.current.startOfDay(for: start)) {
-            suggestions = await repo.workoutSpanSuggestions(day: start, excluding: editing)
+            // The day's activity-detection suggestions (decision 2026-10-31), below the asking level too.
+            suggestions = await repo.activitySuggestions(day: start,
+                                                         hrMax: Int(ProfileStore.persistedAnalyticsProfile.maxHR ?? 190))
+                .filter { s in editing.map { !(s.start < $0.endTs && $0.startTs < s.end) } ?? true }
         }
         .onChangeCompat(of: scope) { _ in refreshViewport(force: true) }
         // A change from the pickers or a suggestion re-frames the curve; a drag keeps it still until it ends.
@@ -103,10 +106,10 @@ struct WorkoutSpanPicker: View {
         let lo = max(30, (values.min() ?? 60) - 8)
         let hi = max(lo + 20, (values.max() ?? 160) + 8)
         return Chart {
-            ForEach(suggestions, id: \.startSec) { s in
+            ForEach(suggestions) { s in
                 RectangleMark(
-                    xStart: .value("Start", Date(timeIntervalSince1970: TimeInterval(s.startSec))),
-                    xEnd: .value("End", Date(timeIntervalSince1970: TimeInterval(s.endSec))),
+                    xStart: .value("Start", Date(timeIntervalSince1970: TimeInterval(s.start))),
+                    xEnd: .value("End", Date(timeIntervalSince1970: TimeInterval(s.end))),
                     yStart: .value("Low", lo), yEnd: .value("High", hi))
                 .foregroundStyle(StrandPalette.accent.opacity(Self.bandOpacity))
             }
@@ -334,7 +337,7 @@ struct WorkoutSpanPicker: View {
             Text("Spotted on this day").strandOverline()
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: NoopMetrics.space2) {
-                    ForEach(suggestions, id: \.startSec) { s in
+                    ForEach(suggestions) { s in
                         suggestionChip(s)
                     }
                 }
@@ -342,12 +345,12 @@ struct WorkoutSpanPicker: View {
         }
     }
 
-    private func suggestionChip(_ s: DetectedWorkout) -> some View {
+    private func suggestionChip(_ s: ActivitySuggestions.Suggestion) -> some View {
         let fmt = AppClock.hourMinuteFormatter()
-        let sDate = Date(timeIntervalSince1970: TimeInterval(s.startSec))
-        let eDate = Date(timeIntervalSince1970: TimeInterval(s.endSec))
-        let selected = Int(start.timeIntervalSince1970) == s.startSec && Int(end.timeIntervalSince1970) == s.endSec
-        let label = String(localized: "\(fmt.string(from: sDate)) to \(fmt.string(from: eDate)) · avg \(s.avgBpm)")
+        let sDate = Date(timeIntervalSince1970: TimeInterval(s.start))
+        let eDate = Date(timeIntervalSince1970: TimeInterval(s.end))
+        let selected = Int(start.timeIntervalSince1970) == s.start && Int(end.timeIntervalSince1970) == s.end
+        let label = String(localized: "\(fmt.string(from: sDate)) to \(fmt.string(from: eDate)) · avg \(s.avgBpm ?? 0)")
         return Button {
             start = sDate
             end = eDate

@@ -268,6 +268,11 @@
             android:name="com.noop.ui.forge.RestEndReceiver"
             android:exported="false" />
 
+        <!-- The activity-detection notification buttons: save, not training (fork, ActivitySuggestionNotifier.kt). -->
+        <receiver
+            android:name="com.noop.notif.ActivitySuggestionActionReceiver"
+            android:exported="false" />
+
         <!-- The goal notification buttons: tick off, remind in an hour (fork, GoalNoticeNotifier.kt). -->
         <receiver
             android:name="com.noop.notif.GoalNoticeActionReceiver"

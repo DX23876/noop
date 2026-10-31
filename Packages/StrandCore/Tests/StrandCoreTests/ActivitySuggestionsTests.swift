@@ -2,6 +2,7 @@ import XCTest
 import StrandAnalytics
 @testable import StrandCore
 import WhoopStore
+import WhoopProtocol
 
 final class ActivitySuggestionsTests: XCTestCase {
     typealias S = ActivitySuggestions
@@ -65,6 +66,25 @@ final class ActivitySuggestionsTests: XCTestCase {
         XCTAssertEqual(S.inbox(all, now: 60_000).map(\.start), [30_000, 20_000, 10_000])
         XCTAssertEqual(S.forSheet(all, dayStart: 0, dayEnd: 86_400).map(\.start), [20_000, 30_000],
                        "the sheet offers spans below the level too, never answered ones")
+    }
+
+    /// Two weeks back from 2026-10-31 cross the end of summer time in Berlin: the refresh must still reach today.
+    func testTheRefreshReachesTodayAcrossAClockChange() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        let store = try await WhoopStore.inMemory()
+        let todayStart = Int(calendar.date(from: DateComponents(year: 2026, month: 10, day: 31))!.timeIntervalSince1970)
+        let lift = todayStart + 15 * 3_600
+        var hr: [HRSample] = []
+        for t in stride(from: lift - 3_600, to: lift + 50 * 60, by: 1) {
+            hr.append(HRSample(ts: t, bpm: t >= lift ? 140 : 62))
+        }
+        try await store.insert(Streams(hr: hr), deviceId: "my-whoop")
+        try await store.upsertDailyMetrics([DailyMetric(day: "2026-10-31", totalSleepMin: nil, efficiency: nil, deepMin: nil, remMin: nil, lightMin: nil, disturbances: nil, restingHr: 55, avgHrv: nil, recovery: nil, strain: nil, exerciseCount: nil)], deviceId: "my-whoop")
+        let found = try await S.refresh(store: store, deviceId: "my-whoop", computedId: "my-whoop-noop", hrMax: 185,
+                                        now: lift + 2 * 3_600, calendar: calendar)
+        XCTAssertEqual(found.map(\.start), [lift])
+        XCTAssertEqual(found.first?.durationMinutes, 50)
     }
 
     func testALegacyDismissedSpanStaysForgotten() {

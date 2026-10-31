@@ -845,5 +845,15 @@ before any code; the building blocks after this one implement it.
 Out of scope here: the day-cycle bouts that already let low intensity count for Effort (2026-10-28 row) are
 unchanged; whether confirmed suggestions should replace them is a later decision with its own migration.
 
+Built 2026-10-31 (blocks 4 to 6 and 8): the two tracks live in `ActivityCandidates` (StrandAnalytics), the rolling
+store in `activityCandidate` (v83), the one resolver in `ActivitySuggestions` (StrandCore), read by Apple and,
+through `activity.list` / `activity.answer` / `activity.undo`, by Android, whose Kotlin auto-detector is removed.
+The prompt answers in one row of three compact controls (save as the likely kind; the next kinds, housework and
+"Adjust" behind one menu; "Not training", which discards it for good); the cross is "Later" for this launch.
+The old card's two dismissal lists stay honoured. Day boundaries come from the calendar, not 86,400-second steps:
+a fixed step skipped today after the 2026-10-25 clock change. ActivityBench, owner data 2026-09-01 to
+2026-10-24, both tracks at "balanced": walks 30/36, strength 4/12, 0.80 suggestions without an entry a day,
+against today's rule at 12/36, 2/12 and 5.43.
+
 Analysis migration required: no. Suggestions are shown, not scored; a confirmation is wearer input read like
 a hand-logged session, and dismissing changes no stored value.

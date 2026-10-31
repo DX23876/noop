@@ -1952,11 +1952,10 @@ fun TodayScreen(
                 }
             }
         }
-        // Auto-detect workouts (MVP, opt-in, default OFF), a NON-DESTRUCTIVE "looks like a workout?"
-        // card that suggests logging a detected sustained-elevated-HR bout. Renders nothing when the
-        // toggle is off or there's nothing to suggest. Save → a manual "Workout" row; × → dismissed forever.
+        // Activity detection's prompt (decision 2026-10-31), the same one Forge Today pins; renders nothing
+        // while detection is off or nothing waits for an answer.
         if (selectedDayOffset == 0) {
-            item { AutoWorkoutNudgeCard(viewModel = viewModel, days = days) }
+            item { com.noop.ui.forge.ForgeActivityPrompt() }
         }
         // Strap battery only while the link is up AND a real reading exists, a stale % from a
         // dropped connection must not present as live (#159).

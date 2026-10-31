@@ -185,9 +185,6 @@ struct OverviewDashboardView: View {
                     // Below the metric sections on purpose: once accepted, the committed session is an
                     // ambient reminder rather than a demand for the top of the screen.
                     PlanTodayCard(showPlan: $showPlan)
-                    // Self-gates on the auto-detect toggle AND on an unsaved, un-dismissed window, so it
-                    // renders nothing by default.
-                    AutoWorkoutCard()
                 }
                 .padding(.horizontal, NoopMetrics.screenPadding)
                 .padding(.top, topInset)

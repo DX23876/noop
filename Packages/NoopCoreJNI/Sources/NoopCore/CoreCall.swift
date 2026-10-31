@@ -383,6 +383,12 @@ public enum CoreCall {
                                                        weekdays: args["weekdays"] as? [Int]))
         case "training.duplicateRoutine":
             return ok(await CoreTraining.duplicateRoutine(store: store, id: string("id"), title: string("title")))
+        case "activity.list":
+            return CoreRead.json(await CoreActivity.list(reader: reader, args: args))
+        case "activity.answer":
+            return ok(await CoreActivity.answer(reader: reader, args: args))
+        case "activity.undo":
+            return ok(await CoreActivity.undo(reader: reader, args: args))
         case "today.status":
             let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
             return CoreRead.json(await CoreTodayStatus.read(reader: reader, maxHR: maxHR, sex: string("sex"),

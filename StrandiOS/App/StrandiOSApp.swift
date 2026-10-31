@@ -3,6 +3,10 @@ import SwiftUI
 import StrandDesign
 import UserNotifications
 import UIKit
+import StrandAnalytics
+import StrandCore
+import WhoopStore
+import WhoopProtocol
 
 /// Owns the long-lived iOS services without forwarding their high-frequency `objectWillChange` streams
 /// into the `App` scene. Live HR, repository snapshots and HealthKit progress are observed by the small
@@ -96,7 +100,10 @@ struct StrandiOSApp: App {
         // notification names but nobody registered simply shows no buttons, silently.
         CoachCheckIn.registerCategory()
         GoalEventNotifier.registerCategory()
+        ActivitySuggestionNotifier.registerCategories()
         let model = AppModel()
+        // A notification button may launch NOOP in the background to answer a suggestion.
+        ActivitySuggestionCenter.shared.attach(model.repo)
         // Lock Screen pause/resume (`ToggleWorkoutPauseIntent`) runs in this process; install its handler
         // before launch finishes, since iOS may launch NOOP in the background just to run that intent.
         WorkoutActivityActions.togglePause = { [weak model] in model?.toggleWorkoutPause() }
@@ -637,6 +644,7 @@ private struct iOSRootView: View {
         .onAppear {
             #if DEBUG
             IOSDemoProfileSeeder.seedIfRequested(model.profile)
+            IOSDemoActivitySeeder.seedIfRequested(model.repo)
             #endif
             showWhatsNewIfDue()
             // Seed the current What's New into the Updates inbox (idempotent per version) so the bell
@@ -698,6 +706,36 @@ private enum IOSDemoProfileSeeder {
            let image = UIImage(named: "demo-profile-avatar"),
            let data = image.pngData() {
             profile.setAvatar(data)
+        }
+    }
+}
+
+/// `--demo-activity`: today's strap streams get a walk (36 min, about 106 steps a minute) and a strength
+/// session (48 min of sets and rests) an hour or more ago, and detection is switched on, so the Today prompt,
+/// the inbox rows and the logging sheet show what the real tracks find. DEBUG only, demo store only.
+@MainActor
+private enum IOSDemoActivitySeeder {
+    static func seedIfRequested(_ repo: Repository) {
+        guard CommandLine.arguments.contains("--demo-activity") else { return }
+        UserDefaults.standard.set(true, forKey: ActivitySuggestions.enabledKey)
+        UserDefaults.standard.set(false, forKey: ActivitySuggestions.notificationsKey)
+        Task {
+            guard let store = await repo.storeHandle() else { return }
+            let now = Int(Date().timeIntervalSince1970)
+            let lift = (now - 3 * 3_600) / 60 * 60, walk = (now - 100 * 60) / 60 * 60
+            var hr: [HRSample] = [], steps: [StepSample] = []
+            var counter = 50_000
+            for t in stride(from: lift - 3_600, to: now - 600, by: 1) {
+                let inLift = t >= lift && t < lift + 48 * 60
+                let inWalk = t >= walk && t < walk + 36 * 60
+                let set = inLift && ((t - lift) / 60) % 7 < 4
+                hr.append(HRSample(ts: t, bpm: inWalk ? 104 + (t / 30) % 5 : set ? 134 + (t / 20) % 9 : inLift ? 108 : 66))
+                if inWalk, t % 60 < 53 { counter += 2 }
+                steps.append(StepSample(ts: t, counter: counter, activityClass: inWalk ? 1 : 0))
+            }
+            try? await store.insert(Streams(hr: hr, steps: steps), deviceId: repo.deviceId)
+            ActivitySuggestionCenter.shared.attach(repo)
+            await repo.refreshActivitySuggestions(hrMax: 185)
         }
     }
 }

@@ -13,7 +13,7 @@ import kotlin.math.sqrt
  * Faithful Kotlin twin of StrandAnalytics/WorkoutTypeClassifier.swift (#414) — same constants, same
  * ramp/plateau memberships, same per-class weights, byte-identical scores for the same feature vector.
  *
- * Given a detected workout window (from [WorkoutDetector] / [AutoWorkoutDetector]), this predicts a
+ * Given a detected workout window (from [WorkoutDetector]), this predicts a
  * BROAD activity class — walk / run / strength / cycle / ski / other — plus a confidence, from four
  * signal families that are already decoded and stored, no raw IMU:
  *   1. HR profile over the window (mean/peak/%HRR, HR variability shape) — [HrSample].
@@ -353,7 +353,7 @@ object WorkoutTypeClassifier {
 
 /**
  * Builds a [WorkoutClassFeatures] vector for a [start, end] window from the SAME decoded streams
- * [WorkoutDetector]/[AutoWorkoutDetector] already read ([HrSample], [GravitySample], [StepSample]) —
+ * [WorkoutDetector] already read ([HrSample], [GravitySample], [StepSample]) —
  * no new store, no new decode. Pure/deterministic; slices the caller's lists to the window itself so
  * callers can pass a whole day's streams or an already-sliced window interchangeably. Mirrors Swift
  * `WorkoutTypeFeatureExtractor`.

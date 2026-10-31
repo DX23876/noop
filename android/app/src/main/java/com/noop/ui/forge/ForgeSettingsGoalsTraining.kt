@@ -156,6 +156,10 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
     var workoutView by remember { mutableStateOf(prefs.getString(WORKOUT_LAYOUT, "list") ?: "list") }
     var media by remember { mutableStateOf(prefs.getString("training.mediaPresentation", "large") ?: "large") }
     var suggestions by remember { mutableStateOf(NoopPrefs.autoDetectWorkouts(context)) }
+    val activityPrefs = remember { NoopPrefs.of(context) }
+    var walks by remember { mutableStateOf(activityPrefs.getBoolean(com.noop.core.CoreActivity.KEY_WALKS, true)) }
+    var level by remember { mutableStateOf(activityPrefs.getString(com.noop.core.CoreActivity.KEY_LEVEL, "balanced") ?: "balanced") }
+    var notify by remember { mutableStateOf(activityPrefs.getBoolean(com.noop.core.CoreActivity.KEY_NOTIFY, true)) }
 
     Text(stringResource(R.string.forge_st_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
     SettingsCard(stringResource(R.string.forge_training), stringResource(R.string.forge_st_blurb)) {
@@ -261,6 +265,34 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
                   suggestions) { on ->
             suggestions = on
             NoopPrefs.setAutoDetectWorkouts(context, on)
+            scope.launch(Dispatchers.IO) { ActivitySuggestionState.reload(context) }
+        }
+        if (suggestions) {
+            // Activity detection's own choices (decision 2026-10-31); a WHOOP 4.0 counts no steps.
+            val noSteps = remember { activeStrapCountsNoSteps(context) }
+            RowDivider()
+            ToggleRow(stringResource(R.string.forge_st_detect_walks),
+                      if (noSteps) stringResource(R.string.forge_st_no_steps) else null,
+                      walks && !noSteps) { on ->
+                if (!noSteps) {
+                    walks = on
+                    activityPrefs.edit().putBoolean(com.noop.core.CoreActivity.KEY_WALKS, on).apply()
+                }
+            }
+            RowDivider()
+            val levelIds = listOf("more", "balanced", "onlyClear")
+            val levelLabels = listOf(stringResource(R.string.forge_st_level_more),
+                stringResource(R.string.forge_st_level_balanced), stringResource(R.string.forge_st_level_clear))
+            Text(stringResource(R.string.forge_st_ask_level), style = Forge.type.body, color = Forge.colors.text)
+            ReportPicker(levelLabels[levelIds.indexOf(level).coerceAtLeast(0)], levelLabels) { i ->
+                level = levelIds[i]
+                activityPrefs.edit().putString(com.noop.core.CoreActivity.KEY_LEVEL, level).apply()
+            }
+            RowDivider()
+            ToggleRow(stringResource(R.string.forge_st_notify), stringResource(R.string.forge_st_notify_note), notify) { on ->
+                notify = on
+                activityPrefs.edit().putBoolean(com.noop.core.CoreActivity.KEY_NOTIFY, on).apply()
+            }
         }
     }
 }

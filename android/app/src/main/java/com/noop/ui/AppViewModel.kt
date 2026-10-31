@@ -1118,6 +1118,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     // The goals widget follows the same update, so a background sync moves it without the app open.
                     runCatching { com.noop.ui.forge.refreshGoalsWidget(appContext) }
+                    // Activity detection: the recent days' suggestions, and a notification for a new one.
+                    runCatching { com.noop.ui.forge.ActivitySuggestionState.reload(appContext) }
                 }
                 // v5 skin-temp suite: run the Cycle / Body-clock / Illness-heads-up engines over the same
                 // cached history and publish their RESULTS for the Health hub. The richer IllnessSignalEngine

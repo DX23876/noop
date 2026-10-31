@@ -130,19 +130,23 @@ public enum ActivitySuggestions {
     @discardableResult
     public static func refresh(store: WhoopStore, deviceId: String, computedId: String, hrMax: Int, now: Int,
                                calendar: Calendar = .current) async throws -> [ActivityCandidates.Candidate] {
-        let today = Int(calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(now))).timeIntervalSince1970)
-        let windowStart = today - (listDays - 1) * 86_400
+        // Day boundaries come from the calendar, never from 86,400-second steps: across a clock change a day is
+        // 23 or 25 hours, and a fixed step lands beside midnight and skips today.
+        let todayDate = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(now)))
+        let today = Int(todayDate.timeIntervalSince1970)
+        func daysBefore(_ n: Int) -> Int {
+            Int(calendar.date(byAdding: .day, value: -n, to: todayDate)!.timeIntervalSince1970)
+        }
+        let windowStart = daysBefore(listDays - 1)
         let stored = try await store.activityCandidates(deviceId: deviceId, from: windowStart, to: now + 1)
         let stale = stored.isEmpty || stored.contains { $0.ruleVersion != ActivityCandidates.ruleVersion }
-        let firstDay = stale ? windowStart : today - (refreshDays - 1) * 86_400
+        let firstDay = stale ? windowStart : daysBefore(refreshDays - 1)
 
         let readFrom = firstDay - 14 * 86_400
         let minutes = try await activityMinutes(store: store, deviceId: deviceId, computedId: computedId,
                                                 from: readFrom, to: now + 1)
-        let resting = try await store.dailyMetrics(deviceId: computedId, from: dayKey(readFrom, calendar),
-                                                   to: dayKey(now, calendar))
-        let restingByDay = Dictionary(resting.compactMap { d in d.restingHr.map { (d.day, $0) } },
-                                      uniquingKeysWith: { a, _ in a })
+        let restingByDay = try await restingByDay(store: store, deviceId: deviceId, computedId: computedId,
+                                                  from: dayKey(readFrom, calendar), to: dayKey(now, calendar))
 
         var found: [ActivityCandidates.Candidate] = []
         var day = firstDay
@@ -158,13 +162,46 @@ public enum ActivitySuggestions {
             }
             day = next
         }
-        try await store.replaceActivityCandidates(deviceId: deviceId, from: firstDay, to: now + 1, rows: found.map {
-            ActivityCandidateRow(deviceId: deviceId, track: $0.track.rawValue, startTs: $0.start, endTs: $0.end,
-                                 ruleVersion: ActivityCandidates.ruleVersion, avgBpm: $0.avgBpm, peakBpm: $0.peakBpm,
-                                 load: $0.load, cadence: $0.cadence, locomotionShare: $0.locomotionShare,
-                                 kinds: $0.kinds.map(\.rawValue))
-        })
+        try await store.replaceActivityCandidates(deviceId: deviceId, from: firstDay, to: now + 1,
+                                                  rows: found.map { row($0, deviceId: deviceId) })
         return found
+    }
+
+    /// One day's suggestions computed on demand, for the logging sheet when detection is off or the day is
+    /// older than the stored window. The same reads and rules as `refresh`, never written anywhere.
+    public static func dayCandidates(store: WhoopStore, deviceId: String, computedId: String, hrMax: Int,
+                                     dayStart: Int, dayEnd: Int, calendar: Calendar = .current) async throws
+        -> [ActivityCandidates.Candidate] {
+        let minutes = try await activityMinutes(store: store, deviceId: deviceId, computedId: computedId,
+                                                from: dayStart - 14 * 86_400, to: dayEnd)
+        let resting = try await restingByDay(store: store, deviceId: deviceId, computedId: computedId,
+                                             from: dayKey(dayStart - 43_200, calendar), to: dayKey(dayStart, calendar))
+        guard let rest = resting[dayKey(dayStart, calendar)] ?? resting[dayKey(dayStart - 43_200, calendar)]
+        else { return [] }
+        let everyday = ActivityCandidates.everydayHRR(history: slice(minutes, dayStart - 14 * 86_400, dayStart),
+                                                      restingHR: rest, hrMax: hrMax)
+        return ActivityCandidates.candidates(slice(minutes, dayStart, dayEnd), restingHR: rest, hrMax: hrMax,
+                                             everydayHRR: everyday)
+    }
+
+    /// The stored row of a computed candidate.
+    public static func row(_ c: ActivityCandidates.Candidate, deviceId: String) -> ActivityCandidateRow {
+        ActivityCandidateRow(deviceId: deviceId, track: c.track.rawValue, startTs: c.start, endTs: c.end,
+                             ruleVersion: ActivityCandidates.ruleVersion, avgBpm: c.avgBpm, peakBpm: c.peakBpm,
+                             load: c.load, cadence: c.cadence, locomotionShare: c.locomotionShare,
+                             kinds: c.kinds.map(\.rawValue))
+    }
+
+    /// Resting heart rate by day: what the daily pass computed, else what the strap's own rows carry (an
+    /// imported day), so a day the pass has not scored yet is not skipped.
+    static func restingByDay(store: WhoopStore, deviceId: String, computedId: String,
+                             from: String, to: String) async throws -> [String: Int] {
+        var out: [String: Int] = [:]
+        for d in try await store.dailyMetrics(deviceId: deviceId, from: from, to: to) { out[d.day] = d.restingHr ?? out[d.day] }
+        for d in try await store.dailyMetrics(deviceId: computedId, from: from, to: to) where d.restingHr != nil {
+            out[d.day] = d.restingHr
+        }
+        return out
     }
 
     /// The minutes the tracks read: heart rate where at least 30 seconds were measured, the strap's step
@@ -202,7 +239,7 @@ public enum ActivitySuggestions {
         return Array(minutes[first(from) ..< first(to)])
     }
 
-    static func dayKey(_ ts: Int, _ calendar: Calendar) -> String {
+    public static func dayKey(_ ts: Int, _ calendar: Calendar) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: TimeInterval(ts)))
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }

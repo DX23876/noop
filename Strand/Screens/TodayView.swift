@@ -1557,9 +1557,11 @@ struct TodayView: View {
                 }
                 if selectedDayOffset == 0, let currentDay = repo.today?.day,
                    currentDay == repo.days.last?.day { HealthAlertBanner() }
+                if selectedDayOffset == 0 { ActivitySuggestionPrompt() }
                 #else
                 if selectedDayOffset == 0, let currentDay = repo.today?.day,
                    currentDay == repo.days.last?.day { HealthAlertBanner() }
+                if selectedDayOffset == 0 { ActivitySuggestionPrompt() }
                 // Browse past days: chevrons + a date jump capped at today (no future days). Anchored to
                 // the LOGICAL day (the same anchor `selectedLogicalDay` uses) so the full-date label tracks
                 // the data shown in the 00:00-04:00 window instead of jumping a calendar day ahead (#14).
@@ -1618,9 +1620,6 @@ struct TodayView: View {
                     todaySection(section)
                         .staggeredAppear(index: idx)
                 }
-                // Opt-in "looks like a workout?" suggestion (default OFF). Renders only when the
-                // Settings toggle is on AND the detector finds a recent unsaved, un-dismissed window.
-                AutoWorkoutCard()
                 // The committed "next up" session sits BELOW the metric sections on purpose: once accepted
                 // it's an ambient reminder, not a demand for the top of the screen. It draws attention on
                 // its own terms as its time nears (colour + breathe, see PlanTodayCard).

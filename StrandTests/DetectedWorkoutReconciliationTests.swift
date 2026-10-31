@@ -165,42 +165,6 @@ final class DetectedWorkoutReconciliationTests: XCTestCase {
         XCTAssertEqual(rows, [merged], "a successful merge must leave only the durable replacement")
     }
 
-    func testOptInCandidatePublishesTwelveMinutesAndOnlyLogsTenFifteenMinuteShadows() async throws {
-        try await withPreferences {
-            UserDefaults.standard.set(true, forKey: PuffinExperiment.autoDetectWorkoutsKey)
-            let store = try await WhoopStore.inMemory()
-            let start = Int(Date().timeIntervalSince1970) - 2 * 3_600
-            let hr = (0...(13 * 60)).map { HRSample(ts: start + $0, bpm: 120) }
-            _ = try await store.insert(Streams(hr: hr), deviceId: deviceId)
-
-            let repo = Repository(deviceId: deviceId)
-            repo.setStoreForTesting(store)
-            var diagnostics: [String] = []
-            repo.workoutsLog = { diagnostics.append($0) }
-
-            let candidate = await repo.autoDetectCandidate(daysBack: 1)
-
-            XCTAssertEqual(candidate?.startSec, start)
-            XCTAssertEqual(candidate?.durationMin, 13,
-                           "the visible card must keep the published 12-minute policy")
-            XCTAssertTrue(diagnostics.contains { $0.contains("minSustainedMin=12.0") })
-            XCTAssertTrue(diagnostics.contains {
-                $0.contains("workout shadow policy=10min candidates=1")
-            }, "10-minute evaluation must remain a local diagnostic: \(diagnostics)")
-            XCTAssertTrue(diagnostics.contains {
-                $0.contains("workout shadow policy=15min candidates=0")
-            }, "15-minute evaluation must remain a local diagnostic: \(diagnostics)")
-
-            let importedRows = try await store.workouts(
-                deviceId: deviceId, from: start - 1, to: start + 86_400, limit: 100)
-            let computedRows = try await store.workouts(
-                deviceId: deviceId + "-noop", from: start - 1, to: start + 86_400, limit: 100)
-            XCTAssertTrue(importedRows.isEmpty)
-            XCTAssertTrue(computedRows.isEmpty,
-                          "published and shadow detection must stay read-only until Save")
-        }
-    }
-
     func testScoringPreservesLegacyDetectionsCreatesNoNewRowsAndBackfillsRealOverlap() async throws {
         try await withPreferences {
             let store = try await WhoopStore.inMemory()

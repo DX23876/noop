@@ -714,6 +714,9 @@ struct LiquidTodayView: View {
                     // pinned above the reorderable block so an active manual workout is immediately visible
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
+                    // Activity detection's fixed prompt (decision 2026-10-31): above the reorderable block,
+                    // so a suggestion waiting for an answer cannot be arranged below the fold.
+                    if selectedDayOffset == 0 { ActivitySuggestionPrompt() }
                     MorningSuggestionCard(showPlan: $showPlan)
                     // #today-layout: every Today section — the Charge/Effort/Rest hero and Start-session
                     // included — renders in the user's saved order. Reorder and hide in the customization
@@ -803,14 +806,6 @@ struct LiquidTodayView: View {
                     // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
                     // attention on its own terms as its time nears (colour + breathe, see PlanTodayCard).
                     PlanTodayCard(showPlan: $showPlan)
-                    // Opt-in "looks like a workout?" suggestion, dropped in the liquid Home rewrite. Its
-                    // Settings toggle (PuffinExperiment.autoDetectWorkoutsKey) had no visible effect on the
-                    // DEFAULT screen: the card's only mount was classic TodayView, so a user could switch
-                    // auto-detect on and never be shown a single suggestion. Self-gates on the toggle AND
-                    // on the detector finding an unsaved, un-dismissed window, so it renders nothing by
-                    // default. Upstream also re-mounts `dataSourcesSection` here; this fork does not:
-                    // Liquid Today no longer carries a Data Sources card at all.
-                    AutoWorkoutCard()
                     // Section order and visibility, plus both nested card editors. It used to be a header
                     // button; the header now keeps only the controls used every day.
                     #if os(macOS)

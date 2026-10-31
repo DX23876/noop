@@ -66,7 +66,7 @@ class WorkoutHrDeviceKeyTest {
         // tell the two rules apart, so without it a regression to per-row keying passes the suite silently.
         //
         // It matters because both buildManualRow callers write source "manual" with DIFFERENT ids — the
-        // Workouts screen passes "my-whoop", AutoWorkoutNudge passes the active strap id — so a nudge-created
+        // Workouts screen passes "my-whoop", the old auto-detect card passed the active strap id — so a nudge-created
         // row genuinely does carry a real recording strap that this rule declines to use.
         assertEquals(
             listOf("whoop-ddeeff", "my-whoop"),

@@ -73,7 +73,7 @@ fun JournalReminderCard(
     // Which of those days have any journal entry. null = still loading / read error → render nothing.
     var loggedDays by remember { mutableStateOf<Set<String>?>(null) }
     // Re-query whenever Today's data refreshes (a resume/sync bumps `days`) so the strip and the "logged
-    // today" state stay current after the user logs the journal and comes back. Mirrors AutoWorkoutNudge.
+    // today" state stay current after the user logs the journal and comes back. Mirrors the old auto-detect card.
     LaunchedEffect(days) {
         loggedDays = runCatching {
             viewModel.repo.journal(JOURNAL_DEVICE_ID, dayKeys.first(), todayKey)

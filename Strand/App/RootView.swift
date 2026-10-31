@@ -450,6 +450,8 @@ struct RootView: View {
                 }
             }
         }
+        // Activity detection: a notification tap or "Other kind…" opens the logging sheet from any screen.
+        .activitySuggestionSheetHost(repo)
     }
 
     /// The filter text that actually applies: trimmed, so a whitespace-only query is no query at all.

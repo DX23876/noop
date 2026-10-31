@@ -108,6 +108,8 @@ fun UpdatesInboxScreen(
             Text(subtitle(store), style = NoopType.caption, color = Palette.textSecondary)
         }
 
+        // Activity-detection suggestions of the last two weeks lead the inbox (decision 2026-10-31).
+        com.noop.ui.forge.ForgeActivityInboxSection()
         if (store.items.isEmpty()) {
             EmptyInboxState()
         } else {

@@ -47,7 +47,7 @@ APPLE_HOME_FILES = {
     "Strand/Screens/TodayCustomizationMetadata.swift",
     "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
     "StrandiOS/System/HomeScreenQuickActions.swift",
-    "Strand/Screens/AutoWorkoutCard.swift",
+    "Strand/Screens/ActivitySuggestionViews.swift",
     "Strand/Screens/JournalReminderCard.swift",
     "Strand/Screens/SkinTempCardsView.swift",
     "Strand/Screens/HealthAlertBanner.swift",

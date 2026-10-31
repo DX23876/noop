@@ -77,6 +77,11 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
             }
         } else if request.content.categoryIdentifier == CoachBriefScheduler.notificationCategoryId {
             onCoachBriefTapped?()
+        } else if request.content.categoryIdentifier.hasPrefix(ActivitySuggestionNotifier.categoryPrefix) {
+            let action = response.actionIdentifier
+            let info = request.content.userInfo
+            // A tap opens the logging sheet wherever the app is (`ActivitySuggestionSheetHost`).
+            Task { @MainActor in ActivitySuggestionNotifier.handle(actionIdentifier: action, userInfo: info) }
         } else if request.content.categoryIdentifier.hasPrefix("noop.goal") {
             let action = response.actionIdentifier
             let content = request.content

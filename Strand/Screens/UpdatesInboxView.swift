@@ -13,6 +13,8 @@ import StrandDesign
 struct UpdatesInboxView: View {
     @EnvironmentObject var updateStore: UpdateStore
     @EnvironmentObject var router: NavRouter
+    /// Activity-detection suggestions of the last two weeks lead the inbox (decision 2026-10-31).
+    @ObservedObject private var activity = ActivitySuggestionCenter.shared
     let onClose: () -> Void
 
     private var unread: [UpdateItem] { updateStore.sortedItems.filter { !$0.read } }
@@ -78,11 +80,13 @@ struct UpdatesInboxView: View {
     // MARK: Content
 
     @ViewBuilder private var content: some View {
-        if updateStore.items.isEmpty {
+        if updateStore.items.isEmpty, activity.inbox.isEmpty {
             emptyState
+                .task { await activity.reload() }
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                    ActivitySuggestionInboxSection()
                     if !unread.isEmpty {
                         section("NEW", items: unread)
                     }

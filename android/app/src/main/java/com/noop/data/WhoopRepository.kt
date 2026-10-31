@@ -2671,7 +2671,7 @@ class WhoopRepository(
          *
          *  Why MANUAL cannot key on its own `rowDeviceId`: [com.noop.ui.WorkoutEditing.buildManualRow]
          *  stores whatever `deviceId` its CALLER passes, and the two callers disagree — the Workouts screen
-         *  passes the canonical "my-whoop" placeholder, while [com.noop.ui.AutoWorkoutNudge] deliberately
+         *  passes the canonical "my-whoop" placeholder, while the old Today auto-detect card deliberately
          *  passes the ACTIVE strap id (mirroring iOS `saveDetectedWorkout`). Both write source "manual", so
          *  the source string cannot tell them apart. Keying on the stored id therefore served the nudge rows
          *  and broke the placeholder ones: a manual workout on a SECOND WHOOP ("whoop-<mac>") or any re-added

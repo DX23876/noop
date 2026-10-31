@@ -278,6 +278,10 @@ struct SettingsView: View {
     /// sustained-elevated window and offers — via a single dismissible card — to save it as a workout.
     /// Nothing is ever created automatically. Mirrors the Android `NoopPrefs.KEY_AUTO_DETECT_WORKOUTS`.
     @AppStorage(PuffinExperiment.autoDetectWorkoutsKey) private var autoDetectWorkoutsEnabled = false
+    /// Activity detection's own choices (decision 2026-10-31): walks, how often to ask, notifications.
+    @AppStorage(ActivitySuggestions.walksKey) private var activityWalks = true
+    @AppStorage(ActivitySuggestions.levelKey) private var activityLevelRaw = ActivityCandidates.Level.balanced.rawValue
+    @AppStorage(ActivitySuggestions.notificationsKey) private var activityNotifications = true
 
     /// "Journal reminder" (#627, default ON). When ON, Today shows the persistent journal widget
     /// (last-7-days strip + tap-through). Mirrors the Android `NoopPrefs.KEY_JOURNAL_REMINDER_ENABLED`.
@@ -3425,17 +3429,56 @@ struct SettingsView: View {
                 rowDivider
 
                 Toggle(isOn: $autoDetectWorkoutsEnabled) {
-                    Text("Workout suggestions")
+                    Text("Detect activities")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
                 .appleInspiredTint("settings.controls")
-                .accessibilityHint("Offers to save a workout when it spots sustained elevated heart rate")
-                Text("After a sync, NOOP looks for a long stretch of raised heart rate and offers to save it as a workout. Nothing is saved until you tap Save. Skips times that already have a workout, including ones from Apple Health.")
+                .onChangeCompat(of: autoDetectWorkoutsEnabled) { on in
+                    guard on else { return }
+                    ActivitySuggestionNotifier.requestAuthorization()
+                    Task { await model.repo.refreshActivitySuggestions(hrMax: profile.maxHeartRate.wholeBpm) }
+                }
+                Text("After a sync, NOOP looks for walks and for stretches of raised heart rate and asks what they were. Nothing is saved until you answer. Times that already have a workout are skipped. Beta.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+                if autoDetectWorkoutsEnabled {
+                    let noSteps = selectedWhoopModelRaw == WhoopModel.whoop4.rawValue
+                    Toggle(isOn: noSteps ? .constant(false) : $activityWalks) {
+                        Text("Detect walks")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    .toggleStyle(.switch)
+                    .appleInspiredTint("settings.controls")
+                    .disabled(noSteps)
+                    if noSteps {
+                        Text("This strap does not count steps.")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    Picker(selection: $activityLevelRaw) {
+                        Text("Detect more").tag(ActivityCandidates.Level.more.rawValue)
+                        Text("Balanced").tag(ActivityCandidates.Level.balanced.rawValue)
+                        Text("Only clear ones").tag(ActivityCandidates.Level.onlyClear.rawValue)
+                    } label: {
+                        Text("How often to ask")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Toggle(isOn: $activityNotifications) {
+                        Text("Notify me")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    .toggleStyle(.switch)
+                    .appleInspiredTint("settings.controls")
+                    Text("At most two a day, never at night.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
             }
         }
     }
