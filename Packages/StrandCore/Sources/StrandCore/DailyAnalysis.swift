@@ -3155,6 +3155,16 @@ public final class DailyAnalysis {
         // the auto path produced NO trace at all (the "mode was on but produced NO trace" report), so an
         // "auto workout appeared then vanished" could not be explained from an export. Diagnostic only.
         let workoutsTraceActive = settings.traces(.workouts)
+        // Activity-detection yardstick (plan block 3): the wearer's own entries the shadow lines below are
+        // matched against, built once. Legacy detected bouts and confirmed suggestions are never ground
+        // truth. Hevy and native sessions are not in `realWorkouts`; ActivityBench reads those too.
+        let activityShadowLabels: [ActivityDetectionScore.Label] = workoutsTraceActive
+            ? ActivityDetectionScore.uniqueLabels(realWorkouts.compactMap { row in
+                let source = WorkoutSource.classify(row.source)
+                guard source != .detected, source != .confirmed, row.endTs > row.startTs else { return nil }
+                return .init(span: .init(start: row.startTs, end: row.endTs), kind: .of(sport: row.sport))
+            })
+            : []
         var paceMark = DispatchTime.now().uptimeNanoseconds
         for night in scoredNights {
             await host.paceIfBackgrounded(since: &paceMark)
@@ -3329,6 +3339,18 @@ public final class DailyAnalysis {
             // showing 37 days and no workouts at all previously carried nothing to explain the absence.
             if let f = night.detectionFunnel {
                 host.diagnostic(WorkoutDetector.detectionFunnelLine(day: daily.day, funnel: f), domain: nil)
+            }
+            // One shadow line per bout of the day, shown or not, scored one-to-one against the wearer's
+            // entries with the same yardstick ActivityBench prints. Instrumentation only.
+            if workoutsTraceActive, !night.workouts.isEmpty {
+                let spans = night.workouts.map { ActivityDetectionScore.Span(start: $0.start, end: $0.end) }
+                let matched = ActivityDetectionScore.match(candidates: spans, labels: activityShadowLabels)
+                for (i, bout) in night.workouts.enumerated() {
+                    host.diagnostic(ActivityDetectionScore.shadowLine(
+                        day: daily.day, track: "dayBout", ruleVersion: "v0", span: spans[i],
+                        avgBpm: Int(bout.avgHR), matchedKind: matched[i].map { activityShadowLabels[$0].kind }),
+                        domain: .workouts)
+                }
             }
             for s in night.workouts {
                 let durMin = max(0, (s.end - s.start) / 60)

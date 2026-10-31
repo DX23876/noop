@@ -97,11 +97,12 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         var strings: [String: String] = [:]
         var sleepStagerMethod: SleepStager.Method = .v1
         var dayCycleMode: DayCycleMode = .persisted(nil)
+        var traces: Set<TestDomain> = []
         func analysisSettings() -> AnalysisSettings {
             AnalysisSettings(spo2CandidateDisplay: false, sleepStagerV2: false,
                              motionAwareWake: false, deepHrvWindow: false, dayCycleMode: dayCycleMode,
                              rhythmAge: false, healthspan: false, hrvBaselineEpoch: 0, recoveryBaselineEpoch: 0,
-                             traces: [], sleepStagerMethod: sleepStagerMethod)
+                             traces: traces, sleepStagerMethod: sleepStagerMethod)
         }
         func diagnostic(_ line: String, domain: TestDomain?) { lines.append(line) }
         func storedBool(_ key: String) -> Bool { bools[key] ?? false }
@@ -360,6 +361,40 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         XCTAssertTrue(host.lines.contains {
             $0.hasPrefix("reuse day=\(day) reuse=false miss=") && $0.contains("semanticSignature")
         }, "the import must re-derive the day, not reuse it: \(host.lines)")
+    }
+
+    /// The Workouts test mode writes one shadow line per bout of the day, scored against the wearer's own
+    /// entries; a confirmed suggestion is not ground truth, a hand-logged session is. Off, nothing is written.
+    func testShadowLinesScoreEachBoutAgainstTheWearersOwnEntries() async throws {
+        let store = try await WhoopStore.inMemory()
+        let (start, day) = try await seedYesterday(store, walk: true, lowHour: false)
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let host = Host()
+        host.dayCycleMode = .midnight
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        let walkStart = start + 15 * 3_600
+        let shadow = { host.lines.filter { $0.hasPrefix("activityShadow day=\(day) track=dayBout rule=v0") } }
+
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        XCTAssertTrue(shadow().isEmpty, "the test mode is off")
+
+        host.traces = [.workouts]
+        _ = try await store.upsertWorkouts([workout(walkStart, walkStart + 35 * 60, sport: "Walking",
+                                                    source: WorkoutSource.confirmedSuggestionSource)],
+                                           deviceId: "my-whoop")
+        host.lines.removeAll()
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        XCTAssertFalse(shadow().isEmpty, "got \(host.lines.filter { $0.hasPrefix("activityShadow") })")
+        XCTAssertTrue(shadow().allSatisfy { $0.hasSuffix("result=unlabelled") },
+                      "a confirmed suggestion is not an entry: \(shadow())")
+
+        _ = try await store.upsertWorkouts([workout(walkStart, walkStart + 35 * 60, sport: "Walking",
+                                                    source: "manual")], deviceId: "my-whoop")
+        host.lines.removeAll()
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        XCTAssertTrue(shadow().contains { $0.hasSuffix("result=matched kind=walk") }, "got \(shadow())")
     }
 
     /// The activity refresh stores what the full pass stores from the same streams, detected bout included,

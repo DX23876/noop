@@ -57,6 +57,9 @@ jobs:
   # lands has to keep compiling against the packages it measures, or it bitrots silently and the next
   # person to reach for it finds it broken. Backfill has no tests yet, so it is build-only.
   #
+  # ActivityBench is the same argument for activity detection: every new detector is argued with its
+  # yardstick, and its tests pin the ground-truth filter and the week bootstrap with no data.
+  #
   # MemoryBench is the same argument for the coach's memory: it is the instrument any change to the
   # retrieval ranking has to be argued with, and its `score` stage is fully deterministic — it replays the
   # real index and the real fusion over synthetic vectors, so the whole pipeline plus the committed corpus
@@ -73,6 +76,7 @@ jobs:
       matrix:
         tool:
           - SleepBench
+          - ActivityBench
           - SleepPSG
           - Backfill
           - MemoryBench
@@ -85,7 +89,7 @@ jobs:
         run: swift build
         working-directory: Tools/${{ matrix.tool }}
 
-      # Only SleepBench has a test target; `swift test` on a package without one fails, so it is guarded.
+      # Not every tool has a test target; `swift test` on a package without one fails, so it is guarded.
       - name: Test ${{ matrix.tool }}
         run: |
           if grep -q 'testTarget' Package.swift; then
