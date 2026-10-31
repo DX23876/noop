@@ -1071,7 +1071,8 @@ private func decodeWhoop5CommandResponse(_ frame: [UInt8], fb: FieldBuilder, sch
 ///
 /// `event` (u8 @10, EventNumber) and `event_timestamp` (u32 @12, real unix) are already set by the
 /// static +4 walk. This hook adds the BATTERY_LEVEL payload, which follows the same +4 rule as the
-/// rest of the 5.0 layout: 4.0's soc@17 / mv@21 / charge@26 become soc@21 / mv@25 / charge@30. Unlike
+/// rest of the 5.0 layout for soc@21 / mv@25; the charger flag is at 29, not at the +4 image of 4.0's
+/// charge@26 (see the body below). Unlike
 /// the 5.0 COMMAND_RESPONSE (which switched to a DIRECT percent), the EVENT battery keeps 4.0's
 /// deci-percent (÷10) — confirmed by a clean monotonic discharge across a real capture (49.9 → 47.7 %).
 /// The same range guards as the 4.0 `event` post-hook fail closed.
@@ -1087,11 +1088,14 @@ private func decodeWhoop5Event(_ frame: [UInt8], fb: FieldBuilder, schema: Schem
     if let raw = readDType(frame, 21, "u16", limit), raw <= 1100 {
         fb.add(21, 2, "battery_pct", "battery", value: .double(Double(raw) / 10), note: "%")
     }
-    if let mv = readDType(frame, 25, "u16", limit), (3000...4300).contains(mv) {
+    // 4500, not 4300: an MG on its charger reports up to 4472 mV (2026-10-31 capture), which the old cap
+    // silently dropped. The charger flag is byte 29: in that capture's 185 on-charger events byte 29 is 1
+    // and byte 30 is 0 in every one, so the old read of byte 30 said "not charging" throughout.
+    if let mv = readDType(frame, 25, "u16", limit), (3000...4500).contains(mv) {
         fb.add(25, 2, "battery_mV", "battery", value: .int(mv), note: "mV")
     }
-    if let ch = readDType(frame, 30, "u8", limit), ch <= 1 {
-        fb.add(30, 1, "battery_charging", "battery", value: .int(ch & 1))
+    if let ch = readDType(frame, 29, "u8", limit), ch <= 1 {
+        fb.add(29, 1, "battery_charging", "battery", value: .int(ch & 1))
     }
 }
 

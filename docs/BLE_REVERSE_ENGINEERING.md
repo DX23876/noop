@@ -495,11 +495,14 @@ simple events (wrist on/off, double-tap, boot, pairing, BLE up/down, bonded) dec
 A u16 **payload length** at frame[18] gives the size of the per-event body that starts at frame[20]
 (verified: it predicts the frame size exactly across every event class in the capture).
 
-`decodeWhoop5Event` adds the one per-event payload with on-device ground truth — **BATTERY_LEVEL** (3),
-again following the +4 rule (4.0 soc@17 / mv@21 / charge@26 → soc@21 / mv@25 / charge@30). Unlike the
+`decodeWhoop5Event` adds the one per-event payload with on-device ground truth — **BATTERY_LEVEL** (3):
+soc@21 / mv@25 follow the +4 rule from 4.0's soc@17 / mv@21, but the charger flag is at **29**, not at
+the +4 image of 4.0's charge@26. A 2026-10-31 MG capture (fw 50.41.1.0) holds 185 battery events, all
+taken on the charger; byte 29 is 1 and byte 30 is 0 in every one, so the earlier read of byte 30 reported
+"not charging" throughout. OpenStrap's protocol decoder reads the flag at the same byte. Unlike the
 COMMAND_RESPONSE battery above, the EVENT battery keeps 4.0's **deci-percent** (`soc / 10`), confirmed
-by a clean monotonic discharge across a real capture (49.9 → 47.7 %, mV ≈ 3.8 V). The same range guards
-as the 4.0 `event` post-hook fail closed.
+by a clean monotonic discharge across a real capture (49.9 → 47.7 %, mV ≈ 3.8 V). Voltage is accepted
+from 3000 to 4500 mV: on the charger the same MG reported up to 4472 mV, above the earlier 4300 cap.
 
 > **Enum-drift guard.** Event names come **only** from the shared `EventNumber` schema. This firmware
 > also emits numbers the schema does not name (61, 62, 110, 112, 116, 120, 123); they stay raw
