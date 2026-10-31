@@ -793,3 +793,57 @@ threshold and the hydration goal are unchanged.
 
 Analysis migration required: yes. Rides on AI-32 with step 0: the rebuild scores every day, workout and bout
 again on the new curve.
+
+### 2026-10-31 — Activity detection: suggestions only, one resolver, one logging sheet
+
+Step 1 of the activity-detection plan (`backlog/plans/AKTIVITAETSERKENNUNG_PLAN.md`, not in git). Settled
+before any code; the building blocks after this one implement it.
+
+- **Nothing is saved automatically.** The detector only suggests; the wearer confirms. Saving on its own
+  would be a decision of its own (it reverses #2220's direction and needs `Analysis migration required: yes`).
+- **Own source.** A confirmed suggestion is stored as `detected-confirmed`, with the model version and the
+  value shown in their own columns, never as `manual`. The name must not end in `-noop`, which
+  `WorkoutSource.classify` reads as a legacy detected bout. These rows, and workouts NOOP wrote to Apple
+  Health and imported back, never count as ground truth for measuring or learning.
+- **Answer table.** Every answer is a row in SQLite (versioned migration with a test, part of `.noopbak`):
+  origin, answer, value shown, model and start-weight version, answer delay. The answers are wearer input and
+  cannot be recomputed. Answers are kept apart: a sport, a walk, "everyday, not training", housework.
+- **One resolver for "was training".** The Today prompt, the inbox row, the logging sheet, notifications and
+  everything that reads `exerciseCount` or Effort spans resolve through one resolver. At most one suggestion
+  per span; an answer given anywhere is the answer everywhere.
+- **What a confirmation means.** A confirmed sport behaves like a hand-logged session of that sport (Effort
+  span, energy as a confirmed workout, Training Load, goals, coach, Apple Health export); the rating is an
+  optional step inside the confirmation, not a notification 30 minutes later. A confirmed walk is an
+  *activity*, not training: listed, energy priced by pace (v8 on-foot path), but not in `exerciseCount`,
+  training goals or Training Load, and not exported to Apple Health, which already holds the phone's steps.
+  "Everyday, not training" and "housework" write only an answer row; they remove the label, never the day's
+  load or energy (as WHOOP does).
+- **Where it shows.** A fixed prompt at the top of Today, outside the reorderable card stack, slides in when
+  something is detected and stays until answered or "Later"; with several open it names the newest and
+  "+N more". It replaces `AutoWorkoutCard`, which also leaves Overview and Trends. The Updates inbox carries a
+  row per suggestion of the last 14 days, open ones first and answered ones faded with Undo; it replaces the
+  weekly review page the plan had. Prompt and inbox read the same state.
+- **One sheet.** The prompt, the inbox row, a notification tap and the normal menu path all open the existing
+  logging sheet (`ManualWorkoutSheet`). From a detection the suggestion is preselected (time, heart-rate
+  curve, kind); from the menu the day's suggestions are offered in `WorkoutSpanPicker`, now from the new core
+  instead of the old detector. Saving the sheet answers the suggestion.
+- **Notifications.** A normal local notification with at most three actions (walk: save as walk, not
+  training; activity: save as the most likely kind, other kind (opens the app), not training). Not a Live
+  Activity: one can only be started while the app is in the foreground without a push server. One
+  notification per suggestion, at most two a day, held from 22:00 to 07:00, paused for seven days after three
+  unanswered; its own switch, on while detection is on.
+- **When.** The general "activity detected" prompt comes the same day, after the strap sync and once heart
+  rate has settled, from the "balanced" minimum load (about 90); suggestions below it are only in the inbox
+  and the sheet. No fixed daily cap: the minimum load sets the volume (a cap halved strength hits in the
+  measurement).
+- **WHOOP 4.0** has no steps and no walking class: only the heart-rate track, the walk switch is greyed out,
+  missing features are masked, never read as zero.
+- **Android** gets the same prompt, inbox rows, sheet suggestions and notifications from the shared core in
+  the same building block; the Kotlin detector is removed, not extended.
+- **Words.** New German text says "Training"; aligning the existing "Workout" strings is a separate UI change.
+
+Out of scope here: the day-cycle bouts that already let low intensity count for Effort (2026-10-28 row) are
+unchanged; whether confirmed suggestions should replace them is a later decision with its own migration.
+
+Analysis migration required: no. Suggestions are shown, not scored; a confirmation is wearer input read like
+a hand-logged session, and dismissing changes no stored value.
