@@ -497,6 +497,80 @@ final class HealthKitBridge: ObservableObject {
         }
     }
 
+    // MARK: - Locked device
+
+    /// A pass that found the Health store locked and is owed once the device unlocks.
+    private enum OwedPass { case writeBack, sync, observerWake(HKSampleType) }
+    private var syncOwedAfterUnlock = false
+    private var writeBackOwedAfterUnlock = false
+    /// Observer wakes that arrived while locked, keyed by type identifier. Their anchors were not
+    /// advanced, so replaying `syncFromObserver` after the unlock reads exactly the window they named.
+    private var observerWakesOwedAfterUnlock: [String: HKSampleType] = [:]
+    private var unlockObserver: NSObjectProtocol?
+
+    /// HealthKit encrypts its store while the device is locked and refuses every read with
+    /// `errorDatabaseInaccessible` ("Protected health data is inaccessible"). The background passes hit
+    /// this routinely: the overnight strap offload writes back with the phone on the nightstand, and the
+    /// hourly observer wakes do not wait for an unlock either. Write-back reads too (its dedup looks up
+    /// NOOP's own earlier samples), so it fails the same way.
+    ///
+    /// Nothing is wrong and nothing is lost there: the anchors and write cursors only advance on success.
+    /// The pass is therefore owed rather than failed, and must not reach `lastError`, which used to keep
+    /// the night's message on the Apple Health screen until the next completed pass.
+    nonisolated static func isLockedStoreFailure(_ error: Error?, protectedDataAvailable: Bool) -> Bool {
+        if !protectedDataAvailable { return true }
+        guard let error = error as NSError? else { return false }
+        return error.domain == HKErrorDomain && error.code == HKError.Code.errorDatabaseInaccessible.rawValue
+    }
+
+    private var protectedDataAvailable: Bool { UIApplication.shared.isProtectedDataAvailable }
+
+    /// Record a pass the lock refused and run it after the next unlock.
+    private func deferUntilUnlock(_ pass: OwedPass) {
+        switch pass {
+        case .writeBack: writeBackOwedAfterUnlock = true
+        case .sync: syncOwedAfterUnlock = true
+        case .observerWake(let type): observerWakesOwedAfterUnlock[type.identifier] = type
+        }
+        guard unlockObserver == nil else { return }
+        unlockObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.runOwedAfterUnlock() }
+        }
+    }
+
+    private func runOwedAfterUnlock() async {
+        if let unlockObserver {
+            NotificationCenter.default.removeObserver(unlockObserver)
+            self.unlockObserver = nil
+        }
+        let wakes = Array(observerWakesOwedAfterUnlock.values)
+        observerWakesOwedAfterUnlock = [:]
+        let (syncOwed, writeBackOwed) = (syncOwedAfterUnlock, writeBackOwedAfterUnlock)
+        (syncOwedAfterUnlock, writeBackOwedAfterUnlock) = (false, false)
+        for type in wakes { await syncFromObserver(type: type) }
+        // `sync` writes back as well, so an owed sync covers an owed write-back.
+        if syncOwed {
+            _ = await sync()
+        } else if writeBackOwed {
+            await writeBackAfterNewData()
+        }
+    }
+
+    /// Surface a failed pass in `lastError`, unless the lock caused it: then the pass is owed instead.
+    private func reportFailure(_ error: Error?, detail: String, owing pass: OwedPass) {
+        if Self.isLockedStoreFailure(error, protectedDataAvailable: protectedDataAvailable) {
+            deferUntilUnlock(pass)
+            return
+        }
+        lastError = String(localized: "Apple Health sync failed: \(detail)")
+    }
+
+    private func reportFailure(_ error: Error, owing pass: OwedPass) {
+        reportFailure(error, detail: error.localizedDescription, owing: pass)
+    }
+
     /// Drive an incremental sync off an observer wake. We use an `HKAnchoredObjectQuery` per type to
     /// learn the span of days touched since we last looked (persisting the anchor so the same samples
     /// aren't walked twice and nothing between wakes is missed), then re-aggregate just that day window
@@ -507,9 +581,10 @@ final class HealthKitBridge: ObservableObject {
         // #1578: counted before any early return, so the ratio of wakes to syncs is honest. Coalescing
         // cuts the work per wake, not the wakes — this is what shows whether the wake itself is the cost.
         HealthSyncStats.recordWake()
+        guard protectedDataAvailable else { deferUntilUnlock(.observerWake(type)); return }
         let delta: (oldest: Date?, latest: Date?, deleted: [UUID], newAnchor: HKQueryAnchor?)
         do { delta = try await fetchTouchedDayWindow(type: type) }
-        catch { lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)"); return }
+        catch { reportFailure(error, owing: .observerWake(type)); return }
         let (touched, latest, deleted, newAnchor) = delta
         if !deleted.isEmpty {
             guard let db = await repo.storeHandle() else { return }
@@ -526,7 +601,7 @@ final class HealthKitBridge: ObservableObject {
                     try await db.requestHealthImportRepair(endTs: Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970))
                     scheduleImportHistoryRepair()
                 }
-            } catch { lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)"); return }
+            } catch { reportFailure(error, owing: .observerWake(type)); return }
         }
         // No new samples since the last anchor (a spurious wake): nothing to ingest, so advancing the
         // anchor now loses nothing and skips a redundant re-query next wake.
@@ -659,6 +734,10 @@ final class HealthKitBridge: ObservableObject {
               from explicitStart: Date? = nil, through explicitEnd: Date? = nil,
               repairingHistory: Bool = false) async -> Bool {
         guard auth == .authorized else { return false }
+        guard protectedDataAvailable else {
+            deferUntilUnlock(.sync)
+            return false
+        }
         guard !syncing else {
             // A full sync includes write-back. If new strap data is landing concurrently, guarantee one
             // final write-only reconciliation after the current owner releases the bridge.
@@ -753,7 +832,7 @@ final class HealthKitBridge: ObservableObject {
         // The next foreground or observer sync can retry without losing the last good reading.
         guard stepsReadOk != .failed else {
             lastSyncDays = 0
-            lastError = String(localized: "Apple Health sync failed: \(String(localized: "Steps"))")
+            reportFailure(nil, detail: String(localized: "Steps"), owing: .sync)
             return false
         }
         let activeEnergyBurnedRead = await collectPreferredCumulative(.activeEnergyBurned, unit: .kilocalorie(), start: start, end: end) { day, v in
@@ -854,7 +933,7 @@ final class HealthKitBridge: ObservableObject {
         // next foreground or observer sync re-reads the same window.
         guard failedReads.isEmpty else {
             lastSyncDays = 0
-            lastError = String(localized: "Apple Health sync failed: \(failedReads.joined(separator: ", "))")
+            reportFailure(nil, detail: failedReads.joined(separator: ", "), owing: .sync)
             return false
         }
 
@@ -912,7 +991,7 @@ final class HealthKitBridge: ObservableObject {
         // HealthKit read of workouts NOOP did NOT author, never any cloud/3rd-party API. (#835)
         guard let workoutImport = await collectWorkouts(start: start, end: end) else {
             lastSyncDays = 0
-            lastError = String(localized: "Apple Health sync failed: \(String(localized: "Workouts"))")
+            reportFailure(nil, detail: String(localized: "Workouts"), owing: .sync)
             return false
         }
         let workoutRows = workoutImport.rows
@@ -1044,6 +1123,8 @@ final class HealthKitBridge: ObservableObject {
             // actually covered ITS days (see `observerCoalesceWindow`). Set on the success path only.
             if !repairingHistory { lastSyncDays = days }
             lastError = nil
+            // This pass read and wrote back everything a locked one could have owed.
+            if !repairingHistory { (syncOwedAfterUnlock, writeBackOwedAfterUnlock) = (false, false) }
             // Newest realistic weigh-in from this sync, for the one-time profile seed. Latest = the
             // highest day key carrying a >10 kg reading; nil when Health held none.
             if !repairingHistory {
@@ -1061,7 +1142,7 @@ final class HealthKitBridge: ObservableObject {
             // A failed sync must never let a later wake skip on the strength of it — the rows it would
             // have written are not there. Clearing the window means `window <= lastSyncDays` cannot hold.
             lastSyncDays = 0
-            lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
+            reportFailure(error, owing: .sync)
             return false
         }
     }
@@ -1093,7 +1174,7 @@ final class HealthKitBridge: ObservableObject {
             try await db.acknowledgeHealthExport(change)
             return true
         } catch {
-            lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
+            reportFailure(error, owing: .sync)
             return false
         }
     }
@@ -1124,7 +1205,7 @@ final class HealthKitBridge: ObservableObject {
                     }
                     endTs = startTs
                 }
-            } catch { self.lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)") }
+            } catch { self.reportFailure(error, owing: .sync) }
         }
     }
 
@@ -1181,6 +1262,11 @@ final class HealthKitBridge: ObservableObject {
         // No authorization is a successful no-op for a background task. The scheduler is cancelled by
         // its app-owned operation after observing this state, so it does not keep waking unnecessarily.
         guard auth == .authorized else { return true }
+        // Deferred, not failed: the scheduler must not read a locked night as a write-back that broke.
+        guard protectedDataAvailable else {
+            deferUntilUnlock(.writeBack)
+            return true
+        }
         guard !syncing else {
             writeBackPending = true
             return true
@@ -1193,7 +1279,7 @@ final class HealthKitBridge: ObservableObject {
             lastError = nil
             return true
         } catch {
-            lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
+            reportFailure(error, owing: .writeBack)
             return false
         }
     }
