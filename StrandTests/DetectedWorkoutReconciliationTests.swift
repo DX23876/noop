@@ -52,34 +52,29 @@ final class DetectedWorkoutReconciliationTests: XCTestCase {
         return (hr, gravity)
     }
 
-    func testCandidateSelectionHonorsBothLegacyDismissalStores() {
-        let older = DetectedWorkout(startSec: 1_000, endSec: 1_900,
-                                    avgBpm: 130, peakBpm: 155, durationMin: 15)
-        let newer = DetectedWorkout(startSec: 3_000, endSec: 3_900,
-                                    avgBpm: 140, peakBpm: 165, durationMin: 15)
+    /// Both dismissal stores the old Today card kept still hide a suggestion from activity detection's resolver:
+    /// the card's exact spans and the engine's overlap tombstones (decision 2026-10-31).
+    func testActivitySuggestionsHonorBothLegacyDismissalStores() async throws {
+        try await withPreferences {
+            let defaults = UserDefaults.standard
+            let cardKey = "workouts.autoDetectDismissed"
+            let savedCard = defaults.object(forKey: cardKey)
+            defer { if let savedCard { defaults.set(savedCard, forKey: cardKey) } else { defaults.removeObject(forKey: cardKey) } }
+            defaults.set(["3000:3900"], forKey: cardKey)
+            defaults.set(["990:1910"], forKey: WorkoutSource.dismissedDefaultsKey)
 
-        XCTAssertEqual(
-            Repository.selectAutoDetectCandidate(
-                [older, newer],
-                autoDismissedTokens: ["3000:3900"],
-                detectedDismissedTokens: []),
-            older,
-            "an exact dismissal from the confirmation-card store must still suppress its candidate")
-
-        XCTAssertEqual(
-            Repository.selectAutoDetectCandidate(
-                [older, newer],
-                autoDismissedTokens: [],
-                detectedDismissedTokens: ["2990:3910"]),
-            older,
-            "an overlapping legacy engine dismissal must suppress a boundary-shifted candidate")
-
-        XCTAssertNil(
-            Repository.selectAutoDetectCandidate(
-                [older, newer],
-                autoDismissedTokens: ["3000:3900"],
-                detectedDismissedTokens: ["990:1910"]),
-            "a candidate dismissed through either historical contract must never reappear")
+            let repo = Repository(deviceId: deviceId)
+            func row(_ start: Int) -> ActivityCandidateRow {
+                ActivityCandidateRow(deviceId: deviceId, track: "heartRate", startTs: start, endTs: start + 900,
+                                     ruleVersion: ActivityCandidates.ruleVersion, avgBpm: 135, peakBpm: 160, load: 120,
+                                     cadence: nil, locomotionShare: nil, kinds: ["strength"])
+            }
+            let resolved = ActivitySuggestions.resolve(
+                candidates: [row(1_000), row(3_000), row(6_000)], answers: [], workouts: [],
+                legacyDismissed: repo.legacyAutoDetectDismissedWindows, settings: .init())
+            XCTAssertEqual(resolved.map(\.start), [6_000],
+                           "a span dismissed through either historical store must never reappear")
+        }
     }
 
     func testLegacyRowsAreRemovedFromTheirArchivedComputedOwner() async throws {

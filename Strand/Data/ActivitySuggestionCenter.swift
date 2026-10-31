@@ -28,8 +28,9 @@ final class ActivitySuggestionCenter: ObservableObject {
 
     private weak var repo: Repository?
     private var refreshWatch: AnyCancellable?
-    private var loading = false
-    /// A reload asked for while one runs; it runs once more after, so a write in between is never missed.
+    /// The reload in flight. A caller arriving meanwhile marks `reloadAgain` and waits for it, so it always
+    /// returns with state read after its own write.
+    private var inflight: Task<Void, Never>?
     private var reloadAgain = false
 
     private init() {}
@@ -64,17 +65,23 @@ final class ActivitySuggestionCenter: ObservableObject {
     }
 
     func reload() async {
-        guard let repo else { return }
-        guard !loading else {
+        if let running = inflight {
             reloadAgain = true
+            await running.value
             return
         }
+        let task = Task { await self.readAll() }
+        inflight = task
+        await task.value
+        inflight = nil
+    }
+
+    private func readAll() async {
+        guard let repo else { return }
         guard Self.isEnabled else {
             all = []
             return
         }
-        loading = true
-        defer { loading = false }
         repeat {
             reloadAgain = false
             all = await repo.activitySuggestions(settings: Self.settings)

@@ -40,7 +40,9 @@ final class ActivitySuggestionCenterTests: XCTestCase {
         try await withDetection {
             let store = try await WhoopStore.inMemory()
             let start = Int(Date().timeIntervalSince1970) - 6 * 3_600
-            _ = try await setUp(store, start: start)
+            // The center holds the repository weakly, as the app's lives for the whole run; keep it alive here.
+            let repo = try await setUp(store, start: start)
+            defer { withExtendedLifetime(repo) {} }
             let center = ActivitySuggestionCenter.shared
             await center.reload()
             XCTAssertEqual(center.toAsk.map(\.track), [.walk, .heartRate])
@@ -81,7 +83,7 @@ final class ActivitySuggestionCenterTests: XCTestCase {
                                     durationS: 2_000, energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil,
                                     distanceM: nil, zonesJSON: nil, notes: nil, steps: nil)
             await center.noteLogged(manual)
-            _ = repo
+            withExtendedLifetime(repo) {}
             let answers = try await store.activitySuggestionAnswers(from: start - 1, to: start + 86_400)
             XCTAssertEqual(answers.map(\.answer), [.walk])
             XCTAssertEqual(answers.first?.origin, .sheet)
