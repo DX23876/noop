@@ -52,17 +52,28 @@ public enum SleepTimingConsistency {
     }
 
     /// The score of every night whose main sleep ends in `from ..< to`, keyed by the local day it ends on
-    /// (`dayOf`). The longest session ending on a day is its main sleep; naps count in the comparison. Only
-    /// nights with all `priorDays` nights before them recorded are scored, since an unrecorded day would read
-    /// as awake all day. `sessions` should reach five days before `from`. AgeLess and the sleep-consistency
-    /// goal both read this, so the two cannot score a night differently.
-    public static func scoresByDay(sessions: [Interval], from: Int, to: Int,
+    /// (`dayOf`). The main sleep is the day's main-night group under the rule the Sleep page and the daily
+    /// totals use (`SleepStageTotals.bridgedNightGroups` + `mainNightIndex`), so a night split by a wake
+    /// is scored at its real wake rather than at the end of its longest fragment; naps count in the
+    /// comparison. `offsetSec` (seconds east of UTC) is the one the bridge reads for the overnight band.
+    /// Only nights with all `priorDays` nights before them recorded are scored, since an unrecorded day
+    /// would read as awake all day. `sessions` should reach five days before `from`. AgeLess and the
+    /// sleep-consistency goal both read this, so the two cannot score a night differently.
+    public static func scoresByDay(sessions: [Interval], from: Int, to: Int, offsetSec: Int,
                                    dayOf: (Int) -> String) -> [String: Double] {
+        let blocks = sessions.map { SleepStageTotals.NightBlock(start: $0.start, end: $0.end) }
+        var spansByDay: [String: [Interval]] = [:]
+        for g in SleepStageTotals.bridgedNightGroups(blocks, offsetSec: offsetSec) {
+            let span = Interval(start: g.indices.map { sessions[$0].start }.min() ?? 0,
+                                end: g.indices.map { sessions[$0].end }.max() ?? 0)
+            guard span.end >= from && span.end < to else { continue }
+            spansByDay[dayOf(span.end), default: []].append(span)
+        }
         var mainByDay: [String: Interval] = [:]
-        for s in sessions where s.end >= from && s.end < to {
-            let day = dayOf(s.end)
-            if let m = mainByDay[day], m.end - m.start >= s.end - s.start { continue }
-            mainByDay[day] = s
+        for (day, spans) in spansByDay {
+            let picked = SleepStageTotals.mainNightIndex(
+                spans.map { SleepStageTotals.NightBlock(start: $0.start, end: $0.end) }, offsetSec: offsetSec)
+            if let i = picked { mainByDay[day] = spans[i] }
         }
         var out: [String: Double] = [:]
         for (day, main) in mainByDay {

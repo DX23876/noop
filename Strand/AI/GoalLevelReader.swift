@@ -36,7 +36,7 @@ enum GoalLevelReader {
             let offset = TimeZone.current.secondsFromGMT(for: now)
             let sessions = await reader.goalComputedSleepSessions(from: from - 5 * 86_400, to: to, limit: 1_000)
                 .map { SleepTimingConsistency.Interval(start: $0.effectiveStartTs, end: $0.endTs) }
-            let scores = SleepTimingConsistency.scoresByDay(sessions: sessions, from: from, to: to) {
+            let scores = SleepTimingConsistency.scoresByDay(sessions: sessions, from: from, to: to, offsetSec: offset) {
                 AnalyticsEngine.dayString($0, offsetSec: offset)
             }
             out[.sleepConsistency] = samples(scores.map { (day: $0.key, value: $0.value) }.sorted { $0.day < $1.day })

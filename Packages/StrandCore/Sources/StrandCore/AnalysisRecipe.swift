@@ -213,6 +213,9 @@ public enum AnalysisRecipe {
     // charger gap is kept; and a five-minute SDNN segment that fails the beat-spread or beat-value gate
     // supplies no daily SDNN (#2722). Its own number because the testing build of 2026-10-30 (`f8b2c1273`)
     // already carries AI-32 (decisions, 2026-10-28: a testing build counts as shipped).
+    // AI-33 also carries the AgeLess sleep consistency of a night split by a wake (reinmaker/noop #76): the
+    // night is the day's bridged main-night group, scored at its last wake rather than at the end of its
+    // longest fragment. The healthspanReset step re-derives every AgeLess week from it.
     public static let currentVersion = 33
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

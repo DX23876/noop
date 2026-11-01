@@ -240,11 +240,12 @@ extension DailyAnalysis {
         for (day, v) in try await series(healthspanZone13Key) { edit(day) { $0.zone13Min = v } }
         for (day, v) in try await series(healthspanZone45Key) { edit(day) { $0.zone45Min = v } }
 
-        // Consistency for each night: the longest session ending that day is the main sleep; naps count too.
+        // Consistency for each night: the day's main-night group is the main sleep; naps count too.
         let sessions = try await store.sleepSessions(deviceId: computedId, from: fromTs - 5 * 86_400,
                                                      to: toTs, limit: 100_000)
             .map { SleepTimingConsistency.Interval(start: $0.effectiveStartTs, end: $0.endTs) }
-        let consistency = SleepTimingConsistency.scoresByDay(sessions: sessions, from: fromTs, to: toTs) {
+        let consistency = SleepTimingConsistency.scoresByDay(sessions: sessions, from: fromTs, to: toTs,
+                                                                 offsetSec: tzOffset) {
             AnalyticsEngine.dayString($0, offsetSec: tzOffset)
         }
         for (day, c) in consistency { edit(day) { $0.sleepConsistencyPct = c } }
