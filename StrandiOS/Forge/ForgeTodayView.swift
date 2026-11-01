@@ -114,18 +114,18 @@ struct ForgeTodayView: View {
             }
             .overlay(alignment: .top) {
                 if heroHidden {
-                    pinnedBar
-                        .frame(maxWidth: .infinity)
-                        .background(alignment: .top) {
-                            // Fades the timeline out under the status bar and the bar, so text never
-                            // runs behind the clock unsoftened.
-                            LinearGradient(colors: [ForgeColor.canvas, ForgeColor.canvas.opacity(0)],
-                                           startPoint: .top, endPoint: .bottom)
-                                .frame(height: 110)
-                                .ignoresSafeArea(edges: .top)
-                                .allowsHitTesting(false)
-                        }
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                    ZStack(alignment: .top) {
+                        // Fades the timeline out under the status bar and the bar, so text never runs
+                        // behind the clock unsoftened.
+                        LinearGradient(colors: [ForgeColor.canvas, ForgeColor.canvas.opacity(0.85),
+                                                ForgeColor.canvas.opacity(0)],
+                                       startPoint: .top, endPoint: .bottom)
+                            .frame(height: 64)
+                            .ignoresSafeArea(edges: .top)
+                            .allowsHitTesting(false)
+                        pinnedBar
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .onChange(of: scrollToTopSignal) { _, _ in
@@ -715,6 +715,22 @@ struct ForgeTodayView: View {
         .buttonStyle(LiquidPressStyle())
     }
 
+    /// The moment the note policy judges against. DEBUG `--forge-notes-at HH:MM` pins it to that time of
+    /// today, so the after-workout and evening notes can be exercised in the simulator outside their hours.
+    private static func notesClock(_ now: Date) -> Date {
+        #if DEBUG
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--forge-notes-at"), i + 1 < args.count {
+            let parts = args[i + 1].split(separator: ":").compactMap { Int($0) }
+            if parts.count == 2,
+               let pinned = Calendar.current.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: now) {
+                return pinned
+            }
+        }
+        #endif
+        return now
+    }
+
     #if DEBUG
     private static func demoCoachNotes(now: Date) -> [ForgeTimeline.CoachNote] {
         let cal = Calendar.current
@@ -835,7 +851,7 @@ struct ForgeTodayView: View {
         // A due note (after a workout, in the evening) is written now, the same moment the brief uses.
         // When it lands, the transcript changes and `reloadKey` brings it into the timeline.
         if coachFeatureEnabled {
-            Task { await coach.runForgeNotesIfDue(workouts: workouts) }
+            Task { await coach.runForgeNotesIfDue(workouts: workouts, now: Self.notesClock(now)) }
         }
     }
 }

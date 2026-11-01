@@ -3173,7 +3173,13 @@ final class AICoachEngine: ObservableObject {
     func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
                                           stampValue: String? = nil,
                                           origin: ChatMessage.Origin) async -> Bool {
-        while let inFlight = sendTask { await inFlight.value }
+        while let inFlight = sendTask {
+            await inFlight.value
+            // The task is finished, but its own runner may not have cleared `sendTask` yet. Awaiting a
+            // finished task does not suspend, so without this the loop spins on the main actor and that
+            // runner never gets to run: a second auto-turn arriving at the end of the first froze the app.
+            if sendTask == inFlight { sendTask = nil }
+        }
         guard !sending else { return false }
         // Same shape as `runBriefCancellable`: `sendTask` holds the real work so Stop can cancel it, and
         // the "did it speak?" answer comes back through `lastAutoTurnSpoke`.

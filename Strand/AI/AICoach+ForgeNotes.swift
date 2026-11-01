@@ -10,6 +10,8 @@ import StrandCore
 /// Analysis migration required: no. Coach messages only.
 extension AICoachEngine {
 
+    @MainActor private static var forgeNotesRunning = false
+
     /// Coach-initiated messages written today (the budget's input). The weekly review does not count.
     func forgeInitiatedToday(now: Date = Date()) -> Int {
         let today = LogicalDay.key(now)
@@ -25,9 +27,17 @@ extension AICoachEngine {
     /// same moment the brief and nudges use, so nothing runs in the background.
     @discardableResult
     func runForgeNotesIfDue(workouts: [WorkoutRow], now: Date = Date()) async -> Bool {
-        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else {
+        // Never before the person has read the coach's first-use note (what it is, what it sends): the
+        // notes are the coach speaking unasked, so they wait for the same acknowledgement the chat does.
+        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending,
+              UserDefaults.standard.bool(forKey: CoachFirstUse.acknowledgedKey),
+              !Self.forgeNotesRunning else {
             return false
         }
+        // One note run at a time: Today reloads when a note lands and would otherwise start a second run
+        // while the first is still finishing.
+        Self.forgeNotesRunning = true
+        defer { Self.forgeNotesRunning = false }
         let defaults = UserDefaults.standard
         let used = forgeInitiatedToday(now: now)
         // Notes are short; they use the cheap card model rather than the chat model.
@@ -47,7 +57,7 @@ extension AICoachEngine {
                 prefix: String(localized: "After your workout"),
                 stampKey: ForgeCoachNotes.lastWorkoutNoteKey,
                 stampValue: "\(workout.startTs)|\(workout.sport)", origin: .nudge)
-            if spoke { announceLatestNote() }
+            if spoke { announceLatestNote(now: now) }
             return spoke
         }
 
@@ -58,7 +68,7 @@ extension AICoachEngine {
                 instruction: ForgeCoachNotes.eveningInstruction(),
                 prefix: String(localized: "Evening recap"),
                 stampKey: ForgeCoachNotes.lastEveningDayKey, origin: .nudge)
-            if spoke { announceLatestNote() }
+            if spoke { announceLatestNote(now: now) }
             return spoke
         }
         return false
@@ -66,8 +76,8 @@ extension AICoachEngine {
 
     /// The note just written, as a local notification with its headline. No extra model call: the text
     /// is the transcript's. Only when notifications are already allowed and outside quiet hours.
-    private func announceLatestNote() {
-        guard !ForgeCoachNotes.isQuiet(Date()),
+    private func announceLatestNote(now: Date) {
+        guard !ForgeCoachNotes.isQuiet(now),
               let message = conversations.flatMap(\.messages).last(where: { $0.role == .assistant }) else { return }
         let parts = ForgeTimeline.splitNote(message.text)
         let center = UNUserNotificationCenter.current()
