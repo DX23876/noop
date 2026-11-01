@@ -193,6 +193,24 @@ final class CoreParityOracleTests: XCTestCase {
                            "fitnessAge": FitnessAgeEngine.fitnessAge(age: age, sex: sex, restingHR: rhr, paIndex: pa),
                            "nightsUntilReady": FitnessAgeEngine.nightsUntilReady(rhrDays: a["rhrDays"] as! Int)]
                }),
+        Oracle(name: "HRZones",
+               inputs: cases(40, seed: 10) { r in
+                   let start = 1_760_000_000
+                   return ["maxHR": r.double(140...210),
+                           "hr": hrSeries(&r, from: start, seconds: r.int(60...3_600), step: r.int(1...20), base: 120)]
+               },
+               run: { a in
+                   let set = HRZones.zones(maxHR: a["maxHR"] as! Double)
+                   let t = HRZones.timeInZone(hr(a["hr"]), zoneSet: set)
+                   return ["zones": set.zones.map { ["n": $0.number, "lower": $0.lower, "upper": $0.upper, "pct": $0.lowerPct] },
+                           "maxHR": set.maxHR, "seconds": t.seconds, "below": t.belowZone1]
+               }),
+        Oracle(name: "HRVAnalyzer.rmssdRaw",
+               inputs: cases(50, seed: 11) { r in
+                   let base = r.double(500...1300)
+                   return ["nn": (0..<r.int(0...200)).map { _ in base + r.double(-150...150) }]
+               },
+               run: { a in nn(HRVAnalyzer.rmssdRaw(a["nn"] as! [Double])) }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

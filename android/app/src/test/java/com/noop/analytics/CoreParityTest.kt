@@ -90,6 +90,13 @@ class CoreParityTest {
                 "fitnessAge" to FitnessAgeEngine.fitnessAge(age, sex, rhr, pa),
                 "nightsUntilReady" to FitnessAgeEngine.nightsUntilReady(i.getInt("rhrDays")))
         },
+        "HRZones" to { i ->
+            val set = HrZones.zones(maxHR = i.getDouble("maxHR"))
+            val t = HrZones.timeInZone(hr(i.getJSONArray("hr")), set)
+            obj("zones" to set.zones.map { obj("n" to it.number, "lower" to it.lower, "upper" to it.upper, "pct" to it.lowerPct) },
+                "maxHR" to set.maxHR, "seconds" to t.seconds, "below" to t.belowZone1)
+        },
+        "HRVAnalyzer.rmssdRaw" to { i -> HrvAnalyzer.rmssdRaw(doubles(i.getJSONArray("nn"))) },
     )
 
     private fun oracleDir(): File {
