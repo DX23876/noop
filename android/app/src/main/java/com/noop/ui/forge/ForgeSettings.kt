@@ -1,5 +1,10 @@
 package com.noop.ui.forge
 
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import com.noop.ingest.WhoopCsvExporter
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.runtime.CompositionLocalProvider
@@ -410,7 +415,7 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
                 ForgeSettingsPage.TodayTrends -> { DashboardStyleSection(::change); TodayCardsSection(::change) }
                 ForgeSettingsPage.Calculations -> CalculationsSection(viewModel, ::change, onOpen)
-                ForgeSettingsPage.DataBackup -> DataBackupSection(onOpen)
+                ForgeSettingsPage.DataBackup -> DataBackupSection(viewModel, onOpen)
                 ForgeSettingsPage.Help -> HelpSection(onOpen)
                 ForgeSettingsPage.Lab -> LabSection(viewModel, onOpen)
                 ForgeSettingsPage.About -> AboutSection(onOpen)
@@ -589,6 +594,8 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
                 onOpenBackupSync = { onOpen(ForgeSettingsSub.BackupSync) },
                 onOpenSelfHostedPush = { onOpen(ForgeSettingsSub.SelfHostedPush) },
                 onOpenStepsCalibration = { onOpen(ForgeSettingsSub.StepsCalibration) },
+                // Backups live in Data & Backup alone; the classic card would be a second set of the same buttons.
+                cards = ClassicSettingsCard.entries.toSet() - ClassicSettingsCard.Backup,
             )
         }
         ForgeSettingsSub.Charge, ForgeSettingsSub.HealthWellness, ForgeSettingsSub.Advanced ->
@@ -1147,12 +1154,35 @@ private fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) ->
 }
 
 @Composable
-private fun DataBackupSection(onOpen: (ForgeSettingsSub) -> Unit) {
+private fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val backup = rememberBackupActions()
+    // The WHOOP-format CSV export, moved here from the classic Backup card, which All settings no longer shows:
+    // this card is the one place for backups (CORE-ONLY-PLAN).
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val csvExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { WhoopCsvExporter.exportZip(context, uri, viewModel.repo, viewModel.activeStrapId) }
+            }
+            result.fold(
+                onSuccess = { msg ->
+                    Toast.makeText(context, "$msg Re-import it via Data sources → WHOOP import, on Android or Mac.",
+                                   Toast.LENGTH_LONG).show()
+                },
+                onFailure = { e -> Toast.makeText(context, "CSV export problem: ${e.message}", Toast.LENGTH_LONG).show() },
+            )
+        }
+    }
     SettingsCard(title = stringResource(R.string.forge_backup_section), blurb = null) {
         LinkRow(stringResource(R.string.forge_backup_export), stringResource(R.string.forge_backup_export_detail), backup.export)
         RowDivider()
         LinkRow(stringResource(R.string.forge_backup_import), stringResource(R.string.forge_backup_import_detail), backup.import)
+        RowDivider()
+        LinkRow(stringResource(R.string.l10n_settings_screen_export_csv_6bce63a3), null) {
+            csvExport.launch("noop-export-${java.time.LocalDate.now()}.zip")
+        }
         RowDivider()
         LinkRow(stringResource(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
                 stringResource(R.string.forge_settings_auto_backup_detail)) { onOpen(ForgeSettingsSub.BackupSync) }
