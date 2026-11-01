@@ -1,0 +1,2378 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "a" : {
+          "hrv" : 113.179,
+          "skinTemp" : 167.661,
+          "sleep" : 186.738
+        },
+        "b" : {
+          "calories" : 188.72900000000001,
+          "heartRate" : 155.33699999999999,
+          "restingHR" : 55.051000000000002,
+          "skinTemp" : 94.075999999999993,
+          "sleep" : 41.054000000000002,
+          "spo2" : 8.3699999999999992
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 55.051000000000002,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 155.33699999999999,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 113.179,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 8.3699999999999992,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 167.661,
+          "agreement" : "conflict",
+          "b" : 94.075999999999993,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 186.738,
+          "agreement" : "conflict",
+          "b" : 41.054000000000002,
+          "metric" : "sleep"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 188.72900000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 97.117000000000004,
+          "restingHR" : 54.643999999999998,
+          "skinTemp" : 124.03,
+          "sleep" : 144.71899999999999,
+          "spo2" : 142.52699999999999
+        },
+        "b" : {
+          "heartRate" : 8.6080000000000005,
+          "hrv" : 44.567,
+          "restingHR" : 153.83199999999999,
+          "skinTemp" : 138.42500000000001,
+          "sleep" : 56.411999999999999,
+          "steps" : 70.352999999999994
+        }
+      },
+      "output" : [
+        {
+          "a" : 54.643999999999998,
+          "agreement" : "conflict",
+          "b" : 153.83199999999999,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 97.117000000000004,
+          "agreement" : "conflict",
+          "b" : 8.6080000000000005,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 44.567,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 142.52699999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 124.03,
+          "agreement" : "conflict",
+          "b" : 138.42500000000001,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 70.352999999999994,
+          "metric" : "steps"
+        },
+        {
+          "a" : 144.71899999999999,
+          "agreement" : "conflict",
+          "b" : 56.411999999999999,
+          "metric" : "sleep"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 157.834,
+          "heartRate" : 43.857999999999997,
+          "hrv" : 15.288,
+          "skinTemp" : 66.870000000000005,
+          "spo2" : 97.194999999999993,
+          "steps" : 66.156999999999996
+        },
+        "b" : {
+          "calories" : 135.40700000000001,
+          "heartRate" : 193.24799999999999,
+          "hrv" : 33.933999999999997,
+          "restingHR" : 52.762,
+          "spo2" : 15.667999999999999,
+          "steps" : 59.058
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 52.762,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 43.857999999999997,
+          "agreement" : "conflict",
+          "b" : 193.24799999999999,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 15.288,
+          "agreement" : "minorDelta",
+          "b" : 33.933999999999997,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 97.194999999999993,
+          "agreement" : "conflict",
+          "b" : 15.667999999999999,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 66.870000000000005,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 66.156999999999996,
+          "agreement" : "minorDelta",
+          "b" : 59.058,
+          "metric" : "steps"
+        },
+        {
+          "a" : 157.834,
+          "agreement" : "agree",
+          "b" : 135.40700000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 186.81200000000001,
+          "skinTemp" : 22.140000000000001,
+          "sleep" : 193.55699999999999,
+          "spo2" : 136.631
+        },
+        "b" : {
+          "calories" : 182.25299999999999,
+          "hrv" : 37.506,
+          "sleep" : 191.595,
+          "spo2" : 44.365000000000002,
+          "steps" : 19.364999999999998
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 37.506,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 136.631,
+          "agreement" : "conflict",
+          "b" : 44.365000000000002,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 22.140000000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 19.364999999999998,
+          "metric" : "steps"
+        },
+        {
+          "a" : 193.55699999999999,
+          "agreement" : "agree",
+          "b" : 191.595,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 186.81200000000001,
+          "agreement" : "agree",
+          "b" : 182.25299999999999,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "hrv" : 49.357999999999997,
+          "restingHR" : 44.465000000000003,
+          "skinTemp" : 72.810000000000002,
+          "sleep" : 147.97200000000001,
+          "steps" : 108.309
+        },
+        "b" : {
+          "calories" : 151.45599999999999,
+          "hrv" : 108.63800000000001,
+          "restingHR" : 182.77099999999999,
+          "spo2" : 48.741,
+          "steps" : 69.551000000000002
+        }
+      },
+      "output" : [
+        {
+          "a" : 44.465000000000003,
+          "agreement" : "conflict",
+          "b" : 182.77099999999999,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 49.357999999999997,
+          "agreement" : "conflict",
+          "b" : 108.63800000000001,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 48.741,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 72.810000000000002,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 108.309,
+          "agreement" : "conflict",
+          "b" : 69.551000000000002,
+          "metric" : "steps"
+        },
+        {
+          "a" : 147.97200000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 151.45599999999999,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 125.413,
+          "hrv" : 117.29600000000001,
+          "restingHR" : 171.63800000000001,
+          "skinTemp" : 9.9030000000000005,
+          "spo2" : 31.538,
+          "steps" : 111.193
+        },
+        "b" : {
+          "skinTemp" : 2.1419999999999999,
+          "spo2" : 128.214,
+          "steps" : 74.834000000000003
+        }
+      },
+      "output" : [
+        {
+          "a" : 171.63800000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 117.29600000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 31.538,
+          "agreement" : "conflict",
+          "b" : 128.214,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 9.9030000000000005,
+          "agreement" : "conflict",
+          "b" : 2.1419999999999999,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 111.193,
+          "agreement" : "conflict",
+          "b" : 74.834000000000003,
+          "metric" : "steps"
+        },
+        {
+          "a" : 125.413,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 100.548,
+          "hrv" : 174.833,
+          "restingHR" : 152.24199999999999,
+          "sleep" : 14.903,
+          "spo2" : 38.335999999999999
+        },
+        "b" : {
+          "calories" : 83.653999999999996,
+          "heartRate" : 46.164000000000001,
+          "skinTemp" : 79.488,
+          "sleep" : 66.135999999999996,
+          "spo2" : 4.875,
+          "steps" : 56.484000000000002
+        }
+      },
+      "output" : [
+        {
+          "a" : 152.24199999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 46.164000000000001,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 174.833,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 38.335999999999999,
+          "agreement" : "conflict",
+          "b" : 4.875,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 79.488,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 56.484000000000002,
+          "metric" : "steps"
+        },
+        {
+          "a" : 14.903,
+          "agreement" : "minorDelta",
+          "b" : 66.135999999999996,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 100.548,
+          "agreement" : "minorDelta",
+          "b" : 83.653999999999996,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 87.167000000000002,
+          "heartRate" : 44.933,
+          "restingHR" : 80.299000000000007,
+          "skinTemp" : 104.52800000000001
+        },
+        "b" : {
+          "calories" : 27.754000000000001,
+          "heartRate" : 72.441999999999993,
+          "hrv" : 65.652000000000001,
+          "restingHR" : 130.702,
+          "skinTemp" : 142.42500000000001,
+          "spo2" : 194.71799999999999
+        }
+      },
+      "output" : [
+        {
+          "a" : 80.299000000000007,
+          "agreement" : "conflict",
+          "b" : 130.702,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 44.933,
+          "agreement" : "conflict",
+          "b" : 72.441999999999993,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 65.652000000000001,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 194.71799999999999,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 104.52800000000001,
+          "agreement" : "conflict",
+          "b" : 142.42500000000001,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 87.167000000000002,
+          "agreement" : "conflict",
+          "b" : 27.754000000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 94.358000000000004,
+          "heartRate" : 135.05099999999999,
+          "hrv" : 13.821999999999999,
+          "restingHR" : 166.44900000000001,
+          "skinTemp" : 138.096,
+          "sleep" : 150.386,
+          "steps" : 56.680999999999997
+        },
+        "b" : {
+          "skinTemp" : 166.70599999999999,
+          "sleep" : 109.095,
+          "steps" : 25.004999999999999
+        }
+      },
+      "output" : [
+        {
+          "a" : 166.44900000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 135.05099999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 13.821999999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 138.096,
+          "agreement" : "conflict",
+          "b" : 166.70599999999999,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 56.680999999999997,
+          "agreement" : "conflict",
+          "b" : 25.004999999999999,
+          "metric" : "steps"
+        },
+        {
+          "a" : 150.386,
+          "agreement" : "minorDelta",
+          "b" : 109.095,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 94.358000000000004,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 167.10300000000001,
+          "heartRate" : 62.996000000000002,
+          "restingHR" : 68.950000000000003,
+          "skinTemp" : 182.071,
+          "sleep" : 88.691000000000003
+        },
+        "b" : {
+          "calories" : 165.483,
+          "heartRate" : 23.503,
+          "hrv" : 51.366999999999997,
+          "steps" : 60.045000000000002
+        }
+      },
+      "output" : [
+        {
+          "a" : 68.950000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 62.996000000000002,
+          "agreement" : "conflict",
+          "b" : 23.503,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 51.366999999999997,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 182.071,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 60.045000000000002,
+          "metric" : "steps"
+        },
+        {
+          "a" : 88.691000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 167.10300000000001,
+          "agreement" : "agree",
+          "b" : 165.483,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "sleep" : 11.244,
+          "spo2" : 106.087,
+          "steps" : 2.2320000000000002
+        },
+        "b" : {
+          "calories" : 25.164000000000001,
+          "hrv" : 19.928999999999998,
+          "restingHR" : 144.12,
+          "skinTemp" : 95.709999999999994
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 144.12,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 19.928999999999998,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 106.087,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 95.709999999999994,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 2.2320000000000002,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "steps"
+        },
+        {
+          "a" : 11.244,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 25.164000000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 62.896999999999998,
+          "skinTemp" : 142.03700000000001,
+          "sleep" : 4.1050000000000004
+        },
+        "b" : {
+          "calories" : 16.870000000000001,
+          "heartRate" : 108.05,
+          "hrv" : 12.792,
+          "restingHR" : 13.398,
+          "skinTemp" : 171.19800000000001,
+          "sleep" : 29.617999999999999,
+          "spo2" : 62.695,
+          "steps" : 25.143999999999998
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 13.398,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 62.896999999999998,
+          "agreement" : "conflict",
+          "b" : 108.05,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 12.792,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 62.695,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 142.03700000000001,
+          "agreement" : "conflict",
+          "b" : 171.19800000000001,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 25.143999999999998,
+          "metric" : "steps"
+        },
+        {
+          "a" : 4.1050000000000004,
+          "agreement" : "minorDelta",
+          "b" : 29.617999999999999,
+          "metric" : "sleep"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 16.870000000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 148.46899999999999,
+          "restingHR" : 176.38499999999999,
+          "sleep" : 61.039999999999999,
+          "steps" : 156.49100000000001
+        },
+        "b" : {
+          "heartRate" : 23.303999999999998,
+          "restingHR" : 145.44999999999999,
+          "sleep" : 1.9279999999999999,
+          "spo2" : 76.843999999999994
+        }
+      },
+      "output" : [
+        {
+          "a" : 176.38499999999999,
+          "agreement" : "conflict",
+          "b" : 145.44999999999999,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 148.46899999999999,
+          "agreement" : "conflict",
+          "b" : 23.303999999999998,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 76.843999999999994,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 156.49100000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "steps"
+        },
+        {
+          "a" : 61.039999999999999,
+          "agreement" : "minorDelta",
+          "b" : 1.9279999999999999,
+          "metric" : "sleep"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 76.435000000000002,
+          "hrv" : 183.59,
+          "spo2" : 37.268000000000001
+        },
+        "b" : {
+          "calories" : 138.99000000000001,
+          "heartRate" : 115.63,
+          "hrv" : 26.114000000000001,
+          "restingHR" : 128.72999999999999,
+          "skinTemp" : 75.745000000000005
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 128.72999999999999,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 76.435000000000002,
+          "agreement" : "conflict",
+          "b" : 115.63,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 183.59,
+          "agreement" : "conflict",
+          "b" : 26.114000000000001,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 37.268000000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 75.745000000000005,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 138.99000000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 1.5589999999999999,
+          "heartRate" : 133.52699999999999,
+          "hrv" : 70.614999999999995,
+          "restingHR" : 53.578000000000003,
+          "skinTemp" : 62.340000000000003,
+          "sleep" : 143.09,
+          "spo2" : 167.345
+        },
+        "b" : {
+          "calories" : 147.73599999999999,
+          "hrv" : 159.09899999999999,
+          "spo2" : 14.220000000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : 53.578000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 133.52699999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 70.614999999999995,
+          "agreement" : "conflict",
+          "b" : 159.09899999999999,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 167.345,
+          "agreement" : "conflict",
+          "b" : 14.220000000000001,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 62.340000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 143.09,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 1.5589999999999999,
+          "agreement" : "conflict",
+          "b" : 147.73599999999999,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 103.967,
+          "hrv" : 191.51599999999999,
+          "restingHR" : 10.042,
+          "skinTemp" : 131.75399999999999,
+          "spo2" : 157.63800000000001,
+          "steps" : 1.1679999999999999
+        },
+        "b" : {
+          "hrv" : 166.08199999999999,
+          "sleep" : 14.647,
+          "spo2" : 180.00299999999999,
+          "steps" : 56.343000000000004
+        }
+      },
+      "output" : [
+        {
+          "a" : 10.042,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 103.967,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 191.51599999999999,
+          "agreement" : "conflict",
+          "b" : 166.08199999999999,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 157.63800000000001,
+          "agreement" : "conflict",
+          "b" : 180.00299999999999,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 131.75399999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 1.1679999999999999,
+          "agreement" : "conflict",
+          "b" : 56.343000000000004,
+          "metric" : "steps"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 14.647,
+          "metric" : "sleep"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 113.556,
+          "skinTemp" : 91.484999999999999,
+          "steps" : 98.724000000000004
+        },
+        "b" : {
+          "calories" : 19.803000000000001,
+          "hrv" : 22.462,
+          "skinTemp" : 177.916,
+          "spo2" : 192.18100000000001,
+          "steps" : 133.57400000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 22.462,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 192.18100000000001,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 91.484999999999999,
+          "agreement" : "conflict",
+          "b" : 177.916,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 98.724000000000004,
+          "agreement" : "minorDelta",
+          "b" : 133.57400000000001,
+          "metric" : "steps"
+        },
+        {
+          "a" : 113.556,
+          "agreement" : "conflict",
+          "b" : 19.803000000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 102.97499999999999,
+          "heartRate" : 99.358000000000004,
+          "hrv" : 93.686999999999998,
+          "skinTemp" : 188.98699999999999,
+          "sleep" : 11.375999999999999,
+          "spo2" : 149.202,
+          "steps" : 143.529
+        },
+        "b" : {
+          "restingHR" : 134.45699999999999,
+          "steps" : 34.728999999999999
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 134.45699999999999,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 99.358000000000004,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 93.686999999999998,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 149.202,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 188.98699999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 143.529,
+          "agreement" : "conflict",
+          "b" : 34.728999999999999,
+          "metric" : "steps"
+        },
+        {
+          "a" : 11.375999999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 102.97499999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 192.02199999999999,
+          "hrv" : 126.139,
+          "sleep" : 8.218,
+          "steps" : 74.498000000000005
+        },
+        "b" : {
+          "heartRate" : 37.549999999999997,
+          "hrv" : 110.724,
+          "skinTemp" : 103.051,
+          "sleep" : 112.20999999999999,
+          "spo2" : 193.773,
+          "steps" : 16.068000000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 37.549999999999997,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 126.139,
+          "agreement" : "minorDelta",
+          "b" : 110.724,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 193.773,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 103.051,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 74.498000000000005,
+          "agreement" : "conflict",
+          "b" : 16.068000000000001,
+          "metric" : "steps"
+        },
+        {
+          "a" : 8.218,
+          "agreement" : "conflict",
+          "b" : 112.20999999999999,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 192.02199999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 177.292,
+          "hrv" : 52.579999999999998,
+          "sleep" : 84.495000000000005,
+          "spo2" : 160.12100000000001
+        },
+        "b" : {
+          "calories" : 71.075000000000003,
+          "hrv" : 132.334,
+          "restingHR" : 30.818999999999999,
+          "skinTemp" : 183.339,
+          "sleep" : 30.018000000000001,
+          "spo2" : 157.935,
+          "steps" : 84.786000000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 30.818999999999999,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 177.292,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 52.579999999999998,
+          "agreement" : "conflict",
+          "b" : 132.334,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 160.12100000000001,
+          "agreement" : "minorDelta",
+          "b" : 157.935,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 183.339,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 84.786000000000001,
+          "metric" : "steps"
+        },
+        {
+          "a" : 84.495000000000005,
+          "agreement" : "minorDelta",
+          "b" : 30.018000000000001,
+          "metric" : "sleep"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 71.075000000000003,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 182.59299999999999,
+          "heartRate" : 73.533000000000001,
+          "hrv" : 191.363,
+          "restingHR" : 131.00899999999999,
+          "skinTemp" : 195.07499999999999,
+          "sleep" : 14.304,
+          "steps" : 84.927999999999997
+        },
+        "b" : {
+          "heartRate" : 53.460999999999999,
+          "hrv" : 98.564999999999998,
+          "restingHR" : 178.928,
+          "skinTemp" : 152.54599999999999,
+          "steps" : 55.353000000000002
+        }
+      },
+      "output" : [
+        {
+          "a" : 131.00899999999999,
+          "agreement" : "conflict",
+          "b" : 178.928,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 73.533000000000001,
+          "agreement" : "conflict",
+          "b" : 53.460999999999999,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 191.363,
+          "agreement" : "conflict",
+          "b" : 98.564999999999998,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 195.07499999999999,
+          "agreement" : "conflict",
+          "b" : 152.54599999999999,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 84.927999999999997,
+          "agreement" : "conflict",
+          "b" : 55.353000000000002,
+          "metric" : "steps"
+        },
+        {
+          "a" : 14.304,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 182.59299999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 95.337000000000003,
+          "hrv" : 139.221,
+          "spo2" : 190.82900000000001
+        },
+        "b" : {
+          "calories" : 17.143000000000001,
+          "restingHR" : 171.827,
+          "skinTemp" : 142.33500000000001,
+          "spo2" : 189.35400000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 171.827,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 95.337000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 139.221,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 190.82900000000001,
+          "agreement" : "agree",
+          "b" : 189.35400000000001,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 142.33500000000001,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 17.143000000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 125.102,
+          "heartRate" : 4.2270000000000003,
+          "hrv" : 105.328,
+          "sleep" : 114.133,
+          "spo2" : 48.625
+        },
+        "b" : {
+          "calories" : 157.226,
+          "spo2" : 124.889
+        }
+      },
+      "output" : [
+        {
+          "a" : 4.2270000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 105.328,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 48.625,
+          "agreement" : "conflict",
+          "b" : 124.889,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 114.133,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 125.102,
+          "agreement" : "minorDelta",
+          "b" : 157.226,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 189.751,
+          "heartRate" : 131.59800000000001,
+          "restingHR" : 106.902,
+          "spo2" : 62.113999999999997,
+          "steps" : 186.33699999999999
+        },
+        "b" : {
+          "calories" : 163.024,
+          "restingHR" : 0.20799999999999999,
+          "skinTemp" : 72.867000000000004,
+          "sleep" : 8.3049999999999997,
+          "spo2" : 29.306999999999999,
+          "steps" : 20.670000000000002
+        }
+      },
+      "output" : [
+        {
+          "a" : 106.902,
+          "agreement" : "conflict",
+          "b" : 0.20799999999999999,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 131.59800000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 62.113999999999997,
+          "agreement" : "conflict",
+          "b" : 29.306999999999999,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 72.867000000000004,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 186.33699999999999,
+          "agreement" : "conflict",
+          "b" : 20.670000000000002,
+          "metric" : "steps"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 8.3049999999999997,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 189.751,
+          "agreement" : "agree",
+          "b" : 163.024,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 79.747,
+          "hrv" : 46.250999999999998,
+          "sleep" : 49.493000000000002,
+          "steps" : 49.896999999999998
+        },
+        "b" : {
+          "calories" : 117.068,
+          "heartRate" : 46.198,
+          "hrv" : 18.138999999999999,
+          "restingHR" : 141.715,
+          "spo2" : 55.182000000000002,
+          "steps" : 46.810000000000002
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 141.715,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 46.198,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 46.250999999999998,
+          "agreement" : "conflict",
+          "b" : 18.138999999999999,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 55.182000000000002,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 49.896999999999998,
+          "agreement" : "agree",
+          "b" : 46.810000000000002,
+          "metric" : "steps"
+        },
+        {
+          "a" : 49.493000000000002,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 79.747,
+          "agreement" : "minorDelta",
+          "b" : 117.068,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 31.675000000000001,
+          "skinTemp" : 173.36600000000001,
+          "sleep" : 143.673
+        },
+        "b" : {
+          "calories" : 32.872999999999998,
+          "heartRate" : 12.045999999999999,
+          "sleep" : 150.95599999999999,
+          "steps" : 45.512999999999998
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 12.045999999999999,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 173.36600000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 45.512999999999998,
+          "metric" : "steps"
+        },
+        {
+          "a" : 143.673,
+          "agreement" : "agree",
+          "b" : 150.95599999999999,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 31.675000000000001,
+          "agreement" : "agree",
+          "b" : 32.872999999999998,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 169.15899999999999,
+          "heartRate" : 33.661000000000001,
+          "hrv" : 95.149000000000001,
+          "restingHR" : 138.137,
+          "skinTemp" : 100.679,
+          "sleep" : 140.53700000000001,
+          "steps" : 115.994
+        },
+        "b" : {
+          "hrv" : 67.944999999999993,
+          "skinTemp" : 160.363,
+          "steps" : 124.377
+        }
+      },
+      "output" : [
+        {
+          "a" : 138.137,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 33.661000000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 95.149000000000001,
+          "agreement" : "conflict",
+          "b" : 67.944999999999993,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 100.679,
+          "agreement" : "conflict",
+          "b" : 160.363,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 115.994,
+          "agreement" : "agree",
+          "b" : 124.377,
+          "metric" : "steps"
+        },
+        {
+          "a" : 140.53700000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 169.15899999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 14.295999999999999,
+          "hrv" : 177.19399999999999,
+          "restingHR" : 92.694999999999993,
+          "skinTemp" : 181.649,
+          "sleep" : 189.804,
+          "spo2" : 56.299999999999997
+        },
+        "b" : {
+          "hrv" : 94.665000000000006,
+          "restingHR" : 153.261,
+          "skinTemp" : 130.392,
+          "spo2" : 140.60900000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : 92.694999999999993,
+          "agreement" : "conflict",
+          "b" : 153.261,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 14.295999999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 177.19399999999999,
+          "agreement" : "conflict",
+          "b" : 94.665000000000006,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 56.299999999999997,
+          "agreement" : "conflict",
+          "b" : 140.60900000000001,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 181.649,
+          "agreement" : "conflict",
+          "b" : 130.392,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 189.804,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 3.117,
+          "restingHR" : 82.316000000000003,
+          "skinTemp" : 69.512,
+          "sleep" : 82.552000000000007,
+          "steps" : 27.414000000000001
+        },
+        "b" : {
+          "hrv" : 29.087,
+          "spo2" : 177.01400000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : 82.316000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 3.117,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 29.087,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 177.01400000000001,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 69.512,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 27.414000000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "steps"
+        },
+        {
+          "a" : 82.552000000000007,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 148.99199999999999,
+          "hrv" : 112.89700000000001,
+          "restingHR" : 164.80500000000001,
+          "skinTemp" : 17.878,
+          "sleep" : 134.57900000000001,
+          "spo2" : 90.433999999999997
+        },
+        "b" : {
+          "calories" : 144.22,
+          "heartRate" : 45.771999999999998,
+          "hrv" : 117.44,
+          "skinTemp" : 83.287000000000006,
+          "sleep" : 191.30799999999999,
+          "spo2" : 108.904
+        }
+      },
+      "output" : [
+        {
+          "a" : 164.80500000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 45.771999999999998,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 112.89700000000001,
+          "agreement" : "agree",
+          "b" : 117.44,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 90.433999999999997,
+          "agreement" : "conflict",
+          "b" : 108.904,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 17.878,
+          "agreement" : "conflict",
+          "b" : 83.287000000000006,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 134.57900000000001,
+          "agreement" : "minorDelta",
+          "b" : 191.30799999999999,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 148.99199999999999,
+          "agreement" : "agree",
+          "b" : 144.22,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 14.089,
+          "restingHR" : 60.755000000000003,
+          "skinTemp" : 34.070999999999998,
+          "sleep" : 83.825999999999993,
+          "spo2" : 124.012,
+          "steps" : 94.537999999999997
+        },
+        "b" : {
+          "calories" : 93.256,
+          "heartRate" : 115.164,
+          "hrv" : 78.146000000000001,
+          "skinTemp" : 142.50899999999999,
+          "sleep" : 53.445999999999998,
+          "steps" : 111.208
+        }
+      },
+      "output" : [
+        {
+          "a" : 60.755000000000003,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 14.089,
+          "agreement" : "conflict",
+          "b" : 115.164,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 78.146000000000001,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 124.012,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 34.070999999999998,
+          "agreement" : "conflict",
+          "b" : 142.50899999999999,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 94.537999999999997,
+          "agreement" : "minorDelta",
+          "b" : 111.208,
+          "metric" : "steps"
+        },
+        {
+          "a" : 83.825999999999993,
+          "agreement" : "minorDelta",
+          "b" : 53.445999999999998,
+          "metric" : "sleep"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 93.256,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 184.696,
+          "restingHR" : 37.552,
+          "skinTemp" : 122.458,
+          "spo2" : 161.589,
+          "steps" : 181.00200000000001
+        },
+        "b" : {
+          "calories" : 34.755000000000003,
+          "heartRate" : 91.963999999999999,
+          "hrv" : 146.03700000000001,
+          "restingHR" : 96.560000000000002,
+          "steps" : 139.99100000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : 37.552,
+          "agreement" : "conflict",
+          "b" : 96.560000000000002,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 184.696,
+          "agreement" : "conflict",
+          "b" : 91.963999999999999,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 146.03700000000001,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 161.589,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 122.458,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 181.00200000000001,
+          "agreement" : "minorDelta",
+          "b" : 139.99100000000001,
+          "metric" : "steps"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 34.755000000000003,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 100.393,
+          "hrv" : 111.193,
+          "restingHR" : 165.346,
+          "sleep" : 129.07900000000001,
+          "spo2" : 143.273
+        },
+        "b" : {
+          "calories" : 196.37200000000001,
+          "heartRate" : 172.43700000000001,
+          "hrv" : 135.52799999999999,
+          "restingHR" : 178.738,
+          "skinTemp" : 35.289000000000001,
+          "spo2" : 126.241,
+          "steps" : 95.984999999999999
+        }
+      },
+      "output" : [
+        {
+          "a" : 165.346,
+          "agreement" : "conflict",
+          "b" : 178.738,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 172.43700000000001,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 111.193,
+          "agreement" : "conflict",
+          "b" : 135.52799999999999,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 143.273,
+          "agreement" : "conflict",
+          "b" : 126.241,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 35.289000000000001,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 95.984999999999999,
+          "metric" : "steps"
+        },
+        {
+          "a" : 129.07900000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 100.393,
+          "agreement" : "conflict",
+          "b" : 196.37200000000001,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "heartRate" : 72.099999999999994,
+          "skinTemp" : 71.039000000000001,
+          "sleep" : 31.379000000000001,
+          "spo2" : 122.663,
+          "steps" : 106.587
+        },
+        "b" : {
+          "sleep" : 105.709,
+          "steps" : 179.51499999999999
+        }
+      },
+      "output" : [
+        {
+          "a" : 72.099999999999994,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 122.663,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 71.039000000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 106.587,
+          "agreement" : "conflict",
+          "b" : 179.51499999999999,
+          "metric" : "steps"
+        },
+        {
+          "a" : 31.379000000000001,
+          "agreement" : "conflict",
+          "b" : 105.709,
+          "metric" : "sleep"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "hrv" : 76.981999999999999,
+          "skinTemp" : 155.541,
+          "sleep" : 4.9050000000000002,
+          "spo2" : 37.779000000000003,
+          "steps" : 135.625
+        },
+        "b" : {
+          "heartRate" : 92.605000000000004,
+          "hrv" : 107.465,
+          "restingHR" : 59.466000000000001,
+          "skinTemp" : 164.77799999999999,
+          "sleep" : 24.879000000000001,
+          "spo2" : 35.914000000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 59.466000000000001,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 92.605000000000004,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 76.981999999999999,
+          "agreement" : "conflict",
+          "b" : 107.465,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 37.779000000000003,
+          "agreement" : "agree",
+          "b" : 35.914000000000001,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 155.541,
+          "agreement" : "conflict",
+          "b" : 164.77799999999999,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 135.625,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "steps"
+        },
+        {
+          "a" : 4.9050000000000002,
+          "agreement" : "agree",
+          "b" : 24.879000000000001,
+          "metric" : "sleep"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 8.7059999999999995,
+          "hrv" : 85.408000000000001,
+          "skinTemp" : 152.46100000000001,
+          "spo2" : 41.710999999999999,
+          "steps" : 104.099
+        },
+        "b" : {
+          "calories" : 186.73099999999999,
+          "hrv" : 117.121,
+          "skinTemp" : 103.73399999999999,
+          "spo2" : 8.3179999999999996,
+          "steps" : 26.608000000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : 85.408000000000001,
+          "agreement" : "conflict",
+          "b" : 117.121,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 41.710999999999999,
+          "agreement" : "conflict",
+          "b" : 8.3179999999999996,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 152.46100000000001,
+          "agreement" : "conflict",
+          "b" : 103.73399999999999,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 104.099,
+          "agreement" : "conflict",
+          "b" : 26.608000000000001,
+          "metric" : "steps"
+        },
+        {
+          "a" : 8.7059999999999995,
+          "agreement" : "conflict",
+          "b" : 186.73099999999999,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 111.651,
+          "restingHR" : 185.27099999999999,
+          "spo2" : 166.946
+        },
+        "b" : {
+          "calories" : 147.18799999999999,
+          "hrv" : 9.3089999999999993,
+          "restingHR" : 57.899000000000001,
+          "spo2" : 60.909999999999997
+        }
+      },
+      "output" : [
+        {
+          "a" : 185.27099999999999,
+          "agreement" : "conflict",
+          "b" : 57.899000000000001,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 9.3089999999999993,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 166.946,
+          "agreement" : "conflict",
+          "b" : 60.909999999999997,
+          "metric" : "spo2"
+        },
+        {
+          "a" : 111.651,
+          "agreement" : "minorDelta",
+          "b" : 147.18799999999999,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 66.096999999999994,
+          "heartRate" : 144.75399999999999,
+          "hrv" : 0.38,
+          "restingHR" : 94.224000000000004,
+          "steps" : 151.06
+        },
+        "b" : {
+          "calories" : 147.935,
+          "skinTemp" : 80.852999999999994,
+          "steps" : 13.372
+        }
+      },
+      "output" : [
+        {
+          "a" : 94.224000000000004,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 144.75399999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 0.38,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "hrv"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 80.852999999999994,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 151.06,
+          "agreement" : "conflict",
+          "b" : 13.372,
+          "metric" : "steps"
+        },
+        {
+          "a" : 66.096999999999994,
+          "agreement" : "conflict",
+          "b" : 147.935,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 41.920999999999999,
+          "heartRate" : 160.62799999999999,
+          "hrv" : 172.101,
+          "sleep" : 186.37799999999999,
+          "spo2" : 102.61199999999999,
+          "steps" : 195.471
+        },
+        "b" : {
+          "calories" : 4.2080000000000002,
+          "hrv" : 43.238,
+          "skinTemp" : 32.662999999999997,
+          "spo2" : 115.13800000000001,
+          "steps" : 103.349
+        }
+      },
+      "output" : [
+        {
+          "a" : 160.62799999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 172.101,
+          "agreement" : "conflict",
+          "b" : 43.238,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 102.61199999999999,
+          "agreement" : "conflict",
+          "b" : 115.13800000000001,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 32.662999999999997,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : 195.471,
+          "agreement" : "conflict",
+          "b" : 103.349,
+          "metric" : "steps"
+        },
+        {
+          "a" : 186.37799999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 41.920999999999999,
+          "agreement" : "conflict",
+          "b" : 4.2080000000000002,
+          "metric" : "calories"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "a" : {
+          "calories" : 67.015000000000001,
+          "heartRate" : 54.551000000000002,
+          "hrv" : 189.89400000000001,
+          "restingHR" : 18.623999999999999,
+          "spo2" : 90.061999999999998
+        },
+        "b" : {
+          "hrv" : 177.58799999999999,
+          "skinTemp" : 5.4800000000000004,
+          "sleep" : 47.284999999999997,
+          "spo2" : 183.59299999999999,
+          "steps" : 168.65700000000001
+        }
+      },
+      "output" : [
+        {
+          "a" : 18.623999999999999,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "restingHR"
+        },
+        {
+          "a" : 54.551000000000002,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "heartRate"
+        },
+        {
+          "a" : 189.89400000000001,
+          "agreement" : "minorDelta",
+          "b" : 177.58799999999999,
+          "metric" : "hrv"
+        },
+        {
+          "a" : 90.061999999999998,
+          "agreement" : "conflict",
+          "b" : 183.59299999999999,
+          "metric" : "spo2"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 5.4800000000000004,
+          "metric" : "skinTemp"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 168.65700000000001,
+          "metric" : "steps"
+        },
+        {
+          "a" : null,
+          "agreement" : "single",
+          "b" : 47.284999999999997,
+          "metric" : "sleep"
+        },
+        {
+          "a" : 67.015000000000001,
+          "agreement" : "single",
+          "b" : null,
+          "metric" : "calories"
+        }
+      ]
+    }
+  ],
+  "function" : "StrapComparison.compare"
+}

@@ -73,6 +73,24 @@ final class CoreParityOracleTests: XCTestCase {
         return (try? JSONDecoder().decode([DailyMetric].self, from: data)) ?? []
     }
 
+    /// A stage list in the stored `stagesJSON` array shape: `[{"start":…,"end":…,"stage":…}]`, with gaps.
+    static func stagesJSON(_ r: inout Rand, from: Int, to: Int) -> String {
+        var t = from, rows: [String] = []
+        while t < to {
+            let len = r.int(60...2_400), end = min(to, t + len)
+            if r.chance(0.85) {
+                rows.append("{\"start\":\(t),\"end\":\(end),\"stage\":\"\(["light", "deep", "rem", "awake"][r.int(0...3)])\"}")
+            }
+            t = end + (r.chance(0.2) ? r.int(60...3_600) : 0)
+        }
+        return "[" + rows.joined(separator: ",") + "]"
+    }
+
+    /// A JSON text re-encoded with sorted keys, so two encoders' key orders cannot differ.
+    static func canonicalJSON(_ text: String) -> Any {
+        (try? JSONSerialization.jsonObject(with: Data(text.utf8))) ?? text
+    }
+
     static func cases(_ count: Int, seed: UInt64, _ make: (inout Rand) -> [String: Any]) -> [[String: Any]] {
         var r = Rand(state: seed)
         return (0..<count).map { _ in make(&r) }
@@ -405,6 +423,68 @@ final class CoreParityOracleTests: XCTestCase {
                run: { a in
                    CoachSuggestions.suggestions(for: (a["today"] is NSNull) ? nil : dailyRows([a["today"]!]).first,
                                                 recent: dailyRows(a["recent"]))
+               }),
+        Oracle(name: "EffectRanker.rank",
+               inputs: cases(25, seed: 23) { r in
+                   let start = 20_500, n = r.int(10...80)
+                   let days = (0..<n).map { day(start + $0) }
+                   var behaviors: [String: [String]] = [:], controls: [String: [String]] = [:]
+                   for name in ["alcohol", "caffeine", "late meal", "stretching"].prefix(r.int(1...4)) {
+                       behaviors[name] = days.filter { _ in r.chance(0.35) }
+                       controls[name] = days.filter { d in !(behaviors[name]!.contains(d)) && r.chance(0.8) }
+                   }
+                   var outcome: [String: Double] = [:]
+                   for d in days where r.chance(0.9) { outcome[d] = r.double(20...95) }
+                   return ["behaviors": behaviors, "controls": controls, "outcome": outcome]
+               },
+               run: { a in
+                   let toSets = { (any: Any?) in (any as! [String: [String]]).mapValues(Set.init) }
+                   return EffectRanker.rank(behaviors: toSets(a["behaviors"]), controls: toSets(a["controls"]),
+                                            outcomeByDay: a["outcome"] as! [String: Double], outcome: "charge").map {
+                       ["behavior": $0.behavior, "lag": $0.lag, "delta": $0.effect.delta, "d": $0.effect.cohensD,
+                        "p": $0.effect.pApprox, "n": $0.effect.nWith, "nWithout": $0.effect.nWithout,
+                        "adjustedP": nn($0.adjustedP), "fdr": $0.fdrSignificant, "confidence": $0.confidence.rawValue]
+                   }
+               }),
+        Oracle(name: "StrapComparison.compare",
+               inputs: cases(40, seed: 24) { r in
+                   func side() -> [String: Double] {
+                       var m: [String: Double] = [:]
+                       for k in ["restingHR", "heartRate", "hrv", "spo2", "skinTemp", "steps", "sleep", "calories"] where r.chance(0.6) {
+                           m[k] = r.double(0...200)
+                       }
+                       return m
+                   }
+                   return ["a": side(), "b": side()]
+               },
+               run: { a in
+                   func kinds(_ any: Any?) -> [MetricArbitrationPolicy.MetricKind: Double] {
+                       Dictionary(uniqueKeysWithValues: (any as! [String: Double]).compactMap { k, v in
+                           MetricArbitrationPolicy.MetricKind.allCases.first { "\($0)" == k }.map { ($0, v) }
+                       })
+                   }
+                   return StrapComparison.compare(kinds(a["a"]), kinds(a["b"])).map {
+                       ["metric": "\($0.metric)", "a": nn($0.a), "b": nn($0.b), "agreement": $0.agreement.rawValue]
+                   }
+               }),
+        Oracle(name: "HypnogramCoverage.isHoled",
+               inputs: cases(50, seed: 25) { r in
+                   let from = 1_760_000_000, to = from + r.int(1_800...36_000)
+                   return ["stages": r.chance(0.1) ? NSNull() : stagesJSON(&r, from: from, to: to) as Any,
+                           "span": Double(to - from) * r.double(0.5...1.5)]
+               },
+               run: { a in HypnogramCoverage.isHoled(stagesJSON: a["stages"] as? String, spanSeconds: a["span"] as! Double) }),
+        Oracle(name: "SleepWindowReclip.reclip",
+               inputs: cases(50, seed: 26) { r in
+                   let from = 1_760_000_000, to = from + r.int(3_600...36_000)
+                   let newStart = from + r.int(-3_600...7_200), newEnd = to + r.int(-7_200...3_600)
+                   return ["stages": stagesJSON(&r, from: from, to: to), "start": from, "oldEnd": to,
+                           "newStart": newStart, "newEnd": max(newStart + 60, newEnd)]
+               },
+               run: { a in
+                   nn(SleepWindowReclip.reclip(stagesJSON: a["stages"] as? String, sessionStart: a["start"] as! Int,
+                                               oldEnd: a["oldEnd"] as! Int, newStart: a["newStart"] as! Int,
+                                               newEnd: a["newEnd"] as! Int).map(CoreParityOracleTests.canonicalJSON))
                }),
     ]
 

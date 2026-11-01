@@ -203,7 +203,45 @@ class CoreParityTest {
         "CoachSuggestions.suggestions" to { i ->
             CoachSuggestions.suggestions(if (i.isNull("today")) null else daily(i.getJSONObject("today")), dailies(i.getJSONArray("recent")))
         },
+        "EffectRanker.rank" to { i ->
+            fun sets(o: JSONObject) = o.keys().asSequence().associateWith { k -> strings(o.getJSONArray(k)).toSet() }
+            val out = i.getJSONObject("outcome")
+            EffectRanker.rank(sets(i.getJSONObject("behaviors")), sets(i.getJSONObject("controls")),
+                              out.keys().asSequence().associateWith { out.getDouble(it) }, "charge").map {
+                obj("behavior" to it.behavior, "lag" to it.lag, "delta" to it.effect.delta, "d" to it.effect.cohensD,
+                    "p" to it.effect.pApprox, "n" to it.effect.nWith, "nWithout" to it.effect.nWithout,
+                    "adjustedP" to it.adjustedP, "fdr" to it.fdrSignificant, "confidence" to it.confidence.raw)
+            }
+        },
+        "StrapComparison.compare" to { i ->
+            // Swift spells the case `restingHR`; every other kind is the plain camel case.
+            fun swiftName(kind: MetricArbitrationPolicy.MetricKind) =
+                if (kind == MetricArbitrationPolicy.MetricKind.RESTING_HR) "restingHR" else camel(kind.name)
+            fun kinds(o: JSONObject) = o.keys().asSequence().mapNotNull { k ->
+                MetricArbitrationPolicy.MetricKind.entries.firstOrNull { swiftName(it) == k }?.let { it to o.getDouble(k) }
+            }.toMap()
+            StrapComparison.compare(kinds(i.getJSONObject("a")), kinds(i.getJSONObject("b"))).map {
+                obj("metric" to swiftName(it.metric), "a" to it.a, "b" to it.b, "agreement" to camel(it.agreement.name))
+            }
+        },
+        "HypnogramCoverage.isHoled" to { i ->
+            HypnogramCoverage.isHoled(if (i.isNull("stages")) null else i.getString("stages"), i.getDouble("span"))
+        },
+        "SleepWindowReclip.reclip" to { i ->
+            SleepWindowReclip.reclip(i.getString("stages"), i.getLong("start"), i.getLong("oldEnd"), i.getLong("newStart"),
+                                     i.getLong("newEnd"))?.let(::canonical)
+        },
     )
+
+    /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */
+    private fun canonical(text: String): Any? = plain(if (text.trimStart().startsWith("[")) JSONArray(text) else JSONObject(text))
+
+    private fun plain(v: Any?): Any? = when (v) {
+        is JSONArray -> (0 until v.length()).map { plain(v.opt(it)) }
+        is JSONObject -> v.keys().asSequence().associateWith { plain(v.opt(it)) }
+        JSONObject.NULL -> null
+        else -> v
+    }
 
     private fun oracleDir(): File {
         val url = javaClass.classLoader!!.getResource("core_parity") ?: error("core_parity oracles not on the test classpath")
