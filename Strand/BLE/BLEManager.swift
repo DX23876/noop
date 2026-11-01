@@ -608,6 +608,8 @@ public final class BLEManager: NSObject, ObservableObject {
     /// observable, so without this the UI would keep showing the old id until relaunch.
     var onSerialIdentityAdopted: ((String) -> Void)?
     private var registryStore: DeviceRegistryStore?
+    /// The store the battery seed reads from, set by the store bootstrap; nil until it lands.
+    private var batteryHistoryStore: WhoopStore?
     /// #716: true once the seeded "WHOOP" model has been stamped to the correct family.
     private var modelStamped = false
 
@@ -1350,7 +1352,9 @@ public final class BLEManager: NSObject, ObservableObject {
     /// The strap family the user chose to pair. Drives which service we scan for
     /// and which service we discover after connecting. Hydrated from the persisted
     /// pick so restoration/reconnect after a relaunch target the right strap.
-    private var selectedModel: WhoopModel = .persisted
+    private var selectedModel: WhoopModel = .persisted {
+        didSet { applyBatteryRatedLife() }
+    }
     private var lastStandardHRLogAt: Date?
     /// Counts unreadable standard heart-rate samples in a row, so a run of them clears the shown heart rate.
     private var heartRateReadability = LiveHeartRateReadability()
@@ -1439,6 +1443,7 @@ public final class BLEManager: NSObject, ObservableObject {
         // before any BLE data arrives.
         self.collector = nil
         super.init()
+        applyBatteryRatedLife()   // didSet does not run for the initial `.persisted` value
         preferredPeripheralUUID = Self.persistedPreferredPeripheralUUID
         // Deliberately NOT seeded from the global key here. It belongs to whichever strap synced last,
         // which on a two-strap install is not the one the screens are scoped to — the misattribution this
@@ -1655,24 +1660,36 @@ public final class BLEManager: NSObject, ObservableObject {
             }
         }
 
-        // Battery "~X days left" seed (#7): `LiveState.batterySamples` is fed ONLY by live BLE events, so
-        // after a reconnect the runtime estimate restarted from an empty buffer and ignored the discharge
-        // history already on disk (Android seeds from its persisted battery table over a 14-day window;
-        // iOS/macOS did not = divergence). Read the persisted SoC series for the active device over the last
-        // 14 days and seed the live buffer once the store is up. The setter de-dupes against any points
-        // already banked from live events this session, so a seed that races the first live reading is safe.
-        // nil-SoC rows are dropped here (the buffer is non-optional %); a read failure is non-fatal, the
-        // estimate just cold-starts as before.
-        let seedNow = Int(Date().timeIntervalSince1970)
+        // Seed the battery estimate once the store is up, and keep the store so each later link re-seeds
+        // after a disconnect emptied the buffer.
+        batteryHistoryStore = store
+        await seedBatteryHistory(from: store)
+    }
+
+    /// Battery "~X days left" fallback (#713): a 5/MG runs far longer than a 4.0, so the estimator's
+    /// rated-life fallback follows the selected family. Driven from `selectedModel` itself, so every path
+    /// that picks the family (Connect, a scan's family rotation, BLE state restoration) carries it; the
+    /// restore path used to skip it and a relaunched 5/MG read its charge against the 4.0's 108 h.
+    private func applyBatteryRatedLife() {
+        state.batteryRatedHours = selectedModel.deviceFamily == .whoop5
+            ? BatteryEstimator.ratedLifeHoursWhoop5 : BatteryEstimator.ratedLifeHoursWhoop4
+    }
+
+    /// Battery "~X days left" seed (#7): `LiveState.batterySamples` is fed ONLY by live BLE events and is
+    /// emptied on every disconnect, so each new link would restart the runtime estimate from an empty buffer
+    /// and ignore the discharge history already on disk. Read the persisted SoC series for the active device
+    /// over the last 14 days and seed the live buffer. The setter de-dupes against points already banked
+    /// from live events, so a seed that races the first live reading is safe and a repeat is a no-op.
+    /// nil-SoC rows are dropped (the buffer is non-optional %); a read failure is non-fatal, the estimate
+    /// just cold-starts on the rated figure.
+    func seedBatteryHistory(from store: WhoopStore, now: Int = Int(Date().timeIntervalSince1970)) async {
         let fourteenDays = 14 * 24 * 3600
-        if let rows = try? await store.batterySamples(
-            deviceId: deviceId, from: seedNow - fourteenDays, to: seedNow, limit: 2000) {
-            let seed = rows.compactMap { row -> (ts: Int, soc: Double)? in
-                guard let soc = row.soc else { return nil }
-                return (ts: row.ts, soc: soc)
-            }
-            state.seedBatterySamples(seed)
-        }
+        guard let rows = try? await store.batterySamples(
+            deviceId: deviceId, from: now - fourteenDays, to: now, limit: 2000) else { return }
+        state.seedBatterySamples(rows.compactMap { row -> (ts: Int, soc: Double)? in
+            guard let soc = row.soc else { return nil }
+            return (ts: row.ts, soc: soc)
+        })
     }
 
     /// Designated initializer for testing and preview use: accepts a pre-built Collector.
@@ -1682,6 +1699,7 @@ public final class BLEManager: NSObject, ObservableObject {
         self.router = FrameRouter(state: state)
         self.collector = collector
         super.init()
+        applyBatteryRatedLife()   // didSet does not run for the initial `.persisted` value
         preferredPeripheralUUID = Self.persistedPreferredPeripheralUUID
         // Deliberately NOT seeded from the global key here. It belongs to whichever strap synced last,
         // which on a two-strap install is not the one the screens are scoped to — the misattribution this
@@ -1762,11 +1780,6 @@ public final class BLEManager: NSObject, ObservableObject {
         // latency. A plain Date() assignment, no behaviour change; only read behind the .connection gate.
         connectAttemptStartedAt = Date()
         selectedModel = model
-        // Battery "~X days left" fallback (#713): a 5/MG runs far longer than a 4.0, so point the estimator's
-        // rated-life fallback at the connected family. The Today badge reads state.batteryEstimate (which uses
-        // state.batteryRatedHours); without this it always assumed WHOOP 4.0 (108h).
-        state.batteryRatedHours = model.deviceFamily == .whoop5
-            ? BatteryEstimator.ratedLifeHoursWhoop5 : BatteryEstimator.ratedLifeHoursWhoop4
         // Frame the inbound stream for the chosen family (WHOOP 4.0 CRC8 vs WHOOP 5.0 CRC16/puffin)
         // and tell the router which decoder to use. Fresh per connection so no stale bytes carry over.
         reassembler = Reassembler(family: model.deviceFamily)
@@ -6318,6 +6331,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         cancelScanFallback()
+        // The last disconnect emptied the battery buffer; read the stored discharge back for this link.
+        if let batteryHistoryStore { Task { @MainActor in await self.seedBatteryHistory(from: batteryHistoryStore) } }
         cancelPendingConnectProbe()   // #730: the connect resolved; no pending-connect log needed
         failedConnectAttempts = 0   // a successful connect clears the reconnect backoff (#414)
         // #1809: this link's inbound tally starts empty; the epitaph on disconnect reports exactly what
