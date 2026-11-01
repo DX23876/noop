@@ -905,3 +905,296 @@ internal fun rowWorkoutRow(r: CoreDb.Row): WorkoutRow = WorkoutRow(
     routePolyline = if (r.has("routePolyline")) r.stringOrNull("routePolyline") else null,
     steps = if (r.has("steps")) r.intOrNull("steps") else null,
 )
+
+internal fun AppleDaily.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("day", day)
+    steps?.let { put("steps", it) }
+    activeKcal?.let { put("activeKcal", it) }
+    basalKcal?.let { put("basalKcal", it) }
+    vo2max?.let { put("vo2max", it) }
+    avgHr?.let { put("avgHr", it) }
+    maxHr?.let { put("maxHr", it) }
+    walkingHr?.let { put("walkingHr", it) }
+    weightKg?.let { put("weightKg", it) }
+}
+
+internal fun AppleStepHour.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("steps", steps)
+}
+
+internal fun BatterySample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    soc?.let { put("soc", it) }
+    mv?.let { put("mv", it) }
+    charging?.let { put("charging", it) }
+    put("synced", synced)
+}
+
+internal fun CoachMessageRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("id", id)
+    put("role", role)
+    put("text", text)
+    put("provider", provider)
+    put("createdAt", createdAt)
+    put("orderIndex", orderIndex)
+}
+
+internal fun DailyMetric.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("day", day)
+    totalSleepMin?.let { put("totalSleepMin", it) }
+    efficiency?.let { put("efficiency", it) }
+    deepMin?.let { put("deepMin", it) }
+    remMin?.let { put("remMin", it) }
+    lightMin?.let { put("lightMin", it) }
+    disturbances?.let { put("disturbances", it) }
+    restingHr?.let { put("restingHr", it) }
+    avgHrv?.let { put("avgHrv", it) }
+    recovery?.let { put("recovery", it) }
+    strain?.let { put("strain", it) }
+    exerciseCount?.let { put("exerciseCount", it) }
+    spo2Pct?.let { put("spo2Pct", it) }
+    skinTempDevC?.let { put("skinTempDevC", it) }
+    respRateBpm?.let { put("respRateBpm", it) }
+    steps?.let { put("steps", it) }
+    activeKcalEst?.let { put("activeKcalEst", it) }
+    spo2Red?.let { put("spo2Red", it) }
+    spo2Ir?.let { put("spo2Ir", it) }
+    avgSdnn?.let { put("avgSdnn", it) }
+    skinTempC?.let { put("skinTempC", it) }
+    sleepHrOnly?.let { put("sleepHrOnly", it) }
+}
+
+internal fun DayOwnershipRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("day", day)
+    put("deviceId", deviceId)
+    put("locked", locked)
+}
+
+internal fun DeviceRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("id", id)
+    mac?.let { put("mac", it) }
+    name?.let { put("name", it) }
+    firstSeen?.let { put("firstSeen", it) }
+    lastSeen?.let { put("lastSeen", it) }
+}
+
+internal fun DismissedSleep.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("startTs", startTs)
+    put("endTs", endTs)
+    put("managementVisible", managementVisible)
+}
+
+internal fun DismissedWorkout.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("startTs", startTs)
+    put("endTs", endTs)
+}
+
+internal fun EcgWaveformSampleEntity.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("sequence", sequence)
+    put("record", record.let { org.json.JSONObject().put("b64", android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP)) })
+}
+
+internal fun EventRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("kind", kind)
+    put("payloadJSON", payloadJSON)
+    put("synced", synced)
+}
+
+internal fun GravitySample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("x", x)
+    put("y", y)
+    put("z", z)
+    put("synced", synced)
+    dynAccel?.let { put("dynAccel", it) }
+}
+
+internal fun HrSample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("bpm", bpm)
+    put("synced", synced)
+}
+
+internal fun JournalEntry.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("day", day)
+    put("question", question)
+    put("answeredYes", answeredYes)
+    notes?.let { put("notes", it) }
+    numericValue?.let { put("numericValue", it) }
+}
+
+internal fun LabMarkerRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("id", id)
+    put("deviceId", deviceId)
+    put("markerKey", markerKey)
+    put("category", category)
+    put("day", day)
+    put("takenAt", takenAt)
+    value?.let { put("value", it) }
+    valueText?.let { put("valueText", it) }
+    put("unit", unit)
+    put("source", source)
+    note?.let { put("note", it) }
+    referenceText?.let { put("referenceText", it) }
+}
+
+internal fun LiveSessionRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("startTs", startTs)
+    endTs?.let { put("endTs", it) }
+    chargeAtStart?.let { put("chargeAtStart", it) }
+    put("floorBpm", floorBpm)
+    put("ceilingBpm", ceilingBpm)
+    put("inBandSec", inBandSec)
+    put("belowSec", belowSec)
+    put("aboveSec", aboveSec)
+    put("pushCount", pushCount)
+    put("easeCount", easeCount)
+    put("hrSource", hrSource)
+}
+
+internal fun MetricSeriesRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("day", day)
+    put("key", key)
+    put("value", value)
+}
+
+internal fun PairedDeviceRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("id", id)
+    put("brand", brand)
+    put("model", model)
+    nickname?.let { put("nickname", it) }
+    peripheralId?.let { put("peripheralId", it) }
+    put("sourceKind", sourceKind)
+    put("capabilities", capabilities)
+    put("status", status)
+    put("addedAt", addedAt)
+    put("lastSeenAt", lastSeenAt)
+}
+
+internal fun PpgHrSample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("bpm", bpm)
+    put("conf", conf)
+    put("synced", synced)
+}
+
+internal fun PpgWaveformSampleEntity.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("samples", samples.let { org.json.JSONObject().put("b64", android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP)) })
+    burstIndex?.let { put("burstIndex", it) }
+    baseCode?.let { put("baseCode", it) }
+}
+
+internal fun RespSample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("raw", raw)
+    put("synced", synced)
+}
+
+internal fun RrInterval.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("rrMs", rrMs)
+    put("seq", seq)
+    put("synced", synced)
+    ord?.let { put("ord", it) }
+    srcChannel?.let { put("srcChannel", it) }
+    tsSuspect?.let { put("tsSuspect", it) }
+}
+
+internal fun ScoreInputProvenanceRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("day", day)
+    put("key", key)
+    put("sourceId", sourceId)
+}
+
+internal fun SkinTempSample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("raw", raw)
+    put("synced", synced)
+    aux1Raw?.let { put("aux1Raw", it) }
+    aux2Raw?.let { put("aux2Raw", it) }
+}
+
+internal fun SleepSession.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("startTs", startTs)
+    put("endTs", endTs)
+    efficiency?.let { put("efficiency", it) }
+    restingHr?.let { put("restingHr", it) }
+    avgHrv?.let { put("avgHrv", it) }
+    stagesJSON?.let { put("stagesJSON", it) }
+    put("userEdited", userEdited)
+    startTsAdjusted?.let { put("startTsAdjusted", it) }
+    motionJSON?.let { put("motionJSON", it) }
+    sleepStateJSON?.let { put("sleepStateJSON", it) }
+    stagingSparse?.let { put("stagingSparse", it) }
+}
+
+internal fun SleepStateSampleEntity.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("state", state)
+    rawByte?.let { put("rawByte", it) }
+}
+
+internal fun Spo2Sample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("red", red)
+    put("ir", ir)
+    put("synced", synced)
+}
+
+internal fun StepSample.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("counter", counter)
+    activityClass?.let { put("activityClass", it) }
+    put("synced", synced)
+}
+
+internal fun V18AuxSampleEntity.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("ts", ts)
+    put("fields", fields.let { org.json.JSONObject().put("b64", android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP)) })
+}
+
+internal fun WorkoutRow.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {
+    put("deviceId", deviceId)
+    put("startTs", startTs)
+    put("endTs", endTs)
+    put("sport", sport)
+    put("source", source)
+    durationS?.let { put("durationS", it) }
+    energyKcal?.let { put("energyKcal", it) }
+    avgHr?.let { put("avgHr", it) }
+    maxHr?.let { put("maxHr", it) }
+    strain?.let { put("strain", it) }
+    distanceM?.let { put("distanceM", it) }
+    zonesJSON?.let { put("zonesJSON", it) }
+    notes?.let { put("notes", it) }
+    routePolyline?.let { put("routePolyline", it) }
+    steps?.let { put("steps", it) }
+}

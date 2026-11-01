@@ -83,6 +83,10 @@ object ReadinessEngine {
         // The numbers behind the signal, e.g. "48 vs 55 ms" or "7d 12.1 / 28d 9.4". Optional and
         // backward-compatible (defaults null); rendered as a small caption under the signal in the UI.
         val evidence: Evidence? = null,
+        /** The shared core's own wording (CORE-ONLY-PLAN); when set, the card shows these instead of the copy ids. */
+        val labelText: String? = null,
+        val detailText: String? = null,
+        val evidenceText: String? = null,
     )
 
     data class Readiness(
@@ -100,6 +104,9 @@ object ReadinessEngine {
          * Defaults to CALIBRATING to match Swift's default init parameter.
          */
         val confidence: ScoreConfidence = ScoreConfidence.CALIBRATING,
+        /** The shared core's headline and summary; when set, the card shows these. */
+        val headlineText: String? = null,
+        val summaryText: String? = null,
     )
 
     // MARK: Tunables (named so the thresholds are auditable)
@@ -134,6 +141,8 @@ object ReadinessEngine {
      * cosmetic reorder does not. The cached result is a small immutable [Readiness]; no row arrays retained.
      */
     fun evaluate(days: List<DailyMetric>, today: String? = null): Readiness {
+        // Android without Room: the shared core's read, as iOS; this copy is for a build without the core.
+        com.noop.core.CoreMath.readiness(days, today)?.let { return it }
         val key = readinessKey(today, days)
         synchronized(evaluateCacheLock) { evaluateCache[key] }?.let { return it }
         val result = evaluateUncached(days, today)   // computed OUTSIDE the lock (the expensive sort/walk)

@@ -413,7 +413,30 @@ def generate() -> str:
     for name in sorted(used):
         out.append(mapper(classes[name]))
         out.append("")
+    # Every stored row also crosses to the core's computations as JSON with its column names, which the Swift
+    # twins decode with their Codable conformance (`CoreMath`).
+    for name in sorted(c.name for c in classes.values() if c.table):
+        out.append(to_json(classes[name]))
+        out.append("")
     return "\n".join(out)
+
+
+def to_json(cls: KClass) -> str:
+    lines = [f"internal fun {cls.qualified}.toCoreJson(): org.json.JSONObject = org.json.JSONObject().apply {{"]
+    for p in cls.params:
+        base = p.type.rstrip("?")
+        value = f"{p.name}"
+        if base == "ByteArray":
+            value = f'{p.name}{"?" if p.type.endswith("?") else ""}.let {{ org.json.JSONObject().put("b64", ' \
+                    f'android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP)) }}'
+        elif base == "Float":
+            value = f"{p.name}{'?' if p.type.endswith('?') else ''}.toDouble()"
+        if p.type.endswith("?"):
+            lines.append(f'    {p.name}?.let {{ put("{p.column}", {value.replace(p.name + "?.", "it.", 1) if base in ("ByteArray", "Float") else "it"}) }}')
+        else:
+            lines.append(f'    put("{p.column}", {value})')
+    lines.append("}")
+    return "\n".join(lines)
 
 
 def main() -> int:

@@ -6965,6 +6965,7 @@ private fun readinessCopy(copy: ReadinessEngine.Copy): String = uiString(
 
 @Composable
 private fun readinessSignalDetail(signal: ReadinessEngine.Signal): String {
+    signal.detailText?.let { return it }
     val load = signal.evidence as? ReadinessEngine.Evidence.TrainingLoad
     return if (load != null && load.chronic > 0.0) {
         uiString(
@@ -7011,7 +7012,7 @@ private fun ReadinessSection(days: List<DailyMetric>, carriedDay: DailyMetric? =
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    readinessCopy(readiness.headlineRes),
+                    readiness.headlineText ?: readinessCopy(readiness.headlineRes),
                     style = NoopType.headline,
                     color = Palette.textPrimary,
                     modifier = Modifier.weight(1f),
@@ -7036,7 +7037,7 @@ private fun ReadinessSection(days: List<DailyMetric>, carriedDay: DailyMetric? =
 
             // Plain-English summary.
             Text(
-                readinessCopy(readiness.summaryRes),
+                readiness.summaryText ?: readinessCopy(readiness.summaryRes),
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
@@ -7060,7 +7061,7 @@ private fun ReadinessSection(days: List<DailyMetric>, carriedDay: DailyMetric? =
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            readinessCopy(signal.labelRes),
+                            signal.labelText ?: readinessCopy(signal.labelRes),
                             style = NoopType.caption,
                             color = Palette.textSecondary,
                             modifier = Modifier.width(104.dp),
@@ -7075,9 +7076,9 @@ private fun ReadinessSection(days: List<DailyMetric>, carriedDay: DailyMetric? =
                                 color = Palette.textTertiary,
                             )
                             // The numbers behind the read (e.g. "48 vs 55 ms"), as a small mono caption,                             // mirrors the macOS readiness card and the "load X.XX" numeric readout above.
-                            signal.evidence?.let { evidence ->
+                            (signal.evidenceText ?: signal.evidence?.let { readinessEvidenceText(it) })?.let { evidence ->
                                 Text(
-                                    readinessEvidenceText(evidence),
+                                    evidence,
                                     style = NoopType.captionNumber,
                                     color = Palette.textTertiary,
                                 )

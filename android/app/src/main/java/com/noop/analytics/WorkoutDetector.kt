@@ -725,6 +725,8 @@ object Calories {
         hrmax: Double?,
         restingHR: Double?,
     ): Pair<Double, Double> {
+        // Android without Room: the shared core's estimate, as iOS; this copy is for a build without the core.
+        com.noop.core.CoreMath.boutCalories(hrSamples, profile, hrmax, restingHR)?.let { return it }
         val weightKg = if (profile.weightKg > 0) profile.weightKg else 70.0
         val heightCm = if (profile.heightCm > 0) profile.heightCm else 170.0
         val age = if (profile.age > 0) profile.age else 30.0
