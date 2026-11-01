@@ -26,6 +26,10 @@ class CoreParityTest {
     private fun bools(a: JSONArray) = (0 until a.length()).map { a.getBoolean(it) }
     private fun obj(vararg pairs: Pair<String, Any?>): Map<String, Any?> = mapOf(*pairs)
 
+    /** A Kotlin SCREAMING_CASE name as the Swift case name it mirrors (`NO_DATA` → `noData`). */
+    private fun camel(name: String): String = name.lowercase().split('_')
+        .mapIndexed { k, w -> if (k == 0) w else w.replaceFirstChar { it.uppercase() } }.joinToString("")
+
     /** Each oracle's Kotlin runner: the input as JSON, the answer as plain values (maps, lists, numbers, null). */
     private val runners: Map<String, (JSONObject) -> Any?> = mapOf(
         "StagePercentages.wholePercentages" to { i -> StagePercentages.wholePercentages(doubles(i.getJSONArray("parts"))) },
@@ -97,6 +101,42 @@ class CoreParityTest {
                 "maxHR" to set.maxHR, "seconds" to t.seconds, "below" to t.belowZone1)
         },
         "HRVAnalyzer.rmssdRaw" to { i -> HrvAnalyzer.rmssdRaw(doubles(i.getJSONArray("nn"))) },
+        "DaytimeStress.analyze" to { i ->
+            val rrRows = i.getJSONArray("rr")
+            val rr = (0 until rrRows.length()).map { k ->
+                val p = rrRows.getJSONArray(k)
+                com.noop.data.RrInterval(deviceId = "parity", ts = p.getLong(0), rrMs = p.getInt(1))
+            }
+            val res = DaytimeStress.analyze(hr(i.getJSONArray("hr")), rr, tzOffsetSeconds = i.getLong("tz"))
+            obj("hours" to res.hours.map { obj("hour" to it.hour, "startTs" to it.startTs, "level" to it.level,
+                                               "meanHR" to it.meanHr, "rmssd" to it.rmssd) },
+                "sustainedHigh" to res.sustainedHigh, "sustainedRun" to res.sustainedRun, "dayMean" to res.dayMean,
+                "peakHour" to res.peak?.hour)
+        },
+        "TrainingLoadEngine.evaluate" to { i ->
+            val rows = i.getJSONArray("days")
+            val days = (0 until rows.length()).map { k ->
+                val row = rows.getJSONObject(k)
+                TrainingLoadEngine.DailyLoad(row.getString("day"), if (row.isNull("load")) null else row.getDouble("load"))
+            }
+            val res = TrainingLoadEngine.evaluate(days)
+            obj("state" to res.state.name.lowercase(), "reason" to res.unavailableReason?.name?.let(::camel),
+                "contiguous" to res.contiguousDays, "start" to res.startDay, "end" to res.endDay,
+                "points" to res.points.map { obj("day" to it.day, "load" to it.load, "ctl" to it.chronicLoad,
+                                                 "atl" to it.acuteLoad, "balance" to it.balance) })
+        },
+        "BatteryEstimator.estimate" to { i ->
+            val rows = i.getJSONArray("samples")
+            val samples = (0 until rows.length()).map { k -> rows.getJSONArray(k).let { it.getDouble(0).toLong() to it.getDouble(1) } }
+            BatteryEstimator.estimate(samples, i.getDouble("rated"))
+                ?.let { obj("remaining" to it.remainingHours, "source" to it.source.name.lowercase(), "soc" to it.currentSoc) }
+        },
+        "RecoveryForecaster.forecast" to { i ->
+            RecoveryForecaster.forecast(doubles(i.getJSONArray("charge")), doubles(i.getJSONArray("effort")),
+                if (i.isNull("today")) null else i.getDouble("today"), i.getDouble("planned"),
+                if (i.isNull("need")) null else i.getDouble("need"), i.getInt("needNights"))
+                ?.let { obj("charge" to it.charge, "band" to it.band, "baseline" to it.baseline, "planned" to it.plannedSleepHours) }
+        },
     )
 
     private fun oracleDir(): File {

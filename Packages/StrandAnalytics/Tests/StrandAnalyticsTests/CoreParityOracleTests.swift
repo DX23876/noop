@@ -211,6 +211,74 @@ final class CoreParityOracleTests: XCTestCase {
                    return ["nn": (0..<r.int(0...200)).map { _ in base + r.double(-150...150) }]
                },
                run: { a in nn(HRVAnalyzer.rmssdRaw(a["nn"] as! [Double])) }),
+        Oracle(name: "DaytimeStress.analyze",
+               inputs: cases(12, seed: 12) { r in
+                   let start = 1_760_000_000 - 1_760_000_000 % 86_400 + r.int(0...6) * 3_600
+                   let hrRows = hrSeries(&r, from: start, seconds: r.int(4...16) * 3_600, step: r.int(5...60), base: 75)
+                   var ts = start, rr: [[Int]] = []
+                   while ts < start + 12 * 3_600 {
+                       if r.chance(0.8) { rr.append([ts, r.int(600...1100)]) }
+                       ts += r.int(1...4)
+                   }
+                   return ["hr": hrRows, "rr": rr, "tz": [0, 3_600, -18_000, 19_800][r.int(0...3)]]
+               },
+               run: { a in
+                   let rr = (a["rr"] as! [[Int]]).map { RRInterval(ts: $0[0], rrMs: $0[1]) }
+                   let res = DaytimeStress.analyze(hr: hr(a["hr"]), rr: rr, tzOffsetSeconds: a["tz"] as! Int)
+                   return ["hours": res.hours.map { ["hour": $0.hour, "startTs": $0.startTs, "level": nn($0.level),
+                                                     "meanHR": nn($0.meanHR), "rmssd": nn($0.rmssd)] },
+                           "sustainedHigh": res.sustainedHigh, "sustainedRun": res.sustainedRun,
+                           "dayMean": nn(res.dayMean), "peakHour": nn(res.peak?.hour)]
+               }),
+        Oracle(name: "TrainingLoadEngine.evaluate",
+               inputs: cases(30, seed: 13) { r in
+                   let start = 20_000 + r.int(0...300)
+                   let days: [[String: Any]] = (0..<r.int(0...90)).compactMap { d in
+                       r.chance(0.9) ? ["day": day(start + d), "load": r.chance(0.1) ? NSNull() : r.double(0...150)] : nil
+                   }
+                   return ["days": days]
+               },
+               run: { a in
+                   let days = (a["days"] as! [[String: Any]]).map {
+                       TrainingLoadEngine.DailyLoad(day: $0["day"] as! String, load: $0["load"] as? Double)
+                   }
+                   let res = TrainingLoadEngine.evaluate(days: days)
+                   return ["state": String(describing: res.state), "reason": nn(res.unavailableReason.map { String(describing: $0) }),
+                           "contiguous": res.contiguousDays, "start": nn(res.startDay), "end": nn(res.endDay),
+                           "points": res.points.map { ["day": $0.day, "load": $0.load, "ctl": $0.chronicLoad,
+                                                       "atl": $0.acuteLoad, "balance": $0.balance] }]
+               }),
+        Oracle(name: "BatteryEstimator.estimate",
+               inputs: cases(40, seed: 14) { r in
+                   var ts = 1_760_000_000, soc = r.double(20...100)
+                   var rows: [[Double]] = []
+                   for _ in 0..<r.int(0...60) {
+                       ts += r.int(300...7_200)
+                       soc = r.chance(0.05) ? r.double(80...100) : max(0, soc - r.double(0...2))
+                       rows.append([Double(ts), soc])
+                   }
+                   return ["samples": rows, "rated": r.double(48...200)]
+               },
+               run: { a in
+                   let samples = (a["samples"] as! [[Double]]).map { (ts: Int($0[0]), soc: $0[1]) }
+                   guard let e = BatteryEstimator.estimate(samples: samples, ratedHours: a["rated"] as! Double)
+                   else { return NSNull() }
+                   return ["remaining": e.remainingHours, "source": e.source.rawValue, "soc": e.currentSoc]
+               }),
+        Oracle(name: "RecoveryForecaster.forecast",
+               inputs: cases(40, seed: 15) { r in
+                   ["charge": (0..<r.int(0...30)).map { _ in r.double(0...100) },
+                    "effort": (0..<r.int(0...30)).map { _ in r.double(0...100) },
+                    "today": r.chance(0.2) ? NSNull() : r.double(0...100), "planned": r.double(3...11),
+                    "need": r.chance(0.3) ? NSNull() : r.double(6...10), "needNights": r.int(0...14)]
+               },
+               run: { a in
+                   guard let f = RecoveryForecaster.forecast(
+                       recentCharge: a["charge"] as! [Double], recentEffort: a["effort"] as! [Double],
+                       todayEffort: a["today"] as? Double, plannedSleepHours: a["planned"] as! Double,
+                       needHours: a["need"] as? Double, needNights: a["needNights"] as! Int) else { return NSNull() }
+                   return ["charge": f.charge, "band": f.band, "baseline": f.baseline, "planned": f.plannedSleepHours]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {
