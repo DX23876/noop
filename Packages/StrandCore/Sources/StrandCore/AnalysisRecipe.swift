@@ -208,7 +208,12 @@ public enum AnalysisRecipe {
     // not shipped: the nightly respiratory rate averages each window's breath intervals around their median
     // instead of taking the grid-quantised median; off-wrist time inside a kept sleep run is cut out of it; and
     // the V2 staging (V2 and V3) holds deep back for 20 min after sleep onset. The full rebuild re-derives them.
-    public static let currentVersion = 32
+    // AI-33 (2026-11-01, fork) carries two analysis fixes adopted from open ryanbr PRs: a short run no longer
+    // merges into a neighbour across a data gap longer than maxGapMin (#2849), so a worn night after a
+    // charger gap is kept; and a five-minute SDNN segment that fails the beat-spread or beat-value gate
+    // supplies no daily SDNN (#2722). Its own number because the testing build of 2026-10-30 (`f8b2c1273`)
+    // already carries AI-32 (decisions, 2026-10-28: a testing build counts as shipped).
+    public static let currentVersion = 33
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).
