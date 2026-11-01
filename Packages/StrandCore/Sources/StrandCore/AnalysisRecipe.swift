@@ -219,6 +219,8 @@ public enum AnalysisRecipe {
     // AI-33 is also the first rebuild after the WHOOP-import skin-temperature repair (Iskrata/noop): imported rows
     // carried the export's absolute °C in skinTempDevC. That is a repair of stored inputs with its own cursor
     // (WhoopImporter.repairAbsoluteSkinTempIfNeeded, run at launch before prepareAnalysisRecipe), not a step.
+    // AI-33 also keeps a sleep run under minSleepMin that directly continues an accepted run within
+    // nightContinuationGapMin (gdorgian/noop a73347999), so a short last stretch no longer ends the night early.
     public static let currentVersion = 33
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

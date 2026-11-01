@@ -140,4 +140,31 @@ final class SleepFragmentedNightTests: XCTestCase {
         XCTAssertTrue(bridge!.contains("sparse=false fragmentedToNothing=true gapMin="),
                       "unexpected sparseBridge detail format: \(bridge!)")
     }
+
+    // MARK: - a short last stretch that continues the night (gdorgian/noop a73347999)
+
+    /// Five hours asleep, a 25-minute stir (long enough to survive mergePeriods), then a 55-minute last
+    /// stretch. The stretch is under the 60-minute floor but continues the accepted night, so it is the
+    /// night's tail and the wake is at its end, not 80 minutes earlier.
+    func testAShortLastStretchThatContinuesTheNightIsKept() {
+        let grav = stillG(0, 300) + movingG(300, 325) + stillG(325, 380)
+        var lines: [String] = []
+        let sessions = SleepStager.detectSleep(hr: hr1Hz(0, 380, 50), gravity: grav,
+                                               traceSink: { lines.append($0) })
+        let lastEnd = sessions.map(\.end).max() ?? 0
+        XCTAssertGreaterThanOrEqual(lastEnd, at(375), "the wake must be at the tail's end.\n"
+                                    + lines.joined(separator: "\n"))
+        XCTAssertTrue(lines.contains { $0.contains("gate=minSleepMinTail") },
+                      "the tail must be kept by the continuation rule.\n" + lines.joined(separator: "\n"))
+    }
+
+    /// A short still stretch hours after the night is not its tail: the floor still drops it.
+    func testAShortStretchLongAfterTheNightIsStillDropped() {
+        let grav = stillG(0, 300) + movingG(300, 420) + stillG(420, 475)
+        var lines: [String] = []
+        let sessions = SleepStager.detectSleep(hr: hr1Hz(0, 475, 50), gravity: grav,
+                                               traceSink: { lines.append($0) })
+        XCTAssertLessThan(sessions.map(\.end).max() ?? 0, at(400), lines.joined(separator: "\n"))
+        XCTAssertFalse(lines.contains { $0.contains("gate=minSleepMinTail") }, lines.joined(separator: "\n"))
+    }
 }
