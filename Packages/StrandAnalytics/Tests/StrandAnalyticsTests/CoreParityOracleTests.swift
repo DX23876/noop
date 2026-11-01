@@ -796,6 +796,29 @@ final class CoreParityOracleTests: XCTestCase {
                }),
     ]
 
+    /// The first place two JSON values disagree, numbers to a relative 1e-9; nil when they agree.
+    static func differ(_ expected: Any, _ actual: Any, _ path: String) -> String? {
+        switch (expected, actual) {
+        case (is NSNull, is NSNull): return nil
+        case (let e as NSNumber, let a as NSNumber):
+            if CFGetTypeID(e) == CFBooleanGetTypeID() || CFGetTypeID(a) == CFBooleanGetTypeID() {
+                return e.boolValue == a.boolValue ? nil : "\(path): expected \(e), got \(a)"
+            }
+            let x = e.doubleValue, y = a.doubleValue
+            return abs(x - y) <= 1e-9 * max(1, abs(x)) ? nil : "\(path): expected \(x), got \(y)"
+        case (let e as String, let a as String): return e == a ? nil : "\(path): expected \(e), got \(a)"
+        case (let e as [Any], let a as [Any]):
+            guard e.count == a.count else { return "\(path): expected \(e.count) items, got \(a.count)" }
+            for (k, pair) in zip(e, a).enumerated() { if let d = differ(pair.0, pair.1, "\(path)[\(k)]") { return d } }
+            return nil
+        case (let e as [String: Any], let a as [String: Any]):
+            guard Set(e.keys) == Set(a.keys) else { return "\(path): keys differ" }
+            for (k, v) in e { if let d = differ(v, a[k]!, "\(path).\(k)") { return d } }
+            return nil
+        default: return "\(path): expected \(expected), got \(actual)"
+        }
+    }
+
     func testEveryOracleMatchesTheSwiftCode() throws {
         let write = ProcessInfo.processInfo.environment["NOOP_WRITE_PARITY"] == "1"
         try FileManager.default.createDirectory(at: Self.dir, withIntermediateDirectories: true)
@@ -814,10 +837,13 @@ final class CoreParityOracleTests: XCTestCase {
             XCTAssertEqual(cases.count, oracle.inputs.count, oracle.name)
             for (i, c) in cases.enumerated() {
                 let input = try XCTUnwrap(c["input"] as? [String: Any])
-                let expected = try JSONSerialization.data(withJSONObject: ["v": Self.nn(c["output"] ?? nil)], options: .sortedKeys)
-                let actual = try JSONSerialization.data(withJSONObject: ["v": oracle.run(input)], options: .sortedKeys)
-                XCTAssertEqual(String(decoding: actual, as: UTF8.self), String(decoding: expected, as: UTF8.self),
-                               "\(oracle.name) case \(i): Swift no longer gives the committed answer")
+                // Through JSON on both sides, then compared as values: a number read back from the file can be
+                // spelled differently from the one just computed (89.05 against 89.049999999999997).
+                let actualData = try JSONSerialization.data(withJSONObject: ["v": oracle.run(input)])
+                let actual = try XCTUnwrap(JSONSerialization.jsonObject(with: actualData) as? [String: Any])["v"]
+                if let diff = Self.differ(Self.nn(c["output"] ?? nil), actual ?? NSNull(), "") {
+                    XCTFail("\(oracle.name) case \(i): Swift no longer gives the committed answer: \(diff)")
+                }
             }
         }
     }
