@@ -9,7 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -271,13 +270,8 @@ fun LiquidSky(hour: Double? = null, modifier: Modifier = Modifier) {
     // (the iOS `now` is seconds-since-reference), so a from-zero accumulator gives the same motion.
     var seconds by remember { mutableDoubleStateOf(0.0) }
     LaunchedEffect(Unit) {
-        var last = 0L
-        while (true) {
-            withFrameNanos { frame ->
-                if (last != 0L) seconds += (frame - last) / 1_000_000_000.0
-                last = frame
-            }
-        }
+        // 20 fps, the iOS `LiquidSky` TimelineView rate: the twinkle and the breath of light are slow.
+        cappedFrameLoop(maxFps = 20) { seconds += it }
     }
 
     Canvas(modifier = modifier) {

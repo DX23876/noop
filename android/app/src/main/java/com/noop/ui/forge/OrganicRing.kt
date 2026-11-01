@@ -2,6 +2,7 @@ package com.noop.ui.forge
 
 import androidx.compose.ui.platform.LocalContext
 import com.noop.ui.UnitPrefs
+import com.noop.ui.cappedFrameLoop
 import com.noop.ui.UnitFormatter
 import com.noop.ui.EffortScale
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -19,7 +20,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -113,8 +113,9 @@ fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric
     val clock = remember { mutableDoubleStateOf(0.0) }
     if (!still) {
         LaunchedEffect(Unit) {
-            val start = withFrameNanos { it }
-            while (true) withFrameNanos { clock.doubleValue = (it - start) / 1e9 }
+            // 60 fps, the iOS ring's TimelineView rate. Unbounded, a 120 Hz panel redrew the ring's blurred layers
+            // twice as often and left scrolling short of frames.
+            cappedFrameLoop(maxFps = 60) { clock.doubleValue += it }
         }
     }
     val glow = model.intensity.glowStrength

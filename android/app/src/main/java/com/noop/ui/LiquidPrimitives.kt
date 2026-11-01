@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
@@ -110,13 +109,7 @@ fun LiquidVessel(
         // LiquidSky.kt). Drives sim.step + render.
         var seconds by remember { mutableDoubleStateOf(0.0) }
         LaunchedEffect(Unit) {
-            var last = 0L
-            while (true) {
-                withFrameNanos { frame ->
-                    if (last != 0L) seconds += (frame - last) / 1_000_000_000.0
-                    last = frame
-                }
-            }
+            cappedFrameLoop(maxFps = 60) { seconds += it }
         }
 
         Canvas(
@@ -186,13 +179,7 @@ fun LiquidTube(
 
         var seconds by remember { mutableDoubleStateOf(0.0) }
         LaunchedEffect(Unit) {
-            var last = 0L
-            while (true) {
-                withFrameNanos { frame ->
-                    if (last != 0L) seconds += (frame - last) / 1_000_000_000.0
-                    last = frame
-                }
-            }
+            cappedFrameLoop(maxFps = 30) { seconds += it }
         }
 
         Canvas(modifier = modifier.height(height)) {
@@ -234,13 +221,7 @@ fun LiquidThread(
     if (animated && !renderStill) {
         var seconds by remember { mutableDoubleStateOf(0.0) }
         LaunchedEffect(Unit) {
-            var last = 0L
-            while (true) {
-                withFrameNanos { frame ->
-                    if (last != 0L) seconds += (frame - last) / 1_000_000_000.0
-                    last = frame
-                }
-            }
+            cappedFrameLoop(maxFps = 60) { seconds += it }
         }
         Canvas(modifier = modifier.height(height)) {
             with(LiquidRender) { thread(size = size, values = bpm, now = seconds, tint = tint) }

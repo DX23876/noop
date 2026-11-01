@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -322,3 +323,28 @@ fun Modifier.staggeredAppear(index: Int, isVisible: Boolean = true): Modifier = 
         .alpha(if (!isVisible) 1f else progress)
         .graphicsLayer { translationY = if (!isVisible) 0f else (1f - progress) * rise }
 }
+
+/**
+ * The frame clock for decorative animation, capped at [maxFps] and handing [onTick] the seconds elapsed since the
+ * last tick. Each tick redraws, and an uncapped clock follows the panel: at 120 Hz the liquid and ring Canvas layers
+ * (blurred, for the ring) were drawn twice as often as at 60 Hz, which left scrolling short of frames. The caps
+ * are the iOS TimelineView rates, so the same picture moves at the same pace on both platforms; a frame inside the
+ * interval is skipped without touching state. The interval allows 10 % early so a 60 Hz panel still ticks every
+ * frame at a 60 fps cap. Runs until its coroutine is cancelled.
+ */
+suspend fun cappedFrameLoop(maxFps: Int, onTick: (Double) -> Unit): Nothing {
+    val minIntervalNanos = 1_000_000_000L / maxFps * 9 / 10
+    var last = 0L
+    while (true) {
+        withFrameNanos { frame ->
+            when {
+                last == 0L -> last = frame
+                frame - last >= minIntervalNanos -> {
+                    onTick((frame - last) / 1_000_000_000.0)
+                    last = frame
+                }
+            }
+        }
+    }
+}
+
