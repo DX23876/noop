@@ -1125,6 +1125,9 @@ private struct MoreProfileRow: View {
 private struct MoreDeviceRow: View {
     @ObservedObject var model: AppModel
     @EnvironmentObject private var live: LiveState
+    /// Strap history is syncing, through the same debounce as Today's sync line (`debouncedSyncSignal`), so the
+    /// row does not flicker between offload chunks.
+    @State private var syncing = false
 
     private var activeDevice: PairedDevice? {
         model.deviceRegistry?.devices.first { $0.status == .active && !$0.isImportSource }
@@ -1133,6 +1136,7 @@ private struct MoreDeviceRow: View {
     private var status: String {
         guard activeDevice != nil else { return String(localized: "Connect a wearable or sensor") }
         guard live.connected else { return String(localized: "Not connected") }
+        if syncing { return String(localized: "Syncing…") }
         if let battery = live.batteryPct {
             return String(localized: "Connected · Battery \(Int(battery.rounded()))%")
         }
@@ -1167,6 +1171,7 @@ private struct MoreDeviceRow: View {
             }
         }
         .buttonStyle(.plain)
+        .debouncedSyncSignal(live.backfilling, into: $syncing)
     }
 }
 

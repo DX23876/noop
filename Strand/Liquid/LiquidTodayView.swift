@@ -3791,7 +3791,7 @@ private struct LiquidRefreshIndicator: View {
 /// chunk. Written once on purpose: this existed as two hand-rolled copies with the delay spelled two
 /// different ways, and the failure mode of letting them drift — an indicator that flickers only against a
 /// strap carrying hours of history — is not reproducible at a desk.
-private struct DebouncedSyncSignal: ViewModifier {
+struct DebouncedSyncSignal: ViewModifier {
     let raw: Bool
     @Binding var debounced: Bool
     @State private var hideTask: Task<Void, Never>?
@@ -3821,7 +3821,7 @@ private struct DebouncedSyncSignal: ViewModifier {
     }
 }
 
-private extension View {
+extension View {
     /// Drive `debounced` from the raw sync signal through the shared debounce above.
     func debouncedSyncSignal(_ raw: Bool, into debounced: Binding<Bool>) -> some View {
         modifier(DebouncedSyncSignal(raw: raw, debounced: debounced))

@@ -271,7 +271,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 onCoach = { more.push(MoreRoute.Dest(MoreDest.Coach)) },
                 onActivity = { more.push(MoreRoute.Dest(MoreDest.Workouts)) })
         } else {
-        Header(shown, isToday = shown == today, onProfile = { settingsOpen = true }, onQuickActions = { quickActions = true })
+        Header(shown, isToday = shown == today, backfilling = viewModel.live.collectAsState().value.backfilling,
+               onProfile = { settingsOpen = true }, onQuickActions = { quickActions = true })
         // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`); activity
         // detection's prompt first, so a suggestion waiting for an answer cannot be arranged below the fold.
         if (shown == today) ForgeActivityPrompt()
@@ -284,7 +285,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
 }
 
 @Composable
-private fun Header(date: LocalDate, isToday: Boolean, onProfile: () -> Unit, onQuickActions: () -> Unit) {
+private fun Header(date: LocalDate, isToday: Boolean, backfilling: Boolean, onProfile: () -> Unit,
+                   onQuickActions: () -> Unit) {
     val colors = Forge.colors
     val locale = Locale.getDefault()
     // The iOS header row: the title and its date on the left, the wordmark centred on the same line. Over a dark
@@ -302,7 +304,13 @@ private fun Header(date: LocalDate, isToday: Boolean, onProfile: () -> Unit, onQ
             Text(date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, DAY_MONTH_SKELETON), locale)),
                  style = Forge.type.subhead.copy(shadow = sceneShadow), color = Forge.sceneInk.secondary, maxLines = 1)
         }
-        ForgeWordmark(Modifier.align(Alignment.TopCenter).padding(top = ForgeMetrics.space2))
+        // The wordmark with the strap sync line beneath it, as iOS draws `headerMark`.
+        Column(Modifier.align(Alignment.TopCenter).padding(top = ForgeMetrics.space2),
+               horizontalAlignment = Alignment.CenterHorizontally,
+               verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            ForgeWordmark()
+            ForgeSyncLine(backfilling)
+        }
         // Profile and quick actions trailing, as on iOS.
         TodayHeaderButtons(onProfile, onQuickActions, Modifier.align(Alignment.TopEnd))
     }

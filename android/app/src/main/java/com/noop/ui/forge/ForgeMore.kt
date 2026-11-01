@@ -189,9 +189,12 @@ private fun DeviceRow(viewModel: AppViewModel, onClick: () -> Unit) {
     val live by viewModel.live.collectAsState()
     val name by viewModel.activeDeviceName.collectAsState()
     val connected = live.connected
+    // While strap history syncs the row says so (debounced across chunk gaps), as the quick-action sheet does.
+    val syncing = rememberDebouncedSyncing(live.backfilling)
     val status = when {
         name == null -> stringResource(R.string.forge_more_device_none)
         !connected -> stringResource(R.string.forge_strap_disconnected)
+        syncing -> stringResource(R.string.forge_qa_syncing)
         live.batteryPct != null -> stringResource(R.string.forge_qa_connected_battery, live.batteryPct!!.roundToInt())
         else -> stringResource(R.string.forge_strap_connected)
     }
