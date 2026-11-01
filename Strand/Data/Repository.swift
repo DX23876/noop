@@ -3662,6 +3662,12 @@ final class Repository: ObservableObject {
         return await WorkoutPhysiology.buckets(reader: reader(store), from: from, to: to, source: source)
     }
 
+    /// The raw heart rate behind ``workoutHrBuckets(from:to:source:)``, same devices, for a file export.
+    func workoutHrSamples(from: Int, to: Int, source: String = "") async -> [HRSample] {
+        guard let store = await ensureStore() else { return [] }
+        return await WorkoutPhysiology.samples(reader: reader(store), from: from, to: to, source: source)
+    }
+
     /// Raw HR samples binned into per-zone MINUTES for a workout window, using the %HRmax display zone
     /// model — the same one `WorkoutsView` uses for imported zone percentages, but computed here from
     /// the strap's own samples so a session WITHOUT imported `zonesJSON` still gets a real time-in-zone

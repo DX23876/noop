@@ -452,7 +452,9 @@ struct WorkoutDetailView: View {
 
     /// Write the route to a GPX/FIT file and hand it to the system share sheet (or a Save panel on macOS).
     /// Points are decoded lat/lon only (the stored polyline), so the exporter interpolates per-point times
-    /// across the session window and carries the workout's summary (sport, distance, calories, HR).
+    /// across the session window and carries the workout's summary (sport, distance, calories, HR). A FIT
+    /// also carries the session's heart-rate curve, read from the devices the curve card plots, and the
+    /// recorded pauses.
     ///
     /// The build + disk write run OFF the main actor (a long route is a non-trivial encode, and blocking
     /// file IO must never stall the UI); only the share-sheet present hops back to the main actor.
@@ -472,12 +474,20 @@ struct WorkoutDetailView: View {
             return offset
         }
         let activeDuration = recordings.isEmpty ? nil : row.durationS
+        let pauses = recordings.flatMap { $0.timeline.pauses ?? [] }.map {
+            RouteExporter.Pause(start: Int($0.startUnixSeconds), end: Int($0.endUnixSeconds ?? Double(endTs)))
+        }
+        let repo = repo, source = row.source
         Task.detached(priority: .userInitiated) {
+            let pulse = format == .fit
+                ? await repo.workoutHrSamples(from: startTs, to: endTs, source: source)
+                    .map { ActivityHRSample(ts: $0.ts, bpm: $0.bpm) }
+                : []
             let data = RouteExporter.render(
                 format, route: points, startTs: startTs, endTs: endTs, sport: sport,
                 distanceM: distanceM, energyKcal: energyKcal, avgHr: avgHr, maxHr: maxHr,
                 recordedTimes: times, segmentStarts: boundaries, activeDurationS: activeDuration,
-                elevations: elevations)
+                elevations: elevations, heartRate: pulse, pauses: pauses)
             let url = NoopScratch.file(name)
             do { try data.write(to: url) } catch { return }
             await MainActor.run { FileExport.exportFile(at: url, suggestedName: name) }
