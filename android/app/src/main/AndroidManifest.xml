@@ -136,6 +136,16 @@
          bottle don't have to be entered twice. Read-only; NOOP never writes water back. MUST be
          declared or Health Connect silently drops the runtime request (same trap as #412 above). -->
     <uses-permission android:name="android.permission.health.READ_HYDRATION" />
+    <!-- DistanceRecord is bundled into the ACTIVITY import category alongside Steps
+         (HealthConnectImporter.ImportCategory.ACTIVITY), so selecting Activity to import Steps batches this
+         permission into the same runtime request. MUST be declared or Health Connect silently drops the WHOLE
+         request (same trap as #412 / READ_HYDRATION above). From J-Gur/noopjg (79a525678). -->
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <!-- hcWritePermissionLauncher batches VO2MAX_PERMISSIONS into the SAME request as the vitals and exercise
+         write permissions (DataSourcesScreen.kt startWriteback()). MUST be declared or Health Connect silently
+         drops the WHOLE batched request, which is why a fresh install's writeback failed PERMISSION_DENIED
+         after granting everything else. From J-Gur/noopjg (8ff2a7dc0). -->
+    <uses-permission android:name="android.permission.health.WRITE_VO2_MAX" />
 
     <!-- Resolve the Health Connect provider on Android 14+ (platform) and earlier (app). -->
     <queries>
