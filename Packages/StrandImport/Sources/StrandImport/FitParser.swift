@@ -124,6 +124,7 @@ private struct FitDecoder {
     private var gpsPointCount = 0
 
     private var sessionSport: String?
+    private var sessionSubSport: UInt64?
     private var sessionStart: Date?
     private var sessionElapsed: Double?
     private var sessionDistance: Double?
@@ -335,6 +336,8 @@ private struct FitDecoder {
                 if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian) { sessionStart = fitDate(v) }
             case 5:  // sport (enum)
                 if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian) { sessionSport = Self.sportName(v) }
+            case 6:  // sub_sport (enum): names the training kinds that share sport 10
+                if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian) { sessionSubSport = v }
             case 7:  // total_elapsed_time (u32, scale 1000 → seconds)
                 if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian), v != 0xFFFFFFFF {
                     sessionElapsed = Double(v) / 1000.0
@@ -417,7 +420,9 @@ private struct FitDecoder {
         return Date(timeIntervalSince1970: unix)
     }
 
-    /// Map the FIT `sport` enum to a readable label (the common subset). Unknown → nil (neutral).
+    /// Map the FIT `sport` enum to a readable label (the common subset), by the FIT profile numbers.
+    /// Unknown → nil (neutral). Strength and cardio are not sports in FIT: they are sub-sports of
+    /// training (10), named by ``trainingName(_:)``.
     static func sportName(_ v: UInt64) -> String? {
         switch v {
         case 0: return "Generic"
@@ -425,12 +430,24 @@ private struct FitDecoder {
         case 2: return "Cycling"
         case 5: return "Swimming"
         case 11: return "Walking"
-        case 13: return "Strength Training"
-        case 14: return "Cardio"
-        case 15: return "Hiking"
+        case 13: return "Alpine Skiing"
+        case 14: return "Snowboarding"
+        case 15: return "Rowing"
         case 17: return "Hiking"
         case 4: return "Fitness Equipment"
         case 10: return "Training"
+        default: return nil
+        }
+    }
+
+    /// The training kinds FIT files as sport 10 with a `sub_sport`. nil leaves the plain "Training".
+    static func trainingName(_ subSport: UInt64) -> String? {
+        switch subSport {
+        case 19: return "Stretching"
+        case 20: return "Strength Training"
+        case 26: return "Cardio"
+        case 43: return "Yoga"
+        case 44: return "Pilates"
         default: return nil
         }
     }
@@ -490,7 +507,7 @@ private struct FitDecoder {
             kind: .fit,
             start: min(start, sessionStart ?? start),
             end: max(end, start),
-            sport: sessionSport,
+            sport: sessionSport == "Training" ? (sessionSubSport.flatMap(Self.trainingName) ?? sessionSport) : sessionSport,
             distanceM: distance,
             energyKcal: calories,
             steps: steps,

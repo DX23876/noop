@@ -607,6 +607,7 @@ internal class FitDecoder(raw: ByteArray) {
     private var recordCount = 0
 
     private var sessionSport: String? = null
+    private var sessionSubSport: Long? = null
     private var sessionStartS: Long? = null
     private var sessionElapsedS: Double? = null
     private var sessionDistance: Double? = null
@@ -754,6 +755,8 @@ internal class FitDecoder(raw: ByteArray) {
             when (f.num) {
                 2 -> u(off, f.size, def.bigEndian)?.let { sessionStartS = fitDate(it) }
                 5 -> u(off, f.size, def.bigEndian)?.let { sessionSport = sportName(it) }
+                // sub_sport: names the training kinds that share sport 10.
+                6 -> u(off, f.size, def.bigEndian)?.let { sessionSubSport = it }
                 7 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFFFFFL) sessionElapsedS = it.toDouble() / 1000.0 }
                 9 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFFFFFL) sessionDistance = it.toDouble() / 100.0 }
                 11 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFL) sessionCalories = it.toDouble() }
@@ -815,8 +818,14 @@ internal class FitDecoder(raw: ByteArray) {
 
     private fun sportName(v: Long): String? = when (v) {
         0L -> "Generic"; 1L -> "Running"; 2L -> "Cycling"; 5L -> "Swimming"
-        11L -> "Walking"; 13L -> "Strength Training"; 14L -> "Cardio"; 15L -> "Hiking"
+        11L -> "Walking"; 13L -> "Alpine Skiing"; 14L -> "Snowboarding"; 15L -> "Rowing"
         17L -> "Hiking"; 4L -> "Fitness Equipment"; 10L -> "Training"
+        else -> null
+    }
+
+    /** The training kinds FIT files as sport 10 with a `sub_sport`; null leaves the plain "Training". */
+    private fun trainingName(subSport: Long): String? = when (subSport) {
+        19L -> "Stretching"; 20L -> "Strength Training"; 26L -> "Cardio"; 43L -> "Yoga"; 44L -> "Pilates"
         else -> null
     }
 
@@ -861,7 +870,7 @@ internal class FitDecoder(raw: ByteArray) {
             kind = ActivityFileImporter.Kind.FIT,
             startTs = minOf(start, sessionStartS ?: start),
             endTs = maxOf(end, start),
-            sport = sessionSport,
+            sport = if (sessionSport == "Training") sessionSubSport?.let(::trainingName) ?: sessionSport else sessionSport,
             distanceM = distance,
             energyKcal = calories,
             steps = steps,
