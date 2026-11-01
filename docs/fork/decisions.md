@@ -857,3 +857,26 @@ against today's rule at 12/36, 2/12 and 5.43.
 
 Analysis migration required: no. Suggestions are shown, not scored; a confirmation is wearer input read like
 a hand-logged session, and dismissing changes no stored value.
+
+### 2026-11-01 — No direct Strava client; Strava goes through Apple Health or a file
+
+An opt-in Strava upload (one-way, automatic, the wearer's own Strava API application and credentials) was
+designed in full and then dropped before any code, because the credential model it rested on no longer exists.
+
+- **Why not.** Since June 2026 Strava requires a paid Strava subscription on the account that owns an API
+  application, including a single-athlete personal one. The project registers no application of its own (that
+  would be a project identity, a shared secret in open source and one rate limit for every install), so each
+  wearer would need their own application and a subscription. That is not an opt-in we ask of anyone.
+  Upstream issue ryanbr/noop#2679 option 3 runs into the same wall.
+- **Strava's own Apple Health import does not help.** It only takes workouts Apple recorded itself, so NOOP
+  workouts in Health are skipped.
+- **What is recommended instead.** A bridge app that reads Apple Health and uploads with its own Strava
+  connection (HealthFit on iOS; on Android a Health Connect bridge), or the existing GPX/FIT export uploaded by
+  hand at strava.com. Neither needs a Strava subscription nor any network code in NOOP.
+- **What that asks of NOOP.** The data has to be complete where those paths read it: the FIT export carries a
+  per-second heart-rate curve, records for workouts without GPS and timer pauses; Android stores route points
+  with time and barometric height like iOS and writes the route to Health Connect.
+- **Never.** Logging in to Strava's private web endpoints with the wearer's password, or any read of Strava
+  data (Strava's API terms forbid using it for AI, and the coach would be the reader).
+
+Analysis migration required: no. Nothing is scored differently; export and Health writes only.
