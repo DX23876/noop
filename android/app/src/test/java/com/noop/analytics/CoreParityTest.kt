@@ -334,6 +334,26 @@ class CoreParityTest {
                 b("hrvB")!!, b("rhrB"), b("respB"), if (i.isNull("sleep")) null else i.getDouble("sleep"),
                 if (i.isNull("skin")) null else i.getDouble("skin")).map { it.deltaPoints }
         },
+        "BreathPacer.schedule" to { i ->
+            BreathPacer.schedule(i.getDouble("bpm"), i.getDouble("inhale"), i.getInt("cycles"))
+                .map { obj("offset" to it.offsetMs, "phase" to it.phase.name.lowercase(), "loops" to it.loops, "label" to it.label) }
+        },
+        "ImuFeatureExtractor.extract" to { i ->
+            val raw = i.getJSONArray("samples")
+            val f = ImuFeatureExtractor.extract((0 until raw.length()).map { k -> raw.getJSONArray(k).let {
+                com.noop.protocol.RawImuSample(it.getDouble(0), it.getDouble(1), it.getDouble(2), it.getDouble(3), it.getDouble(4), it.getDouble(5)) } },
+                i.getInt("hz"))
+            obj("accel" to f.accelEnergyG, "gyro" to f.gyroEnergyDps, "jerk" to f.jerkRms, "cadence" to f.cadenceHz,
+                "strength" to f.cadenceStrength, "n" to f.sampleCount)
+        },
+        "DoseResponseEngine.estimate" to { i ->
+            val dose = i.getJSONObject("dose"); val out = i.getJSONObject("outcome")
+            DoseResponseEngine.estimate(DosedBehavior.entries.first { it.raw == i.getString("behavior") },
+                dose.keys().asSequence().associateWith { dose.getInt(it) }, out.keys().asSequence().associateWith { out.getDouble(it) })
+                ?.let { d -> obj("perUnit" to d.perUnit, "user" to d.userSlope, "prior" to d.priorSlope, "weight" to d.weight, "n" to d.nUser,
+                                 "priorDominated" to d.priorDominated, "contradicts" to d.contradictsPrior, "confidence" to d.confidence.raw,
+                                 "curve" to d.curve.map { it.dose }) }
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */

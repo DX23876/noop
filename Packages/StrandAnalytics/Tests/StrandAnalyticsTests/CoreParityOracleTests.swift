@@ -685,6 +685,46 @@ final class CoreParityOracleTests: XCTestCase {
                                                       sleepPerf: a["sleep"] as? Double, skinTempDev: a["skin"] as? Double)
                        .map(\.deltaPoints)
                }),
+        Oracle(name: "BreathPacer.schedule",
+               inputs: cases(40, seed: 36) { r in ["bpm": r.double(1...20), "inhale": r.double(0...1), "cycles": r.int(-1...12)] },
+               run: { a in
+                   BreathPacer.schedule(bpm: a["bpm"] as! Double, inhaleFraction: a["inhale"] as! Double, cycles: a["cycles"] as! Int)
+                       .map { ["offset": $0.offsetMs, "phase": $0.phase.rawValue, "loops": $0.loops, "label": nn($0.label)] }
+               }),
+        Oracle(name: "ImuFeatureExtractor.extract",
+               inputs: cases(30, seed: 37) { r in
+                   let hz = [0, 25, 50, 100][r.int(0...3)], f = r.double(0.5...3)
+                   let samples: [[Double]] = (0..<r.int(0...400)).map { k in
+                       let t = Double(k) / Double(max(hz, 1))
+                       return [sin(2 * .pi * f * t) * 0.4 + r.double(-0.05...0.05), r.double(-0.1...0.1), 1 + r.double(-0.05...0.05),
+                               r.double(-30...30), r.double(-30...30), r.double(-30...30)]
+                   }
+                   return ["samples": samples, "hz": hz]
+               },
+               run: { a in
+                   let f = ImuFeatureExtractor.extract((a["samples"] as! [[Double]]).map {
+                       RawImuSample(ax: $0[0], ay: $0[1], az: $0[2], gx: $0[3], gy: $0[4], gz: $0[5]) }, sampleRateHz: a["hz"] as! Int)
+                   return ["accel": f.accelEnergyG, "gyro": f.gyroEnergyDps, "jerk": f.jerkRms, "cadence": nn(f.cadenceHz),
+                           "strength": f.cadenceStrength, "n": f.sampleCount]
+               }),
+        Oracle(name: "DoseResponseEngine.estimate",
+               inputs: cases(30, seed: 38) { r in
+                   let start = 20_900
+                   var dose: [String: Int] = [:], outcome: [String: Double] = [:]
+                   for d in 0..<r.int(0...90) {
+                       if r.chance(0.8) { dose[day(start + d)] = r.int(0...3) }
+                       if r.chance(0.85) { outcome[day(start + d + 1)] = r.double(20...95) }
+                   }
+                   return ["behavior": ["alcohol", "caffeine"][r.int(0...1)], "dose": dose, "outcome": outcome]
+               },
+               run: { a in
+                   guard let d = DoseResponseEngine.estimate(behavior: DosedBehavior(rawValue: a["behavior"] as! String)!,
+                                                             doseByDay: a["dose"] as! [String: Int],
+                                                             outcomeByDay: a["outcome"] as! [String: Double]) else { return NSNull() }
+                   return ["perUnit": d.perUnit, "user": nn(d.userSlope), "prior": d.priorSlope, "weight": d.weight, "n": d.nUser,
+                           "priorDominated": d.priorDominated, "contradicts": d.contradictsPrior, "confidence": d.confidence.rawValue,
+                           "curve": d.curve.map { $0.dose }]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

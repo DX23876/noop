@@ -1,0 +1,2486 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "bpm" : 17.346,
+        "cycles" : 2,
+        "inhale" : 0.33900000000000002
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 1695,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 6695,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 6.6529999999999996,
+        "cycles" : 8,
+        "inhale" : 0.57799999999999996
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 5212,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 9018,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 14230,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 18036,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 23248,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 27054,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 32266,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 36072,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 41284,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 45090,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 50302,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 54108,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 59320,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 63126,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 68338,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 15.887,
+        "cycles" : 0,
+        "inhale" : 0.65800000000000003
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 8.2759999999999998,
+        "cycles" : 2,
+        "inhale" : 0.754
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 5467,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 7250,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 12717,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 11.385999999999999,
+        "cycles" : 2,
+        "inhale" : 0.16900000000000001
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 891,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5270,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 6161,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 7.3460000000000001,
+        "cycles" : 7,
+        "inhale" : 0.125
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 1021,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 8168,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 9189,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 16336,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 17357,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 24504,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 25525,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 32672,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 33693,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40840,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 41861,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 49008,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 50029,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 3.77,
+        "cycles" : 3,
+        "inhale" : 0.109
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 1735,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 15915,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 17650,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 31830,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 33565,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 15.731,
+        "cycles" : 4,
+        "inhale" : 0.028000000000000001
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 500,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 5500,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 10000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 10500,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 15000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 15500,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 5.7779999999999996,
+        "cycles" : 0,
+        "inhale" : 0.58099999999999996
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 10.067,
+        "cycles" : -1,
+        "inhale" : 0.58599999999999997
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 1.085,
+        "cycles" : 10,
+        "inhale" : 0.157
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 3140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 23140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 43140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 60000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 63140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 80000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 83140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 100000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 103140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 120000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 123140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 140000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 143140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 160000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 163140,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 180000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 183140,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 8.8230000000000004,
+        "cycles" : 3,
+        "inhale" : 0.72999999999999998
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 4964,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 6800,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 11764,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 13600,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 18564,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 2.7639999999999998,
+        "cycles" : 6,
+        "inhale" : 0.99199999999999999
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 18000,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 38000,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 58000,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 60000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 78000,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 80000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 98000,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 100000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 118000,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 12.585000000000001,
+        "cycles" : 2,
+        "inhale" : 0.86699999999999999
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 4335,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 9335,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 18.218,
+        "cycles" : 2,
+        "inhale" : 0.73299999999999998
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 3665,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 8665,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 4.0970000000000004,
+        "cycles" : 10,
+        "inhale" : 0.0089999999999999993
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 1465,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 14645,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 16110,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 29290,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 30755,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 43935,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 45400,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 58580,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 60045,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 73225,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 74690,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 87870,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 89335,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 102515,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 103980,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 117160,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 118625,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 131805,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 133270,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 12.475,
+        "cycles" : 10,
+        "inhale" : 0.63800000000000001
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 3190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 8190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 10000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 13190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 15000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 18190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 23190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 25000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 28190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 30000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 33190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 35000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 38190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 43190,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 45000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 48190,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 15.896000000000001,
+        "cycles" : 5,
+        "inhale" : 0.38700000000000001
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 1935,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 6935,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 10000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 11935,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 15000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 16935,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 21935,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 1.0409999999999999,
+        "cycles" : 3,
+        "inhale" : 0.10299999999999999
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 2060,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 22060,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 42060,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 0.248,
+        "cycles" : 9,
+        "inhale" : 0.54700000000000004
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 10940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 30940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 50940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 60000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 70940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 80000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 90940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 100000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 110940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 120000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 130940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 140000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 150940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 160000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 170940,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 2.8330000000000002,
+        "cycles" : 6,
+        "inhale" : 0.247
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 4940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 24940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 44940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 60000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 64940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 80000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 84940,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 100000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 104940,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 1.98,
+        "cycles" : 5,
+        "inhale" : 0.40600000000000003
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 8120,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 28120,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 48120,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 60000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 68120,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 80000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 88120,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 5.8609999999999998,
+        "cycles" : 3,
+        "inhale" : 0.60799999999999998
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 6224,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 10237,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 16461,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20474,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 26698,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 13.879,
+        "cycles" : 7,
+        "inhale" : 0.81399999999999995
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 4070,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 9070,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 10000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 14070,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 15000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 19070,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 24070,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 25000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 29070,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 30000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 34070,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 12.778,
+        "cycles" : 11,
+        "inhale" : 0.185
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 5000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 5925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 10000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 10925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 15000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 15925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 20000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 20925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 25000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 25925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 30000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 30925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 35000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 35925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 40000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 40925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 45000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 45925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 50000,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 50925,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 3.0489999999999999,
+        "cycles" : 4,
+        "inhale" : 0.29499999999999998
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 5805,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 19679,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 25484,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 39358,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 45163,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 59037,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 64842,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 0.85599999999999998,
+        "cycles" : -1,
+        "inhale" : 0.42699999999999999
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 17.445,
+        "cycles" : 1,
+        "inhale" : 0.84999999999999998
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 4250,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 10.214,
+        "cycles" : -1,
+        "inhale" : 0.66300000000000003
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 4.617,
+        "cycles" : 5,
+        "inhale" : 0.80800000000000005
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 10500,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 12995,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 23495,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 25990,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 36490,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 38985,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 49485,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 51980,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 62480,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 3.3690000000000002,
+        "cycles" : 5,
+        "inhale" : 0.46600000000000003
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 8299,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 17809,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 26108,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 35618,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 43917,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 53427,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 61726,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 71236,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 79535,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 2.423,
+        "cycles" : 0,
+        "inhale" : 0.27400000000000002
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 4.665,
+        "cycles" : 12,
+        "inhale" : 0.70199999999999996
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 9029,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 12862,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 21891,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 25724,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 34753,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 38586,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 47615,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 51448,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 60477,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 64310,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 73339,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 77172,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 86201,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 90034,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 99063,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 102896,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 111925,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 115758,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 124787,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 128620,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 137649,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 141482,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 150511,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 2.7440000000000002,
+        "cycles" : 0,
+        "inhale" : 0.98599999999999999
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 3.3170000000000002,
+        "cycles" : 10,
+        "inhale" : 0.70199999999999996
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 12698,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 18089,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 30787,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 36178,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 48876,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 54267,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 66965,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 72356,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 85054,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 90445,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 103143,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 108534,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 121232,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 126623,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 139321,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 144712,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 157410,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 162801,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 175499,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 9.9719999999999995,
+        "cycles" : 11,
+        "inhale" : 0.503
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 3027,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 6017,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 9044,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 12034,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 15061,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 18051,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 21078,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 24068,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 27095,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 30085,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 33112,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 36102,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 39129,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 42119,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 45146,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 48136,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 51163,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 54153,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 57180,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 60170,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 63197,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 3.0859999999999999,
+        "cycles" : 7,
+        "inhale" : 0.90300000000000002
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 17499,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 19443,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 36942,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 38886,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 56385,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 58329,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 75828,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 77772,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 95271,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 97215,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 114714,
+          "phase" : "exhale"
+        },
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 116658,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 134157,
+          "phase" : "exhale"
+        }
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 2.8199999999999998,
+        "cycles" : -1,
+        "inhale" : 0.068000000000000005
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 5.8380000000000001,
+        "cycles" : -1,
+        "inhale" : 0.48999999999999999
+      },
+      "output" : [
+
+      ]
+    },
+    {
+      "input" : {
+        "bpm" : 17.282,
+        "cycles" : 1,
+        "inhale" : 0.51000000000000001
+      },
+      "output" : [
+        {
+          "label" : null,
+          "loops" : 1,
+          "offset" : 0,
+          "phase" : "inhale"
+        },
+        {
+          "label" : null,
+          "loops" : 2,
+          "offset" : 2550,
+          "phase" : "exhale"
+        }
+      ]
+    }
+  ],
+  "function" : "BreathPacer.schedule"
+}
