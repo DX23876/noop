@@ -58,6 +58,9 @@ object XiaomiBandImporter {
         repo: WhoopRepository,
         deviceId: String = DEFAULT_DEVICE_ID,
     ): ImportSummary {
+        // Android without Room: the shared core parses and stores the export, as on iOS (CoreImport).
+        com.noop.core.CoreImport.importFile(context, uri, com.noop.core.CoreImport.Kind.XIAOMI, deviceId, SOURCE_LABEL)
+            ?.let { return it }
         val dbFile = try {
             resolveDatabase(context, uri)
         } catch (e: Exception) {

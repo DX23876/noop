@@ -109,6 +109,10 @@ object WearableExportImporter {
     // ------------------------------------------------------------------------
 
     suspend fun importExport(context: Context, uri: Uri, repo: WhoopRepository): ImportSummary {
+        // Android without Room: the shared core parses and stores the export, as on iOS (CoreImport). A folder
+        // still goes through the Kotlin reader below.
+        com.noop.core.CoreImport.importFile(context, uri, com.noop.core.CoreImport.Kind.WEARABLE, "", "Wearable export")
+            ?.let { return it }
         val (files, truncated) = try {
             collectFiles(context, uri)
         } catch (e: Exception) {

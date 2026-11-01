@@ -92,6 +92,9 @@ object WhoopCsvImporter {
         repo: WhoopRepository,
         deviceId: String = WHOOP_DEVICE,
     ): ImportSummary {
+        // Android without Room: the shared core parses and stores the export, as on iOS (CoreImport).
+        com.noop.core.CoreImport.importFile(context, uri, com.noop.core.CoreImport.Kind.WHOOP, deviceId, SOURCE_LABEL)
+            ?.let { return it }
         val (csvData, truncated) = try {
             loadCsvData(context, uri)
         } catch (e: Exception) {

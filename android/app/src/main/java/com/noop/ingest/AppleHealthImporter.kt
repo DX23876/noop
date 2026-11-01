@@ -104,6 +104,9 @@ object AppleHealthImporter {
         repo: WhoopRepository,
         deviceId: String = DEFAULT_DEVICE_ID,
     ): ImportSummary {
+        // Android without Room: the shared core parses and stores the export, as on iOS (CoreImport).
+        com.noop.core.CoreImport.importFile(context, uri, com.noop.core.CoreImport.Kind.APPLE_HEALTH, deviceId,
+                                            SOURCE_LABEL)?.let { return it }
         val agg = Aggregator()
         try {
             context.contentResolver.openInputStream(uri)?.use { raw ->

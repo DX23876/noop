@@ -85,6 +85,9 @@ public enum CoreCall {
             guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
             do { try await store.deleteAllData(deviceId: id); return #"{"ok":true}"# }
             catch { return #"{"error":"deleteFailed"}"# }
+        case "import.file":
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            return await CoreImport.run(kind: string("kind"), path: string("path"), deviceId: string("deviceId"), store: store)
         case "sql.query": return await CoreSql.query(args)
         case "sql.exec": return await CoreSql.exec(args)
         case "store.adoptRoom":
