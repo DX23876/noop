@@ -264,6 +264,38 @@ class CoreParityTest {
                 "keyed" to SleepSessionDedup.safeKeyedStart(i.getLong("onset"), x.startTs, x.endTs),
                 "edit" to w?.let { listOf(it.first, it.second) }, "group" to g?.let { listOf(it.first, it.second) })
         },
+        "StressOnsetDetector" to { i ->
+            val config = StressOnsetDetector.Config(enabled = i.getBoolean("enabled"), autoNudge = i.getBoolean("auto"),
+                                                    quietHoursEnabled = i.getBoolean("quiet"))
+            var state = StressOnsetDetector.State()
+            val steps = i.getJSONArray("steps")
+            (0 until steps.length()).map { k ->
+                val st = steps.getJSONObject(k)
+                val rr = st.getJSONArray("rr").let { a -> (0 until a.length()).map { a.getInt(it) } }
+                val d = StressOnsetDetector.evaluate(rr, if (st.isNull("hr")) null else st.getDouble("hr"),
+                    if (st.isNull("motion")) null else st.getDouble("motion"), st.getBoolean("session"), state, config,
+                    st.getLong("now"), i.getLong("tz"))
+                state = d.nextState
+                obj("nudge" to d.shouldNudge, "reason" to camel(d.reason.name), "fast" to d.fastRMSSD, "baseline" to d.baselineRMSSD,
+                    "stateBaseline" to state.baselineRMSSD, "below" to state.wasBelow, "last" to state.lastFireAt,
+                    "pending" to state.pendingEdgeAt)
+            }
+        },
+        "SedentaryDetector" to { i ->
+            val config = SedentaryConfig(enabled = true, notificationsMasterOn = true, thresholdMinutes = i.getInt("threshold"))
+            var state = SedentaryState()
+            val steps = i.getJSONArray("steps")
+            (0 until steps.length()).map { k ->
+                val st = steps.getJSONObject(k)
+                val g = st.getJSONArray("g").let { a -> (0 until a.length()).map { a.getJSONArray(it).let { p ->
+                    com.noop.data.GravitySample(deviceId = "parity", ts = p.getDouble(0).toLong(), x = p.getDouble(1),
+                                                y = p.getDouble(2), z = p.getDouble(3)) } } }
+                val d = SedentaryDetector.evaluate(g, state, config, st.getBoolean("worn"), st.getLong("now"), i.getLong("tz"))
+                state = d.nextState
+                obj("buzz" to d.shouldBuzz, "bout" to d.bout?.let { listOf(it.start, it.end) },
+                    "processed" to state.lastProcessedGravityTs, "lastBuzz" to state.lastBuzzAt)
+            }
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */

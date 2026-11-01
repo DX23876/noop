@@ -547,6 +547,60 @@ final class CoreParityOracleTests: XCTestCase {
                            "keyed": nn(SleepSessionDedup.safeKeyedStart(onset: a["onset"] as! Int, mapped: x)),
                            "edit": nn(w.map { [$0.start, $0.end] }), "group": nn(g.map { [$0.start, $0.end] })]
                }),
+        Oracle(name: "StressOnsetDetector",
+               inputs: cases(15, seed: 30) { r in
+                   let steps: [[String: Any]] = (0..<r.int(1...40)).map { k in
+                       let base = r.double(400...1100), calm = r.chance(0.6)
+                       return ["rr": (0..<r.int(0...120)).map { _ in Int(base + (calm ? r.double(-80...80) : r.double(-10...10))) },
+                               "hr": r.chance(0.1) ? NSNull() : r.double(50...150),
+                               "motion": r.chance(0.2) ? NSNull() : r.double(0...0.6),
+                               "session": r.chance(0.1), "now": 1_760_000_000 + k * r.int(30...600)]
+                   }
+                   return ["steps": steps, "enabled": r.chance(0.9), "auto": r.chance(0.9), "quiet": r.chance(0.3),
+                           "tz": [0, 3_600, -18_000][r.int(0...2)]]
+               },
+               run: { a in
+                   let config = StressOnsetDetector.Config(enabled: a["enabled"] as! Bool, autoNudge: a["auto"] as! Bool,
+                                                           quietHoursEnabled: a["quiet"] as! Bool)
+                   var state = StressOnsetDetector.State()
+                   return (a["steps"] as! [[String: Any]]).map { step -> [String: Any] in
+                       let d = StressOnsetDetector.evaluate(rrBuffer: step["rr"] as! [Int], currentHR: step["hr"] as? Double,
+                                                            recentMotionG: step["motion"] as? Double,
+                                                            sessionActive: step["session"] as! Bool, state: state,
+                                                            config: config, nowSec: step["now"] as! Int,
+                                                            tzOffsetSec: a["tz"] as! Int)
+                       state = d.nextState
+                       return ["nudge": d.shouldNudge, "reason": "\(d.reason)", "fast": nn(d.fastRMSSD),
+                               "baseline": nn(d.baselineRMSSD), "stateBaseline": state.baselineRMSSD,
+                               "below": state.wasBelow, "last": state.lastFireAt, "pending": state.pendingEdgeAt]
+                   }
+               }),
+        Oracle(name: "SedentaryDetector",
+               inputs: cases(12, seed: 31) { r in
+                   var ts = 1_760_000_000 - 1_760_000_000 % 86_400 + 8 * 3_600
+                   let steps: [[String: Any]] = (0..<r.int(1...12)).map { _ in
+                       let moving = r.chance(0.4)
+                       let g: [[Double]] = (0..<r.int(10...120)).map { _ in
+                           ts += r.int(10...60)
+                           return [Double(ts), moving ? r.double(-1...1) : 0.01, moving ? r.double(-1...1) : 0.02, 1]
+                       }
+                       return ["g": g, "worn": r.chance(0.9), "now": ts]
+                   }
+                   return ["steps": steps, "threshold": r.int(10...60), "tz": [0, 3_600, -18_000][r.int(0...2)]]
+               },
+               run: { a in
+                   var config = SedentaryConfig(enabled: true, notificationsMasterOn: true)
+                   config.thresholdMinutes = a["threshold"] as! Int
+                   var state = SedentaryState()
+                   return (a["steps"] as! [[String: Any]]).map { step -> [String: Any] in
+                       let g = (step["g"] as! [[Double]]).map { GravitySample(ts: Int($0[0]), x: $0[1], y: $0[2], z: $0[3]) }
+                       let d = SedentaryDetector.evaluate(g, state: state, config: config, worn: step["worn"] as! Bool,
+                                                          nowSec: step["now"] as! Int, tzOffsetSec: a["tz"] as! Int)
+                       state = d.nextState
+                       return ["buzz": d.shouldBuzz, "bout": nn(d.bout.map { [$0.start, $0.end] }),
+                               "processed": state.lastProcessedGravityTs, "lastBuzz": state.lastBuzzAt]
+                   }
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {
