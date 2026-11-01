@@ -143,6 +143,74 @@ final class RouteExporterTests: XCTestCase {
         XCTAssertNil(a!.energyKcal)
     }
 
+    /// A pulse per second rides on the route points of the same second and fills the seconds between them
+    /// with records of its own, so the importer reads back the whole curve.
+    func testFitCarriesTheHeartRateCurve() {
+        let times = [startTs, startTs + 600, startTs + 1200, startTs + 1800]
+        let pulse = (0...1800).map { ActivityHRSample(ts: startTs + $0, bpm: 120 + $0 % 40) }
+        let data = RouteExporter.render(.fit, route: route, startTs: startTs, endTs: endTs, sport: "running",
+                                        recordedTimes: times, heartRate: pulse)
+        let a = ActivityFileImporter.parse(data: data, filename: "hr.fit").activity
+        XCTAssertEqual(a?.route.count, route.count)
+        XCTAssertEqual(a?.hrSampleCount, pulse.count)
+        XCTAssertEqual(a?.hrSamples.first, pulse.first)
+        XCTAssertEqual(a?.hrSamples.last, pulse.last)
+        XCTAssertEqual(a?.maxHr, 159)
+    }
+
+    /// A workout without a route still makes a usable file: time and pulse records only.
+    func testFitWithoutRouteCarriesPulseRecords() {
+        let pulse = stride(from: 0, through: 1800, by: 5).map { ActivityHRSample(ts: startTs + $0, bpm: 130) }
+        let data = RouteExporter.render(.fit, route: [], startTs: startTs, endTs: endTs,
+                                        sport: "Strength Training", heartRate: pulse)
+        let a = ActivityFileImporter.parse(data: data, filename: "strength.fit").activity
+        XCTAssertNotNil(a)
+        XCTAssertEqual(a?.route.count, 0)
+        XCTAssertEqual(a?.hrSampleCount, pulse.count)
+        XCTAssertEqual(a?.sport, "Strength Training")
+        XCTAssertEqual(a.map { Int($0.start.timeIntervalSince1970) }, startTs)
+        XCTAssertEqual(a.map { Int($0.end.timeIntervalSince1970) }, endTs)
+    }
+
+    /// A pause becomes a timer stop and start, and the pulse sampled inside it stays out of the file.
+    func testFitPausesStopTheTimerAndDropTheirPulse() {
+        let pulse = (0...1800).map { ActivityHRSample(ts: startTs + $0, bpm: 140) }
+        let pause = RouteExporter.Pause(start: startTs + 600, end: startTs + 900)
+        let data = RouteExporter.render(.fit, route: [], startTs: startTs, endTs: endTs, sport: "running",
+                                        heartRate: pulse, pauses: [pause])
+        let a = ActivityFileImporter.parse(data: data, filename: "pause.fit").activity
+        XCTAssertEqual(a?.hrSampleCount, pulse.count - 300)
+        XCTAssertFalse(a?.hrSamples.contains { $0.ts >= pause.start && $0.ts < pause.end } ?? true)
+
+        let timers = RouteExporter.fitTimeline(times: [], pulse: [:], pauses: [pause], startTs: startTs,
+                                               endTs: endTs)
+        XCTAssertEqual(timers, [.timer(startTs, running: true), .timer(pause.start, running: false),
+                                .timer(pause.end, running: true), .timer(endTs, running: false)])
+    }
+
+    func testPausesAreClippedAndMerged() {
+        let merged = RouteExporter.mergedPauses(
+            [.init(start: 50, end: 120), .init(start: 100, end: 200), .init(start: 900, end: 1500),
+             .init(start: 300, end: 300)],
+            startTs: 0, endTs: 1000)
+        XCTAssertEqual(merged, [.init(start: 50, end: 200), .init(start: 900, end: 1000)])
+    }
+
+    /// Sports go out by the FIT profile numbers (hiking is 17, rowing 15) and come back by them.
+    func testFitSportsFollowTheProfile() {
+        XCTAssertEqual(RouteExporter.fitSportPair("Hiking").sport, 17)
+        XCTAssertEqual(RouteExporter.fitSportPair("Rowing").sport, 15)
+        XCTAssertEqual(RouteExporter.fitSportPair("Functional strength training").subSport, 20)
+        XCTAssertEqual(RouteExporter.fitSportPair("Treadmill run").subSport, 1)
+        XCTAssertEqual(RouteExporter.fitSportPair("Something new").sport, 0)
+        let expected = ["Hiking": "Hiking", "Rowing": "Rowing", "Yoga": "Yoga", "HIIT": "Cardio",
+                        "Walking": "Walking"]
+        for (sport, name) in expected {
+            let data = RouteExporter.render(.fit, route: route, startTs: startTs, endTs: endTs, sport: sport)
+            XCTAssertEqual(ActivityFileImporter.parse(data: data, filename: "s.fit").activity?.sport, name, sport)
+        }
+    }
+
     func testInterpolatedTimesSpanTheWindow() {
         let t = RouteExporter.interpolatedTimes(5, 1000, 2000)
         XCTAssertEqual(t.first, 1000)
