@@ -35,7 +35,7 @@
     },
     "file_only_imu_storage": {
       "swift": ["v52-drop-raw-imu-sample"],
-      "kotlin": ["MIGRATION_34_35", "DROP TABLE IF EXISTS `rawImuSample`"]
+      "kotlin": ["v41-drop-raw-imu-sample", "ImuSessionFileStore"]
     },
     "session_bound_imu_file": {
       "swift": ["ImuSessionFileStore", "segmentSeconds: Int64 = 30 * 60", "NOOPIMU2"],

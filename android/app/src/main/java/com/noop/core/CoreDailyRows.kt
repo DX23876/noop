@@ -2,7 +2,6 @@ package com.noop.core
 
 import android.content.Context
 import com.noop.data.DailyMetric
-import com.noop.ui.NoopPrefs
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
@@ -15,8 +14,9 @@ import kotlin.math.abs
 object CoreDailyRows {
     const val CORE_READS_KEY = "core.dailyRows.reads"
 
-    fun coreReads(context: Context): Boolean = NoopPrefs.of(context).getBoolean(CORE_READS_KEY, false)
-    fun setCoreReads(context: Context, on: Boolean) = NoopPrefs.of(context).edit().putBoolean(CORE_READS_KEY, on).apply()
+    /** Always: the store is the core's (CORE-ONLY-PLAN), so its reads are the only ones. */
+    @Suppress("UNUSED_PARAMETER")
+    fun coreReads(context: Context): Boolean = true
 
     /** The core's merged rows between [from] and [to] (day keys), oldest first, tagged with [deviceId]; null without a core. */
     fun rows(from: String, to: String, deviceId: String): List<DailyMetric>? {

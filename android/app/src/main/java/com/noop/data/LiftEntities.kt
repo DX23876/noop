@@ -1,9 +1,5 @@
 package com.noop.data
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
 
 /**
  * The in-app strength log — the Room half of GRDB's `v46-lift-log`.

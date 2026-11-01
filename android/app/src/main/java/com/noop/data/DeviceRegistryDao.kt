@@ -1,8 +1,5 @@
 package com.noop.data
 
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
 
 /**
  * The device-registry slice of the DAO (pairedDevice / dayOwnership, schema v8) — the Android port of

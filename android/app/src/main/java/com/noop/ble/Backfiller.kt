@@ -730,7 +730,7 @@ class Backfiller(
                 // emission can be measured, since every existing R-R number is taken after the conflict
                 // key has already absorbed part of it.
                 val rrCensus = com.noop.analytics.RrEmissionStats.compute(decoded.rr.map { it.ts.toInt() to it.rrMs })
-                val counts = repository.insert(decoded, deviceId)
+                val counts = repository.insert(decoded, deviceId, bankedByCore = true)
                 // Past this point everything belongs to the session: its tallies, the archive, the cursor and the ack.
                 if (outlived(token, trim, stored = true)) return
                 onBankedOffload(counts)

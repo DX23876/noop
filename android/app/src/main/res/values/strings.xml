@@ -4471,8 +4471,6 @@
     <string name="forge_sd_need">Per-night need</string>
     <string name="forge_sd_nights">Nights</string>
     <string name="forge_ask_coach">Ask coach</string>
-    <string name="forge_lab_core_days">Shared core reads daily values and workouts</string>
-    <string name="forge_lab_core_days_detail">For testers. The classic screens read each day\'s sleep, Charge, Effort and vitals and the workout list from the shared core, as on iPhone, instead of the phone\'s own copy.</string>
     <string name="forge_lab_compare">Compare with the phone\'s copy</string>
     <string name="forge_lab_compare_same">No differences in the recent days.</string>
     <string name="forge_lab_compare_diff">%1$d differences, first: %2$s</string>
@@ -5023,4 +5021,6 @@
     <string name="forge_tile_rest_hr">Rest HR</string>
     <string name="forge_lab_strength_effort">Strength in Effort</string>
     <string name="forge_lab_strength_effort_detail">Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.</string>
+    <string name="forge_data_update_title">Updating your data</string>
+    <string name="forge_data_update_body">NOOP is moving your history into its new store. This happens once and can take a few minutes. Keep the app open.</string>
 </resources>

@@ -37,6 +37,13 @@ extension WhoopStore {
     }
 
     /// Conservatively invalidate every cached day for a source after an unbounded delete/repoint.
+    /// A host wrote inputs outside the store's own writers (Android's data access, `CoreSql`): every known
+    /// device's analysis is marked changed, since the statement does not say which device it touched.
+    public static func markHostWrite(_ db: Database) throws {
+        let ids = try String.fetchAll(db, sql: "SELECT id FROM pairedDevice UNION SELECT id FROM device")
+        for id in ids where !id.isEmpty { try markAnalysisDeviceChanged(db, deviceId: id) }
+    }
+
     static func markAnalysisDeviceChanged(_ db: Database, deviceId: String) throws {
         let revision = try bumpSensorWriteSeq(db)
         try db.execute(sql: """

@@ -39,7 +39,7 @@ class Whoop5RRSqliteTest {
         sql("CREATE TABLE rrInterval(deviceId TEXT NOT NULL, ts INTEGER NOT NULL, rrMs INTEGER NOT NULL, " +
             "seq INTEGER NOT NULL, synced INTEGER NOT NULL, ord INTEGER, srcChannel INTEGER, tsSuspect INTEGER, " +
             "PRIMARY KEY(deviceId, ts, rrMs, seq))")
-        sql(WhoopDatabase.RR_SOURCE_INDEX_SQL)
+        sql("CREATE INDEX IF NOT EXISTS rrInterval_source_suspect ON rrInterval(srcChannel, tsSuspect)")
         sql("CREATE TABLE pairedDevice(id TEXT PRIMARY KEY, brand TEXT, model TEXT, status TEXT)")
         sql("CREATE TABLE hrSample(deviceId TEXT, ts INTEGER, bpm INTEGER, PRIMARY KEY(deviceId, ts))")
         listOf("ppgHrSample", "respSample", "gravitySample", "sleepStateSample", "event",

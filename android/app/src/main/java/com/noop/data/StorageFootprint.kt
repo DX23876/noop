@@ -1,6 +1,6 @@
 package com.noop.data
 
-import androidx.sqlite.db.SimpleSQLiteQuery
+import com.noop.core.CoreDb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
  * testable without a Room runtime, and raw per-table SQL needs the open helper. Keeping it out preserves
  * that boundary instead of quietly widening it for a diagnostic.
  */
-internal class StorageFootprint(private val db: WhoopDatabase) {
+internal class StorageFootprint(@Suppress("unused") private val db: WhoopDatabase) {
 
     /**
      * Payload bytes per table, keyed exactly as `WhoopRepository.storageRowCounts` keys, so a maintainer
@@ -49,22 +49,19 @@ internal class StorageFootprint(private val db: WhoopDatabase) {
         withContext(Dispatchers.IO) { estimateBlocking(rowCounts, sampleRows) }
 
     private fun estimateBlocking(rowCounts: Map<String, Int>, sampleRows: Int): Map<String, Int> = runCatching {
-        val raw = db.openHelper.readableDatabase
+        // The core's store (CoreDb), which Android's data now lives in.
         val limit = maxOf(1, sampleRows)
         val out = mutableMapOf<String, Int>()
         for ((key, table) in STORAGE_TABLES) {
             val rows = rowCounts[key] ?: continue
             if (rows <= 0) continue
-            val cols = mutableListOf<String>()
-            raw.query(SimpleSQLiteQuery("PRAGMA table_info(`$table`)")).use { c ->
-                val i = c.getColumnIndex("name")
-                if (i >= 0) while (c.moveToNext()) cols.add(c.getString(i))
-            }
+            val cols = CoreDb.queryPositionalBlocking("PRAGMA table_info(`$table`)", emptyList())
+                .mapNotNull { it.stringOrNull("name") }
             if (cols.isEmpty()) continue
             val terms = cols.joinToString(" + ") { col -> rowSizeTerm(col) }
             val sql = "SELECT AVG(n) FROM (SELECT ($terms) AS n FROM `$table` LIMIT $limit)"
-            raw.query(SimpleSQLiteQuery(sql)).use { c ->
-                if (c.moveToFirst() && !c.isNull(0)) out[key] = Math.round(c.getDouble(0) * rows).toInt()
+            CoreDb.scalarDouble(CoreDb.queryPositionalBlocking(sql, emptyList()))?.let {
+                out[key] = Math.round(it * rows).toInt()
             }
         }
         out.toMap()

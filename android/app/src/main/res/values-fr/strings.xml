@@ -4439,8 +4439,6 @@
     <string name="forge_sd_need">Besoin par nuit</string>
     <string name="forge_sd_nights">Nuits</string>
     <string name="forge_ask_coach">Demander au coach</string>
-    <string name="forge_lab_core_days">Le noyau partagé lit les valeurs du jour et les entraînements</string>
-    <string name="forge_lab_core_days_detail">Pour les testeurs. Les écrans classiques lisent le sommeil, Charge, Effort et les signes vitaux de chaque jour ainsi que la liste des entraînements dans le noyau partagé, comme sur iPhone, au lieu de la copie du téléphone.</string>
     <string name="forge_lab_compare">Comparer avec la copie du téléphone</string>
     <string name="forge_lab_compare_same">Aucune différence ces derniers jours.</string>
     <string name="forge_lab_compare_diff">%1$d différences, la première : %2$s</string>
@@ -4987,4 +4985,6 @@
     <string name="forge_tile_rest_hr">FC repos</string>
     <string name="forge_lab_strength_effort">Force dans l’effort</string>
     <string name="forge_lab_strength_effort_detail">Les séances de force que vous évaluez après l’entraînement s’ajoutent à l’effort au-delà de votre pouls, davantage pour une évaluation plus dure et une séance plus longue. Les séances non évaluées n’ajoutent rien. Calibré sur WHOOP avec un effort supposé de 7 sur 10.</string>
+    <string name="forge_data_update_title">Mise à jour de vos données</string>
+    <string name="forge_data_update_body">NOOP transfère votre historique vers son nouveau stockage. Cela n\'arrive qu\'une fois et peut prendre quelques minutes. Laissez l\'app ouverte.</string>
 </resources>

@@ -226,22 +226,6 @@ class RrSourceChannelTest {
 
     // MARK: - The migration
 
-    @Test
-    fun migrationIsAdditiveNullableAndNotAKeyChange() {
-        val sql = WhoopDatabase.RR_SRC_CHANNEL_MIGRATION_SQL
-        assertEquals(1, sql.size)
-        assertEquals("ALTER TABLE `rrInterval` ADD COLUMN `srcChannel` INTEGER", sql[0])
-        val upper = sql[0].uppercase()
-        assertTrue(upper.startsWith("ALTER TABLE"))
-        assertTrue("must be additive", upper.contains("ADD COLUMN"))
-        assertFalse("srcChannel must be nullable", upper.contains("NOT NULL"))
-        assertFalse("no default — absent means no channel to name", upper.contains("DEFAULT"))
-        for (banned in listOf("DROP ", "DELETE ", "UPDATE ", "INSERT ", "PRIMARY KEY")) {
-            assertFalse("migration must not contain $banned", upper.contains(banned))
-        }
-        assertEquals(25, WhoopDatabase.MIGRATION_25_26.startVersion)
-        assertEquals(26, WhoopDatabase.MIGRATION_25_26.endVersion)
-    }
 
     // MARK: - The read filter
 

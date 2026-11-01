@@ -10825,7 +10825,7 @@ class WhoopBleClient(
         }
         if (!batch.isEmpty) {
             try {
-                addBankedLive(repository.insert(batch, deviceId))
+                addBankedLive(repository.insert(batch, deviceId, bankedByCore = true))
                 liveInsertFailuresRealtime.set(0)
             } catch (t: Throwable) {
                 // Re-buffer at the front so these frames retry on the next cadence (port of Collector).

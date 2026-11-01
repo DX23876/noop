@@ -33,16 +33,26 @@ object CoreShadow {
      * registry read; call off the main thread.
      */
     fun ensureStarted(context: Context, deviceId: String, followActive: Boolean = true) {
-        if (!SwiftCore.available) return
+        if (!openStore(context, deviceId)) return
+        followDevices(context, deviceId.takeIf { followActive })
+    }
+
+    /**
+     * Opens the core's store and starts the session under [deviceId] once per process, without reading the
+     * device registry: the registry itself lives in this store ([CoreDb]), so its first read opens it here under
+     * an empty id, and [ensureStarted] points the session at the strap afterwards. False when the core is absent.
+     */
+    fun openStore(context: Context, deviceId: String = ""): Boolean {
+        if (!SwiftCore.available) return false
         if (!started) synchronized(this) {
             if (started) return@synchronized
-            if (!installResources(context)) return
+            if (!installResources(context)) return false
             val store = File(context.filesDir, "core/noop-core.sqlite").apply { parentFile?.mkdirs() }
             val result = SwiftCore.shadowStart(store.path, deviceId)
             started = result == 0
             Log.i(TAG, "shadow session start=$result for $deviceId")
         }
-        if (started) followDevices(context, deviceId.takeIf { followActive })
+        return started
     }
 
     /**

@@ -64,6 +64,9 @@ object CoreRoomAdoption {
         return Outcome.Adopted(total)
     }
 
+    /** Whether an earlier build's Room store waits to be adopted. */
+    fun pending(context: Context): Boolean = context.getDatabasePath(ROOM_DB_NAME).isFile
+
     internal fun shouldDeleteLegacy(adoptedAtMs: Long, nowMs: Long): Boolean = nowMs - adoptedAtMs >= KEEP_MS
 
     /** The kept Room file's size, 0 when there is none. */

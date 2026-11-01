@@ -1,8 +1,7 @@
 package com.noop.push
 
-import android.database.Cursor
-import androidx.room.withTransaction
-import androidx.sqlite.db.SimpleSQLiteQuery
+import com.noop.core.CoreDb
+
 import com.noop.data.WhoopDatabase
 
 /** SQL-side upper bound evaluated before Android materializes any unrestricted TEXT value. */
@@ -41,15 +40,13 @@ internal object PushDeviceDiscovery {
  * Narrow, read-only Room snapshot adapter. SQL identifiers come exclusively from the closed enums below;
  * user/config input is always a bind argument. Every cursor is consumed and closed inside [withTransaction].
  */
-class PushDao internal constructor(private val db: WhoopDatabase) : PushSnapshotSource {
-    override suspend fun knownDeviceIds(capabilities: PushCapabilities): List<String> = db.withTransaction {
+class PushDao internal constructor(@Suppress("unused") private val db: WhoopDatabase) : PushSnapshotSource {
+    override suspend fun knownDeviceIds(capabilities: PushCapabilities): List<String> {
         val supportedTables = capabilities.appendTables.map(::appendSpec) +
             capabilities.mutableTables.map(::mutableSpec)
         val sql = PushDeviceDiscovery.query(supportedTables.map(TableSpec::sqlName))
-        db.query(SimpleSQLiteQuery(sql)).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) cursor.getString(0)?.takeIf { it.isNotBlank() }?.let(::add)
-            }
+        return CoreDb.queryPositional(sql, emptyList()).mapNotNull { row ->
+            row.stringOrNull("deviceId")?.takeIf { it.isNotBlank() }
         }
     }
 
@@ -59,18 +56,13 @@ class PushDao internal constructor(private val db: WhoopDatabase) : PushSnapshot
         rowId: Long,
     ): PushAppendRecord? {
         val spec = appendSpec(table)
-        return db.withTransaction {
-            val args = arrayOf<Any?>(deviceId, rowId, 1)
-            ensureSnapshotBounded(
-                PushSnapshotPreflight.query(spec.sqlName, spec.columns, "deviceId = ? AND rowid = ?", "rowid ASC"),
-                args,
-            )
-            val sql = "SELECT rowid AS _pushRowId, ${spec.columns.joinToString()} FROM ${spec.sqlName} " +
-                "WHERE deviceId = ? AND rowid = ? LIMIT 1"
-            db.query(SimpleSQLiteQuery(sql, arrayOf(deviceId, rowId))).use { cursor ->
-                if (cursor.moveToFirst()) cursor.appendRecord(spec) else null
-            }
-        }
+        ensureSnapshotBounded(
+            PushSnapshotPreflight.query(spec.sqlName, spec.columns, "deviceId = ? AND rowid = ?", "rowid ASC"),
+            listOf(deviceId, rowId, 1),
+        )
+        val sql = "SELECT rowid AS _pushRowId, ${spec.columns.joinToString()} FROM ${spec.sqlName} " +
+            "WHERE deviceId = ? AND rowid = ? LIMIT 1"
+        return CoreDb.queryPositional(sql, listOf(deviceId, rowId)).firstOrNull()?.appendRecord(spec)
     }
 
     override suspend fun appendRows(
@@ -81,20 +73,13 @@ class PushDao internal constructor(private val db: WhoopDatabase) : PushSnapshot
     ): List<PushAppendRecord> {
         require(limit in 1..PushProtocol.MAX_RECORDS + 1)
         val spec = appendSpec(table)
-        return db.withTransaction {
-            val args = arrayOf<Any?>(deviceId, afterRowId, limit)
-            ensureSnapshotBounded(
-                PushSnapshotPreflight.query(spec.sqlName, spec.columns, "deviceId = ? AND rowid > ?", "rowid ASC"),
-                args,
-            )
-            val sql = "SELECT rowid AS _pushRowId, ${spec.columns.joinToString()} FROM ${spec.sqlName} " +
-                "WHERE deviceId = ? AND rowid > ? ORDER BY rowid ASC LIMIT ?"
-            db.query(SimpleSQLiteQuery(sql, arrayOf(deviceId, afterRowId, limit))).use { cursor ->
-                buildList {
-                    while (cursor.moveToNext()) add(cursor.appendRecord(spec))
-                }
-            }
-        }
+        ensureSnapshotBounded(
+            PushSnapshotPreflight.query(spec.sqlName, spec.columns, "deviceId = ? AND rowid > ?", "rowid ASC"),
+            listOf(deviceId, afterRowId, limit),
+        )
+        val sql = "SELECT rowid AS _pushRowId, ${spec.columns.joinToString()} FROM ${spec.sqlName} " +
+            "WHERE deviceId = ? AND rowid > ? ORDER BY rowid ASC LIMIT ?"
+        return CoreDb.queryPositional(sql, listOf(deviceId, afterRowId, limit)).map { it.appendRecord(spec) }
     }
 
     override suspend fun mutableRows(
@@ -105,57 +90,44 @@ class PushDao internal constructor(private val db: WhoopDatabase) : PushSnapshot
     ): List<PushMutableRecord> {
         require(limit in 1..(PushProtocol.MAX_MUTABLE_SNAPSHOT_RECORDS + 1))
         val spec = mutableSpec(table)
-        return db.withTransaction {
-            val (predicate, bounds) = when (table) {
-                PushMutableTable.DAILY_METRIC, PushMutableTable.JOURNAL ->
-                    "day >= ? AND day <= ?" to arrayOf<Any?>(window.fromDay, window.toDay)
-                PushMutableTable.SLEEP_SESSION, PushMutableTable.WORKOUT ->
-                    "startTs >= ? AND startTs < ?" to
-                        arrayOf<Any?>(window.startTsInclusive, window.endTsExclusive)
-            }
-            val sql = "SELECT ${spec.columns.joinToString()} FROM ${spec.sqlName} " +
-                "WHERE deviceId = ? AND $predicate ORDER BY ${spec.keyColumns.joinToString()} ASC LIMIT ?"
-            val args = arrayOfNulls<Any?>(bounds.size + 2)
-            args[0] = deviceId
-            bounds.copyInto(args, destinationOffset = 1)
-            args[args.lastIndex] = limit
-            ensureSnapshotBounded(
-                PushSnapshotPreflight.query(
-                    spec.sqlName,
-                    spec.columns,
-                    "deviceId = ? AND $predicate",
-                    "${spec.keyColumns.joinToString()} ASC",
-                ),
-                args,
-            )
-            db.query(SimpleSQLiteQuery(sql, args)).use { cursor ->
-                buildList {
-                    while (cursor.moveToNext()) add(cursor.mutableRecord(spec))
-                }
-            }
+        val (predicate, bounds) = when (table) {
+            PushMutableTable.DAILY_METRIC, PushMutableTable.JOURNAL ->
+                "day >= ? AND day <= ?" to listOf<Any?>(window.fromDay, window.toDay)
+            PushMutableTable.SLEEP_SESSION, PushMutableTable.WORKOUT ->
+                "startTs >= ? AND startTs < ?" to listOf<Any?>(window.startTsInclusive, window.endTsExclusive)
         }
+        val sql = "SELECT ${spec.columns.joinToString()} FROM ${spec.sqlName} " +
+            "WHERE deviceId = ? AND $predicate ORDER BY ${spec.keyColumns.joinToString()} ASC LIMIT ?"
+        val args = listOf<Any?>(deviceId) + bounds + listOf(limit)
+        ensureSnapshotBounded(
+            PushSnapshotPreflight.query(
+                spec.sqlName,
+                spec.columns,
+                "deviceId = ? AND $predicate",
+                "${spec.keyColumns.joinToString()} ASC",
+            ),
+            args,
+        )
+        return CoreDb.queryPositional(sql, args).map { it.mutableRecord(spec) }
     }
 
-    private fun ensureSnapshotBounded(sql: String, args: Array<Any?>) {
-        val estimate = db.query(SimpleSQLiteQuery(sql, args)).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getLong(0) else 0L
-        }
+    private suspend fun ensureSnapshotBounded(sql: String, args: List<Any?>) {
+        val estimate = CoreDb.scalarLong(CoreDb.queryPositional(sql, args)) ?: 0L
         if (estimate > PushSnapshotPreflight.MAX_ESTIMATED_SNAPSHOT_BYTES) {
             throw PushProtocolException("snapshot exceeds local memory limit")
         }
     }
 
-    private fun Cursor.appendRecord(spec: TableSpec): PushAppendRecord {
+    private fun CoreDb.Row.appendRecord(spec: TableSpec): PushAppendRecord {
         val values = values(spec)
-        val rowId = getLong(getColumnIndexOrThrow("_pushRowId"))
         return PushAppendRecord(
-            rowId,
+            long("_pushRowId"),
             spec.keyColumns.associateWith(values::get),
             spec.dataColumns.associateWith(values::get),
         )
     }
 
-    private fun Cursor.mutableRecord(spec: TableSpec): PushMutableRecord {
+    private fun CoreDb.Row.mutableRecord(spec: TableSpec): PushMutableRecord {
         val values = values(spec)
         return PushMutableRecord(
             spec.keyColumns.associateWith(values::get),
@@ -163,14 +135,17 @@ class PushDao internal constructor(private val db: WhoopDatabase) : PushSnapshot
         )
     }
 
-    private fun Cursor.values(spec: TableSpec): Map<String, Any?> = buildMap {
+    private fun CoreDb.Row.values(spec: TableSpec): Map<String, Any?> = buildMap {
         for (name in spec.columns) {
-            val index = getColumnIndexOrThrow(name)
-            val value: Any? = when (getType(index)) {
-                Cursor.FIELD_TYPE_NULL -> null
-                Cursor.FIELD_TYPE_INTEGER -> if (name in spec.booleanColumns) getLong(index) != 0L else getLong(index)
-                Cursor.FIELD_TYPE_FLOAT -> getDouble(index)
-                Cursor.FIELD_TYPE_STRING -> getString(index)
+            if (!has(name)) throw PushProtocolException("missing column ${spec.sqlName}.$name")
+            val value: Any? = when (val v = value(name)) {
+                null -> null
+                is Int, is Long -> {
+                    val n = (v as Number).toLong()
+                    if (name in spec.booleanColumns) n != 0L else n
+                }
+                is Number -> v.toDouble()
+                is String -> v
                 else -> throw PushProtocolException("unsupported SQLite type in ${spec.sqlName}.$name")
             }
             put(name, value)

@@ -1,6 +1,6 @@
 package com.noop.data
 
-import androidx.room.withTransaction
+import com.noop.data.withTransaction
 
 /**
  * Device-registry façade over [WhoopDao] + [WhoopDatabase] — the Android port of the Swift

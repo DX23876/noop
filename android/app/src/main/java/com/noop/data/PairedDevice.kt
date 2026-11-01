@@ -1,7 +1,5 @@
 package com.noop.data
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 
 /*
  * Device-registry schema — the Android port of the Swift foundation in

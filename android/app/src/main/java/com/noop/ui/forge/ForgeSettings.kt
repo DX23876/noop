@@ -1232,12 +1232,8 @@ private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Un
             viewModel.setEffortStrengthBonus(it)
         }
         RowDivider()
-        // Parity plan 1.3: the classic screens' daily rows from the shared core, and the check that they agree.
-        var coreDays by remember { mutableStateOf(com.noop.core.CoreDailyRows.coreReads(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_core_days), stringResource(R.string.forge_lab_core_days_detail), coreDays) {
-            coreDays = it
-            com.noop.core.CoreDailyRows.setCoreReads(context, it)
-        }
+        // Parity plan 1.3: the check that the classic screens' rows and the core's agree. Since Android has no
+        // Room store the classic rows come from the core as well (CORE-ONLY-PLAN), so the switch is gone.
         val scope = rememberCoroutineScope()
         var comparison by remember { mutableStateOf<String?>(null) }
         val same = stringResource(R.string.forge_lab_compare_same)

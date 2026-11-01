@@ -1,9 +1,5 @@
 package com.noop.data
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
 
 /*
  * Room entities mirroring the verified GRDB schema in
@@ -41,7 +37,7 @@ import androidx.room.PrimaryKey
 /** Device row. Swift `device` table (Database.swift v1). Natural key = id. */
 @Entity(tableName = "device")
 data class DeviceRow(
-    @androidx.room.PrimaryKey
+    @PrimaryKey
     val id: String,
     val mac: String? = null,
     val name: String? = null,
@@ -490,7 +486,7 @@ enum class Vo2MaxEstimator(val provenanceId: String) {
     ],
 )
 data class LabMarkerRow(
-    @androidx.room.PrimaryKey
+    @PrimaryKey
     val id: String,
     val deviceId: String,
     val markerKey: String,

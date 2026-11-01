@@ -131,70 +131,7 @@ class BackupSettingsCodecTest {
         return f
     }
 
-    @Test fun zipWithSettingsStagesBothDbAndSettings() {
-        val liveDb = fakeSqlite("rows")
-        val settingsJson = requireNotNull(
-            BackupSettingsCodec.encode(mapOf("profile.age" to 41, "profile.weightKg" to 90.5)),
-        )
-        val backup = tmp.newFile("with-settings.noopbak")
-        DataBackup.writeBackupZip(liveDb, backup, settingsJson)
 
-        val stagedDb = tmp.newFile()
-        val stagedSettings = File(tmp.root, "staged-settings.json")
-        val result = DataBackup.stageBackupSqlite(
-            backup.inputStream(), DataBackup.peekHeader(backup), stagedDb, stagedSettings,
-        )
 
-        assertEquals(DataBackup.StageResult.OK, result)
-        assertEquals(liveDb.readBytes().toList(), stagedDb.readBytes().toList())
-        assertTrue("settings.json must be staged alongside the DB", stagedSettings.exists())
-        val back = BackupSettingsCodec.decode(stagedSettings.readText(Charsets.UTF_8))
-        assertEquals(41, back["profile.age"])
-        assertEquals(90.5, back["profile.weightKg"])
-    }
 
-    @Test fun legacySingleEntryZipStagesDbAndNoSettings() {
-        val liveDb = fakeSqlite("legacy-rows")
-        val backup = tmp.newFile("legacy.noopbak")
-        DataBackup.writeBackupZip(liveDb, backup) // settingsJson defaults null → pre-#1000 shape
-
-        val stagedDb = tmp.newFile()
-        val stagedSettings = File(tmp.root, "staged-settings.json")
-        val result = DataBackup.stageBackupSqlite(
-            backup.inputStream(), DataBackup.peekHeader(backup), stagedDb, stagedSettings,
-        )
-
-        assertEquals("A legacy 1-entry zip still stages fine", DataBackup.StageResult.OK, result)
-        assertEquals(liveDb.readBytes().toList(), stagedDb.readBytes().toList())
-        assertFalse("No settings entry → no staged settings, no error", stagedSettings.exists())
-    }
-
-    @Test fun stagingWithoutSettingsDestStillWorksAsBefore() {
-        // The pre-#1000 call shape (no settingsDest) keeps working for a 2-entry zip.
-        val liveDb = fakeSqlite("rows2")
-        val backup = tmp.newFile("two-entry.noopbak")
-        DataBackup.writeBackupZip(liveDb, backup, """{"profile.age":30}""")
-
-        val stagedDb = tmp.newFile()
-        val result = DataBackup.stageBackupSqlite(backup.inputStream(), DataBackup.peekHeader(backup), stagedDb)
-        assertEquals(DataBackup.StageResult.OK, result)
-        assertEquals(liveDb.readBytes().toList(), stagedDb.readBytes().toList())
-    }
-
-    @Test fun zipWithNonCanonicalSqliteEntryIsRejected() {
-        val backup = tmp.newFile("wrong-entry.noopbak")
-        ZipOutputStream(backup.outputStream()).use { zip ->
-            zip.putNextEntry(ZipEntry("evil.sqlite"))
-            zip.write(sqliteMagic)
-            zip.write("rows".toByteArray())
-            zip.closeEntry()
-        }
-
-        val stagedDb = tmp.newFile()
-        val result = DataBackup.stageBackupSqlite(
-            backup.inputStream(), DataBackup.peekHeader(backup), stagedDb,
-        )
-
-        assertEquals(DataBackup.StageResult.NO_DB_IN_ZIP, result)
-    }
 }

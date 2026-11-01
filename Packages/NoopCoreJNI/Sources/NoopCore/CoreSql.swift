@@ -32,8 +32,8 @@ enum CoreSql {
         }
     }
 
-    /// Runs every statement in one write transaction; `{"changes": [...], "lastRowid": n}` or an error, in which
-    /// case nothing was written.
+    /// Runs every statement in one write transaction; `{"changes": [...], "rowids": [...]}` per statement, or an
+    /// error, in which case nothing was written.
     static func exec(_ args: [String: Any]) async -> String {
         guard let writer = ShadowSession.storeAndPath?.0.registryWriter else { return #"{"error":"noStore"}"# }
         let raw = args["statements"] as? [[String: Any]] ?? []
@@ -41,12 +41,16 @@ enum CoreSql {
         guard !statements.isEmpty, statements.count == raw.count else { return #"{"error":"invalid"}"# }
         do {
             let result = try await writer.write { db -> [String: Any] in
-                var changes: [Int] = []
+                var changes: [Int] = [], rowids: [Int64] = []
                 for statement in statements {
                     try db.execute(sql: statement.sql, arguments: statement.arguments)
                     changes.append(db.changesCount)
+                    // Room's insert answer: the new row's id, or -1 when the conflict clause kept the old row.
+                    rowids.append(db.changesCount > 0 ? db.lastInsertedRowID : -1)
                 }
-                return ["changes": changes, "lastRowid": db.lastInsertedRowID]
+                // The day analysis reuses days whose inputs did not change; a host write must say they did.
+                if changes.contains(where: { $0 > 0 }) { try WhoopStore.markHostWrite(db) }
+                return ["changes": changes, "rowids": rowids]
             }
             return encode(result)
         } catch {

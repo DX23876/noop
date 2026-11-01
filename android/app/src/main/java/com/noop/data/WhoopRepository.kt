@@ -2,7 +2,7 @@ package com.noop.data
 
 import android.content.Context
 import com.noop.core.CoreUserInputs
-import androidx.room.withTransaction
+import com.noop.data.withTransaction
 import com.noop.protocol.DroppedRtcEvent
 import com.noop.protocol.RrSourceChannel
 import com.noop.protocol.Whoop5Ecg
@@ -598,8 +598,19 @@ class WhoopRepository(
         ppgWaveformPruneEveryRows: Int = PPG_WAVEFORM_PRUNE_EVERY_ROWS,
         ecgWaveformRetentionRows: Int = ECG_WAVEFORM_RETENTION_ROWS,
         ecgWaveformPruneEveryRows: Int = ECG_WAVEFORM_PRUNE_EVERY_ROWS,
+        bankedByCore: Boolean = false,
     ): InsertCounts {
         if (streams.isEmpty) return InsertCounts()
+        // Fork (DX23876), Android without Room: a WHOOP strap's frames reach the shared core too, and its Collector
+        // and Backfiller bank them in the store this repository reads (CoreShadow). Writing the Kotlin decode as
+        // well would put a second decoding of the same records beside the core's. The counts are what this
+        // batch offered; what the core banked is in CoreShadow's own log, and the history ack waits for it.
+        if (bankedByCore && com.noop.core.CoreShadow.running) {
+            return InsertCounts(hr = streams.hr.size, rr = streams.rr.size, events = streams.events.size,
+                                battery = streams.battery.size, spo2 = streams.spo2.size,
+                                skinTemp = streams.skinTemp.size, steps = streams.steps.size,
+                                resp = streams.resp.size, gravity = streams.gravity.size)
+        }
 
         val result = transactor.run {
             insertWithinTransaction(

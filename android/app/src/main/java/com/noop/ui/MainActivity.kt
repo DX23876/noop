@@ -58,6 +58,11 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * dark-only, so we draw edge-to-edge over the near-black [Palette.surfaceBase].
  */
 class MainActivity : ComponentActivity() {
+    private companion object {
+        /** Set when this process's Room adoption failed, so the app opens; the next start tries again. */
+        @Volatile var skipRoomAdoption = false
+    }
+
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLanguagePrefs.wrap(newBase))
@@ -93,6 +98,30 @@ class MainActivity : ComponentActivity() {
                             recreate()
                         },
                     )
+                }
+            }
+            return
+        }
+        // Fork (DX23876), Android without Room: an earlier build's Room store is handed to the core once, before
+        // any screen reads, and the app restarts so every part of it opens on the adopted store.
+        if (!skipRoomAdoption && com.noop.core.CoreRoomAdoption.pending(this)) {
+            setContent { NoopTheme { DataUpdateScreen() } }
+            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val outcome = com.noop.core.CoreRoomAdoption.adoptIfNeeded(applicationContext)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (outcome is com.noop.core.CoreRoomAdoption.Outcome.Adopted) {
+                        val ctx = applicationContext
+                        ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
+                            ?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                            ?.let { ctx.startActivity(it) }
+                        Runtime.getRuntime().exit(0)
+                    } else {
+                        // A failed adoption keeps the Room file for the next start; the app opens meanwhile.
+                        android.util.Log.e("MainActivity", "Room adoption did not finish: $outcome")
+                        skipRoomAdoption = true
+                        recreate()
+                    }
                 }
             }
             return

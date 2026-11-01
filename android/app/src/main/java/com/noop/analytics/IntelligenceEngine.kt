@@ -400,6 +400,13 @@ object IntelligenceEngine {
      * ANR-killed the app once a few nights had accumulated. Dispatchers.Default is the CPU pool; Room's
      * suspend DAO calls are main-safe under any dispatcher. (#125)
      */
+    /**
+     * Fork (DX23876), Android without Room (`docs/fork/android/CORE-ONLY-PLAN.md`): whether the shared core scores
+     * the days, in which case this engine writes nothing. `NoopApplication` points it at the running core; the
+     * pure-JVM tests keep the default and exercise the engine as before.
+     */
+    @Volatile var coreOwnsScores: () -> Boolean = { false }
+
     suspend fun analyzeRecent(
         repo: WhoopRepository,
         profile: UserProfile = UserProfile(),
@@ -504,6 +511,8 @@ object IntelligenceEngine {
         stepsMotionCacheSet: ((String) -> Unit)? = null,
         preserveUnscoredHistory: Boolean = false,
     ): List<Computed> = withContext(Dispatchers.Default) {
+        // Fork (DX23876), Android without Room: the shared core scores every day in its own pass.
+        if (coreOwnsScores()) return@withContext emptyList()
         // #1005: time the whole pass so a re-score STORM is visible in the strap log (the trigger lines
         // record WHY each pass runs; this records how many nights and how long — the CPU cost per run).
         val reScoreStart = System.nanoTime()
@@ -606,7 +615,7 @@ object IntelligenceEngine {
         ownerSource: DayOwnerSource? = null,
         preserveUnscoredHistory: Boolean = true,
     ) {
-        if (flagGet()) return
+        if (flagGet() || coreOwnsScores()) return
         analyzeRecent(
             repo = repo,
             profile = profile,
@@ -2766,6 +2775,7 @@ object IntelligenceEngine {
     suspend fun recomputeFitnessAgeOnly(
         repo: WhoopRepository, profile: UserProfile, importedDeviceId: String, maxDays: Int = 21,
     ): Boolean {
+        if (coreOwnsScores()) return false
         val computedId = importedDeviceId + "-noop"
         val nowSeconds = System.currentTimeMillis() / 1_000L
         val tzOffsetSeconds = java.util.TimeZone.getDefault().getOffset(nowSeconds * 1_000L) / 1_000L

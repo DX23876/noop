@@ -4453,8 +4453,6 @@
     <string name="forge_sd_need">Bedarf pro Nacht</string>
     <string name="forge_sd_nights">Nächte</string>
     <string name="forge_ask_coach">Coach fragen</string>
-    <string name="forge_lab_core_days">Gemeinsamer Kern liest Tageswerte und Workouts</string>
-    <string name="forge_lab_core_days_detail">Für Tester. Die klassischen Bildschirme lesen Schlaf, Charge, Effort und Vitalwerte jedes Tages sowie die Workout-Liste aus dem gemeinsamen Kern, wie auf dem iPhone, statt aus der eigenen Kopie des Telefons.</string>
     <string name="forge_lab_compare">Mit der Kopie des Telefons vergleichen</string>
     <string name="forge_lab_compare_same">Keine Abweichungen in den letzten Tagen.</string>
     <string name="forge_lab_compare_diff">%1$d Abweichungen, zuerst: %2$s</string>
@@ -5001,4 +4999,6 @@
     <string name="forge_tile_rest_hr">Ruhe-HF</string>
     <string name="forge_lab_strength_effort">Kraft in der Belastung</string>
     <string name="forge_lab_strength_effort_detail">Krafteinheiten, die du nach dem Training bewertest, erhöhen die Belastung über deinen Puls hinaus, stärker bei härterer Bewertung und längerer Einheit. Unbewertete Einheiten zählen nicht. An WHOOP abgestimmt, mit einer angenommenen Anstrengung von 7 von 10.</string>
+    <string name="forge_data_update_title">Deine Daten werden übernommen</string>
+    <string name="forge_data_update_body">NOOP überträgt deinen Verlauf in den neuen Speicher. Das passiert einmal und kann ein paar Minuten dauern. Lass die App geöffnet.</string>
 </resources>

@@ -1,12 +1,5 @@
 package com.noop.data
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Transaction
-import androidx.room.Update
-import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 /** Kept as one compile-time constant so Room and the plain-JVM SQLite regression test execute the exact
