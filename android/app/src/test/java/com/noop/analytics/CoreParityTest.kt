@@ -137,6 +137,20 @@ class CoreParityTest {
                 if (i.isNull("need")) null else i.getDouble("need"), i.getInt("needNights"))
                 ?.let { obj("charge" to it.charge, "band" to it.band, "baseline" to it.baseline, "planned" to it.plannedSleepHours) }
         },
+        "Baselines" to { i ->
+            val cfg = when (i.getString("kind")) { "hrv" -> Baselines.hrvCfg; "rhr" -> Baselines.restingHRCfg; else -> Baselines.respCfg }
+            val days = strings(i.getJSONArray("days")); val today = i.getString("today")
+            val raw = i.getJSONArray("values")
+            val values = (0 until raw.length()).map { if (raw.isNull(it)) null else raw.getDouble(it) }
+            fun state(s: BaselineState) = obj("baseline" to s.baseline, "spread" to s.spread, "n" to s.nValid,
+                                              "since" to s.nightsSinceUpdate, "status" to s.status.name.lowercase())
+            val coverage = Baselines.recentHrvCoverage(days, values, today)
+            obj("fold" to state(Baselines.foldHistory(values, cfg)),
+                "foldEpoch" to state(Baselines.foldHistory(values, days, cfg, i.getDouble("epoch"))),
+                "cutoff" to Baselines.cutoffKey(today, i.getInt("carry")),
+                "observed" to coverage.observed, "missing" to coverage.missing,
+                "since" to Baselines.nightsSinceNewestValidNight(days, values, today))
+        },
     )
 
     private fun oracleDir(): File {

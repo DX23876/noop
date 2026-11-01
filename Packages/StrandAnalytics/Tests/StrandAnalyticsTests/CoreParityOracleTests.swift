@@ -279,6 +279,33 @@ final class CoreParityOracleTests: XCTestCase {
                        needHours: a["need"] as? Double, needNights: a["needNights"] as! Int) else { return NSNull() }
                    return ["charge": f.charge, "band": f.band, "baseline": f.baseline, "planned": f.plannedSleepHours]
                }),
+        Oracle(name: "Baselines",
+               inputs: cases(40, seed: 16) { r in
+                   let start = 20_300 + r.int(0...100), n = r.int(0...60)
+                   let kind = ["hrv", "rhr", "resp"][r.int(0...2)]
+                   let range: ClosedRange<Double> = kind == "hrv" ? 5...250 : kind == "rhr" ? 30...110 : 8...30
+                   return ["kind": kind, "days": (0..<n).map { day(start + $0) },
+                           "values": (0..<n).map { _ in r.chance(0.2) ? NSNull() as Any : r.double(range) as Any },
+                           "today": day(start + n + r.int(0...5)), "epoch": r.chance(0.5) ? 0.0 : Double(start + n / 2) * 86_400,
+                           "carry": r.int(0...10)]
+               },
+               run: { a in
+                   let kind = a["kind"] as! String
+                   let cfg = kind == "hrv" ? Baselines.hrvCfg : kind == "rhr" ? Baselines.restingHRCfg : Baselines.respCfg
+                   let days = a["days"] as! [String], today = a["today"] as! String
+                   let values = (a["values"] as! [Any]).map { $0 as? Double }
+                   func state(_ s: BaselineState) -> [String: Any] {
+                       ["baseline": s.baseline, "spread": s.spread, "n": s.nValid, "since": s.nightsSinceUpdate,
+                        "status": s.status.rawValue]
+                   }
+                   let coverage = Baselines.recentHrvCoverage(dayKeys: days, nightlyHrv: values, today: today)
+                   return ["fold": state(Baselines.foldHistory(values, cfg: cfg)),
+                           "foldEpoch": state(Baselines.foldHistory(values, dayKeys: days, cfg: cfg,
+                                                                    baselineEpoch: a["epoch"] as? Double)),
+                           "cutoff": Baselines.cutoffKey(todayKey: today, carryDays: a["carry"] as! Int),
+                           "observed": coverage.observed, "missing": coverage.missing,
+                           "since": nn(Baselines.nightsSinceNewestValidNight(dayKeys: days, nightlyHrv: values, today: today))]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {
