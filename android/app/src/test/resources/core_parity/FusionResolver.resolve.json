@@ -1,0 +1,1972 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 143.608
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 185.62899999999999
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 1,
+            "reason" : "computed on device",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 185.62899999999999
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 143.608
+          }
+        ],
+        "value" : 185.62899999999999,
+        "winner" : "my-whoop-noop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 114.87
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 122.613
+          }
+        ],
+        "key" : "weight"
+      },
+      "output" : {
+        "agreement" : "agree",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 122.613
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 114.87
+          }
+        ],
+        "value" : 122.613,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "apple-health",
+            "value" : 110.63800000000001
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 180.047
+          }
+        ],
+        "key" : "hrv"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 1,
+            "reason" : "computed on device",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 180.047
+          },
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 110.63800000000001
+          }
+        ],
+        "value" : 180.047,
+        "winner" : "my-whoop-noop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop",
+            "value" : 98.236000000000004
+          },
+          {
+            "source" : "apple-health",
+            "value" : 175.416
+          },
+          {
+            "source" : "health-connect",
+            "value" : 64.174999999999997
+          }
+        ],
+        "key" : "weight"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 98.236000000000004
+          },
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 175.416
+          },
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 64.174999999999997
+          }
+        ],
+        "value" : 98.236000000000004,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "apple-health",
+            "value" : 146.315
+          },
+          {
+            "source" : "local-cache",
+            "value" : 65.813000000000002
+          },
+          {
+            "source" : "local-cache",
+            "value" : 77.847999999999999
+          },
+          {
+            "source" : "health-connect",
+            "value" : 49.734000000000002
+          }
+        ],
+        "key" : "spo2"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 146.315
+          },
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 49.734000000000002
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 65.813000000000002
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 77.847999999999999
+          }
+        ],
+        "value" : 146.315,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop",
+            "value" : 49.993000000000002
+          },
+          {
+            "source" : "local-cache",
+            "value" : 18.981999999999999
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 49.993000000000002
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 18.981999999999999
+          }
+        ],
+        "value" : 49.993000000000002,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 83.284999999999997
+          },
+          {
+            "source" : "apple-health",
+            "value" : 81.203999999999994
+          }
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : {
+        "agreement" : "agree",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 81.203999999999994
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 83.284999999999997
+          }
+        ],
+        "value" : 81.203999999999994,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 194.501
+          }
+        ],
+        "key" : "weight"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 5,
+            "reason" : "direct sensor",
+            "source" : "nutrition-csv",
+            "tier" : 0,
+            "value" : 194.501
+          }
+        ],
+        "value" : 194.501,
+        "winner" : "nutrition-csv"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "apple-health",
+            "value" : 150.82400000000001
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 150.82400000000001
+          }
+        ],
+        "value" : 150.82400000000001,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "apple-health",
+            "value" : 49.671999999999997
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 49.671999999999997
+          }
+        ],
+        "value" : 49.671999999999997,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "weight"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "steps"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "xiaomi-band",
+            "value" : 121.77200000000001
+          }
+        ],
+        "key" : "spo2"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 4,
+            "reason" : "direct sensor",
+            "source" : "xiaomi-band",
+            "tier" : 0,
+            "value" : 121.77200000000001
+          }
+        ],
+        "value" : 121.77200000000001,
+        "winner" : "xiaomi-band"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 106.08
+          },
+          {
+            "source" : "apple-health",
+            "value" : 176.40100000000001
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 176.40100000000001
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 106.08
+          }
+        ],
+        "value" : 176.40100000000001,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 166.51499999999999
+          },
+          {
+            "source" : "local-cache",
+            "value" : 42.533999999999999
+          }
+        ],
+        "key" : "hrv"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 166.51499999999999
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 42.533999999999999
+          }
+        ],
+        "value" : 166.51499999999999,
+        "winner" : "nutrition-csv"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 78.694999999999993
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 136.42500000000001
+          },
+          {
+            "source" : "health-connect",
+            "value" : 178.32300000000001
+          },
+          {
+            "source" : "xiaomi-band",
+            "value" : 118.68000000000001
+          }
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 178.32300000000001
+          },
+          {
+            "priority" : 1,
+            "reason" : "estimate",
+            "source" : "my-whoop-noop",
+            "tier" : 3,
+            "value" : 136.42500000000001
+          },
+          {
+            "priority" : 4,
+            "reason" : "estimate",
+            "source" : "xiaomi-band",
+            "tier" : 3,
+            "value" : 118.68000000000001
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 78.694999999999993
+          }
+        ],
+        "value" : 178.32300000000001,
+        "winner" : "health-connect"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 198.613
+          }
+        ],
+        "key" : "spo2"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 198.613
+          }
+        ],
+        "value" : 198.613,
+        "winner" : "health-connect"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop",
+            "value" : 115.625
+          }
+        ],
+        "key" : "steps"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "step estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 115.625
+          }
+        ],
+        "value" : 115.625,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 117.949
+          },
+          {
+            "source" : "xiaomi-band",
+            "value" : 90.141999999999996
+          },
+          {
+            "source" : "health-connect",
+            "value" : 70.165000000000006
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 169.90700000000001
+          }
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 4,
+            "reason" : "worn sensor",
+            "source" : "xiaomi-band",
+            "tier" : 0,
+            "value" : 90.141999999999996
+          },
+          {
+            "priority" : 1,
+            "reason" : "worn sensor",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 169.90700000000001
+          },
+          {
+            "priority" : 3,
+            "reason" : "worn sensor",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 117.949
+          },
+          {
+            "priority" : 3,
+            "reason" : "worn sensor",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 70.165000000000006
+          }
+        ],
+        "value" : 90.141999999999996,
+        "winner" : "xiaomi-band"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop-noop",
+            "value" : 74.183000000000007
+          }
+        ],
+        "key" : "steps"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 1,
+            "reason" : "step estimate",
+            "source" : "my-whoop-noop",
+            "tier" : 3,
+            "value" : 74.183000000000007
+          }
+        ],
+        "value" : 74.183000000000007,
+        "winner" : "my-whoop-noop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop",
+            "value" : 69.495999999999995
+          }
+        ],
+        "key" : "weight"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 69.495999999999995
+          }
+        ],
+        "value" : 69.495999999999995,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 153.33699999999999
+          },
+          {
+            "source" : "health-connect",
+            "value" : 63.133000000000003
+          }
+        ],
+        "key" : "spo2"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 63.133000000000003
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 153.33699999999999
+          }
+        ],
+        "value" : 63.133000000000003,
+        "winner" : "health-connect"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop-noop",
+            "value" : 112.541
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 163.28800000000001
+          },
+          {
+            "source" : "local-cache",
+            "value" : 181.78399999999999
+          },
+          {
+            "source" : "xiaomi-band",
+            "value" : 95.549000000000007
+          }
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 4,
+            "reason" : "worn sensor",
+            "source" : "xiaomi-band",
+            "tier" : 0,
+            "value" : 95.549000000000007
+          },
+          {
+            "priority" : 1,
+            "reason" : "worn sensor",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 112.541
+          },
+          {
+            "priority" : 1,
+            "reason" : "worn sensor",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 163.28800000000001
+          },
+          {
+            "priority" : 6,
+            "reason" : "worn sensor",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 181.78399999999999
+          }
+        ],
+        "value" : 95.549000000000007,
+        "winner" : "xiaomi-band"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 88.069999999999993
+          }
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 88.069999999999993
+          }
+        ],
+        "value" : 88.069999999999993,
+        "winner" : "local-cache"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 46.213999999999999
+          },
+          {
+            "source" : "nutrition-csv",
+            "value" : 115.10599999999999
+          },
+          {
+            "source" : "apple-health",
+            "value" : 100.82899999999999
+          }
+        ],
+        "key" : "weight"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 5,
+            "reason" : "direct sensor",
+            "source" : "nutrition-csv",
+            "tier" : 0,
+            "value" : 115.10599999999999
+          },
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 100.82899999999999
+          },
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 46.213999999999999
+          }
+        ],
+        "value" : 115.10599999999999,
+        "winner" : "nutrition-csv"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop-noop",
+            "value" : 43.948999999999998
+          },
+          {
+            "source" : "local-cache",
+            "value" : 177.50399999999999
+          },
+          {
+            "source" : "health-connect",
+            "value" : 169.53200000000001
+          }
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 1,
+            "reason" : "worn sensor",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 43.948999999999998
+          },
+          {
+            "priority" : 3,
+            "reason" : "worn sensor",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 169.53200000000001
+          },
+          {
+            "priority" : 6,
+            "reason" : "worn sensor",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 177.50399999999999
+          }
+        ],
+        "value" : 43.948999999999998,
+        "winner" : "my-whoop-noop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop-noop",
+            "value" : 144.81399999999999
+          },
+          {
+            "source" : "health-connect",
+            "value" : 27.353999999999999
+          },
+          {
+            "source" : "nutrition-csv",
+            "value" : 0.23000000000000001
+          }
+        ],
+        "key" : "steps"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 3,
+            "reason" : "counts directly",
+            "source" : "health-connect",
+            "tier" : 0,
+            "value" : 27.353999999999999
+          },
+          {
+            "priority" : 1,
+            "reason" : "step estimate",
+            "source" : "my-whoop-noop",
+            "tier" : 3,
+            "value" : 144.81399999999999
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 0.23000000000000001
+          }
+        ],
+        "value" : 27.353999999999999,
+        "winner" : "health-connect"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 91.061999999999998
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 18.693000000000001
+          },
+          {
+            "source" : "local-cache",
+            "value" : 188.97900000000001
+          }
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 18.693000000000001
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 91.061999999999998
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 188.97900000000001
+          }
+        ],
+        "value" : 18.693000000000001,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "weight"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "weight"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "spo2"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop",
+            "value" : 100.673
+          },
+          {
+            "source" : "nutrition-csv",
+            "value" : 74.995999999999995
+          },
+          {
+            "source" : "nutrition-csv",
+            "value" : 114.886
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 140.255
+          }
+        ],
+        "key" : "steps"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "step estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 100.673
+          },
+          {
+            "priority" : 0,
+            "reason" : "step estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 140.255
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 74.995999999999995
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 114.886
+          }
+        ],
+        "value" : 100.673,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 104.529
+          },
+          {
+            "source" : "apple-health",
+            "value" : 165.02699999999999
+          }
+        ],
+        "key" : "weight"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 165.02699999999999
+          },
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 104.529
+          }
+        ],
+        "value" : 165.02699999999999,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 37.433999999999997
+          }
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 6,
+            "reason" : "worn sensor",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 37.433999999999997
+          }
+        ],
+        "value" : 37.433999999999997,
+        "winner" : "local-cache"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 183.06899999999999
+          },
+          {
+            "source" : "apple-health",
+            "value" : 126.06100000000001
+          }
+        ],
+        "key" : "rhr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 126.06100000000001
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 183.06899999999999
+          }
+        ],
+        "value" : 126.06100000000001,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 135.14599999999999
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 140.453
+          },
+          {
+            "source" : "nutrition-csv",
+            "value" : 144.898
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 24.917000000000002
+          }
+        ],
+        "key" : "steps"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "step estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 140.453
+          },
+          {
+            "priority" : 1,
+            "reason" : "step estimate",
+            "source" : "my-whoop-noop",
+            "tier" : 3,
+            "value" : 24.917000000000002
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 144.898
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 135.14599999999999
+          }
+        ],
+        "value" : 140.453,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 38.054000000000002
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 135.209
+          },
+          {
+            "source" : "xiaomi-band",
+            "value" : 166.279
+          }
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 135.209
+          },
+          {
+            "priority" : 4,
+            "reason" : "estimate",
+            "source" : "xiaomi-band",
+            "tier" : 3,
+            "value" : 166.279
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 38.054000000000002
+          }
+        ],
+        "value" : 135.209,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "xiaomi-band",
+            "value" : 179.666
+          }
+        ],
+        "key" : "steps"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 4,
+            "reason" : "counts directly",
+            "source" : "xiaomi-band",
+            "tier" : 0,
+            "value" : 179.666
+          }
+        ],
+        "value" : 179.666,
+        "winner" : "xiaomi-band"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 10.337
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 10.337
+          }
+        ],
+        "value" : 10.337,
+        "winner" : "nutrition-csv"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop-noop",
+            "value" : 24.417999999999999
+          }
+        ],
+        "key" : "sleep_total"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 1,
+            "reason" : "computed on device",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 24.417999999999999
+          }
+        ],
+        "value" : 24.417999999999999,
+        "winner" : "my-whoop-noop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 182.75700000000001
+          },
+          {
+            "source" : "local-cache",
+            "value" : 86.640000000000001
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 182.75700000000001
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 86.640000000000001
+          }
+        ],
+        "value" : 182.75700000000001,
+        "winner" : "health-connect"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : null
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 82.983000000000004
+          }
+        ],
+        "key" : "sleep_total"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 82.983000000000004
+          }
+        ],
+        "value" : 82.983000000000004,
+        "winner" : "local-cache"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 0.94899999999999995
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 115.735
+          },
+          {
+            "source" : "health-connect",
+            "value" : 141.97499999999999
+          },
+          {
+            "source" : "nutrition-csv",
+            "value" : 91.132999999999996
+          }
+        ],
+        "key" : "steps"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 3,
+            "reason" : "counts directly",
+            "source" : "health-connect",
+            "tier" : 0,
+            "value" : 0.94899999999999995
+          },
+          {
+            "priority" : 3,
+            "reason" : "counts directly",
+            "source" : "health-connect",
+            "tier" : 0,
+            "value" : 141.97499999999999
+          },
+          {
+            "priority" : 0,
+            "reason" : "step estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 115.735
+          },
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 91.132999999999996
+          }
+        ],
+        "value" : 0.94899999999999995,
+        "winner" : "health-connect"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop-noop",
+            "value" : 48.874000000000002
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 92.239000000000004
+          },
+          {
+            "source" : "local-cache",
+            "value" : 72.534000000000006
+          }
+        ],
+        "key" : "rhr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 92.239000000000004
+          },
+          {
+            "priority" : 1,
+            "reason" : "computed on device",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 48.874000000000002
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 72.534000000000006
+          }
+        ],
+        "value" : 92.239000000000004,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop",
+            "value" : 48.619999999999997
+          }
+        ],
+        "key" : "weight"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 48.619999999999997
+          }
+        ],
+        "value" : 48.619999999999997,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 109.366
+          }
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 5,
+            "reason" : "worn sensor",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 109.366
+          }
+        ],
+        "value" : 109.366,
+        "winner" : "nutrition-csv"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 83.674000000000007
+          },
+          {
+            "source" : "apple-health",
+            "value" : 110.408
+          }
+        ],
+        "key" : "avg_hr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 2,
+            "reason" : "phone aggregate",
+            "source" : "apple-health",
+            "tier" : 2,
+            "value" : 110.408
+          },
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 83.674000000000007
+          }
+        ],
+        "value" : 110.408,
+        "winner" : "apple-health"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 32.164000000000001
+          }
+        ],
+        "key" : "sleep_total"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 32.164000000000001
+          }
+        ],
+        "value" : 32.164000000000001,
+        "winner" : "local-cache"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "my-whoop",
+            "value" : 142.49700000000001
+          }
+        ],
+        "key" : "sleep_total"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 142.49700000000001
+          }
+        ],
+        "value" : 142.49700000000001,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 172.62299999999999
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 4.1509999999999998
+          }
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 1,
+            "reason" : "worn sensor",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 4.1509999999999998
+          },
+          {
+            "priority" : 6,
+            "reason" : "worn sensor",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 172.62299999999999
+          }
+        ],
+        "value" : 4.1509999999999998,
+        "winner" : "my-whoop-noop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "nutrition-csv",
+            "value" : 75.007999999999996
+          }
+        ],
+        "key" : "spo2"
+      },
+      "output" : {
+        "agreement" : "single",
+        "contributors" : [
+          {
+            "priority" : 5,
+            "reason" : "estimate",
+            "source" : "nutrition-csv",
+            "tier" : 3,
+            "value" : 75.007999999999996
+          }
+        ],
+        "value" : 75.007999999999996,
+        "winner" : "nutrition-csv"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "local-cache",
+            "value" : 53.835000000000001
+          },
+          {
+            "source" : "local-cache",
+            "value" : 175.13399999999999
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 2.871
+          }
+        ],
+        "key" : "rhr"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 1,
+            "reason" : "computed on device",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 2.871
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 53.835000000000001
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 175.13399999999999
+          }
+        ],
+        "value" : 2.871,
+        "winner" : "my-whoop-noop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 85.215999999999994
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 63.307000000000002
+          },
+          {
+            "source" : "my-whoop-noop",
+            "value" : 28.809999999999999
+          }
+        ],
+        "key" : "skin_temp"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "worn sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 63.307000000000002
+          },
+          {
+            "priority" : 1,
+            "reason" : "worn sensor",
+            "source" : "my-whoop-noop",
+            "tier" : 1,
+            "value" : 28.809999999999999
+          },
+          {
+            "priority" : 3,
+            "reason" : "worn sensor",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 85.215999999999994
+          }
+        ],
+        "value" : 63.307000000000002,
+        "winner" : "my-whoop"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "health-connect",
+            "value" : 136.72
+          },
+          {
+            "source" : "xiaomi-band",
+            "value" : 13.220000000000001
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 110.264
+          }
+        ],
+        "key" : "active_kcal"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 3,
+            "reason" : "phone aggregate",
+            "source" : "health-connect",
+            "tier" : 2,
+            "value" : 136.72
+          },
+          {
+            "priority" : 0,
+            "reason" : "estimate",
+            "source" : "my-whoop",
+            "tier" : 3,
+            "value" : 110.264
+          },
+          {
+            "priority" : 4,
+            "reason" : "estimate",
+            "source" : "xiaomi-band",
+            "tier" : 3,
+            "value" : 13.220000000000001
+          }
+        ],
+        "value" : 136.72,
+        "winner" : "health-connect"
+      }
+    },
+    {
+      "input" : {
+        "inputs" : [
+          {
+            "source" : "xiaomi-band",
+            "value" : 155.554
+          },
+          {
+            "source" : "xiaomi-band",
+            "value" : 162.554
+          },
+          {
+            "source" : "my-whoop",
+            "value" : 28.960000000000001
+          },
+          {
+            "source" : "local-cache",
+            "value" : 164.166
+          }
+        ],
+        "key" : "spo2"
+      },
+      "output" : {
+        "agreement" : "conflict",
+        "contributors" : [
+          {
+            "priority" : 0,
+            "reason" : "direct sensor",
+            "source" : "my-whoop",
+            "tier" : 0,
+            "value" : 28.960000000000001
+          },
+          {
+            "priority" : 4,
+            "reason" : "direct sensor",
+            "source" : "xiaomi-band",
+            "tier" : 0,
+            "value" : 155.554
+          },
+          {
+            "priority" : 4,
+            "reason" : "direct sensor",
+            "source" : "xiaomi-band",
+            "tier" : 0,
+            "value" : 162.554
+          },
+          {
+            "priority" : 6,
+            "reason" : "estimate",
+            "source" : "local-cache",
+            "tier" : 3,
+            "value" : 164.166
+          }
+        ],
+        "value" : 28.960000000000001,
+        "winner" : "my-whoop"
+      }
+    }
+  ],
+  "function" : "FusionResolver.resolve"
+}

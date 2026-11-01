@@ -296,6 +296,16 @@ class CoreParityTest {
                     "processed" to state.lastProcessedGravityTs, "lastBuzz" to state.lastBuzzAt)
             }
         },
+        "FusionResolver.resolve" to { i ->
+            val raw = i.getJSONArray("inputs")
+            val inputs = (0 until raw.length()).map { k -> raw.getJSONObject(k).let { o ->
+                FusionInput(FusionSource.entries.first { it.id == o.getString("source") }, o.getDouble("value")) } }
+            FusionResolver.resolve(i.getString("key"), inputs)?.let { p ->
+                obj("value" to p.value, "winner" to p.winningSource.id, "agreement" to camel(p.agreement.name),
+                    "contributors" to p.contributors.map { obj("source" to it.source.id, "value" to it.value, "tier" to it.tier,
+                                                               "priority" to it.sourcePriority, "reason" to it.reason) })
+            }
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */

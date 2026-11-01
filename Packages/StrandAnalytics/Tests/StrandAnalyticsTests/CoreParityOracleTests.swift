@@ -601,6 +601,24 @@ final class CoreParityOracleTests: XCTestCase {
                                "processed": state.lastProcessedGravityTs, "lastBuzz": state.lastBuzzAt]
                    }
                }),
+        Oracle(name: "FusionResolver.resolve",
+               inputs: cases(60, seed: 32) { r in
+                   let keys = ["rhr", "avg_hr", "hrv", "spo2", "skin_temp", "steps", "sleep_total", "active_kcal", "weight"]
+                   let sources = FusionSource.allCases.map(\.rawValue)
+                   return ["key": keys[r.int(0...keys.count - 1)],
+                           "inputs": (0..<r.int(0...4)).map { _ in ["source": sources[r.int(0...sources.count - 1)],
+                                                                     "value": r.double(0...200)] }]
+               },
+               run: { a in
+                   let inputs = (a["inputs"] as! [[String: Any]]).map {
+                       FusionInput(source: FusionSource(rawValue: $0["source"] as! String)!, value: $0["value"] as! Double)
+                   }
+                   guard let p = FusionResolver.resolve(metricKey: a["key"] as! String, inputs: inputs) else { return NSNull() }
+                   return ["value": p.value, "winner": p.winningSource.rawValue, "agreement": p.agreement.rawValue,
+                           "contributors": p.contributors.map { ["source": $0.source.rawValue, "value": $0.value,
+                                                                 "tier": $0.tier, "priority": $0.sourcePriority,
+                                                                 "reason": $0.reason] }]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {
