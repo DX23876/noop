@@ -317,6 +317,23 @@ class CoreParityTest {
                 "metrics" to d.metrics.map { obj("metric" to it.metric.key, "mean" to it.thisWeek.mean, "median" to it.thisWeek.median,
                                                  "delta" to it.weekOverWeek.delta, "baseline" to it.baselineMean, "vs" to it.vsBaseline) })
         },
+        "ChargeBaselines.resolve" to { i ->
+            val res = ChargeBaselines.resolve(dailies(i.getJSONArray("imported")), dailies(i.getJSONArray("own")), i.getString("anchor"),
+                                              i.getDouble("hrvEpoch"), i.getDouble("recEpoch"))
+            fun st(s: BaselineState) = obj("baseline" to s.baseline, "spread" to s.spread, "n" to s.nValid, "status" to s.status.name.lowercase())
+            fun hist(h: ChargeBaselines.History) = obj("days" to h.dayKeys, "values" to h.values)
+            obj("hrv" to st(res.hrv), "rhr" to st(res.restingHR), "resp" to st(res.resp), "hrvHistory" to hist(res.hrvHistory),
+                "rhrHistory" to hist(res.restingHRHistory), "respHistory" to hist(res.respHistory))
+        },
+        "ChargeDrivers.chargeDrivers" to { i ->
+            fun b(k: String): BaselineState? = if (i.isNull(k)) null else i.getJSONArray(k).let { v ->
+                BaselineState(baseline = v.getDouble(0), spread = v.getDouble(1), nValid = v.getInt(2), nightsSinceUpdate = 0,
+                              status = if (v.getInt(2) >= 14) BaselineStatus.TRUSTED else BaselineStatus.PROVISIONAL)
+            }
+            RecoveryDrivers.chargeDrivers(i.getDouble("hrv"), i.getDouble("rhr"), if (i.isNull("resp")) null else i.getDouble("resp"),
+                b("hrvB")!!, b("rhrB"), b("respB"), if (i.isNull("sleep")) null else i.getDouble("sleep"),
+                if (i.isNull("skin")) null else i.getDouble("skin")).map { it.deltaPoints }
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */

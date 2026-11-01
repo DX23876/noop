@@ -642,6 +642,49 @@ final class CoreParityOracleTests: XCTestCase {
                                                        "median": $0.thisWeek.median, "delta": $0.weekOverWeek.delta,
                                                        "baseline": nn($0.baselineMean), "vs": nn($0.vsBaseline)] }]
                }),
+        Oracle(name: "ChargeBaselines.resolve",
+               inputs: cases(25, seed: 34) { r in
+                   let start = 20_800
+                   return ["imported": (0..<r.int(0...40)).map { dailyRow(&r, day: day(start + $0)) },
+                           "own": (0..<r.int(0...40)).map { dailyRow(&r, day: day(start + 20 + $0)) },
+                           "anchor": day(start + r.int(30...70)),
+                           "hrvEpoch": r.chance(0.5) ? 0.0 : Double(start + 35) * 86_400,
+                           "recEpoch": r.chance(0.5) ? 0.0 : Double(start + 25) * 86_400]
+               },
+               run: { a in
+                   let res = ChargeBaselines.resolve(imported: dailyRows(a["imported"]), own: dailyRows(a["own"]),
+                                                     anchorDay: a["anchor"] as! String, hrvEpoch: a["hrvEpoch"] as! Double,
+                                                     recoveryEpoch: a["recEpoch"] as! Double)
+                   func st(_ s: BaselineState) -> [String: Any] {
+                       ["baseline": s.baseline, "spread": s.spread, "n": s.nValid, "status": s.status.rawValue]
+                   }
+                   func hist(_ h: ChargeBaselines.History) -> [String: Any] {
+                       ["days": h.dayKeys, "values": h.values.map { nn($0) }]
+                   }
+                   return ["hrv": st(res.hrv), "rhr": st(res.restingHR), "resp": st(res.resp),
+                           "hrvHistory": hist(res.hrvHistory), "rhrHistory": hist(res.restingHRHistory),
+                           "respHistory": hist(res.respHistory)]
+               }),
+        Oracle(name: "ChargeDrivers.chargeDrivers",
+               inputs: cases(60, seed: 35) { r in
+                   ["hrv": r.double(15...150), "rhr": r.double(40...85), "resp": r.chance(0.2) ? NSNull() : r.double(11...20),
+                    "hrvB": [r.double(30...100), r.double(3...25), r.int(0...40)],
+                    "rhrB": r.chance(0.2) ? NSNull() : [r.double(45...70), r.double(1...6), r.int(0...40)] as Any,
+                    "respB": r.chance(0.3) ? NSNull() : [r.double(13...17), r.double(0.3...2), r.int(0...40)] as Any,
+                    "sleep": r.chance(0.2) ? NSNull() : r.double(30...100), "skin": r.chance(0.5) ? NSNull() : r.double(-1...1)]
+               },
+               run: { a in
+                   func b(_ any: Any?) -> BaselineState? {
+                       guard let v = (any as? [Any])?.compactMap({ ($0 as? NSNumber)?.doubleValue }), v.count == 3
+                       else { return nil }
+                       return BaselineState(baseline: v[0], spread: v[1], nValid: Int(v[2]), nightsSinceUpdate: 0,
+                                            status: Int(v[2]) >= 14 ? .trusted : .provisional)
+                   }
+                   return RecoveryScorer.chargeDrivers(hrv: a["hrv"] as! Double, rhr: a["rhr"] as! Double, resp: a["resp"] as? Double,
+                                                      hrvBaseline: b(a["hrvB"])!, rhrBaseline: b(a["rhrB"]), respBaseline: b(a["respB"]),
+                                                      sleepPerf: a["sleep"] as? Double, skinTempDev: a["skin"] as? Double)
+                       .map(\.deltaPoints)
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {
