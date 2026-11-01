@@ -69,6 +69,7 @@ class NoopApplication : Application() {
         // and the core scores every day; the Kotlin engine stands down whenever the core is in this build.
         com.noop.core.CoreDb.init(this)
         com.noop.analytics.IntelligenceEngine.coreOwnsScores = { com.noop.core.SwiftCore.available }
+        com.noop.core.CoreMath.enabled = { com.noop.core.SwiftCore.available }
     }
 
     /** Process-wide repository: journal and water use the shared core; remaining classic data stays in Room. */

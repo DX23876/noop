@@ -701,6 +701,9 @@ object StrainScorer {
         diag: ((String) -> Unit)? = null,
         day: String = "",
     ): Double? {
+        // Android without Room: the shared core scores Effort with the fork's curve, as iOS does. This copy
+        // remains for a build without the core and the JVM tests.
+        if (diag == null) com.noop.core.CoreMath.strain(hr, maxHR, restingHR)?.let { return it.value }
         val resolvedDenominator = denominator ?: logMapDenominator(method, sex)
         val effMax = maxHR ?: defaultMaxHR().toDouble()
         // Enough data to trust the score: a dense stream (≥ minReadings) OR a sparse-but-sustained
