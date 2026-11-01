@@ -19,13 +19,26 @@ final class PlanContextBlockTests: XCTestCase {
 
     private var today: String { Repository.localDayKey(Date()) }
 
+    /// The stored tool consent before the test, restored after it. `toolModeContext` carries the plan block only
+    /// with planning consent, which the engine loads from UserDefaults, so these tests grant it themselves rather
+    /// than pass or fail on what an earlier test or a real install left there.
+    private var savedConsent: Data?
+    private let consentKey = "ai.toolConsent"
+
     override func setUp() {
         super.setUp()
         CoachPlanStore.shared.clearAll()
+        savedConsent = UserDefaults.standard.data(forKey: consentKey)
+        ToolConsent(enabled: [.planning]).save()
     }
 
     override func tearDown() {
         CoachPlanStore.shared.clearAll()
+        if let savedConsent {
+            UserDefaults.standard.set(savedConsent, forKey: consentKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: consentKey)
+        }
         super.tearDown()
     }
 
