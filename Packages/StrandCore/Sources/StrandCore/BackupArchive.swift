@@ -263,7 +263,10 @@ public enum BackupArchive {
                 .appendingPathComponent("whoop-replaced-\(timestamp()).sqlite")
             if fm.fileExists(atPath: dbURL.path) {
                 if fm.fileExists(atPath: sidecar.path) { try fm.removeItem(at: sidecar) }
-                try fm.copyItem(at: dbURL, to: sidecar)
+                // The live store runs in WAL mode, so a plain file copy can leave out committed pages that
+                // still live only in `-wal`, and the rollback copy would be silently stale. SQLite's online
+                // backup reads through the WAL and writes one self-contained file while the pool stays open.
+                try snapshotLiveDatabase(from: dbURL, to: sidecar)
             } else {
                 // Nothing to preserve (fresh install); report a placeholder so the message reads sensibly.
                 sidecar = dbURL
@@ -374,6 +377,36 @@ public enum BackupArchive {
             return .android
         }
         return .unknown
+    }
+
+    /// A transactionally consistent, self-contained copy of a live SQLite database through SQLite's online
+    /// backup API, which reads through the WAL, so committed pages not yet checkpointed into the main file are
+    /// included. Adopted from Billytheking954/noop-whoop- (8b7b0deb8).
+    static func snapshotLiveDatabase(from source: URL, to destination: URL) throws {
+        func failure(_ code: Int, _ text: String) -> NSError {
+            NSError(domain: "BackupArchive", code: code, userInfo: [NSLocalizedDescriptionKey: text])
+        }
+        var sourceDB: OpaquePointer?
+        guard sqlite3_open_v2(source.path, &sourceDB, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let sourceDB else {
+            sqlite3_close(sourceDB)
+            throw failure(1, "Couldn't open the current database for the rollback copy.")
+        }
+        defer { sqlite3_close(sourceDB) }
+        var destinationDB: OpaquePointer?
+        guard sqlite3_open_v2(destination.path, &destinationDB, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+                              nil) == SQLITE_OK, let destinationDB else {
+            sqlite3_close(destinationDB)
+            throw failure(2, "Couldn't create the rollback copy.")
+        }
+        defer { sqlite3_close(destinationDB) }
+        guard let backup = sqlite3_backup_init(destinationDB, "main", sourceDB, "main") else {
+            throw failure(3, "Couldn't start the rollback copy: \(String(cString: sqlite3_errmsg(destinationDB))).")
+        }
+        let step = sqlite3_backup_step(backup, -1)
+        let finish = sqlite3_backup_finish(backup)
+        guard step == SQLITE_DONE, finish == SQLITE_OK else {
+            throw failure(4, "Couldn't finish the rollback copy: \(String(cString: sqlite3_errmsg(destinationDB))).")
+        }
     }
 
     /// Every table name in a SQLite file, opened READ-ONLY through the system SQLite so the probed

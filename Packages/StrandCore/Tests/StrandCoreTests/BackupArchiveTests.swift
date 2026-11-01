@@ -57,6 +57,32 @@ final class BackupArchiveTests: XCTestCase {
         XCTAssertEqual(days.map(\.day), ["2026-10-01"], "the backup's rows replaced the live store's")
     }
 
+    /// The rollback copy kept beside a restore holds the live store as it stood, including rows committed into
+    /// the WAL but not yet checkpointed into the main file while the store is open.
+    func testTheRollbackCopyIncludesRowsStillInTheWAL() async throws {
+        let source = try await store(at: "source.sqlite", day: "2026-10-01")
+        let liveURL = dir.appendingPathComponent("live.sqlite")
+        let live = try await WhoopStore(path: liveURL.path)
+        _ = try await live.upsertDailyMetrics([
+            DailyMetric(day: "2026-09-02", totalSleepMin: 400, efficiency: nil, deepMin: nil, remMin: nil,
+                        lightMin: nil, disturbances: nil, restingHr: 52, avgHrv: 65, recovery: 70, strain: nil,
+                        exerciseCount: nil)
+        ], deviceId: "my-whoop")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: liveURL.path + "-wal"), "precondition: a WAL is open")
+        let backup = dir.appendingPathComponent("NOOP.noopbak")
+        try BackupArchive.writeVerified(dbURL: source, to: backup, settingsJSON: Data("{}".utf8),
+                                        manifestJSON: BackupArchive.manifestJSON(appVersion: "1", appBuild: "1",
+                                                                                platform: "test"),
+                                        scratchRoot: dir)
+        let outcome = BackupArchive.restore(from: backup, toDatabaseAt: liveURL.path, scratchRoot: dir,
+                                            applySettings: { _ in })
+        guard case .imported(let sidecar) = outcome else { return XCTFail("restore failed: \(outcome)") }
+        _ = live
+        let kept = try await WhoopStore(path: sidecar.path)
+        let days = try await kept.dailyMetrics(deviceId: "my-whoop", from: "2026-01-01", to: "2026-12-31")
+        XCTAssertEqual(days.map(\.day), ["2026-09-02"], "the rollback copy holds the row that was only in the WAL")
+    }
+
     func testAFileThatIsNotABackupLeavesTheStoreAlone() async throws {
         let live = try await store(at: "live.sqlite", day: "2026-09-01")
         let junk = dir.appendingPathComponent("junk.noopbak")
