@@ -70,3 +70,116 @@ Open before the testing build:
 - Restoring a real Room `.noopbak` through the picker on the emulator (the path is covered by
   `BackupArchiveTests`), the full local gate on the final tree, the B4 real-data comparison, release notes.
 - Unverified on hardware: pairing, live heart rate, offload and the core-gated ack.
+
+## Kotlin computations the screens still run (inventory 2026-11-01)
+
+Kotlin classes under `analytics/` that code outside it still calls, with whether a Swift type of the same name
+exists in the packages. Formatting and trace helpers (for example `VitalBands`, `SkinTempDisplay`, `ClockFormat`,
+`ImportTrace`) may stay Kotlin; every other line is a computation to move behind a core call.
+
+```
+NONE	RouteMath	calls=15	data, ingest, location, ui
+NONE	HydrationStore	calls=9	ingest, ui
+NONE	NapPrefs	calls=6	ble, ui
+NONE	IntelligenceEngine	calls=5	NoopApplication.kt, ble, data, ingest, testcentre, ui
+NONE	RecoveryDrivers	calls=5	ui
+NONE	HrvAnalyzer	calls=4	ui
+NONE	HrZones	calls=3	ui
+NONE	ProfileWeightSync	calls=3	ui
+NONE	V5HealthSignals	calls=3	testcentre, ui
+NONE	DaytimeBaselines	calls=2	ui
+NONE	SleepMark	calls=2	ui
+NONE	WorkoutSport	calls=2	ingest, ui
+NONE	BatterySocLine	calls=1	ble
+NONE	DismissedSleepGuard	calls=1	data
+NONE	HrDownPacer	calls=1	ui
+NONE	HrvAnalyzerTrace	calls=1	testcentre, ui
+NONE	HrvFreqDomain	calls=1	ui
+NONE	IntelligencePersistence	calls=1	ui
+NONE	SleepStageHealer	calls=1	data
+NONE	Analytics	calls=0	testcentre, ui, update
+NONE	PhysiologicalStepCycleEngine	calls=0	data
+NONE	RegistryDayOwnerSource	calls=0	ble, ui
+NONE	SleepStagerTrace	calls=0	testcentre, widget
+core	VitalBands	calls=22	ui
+core	AnalyticsEngine	calls=21	data, ingest, oura, protocol, testcentre, ui
+core	SkinTempDisplay	calls=18	data, ui
+core	BatteryEstimator	calls=14	ble, notif, ui
+core	SleepStageTotals	calls=13	ble, data, ingest, ui
+core	Baselines	calls=12	ble, core, oura, ui
+core	ClockFormat	calls=9	ui, widget
+core	RrEmissionStats	calls=9	ble
+core	ImportTrace	calls=8	ui
+core	MarkerCatalog	calls=8	ai, ingest, ui
+core	StrainScorer	calls=7	ble, data, ingest, ui
+core	WorkoutsTrace	calls=7	location, ui
+core	DaytimeStress	calls=6	core, ui, widget
+core	CircadianEngine	calls=5	testcentre, ui
+core	ConnectionReadout	calls=5	ble, ui
+core	RhythmScreener	calls=5	ui
+core	DisplayTrace	calls=4	testcentre
+core	SleepDebt	calls=4	ui
+core	SseDeltas	calls=4	ai
+core	StepsEstimateEngine	calls=4	ui
+core	VitalityEngine	calls=4	ui
+core	EffectRanker	calls=3	ai, data, ui
+core	FitnessAgeEngine	calls=3	ingest, ui
+core	HydrationGoal	calls=3	ui
+core	ResonanceEngine	calls=3	ui
+core	ScoreConfidence	calls=3	ui
+core	SleepEditGuard	calls=3	data
+core	SleepReadout	calls=3	ui
+core	SleepSessionDedup	calls=3	ble, ingest
+core	SleepStageVocabulary	calls=3	ingest, ui
+core	StoreProbeTally	calls=3	data
+core	StressOnsetDetector	calls=3	ble, ui
+core	AlarmReadback	calls=2	testcentre
+core	CaffeineDecay	calls=2	ui
+core	DayOwnerResolver	calls=2	testcentre, ui
+core	LabBookProjection	calls=2	ingest, ui
+core	LiveSessionEngine	calls=2	ui
+core	ReadinessEngine	calls=2	ui
+core	SleepGroupEdit	calls=2	data, ui
+core	StreakCalculator	calls=2	ui
+core	StressIndex	calls=2	ai, ui
+core	TrainingLoadEngine	calls=2	ui
+core	ActivityCostEngine	calls=1	ui
+core	ActivityHeatmap	calls=1	ui
+core	BreathPacer	calls=1	protocol, ui
+core	BreathProtocolCatalog	calls=1	ui
+core	ChargeBaselines	calls=1	ui
+core	CoachSuggestions	calls=1	ai, ui
+core	DoseResponseEngine	calls=1	ui
+core	DoseResponsePriors	calls=1	ui
+core	FusionResolver	calls=1	ui
+core	HRVReadiness	calls=1	ble, ui
+core	HeartRateRecovery	calls=1	ui
+core	HypnogramCoverage	calls=1	data
+core	IllnessSignalEngine	calls=1	ui
+core	ImuFeatureExtractor	calls=1	ble
+core	MetricArbitrationPolicy	calls=1	ui
+core	NapDetector	calls=1	ble, core, data, ui
+core	SedentaryDetector	calls=1	ble, notif, ui
+core	SleepStager	calls=1	data, protocol, testcentre, ui
+core	SleepWindowReclip	calls=1	data, ui
+core	Spo2ReTrace	calls=1	ble, data, ui
+core	SpotHrvReading	calls=1	ui
+core	StagePercentages	calls=1	ui
+core	StepsCounter	calls=1	ui
+core	StepsDetailDensity	calls=1	ui
+core	StrapComparison	calls=1	ui
+core	WorkoutDetector	calls=1	ble
+core	AnalyzeRecentDayCache	calls=0	ui
+core	BreathProtocol	calls=0	ui
+core	CyclePhaseEngine	calls=0	ui
+core	DayCycleIntelligenceIntegration	calls=0	ui
+core	IllnessDistance	calls=0	ui
+core	RangeReport	calls=0	ui
+core	RecoveryForecast	calls=0	ui
+core	RecoveryScorer	calls=0	data, ui, widget
+core	RhythmExport	calls=0	ui
+core	StepsMotionCache	calls=0	ble, ui
+core	WakeMotionRefinement	calls=0	ble
+core	WatchRecovery	calls=0	ui
+core	WeeklyDigest	calls=0	ui
+```
