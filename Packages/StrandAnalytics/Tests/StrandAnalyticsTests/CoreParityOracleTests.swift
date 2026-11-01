@@ -486,6 +486,67 @@ final class CoreParityOracleTests: XCTestCase {
                                                oldEnd: a["oldEnd"] as! Int, newStart: a["newStart"] as! Int,
                                                newEnd: a["newEnd"] as! Int).map(CoreParityOracleTests.canonicalJSON))
                }),
+        Oracle(name: "DaytimeBaselines",
+               inputs: cases(10, seed: 27) { r in
+                   let days: [[String: Any]] = (0..<r.int(0...16)).map { d in
+                       let start = 1_760_000_000 - 1_760_000_000 % 86_400 + d * 86_400 + 7 * 3_600
+                       let hrRows = hrSeries(&r, from: start, seconds: r.int(2...12) * 3_600, step: r.int(10...120), base: 72)
+                       var ts = start, rr: [[Int]] = []
+                       while ts < start + 6 * 3_600 { if r.chance(0.6) { rr.append([ts, r.int(650...1050)]) }; ts += r.int(1...8) }
+                       return ["hr": hrRows, "rr": rr]
+                   }
+                   return ["days": days, "tz": [0, 3_600, -18_000][r.int(0...2)]]
+               },
+               run: { a in
+                   let tz = a["tz"] as! Int
+                   let aggregates = (a["days"] as! [[String: Any]]).map { d in
+                       DaytimeStress.dayDaytimeAggregate(hr: hr(d["hr"]), rr: (d["rr"] as! [[Int]]).map { RRInterval(ts: $0[0], rrMs: $0[1]) },
+                                                         tzOffsetSeconds: tz)
+                   }
+                   let mode: Any
+                   switch DaytimeStress.scoringModeFromAggregates(aggregates) {
+                   case .dayRelative: mode = "dayRelative"
+                   case .baselineRelative(let h, let rm):
+                       mode = ["hr": h.baseline, "hrSpread": h.spread, "rmssd": nn(rm?.baseline), "rmssdSpread": nn(rm?.spread)]
+                   }
+                   return ["aggregates": aggregates.map { ["hr": nn($0.hr), "rmssd": nn($0.rmssd)] }, "mode": mode]
+               }),
+        Oracle(name: "ActivityCostEngine.evaluate",
+               inputs: cases(25, seed: 28) { r in
+                   let start = 20_600, n = r.int(10...90)
+                   var sports: [String: [String]] = [:]
+                   for s in ["running", "cycling", "strength"].prefix(r.int(1...3)) {
+                       sports[s] = (0..<n).filter { _ in r.chance(0.2) }.map { day(start + $0) }
+                   }
+                   var rec: [String: Double] = [:]
+                   for d in 0..<n where r.chance(0.85) { rec[day(start + d)] = r.double(10...99) }
+                   return ["sports": sports, "recovery": rec]
+               },
+               run: { a in
+                   ActivityCostEngine.evaluate(activityDaysBySport: (a["sports"] as! [String: [String]]).mapValues(Set.init),
+                                               recoveryByDay: a["recovery"] as! [String: Double]).map {
+                       ["sport": $0.sport, "delta": $0.delta, "next": $0.meanNextMorning, "base": $0.baselineMean]
+                   }
+               }),
+        Oracle(name: "SleepEdits",
+               inputs: cases(60, seed: 29) { r in
+                   let s1 = 1_760_000_000 + r.int(0...3_600), e1 = s1 + r.int(600...36_000)
+                   let s2 = s1 + r.int(-20_000...20_000), e2 = s2 + r.int(600...36_000)
+                   return ["a": [s1, e1, r.chance(0.3) ? s1 + r.int(0...1_200) : -1], "b": [s2, e2, -1],
+                           "now": e1 + r.int(-7_200...7_200), "onset": s1 + r.int(-1_200...1_200)]
+               },
+               run: { a in
+                   func session(_ v: [Int]) -> CachedSleepSession {
+                       CachedSleepSession(startTs: v[0], endTs: v[1], efficiency: nil, restingHr: nil, avgHrv: nil,
+                                          stagesJSON: nil, startTsAdjusted: v[2] < 0 ? nil : v[2])
+                   }
+                   let x = session(a["a"] as! [Int]), y = session(a["b"] as! [Int])
+                   let w = SleepEditGuard.clampedEditWindow(start: x.startTs, end: x.endTs, now: a["now"] as! Int)
+                   let g = SleepGroupEdit.groupWindow([x, y])
+                   return ["duplicate": SleepSessionDedup.isDuplicate(x, y),
+                           "keyed": nn(SleepSessionDedup.safeKeyedStart(onset: a["onset"] as! Int, mapped: x)),
+                           "edit": nn(w.map { [$0.start, $0.end] }), "group": nn(g.map { [$0.start, $0.end] })]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

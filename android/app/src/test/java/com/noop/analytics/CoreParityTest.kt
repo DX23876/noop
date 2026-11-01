@@ -231,6 +231,39 @@ class CoreParityTest {
             SleepWindowReclip.reclip(i.getString("stages"), i.getLong("start"), i.getLong("oldEnd"), i.getLong("newStart"),
                                      i.getLong("newEnd"))?.let(::canonical)
         },
+        "DaytimeBaselines" to { i ->
+            val tz = i.getLong("tz")
+            val days = i.getJSONArray("days")
+            val aggregates = (0 until days.length()).map { k ->
+                val d = days.getJSONObject(k)
+                val rr = d.getJSONArray("rr").let { a -> (0 until a.length()).map { a.getJSONArray(it).let { p ->
+                    com.noop.data.RrInterval(deviceId = "parity", ts = p.getLong(0), rrMs = p.getInt(1)) } } }
+                DaytimeBaselines.dayDaytimeAggregate(hr(d.getJSONArray("hr")), rr, tz)
+            }
+            val mode: Any = when (val m = DaytimeBaselines.scoringModeFromAggregates(aggregates)) {
+                is DaytimeStress.ScoringMode.BaselineRelative ->
+                    obj("hr" to m.hr.baseline, "hrSpread" to m.hr.spread, "rmssd" to m.rmssd?.baseline, "rmssdSpread" to m.rmssd?.spread)
+                else -> "dayRelative"
+            }
+            obj("aggregates" to aggregates.map { obj("hr" to it.hr, "rmssd" to it.rmssd) }, "mode" to mode)
+        },
+        "ActivityCostEngine.evaluate" to { i ->
+            val sp = i.getJSONObject("sports"); val rec = i.getJSONObject("recovery")
+            ActivityCostEngine.evaluate(sp.keys().asSequence().associateWith { strings(sp.getJSONArray(it)).toSet() },
+                                        rec.keys().asSequence().associateWith { rec.getDouble(it) }).map {
+                obj("sport" to it.sport, "delta" to it.delta, "next" to it.meanNextMorning, "base" to it.baselineMean)
+            }
+        },
+        "SleepEdits" to { i ->
+            fun session(a: JSONArray) = com.noop.data.SleepSession(deviceId = "parity", startTs = a.getLong(0), endTs = a.getLong(1),
+                startTsAdjusted = a.getLong(2).takeIf { it >= 0 })
+            val x = session(i.getJSONArray("a")); val y = session(i.getJSONArray("b"))
+            val w = SleepEditGuard.clampedEditWindow(x.startTs, x.endTs, i.getLong("now"))
+            val g = SleepGroupEdit.groupWindow(listOf(x, y))
+            obj("duplicate" to SleepSessionDedup.isDuplicate(x, y),
+                "keyed" to SleepSessionDedup.safeKeyedStart(i.getLong("onset"), x.startTs, x.endTs),
+                "edit" to w?.let { listOf(it.first, it.second) }, "group" to g?.let { listOf(it.first, it.second) })
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */
