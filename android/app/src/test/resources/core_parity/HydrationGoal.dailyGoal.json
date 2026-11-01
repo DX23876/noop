@@ -1,0 +1,285 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "effort" : 65.501999999999995,
+        "sex" : "nonbinary"
+      },
+      "output" : 3650
+    },
+    {
+      "input" : {
+        "effort" : 40.823,
+        "sex" : "male"
+      },
+      "output" : 4000
+    },
+    {
+      "input" : {
+        "effort" : 70.991,
+        "sex" : "nonbinary"
+      },
+      "output" : 3700
+    },
+    {
+      "input" : {
+        "effort" : 37.216999999999999,
+        "sex" : "male"
+      },
+      "output" : 3950
+    },
+    {
+      "input" : {
+        "effort" : 73.007999999999996,
+        "sex" : "nonbinary"
+      },
+      "output" : 3700
+    },
+    {
+      "input" : {
+        "effort" : 50.863,
+        "sex" : "nonbinary"
+      },
+      "output" : 3550
+    },
+    {
+      "input" : {
+        "effort" : 58.649000000000001,
+        "sex" : "male"
+      },
+      "output" : 4100
+    },
+    {
+      "input" : {
+        "effort" : null,
+        "sex" : "male"
+      },
+      "output" : 3700
+    },
+    {
+      "input" : {
+        "effort" : 29.725999999999999,
+        "sex" : ""
+      },
+      "output" : 3400
+    },
+    {
+      "input" : {
+        "effort" : 29.928999999999998,
+        "sex" : "male"
+      },
+      "output" : 3900
+    },
+    {
+      "input" : {
+        "effort" : 6.6219999999999999,
+        "sex" : "male"
+      },
+      "output" : 3750
+    },
+    {
+      "input" : {
+        "effort" : 87.034999999999997,
+        "sex" : "female"
+      },
+      "output" : 3300
+    },
+    {
+      "input" : {
+        "effort" : 78.674999999999997,
+        "sex" : "male"
+      },
+      "output" : 4250
+    },
+    {
+      "input" : {
+        "effort" : 9.1539999999999999,
+        "sex" : "female"
+      },
+      "output" : 2750
+    },
+    {
+      "input" : {
+        "effort" : 96.295000000000002,
+        "sex" : ""
+      },
+      "output" : 3850
+    },
+    {
+      "input" : {
+        "effort" : 79.784999999999997,
+        "sex" : ""
+      },
+      "output" : 3750
+    },
+    {
+      "input" : {
+        "effort" : null,
+        "sex" : ""
+      },
+      "output" : 3200
+    },
+    {
+      "input" : {
+        "effort" : 67.441000000000003,
+        "sex" : "nonbinary"
+      },
+      "output" : 3650
+    },
+    {
+      "input" : {
+        "effort" : 21.873999999999999,
+        "sex" : "female"
+      },
+      "output" : 2850
+    },
+    {
+      "input" : {
+        "effort" : null,
+        "sex" : "male"
+      },
+      "output" : 3700
+    },
+    {
+      "input" : {
+        "effort" : 94.765000000000001,
+        "sex" : ""
+      },
+      "output" : 3850
+    },
+    {
+      "input" : {
+        "effort" : 87.647999999999996,
+        "sex" : "nonbinary"
+      },
+      "output" : 3800
+    },
+    {
+      "input" : {
+        "effort" : 56.618000000000002,
+        "sex" : "nonbinary"
+      },
+      "output" : 3600
+    },
+    {
+      "input" : {
+        "effort" : null,
+        "sex" : ""
+      },
+      "output" : 3200
+    },
+    {
+      "input" : {
+        "effort" : 60.040999999999997,
+        "sex" : "nonbinary"
+      },
+      "output" : 3600
+    },
+    {
+      "input" : {
+        "effort" : 90.534000000000006,
+        "sex" : "male"
+      },
+      "output" : 4350
+    },
+    {
+      "input" : {
+        "effort" : 20.033999999999999,
+        "sex" : "female"
+      },
+      "output" : 2850
+    },
+    {
+      "input" : {
+        "effort" : 80.549000000000007,
+        "sex" : "female"
+      },
+      "output" : 3250
+    },
+    {
+      "input" : {
+        "effort" : 88.203000000000003,
+        "sex" : "female"
+      },
+      "output" : 3300
+    },
+    {
+      "input" : {
+        "effort" : null,
+        "sex" : "female"
+      },
+      "output" : 2700
+    },
+    {
+      "input" : {
+        "effort" : null,
+        "sex" : "male"
+      },
+      "output" : 3700
+    },
+    {
+      "input" : {
+        "effort" : 53.795000000000002,
+        "sex" : "male"
+      },
+      "output" : 4100
+    },
+    {
+      "input" : {
+        "effort" : 0.48199999999999998,
+        "sex" : "male"
+      },
+      "output" : 3700
+    },
+    {
+      "input" : {
+        "effort" : 37.616999999999997,
+        "sex" : "nonbinary"
+      },
+      "output" : 3450
+    },
+    {
+      "input" : {
+        "effort" : null,
+        "sex" : "male"
+      },
+      "output" : 3700
+    },
+    {
+      "input" : {
+        "effort" : 38.625999999999998,
+        "sex" : "male"
+      },
+      "output" : 3950
+    },
+    {
+      "input" : {
+        "effort" : 81.070999999999998,
+        "sex" : "nonbinary"
+      },
+      "output" : 3750
+    },
+    {
+      "input" : {
+        "effort" : 89.849000000000004,
+        "sex" : "nonbinary"
+      },
+      "output" : 3850
+    },
+    {
+      "input" : {
+        "effort" : 31.369,
+        "sex" : "female"
+      },
+      "output" : 2900
+    },
+    {
+      "input" : {
+        "effort" : 50.920000000000002,
+        "sex" : "nonbinary"
+      },
+      "output" : 3550
+    }
+  ],
+  "function" : "HydrationGoal.dailyGoal"
+}

@@ -354,6 +354,13 @@ class CoreParityTest {
                                  "priorDominated" to d.priorDominated, "contradicts" to d.contradictsPrior, "confidence" to d.confidence.raw,
                                  "curve" to d.curve.map { it.dose }) }
         },
+        "HRVFreqDomain.freqDomain" to { i ->
+            HrvFreqDomain.freqDomainRaw(doubles(i.getJSONArray("rr")))
+                ?.let { obj("lf" to it.lf, "hf" to it.hf, "lfhf" to it.lfhf, "total" to it.totalPower) }
+        },
+        "HydrationGoal.dailyGoal" to { i ->
+            HydrationGoal.dailyGoalMl(i.getString("sex"), if (i.isNull("effort")) null else i.getDouble("effort"))
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */

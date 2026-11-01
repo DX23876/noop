@@ -725,6 +725,25 @@ final class CoreParityOracleTests: XCTestCase {
                            "priorDominated": d.priorDominated, "contradicts": d.contradictsPrior, "confidence": d.confidence.rawValue,
                            "curve": d.curve.map { $0.dose }]
                }),
+        Oracle(name: "HRVFreqDomain.freqDomain",
+               inputs: cases(30, seed: 39) { r in
+                   let base = r.double(600...1100), resp = r.double(0.15...0.35)
+                   var t = 0.0
+                   let rr: [Double] = (0..<r.int(0...500)).map { _ in
+                       let v = base + 60 * sin(2 * .pi * resp * t) + 25 * sin(2 * .pi * 0.1 * t) + r.double(-15...15)
+                       t += v / 1000; return r.chance(0.01) ? v * 1.8 : v
+                   }
+                   return ["rr": rr]
+               },
+               run: { a in
+                   guard let b = HRVFreqDomain.freqDomain(rawRR: a["rr"] as! [Double]) else { return NSNull() }
+                   return ["lf": nn(b.lf), "hf": b.hf, "lfhf": nn(b.lfhf), "total": b.totalPower]
+               }),
+        Oracle(name: "HydrationGoal.dailyGoal",
+               inputs: cases(40, seed: 40) { r in
+                   ["sex": ["male", "female", "nonbinary", ""][r.int(0...3)], "effort": r.chance(0.2) ? NSNull() : r.double(0...100)]
+               },
+               run: { a in HydrationGoal.dailyGoalML(sex: a["sex"] as! String, effort: a["effort"] as? Double) }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {
