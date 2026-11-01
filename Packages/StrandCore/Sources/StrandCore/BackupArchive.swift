@@ -11,8 +11,9 @@ public enum BackupArchive {
     /// Canonical entry name for the SQLite inside a `.noopbak` ZIP. Matches the Android exporter so
     /// a backup produced on either platform restores on the other.
     public static let entryName = "noop-backup.sqlite"
-    /// The largest database a restore extracts without the wearer's go-ahead.
-    public static let maxSQLiteBytes: Int64 = 2_147_483_648
+    /// The largest database a restore extracts without the wearer's go-ahead: 5 GiB, since a year of raw
+    /// strap history passes 2 GiB (fork, 2026-11-01).
+    public static let maxSQLiteBytes: Int64 = 5_368_709_120
     static let maxSettingsBytes: Int64 = 1_048_576
 
     /// The smallest a real database entry can be: SQLite's own file header is exactly this long, so
@@ -150,15 +151,19 @@ public enum BackupArchive {
     /// and close its writes before returning; a thrown error leaves both the picked and live files intact.
     /// `willReplaceDatabase` runs immediately before the first byte of the database at `dbPath` moves, and only
     /// when the swap is about to happen, so a caller that holds that file open can stop trusting its writes.
+    /// `adoptRoomStore`, when given, turns an Android Room backup into a store of this platform instead of
+    /// refusing it: it receives the Room file and the path to write the converted store to
+    /// (`RoomStoreAdoption.convert`). Without it a Room backup stays a foreign backup.
     public static func restore(from pickedSource: URL, toDatabaseAt dbPath: String, scratchRoot: URL,
                                allowOversize: Bool = false,
+                               adoptRoomStore: ((_ roomFile: URL, _ destination: URL) throws -> Void)? = nil,
                                prepareStagedDatabase: ((URL, Data?) throws -> Void)? = nil,
                                willReplaceDatabase: (() -> Void)? = nil,
                                applySettings: (Data) -> Void) -> RestoreOutcome {
         // If the picked file is a .noopbak ZIP, extract the SQLite entry to a temp dir first.
         // Legacy plain-SQLite files fall straight through. The extracted dir is cleaned up below.
         let fm = FileManager.default
-        let source: URL
+        var source: URL
         let extractedDir: URL?
 
         if isZipFile(at: pickedSource) {
@@ -206,9 +211,26 @@ public enum BackupArchive {
         let backupTables = sqliteTableNames(at: source)
         let origin = backupOrigin(of: backupTables)
         let holdsData = backupTables.contains("device") || backupTables.contains("hrSample")
-        if origin == .android || (origin == .unknown && holdsData) {
+        var adoptedDirectory: URL?
+        defer { if let adoptedDirectory { try? fm.removeItem(at: adoptedDirectory) } }
+        if origin == .android, let adoptRoomStore {
+            // The Room file is checked before it is read, then the converted store is checked like any backup.
+            if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: source.path) {
+                return .failure(.damaged(complaint: complaint))
+            }
+            let directory = scratchRoot.appendingPathComponent("adopt-\(UUID().uuidString)", isDirectory: true)
+            adoptedDirectory = directory
+            do {
+                try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+                let converted = directory.appendingPathComponent(entryName)
+                try adoptRoomStore(source, converted)
+                source = converted
+            } catch { return .failure(.importFailed(error.localizedDescription)) }
+        } else if origin == .android || (origin == .unknown && holdsData) {
             return .failure(.foreignBackup)
         }
+        // A file this restore wrote itself (extracted or converted) may be prepared in place.
+        let ownsSource = extractedDir != nil || adoptedDirectory != nil
 
         // #1014 defence-in-depth: both gates above read only the FIRST pages of the file — the
         // 16-byte magic and sqlite_master both survive a backup that was truncated mid-upload or
@@ -221,7 +243,7 @@ public enum BackupArchive {
         // else's WAL (shm rebuild needs write access) and would refuse spuriously. Those rare files
         // are still verified by the post-swap check below, which runs on the landed main file
         // BEFORE the sidecars are laid down and rolls back automatically on failure.
-        let legacySidecarsPresent = extractedDir == nil
+        let legacySidecarsPresent = !ownsSource
             && (fm.fileExists(atPath: source.path + "-wal") || fm.fileExists(atPath: source.path + "-shm"))
         if !legacySidecarsPresent,
            let complaint = DatabaseIntegrity.quickCheckFailure(atPath: source.path) {
@@ -235,7 +257,7 @@ public enum BackupArchive {
         var replacementSource = source
         if let prepareStagedDatabase {
             do {
-                if extractedDir == nil {
+                if !ownsSource {
                     let directory = scratchRoot.appendingPathComponent("prepare-\(UUID().uuidString)", isDirectory: true)
                     preparedDirectory = directory
                     try fm.createDirectory(at: directory, withIntermediateDirectories: true)

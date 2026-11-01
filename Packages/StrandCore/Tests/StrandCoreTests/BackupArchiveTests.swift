@@ -1,4 +1,5 @@
 import XCTest
+import GRDB
 import StrandCore
 import WhoopStore
 
@@ -65,6 +66,55 @@ final class BackupArchiveTests: XCTestCase {
                                             willReplaceDatabase: { XCTFail("a refused file never swaps the store") },
                                             applySettings: { _ in XCTFail("no settings from a failed restore") })
         guard case .failure(.notSQLite) = outcome else { return XCTFail("expected notSQLite, got \(outcome)") }
+    }
+
+    /// A Room store zipped as an Android `.noopbak`: Room's bookkeeping and one heart-rate second.
+    private func roomBackup() throws -> URL {
+        let room = dir.appendingPathComponent("room.sqlite")
+        let queue = try DatabaseQueue(path: room.path)
+        try queue.write { db in
+            try db.execute(sql: """
+                CREATE TABLE room_master_table (id INTEGER PRIMARY KEY, identity_hash TEXT);
+                CREATE TABLE hrSample (deviceId TEXT NOT NULL, ts INTEGER NOT NULL, bpm INTEGER NOT NULL,
+                    synced INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (deviceId, ts));
+                CREATE TABLE dismissedWorkout (deviceId TEXT NOT NULL, startTs INTEGER NOT NULL,
+                    endTs INTEGER NOT NULL, PRIMARY KEY (deviceId, startTs));
+                INSERT INTO hrSample VALUES ('aa:bb', 1760054400, 61, 0);
+                INSERT INTO dismissedWorkout VALUES ('aa:bb-noop', 10, 20);
+                """)
+        }
+        try queue.close()
+        let backup = dir.appendingPathComponent("android.noopbak")
+        try BackupArchive.writeZip(dbURL: room, to: backup, settingsJSON: nil,
+                                   manifestJSON: BackupArchive.manifestJSON(appVersion: "1", appBuild: "1",
+                                                                           platform: "android"),
+                                   scratchRoot: dir)
+        return backup
+    }
+
+    func testARoomBackupIsRefusedWithoutAConverterAndRestoresThroughOne() async throws {
+        let live = try await store(at: "live.sqlite", day: "2026-09-01")
+        let backup = try roomBackup()
+        let refused = BackupArchive.restore(from: backup, toDatabaseAt: live.path, scratchRoot: dir,
+                                            applySettings: { _ in })
+        guard case .failure(.foreignBackup) = refused else { return XCTFail("expected foreignBackup, got \(refused)") }
+
+        var report: RoomStoreAdoption.Report?
+        let outcome = BackupArchive.restore(from: backup, toDatabaseAt: live.path, scratchRoot: dir,
+                                            adoptRoomStore: { room, destination in
+                                                report = try RoomStoreAdoption.convert(roomPath: room.path,
+                                                                                       toStoreAt: destination.path)
+                                            },
+                                            applySettings: { _ in })
+        guard case .imported = outcome else { return XCTFail("restore failed: \(outcome)") }
+        XCTAssertEqual(report?.copiedRows["hrSample"], 1)
+        XCTAssertEqual(report?.dismissedWorkoutTokens, ["10:20"])
+
+        let restored = try await WhoopStore(path: live.path)
+        let samples = try await restored.hrSamples(deviceId: "aa:bb", from: 0, to: Int.max, limit: 10)
+        XCTAssertEqual(samples.map(\.bpm), [61], "the Room backup's history is the store now")
+        let recipe = try await restored.cursor("noopai:analysisRecipeVersion")
+        XCTAssertEqual(recipe, 0)
     }
 
     func testTheOriginOfABackupComesFromItsMigratorTable() {

@@ -65,9 +65,15 @@ public enum CoreBackup {
     /// store still reads the file it had before.
     public static func restore(from source: String, toDatabaseAt dbPath: String, scratch: String,
                                allowOversize: Bool = false) -> Result {
+        // An Android Room backup (ryanbr's app, or Forge before the core owned the store) is converted into a
+        // core store first (`RoomStoreAdoption`); its two tombstone tables become the shared defaults lists.
+        var adopted: RoomStoreAdoption.Report?
         let outcome = BackupArchive.restore(
             from: URL(fileURLWithPath: source), toDatabaseAt: dbPath,
             scratchRoot: URL(fileURLWithPath: scratch, isDirectory: true), allowOversize: allowOversize,
+            adoptRoomStore: { room, destination in
+                adopted = try RoomStoreAdoption.convert(roomPath: room.path, toStoreAt: destination.path)
+            },
             prepareStagedDatabase: { database, settings in
                 // Only whitelisted goal values enter the staged source image. A backup without
                 // settings keeps its database state, including older plain-SQLite exports.
@@ -82,12 +88,29 @@ public enum CoreBackup {
             applySettings: { _ in })
         switch outcome {
         case .imported:
+            if let adopted { applyTombstones(adopted, replacing: true) }
             return .imported
         case .tooLarge(let name):
             return .tooLarge(name)
         case .failure(let failure):
             return .failed(reason(failure))
         }
+    }
+
+    /// Room's tombstone tables as the defaults lists the shared code reads (`Repository.dismissedSleepDefaultsKey`,
+    /// its hidden-from-list twin and `WorkoutSource.dismissedDefaultsKey`). A restore replaces the lists; adopting
+    /// a live install merges into what the core already holds.
+    static func applyTombstones(_ report: RoomStoreAdoption.Report, replacing: Bool) {
+        let defaults = UserDefaults.standard
+        func store(_ tokens: [String], _ key: String) {
+            let kept = replacing ? [] : (defaults.stringArray(forKey: key) ?? [])
+            var merged = kept
+            for token in tokens where !merged.contains(token) { merged.append(token) }
+            if merged.isEmpty { defaults.removeObject(forKey: key) } else { defaults.set(merged, forKey: key) }
+        }
+        store(report.dismissedSleepTokens, "sleep.dismissedSessions")
+        store(report.hiddenDismissedSleepTokens, "sleep.dismissedSessions.hiddenFromList")
+        store(report.dismissedWorkoutTokens, WorkoutSource.dismissedDefaultsKey)
     }
 
     private static func reason(_ failure: BackupArchive.RestoreFailure) -> String {
