@@ -67,4 +67,32 @@ public enum DayCycleResolver {
         return DayCycleWindow(id: latestSleep.id, startInclusive: latestSleep.startInclusive,
                               endExclusive: now, displayDay: latestSleep.displayDay, source: latestSleep.source)
     }
+
+    /// The boundaries with a local-midnight boundary inserted wherever the gap between two consecutive sleep
+    /// boundaries reaches `absoluteMaxOpenSeconds`, the fallback Settings promises for missing sleep. Without
+    /// it a night the classifier skipped left the previous window spanning two wake days, and the middle
+    /// day's steps, Effort and calories went into the day before. The open tail after the last boundary
+    /// stays with `activeWindow`. Synthetic ids are `synthetic:<day>`, as `activeWindow` names them; ids are
+    /// de-duplicated and the result is in onset order. Adopted from abhilashvadnala/noop (e06c7a29d).
+    public static func boundariesClosingLongGaps(_ boundaries: [PhysiologicalSteps.CycleBoundary],
+                                                 offsetSec: Int) -> [PhysiologicalSteps.CycleBoundary] {
+        var seen = Set<String>()
+        let ordered = boundaries.filter { seen.insert($0.sleepId).inserted }.sorted { $0.onset < $1.onset }
+        var result: [PhysiologicalSteps.CycleBoundary] = []
+        for (index, boundary) in ordered.enumerated() {
+            result.append(boundary)
+            guard index + 1 < ordered.count else { continue }
+            let nextOnset = ordered[index + 1].onset
+            var cursor = boundary.onset
+            while nextOnset - cursor >= absoluteMaxOpenSeconds {
+                let midnight = fallbackMidnight(after: cursor, offsetSec: offsetSec)
+                guard midnight > cursor, midnight < nextOnset else { break }
+                let id = "synthetic:\(AnalyticsEngine.dayString(midnight, offsetSec: offsetSec))"
+                guard seen.insert(id).inserted else { break }
+                result.append(.init(sleepId: id, onset: midnight))
+                cursor = midnight
+            }
+        }
+        return result
+    }
 }

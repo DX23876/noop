@@ -74,4 +74,47 @@ final class DayCycleTests: XCTestCase {
             .init(owner: "active", onset: 200, endExclusive: 500),
         ])
     }
+
+    /// A night starting before the 20:00 overnight band still opens the day cycle (abhilashvadnala/noop
+    /// e06c7a29d, upstream #2626).
+    func testEarlyBedtimeBeforeOvernightBandStillOpensTheCycle() {
+        let onset = 1_790_106_300 // 2026-09-22T19:45:00Z
+        let end = onset + 8 * 3_600 + 30 * 60
+        XCTAssertFalse(SleepStageTotals.isOvernightOnset(onset, offsetSec: 0))
+        let classified = PhysiologicalSteps.classifyForCycle(
+            [.init(onset: onset, end: end, id: "early")], offsetSec: 0, habitualMidsleepSec: nil)
+        XCTAssertEqual(classified.map(\.kind), [.mainSleep])
+    }
+
+    /// An overnight night still wins over a longer early-evening sleep on the same day.
+    func testAnOvernightNightIsStillPreferredOverAnEarlierLongSleep() {
+        let early = 1_790_085_600 // 2026-09-22T14:00:00Z, four hours
+        let night = 1_790_118_000 // 2026-09-22T23:00:00Z, three and a half hours
+        let classified = PhysiologicalSteps.classifyForCycle(
+            [.init(onset: early, end: early + 4 * 3_600, id: "early"),
+             .init(onset: night, end: night + 3 * 3_600 + 1_800, id: "night")],
+            offsetSec: 0, habitualMidsleepSec: nil)
+        XCTAssertEqual(classified.first { $0.id == "night" }?.kind, .mainSleep)
+        XCTAssertEqual(classified.first { $0.id == "early" }?.kind, .nap)
+    }
+
+    /// A gap of 40 h or more between two main nights closes at local midnight, so the first window does not
+    /// swallow the middle day.
+    func testALongGapBetweenMainNightsClosesAtMidnight() {
+        let nightA = PhysiologicalSteps.CycleBoundary(sleepId: "night-a", onset: 20 * 3_600)
+        let nightC = PhysiologicalSteps.CycleBoundary(sleepId: "night-c", onset: nightA.onset + 2 * 86_400)
+        let closed = DayCycleResolver.boundariesClosingLongGaps([nightA, nightC], offsetSec: 0)
+        let synthetic = closed.filter { $0.sleepId.hasPrefix("synthetic:") }
+        XCTAssertEqual(synthetic.map(\.onset), [DayCycleResolver.fallbackMidnight(after: nightA.onset, offsetSec: 0)])
+        let windows = PhysiologicalSteps.cycleWindows(closed, now: nightC.onset + 12 * 3_600)
+        let windowA = try! XCTUnwrap(windows.first { $0.sleepId == "night-a" })
+        XCTAssertEqual(windowA.endExclusive, synthetic[0].onset)
+        XCTAssertLessThan(windowA.endExclusive - windowA.onset, DayCycleResolver.absoluteMaxOpenSeconds)
+    }
+
+    /// Ordinary consecutive nights get no synthetic boundary.
+    func testConsecutiveNightsGetNoSyntheticBoundary() {
+        let nights = (0..<3).map { PhysiologicalSteps.CycleBoundary(sleepId: "n\($0)", onset: $0 * 86_400 + 22 * 3_600) }
+        XCTAssertEqual(DayCycleResolver.boundariesClosingLongGaps(nights, offsetSec: 0), nights)
+    }
 }
