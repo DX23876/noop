@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 
 // MARK: - Naps in the Coach's context
@@ -25,16 +26,16 @@ enum CoachNapContext {
     }
 
     /// Split each day's blocks into its main night and its naps with the SAME selector the Sleep tab and the
-    /// analytics rollup use (`SleepView.mainNightGroup`), so a block is a nap here exactly when the Naps card
-    /// calls it one. A day with one block has a night and no nap.
+    /// analytics rollup use (`SleepNight.mainGroup`, which `SleepView.mainNightGroup` reads), so a block is a
+    /// nap here exactly when the Naps card calls it one. A day with one block has a night and no nap.
     static func naps(dayGroups: [[CachedSleepSession]], habitualMidsleepSec: Int?,
-                     dayKey: (Int) -> String) -> [Nap] {
+                     offsetSec: Int = TimeZone.current.secondsFromGMT(), dayKey: (Int) -> String) -> [Nap] {
         var out: [Nap] = []
         for blocks in dayGroups {
-            let mainStarts = Set(SleepView.mainNightGroup(blocks, habitualMidsleepSec: habitualMidsleepSec)
-                .map(\.startTs))
+            let mainStarts = Set(SleepNight.mainGroup(blocks, offsetSec: offsetSec,
+                                                      habitualMidsleepSec: habitualMidsleepSec).map(\.startTs))
             for b in blocks where !mainStarts.contains(b.startTs) {
-                let asleep = SleepView.decodedAsleepMinutes(b.stagesJSON, effectiveStartTs: b.effectiveStartTs)
+                let asleep = SleepNight.asleepMinutes(b.stagesJSON, effectiveStartTs: b.effectiveStartTs)
                 out.append(Nap(day: dayKey(b.endTs), startTs: b.effectiveStartTs, endTs: b.endTs,
                                asleepMin: b.stagesJSON == nil ? nil : asleep))
             }
@@ -85,9 +86,8 @@ extension AICoachEngine {
                                                 to: now + 86_400, limit: 200)
         guard !sessions.isEmpty else { return "" }
         let habitual = await repo.habitualMidsleepSec()
-        let naps = CoachNapContext.naps(dayGroups: SleepModel.navDays(navSessions: sessions),
-                                        habitualMidsleepSec: habitual) {
-            Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0)))
+        let naps = CoachNapContext.naps(dayGroups: SleepNight.days(sessions), habitualMidsleepSec: habitual) {
+            StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval($0)))
         }
         let mainByDay = Dictionary(repo.days.compactMap { d in d.totalSleepMin.map { (d.day, $0) } },
                                    uniquingKeysWith: { _, last in last })
