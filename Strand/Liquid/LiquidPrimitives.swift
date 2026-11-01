@@ -402,6 +402,8 @@ struct LiquidVessel: View {
     @State private var splashes = 0
     /// True once the liquid has stopped moving and the clock has stood down. See `gauge`.
     @State private var atRest = false
+    /// The moment the liquid came to rest, so the still frame is drawn exactly as the last live one.
+    @State private var restNow: Double = 0
 
     // The custom init exists to seed `_sim` from `value`, which also means the memberwise init is NOT
     // synthesised: any new stored property has to be threaded through here or callers cannot pass it.
@@ -433,12 +435,23 @@ struct LiquidVessel: View {
         // stepping and redrawing on the main thread. Standing the clock down on settle costs nothing
         // visually (a settled vessel is a still picture and CoreAnimation holds the last frame), and every
         // way the picture can start moving again re-arms it: a new value, a tap, a tilt (`LiquidWake`).
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: atRest)) { tl in
-            let now = liquidSeconds(tl.date)
-            Canvas { context, size in
-                sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: value ?? 0)
-                LiquidRender.vessel(context, size, sim, now: now, tint: tint)
-                standDownIfSettled()
+        //
+        // The resting frame is drawn with NO TimelineView behind it rather than a paused one: a paused
+        // `.animation` timeline still keeps the render server busy (QuietMotionCoverageTests).
+        Group {
+            if atRest {
+                Canvas { context, size in
+                    LiquidRender.vessel(context, size, sim, now: restNow, tint: tint)
+                }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { tl in
+                    let now = liquidSeconds(tl.date)
+                    Canvas { context, size in
+                        sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: value ?? 0)
+                        LiquidRender.vessel(context, size, sim, now: now, tint: tint)
+                        standDownIfSettled(at: now)
+                    }
+                }
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -454,9 +467,12 @@ struct LiquidVessel: View {
     /// Stand the clock down once the liquid has stopped moving. Deferred to the next main-actor turn: this
     /// runs inside the `Canvas` draw closure, where writing `@State` synchronously is a "modifying state
     /// during view update" violation. The `atRest` guard keeps it to one hop, on the frame the liquid rests.
-    private func standDownIfSettled() {
+    private func standDownIfSettled(at now: Double) {
         guard sim.settled, !atRest else { return }
-        Task { @MainActor in atRest = true }
+        Task { @MainActor in
+            restNow = now
+            atRest = true
+        }
     }
 
     /// One-shot, cached render — posed at the fill line, no clock, no motion acquire.
@@ -490,6 +506,8 @@ struct LiquidTube: View {
     @State private var sim = LiquidSim(target: 0)
     /// True once the liquid has stopped moving and the clock has stood down. See `LiquidVessel.gauge`.
     @State private var atRest = false
+    /// The moment the liquid came to rest, so the still frame matches the last live one.
+    @State private var restNow: Double = 0
 
     /// Light appearance draws the track without an outline; dark and Increase Contrast keep it.
     private var outlined: Bool { colorScheme == .dark || colorSchemeContrast == .increased }
@@ -507,14 +525,30 @@ struct LiquidTube: View {
     private var liveTube: some View {
         // Stands its clock down on settle, as `LiquidVessel` does. A tube has no tap affordance, so the only
         // things that can restart it are a new `frac` and a tilt.
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: atRest)) { tl in
-            let now = liquidSeconds(tl.date)
-            Canvas { context, size in
-                sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: frac)
-                LiquidRender.tube(context, size, sim, now: now, frac: max(0, min(1, frac)),
-                                  tint: tint, showsHighlight: showsHighlight,
-                                  usesCleanFill: usesCleanFill, outlined: outlined)
-                if sim.settled, !atRest { Task { @MainActor in atRest = true } }
+        // At rest it draws a still frame with no timeline, as `LiquidVessel` does.
+        Group {
+            if atRest {
+                Canvas { context, size in
+                    LiquidRender.tube(context, size, sim, now: restNow, frac: max(0, min(1, frac)),
+                                      tint: tint, showsHighlight: showsHighlight,
+                                      usesCleanFill: usesCleanFill, outlined: outlined)
+                }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
+                    let now = liquidSeconds(tl.date)
+                    Canvas { context, size in
+                        sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: frac)
+                        LiquidRender.tube(context, size, sim, now: now, frac: max(0, min(1, frac)),
+                                          tint: tint, showsHighlight: showsHighlight,
+                                          usesCleanFill: usesCleanFill, outlined: outlined)
+                        if sim.settled, !atRest {
+                            Task { @MainActor in
+                                restNow = now
+                                atRest = true
+                            }
+                        }
+                    }
+                }
             }
         }
         .frame(height: height)
