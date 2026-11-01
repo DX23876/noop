@@ -352,6 +352,36 @@ final class CoreParityOracleTests: XCTestCase {
                    nn(SleepStageTotals.mainNightIndex((a["blocks"] as! [[Int]]).map { .init(start: $0[0], end: $0[1]) },
                                                       offsetSec: a["offset"] as! Int, habitualMidsleepSec: a["habitual"] as? Int))
                }),
+        Oracle(name: "RhythmScreener",
+               inputs: cases(30, seed: 21) { r in
+                   let windows: [[String: Any]] = (0..<r.int(1...8)).map { _ in
+                       let base = r.double(600...1200), irregular = r.chance(0.3)
+                       var ts = 1_760_000_000
+                       let rr: [Double] = (0..<r.int(0...150)).map { _ in
+                           irregular ? r.double(350...1600) : (r.chance(0.03) ? base * 0.6 : base + r.double(-40...40))
+                       }
+                       let stamps: [Int] = rr.map { v in ts += max(1, Int(v / 1000)); return ts }
+                       return ["rr": rr, "ts": stamps, "still": r.chance(0.85), "hr": 60_000 / base,
+                               "ppg": r.chance(0.3) ? rr.map { $0 + r.double(-15...15) } as Any : NSNull()]
+                   }
+                   return ["windows": windows]
+               },
+               run: { a in
+                   let results = (a["windows"] as! [[String: Any]]).map {
+                       RhythmScreener.screenWindow(.init(rrMs: $0["rr"] as! [Double], ts: $0["ts"] as! [Int],
+                                                         ppgIBIms: $0["ppg"] as? [Double], motionStill: $0["still"] as! Bool,
+                                                         meanHR: $0["hr"] as! Double))
+                   }
+                   let night = RhythmScreener.summarizeNight(results)
+                   return ["windows": results.map { ["label": $0.label.rawValue, "sd1": nn($0.sd1), "sd2": nn($0.sd2),
+                                                     "ratio": nn($0.sd1sd2), "norm": nn($0.normRmssd),
+                                                     "tpr": nn($0.turningPointRate), "ectopic": nn($0.ectopicFraction),
+                                                     "n": $0.nBeats, "confidence": $0.confidence.rawValue,
+                                                     "agreed": $0.agreedAcrossSources] },
+                           "readable": night.readableWindows, "steady": night.steadyWindows,
+                           "occasional": night.occasionalWindows, "varied": night.variedWindows,
+                           "recurred": night.variationRecurred, "overall": night.overall.rawValue]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

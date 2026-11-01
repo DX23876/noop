@@ -173,6 +173,24 @@ class CoreParityTest {
             SleepStageTotals.mainNightIndex((0 until b.length()).map { k -> b.getJSONArray(k).let { SleepStageTotals.NightBlock(it.getLong(0), it.getLong(1)) } },
                 i.getLong("offset"), if (i.isNull("habitual")) null else i.getLong("habitual"))
         },
+        "RhythmScreener" to { i ->
+            val w = i.getJSONArray("windows")
+            val results = (0 until w.length()).map { k ->
+                val x = w.getJSONObject(k)
+                RhythmScreener.screenWindow(RhythmScreener.WindowInput(
+                    rrMs = doubles(x.getJSONArray("rr")),
+                    ts = x.getJSONArray("ts").let { a -> (0 until a.length()).map { a.getInt(it) } },
+                    ppgIBIms = if (x.isNull("ppg")) null else doubles(x.getJSONArray("ppg")),
+                    motionStill = x.getBoolean("still"), meanHR = x.getDouble("hr")))
+            }
+            val night = RhythmScreener.summarizeNight(results)
+            obj("windows" to results.map { obj("label" to it.label.raw, "sd1" to it.sd1, "sd2" to it.sd2, "ratio" to it.sd1sd2,
+                                               "norm" to it.normRmssd, "tpr" to it.turningPointRate, "ectopic" to it.ectopicFraction,
+                                               "n" to it.nBeats, "confidence" to it.confidence.name.lowercase(),
+                                               "agreed" to it.agreedAcrossSources) },
+                "readable" to night.readableWindows, "steady" to night.steadyWindows, "occasional" to night.occasionalWindows,
+                "varied" to night.variedWindows, "recurred" to night.variationRecurred, "overall" to night.overall.raw)
+        },
     )
 
     private fun oracleDir(): File {
