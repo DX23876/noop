@@ -382,6 +382,9 @@ extension AICoachEngine {
                 lines.append("Working sets per primary muscle, last 28 days: \(byMuscle)."
                     + (tally.unattributed > 0 ? " \(tally.unattributed) sets could not be attributed to a muscle." : ""))
             }
+            // The same tally per week against the research band, so "is that a little or a lot" has an
+            // answer with its source (`CoachMuscleDose`).
+            lines.append(contentsOf: CoachMuscleDose.lines(primary: tally.primary, secondary: tally.secondary, days: 28))
             let readings = StrengthBalance.readings(setsByMuscle: tally.primary).filter { $0.total > 0 }
             let balance = readings.compactMap { reading -> String? in
                 guard let ratio = reading.ratio else { return nil }
