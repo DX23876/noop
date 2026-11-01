@@ -74,6 +74,9 @@ struct RootTabView: View {
     /// The More index's filter text. Deliberately NOT persisted: a search is a momentary question,
     /// and coming back to the tab to find it still filtered would read as the app having lost rows.
     @State private var moreQuery = ""
+    /// The More search field's focus, released whenever the stack navigates, so a result opened from the search
+    /// does not keep the keyboard up over the page it opened.
+    @FocusState private var moreSearchFocused: Bool
     /// Whitespace alone is not a search — it would blank the index for a stray space.
     private var isSearchingMore: Bool { !SearchMatch.tokens(moreQuery).isEmpty }
 
@@ -669,7 +672,8 @@ struct RootTabView: View {
                 NoopLiquidGlassSearchField(
                     text: $moreQuery,
                     prompt: String(localized: "Search screens and settings"),
-                    accessibilityLabel: String(localized: "Search screens and settings")
+                    accessibilityLabel: String(localized: "Search screens and settings"),
+                    isFocused: $moreSearchFocused
                 )
 
                 if isSearchingMore {
@@ -716,6 +720,7 @@ struct RootTabView: View {
                     .toolbarBackground(.hidden, for: .navigationBar)
             }
         }
+        .onChangeCompat(of: path.wrappedValue.count) { _ in moreSearchFocused = false }
         // Scroll the More index to the top on an at-root re-tap (#198 follow-up); read by its ScreenScaffold.
         .environment(\.scrollToTopSignal, scrollSignal)
         .tabItem { Label("More", systemImage: "ellipsis") }

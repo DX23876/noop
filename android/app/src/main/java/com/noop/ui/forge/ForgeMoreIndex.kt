@@ -56,6 +56,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -240,7 +242,14 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
                       onOpenSettingsPage: (ForgeSettingsPage) -> Unit = { onOpenSettings() }) {
     val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
-    fun open(dest: MoreDest) = if (dest == MoreDest.Settings) onOpenSettings() else nav.push(MoreRoute.Dest(dest))
+    // Opening a page from the search closes the keyboard first; otherwise it stayed up over the page it opened.
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    fun dismissKeyboard() { keyboard?.hide(); focus.clearFocus() }
+    fun open(dest: MoreDest) {
+        dismissKeyboard()
+        if (dest == MoreDest.Settings) onOpenSettings() else nav.push(MoreRoute.Dest(dest))
+    }
     SearchField(query) { query = it }
     if (query.isNotBlank()) {
         val hits = MoreDest.entries.filter { it.shown(context) }.filter { d ->
@@ -262,7 +271,10 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
             SectionHeader(stringResource(R.string.nav_settings))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
                 pages.forEachIndexed { i, p ->
-                    HubRow(p.icon, p.tint(), stringResource(p.titleRes), stringResource(p.subtitleRes)) { onOpenSettingsPage(p) }
+                    HubRow(p.icon, p.tint(), stringResource(p.titleRes), stringResource(p.subtitleRes)) {
+                        dismissKeyboard()
+                        onOpenSettingsPage(p)
+                    }
                     if (i < pages.lastIndex) HubDivider()
                 }
             }
