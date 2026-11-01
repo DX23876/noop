@@ -30,6 +30,9 @@ extension AICoachEngine {
         }
         let defaults = UserDefaults.standard
         let used = forgeInitiatedToday(now: now)
+        // Notes are short; they use the cheap card model rather than the chat model.
+        noteTurn = true
+        defer { noteTurn = false }
 
         if ForgeCoachNotes.mayPost(.afterWorkout, now: now, enabled: ForgeCoachNotes.isEnabled(.afterWorkout),
                                    initiatedToday: used),

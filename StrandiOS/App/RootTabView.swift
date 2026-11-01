@@ -317,8 +317,28 @@ struct RootTabView: View {
         }
         // The redesign's "All features": the More index with its own stack, opened from the profile button.
         .sheet(isPresented: $showAllFeatures) {
-            moreTab(path: $tabPaths[4], scrollSignal: scrollTop[4])
-                .presentationDragIndicator(.visible)
+            NavigationStack(path: $tabPaths[4]) {
+                ForgeSettingsView { MoreDeviceRow(model: model) }
+                    .navigationDestination(for: MoreDestination.self) { route in
+                        route.destination
+                            .background(StrandPalette.surfaceBase.ignoresSafeArea())
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
+                    .navigationDestination(for: ForgeSettingsRoute.self) { route in
+                        switch route {
+                        case .allFeatures:
+                            moreIndexContent
+                                .noopCardKind(.navigation)
+                                .navigationBarTitleDisplayMode(.inline)
+                        case .scoringGuide:
+                            ScoringGuideView(onClose: {
+                                if !tabPaths[4].isEmpty { tabPaths[4].removeLast() }
+                            })
+                        }
+                    }
+            }
+            .onChangeCompat(of: tabPaths[4].count) { _ in moreSearchFocused = false }
+            .presentationDragIndicator(.visible)
         }
         // Activity detection: a notification tap or "Other kind…" opens the logging sheet from any tab.
         .activitySuggestionSheetHost(repo)
@@ -860,50 +880,56 @@ struct RootTabView: View {
 
     // Analysis migration required: no. This is navigation and presentation only; stored health inputs,
     // derived values and their invalidation semantics are unchanged.
-    private func moreTab(path: Binding<NavigationPath>, scrollSignal: Int) -> some View {
-        NavigationStack(path: path) {
-            ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
-                           onRefresh: { await repo.refresh() },
-                           topBackground: liquidScaffoldSky()) {
-                MoreProfileRow()
-                MoreDeviceRow(model: model)
+    /// The More index itself (profile, device, search, groups, quick access). The shipped shell shows it as
+    /// the More tab; the redesign pushes it as "All features" from its Settings sheet.
+    @ViewBuilder private var moreIndexContent: some View {
+        ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
+                       onRefresh: { await repo.refresh() },
+                       topBackground: liquidScaffoldSky()) {
+            MoreProfileRow()
+            MoreDeviceRow(model: model)
 
-                NoopLiquidGlassSearchField(
-                    text: $moreQuery,
-                    prompt: String(localized: "Search screens and settings"),
-                    accessibilityLabel: String(localized: "Search screens and settings"),
-                    isFocused: $moreSearchFocused
-                )
+            NoopLiquidGlassSearchField(
+                text: $moreQuery,
+                prompt: String(localized: "Search screens and settings"),
+                accessibilityLabel: String(localized: "Search screens and settings"),
+                isFocused: $moreSearchFocused
+            )
 
-                if isSearchingMore {
-                    moreSearchResults
-                } else {
-                    NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
-                        MoreRow(MoreCatalog.goalsEntry)
-                            .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
-                    }
+            if isSearchingMore {
+                moreSearchResults
+            } else {
+                NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                    MoreRow(MoreCatalog.goalsEntry)
+                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
+                }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Browse").strandOverline()
-                        VStack(spacing: 12) {
-                            ForEach(MoreCatalog.groups) { group in
-                                MoreCategoryRow(category: group.category)
-                            }
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Quick access").strandOverline()
-                        NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
-                            VStack(spacing: 0) {
-                                ForEach(MoreCatalog.rootEntries) { entry in MoreRow(entry) }
-                            }
-                            .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius,
-                                                        style: .continuous))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Browse").strandOverline()
+                    VStack(spacing: 12) {
+                        ForEach(MoreCatalog.groups) { group in
+                            MoreCategoryRow(category: group.category)
                         }
                     }
                 }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Quick access").strandOverline()
+                    NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                        VStack(spacing: 0) {
+                            ForEach(MoreCatalog.rootEntries) { entry in MoreRow(entry) }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius,
+                                                    style: .continuous))
+                    }
+                }
             }
+        }
+    }
+
+    private func moreTab(path: Binding<NavigationPath>, scrollSignal: Int) -> some View {
+        NavigationStack(path: path) {
+            moreIndexContent
             .noopCardKind(.navigation)
             // The rows push MoreDestination VALUES so a re-tap of the More tab can pop them off the
             // bound path (#135/#198). Each destination keeps the per-screen wrapper the rows used to

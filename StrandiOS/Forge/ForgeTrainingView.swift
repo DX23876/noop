@@ -130,26 +130,38 @@ struct ForgeTrainingView: View {
         return String(localized: "\(total / 60) h \(String(format: "%02d", total % 60)) min")
     }
 
+    /// Quick starts as in the prototype: start a session (the shared start sheet picks the activity),
+    /// the interval timer, or live heart rate.
     private var startRow: some View {
-        HStack(spacing: 10) {
-            Button(action: onStartWorkout) {
-                Label("Start workout", systemImage: "play.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(ForgeColor.onAccent)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-                    .background(Capsule().fill(ForgeColor.accent))
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                Button(action: onStartWorkout) {
+                    Label("Start workout", systemImage: "play.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(ForgeColor.onAccent)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 44)
+                        .background(Capsule().fill(ForgeColor.accent))
+                }
+                .buttonStyle(.plain)
+                quickChip("Intervals", "timer", MoreDestination.intervals)
+                quickChip("Live", "heart.fill", MoreDestination.live)
+                quickChip("Breathe", "wind", MoreDestination.breathe)
             }
-            .buttonStyle(.plain)
-            NavigationLink(value: MoreDestination.live) {
-                Label("Live", systemImage: "heart.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(ForgeColor.accent)
-                    .padding(.horizontal, 18)
-                    .frame(minHeight: 48)
-                    .background(Capsule().fill(ForgeColor.fill))
-            }
-            .buttonStyle(.plain)
         }
+        .scrollIndicators(.hidden)
+    }
+
+    private func quickChip(_ title: LocalizedStringKey, _ image: String, _ destination: MoreDestination) -> some View {
+        NavigationLink(value: destination) {
+            Label(title, systemImage: image)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(ForgeColor.text)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .background(Capsule().fill(ForgeColor.fill))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Routines

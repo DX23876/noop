@@ -85,7 +85,7 @@ struct ForgeBackground: View {
             } else {
                 LinearGradient(colors: [ForgeColor.wash(tab).opacity(0.85), ForgeColor.wash(tab).opacity(0)],
                                startPoint: .top, endPoint: .bottom)
-                    .frame(height: 360)
+                    .frame(height: 520)
             }
         }
         .ignoresSafeArea()

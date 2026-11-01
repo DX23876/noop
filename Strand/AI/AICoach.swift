@@ -1171,7 +1171,14 @@ final class AICoachEngine: ObservableObject {
 
     /// The model this request actually goes to. Every send path reads this rather than `model`, so the
     /// deep re-run needs no parallel plumbing.
-    var requestModel: String { deepTurn ? model(for: .deepAnalysis) : model }
+    var requestModel: String {
+        if deepTurn { return model(for: .deepAnalysis) }
+        return noteTurn ? model(for: .cardAnalysis) : model
+    }
+
+    /// True while a short proactive note (the redesign's post-workout and evening notes) is being written:
+    /// those run on the cheap card model, as agreed for notes, while chat keeps the chosen model.
+    var noteTurn = false
 
     /// Re-run the last question on the deep-analysis model. Deliberately an action on an ANSWER the user
     /// has already read — not a switch in the composer — so the extra cost is only ever spent when the

@@ -1,5 +1,6 @@
 #if os(iOS)
 import SwiftUI
+import Charts
 import StrandDesign
 import StrandAnalytics
 import StrandCore
@@ -22,6 +23,15 @@ struct ForgeSleepView: View {
     @AppStorage(SleepChartStyle.storageKey) private var chartStyleRaw = SleepChartStyle.classic.rawValue
 
     @State private var model: SleepModel?
+    @State private var restHistory: [(day: String, value: Double)] = []
+    @State private var historyRange: HistoryRange = .week
+
+    enum HistoryRange: String, CaseIterable, Identifiable {
+        case week, month, year
+        var id: String { rawValue }
+        var days: Int { switch self { case .week: 7; case .month: 30; case .year: 365 } }
+        var label: LocalizedStringKey { switch self { case .week: "Week"; case .month: "Month"; case .year: "Year" } }
+    }
     @State private var loaded = false
 
     private var revision: SleepPresentationRevision { SleepPresentationRevision(repo: repo) }
@@ -33,23 +43,32 @@ struct ForgeSleepView: View {
                     ForgeLargeHeader(title: "Sleep", onProfile: onProfile).id("forge-sleep-top")
                     VStack(alignment: .leading, spacing: 14) {
                         if let model {
+                            Text("\(nightDays(model)) · \(model.night.onsetText) to \(model.night.wakeText)")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(ForgeColor.secondary)
+                                .padding(.horizontal, 4)
                             summaryTiles(model)
+                            if coachFeatureEnabled {
+                                Button {
+                                    onAsk(String(localized: "Look at my last night's sleep and tell me what stood out and what I could change tonight."))
+                                } label: {
+                                    Label("Discuss last night with the coach", systemImage: "sparkles")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(ForgeColor.accent)
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .background(Capsule().fill(ForgeColor.fill))
+                                }
+                                .buttonStyle(.plain)
+                            }
                         } else if loaded {
                             ForgeTabHero(overline: String(localized: "Last night"),
                                          headline: String(localized: "No night recorded yet"))
                         }
                         tonightCard
-                        if let model {
-                            nightCard(model)
-                            if coachFeatureEnabled {
-                                ForgeChip(title: String(localized: "Discuss last night with the coach"),
-                                          systemImage: "sparkles", prominent: true) {
-                                    onAsk(String(localized: "Look at my last night's sleep and tell me what stood out and what I could change tonight."))
-                                }
-                            }
-                        }
+                        if let model { nightCard(model) }
                         GoalsContextCard(context: .sleep)
                         if let model { nightFacts(model) }
+                        if restHistory.count > 1 { history }
                         more
                     }
                     .padding(.horizontal, 16)
@@ -70,6 +89,8 @@ struct ForgeSleepView: View {
                 model = presentation.model
             }
             loaded = true
+            let series = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource, days: 365)
+            restHistory = series.map { ($0.day, $0.value) }
         }
     }
 
@@ -111,7 +132,7 @@ struct ForgeSleepView: View {
                     .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Tonight").font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    Text("Need \(ForgeTodayView.hoursMinutes(Double(need))) h of sleep")
+                    Text("Need \(ForgeTodayView.hoursMinutes(Double(need))) h · alarm \(wakeText)")
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
                 Spacer()
@@ -126,6 +147,22 @@ struct ForgeSleepView: View {
             .forgeCard(radius: 22, padding: 14)
         }
         .buttonStyle(LiquidPressStyle())
+    }
+
+    /// Tomorrow's wake time from the same planner the bedtime comes from.
+    private var wakeText: String {
+        let cal = Calendar.current
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date())) ?? Date()
+        let minutes = WindDownNudge.wakeMinutes(forWeekday: cal.component(.weekday, from: tomorrow))
+        return String(format: "%02d:%02d", minutes / 60, minutes % 60)
+    }
+
+    /// "Sat to Sun": the two weekdays the night spans.
+    private func nightDays(_ m: SleepModel) -> String {
+        let start = m.night.onsetDate
+        let end = Date(timeIntervalSince1970: TimeInterval(m.night.session.endTs))
+        let style = Date.FormatStyle.dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale)
+        return String(localized: "\(start.formatted(style)) to \(end.formatted(style))")
     }
 
     // MARK: Night
@@ -195,6 +232,49 @@ struct ForgeSleepView: View {
             .buttonStyle(LiquidPressStyle())
         }
     }
+
+    // MARK: History
+
+    /// Rest night by night over a week, a month or a year: the same stored series the Rest detail reads.
+    private var history: some View {
+        let points = restHistory.suffix(historyRange.days).compactMap { p -> (Date, Double)? in
+            Self.dayParser.date(from: p.day).map { ($0, p.value) }
+        }
+        return VStack(alignment: .leading, spacing: 10) {
+            ForgeSectionTitle(title: "History")
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("Range", selection: $historyRange) {
+                    ForEach(HistoryRange.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                Chart {
+                    ForEach(points, id: \.0) { p in
+                        if historyRange == .week {
+                            BarMark(x: .value("Night", p.0, unit: .day), y: .value("Rest", p.1))
+                                .foregroundStyle(ForgeColor.rest.opacity(0.85))
+                                .cornerRadius(5)
+                        } else {
+                            LineMark(x: .value("Night", p.0), y: .value("Rest", p.1))
+                                .interpolationMethod(.monotone)
+                                .foregroundStyle(ForgeColor.rest)
+                        }
+                    }
+                }
+                .chartYScale(domain: 0...100)
+                .frame(height: 150)
+                .accessibilityLabel(Text("Rest night by night"))
+            }
+            .forgeCard(radius: 22, padding: 14)
+        }
+    }
+
+    private static let dayParser: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
     // MARK: More
 

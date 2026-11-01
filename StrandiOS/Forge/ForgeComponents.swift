@@ -33,20 +33,24 @@ struct ForgeRow: View {
     var value: String? = nil
     var unit: String? = nil
     var showsChevron = true
+    /// The denser iOS Settings look: smaller icon tile, regular-weight title.
+    var compact = false
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: compact ? 13 : 15, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint))
+                .frame(width: compact ? 28 : 32, height: compact ? 28 : 32)
+                .background(RoundedRectangle(cornerRadius: compact ? 7 : 8, style: .continuous).fill(tint))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                Text(title).font(.system(size: 16, weight: compact ? .regular : .semibold))
+                    .foregroundStyle(ForgeColor.text)
                     .lineLimit(1)
                 if let subtitle {
-                    Text(subtitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(2)
+                    Text(subtitle).font(.system(size: compact ? 12 : 13)).foregroundStyle(ForgeColor.secondary)
+                        .lineLimit(2)
                 }
             }
             Spacer(minLength: 8)
@@ -64,7 +68,7 @@ struct ForgeRow: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.vertical, compact ? 8 : 11)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
