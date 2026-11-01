@@ -50,6 +50,13 @@ object SleepStageHealer {
      * context, but the density gate counts ONLY samples strictly within `[start, end]` — padding must
      * not make a sparse in-window night look dense.
      */
+    /**
+     * The core's staging of a window, with the wearer's own stager settings; null when this build has no core.
+     * `NoopApplication` points it at [com.noop.core.CoreMath.restage]. An answer whose value is null means the core
+     * found too little raw data, which the caller treats as it treats this copy's null.
+     */
+    @Volatile var coreRestage: ((deviceId: String, start: Long, end: Long) -> com.noop.core.CoreMath.Answer<String?>?)? = null
+
     suspend fun restageFromRaw(
         repo: WhoopRepository,
         deviceId: String,
@@ -67,6 +74,9 @@ object SleepStageHealer {
         // (e.g. a WHOOP 4.0, which never emits a step sample at all).
         useMotionAwareWake: Boolean = false,
     ): String? {
+        // Android without Room: the shared core stages the window with the wearer's stager, as the Apple apps do
+        // (`EditedSleepHeal.restage`). This copy remains for a build without the core and the JVM tests.
+        coreRestage?.invoke(deviceId, start, end)?.let { return it.value }
         val lo = start - 3_600L
         val hi = end + 3_600L
         val grav = repo.gravitySamplesForDevice(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)

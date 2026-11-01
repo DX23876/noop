@@ -100,4 +100,12 @@ object CoreMath {
             summaryText = a.optString("summary").ifEmpty { null },
         )
     }
+
+    /** A night staged by the core (`sleep.restage`) with [method] and [motionAwareWake]. */
+    fun restage(deviceId: String, start: Long, end: Long, method: String, motionAwareWake: Boolean): Answer<String?>? {
+        if (!CoreShadow.running) return null
+        val a = call("sleep.restage", JSONObject().put("deviceId", deviceId).put("start", start).put("end", end)
+            .put("method", method).put("motionAwareWake", motionAwareWake)) ?: return null
+        return Answer(if (a.isNull("stages")) null else a.optString("stages").ifEmpty { null })
+    }
 }

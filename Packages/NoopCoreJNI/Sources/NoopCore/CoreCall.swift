@@ -86,6 +86,15 @@ public enum CoreCall {
             guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
             do { try await store.deleteAllData(deviceId: id); return #"{"ok":true}"# }
             catch { return #"{"error":"deleteFailed"}"# }
+        case "sleep.restage":
+            // A night the wearer added or edited, staged from the strap's raw streams with the wearer's stager,
+            // as the Apple apps do (`EditedSleepHeal.restage`); null when the window has too little raw data.
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            let method = SleepStager.Method(rawValue: string("method")) ?? .v2
+            let stages = await EditedSleepHeal.restage(
+                store: store, deviceId: string("deviceId"), start: int("start", 0), end: int("end", 0),
+                staging: .init(method: method, motionAwareWake: args["motionAwareWake"] as? Bool ?? false))
+            return CoreRead.json(["stages": stages])
         case "nap.evaluate":
             // Android's nap review card (CORE-ONLY-PLAN, decision 6): the core's NapDetector over the strap's
             // gravity and heart rate in [from, to], with the wearer's settings.

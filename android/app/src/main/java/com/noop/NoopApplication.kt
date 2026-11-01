@@ -70,6 +70,10 @@ class NoopApplication : Application() {
         com.noop.core.CoreDb.init(this)
         com.noop.analytics.IntelligenceEngine.coreOwnsScores = { com.noop.core.SwiftCore.available }
         com.noop.core.CoreMath.enabled = { com.noop.core.SwiftCore.available }
+        com.noop.analytics.SleepStageHealer.coreRestage = { id, start, end ->
+            val experiment = com.noop.ble.PuffinExperiment.from(this)
+            com.noop.core.CoreMath.restage(id, start, end, experiment.sleepStagerMethod, experiment.motionAwareWake)
+        }
     }
 
     /** Process-wide repository: journal and water use the shared core; remaining classic data stays in Room. */
