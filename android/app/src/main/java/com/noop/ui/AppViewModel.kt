@@ -30,6 +30,7 @@ import com.noop.analytics.StrainScorer
 import com.noop.analytics.UserProfile
 import com.noop.analytics.WorkoutSport
 import com.noop.location.GpsSession
+import com.noop.location.RoutePointStore
 import kotlinx.coroutines.Job
 import com.noop.ble.HrBroadcaster
 import com.noop.ble.LiveState
@@ -1782,7 +1783,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // The process-level session is authoritative for the route: it kept accumulating even if this
         // ViewModel was cleared mid-ride (screen off), so [w.track] may be stale. Stop it and take its
         // final track. A non-GPS workout has nothing in the session, so fall back to the local track. (#215)
-        val track = if (w.gpsEnabled) GpsSession.stop() else w.track
+        val (track, routePoints) = if (w.gpsEnabled) GpsSession.stopWithPoints() else w.track to emptyList()
         val distanceM = if (w.gpsEnabled) RouteMath.totalMeters(track) else w.distanceM
         // If we promoted the foreground service ONLY to keep GPS tracking alive (the user hasn't opted
         // into the background connection), drop it now the route is finished — otherwise a lingering
@@ -1868,6 +1869,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         buzz(2, HapticPrefs.WORKOUT)
         viewModelScope.launch {
             val saved = runCatching { repository.upsertWorkouts(listOf(row)) }.isSuccess
+            // The fixes with their times and heights, beside the row's polyline, for exports and Health Connect.
+            if (saved && row.routePolyline != null) {
+                withContext(Dispatchers.IO) { RoutePointStore.save(appContext, row.startTs, row.sport, routePoints) }
+            }
             // #528: persist the live 1 Hz workout HR into hrSample so it can export to Health Connect
             // at full resolution NOW (the HR export keeps workout-window samples un-decimated), instead
             // of only after the next strap offload sync. IGNORE-on-conflict makes a later sync of the
