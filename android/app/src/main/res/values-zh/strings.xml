@@ -4958,4 +4958,6 @@
     <string name="forge_lab_strength_effort_detail">你在训练后评分的力量训练会在心率之外计入消耗，评分越高、时长越长，计入越多。未评分的训练不计入。按假定强度 7/10 与 WHOOP 校准。</string>
     <string name="forge_data_update_title">正在更新你的数据</string>
     <string name="forge_data_update_body">NOOP 正在将你的历史记录迁移到新的存储中。此过程只进行一次，可能需要几分钟。请保持应用打开。</string>
+    <string name="workout_export_title">导出训练</string>
+    <string name="workout_export_body">将此训练连同心率保存为 FIT 文件，可导入 Strava、Garmin Connect 或其他应用。文件在你的手机上生成，只有在你分享时才会离开手机。</string>
 </resources>

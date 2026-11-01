@@ -5001,4 +5001,6 @@
     <string name="forge_lab_strength_effort_detail">Krafteinheiten, die du nach dem Training bewertest, erhöhen die Belastung über deinen Puls hinaus, stärker bei härterer Bewertung und längerer Einheit. Unbewertete Einheiten zählen nicht. An WHOOP abgestimmt, mit einer angenommenen Anstrengung von 7 von 10.</string>
     <string name="forge_data_update_title">Deine Daten werden übernommen</string>
     <string name="forge_data_update_body">NOOP überträgt deinen Verlauf in den neuen Speicher. Das passiert einmal und kann ein paar Minuten dauern. Lass die App geöffnet.</string>
+    <string name="workout_export_title">Training exportieren</string>
+    <string name="workout_export_body">Speichere dieses Training mit seinem Puls als FIT-Datei für Strava, Garmin Connect oder eine andere App. Die Datei entsteht auf deinem Handy und verlässt es erst, wenn du sie teilst.</string>
 </resources>

@@ -4987,4 +4987,6 @@
     <string name="forge_lab_strength_effort_detail">Les séances de force que vous évaluez après l’entraînement s’ajoutent à l’effort au-delà de votre pouls, davantage pour une évaluation plus dure et une séance plus longue. Les séances non évaluées n’ajoutent rien. Calibré sur WHOOP avec un effort supposé de 7 sur 10.</string>
     <string name="forge_data_update_title">Mise à jour de vos données</string>
     <string name="forge_data_update_body">NOOP transfère votre historique vers son nouveau stockage. Cela n\'arrive qu\'une fois et peut prendre quelques minutes. Laissez l\'app ouverte.</string>
+    <string name="workout_export_title">Exporter l\'entraînement</string>
+    <string name="workout_export_body">Enregistre cet entraînement avec sa fréquence cardiaque dans un fichier FIT à importer dans Strava, Garmin Connect ou une autre app. Le fichier est créé sur ton téléphone et ne le quitte que si tu le partages.</string>
 </resources>

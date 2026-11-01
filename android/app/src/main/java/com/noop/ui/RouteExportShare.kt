@@ -34,7 +34,8 @@ object RouteExportShare {
         row: WorkoutRow,
     ) {
         runCatching {
-            val filename = "noop-route-${row.startTs}.${format.ext}"
+            // Named like iOS `WorkoutFileExport`: a file without a track is a workout, not a route.
+            val filename = "${if (track.size >= 2) "noop-route" else "noop-workout"}-${row.startTs}.${format.ext}"
             // Build the file AND write it off the main thread — a long route (10k+ points) is a non-trivial
             // string/byte build, and file IO must never block the UI. Only the chooser launch stays on Main.
             val file = withContext(Dispatchers.IO) {

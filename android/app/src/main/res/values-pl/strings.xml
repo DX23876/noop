@@ -5004,4 +5004,6 @@
     <string name="forge_lab_strength_effort_detail">Sesje siłowe, które oceniasz po treningu, zwiększają wysiłek ponad to, co pokazuje tętno, tym bardziej, im wyższa ocena i dłuższa sesja. Sesje bez oceny nic nie dodają. Skalibrowane względem WHOOP przy założonym wysiłku 7 na 10.</string>
     <string name="forge_data_update_title">Aktualizacja danych</string>
     <string name="forge_data_update_body">NOOP przenosi Twoją historię do nowego magazynu. Dzieje się to tylko raz i może potrwać kilka minut. Nie zamykaj aplikacji.</string>
+    <string name="workout_export_title">Eksportuj trening</string>
+    <string name="workout_export_body">Zapisz ten trening z tętnem jako plik FIT do zaimportowania w Stravie, Garmin Connect lub innej aplikacji. Plik powstaje na Twoim telefonie i opuszcza go dopiero, gdy go udostępnisz.</string>
 </resources>

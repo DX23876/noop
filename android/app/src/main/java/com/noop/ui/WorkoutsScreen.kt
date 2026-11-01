@@ -1700,6 +1700,31 @@ internal fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: ()
                     }
                 }
             }
+
+            // A workout without a route still exports as a FIT from its heart rate (the shared exporter),
+            // so it can go to Strava or Garmin Connect by hand like a GPS one. Twin of iOS `workoutExportCard`.
+            val hasRoute = row.routePolyline?.let { RouteMath.decode(it).size >= 2 } ?: false
+            if (!hasRoute && row.avgHr != null) {
+                val exportCtx = LocalContext.current
+                val exportScope = rememberCoroutineScope()
+                CardDivider()
+                Text(stringResource(R.string.workout_export_title), style = NoopType.subhead, color = Palette.textPrimary)
+                Text(
+                    stringResource(R.string.workout_export_body),
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
+                )
+                NoopButton(
+                    text = "FIT",
+                    kind = NoopButtonKind.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        exportScope.launch {
+                            RouteExportShare.share(exportCtx, RouteExport.Format.FIT, emptyList(), row)
+                        }
+                    },
+                )
+            }
         }
     }
 }

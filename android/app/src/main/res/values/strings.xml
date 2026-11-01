@@ -5023,4 +5023,6 @@
     <string name="forge_lab_strength_effort_detail">Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.</string>
     <string name="forge_data_update_title">Updating your data</string>
     <string name="forge_data_update_body">NOOP is moving your history into its new store. This happens once and can take a few minutes. Keep the app open.</string>
+    <string name="workout_export_title">Export workout</string>
+    <string name="workout_export_body">Save this workout with its heart rate as a FIT file to import into Strava, Garmin Connect or another app. The file is built on your phone and only leaves it when you share it.</string>
 </resources>
