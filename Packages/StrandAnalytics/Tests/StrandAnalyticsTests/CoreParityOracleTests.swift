@@ -119,6 +119,80 @@ final class CoreParityOracleTests: XCTestCase {
                                ["day": nn(c.day), "value": nn(c.value), "level": c.level] as [String: Any]
                            } }]
                }),
+        Oracle(name: "SleepDebt",
+               inputs: cases(40, seed: 6) { r in
+                   let start = 20_200 + r.int(0...200)
+                   let series: [[String: Any]] = (0..<r.int(0...30)).map { d in
+                       ["day": day(start + d), "min": r.chance(0.15) ? NSNull() : r.double(0...700)]
+                   }
+                   var imported: [String: Double] = [:]
+                   for row in series where r.chance(0.2) { imported[row["day"] as! String] = r.double(-200...400) }
+                   return ["series": series, "need": r.double(4...10), "window": r.int(1...21), "imported": imported,
+                           "main": r.chance(0.2) ? NSNull() : r.double(-50...600), "nap": r.double(-20...120)]
+               },
+               run: { a in
+                   let series = (a["series"] as! [[String: Any]]).map {
+                       (day: $0["day"] as! String, totalSleepMin: $0["min"] as? Double)
+                   }
+                   let need = a["need"] as! Double, window = a["window"] as! Int
+                   let ledger = SleepDebt.ledger(series: series, needHours: need, window: window)
+                   return ["credited": nn(SleepDebt.creditedSleepMin(mainSleepMin: a["main"] as? Double,
+                                                                     napSleepMin: a["nap"] as! Double)),
+                           "series": SleepDebt.debtSeries(series: series, needHours: need,
+                                                          importedDebtMin: a["imported"] as! [String: Double],
+                                                          window: window).map { ["day": $0.day, "value": $0.value] },
+                           "balance": ledger.balanceMin, "needMin": ledger.needMin,
+                           "nights": ledger.nights.map { ["day": $0.day, "slept": $0.sleptMin, "delta": $0.deltaMin] }]
+               }),
+        Oracle(name: "StressIndex.components",
+               inputs: cases(40, seed: 7) { r in
+                   let base = r.double(500...1200)
+                   return ["rr": (0..<r.int(0...300)).map { _ in r.chance(0.05) ? r.double(200...2500) : base + r.double(-120...120) }]
+               },
+               run: { a in
+                   guard let c = StressIndex.components(rawRR: a["rr"] as! [Double]) else { return NSNull() }
+                   return ["mo": c.moSec, "amo": c.aMoPercent, "mxdmn": c.mxDMnSec, "si": c.si]
+               }),
+        Oracle(name: "VitalityEngine",
+               inputs: cases(40, seed: 8) { r in
+                   func maybe(_ range: ClosedRange<Double>) -> Any { r.chance(0.25) ? NSNull() : r.double(range) }
+                   return ["age": r.double(18...85), "rhr": maybe(40...90), "vo2": maybe(20...60), "evo2": maybe(25...50),
+                           "sleep": maybe(4...10), "cons": maybe(0...1), "rmssd": maybe(10...120), "rnorm": maybe(20...80),
+                           "steps": maybe(1000...20000),
+                           "nightly": (0..<r.int(0...14)).map { _ in r.double(3...11) }]
+               },
+               run: { a in
+                   let inputs = VitalityEngine.Inputs(
+                       chronoAge: a["age"] as! Double, restingHR: a["rhr"] as? Double, vo2max: a["vo2"] as? Double,
+                       expectedVO2max: a["evo2"] as? Double, sleepHours: a["sleep"] as? Double,
+                       sleepConsistency: a["cons"] as? Double, rmssd: a["rmssd"] as? Double,
+                       rmssdNorm: a["rnorm"] as? Double, steps: a["steps"] as? Double)
+                   let result = VitalityEngine.compute(inputs)
+                   return ["norm": VitalityEngine.rmssdNorm(forAge: a["age"] as! Double),
+                           "consistency": nn(VitalityEngine.sleepConsistency(nightlyHours: a["nightly"] as! [Double])),
+                           "contributions": VitalityEngine.contributions(inputs).map {
+                               ["key": $0.key, "label": $0.label, "lnHazard": $0.lnHazard] },
+                           "result": nn(result.map { ["vitality": $0.vitality, "bodyAge": $0.bodyAge,
+                                                       "deltaYears": $0.deltaYears, "bandYears": $0.bandYears] })]
+               }),
+        Oracle(name: "FitnessAgeEngine",
+               inputs: cases(50, seed: 9) { r in
+                   ["age": r.double(18...85), "sex": ["male", "female", "nonbinary"][r.int(0...2)],
+                    "waist": r.double(60...130), "rhr": r.double(40...95), "days": r.int(0...7),
+                    "strain": r.double(0...100), "weight": r.double(45...150), "height": r.double(150...205),
+                    "rhrDays": r.int(0...30)]
+               },
+               run: { a in
+                   let age = a["age"] as! Double, sex = a["sex"] as! String, rhr = a["rhr"] as! Double
+                   let pa = FitnessAgeEngine.physicalActivityIndexFromStrain(activeDaysPerWeek: a["days"] as! Int,
+                                                                            meanActiveStrain: a["strain"] as! Double)
+                   return ["bmi": FitnessAgeEngine.bmi(weightKg: a["weight"] as! Double, heightCm: a["height"] as! Double),
+                           "pa": pa,
+                           "vo2": FitnessAgeEngine.estimateVO2max(age: age, sex: sex, waistCm: a["waist"] as! Double,
+                                                                  restingHR: rhr, paIndex: pa),
+                           "fitnessAge": FitnessAgeEngine.fitnessAge(age: age, sex: sex, restingHR: rhr, paIndex: pa),
+                           "nightsUntilReady": FitnessAgeEngine.nightsUntilReady(rhrDays: a["rhrDays"] as! Int)]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

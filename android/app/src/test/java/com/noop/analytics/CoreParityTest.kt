@@ -51,6 +51,45 @@ class CoreParityTest {
             obj("weeks" to g.weeks, "scale" to g.scale,
                 "columns" to g.columns.map { col -> col.map { c -> obj("day" to c.day, "value" to c.value, "level" to c.level) } })
         },
+        "SleepDebt" to { i ->
+            val rows = i.getJSONArray("series")
+            val series = (0 until rows.length()).map { k ->
+                val row = rows.getJSONObject(k)
+                row.getString("day") to (if (row.isNull("min")) null else row.getDouble("min"))
+            }
+            val need = i.getDouble("need")
+            val window = i.getInt("window")
+            val imp = i.getJSONObject("imported")
+            val ledger = SleepDebt.ledger(series, need, window)
+            obj("credited" to SleepDebt.creditedSleepMin(if (i.isNull("main")) null else i.getDouble("main"), i.getDouble("nap")),
+                "series" to SleepDebt.debtSeries(series, need, imp.keys().asSequence().associateWith { imp.getDouble(it) }, window)
+                    .map { obj("day" to it.first, "value" to it.second) },
+                "balance" to ledger.balanceMin, "needMin" to ledger.needMin,
+                "nights" to ledger.nights.map { obj("day" to it.day, "slept" to it.sleptMin, "delta" to it.deltaMin) })
+        },
+        "StressIndex.components" to { i ->
+            StressIndex.componentsRaw(doubles(i.getJSONArray("rr")))
+                ?.let { obj("mo" to it.moSec, "amo" to it.aMoPercent, "mxdmn" to it.mxDMnSec, "si" to it.si) }
+        },
+        "VitalityEngine" to { i ->
+            fun d(k: String) = if (i.isNull(k)) null else i.getDouble(k)
+            val inputs = VitalityEngine.Inputs(i.getDouble("age"), d("rhr"), d("vo2"), d("evo2"), d("sleep"), d("cons"),
+                                               d("rmssd"), d("rnorm"), d("steps"))
+            obj("norm" to VitalityEngine.rmssdNorm(i.getDouble("age")),
+                "consistency" to VitalityEngine.sleepConsistency(doubles(i.getJSONArray("nightly"))),
+                "contributions" to VitalityEngine.contributions(inputs).map { obj("key" to it.key, "label" to it.label, "lnHazard" to it.lnHazard) },
+                "result" to VitalityEngine.compute(inputs)?.let {
+                    obj("vitality" to it.vitality, "bodyAge" to it.bodyAge, "deltaYears" to it.deltaYears, "bandYears" to it.bandYears)
+                })
+        },
+        "FitnessAgeEngine" to { i ->
+            val age = i.getDouble("age"); val sex = i.getString("sex"); val rhr = i.getDouble("rhr")
+            val pa = FitnessAgeEngine.physicalActivityIndexFromStrain(i.getInt("days"), i.getDouble("strain"))
+            obj("bmi" to FitnessAgeEngine.bmi(i.getDouble("weight"), i.getDouble("height")), "pa" to pa,
+                "vo2" to FitnessAgeEngine.estimateVO2max(age, sex, i.getDouble("waist"), rhr, pa),
+                "fitnessAge" to FitnessAgeEngine.fitnessAge(age, sex, rhr, pa),
+                "nightsUntilReady" to FitnessAgeEngine.nightsUntilReady(i.getInt("rhrDays")))
+        },
     )
 
     private fun oracleDir(): File {

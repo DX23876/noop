@@ -1,0 +1,2240 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "age" : 41.457999999999998,
+        "cons" : 0.626,
+        "evo2" : 23.878,
+        "nightly" : [
+          0.46999999999999997,
+          7.0839999999999996
+        ],
+        "rhr" : 34.491,
+        "rmssd" : 48.534999999999997,
+        "rnorm" : null,
+        "sleep" : 0.48499999999999999,
+        "steps" : 11125.245000000001,
+        "vo2" : 2.573
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.30509000000000003
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : 0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.055800000000000002
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 32.416800000000002,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 44.441868445269009,
+          "deltaYears" : -2.9838684452690103,
+          "vitality" : 42.540328886827474
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 26.085999999999999,
+        "cons" : null,
+        "evo2" : 6.5030000000000001,
+        "nightly" : [
+          4.4340000000000002,
+          3.5070000000000001,
+          1.0229999999999999,
+          5.4539999999999997,
+          0.84199999999999997,
+          4.9500000000000002,
+          7.7880000000000003
+        ],
+        "rhr" : 6.7530000000000001,
+        "rmssd" : 74.772999999999996,
+        "rnorm" : 1.79,
+        "sleep" : null,
+        "steps" : null,
+        "vo2" : 16.093
+      },
+      "output" : {
+        "consistency" : 0.42805398608340017,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.58247000000000004
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.35619999999999996
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          }
+        ],
+        "norm" : 42.739800000000002,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : 6.0859999999999985,
+          "vitality" : 65.215000000000003
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 27.527999999999999,
+        "cons" : 0.219,
+        "evo2" : 22.693000000000001,
+        "nightly" : [
+          1.901,
+          4.1399999999999997,
+          3.1019999999999999
+        ],
+        "rhr" : null,
+        "rmssd" : 34.850999999999999,
+        "rnorm" : 17.759,
+        "sleep" : 1.113,
+        "steps" : null,
+        "vo2" : 16.248999999999999
+      },
+      "output" : {
+        "consistency" : 0.6998113388561541,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : 0.23934857142857152
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.23895000000000002
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.15399065262683709
+          }
+        ],
+        "norm" : 41.730400000000003,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 33.191800738017847,
+          "deltaYears" : -5.6638007380178479,
+          "vitality" : 35.840498154955384
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 4.0449999999999999,
+        "cons" : 0.93999999999999995,
+        "evo2" : 16.931999999999999,
+        "nightly" : [
+          7.6239999999999997,
+          6.5949999999999998,
+          4.7800000000000002,
+          2.218,
+          0.13400000000000001,
+          6.0289999999999999
+        ],
+        "rhr" : 42.689,
+        "rmssd" : 71.305000000000007,
+        "rnorm" : 44.067,
+        "sleep" : 2.9710000000000001,
+        "steps" : 9563.6569999999992,
+        "vo2" : 0.375
+      },
+      "output" : {
+        "consistency" : 0.42848744792318683,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.22311000000000003
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : 0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.085499999999999979
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.098896680055370251
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.16407404799999994
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -15.955,
+          "vitality" : 10.112499999999997
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 43.387,
+        "cons" : 0.93100000000000005,
+        "evo2" : 13.458,
+        "nightly" : [
+
+        ],
+        "rhr" : 9.0299999999999994,
+        "rmssd" : 69.950000000000003,
+        "rnorm" : 27.495999999999999,
+        "sleep" : 1.502,
+        "steps" : 138.262,
+        "vo2" : 17.439
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.55969999999999998
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.14786571428571429
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.081450000000000022
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.25600000000000001
+          }
+        ],
+        "norm" : 31.645199999999999,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 40.244674175411411,
+          "deltaYears" : 3.142325824588589,
+          "vitality" : 57.855814561471476
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 60.780999999999999,
+        "cons" : 0.94699999999999995,
+        "evo2" : null,
+        "nightly" : [
+          2.2290000000000001,
+          1.397,
+          7.391,
+          7.1970000000000001,
+          1.617,
+          0.249,
+          7.0510000000000002,
+          5.077,
+          5.9240000000000004,
+          0.02,
+          6.0460000000000003,
+          2.149,
+          1.9710000000000001
+        ],
+        "rhr" : 36.158000000000001,
+        "rmssd" : null,
+        "rnorm" : 27.474,
+        "sleep" : 3.6230000000000002,
+        "steps" : null,
+        "vo2" : 23.821999999999999
+      },
+      "output" : {
+        "consistency" : 0.28395660867061456,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.28842000000000001
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.088649999999999979
+          }
+        ],
+        "norm" : 24.765699999999999,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 60.373554066552138,
+          "deltaYears" : 0.4074459334478604,
+          "vitality" : 51.018614833619651
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 25.120999999999999,
+        "cons" : 0.128,
+        "evo2" : 18.067,
+        "nightly" : [
+          7.2300000000000004,
+          1.5620000000000001,
+          6.9790000000000001
+        ],
+        "rhr" : 48.505000000000003,
+        "rmssd" : 53.872999999999998,
+        "rnorm" : 20.553999999999998,
+        "sleep" : 1.653,
+        "steps" : 7109.3239999999996,
+        "vo2" : 6.2699999999999996
+      },
+      "output" : {
+        "consistency" : 0.50261210081253949,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.16494999999999999
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : 0.43817428571428574
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.27989999999999998
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.0069967359999999756
+          }
+        ],
+        "norm" : 43.415300000000002,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 31.319921987700589,
+          "deltaYears" : -6.1989219877005901,
+          "vitality" : 34.502695030748527
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 7.7249999999999996,
+        "cons" : 0.503,
+        "evo2" : 7.0759999999999996,
+        "nightly" : [
+          7.9710000000000001,
+          3.5409999999999999,
+          3.3079999999999998,
+          3.9039999999999999,
+          2.097,
+          0.747,
+          7.5430000000000001,
+          3.0840000000000001,
+          3.5059999999999998,
+          7.8620000000000001
+        ],
+        "rhr" : null,
+        "rmssd" : null,
+        "rnorm" : 44.304000000000002,
+        "sleep" : 1.1279999999999999,
+        "steps" : 4501.7439999999997,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.44739051100023586,
+        "contributions" : [
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.11115
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.15988838400000002
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -12.275,
+          "vitality" : 19.3125
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 22.696999999999999,
+        "cons" : 0.36299999999999999,
+        "evo2" : 11.952999999999999,
+        "nightly" : [
+          0.14399999999999999,
+          3.4740000000000002,
+          1.256,
+          6.4370000000000003,
+          1.859
+        ],
+        "rhr" : 10.137,
+        "rmssd" : 49.459000000000003,
+        "rnorm" : null,
+        "sleep" : 0.42299999999999999,
+        "steps" : 18746.636999999999,
+        "vo2" : 31.238
+      },
+      "output" : {
+        "consistency" : 0.17051716075308487,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.54863000000000006
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.17415
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 45.112099999999998,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : 2.6969999999999992,
+          "vitality" : 56.7425
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 49.284999999999997,
+        "cons" : 0.88900000000000001,
+        "evo2" : 8.5079999999999991,
+        "nightly" : [
+          3.1040000000000001,
+          1.7989999999999999,
+          3.6480000000000001,
+          7.6559999999999997
+        ],
+        "rhr" : 12.513,
+        "rmssd" : 75.265000000000001,
+        "rnorm" : 50.853000000000002,
+        "sleep" : 4.3979999999999997,
+        "steps" : 4084.1179999999999,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.46030562127201957,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.52487000000000006
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.28622000000000003
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.062550000000000008
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.076808054588716493
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.18661644799999999
+          }
+        ],
+        "norm" : 29.286000000000001,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 47.628281669840121,
+          "deltaYears" : 1.656718330159876,
+          "vitality" : 54.14179582539969
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 64.781000000000006,
+        "cons" : null,
+        "evo2" : 16.916,
+        "nightly" : [
+          6.7240000000000002,
+          0.85699999999999998,
+          6.1180000000000003,
+          4.2519999999999998,
+          1.8879999999999999,
+          5.3399999999999999,
+          5.5,
+          0.45600000000000002,
+          4.2430000000000003,
+          1.554
+        ],
+        "rhr" : 25.844000000000001,
+        "rmssd" : 90.867000000000004,
+        "rnorm" : 31.622,
+        "sleep" : 4.891,
+        "steps" : 16025.953,
+        "vo2" : 23.812999999999999
+      },
+      "output" : {
+        "consistency" : 0.40668559012174144,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.39156000000000002
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.25617428571428569
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.23199
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 23.5657,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 57.581279862273604,
+          "deltaYears" : 7.199720137726402,
+          "vitality" : 67.999300344315998
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 28.483000000000001,
+        "cons" : 0.29299999999999998,
+        "evo2" : 18.449999999999999,
+        "nightly" : [
+          3.7829999999999999,
+          6.6360000000000001,
+          4.3090000000000002,
+          0.64300000000000002,
+          4.9500000000000002
+        ],
+        "rhr" : null,
+        "rmssd" : 46.363999999999997,
+        "rnorm" : 32.555999999999997,
+        "sleep" : 3.0339999999999998,
+        "steps" : 2339.0619999999999,
+        "vo2" : 22.556000000000001
+      },
+      "output" : {
+        "consistency" : 0.51730853216865547,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.15250857142857152
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.20565
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.06786091657451776
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.25600000000000001
+          }
+        ],
+        "norm" : 41.061900000000001,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 33.428101369686708,
+          "deltaYears" : -4.9451013696867072,
+          "vitality" : 37.63724657578323
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 51.549999999999997,
+        "cons" : 0.0060000000000000001,
+        "evo2" : null,
+        "nightly" : [
+          4.7080000000000002,
+          6.1520000000000001,
+          6.8689999999999998,
+          2.431,
+          3.706,
+          3.0880000000000001,
+          3.7309999999999999,
+          2.75,
+          3.7170000000000001,
+          2.2069999999999999,
+          7.5099999999999998,
+          5.3150000000000004,
+          0.66400000000000003
+        ],
+        "rhr" : 0.33400000000000002,
+        "rmssd" : 82.712000000000003,
+        "rnorm" : 51.938000000000002,
+        "sleep" : 5.0209999999999999,
+        "steps" : 18913.903999999999,
+        "vo2" : 39.273000000000003
+      },
+      "output" : {
+        "consistency" : 0.53328872293622986,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.64666000000000001
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.21769000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.33479999999999999
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.094802264238130082
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 28.380000000000003,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 47.698244326303097,
+          "deltaYears" : 3.8517556736968999,
+          "vitality" : 59.62938918424225
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 30.212,
+        "cons" : null,
+        "evo2" : 8.0129999999999999,
+        "nightly" : [
+          5.8159999999999998,
+          2.927,
+          6.9640000000000004,
+          0.66100000000000003,
+          3.2000000000000002,
+          7.1390000000000002,
+          4.9089999999999998,
+          0.072999999999999995,
+          1.155,
+          1.581,
+          7.266
+        ],
+        "rhr" : 15.416,
+        "rmssd" : 41.097000000000001,
+        "rnorm" : null,
+        "sleep" : 5.3090000000000002,
+        "steps" : 15875.709000000001,
+        "vo2" : 33.374000000000002
+      },
+      "output" : {
+        "consistency" : 0.30989839245785467,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.49584000000000006
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.18600999999999998
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 39.851599999999998,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20.812870662509219,
+          "deltaYears" : 9.3991293374907805,
+          "vitality" : 73.497823343726949
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 4.3550000000000004,
+        "cons" : 0.20200000000000001,
+        "evo2" : 12.565,
+        "nightly" : [
+          1.0800000000000001,
+          1.696,
+          4.827,
+          5.5940000000000003,
+          7.2380000000000004,
+          5.0019999999999998,
+          4.7140000000000004,
+          2.1600000000000001
+        ],
+        "rhr" : null,
+        "rmssd" : 71.269000000000005,
+        "rnorm" : 30.001000000000001,
+        "sleep" : null,
+        "steps" : 16395.25,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.50148486784112611,
+        "contributions" : [
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.24660000000000001
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -15.645,
+          "vitality" : 10.887500000000003
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 31.745999999999999,
+        "cons" : 0.02,
+        "evo2" : 0.66200000000000003,
+        "nightly" : [
+          7.5090000000000003,
+          0.69799999999999995,
+          0.0040000000000000001,
+          7.194,
+          0.109,
+          3.8109999999999999,
+          3.052,
+          0.503,
+          7.702,
+          6.5910000000000002,
+          6.6900000000000004,
+          1.397
+        ],
+        "rhr" : 14.090999999999999,
+        "rmssd" : null,
+        "rnorm" : 52.515000000000001,
+        "sleep" : 2.6309999999999998,
+        "steps" : null,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.19183380953768159,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.50908999999999993
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.32850000000000001
+          }
+        ],
+        "norm" : 38.777799999999999,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 33.03931839635532,
+          "deltaYears" : -1.2933183963553212,
+          "vitality" : 46.766704009111699
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 66.290000000000006,
+        "cons" : 0.93400000000000005,
+        "evo2" : 21.827999999999999,
+        "nightly" : [
+          2.2069999999999999,
+          1.4930000000000001,
+          4.1859999999999999,
+          7.2549999999999999,
+          3.4119999999999999,
+          6.4290000000000003,
+          3.214,
+          4.8789999999999996,
+          0.124,
+          6.1520000000000001,
+          1.2549999999999999,
+          7.5229999999999997,
+          3.7949999999999999,
+          5.0519999999999996
+        ],
+        "rhr" : 40.859000000000002,
+        "rmssd" : 104.92700000000001,
+        "rnorm" : 57.058,
+        "sleep" : 4.2690000000000001,
+        "steps" : 10559.266,
+        "vo2" : 7.968
+      },
+      "output" : {
+        "consistency" : 0.4566861965263973,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.24141000000000001
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : 0.51480000000000004
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.30041000000000001
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.082800000000000026
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.13423253531494272
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.22779302399999998
+          }
+        ],
+        "norm" : 23.113,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 67.406424715866564,
+          "deltaYears" : -1.1164247158665574,
+          "vitality" : 47.208938210333606
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 5.9859999999999998,
+        "cons" : 0.52800000000000002,
+        "evo2" : null,
+        "nightly" : [
+          2.048,
+          1.0669999999999999,
+          6.2069999999999999,
+          5.2039999999999997,
+          1.694,
+          7.7990000000000004,
+          5.1719999999999997,
+          7.149,
+          6.2009999999999996,
+          2.2789999999999999,
+          0.77500000000000002,
+          2.8799999999999999,
+          3.3149999999999999,
+          1.0629999999999999
+        ],
+        "rhr" : null,
+        "rmssd" : 52.938000000000002,
+        "rnorm" : null,
+        "sleep" : 0.91900000000000004,
+        "steps" : 18797.225999999999,
+        "vo2" : 0.83399999999999996
+      },
+      "output" : {
+        "consistency" : 0.37628357444920624,
+        "contributions" : [
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.099899999999999989
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -14.013999999999999,
+          "vitality" : 14.965000000000003
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 39.347999999999999,
+        "cons" : 0.48999999999999999,
+        "evo2" : 17.969000000000001,
+        "nightly" : [
+          7.9569999999999999
+        ],
+        "rhr" : 25.631,
+        "rmssd" : null,
+        "rnorm" : 36.793999999999997,
+        "sleep" : 2.548,
+        "steps" : null,
+        "vo2" : 27.834
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.39369000000000004
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.36641428571428564
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.11700000000000001
+          }
+        ],
+        "norm" : 33.456400000000002,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 36.63771599831351,
+          "deltaYears" : 2.7102840016864889,
+          "vitality" : 56.775710004216222
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 23.503,
+        "cons" : 0.26300000000000001,
+        "evo2" : null,
+        "nightly" : [
+          4.859,
+          4.2560000000000002,
+          4.931,
+          7.8019999999999996,
+          1.034,
+          7.7160000000000002,
+          1.167,
+          0.96599999999999997,
+          1.6799999999999999,
+          6.6420000000000003
+        ],
+        "rhr" : 40.914999999999999,
+        "rmssd" : null,
+        "rnorm" : 30.846,
+        "sleep" : 0.52700000000000002,
+        "steps" : null,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.36380300825298073,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.24085000000000001
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.21915000000000001
+          }
+        ],
+        "norm" : 44.547899999999998,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 26.171697286636405,
+          "deltaYears" : -2.6686972866364052,
+          "vitality" : 43.328256783408989
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 11.065,
+        "cons" : 0.68300000000000005,
+        "evo2" : 9.3640000000000008,
+        "nightly" : [
+          1.9710000000000001,
+          0.83299999999999996,
+          6.274,
+          6.6950000000000003,
+          5.9329999999999998
+        ],
+        "rhr" : 41.393999999999998,
+        "rmssd" : 15.542999999999999,
+        "rnorm" : 41.173999999999999,
+        "sleep" : null,
+        "steps" : null,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.43825285354082089,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.23606000000000005
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.030149999999999979
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : 0.099600718900276886
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -8.9350000000000005,
+          "vitality" : 27.662499999999998
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 21.963000000000001,
+        "cons" : 0.096000000000000002,
+        "evo2" : 12.738,
+        "nightly" : [
+          5.5540000000000003,
+          6.468,
+          1.569,
+          1.3540000000000001,
+          5.3860000000000001,
+          6.9320000000000004,
+          2.4220000000000002,
+          6.7409999999999997,
+          2.5569999999999999,
+          5.7759999999999998,
+          5.1360000000000001,
+          0.070000000000000007,
+          4.4359999999999999,
+          6.9699999999999998
+        ],
+        "rhr" : null,
+        "rmssd" : null,
+        "rnorm" : null,
+        "sleep" : 0.872,
+        "steps" : 5459.8149999999996,
+        "vo2" : 37.177999999999997
+      },
+      "output" : {
+        "consistency" : 0.48678231148522644,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.29430000000000001
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.098571840000000022
+          }
+        ],
+        "norm" : 45.625900000000001,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 23.719093185024118,
+          "deltaYears" : -1.7560931850241168,
+          "vitality" : 45.60976703743971
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 26.702999999999999,
+        "cons" : 0.93999999999999995,
+        "evo2" : 4.9900000000000002,
+        "nightly" : [
+          4.5839999999999996,
+          7.7750000000000004,
+          1.8580000000000001,
+          5.5780000000000003,
+          7.8470000000000004,
+          0.84799999999999998,
+          7.2350000000000003,
+          2.0459999999999998,
+          0.52300000000000002,
+          1.8720000000000001,
+          7.8440000000000003,
+          2.9140000000000001,
+          5.665,
+          3.1219999999999999
+        ],
+        "rhr" : 0.17199999999999999,
+        "rmssd" : 9.5009999999999994,
+        "rnorm" : 46.939,
+        "sleep" : 5.694,
+        "steps" : 10836.782999999999,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.38660575284381016,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.64828000000000008
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.14366000000000001
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.085499999999999979
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : 0.12761413749760328
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.24555411199999999
+          }
+        ],
+        "norm" : 42.307900000000004,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20.573912316800556,
+          "deltaYears" : 6.1290876831994439,
+          "vitality" : 65.322719207998603
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 41.942999999999998,
+        "cons" : 0.85799999999999998,
+        "evo2" : 7.7469999999999999,
+        "nightly" : [
+          5.5899999999999999,
+          0.68999999999999995,
+          5.7750000000000004,
+          1.76,
+          5.9420000000000002,
+          1.8260000000000001,
+          1.091,
+          3.75,
+          6.6319999999999997,
+          3.0870000000000002,
+          7.7000000000000002,
+          0.40799999999999997,
+          3.4209999999999998,
+          3.0979999999999999
+        ],
+        "rhr" : 34.277000000000001,
+        "rmssd" : null,
+        "rnorm" : null,
+        "sleep" : null,
+        "steps" : 15994.823,
+        "vo2" : 9.5760000000000005
+      },
+      "output" : {
+        "consistency" : 0.37368079721575187,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.30723
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.067934285714285753
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.048599999999999997
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 32.222799999999999,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 36.058844616159426,
+          "deltaYears" : 5.8841553838405716,
+          "vitality" : 64.710388459601432
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 44.704000000000001,
+        "cons" : 0.65100000000000002,
+        "evo2" : 12.382999999999999,
+        "nightly" : [
+          2.1709999999999998,
+          4.7699999999999996
+        ],
+        "rhr" : null,
+        "rmssd" : 93.311999999999998,
+        "rnorm" : 5.5979999999999999,
+        "sleep" : null,
+        "steps" : null,
+        "vo2" : 23.469999999999999
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.41180285714285714
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.044549999999999992
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          }
+        ],
+        "norm" : 31.118400000000001,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 40.140009506232779,
+          "deltaYears" : 4.5639904937672213,
+          "vitality" : 61.409976234418053
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 11.066000000000001,
+        "cons" : 0.080000000000000002,
+        "evo2" : 23.684999999999999,
+        "nightly" : [
+          0.61499999999999999,
+          4.5030000000000001,
+          1.972,
+          2.3919999999999999,
+          5.375,
+          4.6639999999999997,
+          4.383,
+          0.59399999999999997,
+          1.4350000000000001,
+          4.4950000000000001,
+          3.0670000000000002,
+          0.191
+        ],
+        "rhr" : null,
+        "rmssd" : null,
+        "rnorm" : null,
+        "sleep" : 5.2699999999999996,
+        "steps" : 9936.1270000000004,
+        "vo2" : 26.878
+      },
+      "output" : {
+        "consistency" : 0.3692787245616741,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.11859714285714291
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.19030000000000005
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.30150000000000005
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.18791212800000004
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -8.9339999999999993,
+          "vitality" : 27.665000000000003
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 10.958,
+        "cons" : 0.036999999999999998,
+        "evo2" : 2.21,
+        "nightly" : [
+          1.5549999999999999,
+          3.246,
+          5.7530000000000001,
+          1.714,
+          6.3490000000000002,
+          1.8
+        ],
+        "rhr" : null,
+        "rmssd" : null,
+        "rnorm" : null,
+        "sleep" : 2.2629999999999999,
+        "steps" : 5158.2120000000004,
+        "vo2" : 20.716000000000001
+      },
+      "output" : {
+        "consistency" : 0.42383576987755478,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.32084999999999997
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.11787443199999997
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -9.0419999999999998,
+          "vitality" : 27.395
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 24.242000000000001,
+        "cons" : 0.312,
+        "evo2" : 14.179,
+        "nightly" : [
+          3.2999999999999998
+        ],
+        "rhr" : 20.885999999999999,
+        "rmssd" : null,
+        "rnorm" : null,
+        "sleep" : 1.139,
+        "steps" : null,
+        "vo2" : 18.478000000000002
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.44114000000000009
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.15967714285714291
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.1971
+          }
+        ],
+        "norm" : 44.0306,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 23.603891861428981,
+          "deltaYears" : 0.63810813857102033,
+          "vitality" : 51.595270346427554
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 43.106999999999999,
+        "cons" : 0.97199999999999998,
+        "evo2" : 20.039000000000001,
+        "nightly" : [
+          1.8129999999999999,
+          5.8600000000000003,
+          5.484,
+          4.3760000000000003,
+          1.863,
+          3.206,
+          0.89300000000000002,
+          7.4050000000000002,
+          5.6840000000000002
+        ],
+        "rhr" : 42.113999999999997,
+        "rmssd" : 43.329000000000001,
+        "rnorm" : null,
+        "sleep" : 1.2729999999999999,
+        "steps" : null,
+        "vo2" : 25.785
+      },
+      "output" : {
+        "consistency" : 0.48247790030618454,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.22886000000000004
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.21342285714285708
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : -0.099899999999999989
+          }
+        ],
+        "norm" : 31.757200000000001,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 41.270309065430091,
+          "deltaYears" : 1.8366909345699085,
+          "vitality" : 54.591727336424768
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 21.393999999999998,
+        "cons" : null,
+        "evo2" : 24.117000000000001,
+        "nightly" : [
+          0.30599999999999999,
+          1.1020000000000001,
+          7.2729999999999997,
+          1.3740000000000001,
+          1.8500000000000001,
+          3.7759999999999998,
+          1.708,
+          4.9649999999999999,
+          3.6739999999999999,
+          6.7770000000000001,
+          5.7649999999999997
+        ],
+        "rhr" : 49.850000000000001,
+        "rmssd" : 11.175000000000001,
+        "rnorm" : 54.447000000000003,
+        "sleep" : 2.6269999999999998,
+        "steps" : 5300.558,
+        "vo2" : 33.518000000000001
+      },
+      "output" : {
+        "consistency" : 0.34083149882563379,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.1515
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.34917999999999999
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : 0.12716072510882143
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.108764288
+          }
+        ],
+        "norm" : 46.0242,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 21.95877194112899,
+          "deltaYears" : -0.56477194112899198,
+          "vitality" : 48.588070147177518
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 24.814,
+        "cons" : 0.45000000000000001,
+        "evo2" : 13.631,
+        "nightly" : [
+          1.9399999999999999,
+          0.11
+        ],
+        "rhr" : 32.776000000000003,
+        "rmssd" : 84.007000000000005,
+        "rnorm" : 57.436,
+        "sleep" : 0.080000000000000002,
+        "steps" : 16808.18,
+        "vo2" : 22.131
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.32223999999999997
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.31571428571428573
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.13500000000000001
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.074019082108781969
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 43.630200000000002,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20.460176899254638,
+          "deltaYears" : 4.3538231007453625,
+          "vitality" : 60.884557751863404
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 35.616999999999997,
+        "cons" : 0.21199999999999999,
+        "evo2" : null,
+        "nightly" : [
+          0.47399999999999998,
+          2.4169999999999998,
+          1.2869999999999999,
+          7.6369999999999996,
+          5.343
+        ],
+        "rhr" : null,
+        "rmssd" : 57.335000000000001,
+        "rnorm" : null,
+        "sleep" : 2.7320000000000002,
+        "steps" : 4666.9560000000001,
+        "vo2" : null
+      },
+      "output" : {
+        "consistency" : 0.22116866227607501,
+        "contributions" : [
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.24210000000000001
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.14931481599999999
+          }
+        ],
+        "norm" : 36.068100000000001,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 41.86168946480214,
+          "deltaYears" : -6.2446894648021427,
+          "vitality" : 34.38827633799464
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 52.899999999999999,
+        "cons" : null,
+        "evo2" : 4.6470000000000002,
+        "nightly" : [
+          1.01,
+          6.7800000000000002,
+          4.6890000000000001,
+          7.8920000000000003,
+          6.8209999999999997,
+          2.8250000000000002,
+          7.1390000000000002,
+          4.415,
+          4.3949999999999996,
+          4.6319999999999997,
+          1.3480000000000001,
+          3.5699999999999998,
+          6.21
+        ],
+        "rhr" : 15.583,
+        "rmssd" : 20.643999999999998,
+        "rnorm" : null,
+        "sleep" : null,
+        "steps" : 15875.366,
+        "vo2" : 26.702999999999999
+      },
+      "output" : {
+        "consistency" : 0.5588579325542522,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.49417
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.52000000000000002
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 27.84,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 41.905192239484393,
+          "deltaYears" : 10.994807760515606,
+          "vitality" : 77.487019401289018
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 6.5609999999999999,
+        "cons" : 0.63200000000000001,
+        "evo2" : null,
+        "nightly" : [
+          7.6859999999999999,
+          4.835,
+          1.196,
+          4.657,
+          6.1589999999999998,
+          4.5570000000000004,
+          2.4750000000000001,
+          7.5389999999999997,
+          4.452,
+          2.7370000000000001,
+          4.2409999999999997,
+          2.544
+        ],
+        "rhr" : null,
+        "rmssd" : null,
+        "rnorm" : null,
+        "sleep" : 2.8599999999999999,
+        "steps" : 14977.097,
+        "vo2" : 2.5369999999999999
+      },
+      "output" : {
+        "consistency" : 0.56596398985837237,
+        "contributions" : [
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.053100000000000001
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -13.439,
+          "vitality" : 16.402500000000003
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 31.004999999999999,
+        "cons" : null,
+        "evo2" : null,
+        "nightly" : [
+          2.343
+        ],
+        "rhr" : 35.957999999999998,
+        "rmssd" : 37.247,
+        "rnorm" : 14.74,
+        "sleep" : 5.7350000000000003,
+        "steps" : 6556.2969999999996,
+        "vo2" : 13.148999999999999
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.29042000000000007
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.13914999999999997
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.028396992000000027
+          }
+        ],
+        "norm" : 39.296500000000002,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 28.556403084942335,
+          "deltaYears" : 2.4485969150576636,
+          "vitality" : 56.121492287644159
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 10.516999999999999,
+        "cons" : 0.61199999999999999,
+        "evo2" : null,
+        "nightly" : [
+          4.9219999999999997,
+          5.5190000000000001,
+          2.5819999999999999,
+          7.2190000000000003,
+          6.1399999999999997,
+          7.1139999999999999,
+          0.5
+        ],
+        "rhr" : 6.2859999999999996,
+        "rmssd" : 47.085999999999999,
+        "rnorm" : null,
+        "sleep" : 2.331,
+        "steps" : 5939.4539999999997,
+        "vo2" : 3.1899999999999999
+      },
+      "output" : {
+        "consistency" : 0.52711416831664226,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.58714
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.062100000000000009
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.06787494400000002
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -9.4830000000000005,
+          "vitality" : 26.292499999999997
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 27.835999999999999,
+        "cons" : 0.158,
+        "evo2" : 12.394,
+        "nightly" : [
+          6.9420000000000002,
+          3.6139999999999999,
+          4.7000000000000002,
+          6.9180000000000001,
+          1.194,
+          3.6139999999999999,
+          6.3029999999999999,
+          6.8799999999999999,
+          7.1660000000000004,
+          0.85899999999999999,
+          7.9160000000000004
+        ],
+        "rhr" : null,
+        "rmssd" : 89.093000000000004,
+        "rnorm" : 22.593,
+        "sleep" : 3.1179999999999999,
+        "steps" : 8405.3510000000006,
+        "vo2" : 39.679000000000002
+      },
+      "output" : {
+        "consistency" : 0.53705668368452097,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.26639999999999997
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.16
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.089942464000000028
+          }
+        ],
+        "norm" : 41.514800000000001,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 26.33378688682129,
+          "deltaYears" : 1.5022131131787084,
+          "vitality" : 53.755532782946773
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 4.274,
+        "cons" : 0.497,
+        "evo2" : 14.147,
+        "nightly" : [
+          7.4109999999999996,
+          0.16200000000000001,
+          4.4100000000000001,
+          2.52,
+          5.8170000000000002,
+          4.5359999999999996
+        ],
+        "rhr" : null,
+        "rmssd" : 85.239000000000004,
+        "rnorm" : 48.031999999999996,
+        "sleep" : 3.0459999999999998,
+        "steps" : 3190.4430000000002,
+        "vo2" : 1.488
+      },
+      "output" : {
+        "consistency" : 0.44087735571354136,
+        "contributions" : [
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : 0.47019142857142859
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.11385000000000001
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : -0.12394070619586947
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : 0.24381164799999999
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -15.725999999999999,
+          "vitality" : 10.685000000000002
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 22.608000000000001,
+        "cons" : 0.154,
+        "evo2" : 25.02,
+        "nightly" : [
+          1.2110000000000001
+        ],
+        "rhr" : 17.712,
+        "rmssd" : 21.501000000000001,
+        "rnorm" : 55.539000000000001,
+        "sleep" : 1.78,
+        "steps" : null,
+        "vo2" : 39.189999999999998
+      },
+      "output" : {
+        "consistency" : null,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.47287999999999997
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : -0.52000000000000002
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.26819999999999999
+          },
+          {
+            "key" : "hrv",
+            "label" : "Heart-rate variability",
+            "lnHazard" : 0.098058661481121356
+          }
+        ],
+        "norm" : 45.174399999999999,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20.040395195381805,
+          "deltaYears" : 2.5676048046181954,
+          "vitality" : 56.41901201154549
+        }
+      }
+    },
+    {
+      "input" : {
+        "age" : 18.452000000000002,
+        "cons" : 0.078,
+        "evo2" : 5.46,
+        "nightly" : [
+          1.3740000000000001,
+          1.6539999999999999,
+          6.2690000000000001,
+          4.149,
+          5.4109999999999996,
+          7.3780000000000001,
+          7.6630000000000003
+        ],
+        "rhr" : 8.3580000000000005,
+        "rmssd" : null,
+        "rnorm" : null,
+        "sleep" : 2.714,
+        "steps" : 17002.567999999999,
+        "vo2" : 4.0490000000000004
+      },
+      "output" : {
+        "consistency" : 0.50995779606440206,
+        "contributions" : [
+          {
+            "key" : "rhr",
+            "label" : "Resting heart rate",
+            "lnHazard" : -0.56641999999999992
+          },
+          {
+            "key" : "vo2max",
+            "label" : "Cardio fitness",
+            "lnHazard" : 0.052408571428571415
+          },
+          {
+            "key" : "sleep",
+            "label" : "Sleep duration",
+            "lnHazard" : 0.33000000000000002
+          },
+          {
+            "key" : "consistency",
+            "label" : "Sleep regularity",
+            "lnHazard" : 0.3024
+          },
+          {
+            "key" : "steps",
+            "label" : "Daily steps",
+            "lnHazard" : -0.25600000000000001
+          }
+        ],
+        "norm" : 47,
+        "result" : {
+          "bandYears" : 5,
+          "bodyAge" : 20,
+          "deltaYears" : -1.5479999999999983,
+          "vitality" : 46.130000000000003
+        }
+      }
+    }
+  ],
+  "function" : "VitalityEngine"
+}
