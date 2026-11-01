@@ -396,8 +396,12 @@ struct LiquidVessel: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var motion = NoopMotionState.shared
+    /// Re-arms the clock after a stand-down when the phone is tilted (see `LiquidWake`).
+    @ObservedObject private var wake = LiquidWake.shared
     @State private var sim: LiquidSim
     @State private var splashes = 0
+    /// True once the liquid has stopped moving and the clock has stood down. See `gauge`.
+    @State private var atRest = false
 
     // The custom init exists to seed `_sim` from `value`, which also means the memberwise init is NOT
     // synthesised: any new stored property has to be threaded through here or callers cannot pass it.
@@ -423,19 +427,36 @@ struct LiquidVessel: View {
         // 60fps: on the 120Hz ProMotion panel a 30fps cap updated the fluid only every 4th refresh,
         // which read as juddery slosh. Only the 3 hero gauges + HR thread run live now (the small ones
         // are static), so the higher rate is affordable and the liquid actually flows.
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { tl in
+        //
+        // ...but only while the liquid is actually MOVING. `LiquidSim.settled` knows when it has stopped,
+        // and nothing consulted it: the clock ran forever and Today idled with several Canvas fluid sims
+        // stepping and redrawing on the main thread. Standing the clock down on settle costs nothing
+        // visually (a settled vessel is a still picture and CoreAnimation holds the last frame), and every
+        // way the picture can start moving again re-arms it: a new value, a tap, a tilt (`LiquidWake`).
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: atRest)) { tl in
             let now = liquidSeconds(tl.date)
             Canvas { context, size in
                 sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: value ?? 0)
                 LiquidRender.vessel(context, size, sim, now: now, tint: tint)
+                standDownIfSettled()
             }
         }
         .aspectRatio(1, contentMode: .fit)
         .contentShape(Circle())
-        .modifier(LiquidSplashTap(passesThrough: tapPassesThrough) { sim.splash(12); splashes &+= 1 })
+        .modifier(LiquidSplashTap(passesThrough: tapPassesThrough) { sim.splash(12); splashes &+= 1; atRest = false })
         .liquidTapHaptic(trigger: splashes)   // light tap feedback (guarded so the primitives compile on macOS 13)
+        .onChangeCompat(of: value) { _ in atRest = false }
+        .onChangeCompat(of: wake.tiltEpoch) { _ in atRest = false }
         .onAppear { LiquidMotion.shared.acquire() }
         .onDisappear { LiquidMotion.shared.release() }
+    }
+
+    /// Stand the clock down once the liquid has stopped moving. Deferred to the next main-actor turn: this
+    /// runs inside the `Canvas` draw closure, where writing `@State` synchronously is a "modifying state
+    /// during view update" violation. The `atRest` guard keeps it to one hop, on the frame the liquid rests.
+    private func standDownIfSettled() {
+        guard sim.settled, !atRest else { return }
+        Task { @MainActor in atRest = true }
     }
 
     /// One-shot, cached render — posed at the fill line, no clock, no motion acquire.
@@ -464,7 +485,11 @@ struct LiquidTube: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @ObservedObject private var motion = NoopMotionState.shared
+    /// Re-arms the clock after a stand-down when the phone is tilted (see `LiquidWake`).
+    @ObservedObject private var wake = LiquidWake.shared
     @State private var sim = LiquidSim(target: 0)
+    /// True once the liquid has stopped moving and the clock has stood down. See `LiquidVessel.gauge`.
+    @State private var atRest = false
 
     /// Light appearance draws the track without an outline; dark and Increase Contrast keep it.
     private var outlined: Bool { colorScheme == .dark || colorSchemeContrast == .increased }
@@ -480,16 +505,21 @@ struct LiquidTube: View {
     }
 
     private var liveTube: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
+        // Stands its clock down on settle, as `LiquidVessel` does. A tube has no tap affordance, so the only
+        // things that can restart it are a new `frac` and a tilt.
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: atRest)) { tl in
             let now = liquidSeconds(tl.date)
             Canvas { context, size in
                 sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: frac)
                 LiquidRender.tube(context, size, sim, now: now, frac: max(0, min(1, frac)),
                                   tint: tint, showsHighlight: showsHighlight,
                                   usesCleanFill: usesCleanFill, outlined: outlined)
+                if sim.settled, !atRest { Task { @MainActor in atRest = true } }
             }
         }
         .frame(height: height)
+        .onChangeCompat(of: frac) { _ in atRest = false }
+        .onChangeCompat(of: wake.tiltEpoch) { _ in atRest = false }
         .onAppear { LiquidMotion.shared.acquire() }
         .onDisappear { LiquidMotion.shared.release() }
     }

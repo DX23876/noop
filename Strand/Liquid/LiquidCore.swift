@@ -103,6 +103,16 @@ final class LiquidMotion {
     private var started = false
     private var refCount = 0
 
+    /// The tilt last ANNOUNCED to `LiquidWake`. Compared against the smoothed tilt rather than the previous
+    /// sample so a slow, steady lean still accumulates to a wake instead of creeping under the bar one
+    /// imperceptible sample at a time and never re-arming a settled vessel.
+    private var wakeAnchor: Double = 0
+
+    /// How far the smoothed tilt must travel before a settled vessel is worth waking (radians). Low enough
+    /// that a deliberate lean re-arms within one sensor frame; high enough that a phone resting on a table,
+    /// or the hand-jitter of holding one, announces nothing.
+    static let tiltWakeThreshold = 0.01
+
     private init() {
         #if os(iOS) && !targetEnvironment(macCatalyst)
         // Stop at the app boundary. `onDisappear` is NOT called when the app is backgrounded, and
@@ -164,6 +174,13 @@ final class LiquidMotion {
             let upright = LiquidMotion.uprightAttenuation(-m.gravity.y)
             let raw = max(-0.62, min(0.62, m.attitude.roll)) * upright
             self.tilt += (raw - self.tilt) * 0.18   // light smoothing
+            // Re-arm any vessel that has stood its clock down. A settled vessel runs no clock, so it cannot
+            // notice the phone being tilted; this is the one place that can tell it. Threshold-gated, so a
+            // still phone publishes nothing at all.
+            if abs(self.tilt - self.wakeAnchor) > LiquidMotion.tiltWakeThreshold {
+                self.wakeAnchor = self.tilt
+                LiquidWake.shared.bump()
+            }
             // Device coordinates are y-up; the Canvas is y-down, hence the sign flips.
             self.updateOrganic(
                 gravity: OrganicScoreVector(x: m.gravity.x, y: -m.gravity.y),
@@ -214,12 +231,38 @@ final class LiquidMotion {
         manager.stopDeviceMotionUpdates()
         #endif
         tilt = 0
+        // Keep the anchor in step with the tilt it tracks: left at the last leaned-over value, the next
+        // sensor start would look like a large jump and fire a spurious wake.
+        wakeAnchor = 0
         resetOrganic()
     }
 
     /// Re-evaluate after a Low Power Mode / Reduce Motion / in-app-toggle change.
     private func syncToPolicy() {
         if LiquidMotion.quietNow { stop() } else { startIfWanted() }
+    }
+}
+
+/// The narrow, threshold-gated exception to `LiquidMotion`'s no-publishing rule.
+///
+/// A vessel or tube that has SETTLED stands its clock down (see `LiquidVessel`), which stops the Canvas
+/// fluid sims from holding 30 to 60 fps on the main thread for a picture that no longer changes. A view
+/// with no clock cannot poll `LiquidMotion.tilt`, so it would never notice the phone being tilted. This
+/// publishes a wake for exactly that case: a monotonic counter bumped only when the smoothed tilt has
+/// travelled past `LiquidMotion.tiltWakeThreshold`. It carries no value; a woken view reads
+/// `LiquidMotion.tilt` directly as before, so a still phone publishes nothing and a deliberate lean a
+/// handful of times. `bump()` is called from the sensor queue, so it hops to main itself.
+/// Adopted from gdorgian/noop (d50c5c566).
+final class LiquidWake: ObservableObject {
+    static let shared = LiquidWake()
+
+    /// Bumped when the tilt has moved far enough to be worth re-arming a settled view.
+    @Published private(set) var tiltEpoch: Int = 0
+
+    private init() {}
+
+    fileprivate func bump() {
+        DispatchQueue.main.async { self.tiltEpoch &+= 1 }
     }
 }
 
