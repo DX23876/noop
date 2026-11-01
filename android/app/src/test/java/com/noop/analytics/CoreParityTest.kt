@@ -21,6 +21,15 @@ class CoreParityTest {
         HrSample(deviceId = "parity", ts = p.getLong(0), bpm = p.getInt(1))
     }
 
+    /** A daily row from its Codable-shaped JSON. */
+    private fun daily(o: JSONObject): com.noop.data.DailyMetric {
+        fun d(k: String) = if (!o.has(k) || o.isNull(k)) null else o.getDouble(k)
+        return com.noop.data.DailyMetric(deviceId = "parity", day = o.getString("day"), totalSleepMin = d("totalSleepMin"),
+            recovery = d("recovery"), avgHrv = d("avgHrv"), restingHr = d("restingHr")?.toInt(), strain = d("strain"),
+            respRateBpm = d("respRateBpm"), skinTempDevC = d("skinTempDevC"))
+    }
+    private fun dailies(a: JSONArray) = (0 until a.length()).map { daily(a.getJSONObject(it)) }
+
     private fun doubles(a: JSONArray) = (0 until a.length()).map { a.getDouble(it) }
     private fun strings(a: JSONArray) = (0 until a.length()).map { a.getString(it) }
     private fun bools(a: JSONArray) = (0 until a.length()).map { a.getBoolean(it) }
@@ -190,6 +199,9 @@ class CoreParityTest {
                                                "agreed" to it.agreedAcrossSources) },
                 "readable" to night.readableWindows, "steady" to night.steadyWindows, "occasional" to night.occasionalWindows,
                 "varied" to night.variedWindows, "recurred" to night.variationRecurred, "overall" to night.overall.raw)
+        },
+        "CoachSuggestions.suggestions" to { i ->
+            CoachSuggestions.suggestions(if (i.isNull("today")) null else daily(i.getJSONObject("today")), dailies(i.getJSONArray("recent")))
         },
     )
 

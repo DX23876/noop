@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import WhoopProtocol
+import WhoopStore
 @testable import StrandAnalytics
 
 /// Fork (DX23876), Android without Room (`docs/fork/android/CORE-ONLY-PLAN.md`): synthetic cross-checks of the Kotlin
@@ -57,6 +58,19 @@ final class CoreParityOracleTests: XCTestCase {
 
     static func hr(_ any: Any?) -> [HRSample] {
         (any as? [[Int]] ?? []).map { HRSample(ts: $0[0], bpm: $0[1]) }
+    }
+
+    /// A daily row as JSON in `DailyMetric`'s Codable shape, with gaps.
+    static func dailyRow(_ r: inout Rand, day d: String) -> [String: Any] {
+        func maybe(_ range: ClosedRange<Double>) -> Any { r.chance(0.2) ? NSNull() : r.double(range) }
+        return ["day": d, "totalSleepMin": maybe(180...600), "recovery": maybe(1...99), "avgHrv": maybe(15...150),
+                "restingHr": r.chance(0.2) ? NSNull() : r.int(40...85), "strain": maybe(0...100),
+                "respRateBpm": maybe(11...20), "skinTempDevC": maybe(-1.5...1.5)]
+    }
+
+    static func dailyRows(_ any: Any?) -> [DailyMetric] {
+        guard let any, let data = try? JSONSerialization.data(withJSONObject: any) else { return [] }
+        return (try? JSONDecoder().decode([DailyMetric].self, from: data)) ?? []
     }
 
     static func cases(_ count: Int, seed: UInt64, _ make: (inout Rand) -> [String: Any]) -> [[String: Any]] {
@@ -381,6 +395,16 @@ final class CoreParityOracleTests: XCTestCase {
                            "readable": night.readableWindows, "steady": night.steadyWindows,
                            "occasional": night.occasionalWindows, "varied": night.variedWindows,
                            "recurred": night.variationRecurred, "overall": night.overall.rawValue]
+               }),
+        Oracle(name: "CoachSuggestions.suggestions",
+               inputs: cases(60, seed: 22) { r in
+                   let start = 20_400 + r.int(0...50)
+                   return ["today": r.chance(0.1) ? NSNull() : dailyRow(&r, day: day(start + 30)),
+                           "recent": (0..<r.int(0...30)).map { dailyRow(&r, day: day(start + $0)) }]
+               },
+               run: { a in
+                   CoachSuggestions.suggestions(for: (a["today"] is NSNull) ? nil : dailyRows([a["today"]!]).first,
+                                                recent: dailyRows(a["recent"]))
                }),
     ]
 
