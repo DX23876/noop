@@ -221,6 +221,17 @@ public actor DayCycleIntelligenceIntegration {
             boundaries.append(item.boundary); wakeDayById[item.boundary.sleepId] = item.wakeDay
             ownerById[item.boundary.sleepId] = item.owner; sleepContexts.append(item.sleepContext)
         }
+        // A gap of absoluteMaxOpenSeconds or more between two sleeps closes at local midnight, so a skipped
+        // main night cannot leave one window spanning two wake days. A synthetic boundary takes the wake day
+        // it opens and the owner of the sleep before it. The open tail is capped below.
+        boundaries = DayCycleResolver.boundariesClosingLongGaps(boundaries, offsetSec: offsetSec)
+        var lastOwner: String?
+        for boundary in boundaries {
+            if let owner = ownerById[boundary.sleepId] { lastOwner = owner }
+            guard wakeDayById[boundary.sleepId] == nil, boundary.sleepId.hasPrefix("synthetic:") else { continue }
+            wakeDayById[boundary.sleepId] = AnalyticsEngine.dayString(boundary.onset, offsetSec: offsetSec)
+            if let lastOwner { ownerById[boundary.sleepId] = lastOwner }
+        }
         if let latest = boundaries.max(by: { $0.onset < $1.onset }),
            let day = wakeDayById[latest.sleepId], let owner = ownerById[latest.sleepId] {
             let active = DayCycleResolver.activeWindow(mode: mode,

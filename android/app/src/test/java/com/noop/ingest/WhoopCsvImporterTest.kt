@@ -136,7 +136,7 @@ class WhoopCsvImporterTest {
         )
         assertEquals(1, rows.size)
         // 91.58 °F → (91.58 − 32) × 5/9 = 33.1 °C — the same stored value a Celsius import produces.
-        assertEquals(33.1, rows.single().skinTempDevC!!, 1e-3)
+        assertEquals(33.1, rows.single().skinTempC!!, 1e-3)
     }
 
     /**
@@ -152,7 +152,7 @@ class WhoopCsvImporterTest {
             """
         )
         assertEquals(1, rows.size)
-        assertEquals(33.1, rows.single().skinTempDevC!!, 1e-3)
+        assertEquals(33.1, rows.single().skinTempC!!, 1e-3)
     }
 
     // --- #136: imported journal keys to the WAKE day, not the onset evening -------------------
@@ -265,5 +265,19 @@ class WhoopCsvImporterTest {
         assertEquals("2024-03-02", r.day)
         // Day Strain 12.5 is rescaled onto NOOP's 0–100 Effort axis (×100/21).
         assertEquals(12.5 * (100.0 / 21.0), r.strain!!, 1e-9)
+    }
+
+    /** The export's absolute goes to skinTempC; the deviation is measured against the nights before it. */
+    @Test
+    fun skinTempDeviationIsMeasuredAgainstPriorNightsAndNeverTheAbsolute() {
+        val rows = (1..11).map { i ->
+            DailyMetric(deviceId = "my-whoop", day = String.format("2026-07-%02d", i),
+                        skinTempC = if (i == 11) 34.3 else 33.5)
+        }
+        val out = WhoopCsvImporter.withSkinTempDeviations(rows)
+        assertEquals(null, out.first().skinTempDevC)
+        assertEquals(34.3, out.last().skinTempC!!, 1e-9)
+        assertEquals(0.8, out.last().skinTempDevC!!, 0.01)
+        assert(out.mapNotNull { it.skinTempDevC }.all { kotlin.math.abs(it) < 2 })
     }
 }

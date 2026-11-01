@@ -225,13 +225,16 @@ public enum DeviceConfigReadProbe {
             return nil
         }
 
-        /// The value byte, reported ONLY when the strap echoed `key` in a 32-byte NUL-padded name field
-        /// and the record extends one byte past it — the same `[name 32][value]` layout the SET bodies
-        /// use. nil means "no value claimed", never "value is zero".
+        /// A single-byte value after the echoed key. Multi-character text values are not scalars:
+        /// accepting the first byte of `10` or `0.0` could falsely confirm a flag write. The raw
+        /// record remains available for investigation. A legacy record ending at the value byte is
+        /// still accepted; when a following byte exists it must terminate the value with NUL.
+        /// Result-code validation remains the caller's responsibility.
         public func value(for key: String) -> UInt8? {
             guard let off = echoOffset(of: key) else { return nil }
             let valueIndex = off + DeviceConfigReadProbe.nameFieldBytes
             guard valueIndex < record.count else { return nil }
+            guard valueIndex + 1 == record.count || record[valueIndex + 1] == 0 else { return nil }
             return record[valueIndex]
         }
     }

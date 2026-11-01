@@ -136,6 +136,59 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         XCTAssertNotNil(engine.note, "a pass with nothing to score says so")
     }
 
+    /// A data delete landing while a pass reads must not be undone by that pass's writes. The pass is
+    /// dropped, the delete runs once it has ended, and the delete's re-score takes the dropped pass along
+    /// with its whole window, so a wide pass does not come back as the default 21 days.
+    func testADataDeleteDuringAPassDropsItAndTheRescoreKeepsItsWindow() async throws {
+        let store = try await WhoopStore.inMemory()
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let host = Host()
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        var relaunched: [Int] = []
+        engine.launchRescoreAfterDataDelete = { [weak engine] days in
+            relaunched.append(days)
+            Task { await engine?.analyzeRecent(maxDays: days, force: true, allowDayReuse: false) }
+        }
+        var deletedWhileComputing: Bool?
+        var laterPassWindows: [Int] = []
+        var delete: Task<Void, Never>?
+        services.onStoreHandle = { [weak engine] in
+            delete = Task {
+                await engine?.withScoringHeld {
+                    deletedWhileComputing = engine?.computing
+                    services.onStoreHandle = { laterPassWindows.append(engine?.analysisProgress?.totalDays ?? -1) }
+                }
+            }
+        }
+
+        await engine.analyzeRecent(maxDays: 40, force: true, allowDayReuse: false)
+        await delete?.value
+
+        XCTAssertEqual(deletedWhileComputing, false, "the delete waits for the running pass to end")
+        XCTAssertEqual(relaunched, [21], "one re-score follows the delete")
+        XCTAssertEqual(laterPassWindows, [40], "the re-score takes the dropped pass along with its window")
+        XCTAssertFalse(engine.computing)
+        XCTAssertFalse(engine.isScoringHeldForDataDelete)
+    }
+
+    /// With no pass running the delete runs at once and is followed by one re-score.
+    func testADataDeleteWithNoPassRunningRunsAtOnceAndRescores() async throws {
+        let store = try await WhoopStore.inMemory()
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: Host(),
+                                   messages: { "\($0)" })
+        var relaunched: [Int] = []
+        engine.launchRescoreAfterDataDelete = { relaunched.append($0) }
+        var ran = false
+        await engine.withScoringHeld { ran = true }
+        XCTAssertTrue(ran)
+        XCTAssertEqual(relaunched, [21])
+        XCTAssertEqual(services.storeHandleCalls, 0, "no pass ran around the delete")
+    }
+
     /// Local midnight `daysAgo` calendar days back. Counted in days, not 24-hour steps, so a DST change
     /// inside the window cannot fold two keys onto one date late in the evening.
     private func dayStart(_ daysAgo: Int) -> Date {

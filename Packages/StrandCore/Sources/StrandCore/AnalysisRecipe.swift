@@ -216,6 +216,13 @@ public enum AnalysisRecipe {
     // AI-33 also carries the AgeLess sleep consistency of a night split by a wake (reinmaker/noop #76): the
     // night is the day's bridged main-night group, scored at its last wake rather than at the end of its
     // longest fragment. The healthspanReset step re-derives every AgeLess week from it.
+    // AI-33 is also the first rebuild after the WHOOP-import skin-temperature repair (Iskrata/noop): imported rows
+    // carried the export's absolute °C in skinTempDevC. That is a repair of stored inputs with its own cursor
+    // (WhoopImporter.repairAbsoluteSkinTempIfNeeded, run at launch before prepareAnalysisRecipe), not a step.
+    // AI-33 also keeps a sleep run under minSleepMin that directly continues an accepted run within
+    // nightContinuationGapMin (gdorgian/noop a73347999), so a short last stretch no longer ends the night early.
+    // AI-33 also opens the day cycle on a main night that starts before 20:00 and closes a 40 h gap between two
+    // sleeps at local midnight (abhilashvadnala/noop e06c7a29d), so the cycle windows of affected days move.
     public static let currentVersion = 33
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

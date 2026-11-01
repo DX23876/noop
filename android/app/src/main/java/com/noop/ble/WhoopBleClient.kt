@@ -808,6 +808,7 @@ class WhoopBleClient(
          */
         fun connectionDownReason(status: Int, localTeardownOrigin: String?): String = when (status) {
             GATT_CONN_TIMEOUT -> "connectionTimeout"
+            GATT_CONN_ESTABLISH_TIMEOUT -> "establishTimeout"    // 147: connect request never answered
             GATT_CONN_TERMINATE_LOCAL_HOST -> "localTerminate via=${localTeardownOrigin ?: "unknown"}"
             else -> "status$status"
         }
@@ -1081,6 +1082,27 @@ class WhoopBleClient(
          *  (GATT_CONN_TERMINATE_LOCAL_HOST). Distinct from [GATT_CONN_TIMEOUT] (0x08, the strap/link timing
          *  out): a bounce we initiated must NOT be mistaken for the #617 loop's remote timeout. */
         private const val GATT_CONN_TERMINATE_LOCAL_HOST = 0x16  // GATT_CONN_TERMINATE_LOCAL_HOST (local host ended it)
+        /** GATT disconnect `status` when the connection was never ESTABLISHED at all: `connectGatt` went
+         *  out, the strap never answered, and the stack gave up ~30s later. 147 / 0x93, the Android 14+
+         *  fine-grained establishment-timeout code (older stacks folded this into the generic 133).
+         *  Distinct from [GATT_CONN_TIMEOUT] (0x08, an ESTABLISHED link's supervision timing out): 147
+         *  means the link never came up, so no pairing/bond logic ever ran. The tell of a strap whose BLE
+         *  firmware wedged (it advertises but refuses connections) — see [EstablishTimeoutTracker]. */
+        private const val GATT_CONN_ESTABLISH_TIMEOUT = 0x93     // 147: connection never established (Android 14+)
+
+        /** Recovery guidance for the sustained status-147 case ([EstablishTimeoutTracker]): the strap is
+         *  advertising nearby but not answering connection requests, which is a wedged strap/phone radio,
+         *  NOT a pairing problem — so the fix is charge-kick / radio toggle / phone restart, deliberately
+         *  different steps from the re-pair guides. Mirrored into [statusNote] so the existing Live status
+         *  surface shows it with no UI change (same two-surface pattern as PAIRING_HINT_TEXT). */
+        private const val ESTABLISH_TIMEOUT_HINT_TEXT =
+            "NOOP can see your strap, but it isn't answering connection requests, " +
+                "so every attempt times out. This usually means the strap's Bluetooth has locked up - " +
+                "it's not a pairing problem. To fix it: " +
+                "1. Put the strap on its charger for a minute or two, then take it off. " +
+                "2. Turn your phone's Bluetooth off and on. " +
+                "3. If it still won't connect, restart your phone. " +
+                "Your data is safe - the strap keeps recording to its own memory."
 
         /**
          * #982: should this involuntary disconnect feed the #971 bond-watchdog give-up counter? A WHOOP 4.0
@@ -3422,6 +3444,13 @@ class WhoopBleClient(
      *  never LANDS inside its window and our own bounce reports status 0x16. Reset on a genuine bond or a
      *  user-initiated connect/disconnect. Android-only (the bond watchdog has no iOS twin). */
     private val bondWatchdogBackoff = BondWatchdogBackoff(baseWindowMs = BOND_WATCHDOG_MS)
+    /** Status-147 (0x93) establishment-timeout streak: the strap advertises but never answers
+     *  `connectGatt`, so every attempt dies ~30s in without reaching STATE_CONNECTED. Distinct from every
+     *  detector above — no link ever comes up, so no bond/pairing logic runs and none of the re-pair
+     *  guides apply; the fix is a strap charge-kick / radio toggle / phone restart, which
+     *  ESTABLISH_TIMEOUT_HINT_TEXT walks through. Reset on STATE_CONNECTED (the strap answered) and on a
+     *  user teardown/release. Android-only (147 is an Android 14+ stack code; no CoreBluetooth analogue). */
+    private val establishTimeout = EstablishTimeoutTracker()
     /** Monotonic per-connection token, bumped on every connect. The #711 bond-loop stabilization check
      *  captures it and clears the re-pair guide only if it is UNCHANGED when the check fires, i.e. the SAME
      *  continuous connection survived (a reconnect/loop cycle bumps it, so the device address staying equal
@@ -4029,6 +4058,8 @@ class WhoopBleClient(
         bondGiveUp.reset()
         // #971: a clean teardown also clears the bond-watchdog bounce streak (fresh escalation next time).
         bondWatchdogBackoff.reset()
+        // A clean teardown clears the status-147 establishment-timeout streak too (same clean-slate rule).
+        establishTimeout.reset()
         autoReconnectPausedForBondLoop = false
         bondLoopPausedAtMs = null
         // #711: a user-initiated teardown resolves the re-pair guide (no longer looping).
@@ -4227,6 +4258,7 @@ class WhoopBleClient(
             // it a re-added strap stops asking with nothing in the log saying why, which is the silent
             // stop this whole area exists to stop repeating.
             explicitBondGiveUpLogged = false
+            establishTimeout.reset()   // a 147 streak belongs to the released strap; never outlives it
             autoReconnectPausedForBondLoop = false
             bondLoopPausedAtMs = null
             // Drop the persisted last-device pin so a relaunch / radio-on doesn't auto-reconnect to it (#67).
@@ -7427,6 +7459,10 @@ class WhoopBleClient(
                     // #1030 (ryanbr): a real link is up — cancel any pending involuntary reconnect so a
                     // stale backoff timer can't fire and reset+close this connection.
                     cancelPendingReconnect()
+                    // The strap answered a connect request, so any status-147 establishment-timeout streak
+                    // is over (the wedged-radio suspicion must accumulate afresh next time). 147 is about the
+                    // link never coming up at all and has no pause to un-latch, so this needs no dwell guard.
+                    establishTimeout.reset()
                     // #1881: attribute this link to the strap that actually connected, before anything
                     // persists. Swift twin: `BLEManager.centralManager(_:didConnect:)` -> `adoptSourceIdentity(for:)`.
                     adoptSourceIdentity(runCatching { g.device?.address }.getOrNull())
@@ -12056,6 +12092,36 @@ class WhoopBleClient(
                 val guide = BondRefusalGiveUp.reconnectGuideFor(heldLink)
                 _state.update { it.copy(reconnectGuide = guide) }
             }
+        }
+
+        // Status 147 (0x93): the connection was never ESTABLISHED — the strap advertised, connectGatt went
+        // out, and the stack gave up ~30s later with no answer. No link ever came up, so none of the
+        // bond/pairing detectors above can see this failure, and the reconnect loop otherwise retries
+        // silently forever ("Searching…" with no explanation). Two consecutive establishment timeouts
+        // (~a minute of a nearby strap refusing to answer) is the wedged-radio signature: surface honest
+        // recovery guidance (charge-kick the strap / toggle Bluetooth / restart the phone — deliberately
+        // NOT the re-pair steps, which don't fix this and cost the user a needless unpair). Re-asserted on
+        // every over-threshold timeout, because a user Connect overwrites statusNote with "Searching…".
+        // The backoff reconnect keeps running unchanged — 147 can self-heal, so we inform, never pause.
+        if (!wasConnected && !intentionalDisconnect &&
+            establishTimeout.recordFailedConnect(status == GATT_CONN_ESTABLISH_TIMEOUT)
+        ) {
+            log("Strap is advertising but not answering connection requests " +
+                "(${establishTimeout.consecutiveTimeouts} establishment timeouts, status=147) — " +
+                "surfacing the charge-kick/radio-restart guidance")
+            _state.update { it.copy(
+                statusNote = ESTABLISH_TIMEOUT_HINT_TEXT,
+                reconnectGuide = it.reconnectGuide ?: """
+                NOOP can see your strap, but it isn't answering connection requests, so every attempt times out. This usually means the strap's Bluetooth has locked up - it's not a pairing problem, so re-pairing won't help. To recover:
+
+                1. Put the strap on its charger for a minute or two, then take it off.
+                2. Turn your phone's Bluetooth off and on.
+                3. If it still won't connect, restart your phone.
+                4. Come back here and tap Connect.
+
+                Your data is safe - the strap keeps recording to its own memory while disconnected.
+                """.trimIndent(),
+            ) }
         }
 
         // Persist anything buffered before tearing down (port of the collector.flush() +

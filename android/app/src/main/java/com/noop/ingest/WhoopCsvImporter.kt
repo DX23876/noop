@@ -2,6 +2,8 @@ package com.noop.ingest
 
 import android.content.Context
 import android.net.Uri
+import com.noop.analytics.BaselineState
+import com.noop.analytics.Baselines
 import com.noop.data.DailyMetric
 import com.noop.data.ImportSummary
 import com.noop.data.JournalEntry
@@ -387,12 +389,31 @@ object WhoopCsvImporter {
                     strain = strain?.let { it * DAY_STRAIN_TO_EFFORT_SCALE },
                     exerciseCount = null, // not present in physiological_cycles.csv
                     spo2Pct = spo2,
-                    skinTempDevC = skinTemp,
                     respRateBpm = resp,
+                    // The export gives ABSOLUTE °C. `skinTempDevC` is filled below from the nights before it.
+                    skinTempC = skinTemp,
                 )
             )
         }
-        return out
+        return withSkinTempDeviations(out)
+    }
+
+    /**
+     * Fill each row's `skinTempDevC` as its absolute `skinTempC` minus the personal skin-temp baseline folded
+     * over the nights BEFORE it (`Baselines.metricCfg["skin_temp"]`), rounded like the on-device deviation.
+     * Null until that baseline is usable; rows without an absolute keep their deviation. Storing the export's
+     * absolute as the deviation read an imported night as +33 °C wherever the column is trusted. Twin of the
+     * Swift `WhoopImporter.withSkinTempDeviations`.
+     */
+    internal fun withSkinTempDeviations(rows: List<DailyMetric>): List<DailyMetric> {
+        val cfg = Baselines.metricCfg["skin_temp"] ?: return rows
+        var state: BaselineState? = null
+        return rows.sortedBy { it.day }.map { row ->
+            val celsius = row.skinTempC ?: return@map row
+            val deviation = state?.takeIf { it.usable }?.let { Baselines.roundedDelta2dp(celsius, it) }
+            state = Baselines.update(state, celsius, cfg)
+            row.copy(skinTempDevC = deviation, skinTempC = celsius)
+        }
     }
 
     /**

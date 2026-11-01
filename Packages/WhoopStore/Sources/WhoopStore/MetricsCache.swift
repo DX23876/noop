@@ -161,9 +161,10 @@ public struct DailyMetric: Equatable, Codable, Sendable {
     /// night reads as a small delta while the absolute reads as a fever. v40 column, nullable: nights
     /// scored before it shipped stay nil until a re-score re-derives them from the same raw samples.
     ///
-    /// Distinct from `skinTempDevC`, which is bimodal — CSV/Apple imports write an ABSOLUTE wrist °C into
-    /// that column and `SkinTempDisplay.isAbsoluteSkinTemp` separates them by magnitude. This column is
-    /// unambiguous: it is always an absolute, and only the strap pipeline writes it.
+    /// Distinct from `skinTempDevC`, which is bimodal — Apple imports write an ABSOLUTE wrist °C into that
+    /// column and `SkinTempDisplay.isAbsoluteSkinTemp` separates them by magnitude. This column is
+    /// unambiguous: it is always an absolute, written by the strap pipeline and the WHOOP CSV import (which
+    /// derives that import's `skinTempDevC` from it).
     public let skinTempC: Double?
     /// Kotlin twin: `DailyMetric.sleepHrOnly`. Every session that night staged from heart rate alone.
     public let sleepHrOnly: Bool?

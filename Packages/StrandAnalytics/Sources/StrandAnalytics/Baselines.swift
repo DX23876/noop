@@ -622,6 +622,13 @@ public enum Baselines {
         max(1.253 * state.spread, 1e-9)
     }
 
+    /// `deviation`'s `delta` rounded to 2 dp, ties away from zero (`Double.rounded()`): the stored skin-temp
+    /// deviation. One helper so the computed and the imported deviation cannot round differently. Twin of
+    /// Kotlin `Baselines.roundedDelta2dp`, which spells out the half-away-from-zero form `Math.round` lacks.
+    public static func roundedDelta2dp(_ value: Double, state: BaselineState) -> Double {
+        (deviation(value, state: state).delta * 100.0).rounded() / 100.0
+    }
+
     /// Compute z / delta / ratio / in-normal-range for a value vs a baseline.
     /// z uses (value − baseline) / sigma(state); see `sigma(_:)` for the 1.253 conversion.
     public static func deviation(_ value: Double, state: BaselineState) -> Deviation {

@@ -247,6 +247,35 @@ final class DeviceConfigWriteGateTests: XCTestCase {
 
     // MARK: - The verdict table: the ack never decides, the read-back does
 
+    func testScalarReadBackMatchesTheCrossPlatformOracle() {
+        let inputs = ["1", "0", "2", "10", "100", "1.0", "00", "0.0", "0.5"]
+        let actual = inputs.map { text -> UInt8? in
+            let short: [UInt8] = [1] + echoRecord(key: "flag", value: text)
+            let record = short + [UInt8](repeating: 0, count: 65 - short.count)
+            return DeviceConfigReadProbe.ValueResponse(resultCode: 1, record: record).value(for: "flag")
+        }
+        XCTAssertEqual(actual, [49, 48, 50, nil, nil, nil, nil, nil, nil])
+    }
+
+    func testMultiCharacterReadBackNeverConfirmsASingleDigitGate() {
+        for (text, on) in [("10", true), ("100", true), ("1.0", true),
+                           ("00", false), ("0.0", false), ("0.5", false)] {
+            // Revision + key[32] + value[32], independently sized from the wire contract.
+            let short: [UInt8] = [0x01] + echoRecord(key: "enable_raw_data_w_ecg", value: text)
+            let record = short + [UInt8](repeating: 0, count: 65 - short.count)
+            let frame = readBackFrame(record: record)
+            guard case .success(let reply) = DeviceConfigReadProbe.parse(
+                frame: frame, family: .whoop5, expecting: 121) else {
+                return XCTFail("CRC-valid read-back should parse")
+            }
+            var report = EcgRawDataGateReport(on: on)
+            report.noteReadBack(reply)
+            XCTAssertEqual(report.verdict, .notClaimed, text)
+            XCTAssertNil(report.storedValue, text)
+            XCTAssertEqual(reply.record.prefix(record.count), record[...], "retain the full evidence")
+        }
+    }
+
     func testConfirmedOnlyWhenTheReadBackReturnsWhatWasAsked() {
         var report = EcgRawDataGateReport(on: true)
         XCTAssertEqual(report.verdict, .pending)

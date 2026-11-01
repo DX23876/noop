@@ -192,14 +192,15 @@ object DeviceConfigReadProbe {
         }
 
         /**
-         * The value byte, reported ONLY when the strap echoed [key] in a 32-byte NUL-padded name field
-         * and the record extends one byte past it — the same `[name 32][value]` layout the SET bodies
-         * use. null means "no value claimed", never "value is zero".
+         * A single-byte value after the echoed key. Multi-character text such as `10` or `0.0`
+         * must not falsely confirm a flag write. Legacy records ending at the value are accepted;
+         * otherwise the next byte must be NUL. Result-code validation belongs to the caller.
          */
         fun valueFor(key: String): Int? {
             val off = echoOffset(key) ?: return null
             val valueIndex = off + NAME_FIELD_BYTES
             if (valueIndex >= record.size) return null
+            if (valueIndex + 1 < record.size && record[valueIndex + 1].toInt() != 0) return null
             return record[valueIndex].toInt() and 0xFF
         }
 
