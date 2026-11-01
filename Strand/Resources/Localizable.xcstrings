@@ -568117,6 +568117,180 @@
           }
         }
       }
+    },
+    "Export workout" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Training exportieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportar entrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exporter l'entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esporta allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eksportuj trening"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportar treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспорт тренировки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出训练"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匯出訓練"
+          }
+        }
+      }
+    },
+    "Save this workout with its heart rate as a FIT file you can import into Strava, Garmin Connect, and other apps." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speichere dieses Training mit seinem Puls als FIT-Datei, die du in Strava, Garmin Connect und andere Apps importieren kannst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda este entrenamiento con su frecuencia cardiaca como archivo FIT que puedes importar en Strava, Garmin Connect y otras apps."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistre cet entraînement avec sa fréquence cardiaque dans un fichier FIT que tu peux importer dans Strava, Garmin Connect et d'autres apps."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salva questo allenamento con la sua frequenza cardiaca come file FIT da importare in Strava, Garmin Connect e altre app."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapisz ten trening z tętnem jako plik FIT, który możesz zaimportować do Stravy, Garmin Connect i innych aplikacji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda este treino com a frequência cardíaca como um ficheiro FIT que podes importar para o Strava, o Garmin Connect e outras apps."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохрани эту тренировку с пульсом как FIT-файл, который можно импортировать в Strava, Garmin Connect и другие приложения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将此训练连同心率保存为 FIT 文件，可导入 Strava、Garmin Connect 及其他应用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將此訓練連同心率儲存為 FIT 檔案，可匯入 Strava、Garmin Connect 及其他應用程式。"
+          }
+        }
+      }
+    },
+    "Route with heart rate and the workout summary" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route mit Puls und der Übersicht des Trainings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruta con frecuencia cardiaca y el resumen del entrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Itinéraire avec la fréquence cardiaque et le récapitulatif de l'entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Percorso con frequenza cardiaca e il riepilogo dell'allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trasa z tętnem i podsumowaniem treningu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Percurso com a frequência cardíaca e o resumo do treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Маршрут с пульсом и сводкой тренировки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "含心率和训练摘要的路线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "含心率和訓練摘要的路線"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

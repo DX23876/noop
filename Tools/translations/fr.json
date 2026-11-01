@@ -3292,5 +3292,8 @@
   "Today, %@ to %@": "Aujourd’hui, de %1$@ à %2$@",
   "Yesterday, %@ to %@": "Hier, de %1$@ à %2$@",
   "%@, %@ to %@": "%1$@, de %2$@ à %3$@",
-  "Beat-to-beat": "Battement par battement"
+  "Beat-to-beat": "Battement par battement",
+  "Export workout": "Exporter l'entraînement",
+  "Save this workout with its heart rate as a FIT file you can import into Strava, Garmin Connect, and other apps.": "Enregistre cet entraînement avec sa fréquence cardiaque dans un fichier FIT que tu peux importer dans Strava, Garmin Connect et d'autres apps.",
+  "Route with heart rate and the workout summary": "Itinéraire avec la fréquence cardiaque et le récapitulatif de l'entraînement"
 }

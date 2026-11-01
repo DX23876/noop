@@ -3446,5 +3446,8 @@
   "Today, %@ to %@": "今天 %1$@ 至 %2$@",
   "Yesterday, %@ to %@": "昨天 %1$@ 至 %2$@",
   "%@, %@ to %@": "%1$@ %2$@ 至 %3$@",
-  "Beat-to-beat": "逐搏"
+  "Beat-to-beat": "逐搏",
+  "Export workout": "匯出訓練",
+  "Save this workout with its heart rate as a FIT file you can import into Strava, Garmin Connect, and other apps.": "將此訓練連同心率儲存為 FIT 檔案，可匯入 Strava、Garmin Connect 及其他應用程式。",
+  "Route with heart rate and the workout summary": "含心率和訓練摘要的路線"
 }

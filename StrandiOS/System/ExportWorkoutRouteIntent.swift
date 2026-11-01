@@ -2,6 +2,7 @@
 import Foundation
 import AppIntents
 import StrandImport
+import WhoopStore
 import UniformTypeIdentifiers
 
 // MARK: - Export a recorded GPS route through Shortcuts (#2679)
@@ -42,11 +43,11 @@ enum RouteExportFormatChoice: String, AppEnum, CaseIterable {
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Route Format")
 
-    // FIT carries a session summary that GPX has no element for, and the parts of it this path cannot
-    // supply are named here rather than left for a wearer to discover in Strava. See the `render` call.
+    // FIT carries what GPX has no element for: the heart-rate curve and the session summary, read from the
+    // workout the route belongs to. See `perform`.
     static let caseDisplayRepresentations: [RouteExportFormatChoice: DisplayRepresentation] = [
         .gpx: DisplayRepresentation(title: "GPX"),
-        .fit: DisplayRepresentation(title: "FIT", subtitle: "Route and GPS distance, without the heart-rate and calorie summary"),
+        .fit: DisplayRepresentation(title: "FIT", subtitle: "Route with heart rate and the workout summary"),
     ]
 
     var exporterFormat: RouteExporter.Format { self == .gpx ? .gpx : .fit }
@@ -69,6 +70,7 @@ struct ExportWorkoutRouteIntent: AppIntent {
     @Parameter(title: "Format", default: .gpx)
     var format: RouteExportFormatChoice
 
+    @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> & ProvidesDialog {
         guard let newest = Self.newestExportableRoute() else {
             // A real thrown error, not a parameter-resolution prompt: the format is already valid, it
@@ -76,21 +78,27 @@ struct ExportWorkoutRouteIntent: AppIntent {
             // than asking the wearer to pick GPX again.
             throw RouteExportIntentError.noExportableRoute
         }
-        // `energyKcal`, `avgHr` and `maxHr` are deliberately NOT passed, and GPX is unaffected either
-        // way: `buildGpx` takes none of them, so a GPX from here is byte-identical to the share sheet's.
-        // FIT does carry them as session fields, and the share sheet supplies them from the `WorkoutRow`.
-        // This path has no row, and copying them into `RouteStore` to get them would plant a second copy
-        // of a fact the database owns: the edit and merge paths re-store a route without touching them,
-        // and a later offload fills heart rate for a window after the route was saved. A stored snapshot
-        // would then disagree with the workout, which is the failure the project forbids outright. So the
-        // FIT written here is a route plus its GPS distance, and the format picker says so.
+        // The file comes from `WorkoutFileExport`, the builder the workout's own share buttons use, so a
+        // Shortcuts export and a share-sheet export of one workout carry the same data: heart rate,
+        // calories and pauses are read from the database where they live, never from a copy kept beside
+        // the route. Only when the workout row cannot be found (deleted, or the app's model not up within
+        // a few seconds of a cold launch) does the route go out on its own, with its measured times and
+        // heights.
+        if let repo = await Self.repository(),
+           let row = await Self.row(startTs: newest.startTs, sport: newest.sport, repo: repo),
+           let file = await WorkoutFileExport.build(format.exporterFormat, row: row, repo: repo) {
+            return .result(value: IntentFile(data: file.data, filename: file.name, type: .data),
+                           dialog: "Exported your most recent route.")
+        }
         let data = RouteExporter.render(
             format.exporterFormat,
             route: newest.points.map { RoutePoint(lat: $0.lat, lon: $0.lon) },
             startTs: newest.startTs,
             endTs: newest.endTs,
             sport: newest.sport,
-            distanceM: newest.distanceM)
+            distanceM: newest.distanceM,
+            recordedTimes: newest.points.map { Int($0.tMs / 1_000) },
+            elevations: newest.points.map(\.altitudeM))
         // Named by the workout's start, matching the share sheet's `noop-route-<startTs>.<ext>` so the
         // same session exports to the same filename whichever path produced it.
         let name = "noop-route-\(newest.startTs).\(format.rawValue)"
@@ -99,6 +107,23 @@ struct ExportWorkoutRouteIntent: AppIntent {
         // a type the system does not actually know.
         return .result(value: IntentFile(data: data, filename: name, type: .data),
                        dialog: "Exported your most recent route.")
+    }
+
+    /// The running app's repository. A cold launch can hand the intent its first tick before the model
+    /// exists, so it waits a few seconds for it, as the strap-sync shortcut does.
+    @MainActor
+    static func repository(waitSeconds: Int = 5) async -> Repository? {
+        for _ in 0..<waitSeconds {
+            if let model = AppModel.shared { return model.repo }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+        return AppModel.shared?.repo
+    }
+
+    /// The workout row a stored route belongs to, by the route's natural key.
+    static func row(startTs: Int, sport: String, repo: Repository) async -> WorkoutRow? {
+        let days = max(1, (Int(Date().timeIntervalSince1970) - startTs) / 86_400 + 2)
+        return await repo.workoutRows(days: days).first { $0.startTs == startTs && $0.sport == sport }
     }
 
     /// One exportable route, resolved from the side-store without touching the database.
