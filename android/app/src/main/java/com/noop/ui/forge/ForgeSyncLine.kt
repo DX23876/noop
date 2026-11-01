@@ -63,7 +63,7 @@ private const val SYNC_SIGNAL_DEBOUNCE_MS = 3_000L
 @Composable
 internal fun ForgeSyncLine(backfilling: Boolean, modifier: Modifier = Modifier) {
     val syncing = rememberDebouncedSyncing(backfilling)
-    val alpha by animateFloatAsState(if (syncing) 1f else 0f, tween(250), label = "syncLine")
+    val alpha by animateFloatAsState(if (syncing) 1f else 0f, tween(250))
     val ember = ForgeTokens.StrandPalette.forgeEmber.resolve()
     val label = stringResource(R.string.forge_qa_syncing)
     Box(
@@ -74,8 +74,8 @@ internal fun ForgeSyncLine(backfilling: Boolean, modifier: Modifier = Modifier) 
         if (rememberPoseStill()) {
             Box(Modifier.fillMaxSize().background(ember))
         } else {
-            val phase by rememberInfiniteTransition(label = "syncLinePhase").animateFloat(
-                0f, 1f, infiniteRepeatable(tween(1_400, easing = LinearEasing)), label = "syncLineRun",
+            val phase by rememberInfiniteTransition().animateFloat(
+                0f, 1f, infiniteRepeatable(tween(1_400, easing = LinearEasing)),
             )
             Box(
                 Modifier.fillMaxHeight().fillMaxWidth(SEGMENT).graphicsLayer {
