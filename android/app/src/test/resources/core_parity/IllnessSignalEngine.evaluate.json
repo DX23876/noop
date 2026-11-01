@@ -1,0 +1,2171 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : null,
+        "resp" : null,
+        "rhr" : 4.2859999999999996,
+        "skin" : 5.8109999999999999
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 80,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ],
+        "hrv" : null,
+        "resp" : null,
+        "rhr" : 2.4329999999999998,
+        "skin" : 0.27000000000000002
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 9.5259999999999962,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 1.984,
+        "resp" : 6.8929999999999998,
+        "rhr" : null,
+        "skin" : 3.714
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 77.707999999999998,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 2.5169999999999999,
+        "resp" : 2.5139999999999998,
+        "rhr" : 5.4269999999999996,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 62.681999999999988,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : null,
+        "rhr" : 2.3639999999999999,
+        "skin" : 0.25900000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 8.0079999999999973,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 0.057000000000000002,
+        "resp" : 5.4749999999999996,
+        "rhr" : 3.9009999999999998,
+        "skin" : 3.0760000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true
+        ],
+        "hrv" : 4.9349999999999996,
+        "resp" : 5.2880000000000003,
+        "rhr" : null,
+        "skin" : 2.843
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 44.345700000000001,
+        "suppressedBy" : [
+          "sauna",
+          "a hard or late workout",
+          "travel"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 1.46,
+        "rhr" : 4.6029999999999998,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 0.45100000000000001,
+        "resp" : null,
+        "rhr" : 2.004,
+        "skin" : 4.0659999999999998
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "mild",
+        "score" : 40.088000000000001,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 6.2910000000000004,
+        "resp" : 5.3419999999999996,
+        "rhr" : 6.202,
+        "skin" : 2.964
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 2.3820000000000001,
+        "resp" : null,
+        "rhr" : null,
+        "skin" : 3.8730000000000002
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "mild",
+        "score" : 48.404000000000003,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 6.0679999999999996,
+        "resp" : 3.8460000000000001,
+        "rhr" : 5.7430000000000003,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "hrv" : 4.6230000000000002,
+        "resp" : 4.1749999999999998,
+        "rhr" : 6.1680000000000001,
+        "skin" : 3.7690000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 3.302,
+        "resp" : 0.41799999999999998,
+        "rhr" : 2.9060000000000001,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "mild",
+        "score" : 48.576000000000008,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 1.413,
+        "resp" : 1.226,
+        "rhr" : null,
+        "skin" : 0.50800000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 0,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 0.372,
+        "resp" : 3.1000000000000001,
+        "rhr" : 2.327,
+        "skin" : 5.6580000000000004
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 71.394000000000005,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 4.9169999999999998,
+        "rhr" : 5.9119999999999999,
+        "skin" : 4.5419999999999998
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 3.3180000000000001,
+        "resp" : 6.8360000000000003,
+        "rhr" : 6.1779999999999999,
+        "skin" : 4.3799999999999999
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 45,
+        "suppressedBy" : [
+          "stress"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 5.657,
+        "rhr" : null,
+        "skin" : 3.827
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 80,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : null,
+        "resp" : 4.4500000000000002,
+        "rhr" : 2.6739999999999999,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 54.828000000000003,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true
+        ],
+        "hrv" : 4.3639999999999999,
+        "resp" : 3.0630000000000002,
+        "rhr" : 1.911,
+        "skin" : 2.4809999999999999
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 33.285599999999995,
+        "suppressedBy" : [
+          "travel"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 5.0620000000000003,
+        "resp" : 2.6840000000000002,
+        "rhr" : null,
+        "skin" : 1.9990000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 55.048000000000002,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : null,
+        "rhr" : 4.0149999999999997,
+        "skin" : 6.7759999999999998
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 36,
+        "suppressedBy" : [
+          "stress"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 2.6480000000000001,
+        "resp" : 3.883,
+        "rhr" : 0.63800000000000001,
+        "skin" : 1.5780000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 24.415200000000002,
+        "suppressedBy" : [
+          "sauna"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 0.10000000000000001,
+        "rhr" : 0.26700000000000002,
+        "skin" : 2.8300000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 18.260000000000002,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 6.7640000000000002,
+        "resp" : null,
+        "rhr" : 3.7480000000000002,
+        "skin" : 6.4480000000000004
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "hrv" : 0.019,
+        "resp" : 1.835,
+        "rhr" : 3.2429999999999999,
+        "skin" : 6.5919999999999996
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 67.346000000000004,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 1.8500000000000001,
+        "resp" : 3.363,
+        "rhr" : null,
+        "skin" : 0.78800000000000003
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 29.986000000000001,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 2.2130000000000001,
+        "resp" : 1.1339999999999999,
+        "rhr" : 5.3120000000000003,
+        "skin" : 1.925
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "mild",
+        "score" : 44.686,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 5.3070000000000004,
+        "rhr" : 4.5039999999999996,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 36,
+        "suppressedBy" : [
+          "stress",
+          "sauna"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 1.2450000000000001,
+        "rhr" : 1.5980000000000001,
+        "skin" : 6.9770000000000003
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 6.0910000000000002,
+        "resp" : 6.718,
+        "rhr" : 1.5049999999999999,
+        "skin" : 3.863
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 0.036999999999999998,
+        "resp" : 5.4569999999999999,
+        "rhr" : null,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ],
+        "hrv" : 3.633,
+        "resp" : 6.367,
+        "rhr" : 1.599,
+        "skin" : 0.81799999999999995
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 75.926000000000002,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 3.2690000000000001,
+        "resp" : 1.385,
+        "rhr" : 4.9420000000000002,
+        "skin" : 3.1040000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 41.492700000000006,
+        "suppressedBy" : [
+          "sauna"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : 4.4900000000000002,
+        "resp" : 5.6390000000000002,
+        "rhr" : 0.19400000000000001,
+        "skin" : 6.8049999999999997
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          true
+        ],
+        "hrv" : 6.2130000000000001,
+        "resp" : null,
+        "rhr" : 5.8689999999999998,
+        "skin" : 3.121
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 4.6699999999999999,
+        "resp" : 0.59699999999999998,
+        "rhr" : null,
+        "skin" : 6.6040000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 80,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 6.1260000000000003,
+        "resp" : 3.0920000000000001,
+        "rhr" : 2.968,
+        "skin" : 1.5920000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 38.393999999999998,
+        "suppressedBy" : [
+          "stress"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true
+        ],
+        "hrv" : 2.0819999999999999,
+        "resp" : 5.6150000000000002,
+        "rhr" : null,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 18.811799999999998,
+        "suppressedBy" : [
+          "travel"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 1.381,
+        "resp" : 0.025000000000000001,
+        "rhr" : 1.341,
+        "skin" : 4.4000000000000004
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 4.2919999999999998,
+        "resp" : 0.16300000000000001,
+        "rhr" : 0.56100000000000005,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 3.984,
+        "rhr" : 0.36499999999999999,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 3.0790000000000002,
+        "resp" : null,
+        "rhr" : 5.7999999999999998,
+        "skin" : 1.3500000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 28.682100000000002,
+        "suppressedBy" : [
+          "stress"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 1.3520000000000001,
+        "resp" : 3.125,
+        "rhr" : 5.2750000000000004,
+        "skin" : 5.7089999999999996
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : null,
+        "resp" : 2.6920000000000002,
+        "rhr" : 2.173,
+        "skin" : 1.5529999999999999
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 19.030000000000005,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          true,
+          false,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "hrv" : 2.6230000000000002,
+        "resp" : 0.29999999999999999,
+        "rhr" : 6.8289999999999997,
+        "skin" : 1.952
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 24.167700000000004,
+        "suppressedBy" : [
+          "alcohol",
+          "sauna",
+          "travel"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 0.39500000000000002,
+        "resp" : 0.092999999999999999,
+        "rhr" : 2.714,
+        "skin" : 5.524
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 25.0686,
+        "suppressedBy" : [
+          "sauna"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : 6.2839999999999998,
+        "resp" : 4.1740000000000004,
+        "rhr" : null,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 80,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ],
+        "hrv" : null,
+        "resp" : 3.5259999999999998,
+        "rhr" : null,
+        "skin" : 3.4100000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 64.591999999999999,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 3.3849999999999998,
+        "resp" : 2.5459999999999998,
+        "rhr" : 4.4320000000000004,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 37.116900000000001,
+        "suppressedBy" : [
+          "sauna"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 2.7469999999999999,
+        "rhr" : 3.6440000000000001,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 23.670900000000003,
+        "suppressedBy" : [
+          "sauna"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 6.9299999999999997,
+        "resp" : 2.8559999999999999,
+        "rhr" : 2.444,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 68.599999999999994,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : 4.1719999999999997,
+        "resp" : 1.4319999999999999,
+        "rhr" : 5.976,
+        "skin" : 5.1689999999999996
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 3.9369999999999998,
+        "resp" : 2.0800000000000001,
+        "rhr" : 5.9320000000000004,
+        "skin" : 2.569
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 42.4251,
+        "suppressedBy" : [
+          "sauna"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          true,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 3.839,
+        "resp" : null,
+        "rhr" : 6.9779999999999998,
+        "skin" : 2.2789999999999999
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 86.138000000000005,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 4.3559999999999999,
+        "resp" : null,
+        "rhr" : 4.3079999999999998,
+        "skin" : 5.923
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 0.39800000000000002,
+        "rhr" : 2.327,
+        "skin" : 4.4820000000000002
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "mild",
+        "score" : 47.194000000000003,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 0.56999999999999995,
+        "resp" : 3.0870000000000002,
+        "rhr" : 4.641,
+        "skin" : 4.5890000000000004
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 4.4889999999999999,
+        "resp" : null,
+        "rhr" : 0.153,
+        "skin" : 0.55000000000000004
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 2.0390000000000001,
+        "resp" : 5.6050000000000004,
+        "rhr" : 2.6349999999999998,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 24.672600000000003,
+        "suppressedBy" : [
+          "a hard or late workout"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : 6.3600000000000003,
+        "resp" : null,
+        "rhr" : 1.677,
+        "skin" : 3.2109999999999999
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 66.641999999999996,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          true,
+          false,
+          false,
+          true,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 0.86499999999999999,
+        "rhr" : 1.274,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 0,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false
+        ],
+        "hrv" : null,
+        "resp" : 5.7000000000000002,
+        "rhr" : 3.3109999999999999,
+        "skin" : 0.78300000000000003
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 68.841999999999999,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 4.7969999999999997,
+        "rhr" : 0.65000000000000002,
+        "skin" : 0.11
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 6.1660000000000004,
+        "resp" : null,
+        "rhr" : 5.9089999999999998,
+        "skin" : 2.1960000000000002
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 84.312000000000012,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 4.641,
+        "resp" : 1.0049999999999999,
+        "rhr" : 6.5430000000000001,
+        "skin" : 2.2530000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 85.566000000000003,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 6.2750000000000004,
+        "resp" : 5.7149999999999999,
+        "rhr" : 6.6550000000000002,
+        "skin" : 1.331
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : null,
+        "resp" : null,
+        "rhr" : null,
+        "skin" : 4.4619999999999997
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 0.89200000000000002,
+        "resp" : 6.2190000000000003,
+        "rhr" : 5.0620000000000003,
+        "skin" : 1.4890000000000001
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 36,
+        "suppressedBy" : [
+          "stress"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 1.0129999999999999,
+        "resp" : 2.9009999999999998,
+        "rhr" : 2.2850000000000001,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "mild",
+        "score" : 26.091999999999999,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "hrv" : 3.4510000000000001,
+        "resp" : 5.96,
+        "rhr" : null,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 71.921999999999997,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 5.7000000000000002,
+        "resp" : 1.8180000000000001,
+        "rhr" : 2.7290000000000001,
+        "skin" : 1.879
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 56.038000000000004,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          true
+        ],
+        "hrv" : 0.53900000000000003,
+        "resp" : 3.4849999999999999,
+        "rhr" : null,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 32.669999999999995,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 0.95299999999999996,
+        "resp" : null,
+        "rhr" : 2.5059999999999998,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 11.131999999999994,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : null,
+        "resp" : 1.177,
+        "rhr" : 6.3460000000000001,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "quiet",
+        "score" : 40,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 6.0830000000000002,
+        "resp" : 1.4510000000000001,
+        "rhr" : null,
+        "skin" : 4.3099999999999996
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 80,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ],
+        "hrv" : 4.8369999999999997,
+        "resp" : 5.5739999999999998,
+        "rhr" : 1.268,
+        "skin" : null
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "raised",
+        "score" : 80,
+        "suppressedBy" : [
+
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          true,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true
+        ],
+        "hrv" : 6.0339999999999998,
+        "resp" : 0.68999999999999995,
+        "rhr" : 2.7080000000000002,
+        "skin" : 3.4260000000000002
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "suppressed",
+        "score" : 39.126600000000003,
+        "suppressedBy" : [
+          "alcohol",
+          "travel"
+        ]
+      }
+    },
+    {
+      "input" : {
+        "ctx" : [
+          false,
+          false,
+          true,
+          false,
+          false,
+          true,
+          true
+        ],
+        "hrv" : 0.754,
+        "resp" : 4.0330000000000004,
+        "rhr" : 3.177,
+        "skin" : 6.3449999999999998
+      },
+      "output" : {
+        "fired" : [
+
+        ],
+        "level" : "alreadyUnwell",
+        "score" : 100,
+        "suppressedBy" : [
+
+        ]
+      }
+    }
+  ],
+  "function" : "IllnessSignalEngine.evaluate"
+}

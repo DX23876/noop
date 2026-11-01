@@ -776,6 +776,24 @@ final class CoreParityOracleTests: XCTestCase {
                    WorkoutDetector.activitySeries((a["g"] as! [[Double]]).map {
                        GravitySample(ts: Int($0[0]), x: $0[1], y: $0[2], z: $0[3]) }).map { [$0.ts, $0.intensity] as [Any] }
                }),
+        Oracle(name: "IllnessSignalEngine.evaluate",
+               inputs: cases(80, seed: 43) { r in
+                   func z() -> Any { r.chance(0.25) ? NSNull() : r.double(-3...4) }
+                   return ["rhr": z(), "skin": z(), "hrv": z(), "resp": z(),
+                           "ctx": (0..<7).map { k in k == 6 ? r.chance(0.8) : r.chance(0.12) }]
+               },
+               run: { a in
+                   func reading(_ k: String) -> IllnessSignalEngine.SignalReading? {
+                       (a[k] as? Double).map { IllnessSignalEngine.SignalReading(zIllnessward: $0) }
+                   }
+                   let c = a["ctx"] as! [Bool]
+                   let res = IllnessSignalEngine.evaluate(
+                       .init(restingHR: reading("rhr"), skinTemp: reading("skin"), hrv: reading("hrv"), respiration: reading("resp")),
+                       context: .init(alcohol: c[0], stress: c[1], sauna: c[2], hardOrLateWorkout: c[3], travelPhaseJump: c[4],
+                                      alreadyUnwell: c[5], baselineTrusted: c[6]))
+                   return ["score": res.score, "level": res.level.rawValue, "fired": res.firedSignals,
+                           "suppressedBy": res.suppressedBy]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

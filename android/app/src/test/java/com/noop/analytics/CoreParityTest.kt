@@ -377,6 +377,16 @@ class CoreParityTest {
                 com.noop.data.GravitySample(deviceId = "parity", ts = it.getDouble(0).toLong(), x = it.getDouble(1), y = it.getDouble(2), z = it.getDouble(3)) } })
                 .map { listOf(it.ts, it.intensity) }
         },
+        "IllnessSignalEngine.evaluate" to { i ->
+            fun reading(k: String) = if (i.isNull(k)) null else IllnessSignalEngine.SignalReading(i.getDouble(k))
+            val c = i.getJSONArray("ctx").let { a -> (0 until a.length()).map { a.getBoolean(it) } }
+            val res = IllnessSignalEngine.evaluate(
+                IllnessSignalEngine.Inputs(reading("rhr"), reading("skin"), reading("hrv"), reading("resp")),
+                IllnessSignalEngine.Context(c[0], c[1], c[2], c[3], c[4], c[5], c[6]))
+            // The Kotlin copy has no typed suppression reasons (Swift added them for its own wording); the
+            // labels in suppressedBy carry the same facts, so the reasons are left out of the comparison.
+            obj("score" to res.score, "level" to res.level.raw, "fired" to res.firedSignals, "suppressedBy" to res.suppressedBy)
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */

@@ -183,3 +183,33 @@ core	WakeMotionRefinement	calls=0	ble
 core	WatchRecovery	calls=0	ui
 core	WeeklyDigest	calls=0	ui
 ```
+
+## Parity sweep (2026-11-01)
+
+Owner decision: test the Kotlin copies against Swift and move only what differs. `CoreParityOracleTests.swift`
+writes generated inputs with the Swift answers to `android/app/src/test/resources/core_parity/`; `CoreParityTest.kt`
+runs the Kotlin copy over them. A change on either side now fails one of the two tests.
+
+Two real differences were found and moved into the core:
+
+- **Effort** (`StrainScorer.strain`): the Kotlin copy lacked the fork's recalibrated curve. Now `math.strain`.
+- **Staging a night the wearer adds**: Kotlin staged it with stager V1 whatever the setting. Now `sleep.restage`
+  with the wearer's stager.
+
+Also moved on purpose: readiness (`math.readiness`), bout calories (`math.boutCalories`), nap detection
+(`nap.evaluate`).
+
+Checked and identical (oracle files in `core_parity/`): stage percentages, heart-rate recovery, streaks, body clock,
+activity heatmap, sleep debt, stress index, vitality, fitness age, heart-rate zones and time in zone, RMSSD,
+frequency-domain HRV, daytime stress, daytime baselines, training load, battery estimate, recovery forecast, vital
+baselines, charge baselines, charge drivers, steps counter, step estimate, HRV readiness, main night, night grouping,
+onset clamping, rhythm screener, coach suggestions, effect ranking, dose response, activity cost, strap comparison,
+source fusion, hypnogram coverage, sleep reclip, sleep edit rules, stress-onset and sit-reminder state machines,
+weekly digest, breath pacing, IMU features, motion series, hydration goal, illness signal.
+
+Not swept, judged by reading: score confidence (equivalent: a trusted baseline always has 14 nights, so Kotlin's extra
+7-night check never decides), range report, spot-HRV caveat text, resonance sweep, live-session band, lab-book
+projection, day-owner resolver. Kotlin-only by nature: `ProfileWeightSync` (Health Connect) and `HrDownPacer` (an
+Android-only pacing feature). Twins of iOS app-layer code, not in a package and so not sweepable from the package
+tests: the skin-temperature suite adapter (`V5HealthSignals`; its engines are swept), caffeine decay, sleep marks,
+route math.
