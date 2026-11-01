@@ -798,7 +798,8 @@ struct DataSourcesView: View {
                 // delete runs on the actor's OWN (off-main) executor. Calling the synchronous
                 // `DeviceRegistryStore(...).deleteAllData` directly here ran the whole transaction on the
                 // main actor and froze the UI on a large Apple Health dataset.
-                try await store.deleteAllData(deviceId: model.appleDeviceId)
+                // No re-score may write around the delete; one runs after it.
+                try await model.intelligence.withScoringHeld { try await store.deleteAllData(deviceId: model.appleDeviceId) }
                 await repo.refresh()
                 // #833/v7.7.2: this purge clears the body-composition series (weight/body_fat/lean_mass/bmi/
                 // vo2max) that live in metricSeries OUTSIDE refresh()'s diff, so refresh() may not bump

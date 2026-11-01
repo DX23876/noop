@@ -199,6 +199,19 @@ public final class DailyAnalysis {
     private var analysisRunnerActive = false
     /// Callers of `waitForAnalysisQueueToDrain`, resumed when the runner stops.
     private var analysisDrainWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Data deletes in progress. While one runs no pass starts, and the pass it found running writes nothing.
+    private var dataDeletesInFlight = 0
+    /// The running pass's flag a data delete raises; nil when no pass runs.
+    private var runningPassAbandon: RescorePassAbandon?
+    /// `withScoringHeld` callers waiting for the running pass to end.
+    private var passEndWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Launches the re-score `withScoringHeld` owes once the last delete is done, over `maxDays`. A test
+    /// replaces it to read the window instead of running the pass.
+    public lazy var launchRescoreAfterDataDelete: (Int) -> Void = { [weak self] days in
+        Task { await self?.analyzeRecent(maxDays: days, force: true, triggerLabel: "data-delete") }
+    }
+    /// True while a data delete holds scoring off.
+    public var isScoringHeldForDataDelete: Bool { dataDeletesInFlight > 0 }
     /// Passes that returned without finishing their work (no store, no metric config, a failed day-cycle
     /// read or sleep write), so the rebuild can tell a scored history from one that was not.
     private(set) var unfinishedPasses = 0
@@ -1519,6 +1532,26 @@ public final class DailyAnalysis {
         }
     }
 
+    /// Runs `work`, a data delete, with no scoring pass writing around it, then re-scores.
+    ///
+    /// A pass reads its raw data first and writes at the end, so a delete landing in between was undone: the
+    /// pass wrote back what it had computed from the rows the delete removed, and with no raw left no later
+    /// pass could evict it. Here queued passes are held, the running pass is told to drop its writes (it
+    /// stops at its next day, or just before its first write), and `work` runs once that pass has ended. A
+    /// pass already writing finishes first and the delete then removes what it wrote. After the last delete
+    /// one forced re-score over the default window rebuilds what remains, and the passes held meanwhile run
+    /// with it. Adopted from ayiskakov/noop (d57c641bc, f191a0896).
+    public func withScoringHeld<T>(_ work: () async throws -> T) async rethrows -> T {
+        dataDeletesInFlight += 1
+        runningPassAbandon?.raise()
+        while computing { await withCheckedContinuation { passEndWaiters.append($0) } }
+        defer {
+            dataDeletesInFlight -= 1
+            if dataDeletesInFlight == 0 { launchRescoreAfterDataDelete(21) }
+        }
+        return try await work()
+    }
+
     /// Returns once no pass runs and none is queued, including a follow-up a pass queued for itself
     /// (`enqueueFollowup`).
     func waitForAnalysisQueueToDrain() async {
@@ -1527,9 +1560,11 @@ public final class DailyAnalysis {
     }
 
     private func runAnalysisQueue() async {
-        while let request = pendingAnalysis {
+        // A held request stays queued; the re-score after the delete restarts the runner and takes it along.
+        while dataDeletesInFlight == 0, let request = pendingAnalysis {
             pendingAnalysis = nil
             computing = true
+            runningPassAbandon = RescorePassAbandon()
             await performAnalyzeRecent(maxDays: request.maxDays, force: request.force,
                                        skipIfUnchanged: request.skipIfUnchanged,
                                        allowDayReuse: request.allowDayReuse,
@@ -1542,9 +1577,36 @@ public final class DailyAnalysis {
                                        }(),
                                        triggerLabel: request.triggerLabel)
             computing = false
-            request.waiters.forEach { $0.resume() }
+            let dropped = runningPassAbandon?.isRaised == true
+            runningPassAbandon = nil
+            let ended = passEndWaiters
+            passEndWaiters = []
+            ended.forEach { $0.resume() }
+            // A pass dropped for a data delete did not do its work. It goes back in the queue whole, window and
+            // callers included, so the delete's re-score takes it along: a dropped 4,000-day heal must not come
+            // back as 21 days, and its caller must not see it as done.
+            guard dropped else {
+                request.waiters.forEach { $0.resume() }
+                continue
+            }
+            if pendingAnalysis != nil {
+                pendingAnalysis!.merge(maxDays: request.maxDays, force: request.force,
+                                       skipIfUnchanged: request.skipIfUnchanged,
+                                       allowDayReuse: request.allowDayReuse, reason: request.reason,
+                                       affectedUTCInterval: {
+                                           guard let lower = request.affectedLower,
+                                                 let upper = request.affectedUpper,
+                                                 lower < upper else { return nil }
+                                           return lower..<upper
+                                       }(),
+                                       triggerLabel: request.triggerLabel)
+                pendingAnalysis!.waiters += request.waiters
+            } else {
+                pendingAnalysis = request
+            }
         }
         analysisRunnerActive = false
+        guard pendingAnalysis == nil else { return }
         let drained = analysisDrainWaiters
         analysisDrainWaiters = []
         drained.forEach { $0.resume() }
@@ -1572,6 +1634,7 @@ public final class DailyAnalysis {
         // `return`s below (no store, missing metric config) and a thrown error. A progress card left on
         // screen by a pass that already gave up would be the same lie as the spinner it replaces.
         let progressStartedAt = Date()
+        let abandon = runningPassAbandon ?? RescorePassAbandon()
         analysisProgress = AnalysisProgress(stage: .preparing, completedDays: 0, totalDays: maxDays,
                                             startedAt: progressStartedAt, lastStepAt: progressStartedAt)
         defer { analysisProgress = nil }
@@ -2055,6 +2118,8 @@ public final class DailyAnalysis {
                 toDay: StoreReader.localDayKey(Date()))
             var paceMark = DispatchTime.now().uptimeNanoseconds
             for offset in 0..<maxDays {
+                // A data delete is waiting for this pass, which will write nothing.
+                if abandon.isRaised { break }
                 // Cooperative hand-off between days (#goal-journey-freeze). Each day below is 10-18 s of
                 // uninterrupted array crunching on a library with a deep raw-HR history (~190 k HR +
                 // 200 k R-R samples per 54 h night window). `runUnescalated(priority: .background)`
@@ -3433,6 +3498,14 @@ public final class DailyAnalysis {
                                 sleepMin: row.totalSleepMin, hrv: row.avgHrv, rhr: row.restingHr,
                                 source: .appleHealth, confidence: w.confidence))
         }
+        // The pass's first write. Nothing between this check and it suspends, and a delete waits for the pass
+        // to end from here on, so no delete can land among the writes below. A delete that raised the flag
+        // while the pass read would be undone by them, so the pass ends here and the delete re-scores.
+        if abandon.isRaised {
+            host.diagnostic("re-score: dropped before its writes, writing nothing: a data delete is waiting "
+                            + "and re-scores when done", domain: nil)
+            return
+        }
         if !appleRecoveryRows.isEmpty {
             _ = try? await store.upsertDailyMetrics(appleRecoveryRows, deviceId: MetricResolver.appleHealthSource)
         }
@@ -4654,4 +4727,13 @@ extension DailyMetric {
                     energyCoverageSeconds: energyCoverageSeconds, skinTempC: skinTempC,
                     sleepHrOnly: sleepHrOnly)
     }
+}
+
+/// Raised by a data delete while a pass runs; read by the pass's day loop, which runs off the main actor,
+/// and just before its first write.
+final class RescorePassAbandon: @unchecked Sendable {
+    private let lock = NSLock()
+    private var raised = false
+    var isRaised: Bool { lock.lock(); defer { lock.unlock() }; return raised }
+    func raise() { lock.lock(); raised = true; lock.unlock() }
 }
