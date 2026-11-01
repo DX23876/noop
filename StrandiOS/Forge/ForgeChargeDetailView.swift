@@ -8,6 +8,9 @@ import WhoopStore
 /// Routes that only exist in the redesign. Registered on the redesign's tab stacks next to `TabRoute`.
 enum ForgeRoute: Hashable {
     case charge
+    /// Effort as the Today ring shows it, with the Charge its target comes from.
+    case effort(stored: Double?, charge: Double?)
+    case rest(Double?)
     case weeklyReport
 }
 
@@ -16,6 +19,8 @@ extension View {
         navigationDestination(for: ForgeRoute.self) { route in
             switch route {
             case .charge: ForgeChargeDetailView(onAsk: onAsk)
+            case .effort(let stored, let charge): ForgeEffortDetailView(effortStored: stored, charge: charge, onAsk: onAsk)
+            case .rest(let rest): ForgeRestDetailView(rest: rest, onAsk: onAsk)
             case .weeklyReport: ForgeWeeklyReportView(onAsk: onAsk, coach: coach)
             }
         }

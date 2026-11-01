@@ -47,6 +47,8 @@ struct RootTabView: View {
     private var forgeDesign: Bool { forgePreviewStored || ForgeDesignPrefs.launchOverride }
     /// The redesign has no More tab: the profile button opens the same index, with its own stack, as a sheet.
     @State private var showAllFeatures = false
+    /// A question from an "Ask the coach" entry waiting for the inline data-sharing answer.
+    @State private var pendingAsk: String?
     /// The scene-local receiver for actions chosen from NOOP's Home Screen icon menu.
     @EnvironmentObject private var homeScreenQuickActions: HomeScreenQuickActionSceneDelegate
 
@@ -267,6 +269,15 @@ struct RootTabView: View {
             }
         }
         .coachCover(isPresented: $showCoach, coach: coach)
+        .confirmationDialog("Let the coach use your data for this?",
+                            isPresented: Binding(get: { pendingAsk != nil }, set: { if !$0 { pendingAsk = nil } }),
+                            titleVisibility: .visible) {
+            Button("Allow and ask") { sendPendingAsk(withData: true) }
+            Button("Ask without my data") { sendPendingAsk(withData: false) }
+            Button("Cancel", role: .cancel) { pendingAsk = nil }
+        } message: {
+            Text("Data sharing is off, so the coach only sees your question. Allowing it sends a short summary of your relevant metrics to your provider when you ask. You can turn it off again in Coach settings.")
+        }
         .activeSessionPresentation()
         .task { await session.restoreIfNeeded() }
         // A quick-action sheet (Live, Start workout) may still be up when a session asks to present.
@@ -471,7 +482,9 @@ struct RootTabView: View {
         // through the change callback. Both route through the same screens as the centre FAB.
         .onAppear {
             presentPendingHomeScreenQuickActionIfPossible()
+            ForgeDesignPrefs.mirrorToAppGroup()
         }
+        .onChange(of: forgePreviewStored) { _, _ in ForgeDesignPrefs.mirrorToAppGroup() }
         .onChange(of: homeScreenQuickActions.pendingAction) { _, _ in
             presentPendingHomeScreenQuickActionIfPossible()
         }
@@ -632,7 +645,7 @@ struct RootTabView: View {
         case .breathe:
             quickScreen(BreathingView())
         case .forgeLog:
-            ForgeLogSheet { choice in handleForgeLog(choice) }
+            ForgeLogSheet(onPick: { choice in handleForgeLog(choice) }, acceptsPhotos: coach.acceptsPhotos)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         case .liveSession, .battery, .customizeToday, .goals:
@@ -731,7 +744,7 @@ struct RootTabView: View {
         ForgeTrainingView(onProfile: { showAllFeatures = true }, onStartWorkout: {
             if model.activeWorkout != nil { session.present() }
             else { withAnimation(Self.sheetEase) { quickAction = .workout } }
-        })
+        }, onAsk: askCoach)
     }
 
     private var forgeSleepRoot: some View {
@@ -813,6 +826,12 @@ struct RootTabView: View {
             switch choice {
             case .coachWrite, .coachSpeak:
                 if coachFeatureEnabled { showCoach = true }
+            case .coachPhoto(let png):
+                guard coachFeatureEnabled else { return }
+                showCoach = true
+                Task {
+                    await coach.sendPhoto(png, question: String(localized: "Here is a photo I want to log, such as a meal or a workout screen. Say what you see and what I could log from it. Mark any estimate as an estimate and do not log anything yourself."))
+                }
             case .workout:
                 if model.activeWorkout != nil { session.present() }
                 else { withAnimation(Self.sheetEase) { quickAction = .workout } }
@@ -833,9 +852,23 @@ struct RootTabView: View {
         tabPaths[0].append(route)
     }
 
-    /// "Ask the coach" from any redesigned tab: hand the question to the chat and open it.
+    /// "Ask the coach" from any redesigned tab: hand the question to the chat and open it. With data
+    /// sharing off the question would get a generic answer, so the person is asked right there whether the
+    /// coach may use their data (inline consent) instead of being sent to Settings.
     private func askCoach(_ question: String) {
         guard coachFeatureEnabled else { return }
+        if coach.isConfigured, !coach.dataConsent {
+            pendingAsk = question
+            return
+        }
+        coach.pendingPrompt = question
+        showCoach = true
+    }
+
+    private func sendPendingAsk(withData: Bool) {
+        guard let question = pendingAsk else { return }
+        pendingAsk = nil
+        if withData { coach.dataConsent = true }
         coach.pendingPrompt = question
         showCoach = true
     }

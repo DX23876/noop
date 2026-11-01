@@ -1,5 +1,6 @@
 #if os(iOS)
 import SwiftUI
+import PhotosUI
 import StrandDesign
 import StrandAnalytics
 
@@ -7,12 +8,17 @@ import StrandAnalytics
 /// sheet only gathers the entry points that were spread over the quick-action menu, Today and More.
 enum ForgeLogChoice: Hashable {
     case coachWrite, coachSpeak
+    /// A photo for the coach to read (PNG, base64), when the provider can read one.
+    case coachPhoto(String)
     case workout, weight, journal, drink, energy, sleep, labMarkers, breathe, liveHeartRate
 }
 
 /// The redesign's "Log" sheet: logging through the coach first (when it is on), then the direct forms.
 struct ForgeLogSheet: View {
     let onPick: (ForgeLogChoice) -> Void
+    /// Whether the coach's provider can read a photo; the Photo button only shows when it can.
+    var acceptsPhotos = false
+    @State private var photoItem: PhotosPickerItem?
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
     private struct Item: Identifiable {
@@ -45,6 +51,12 @@ struct ForgeLogSheet: View {
                     HStack(spacing: 22) {
                         coachButton(.coachWrite, "Write", "text.bubble.fill")
                         coachButton(.coachSpeak, "Speak", "mic.fill")
+                        if acceptsPhotos {
+                            PhotosPicker(selection: $photoItem, matching: .images) {
+                                coachIcon("Photo", "camera.fill")
+                            }
+                            .buttonStyle(.plain)
+                        }
                         Spacer()
                     }
                 }
@@ -72,20 +84,39 @@ struct ForgeLogSheet: View {
             .padding(.top, 8)
         }
         .background(ForgeColor.canvas.ignoresSafeArea())
+        .onChange(of: photoItem) { _, item in
+            Task { await handlePhoto(item) }
+        }
     }
 
     private func coachButton(_ choice: ForgeLogChoice, _ title: LocalizedStringKey, _ image: String) -> some View {
-        Button { onPick(choice) } label: {
-            VStack(spacing: 6) {
-                Image(systemName: image)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(ForgeColor.onAccent)
-                    .frame(width: 54, height: 54)
-                    .background(Circle().fill(ForgeColor.accent))
-                Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(ForgeColor.text)
-            }
+        Button { onPick(choice) } label: { coachIcon(title, image) }
+            .buttonStyle(.plain)
+    }
+
+    private func coachIcon(_ title: LocalizedStringKey, _ image: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: image)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(ForgeColor.onAccent)
+                .frame(width: 54, height: 54)
+                .background(Circle().fill(ForgeColor.accent))
+            Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(ForgeColor.text)
         }
-        .buttonStyle(.plain)
+    }
+
+    /// Scales the picked photo down (long side 1024 pt) before it is encoded, so a full-resolution image
+    /// is never sent.
+    private func handlePhoto(_ item: PhotosPickerItem?) async {
+        guard let item, let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else { return }
+        let longSide = max(image.size.width, image.size.height)
+        let scale = min(1, 1024 / max(longSide, 1))
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let scaled = UIGraphicsImageRenderer(size: size).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        guard let png = scaled.pngData() else { return }
+        photoItem = nil
+        onPick(.coachPhoto(png.base64EncodedString()))
     }
 }
 

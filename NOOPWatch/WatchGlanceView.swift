@@ -26,6 +26,14 @@ struct WatchGlanceView: View {
             }
         }
         .scrollBounceBehavior(.basedOnSize)
+        // The phone's new design: the night canvas with a faint wash, like the redesigned Today.
+        .background {
+            if store.forgeDesign {
+                LinearGradient(colors: [ForgeWatchColor.wash, ForgeWatchColor.canvas],
+                               startPoint: .top, endPoint: .center)
+                    .ignoresSafeArea()
+            }
+        }
         .onAppear { liveHR.start() }
         .onDisappear { liveHR.stop() }
     }
@@ -46,16 +54,16 @@ struct WatchGlanceView: View {
                        color: snap.charge.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.chargeColor),
             WatchScore(label: String(localized: "Effort"), value: snap.effort,
                        calibrating: snap.effortCalibrating || stale,
-                       color: StrandPalette.effortColor),
+                       color: store.forgeDesign ? ForgeWatchColor.effort : StrandPalette.effortColor),
             WatchScore(label: String(localized: "Rest"), value: snap.rest,
                        calibrating: snap.restCalibrating || stale,
-                       color: StrandPalette.restColor),
+                       color: store.forgeDesign ? ForgeWatchColor.rest : StrandPalette.restColor),
         ]
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 // The legend takes its full natural width first; the rings get what is left, up to 84 pt.
-                ConcentricScoreRings(scores: scores)
+                ConcentricScoreRings(scores: scores, glow: store.forgeDesign)
                     .aspectRatio(1, contentMode: .fit)
                     .frame(maxWidth: 84, maxHeight: 84)
                     .accessibilityHidden(true)
@@ -178,6 +186,8 @@ private struct WatchScore: Identifiable {
 // appear unless Reduce Motion is on.
 private struct ConcentricScoreRings: View {
     let scores: [WatchScore]
+    /// The redesign's soft glow on each arc (phone switch "New design").
+    var glow = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
@@ -208,6 +218,7 @@ private struct ConcentricScoreRings: View {
                             .trim(from: 0, to: appeared || reduceMotion ? fraction : 0)
                             .stroke(score.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                             .rotationEffect(.degrees(-90))
+                            .shadow(color: glow ? score.color.opacity(0.65) : .clear, radius: glow ? 4 : 0)
                     }
                 }
                 .padding(inset)
@@ -251,4 +262,14 @@ private struct ScoreLegendRow: View {
         if let value = score.value, !score.calibrating { return "\(Int(value.rounded()))" }
         return String(localized: "Calibrating")
     }
+}
+
+// MARK: - The redesign's night palette on the wrist
+
+/// Colours of the phone's new design ("Nacht"), used only while its preview switch is on.
+private enum ForgeWatchColor {
+    static let canvas = Color(red: 0x0A / 255, green: 0x0D / 255, blue: 0x12 / 255)
+    static let wash = Color(red: 0x22 / 255, green: 0x31 / 255, blue: 0x4A / 255)
+    static let effort = Color(red: 0xFF / 255, green: 0x8A / 255, blue: 0x3D / 255)
+    static let rest = Color(red: 0xA9 / 255, green: 0x96 / 255, blue: 0xFF / 255)
 }

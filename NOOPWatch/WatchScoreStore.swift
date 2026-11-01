@@ -21,6 +21,9 @@ final class WatchScoreStore: NSObject, WCSessionDelegate {
     /// The latest snapshot the watch knows about. nil = nothing has ever synced (fresh install).
     private(set) var snapshot: WatchScoreSnapshot?
     private(set) var strengthWorkout: StrengthWorkoutCompanionState?
+    /// The phone's "New design (preview)" switch, so the glance follows it. Off until the phone says so.
+    private(set) var forgeDesign = UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?
+        .bool(forKey: WatchScoreSnapshot.forgeDesignKey) ?? false
 
     /// The shared App Group suite the watch app + its complication both read/write. `Bundle.main` is
     /// process-global, so this is exactly the lookup `WatchScoreSnapshot.appGroupId` itself performs —
@@ -87,6 +90,12 @@ final class WatchScoreStore: NSObject, WCSessionDelegate {
         return try? JSONDecoder().decode(WatchScoreSnapshot.self, from: data)
     }
 
+    private func applyForgeDesign(from payload: [String: Any]) {
+        guard let on = payload[WatchScoreSnapshot.forgeDesignKey] as? Bool else { return }
+        UserDefaults(suiteName: Self.suiteName)?.set(on, forKey: WatchScoreSnapshot.forgeDesignKey)
+        DispatchQueue.main.async { self.forgeDesign = on }
+    }
+
     private func applyStrengthWorkout(from payload: [String: Any]) {
         let state = (payload[StrengthWorkoutCompanionState.contextKey] as? Data)
             .flatMap { try? JSONDecoder().decode(StrengthWorkoutCompanionState.self, from: $0) }
@@ -140,6 +149,7 @@ final class WatchScoreStore: NSObject, WCSessionDelegate {
             apply(snap)
         }
         applyStrengthWorkout(from: session.receivedApplicationContext)
+        applyForgeDesign(from: session.receivedApplicationContext)
         requestLatestIfReachable(session)
     }
 
@@ -149,6 +159,7 @@ final class WatchScoreStore: NSObject, WCSessionDelegate {
         if let snap = decode(from: applicationContext) {
             apply(snap)
         }
+        applyForgeDesign(from: applicationContext)
         applyStrengthWorkout(from: applicationContext)
     }
 

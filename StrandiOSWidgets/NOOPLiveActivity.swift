@@ -14,6 +14,11 @@ struct NOOPLiveActivity: Widget {
         context.isStale ? nil : context.state.bpm
     }
 
+    /// The phone's "New design (preview)" switch, mirrored into the app group by the app.
+    static var forgeDesign: Bool {
+        UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?.bool(forKey: WatchScoreSnapshot.forgeDesignKey) ?? false
+    }
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NOOPActivityAttributes.self) { context in
             Group {
@@ -24,7 +29,7 @@ struct NOOPLiveActivity: Widget {
                 }
             }
             .padding()
-            .activityBackgroundTint(StrandPalette.surfaceBase)
+            .activityBackgroundTint(Self.forgeDesign ? ForgeActivityColor.canvas : StrandPalette.surfaceBase)
             .activitySystemActionForegroundColor(StrandPalette.textPrimary)
             .widgetURL(context.state.workout == nil ? nil : WorkoutActivityLink.url)
         } dynamicIsland: { context in
@@ -56,12 +61,12 @@ struct NOOPLiveActivity: Widget {
             }
         } compactLeading: {
             Image(systemName: WorkoutActivityLink.symbol(for: workout))
-                .foregroundStyle(StrandPalette.accent)
+                .foregroundStyle(NOOPLiveActivity.forgeDesign ? ForgeActivityColor.accent : StrandPalette.accent)
         } compactTrailing: {
             WorkoutClock(workout: workout, style: .compact)
         } minimal: {
             Image(systemName: WorkoutActivityLink.symbol(for: workout))
-                .foregroundStyle(StrandPalette.accent)
+                .foregroundStyle(NOOPLiveActivity.forgeDesign ? ForgeActivityColor.accent : StrandPalette.accent)
         }
         .widgetURL(WorkoutActivityLink.url)
     }
@@ -181,7 +186,7 @@ private struct WorkoutActivityBanner: View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: WorkoutActivityLink.symbol(for: workout))
                 .font(.title2)
-                .foregroundStyle(StrandPalette.accent)
+                .foregroundStyle(NOOPLiveActivity.forgeDesign ? ForgeActivityColor.accent : StrandPalette.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(workout.title)
                     .font(.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
@@ -214,11 +219,11 @@ private struct WorkoutClock: View {
                     Text(timerInterval: start...restEnds, countsDown: true)
                         .monospacedDigit()
                         .font(font)
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(NOOPLiveActivity.forgeDesign ? ForgeActivityColor.accent : StrandPalette.accent)
                         .frame(maxWidth: style == .compact ? 52 : nil)
                 } else {
                     Text(verbatim: "0:00").monospacedDigit().font(font)
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(NOOPLiveActivity.forgeDesign ? ForgeActivityColor.accent : StrandPalette.accent)
                 }
             }
         } else if let paused = workout.pausedElapsedSeconds {
@@ -319,4 +324,18 @@ private func statColumn(label: String, value: String) -> some View {
     }
     .multilineTextAlignment(.center)
     .fixedSize()
+}
+
+/// The redesign's colours for the Live Activity, used only while the phone's preview switch is on.
+private enum ForgeActivityColor {
+    static let canvas = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0x0A / 255, green: 0x0D / 255, blue: 0x12 / 255, alpha: 1)
+            : UIColor(red: 0xF4 / 255, green: 0xEF / 255, blue: 0xE8 / 255, alpha: 1)
+    })
+    static let accent = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(red: 0xE8 / 255, green: 0xB6 / 255, blue: 0x4A / 255, alpha: 1)
+            : UIColor(red: 0x9A / 255, green: 0x3E / 255, blue: 0x1C / 255, alpha: 1)
+    })
 }

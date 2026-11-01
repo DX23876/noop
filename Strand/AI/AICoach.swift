@@ -4588,6 +4588,33 @@ final class AICoachEngine: ObservableObject {
         )
     }
 
+    /// Whether the chosen provider reads a photo. Only Gemini's client attaches one today; the others
+    /// would silently drop it, so the redesign offers "Log by photo" only here.
+    var acceptsPhotos: Bool { provider == .gemini }
+
+    /// Log by photo (the redesign's Log sheet): send one photo with a question and add the reply to the
+    /// chat. The photo travels with this single request only; the transcript keeps the text, never the
+    /// image. Nothing is logged automatically: the reply says what could be logged, the person decides.
+    func sendPhoto(_ pngBase64: String, question: String) async {
+        guard CoachFeaturePrefs.isEnabled, acceptsPhotos, !sending, let key = resolvedKey else { return }
+        clearError()
+        appendMessage(ChatMessage(role: .user, text: question + "\n\n" + String(localized: "(photo attached)")))
+        sending = true
+        defer { sending = false }
+        let context = dataConsent ? await buildFullContext() : ""
+        let wire = Self.wirePairs(from: windowedMessages(), context: context)
+        var reply = ""
+        do {
+            try await streamProvider(key: key, messages: wire, inlineImage: pngBase64) { reply += $0 }
+            let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !clean.isEmpty { appendMessage(ChatMessage(role: .assistant, text: clean)) }
+        } catch let e as AICoachError {
+            setError(e)
+        } catch {
+            if !Self.isCancellation(error) { setError(error) }
+        }
+    }
+
     /// Sliding window over the chat: the FIRST user turn (it carries the metrics context) plus the most
     /// recent history that fits the model's token budget, dropping the middle. Sending the whole growing
     /// history crowds out the reply on small-context local servers (Ollama defaults to a 2048-token

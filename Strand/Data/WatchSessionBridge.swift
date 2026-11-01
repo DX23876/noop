@@ -247,6 +247,8 @@ final class WatchSessionBridge: NSObject, ObservableObject {
         // Always mirror into the shared group: the watch app + complication read this on launch even if
         // the live context has not been delivered yet.
         snap.save()
+        let forgeDesign = ForgeDesignPrefs.isEnabled()
+        UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?.set(forgeDesign, forKey: WatchScoreSnapshot.forgeDesignKey)
 
         guard let session, session.activationState == .activated else { return }
         isWatchReachable = session.isReachable
@@ -256,6 +258,7 @@ final class WatchSessionBridge: NSObject, ObservableObject {
             // the latest snapshot and never a queued backlog.
             var context = session.applicationContext
             context[WatchScoreSnapshot.contextKey] = data
+            context[WatchScoreSnapshot.forgeDesignKey] = forgeDesign
             try session.updateApplicationContext(context)
         } catch {
             // A failed context update is non-fatal: the app-group mirror above still carries the latest

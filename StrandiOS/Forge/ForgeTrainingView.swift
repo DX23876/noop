@@ -12,6 +12,8 @@ import WhoopStore
 struct ForgeTrainingView: View {
     let onProfile: () -> Void
     let onStartWorkout: () -> Void
+    var onAsk: (String) -> Void = { _ in }
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var session: ActiveSessionController
@@ -53,6 +55,12 @@ struct ForgeTrainingView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         weekHero
                         startRow
+                        if coachFeatureEnabled {
+                            ForgeChip(title: String(localized: "Plan today with the coach"), systemImage: "sparkles",
+                                      prominent: true) {
+                                onAsk(String(localized: "Look at my Charge, this week's training and my routines, and suggest what I should train today."))
+                            }
+                        }
                         GoalsContextCard(context: .training)
                         routines
                         recentActivities

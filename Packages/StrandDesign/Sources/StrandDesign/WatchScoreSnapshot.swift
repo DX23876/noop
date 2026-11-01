@@ -22,6 +22,10 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
     public static let contextKey = "snapshot"
     /// Dictionary key the watch sends when it needs the latest phone snapshot immediately.
     public static let requestLatestKey = "requestLatest"
+    /// Whether the phone shows the redesign preview ("New design"). Rides the application context beside the
+    /// snapshot and is mirrored into the app group, so the watch and the Live Activity follow the phone's
+    /// switch and stay in the shipped look while it is off.
+    public static let forgeDesignKey = "forgeDesign"
 
     /// Charge (recovery), 0 to 100. `nil` when there is no earned number for the day.
     public var charge: Double?

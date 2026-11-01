@@ -1,6 +1,1224 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Photo" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zdjęcie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фото"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片"
+          }
+        }
+      }
+    },
+    "Plan today with the coach" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute mit dem Coach planen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planificar hoy con el coach"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planifier aujourd'hui avec le coach"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pianifica oggi con il coach"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaplanuj dzień z coachem"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planear hoje com o coach"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спланировать день с коучем"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "和教练规划今天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "和教練規劃今天"
+          }
+        }
+      }
+    },
+    "Look at my Charge, this week's training and my routines, and suggest what I should train today." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schau dir meine Charge, das Training dieser Woche und meine Routinen an und schlag vor, was ich heute trainieren sollte."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mira mi Charge, el entreno de esta semana y mis rutinas, y sugiere qué debería entrenar hoy."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarde ma Charge, l'entraînement de la semaine et mes routines, et propose ce que je devrais faire aujourd'hui."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda la mia Charge, l'allenamento di questa settimana e le mie routine, e suggerisci cosa dovrei allenare oggi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spójrz na moją Charge, treningi z tego tygodnia i moje plany, i zaproponuj, co dziś trenować."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vê a minha Charge, o treino desta semana e as minhas rotinas, e sugere o que devo treinar hoje."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Посмотри на мой Charge, тренировки этой недели и мои программы и предложи, что тренировать сегодня."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看看我的 Charge、本周训练和我的训练计划，建议我今天练什么。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看看我的 Charge、本週訓練和我的訓練計畫，建議我今天練什麼。"
+          }
+        }
+      }
+    },
+    "How hard should I go today?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie hart sollte ich heute trainieren?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cuánto debería exigirme hoy?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jusqu'où pousser aujourd'hui ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto dovrei spingere oggi?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak mocno trenować dzisiaj?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto devo puxar hoje?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько нагружаться сегодня?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天该练多狠？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天該練多狠？"
+          }
+        }
+      }
+    },
+    "How Effort is made" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So entsteht Effort"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se calcula Effort"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment Effort est calculé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come si calcola Effort"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak powstaje Effort"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como é calculado o Effort"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как считается Effort"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort 是如何计算的"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort 是如何計算的"
+          }
+        }
+      }
+    },
+    "Effort adds up how hard your heart worked through the day against your own resting and maximum heart rate, workouts included. The target comes from this morning's Charge: more Charge, more room. Everything is calculated on this iPhone." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort summiert, wie hart dein Herz über den Tag gearbeitet hat, gemessen an deinem eigenen Ruhe- und Maximalpuls, Trainings eingeschlossen. Das Ziel kommt aus der Charge von heute Morgen: mehr Charge, mehr Spielraum. Alles wird auf diesem iPhone berechnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort suma lo duro que trabajó tu corazón durante el día frente a tu propia frecuencia en reposo y máxima, entrenos incluidos. El objetivo sale de la Charge de esta mañana: más Charge, más margen. Todo se calcula en este iPhone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort additionne l'effort de ton cœur sur la journée par rapport à ta propre fréquence au repos et maximale, séances comprises. L'objectif vient de la Charge de ce matin : plus de Charge, plus de marge. Tout est calculé sur cet iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort somma quanto ha lavorato il tuo cuore durante il giorno rispetto alla tua frequenza a riposo e massima, allenamenti inclusi. L'obiettivo viene dalla Charge di stamattina: più Charge, più margine. Tutto viene calcolato su questo iPhone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort sumuje, jak ciężko pracowało twoje serce w ciągu dnia względem twojego tętna spoczynkowego i maksymalnego, z treningami. Cel wynika z porannej Charge: więcej Charge, więcej zapasu. Wszystko liczy się na tym iPhonie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Effort soma o quanto o teu coração trabalhou ao longo do dia face à tua frequência em repouso e máxima, treinos incluídos. O objetivo vem da Charge desta manhã: mais Charge, mais margem. Tudo é calculado neste iPhone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort суммирует, насколько усердно работало сердце за день относительно твоего пульса покоя и максимума, включая тренировки. Цель берётся из утреннего Charge: больше Charge, больше запаса. Всё считается на этом iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort 累计你的心脏全天相对于你自己的静息和最大心率的工作强度，包括训练。目标来自今早的 Charge：Charge 越高，空间越大。一切都在这台 iPhone 上计算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort 累計你的心臟全天相對於你自己的靜息和最大心率的工作強度，包括訓練。目標來自今早的 Charge：Charge 越高，空間越大。一切都在這台 iPhone 上計算。"
+          }
+        }
+      }
+    },
+    "Look at my Charge and today's Effort so far, and tell me how hard I should still train today." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schau dir meine Charge und meinen bisherigen Effort heute an und sag mir, wie hart ich heute noch trainieren sollte."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mira mi Charge y el Effort de hoy hasta ahora, y dime cuánto debería entrenar todavía hoy."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarde ma Charge et mon Effort du jour jusqu'ici, et dis-moi à quelle intensité m'entraîner encore aujourd'hui."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda la mia Charge e l'Effort di oggi finora, e dimmi quanto dovrei ancora allenarmi oggi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spójrz na moją Charge i dzisiejszy Effort i powiedz, jak mocno mogę jeszcze dziś trenować."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vê a minha Charge e o Effort de hoje até agora, e diz-me quanto ainda devo treinar hoje."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Посмотри на мой Charge и сегодняшний Effort и скажи, насколько ещё тренироваться сегодня."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看看我的 Charge 和今天到目前为止的 Effort，告诉我今天还该练多狠。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看看我的 Charge 和今天到目前為止的 Effort，告訴我今天還該練多狠。"
+          }
+        }
+      }
+    },
+    "No workout yet today. Effort also counts everyday movement and heart rate through the day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute noch kein Training. Effort zählt auch Alltagsbewegung und den Puls über den Tag."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay entreno hoy. Effort también cuenta el movimiento diario y la frecuencia cardiaca del día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de séance aujourd'hui. Effort compte aussi les mouvements du quotidien et la fréquence cardiaque de la journée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun allenamento oggi. Effort conta anche il movimento quotidiano e la frequenza cardiaca della giornata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dziś jeszcze bez treningu. Effort liczy też codzienny ruch i tętno w ciągu dnia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda sem treino hoje. O Effort também conta o movimento do dia a dia e a frequência cardíaca."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодня ещё без тренировки. Effort учитывает и обычное движение, и пульс за день."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天还没有训练。Effort 也计入日常活动和全天心率。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天還沒有訓練。Effort 也計入日常活動和全天心率。"
+          }
+        }
+      }
+    },
+    "What added to it today" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was heute dazukam"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que sumó hoy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui s'y est ajouté aujourd'hui"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa si è aggiunto oggi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co dziś się dołożyło"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que somou hoje"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что добавилось сегодня"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天增加了什么"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天增加了什麼"
+          }
+        }
+      }
+    },
+    "How Rest is made" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So entsteht Rest"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se calcula Rest"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment Rest est calculé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come si calcola Rest"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak powstaje Rest"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como é calculado o Rest"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как считается Rest"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest 是如何计算的"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest 是如何計算的"
+          }
+        }
+      }
+    },
+    "Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got. Everything is calculated on this iPhone." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest wägt ab, wie lange du im Vergleich zu deinem Bedarf geschlafen hast, wie gut du geschlafen hast, wie regelmäßig deine Zeiten waren und wie viel Tief- und REM-Schlaf du hattest. Alles wird auf diesem iPhone berechnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest pondera cuánto dormiste frente a lo que necesitabas, qué tan bien dormiste, lo regulares que fueron tus horarios y cuánto sueño profundo y REM tuviste. Todo se calcula en este iPhone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest pèse la durée de ton sommeil face à ton besoin, sa qualité, la régularité de tes horaires et la part de sommeil profond et paradoxal. Tout est calculé sur cet iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest valuta quanto hai dormito rispetto al bisogno, quanto bene hai dormito, quanto erano regolari gli orari e quanto sonno profondo e REM hai avuto. Tutto viene calcolato su questo iPhone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest waży, ile spałeś wobec potrzeby, jak dobrze spałeś, jak regularne były godziny i ile miałeś snu głębokiego i REM. Wszystko liczy się na tym iPhonie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Rest pondera quanto dormiste face ao que precisavas, quão bem dormiste, quão regulares foram os horários e quanto sono profundo e REM tiveste. Tudo é calculado neste iPhone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest учитывает, сколько ты спал по сравнению с потребностью, насколько хорошо, насколько регулярным был режим и сколько было глубокого и REM-сна. Всё считается на этом iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest 衡量你睡了多久与所需相比、睡得多好、作息多规律以及深睡和 REM 睡眠有多少。一切都在这台 iPhone 上计算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest 衡量你睡了多久與所需相比、睡得多好、作息多規律以及深睡和 REM 睡眠有多少。一切都在這台 iPhone 上計算。"
+          }
+        }
+      }
+    },
+    "%@ h asleep, %@ to %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ h Schlaf, %2$@ bis %3$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ h dormido, de %2$@ a %3$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ h de sommeil, de %2$@ à %3$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ h di sonno, dalle %2$@ alle %3$@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ h snu, %2$@–%3$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ h a dormir, das %2$@ às %3$@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ч сна, %2$@–%3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠 %1$@ 小时，%2$@ 至 %3$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠 %1$@ 小時，%2$@ 至 %3$@"
+          }
+        }
+      }
+    },
+    "Hours against your need" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stunden im Vergleich zum Bedarf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Horas frente a tu necesidad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heures face à ton besoin"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ore rispetto al fabbisogno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Godziny wobec potrzeby"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Horas face à tua necessidade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Часы относительно потребности"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时长与需求对比"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時長與需求對比"
+          }
+        }
+      }
+    },
+    "Restorative sleep" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erholsamer Schlaf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sueño reparador"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sommeil réparateur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonno ristoratore"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sen regenerujący"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sono reparador"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восстанавливающий сон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复性睡眠"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢復性睡眠"
+          }
+        }
+      }
+    },
+    "Not enough days yet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch nicht genug Tage."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay suficientes días."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore assez de jours."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non ci sono ancora abbastanza giorni."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za mało dni."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há dias suficientes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока мало дней."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天数还不够。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天數還不夠。"
+          }
+        }
+      }
+    },
+    "Let the coach use your data for this?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darf der Coach dafür deine Daten nutzen?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Dejas que el coach use tus datos para esto?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoriser le coach à utiliser tes données ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lasci che il coach usi i tuoi dati per questo?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pozwolić coachowi użyć twoich danych?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixar o coach usar os teus dados para isto?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разрешить коучу использовать твои данные?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许教练为此使用你的数据吗？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允許教練為此使用你的資料嗎？"
+          }
+        }
+      }
+    },
+    "Allow and ask" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erlauben und fragen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir y preguntar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoriser et demander"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consenti e chiedi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pozwól i zapytaj"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir e perguntar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разрешить и спросить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许并提问"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允許並提問"
+          }
+        }
+      }
+    },
+    "Ask without my data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne meine Daten fragen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preguntar sin mis datos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander sans mes données"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi senza i miei dati"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapytaj bez moich danych"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perguntar sem os meus dados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спросить без моих данных"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不使用我的数据提问"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不使用我的資料提問"
+          }
+        }
+      }
+    },
+    "Data sharing is off, so the coach only sees your question. Allowing it sends a short summary of your relevant metrics to your provider when you ask. You can turn it off again in Coach settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Datenfreigabe ist aus, der Coach sieht also nur deine Frage. Erlaubst du sie, wird beim Fragen eine kurze Zusammenfassung deiner relevanten Werte an deinen Anbieter gesendet. Du kannst sie in den Coach-Einstellungen wieder ausschalten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El uso de datos está desactivado, así que el coach solo ve tu pregunta. Si lo permites, al preguntar se envía un breve resumen de tus métricas relevantes a tu proveedor. Puedes desactivarlo en los ajustes del coach."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le partage des données est désactivé, le coach ne voit donc que ta question. L'autoriser envoie un court résumé de tes mesures utiles à ton fournisseur quand tu poses une question. Tu peux le désactiver dans les réglages du coach."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La condivisione dei dati è disattivata, quindi il coach vede solo la tua domanda. Consentirla invia un breve riepilogo delle tue metriche rilevanti al fornitore quando chiedi. Puoi disattivarla nelle impostazioni del coach."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Udostępnianie danych jest wyłączone, więc coach widzi tylko twoje pytanie. Zgoda wysyła przy pytaniu krótkie podsumowanie twoich wskaźników do dostawcy. Możesz ją wyłączyć w ustawieniach coacha."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A partilha de dados está desligada, por isso o coach só vê a tua pergunta. Permitir envia um breve resumo das tuas métricas relevantes ao fornecedor quando perguntas. Podes desligá-la nas definições do coach."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Доступ к данным выключен, поэтому коуч видит только вопрос. Если разрешить, при вопросе провайдеру отправится краткая сводка твоих показателей. Отключить можно в настройках коуча."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据共享已关闭，所以教练只能看到你的问题。允许后，你提问时会把相关指标的简短摘要发送给服务商。你可以在教练设置中再次关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料共享已關閉，所以教練只能看到你的問題。允許後，你提問時會把相關指標的簡短摘要傳送給服務商。你可以在教練設定中再次關閉。"
+          }
+        }
+      }
+    },
+    "Here is a photo I want to log, such as a meal or a workout screen. Say what you see and what I could log from it. Mark any estimate as an estimate and do not log anything yourself." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier ist ein Foto, das ich eintragen möchte, etwa eine Mahlzeit oder ein Trainingsbildschirm. Sag, was du siehst und was ich daraus eintragen könnte. Kennzeichne Schätzungen als Schätzungen und trage selbst nichts ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquí tienes una foto que quiero registrar, como una comida o una pantalla de entreno. Di qué ves y qué podría registrar. Marca cualquier estimación como estimación y no registres nada tú."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voici une photo que je veux enregistrer, comme un repas ou un écran d'entraînement. Dis ce que tu vois et ce que je pourrais en saisir. Indique toute estimation comme telle et n'enregistre rien toi-même."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ecco una foto che voglio registrare, come un pasto o una schermata di allenamento. Dimmi cosa vedi e cosa potrei registrare. Indica le stime come stime e non registrare nulla tu."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oto zdjęcie, które chcę zapisać, np. posiłek albo ekran treningu. Powiedz, co widzisz i co mogę z niego zapisać. Oznacz szacunki jako szacunki i niczego sam nie zapisuj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aqui está uma foto que quero registar, como uma refeição ou um ecrã de treino. Diz o que vês e o que posso registar a partir dela. Marca qualquer estimativa como estimativa e não registes nada tu."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вот фото, которое я хочу записать, например еда или экран тренировки. Скажи, что ты видишь и что я могу из этого записать. Помечай оценки как оценки и ничего не записывай сам."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是一张我想记录的照片，比如一顿饭或训练屏幕。说说你看到了什么，以及我可以记录什么。估算请标明是估算，不要自行记录任何内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這是一張我想記錄的照片，比如一頓飯或訓練畫面。說說你看到了什麼，以及我可以記錄什麼。估算請標明是估算，不要自行記錄任何內容。"
+          }
+        }
+      }
+    },
+    "(photo attached)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(Foto angehängt)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(foto adjunta)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(photo jointe)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(foto allegata)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(załączone zdjęcie)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(foto anexada)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(фото приложено)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（已附照片）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "（已附照片）"
+          }
+        }
+      }
+    },
     "To answer well, it sends a short summary of your relevant metrics to the provider you chose, using your own key. That happens when you ask, and for its short notes after a workout and in the evening: at most three a day, never between 22:00 and 07:00, and each kind can be turned off. Nothing is sent otherwise." : {
       "localizations" : {
         "de" : {

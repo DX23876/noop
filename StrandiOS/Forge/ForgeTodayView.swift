@@ -179,11 +179,11 @@ struct ForgeTodayView: View {
                              tint: StrandPalette.organicEffort, caption: effortCaption,
                              frame: frame, diameter: diameter, hit: hit,
                              maxValue: effortScale == .whoop ? 21 : 100, decimals: effortScale == .whoop ? 1 : 0,
-                             route: TabRoute.effort(DashboardEffortReadout(day: snapshot.effortDay, value: snapshot.effortStored)))
+                             route: ForgeRoute.effort(stored: snapshot.effortStored, charge: chargeScore))
                     ringCell(metric: .rest, label: DomainTheme.rest.productName, score: snapshot.loaded ? snapshot.rest : nil,
                              tint: StrandPalette.organicRest, caption: nil,
                              frame: frame, diameter: diameter, hit: hit,
-                             route: TabRoute.metric(HeroRingMetric.rest))
+                             route: ForgeRoute.rest(snapshot.loaded ? snapshot.rest : nil))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -591,7 +591,7 @@ struct ForgeTodayView: View {
             .buttonStyle(.plain)
         } else if entry.kicker == String(localized: "Evening recap"), let effort = snapshot.effortStored,
                   let target = effortTarget, Calendar.current.isDateInToday(entry.date) {
-            effortTargetBar(effort: effort, target: target)
+            ForgeEffortTargetBar(effort: effort, target: target, scale: effortScale)
         }
     }
 
@@ -603,30 +603,6 @@ struct ForgeTodayView: View {
                 return end <= date && date.timeIntervalSince(end) <= ForgeCoachNotes.workoutWindow
             }
             .max(by: { $0.endTs < $1.endTs })
-    }
-
-    /// Today's Effort on a 0 to 100 track with the target band marked.
-    private func effortTargetBar(effort: Double, target: ClosedRange<Double>) -> some View {
-        let t = ForgeToday.targetText(target, scale: effortScale)
-        return VStack(alignment: .leading, spacing: 6) {
-            GeometryReader { geo in
-                let w = geo.size.width
-                ZStack(alignment: .leading) {
-                    Capsule().fill(ForgeColor.fill)
-                    Capsule().fill(ForgeColor.effort.opacity(0.25))
-                        .frame(width: w * (target.upperBound - target.lowerBound) / 100)
-                        .offset(x: w * target.lowerBound / 100)
-                    Circle().fill(ForgeColor.effort).frame(width: 12, height: 12)
-                        .offset(x: max(0, min(w - 12, w * effort / 100 - 6)))
-                }
-            }
-            .frame(height: 12)
-            Text("Effort \(ForgeToday.effortText(effort, scale: effortScale)), target \(t.low) to \(t.high)")
-                .font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder private func workoutCard(_ entry: ForgeTimeline.Entry) -> some View {
