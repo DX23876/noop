@@ -14,6 +14,7 @@ struct NOOPWidgetBundle: WidgetBundle {
     var body: some Widget {
         NOOPWidget()
         NOOPRingsWidget()
+        ForgeTodayWidget()
         NOOPEnergyWidget()
         NOOPLiveActivity()
         HeartRateWidget()

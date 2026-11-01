@@ -74,7 +74,7 @@ struct BodyVitalReading: Identifiable {
 
     /// Which yardstick judged the value: your own baseline vs the typical adult range. String(localized:)
     /// — StatTile's caption is a plain String rendered via Text(String), which never consults the catalog.
-    private var stateText: String {
+    var stateText: String {
         // Raw SpO₂ is a device-dependent ADC, not a clinical value — never claim an in/out-of-range
         // judgment. Show a plain "uncalibrated" note when a value decoded, "No data" otherwise. (#93)
         if key == "spo2raw" {

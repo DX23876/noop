@@ -42,6 +42,11 @@ struct RootTabView: View {
     /// inactive until the person has chosen to enable it in More → AI Coach.
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var showCoach = false
+    /// The redesign preview (Settings › Lab). Off by default; `--new-design` turns it on in DEBUG runs.
+    @AppStorage(ForgeDesignPrefs.previewKey) private var forgePreviewStored = ForgeDesignPrefs.defaultPreview
+    private var forgeDesign: Bool { forgePreviewStored || ForgeDesignPrefs.launchOverride }
+    /// The redesign has no More tab: the profile button opens the same index, with its own stack, as a sheet.
+    @State private var showAllFeatures = false
     /// The scene-local receiver for actions chosen from NOOP's Home Screen icon menu.
     @EnvironmentObject private var homeScreenQuickActions: HomeScreenQuickActionSceneDelegate
 
@@ -122,7 +127,7 @@ struct RootTabView: View {
         // deterministic screenshots and does not affect production navigation or derived values.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--demo-tab"), i + 1 < args.count {
-            let demoTabs = ["today": 0, "trends": 1, "training": 2, "sleep": 3, "more": 4]
+            let demoTabs = ["today": 0, "trends": 1, "health": 1, "training": 2, "sleep": 3, "more": 4]
             if let tab = demoTabs[args[i + 1].lowercased()] {
                 _selectedTab = State(initialValue: tab)
             }
@@ -180,12 +185,18 @@ struct RootTabView: View {
                 guard selectedTab != 0 else { return }
                 let dx = v.translation.width, dy = v.translation.height
                 guard abs(dx) > 60, abs(dx) > abs(dy) * 1.6 else { return }
-                let next = min(4, max(0, selectedTab + (dx < 0 ? 1 : -1)))
+                let order = tabOrder
+                guard let index = order.firstIndex(of: selectedTab) else { return }
+                let next = order[min(order.count - 1, max(0, index + (dx < 0 ? 1 : -1)))]
                 if next != selectedTab {
                     withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = next }
                 }
             }
     }
+
+    /// The tab tags in the order the bar shows them. The redesign keeps the tags (so every stack and
+    /// route keeps its index) and only changes what tag 1 shows (Health instead of Trends) and its place.
+    private var tabOrder: [Int] { forgeDesign ? [0, 2, 3, 1] : [0, 1, 2, 3, 4] }
 
     var body: some View {
         // The platform tab bar drives navigation. NOOP drew its own floating bar for one reason — a
@@ -198,17 +209,24 @@ struct RootTabView: View {
         // The ZStack stays for the draggable CoachFloatingButton below, which still floats over
         // every tab.
         ZStack(alignment: .bottom) {
-            TabView(selection: nativeTabSelection) {
-                tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0], scrollSignal: scrollTop[0]).environment(\.dashboardIsActive, selectedTab == 0).tag(0)
-                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1], scrollSignal: scrollTop[1]).environment(\.dashboardIsActive, selectedTab == 1).tag(1)
-                tab(TrainingHubView(), "Training", "dumbbell.fill", path: $tabPaths[2], scrollSignal: scrollTop[2]).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
-                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[3], scrollSignal: scrollTop[3]).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
-                moreTab(path: $tabPaths[4], scrollSignal: scrollTop[4]).environment(\.dashboardIsActive, selectedTab == 4).tag(4)
+            Group {
+                if forgeDesign {
+                    forgeTabView
+                } else {
+                    TabView(selection: nativeTabSelection) {
+                        tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0], scrollSignal: scrollTop[0]).environment(\.dashboardIsActive, selectedTab == 0).tag(0)
+                        tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1], scrollSignal: scrollTop[1]).environment(\.dashboardIsActive, selectedTab == 1).tag(1)
+                        tab(TrainingHubView(), "Training", "dumbbell.fill", path: $tabPaths[2], scrollSignal: scrollTop[2]).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
+                        tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[3], scrollSignal: scrollTop[3]).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
+                        moreTab(path: $tabPaths[4], scrollSignal: scrollTop[4]).environment(\.dashboardIsActive, selectedTab == 4).tag(4)
+                    }
+                }
             }
             // Overview Dashboard mockup fidelity (2026-08-31): the active tab reads green, not the
             // configurable Accent colour. `.tint()` colours the whole bar uniformly — there is no native
             // per-tab-item override — so this is deliberately a global change across all four tabs.
-            .tint(StrandPalette.chargeColor)
+            // The redesign tints with its own accent (copper in light, gold in dark).
+            .tint(forgeDesign ? ForgeColor.accent : StrandPalette.chargeColor)
             // #1841: the same "Hide bar when scrolling" preference the macOS settings screen exposes.
             // Here the system owns the behaviour — iOS 26's tab bar MINIMISES to a pill on scroll down
             // rather than sliding away entirely, so this is the platform's read of the same intent.
@@ -244,7 +262,7 @@ struct RootTabView: View {
 
             // Draggable floating Coach button — an alternative entry to the Today banner, honouring the
             // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
-            if coachFeatureEnabled, coachUIEnabled, coachFloatingButtonEnabled {
+            if coachFeatureEnabled, coachUIEnabled, coachFloatingButtonEnabled, !forgeTabBarHostsCoach {
                 CoachFloatingButton(isPresented: $showCoach)
             }
         }
@@ -297,6 +315,11 @@ struct RootTabView: View {
         .sheet(isPresented: $showDevices) {
             devicesScreen
         }
+        // The redesign's "All features": the More index with its own stack, opened from the profile button.
+        .sheet(isPresented: $showAllFeatures) {
+            moreTab(path: $tabPaths[4], scrollSignal: scrollTop[4])
+                .presentationDragIndicator(.visible)
+        }
         // Activity detection: a notification tap or "Other kind…" opens the logging sheet from any tab.
         .activitySuggestionSheetHost(repo)
         // Live Sessions: a full-screen cover (the guardian owns the display mid-session), presented from
@@ -325,12 +348,13 @@ struct RootTabView: View {
                     router.requestedDestination = nil
                     break
                 }
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
-                tabPaths[4] = NavigationPath([MoreDestination.coach])
+                openCoachArea()
                 router.requestedDestination = nil
             case .trends:
-                // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it.
+                // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it. The redesign keeps
+                // it under Health, so it is pushed there.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 1 }
+                if forgeDesign { tabPaths[1] = NavigationPath([TabRoute.trends]) }
                 router.requestedDestination = nil
             case .sleep:
                 // Sleep is a primary tab too. Raised by the morning card's "Fix it" when last night's
@@ -355,7 +379,7 @@ struct RootTabView: View {
             case .lab:
                 // A feature introduction in the bell: Settings → Lab on the More tab's own stack, appended
                 // like Data Sources so Back returns the reader to where they were.
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+                openMoreArea()
                 tabPaths[4].append(MoreDestination.settingsPage(.lab))
                 router.requestedDestination = nil
             case .energy:
@@ -388,7 +412,7 @@ struct RootTabView: View {
                 // Raised by the empty states' "Open Data Sources" button. Pushed onto the More tab's
                 // own stack — the same MoreDestination the More row uses — so Back returns the reader
                 // to where they were rather than stranding them in a tab they did not choose.
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+                openMoreArea()
                 // Appended rather than assigned (the Coach deep links REPLACE the More stack): if the
                 // reader was already somewhere under More, Back should return them there instead of
                 // dropping them at the index. From any other tab the stack is at its root, so this
@@ -403,15 +427,13 @@ struct RootTabView: View {
         // CoachView refreshes the brief itself — it observes the same event.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
             guard coachFeatureEnabled else { return }
-            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
-            tabPaths[4] = NavigationPath([MoreDestination.coach])
+            openCoachArea()
         }
         // "Ask coach" tapped on a metric card (#P11): same jump — open Coach on top of the More tab; it
         // reads the pending card context and gives a short read of that metric.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
             guard coachFeatureEnabled else { return }
-            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
-            tabPaths[4] = NavigationPath([MoreDestination.coach])
+            openCoachArea()
         }
         .onChange(of: coachFeatureEnabled) { enabled in
             // A cover can remain on screen while the switch is changed from a second window or a
@@ -589,6 +611,10 @@ struct RootTabView: View {
             quickScreen(InsightsView())
         case .breathe:
             quickScreen(BreathingView())
+        case .forgeLog:
+            ForgeLogSheet { choice in handleForgeLog(choice) }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         case .liveSession, .battery, .customizeToday, .goals:
             // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover) and
             // the device row to the Today stack, so this arm only keeps the switch exhaustive.
@@ -637,8 +663,187 @@ struct RootTabView: View {
         }
     }
 
+    // MARK: - Redesign (New design preview)
+
+    /// From iOS 18 the redesign's tab bar carries the coach as its own round button (iOS 26 draws a
+    /// `.search`-role tab apart from the others), so the floating button is not shown twice.
+    private var forgeTabBarHostsCoach: Bool {
+        guard forgeDesign else { return false }
+        if #available(iOS 18.0, *) { return true }
+        return false
+    }
+
+    /// Tag of the coach button in the redesign's bar. Never becomes the selection: choosing it opens the chat.
+    private static let forgeCoachTag = 9
+
+    private var forgeSelection: Binding<Int> {
+        Binding(
+            get: { selectedTab },
+            set: { tag in
+                if tag == Self.forgeCoachTag {
+                    if coachFeatureEnabled { showCoach = true }
+                } else if tag == selectedTab {
+                    reselectTab(tag)
+                } else {
+                    selectedTab = tag
+                }
+            }
+        )
+    }
+
+    private var forgeTodayRoot: some View {
+        ForgeTodayView(
+            coach: coach,
+            onProfile: { showAllFeatures = true },
+            onLog: { withAnimation(Self.sheetEase) { quickAction = .forgeLog } },
+            onWorkout: {
+                if model.activeWorkout != nil { session.present() }
+                else { withAnimation(Self.sheetEase) { quickAction = .workout } }
+            },
+            onCoach: { if coachFeatureEnabled { showCoach = true } },
+            onSleep: { withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 } },
+            onCoachSettings: { pushOnToday(MoreDestination.coachSettings) }
+        )
+        .safeAreaInset(edge: .bottom, spacing: 0) { AnalysisUpdateBanner() }
+    }
+
+    private var forgeTrainingRoot: some View {
+        ForgeTrainingView(onProfile: { showAllFeatures = true }, onStartWorkout: {
+            if model.activeWorkout != nil { session.present() }
+            else { withAnimation(Self.sheetEase) { quickAction = .workout } }
+        })
+    }
+
+    private var forgeSleepRoot: some View {
+        ForgeSleepView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
+    }
+
+    private var forgeHealthRoot: some View {
+        ForgeHealthView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
+    }
+
+    @ViewBuilder private var forgeTabView: some View {
+        if #available(iOS 18.0, *) {
+            TabView(selection: forgeSelection) {
+                Tab("Today", systemImage: "sun.max.fill", value: 0) {
+                    tabStack(forgeTodayRoot, path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true)
+                        .environment(\.dashboardIsActive, selectedTab == 0)
+                }
+                Tab("Training", systemImage: "figure.run", value: 2) {
+                    tabStack(forgeTrainingRoot, path: $tabPaths[2], scrollSignal: scrollTop[2], registersMore: true)
+                        .environment(\.dashboardIsActive, selectedTab == 2)
+                }
+                Tab("Sleep", systemImage: "moon.fill", value: 3) {
+                    tabStack(forgeSleepRoot, path: $tabPaths[3], scrollSignal: scrollTop[3], registersMore: true)
+                        .environment(\.dashboardIsActive, selectedTab == 3)
+                }
+                Tab("Health", systemImage: "heart.fill", value: 1) {
+                    tabStack(forgeHealthRoot, path: $tabPaths[1], scrollSignal: scrollTop[1], registersMore: true)
+                        .environment(\.dashboardIsActive, selectedTab == 1)
+                }
+                if coachFeatureEnabled {
+                    Tab("Coach", systemImage: "bubble.left.and.text.bubble.right.fill", value: Self.forgeCoachTag,
+                        role: .search) {
+                        Color.clear
+                    }
+                }
+            }
+        } else {
+            TabView(selection: nativeTabSelection) {
+                tab(forgeTodayRoot, "Today", "sun.max.fill", path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true).environment(\.dashboardIsActive, selectedTab == 0).tag(0)
+                tab(forgeTrainingRoot, "Training", "figure.run", path: $tabPaths[2], scrollSignal: scrollTop[2], registersMore: true).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
+                tab(forgeSleepRoot, "Sleep", "moon.fill", path: $tabPaths[3], scrollSignal: scrollTop[3], registersMore: true).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
+                tab(forgeHealthRoot, "Health", "heart.fill", path: $tabPaths[1], scrollSignal: scrollTop[1], registersMore: true).environment(\.dashboardIsActive, selectedTab == 1).tag(1)
+            }
+        }
+    }
+
+    /// Where a route that used to land on the More tab goes: the More tab itself, or in the redesign the
+    /// "All features" sheet, which hosts the same stack (`tabPaths[4]`).
+    private func openMoreArea() {
+        if forgeDesign {
+            showAllFeatures = true
+        } else {
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+        }
+    }
+
+    /// Every coach launcher and notification. The shipped shell opens Coach on the More stack; the redesign
+    /// presents the chat cover from wherever the person is.
+    private func openCoachArea() {
+        if forgeDesign {
+            let wasShowingSheet = showAllFeatures || quickAction != nil
+            showAllFeatures = false
+            quickAction = nil
+            if wasShowingSheet {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { showCoach = true }
+            } else {
+                showCoach = true
+            }
+        } else {
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 4 }
+            tabPaths[4] = NavigationPath([MoreDestination.coach])
+        }
+    }
+
+    /// The Log sheet's choices, each mapped to a screen that already exists.
+    private func handleForgeLog(_ choice: ForgeLogChoice) {
+        quickAction = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            switch choice {
+            case .coachWrite, .coachSpeak:
+                if coachFeatureEnabled { showCoach = true }
+            case .workout:
+                if model.activeWorkout != nil { session.present() }
+                else { withAnimation(Self.sheetEase) { quickAction = .workout } }
+            case .journal: withAnimation(Self.sheetEase) { quickAction = .journal }
+            case .breathe: withAnimation(Self.sheetEase) { quickAction = .breathe }
+            case .liveHeartRate: withAnimation(Self.sheetEase) { quickAction = .live }
+            case .weight: pushOnToday(TabRoute.weight)
+            case .drink: pushOnToday(TabRoute.hydration)
+            case .energy: pushOnToday(TabRoute.energy)
+            case .sleep: withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+            case .labMarkers: routedPillar = .labBook
+            }
+        }
+    }
+
+    private func pushOnToday<R: Hashable>(_ route: R) {
+        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+        tabPaths[0].append(route)
+    }
+
+    /// "Ask the coach" from any redesigned tab: hand the question to the chat and open it.
+    private func askCoach(_ question: String) {
+        guard coachFeatureEnabled else { return }
+        coach.pendingPrompt = question
+        showCoach = true
+    }
+
+    /// One tab's navigation stack without its bar item, shared by both tab APIs.
+    /// The redesign's tabs also push More's destinations (ECG, Body, AgeLess, ...), since there is no More
+    /// tab to reach them from; registered once per stack, like `tabRouteDestinations`.
+    private func tabStack<V: View>(_ view: V, path: Binding<NavigationPath>, scrollSignal: Int,
+                                   registersMore: Bool = false) -> some View {
+        NavigationStack(path: path) {
+            Group {
+                if registersMore {
+                    view.navigationDestination(for: MoreDestination.self) { $0.destination }
+                        .forgeRouteDestinations(coach: coach, onAsk: askCoach)
+                } else {
+                    view
+                }
+            }
+            .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
+            .tabRouteDestinations()
+        }
+        .environment(\.scrollToTopSignal, scrollSignal)
+    }
+
     private func tab<V: View>(_ view: V, _ title: LocalizedStringKey, _ icon: String,
-                              path: Binding<NavigationPath>, scrollSignal: Int) -> some View {
+                              path: Binding<NavigationPath>, scrollSignal: Int,
+                              registersMore: Bool = false) -> some View {
         // Each primary tab gets its OWN NavigationStack so the in-content NavigationLinks (e.g. the Today
         // dashboard card rows) both navigate AND render opaque. An ORPHANED NavigationLink (no
         // NavigationStack ancestor) renders its whole label in a disabled/translucent state — that was
@@ -647,16 +852,10 @@ struct RootTabView: View {
         // detail screens get their own nav bar + back button. The stack is bound to the tab's path so a
         // re-tap of the active tab can pop it to the root (#135/#198); the roots' first-hop links push
         // TabRoute values, registered here ONCE per stack (a double registration double-pushes, #38).
-        NavigationStack(path: path) {
-            view
-                .background(StrandPalette.surfaceBase.ignoresSafeArea())
-                .toolbar(.hidden, for: .navigationBar)
-                .tabRouteDestinations()
-        }
         // Drive this tab's root scroll-to-top on an at-root re-tap (#198 follow-up); read by ScreenScaffold
         // / LiquidTodayView inside. Only THIS tab's token changes on its reselect, so the others don't scroll.
-        .environment(\.scrollToTopSignal, scrollSignal)
-        .tabItem { Label(title, systemImage: icon) }
+        tabStack(view, path: path, scrollSignal: scrollSignal, registersMore: registersMore)
+            .tabItem { Label(title, systemImage: icon) }
     }
 
     // Analysis migration required: no. This is navigation and presentation only; stored health inputs,
@@ -946,6 +1145,8 @@ private enum QuickAction: Int, Identifiable {
     case battery, customizeToday
     /// The goals overview, pushed on the Today stack like the battery screen.
     case goals
+    /// The redesign's Log sheet.
+    case forgeLog
     var id: Int { rawValue }
 }
 

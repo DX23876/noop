@@ -3163,7 +3163,7 @@ final class AICoachEngine: ObservableObject {
     /// chain and a notification tap can arrive at the same moment, and whoever lost that race used to
     /// leave `sendTask` pointing at the wrong task — with the composer's Stop button attached to it.
     @discardableResult
-    private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
+    func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
                                           stampValue: String? = nil,
                                           origin: ChatMessage.Origin) async -> Bool {
         while let inFlight = sendTask { await inFlight.value }

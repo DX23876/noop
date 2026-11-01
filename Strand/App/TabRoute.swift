@@ -66,6 +66,8 @@ enum TabRoute: Hashable {
     case goals
     /// One weekly or monthly goal's detail.
     case periodGoal(UUID)
+    /// The long-term Trends screen, pushed from Health in the redesign, where Trends is no longer a tab.
+    case trends
 }
 
 extension View {
@@ -116,6 +118,7 @@ extension View {
             case .coach: CoachView()
             case .goals: GoalsOverviewScreen()
             case .periodGoal(let id): PeriodGoalDetailView(goalId: id)
+            case .trends: TrendsView()
             }
         }
     }

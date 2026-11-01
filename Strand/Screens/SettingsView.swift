@@ -213,6 +213,7 @@ struct SettingsView: View {
     // Effort display scale (#268). Display-only — Effort stays stored 0–100, this only chooses whether
     // it's shown on NOOP's 0–100 axis or WHOOP's 0–21 Day Strain axis.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    @AppStorage(ForgeDesignPrefs.previewKey) private var forgeDesignPreview = ForgeDesignPrefs.defaultPreview
     @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
     @AppStorage(TrainingPreferences.effortKey) private var trainingEffortRaw = TrainingEffortPreference.rpe.rawValue
     @AppStorage(TrainingPreferences.sessionRatingPromptKey) private var sessionRatingPromptRaw =
@@ -3682,6 +3683,22 @@ struct SettingsView: View {
             blurb: "Unfinished features. Off by default; turn one off again any time."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
+                #if os(iOS)
+                // MARK: The 2026-11 redesign preview (four tabs, timeline Today). Off by default.
+                Toggle(isOn: $forgeDesignPreview) {
+                    Text("New design (preview)")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Four tabs instead of five: Today becomes a timeline under your rings, Health gathers vitals and long-term trends, and everything else moves behind the profile button. Unfinished; your data and settings stay the same.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(StrandPalette.hairline)
+                #endif
+
                 // MARK: #463 Personal daytime-stress baseline — score today's timeline vs a personal
                 //       cross-day baseline instead of the day's own calm hours. Off by default.
                 Toggle(isOn: $stressPersonalBaselineEnabled) {
