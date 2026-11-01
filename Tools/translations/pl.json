@@ -4395,5 +4395,6 @@
   "Yesterday from %@ to %@. About %lld minutes.": "Wczoraj od %1$@ do %2$@. Około %3$lld min.",
   "Today, %@ to %@": "Dziś, %1$@–%2$@",
   "Yesterday, %@ to %@": "Wczoraj, %1$@–%2$@",
-  "%@, %@ to %@": "%1$@, %2$@–%3$@"
+  "%@, %@ to %@": "%1$@, %2$@–%3$@",
+  "Beat-to-beat": "Uderzenie po uderzeniu"
 }

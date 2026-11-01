@@ -193,6 +193,7 @@ final class HealthKitBridge: ObservableObject {
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
         s.insert(HKObjectType.workoutType())
         s.insert(HKSeriesType.workoutRoute())
+        s.insert(HKSeriesType.heartbeat())
         return s
     }
 
@@ -1404,6 +1405,9 @@ final class HealthKitBridge: ObservableObject {
                openStarts.allSatisfy({ $0 < lo || $0 > hi }) { try await whoopStore.acknowledgeHealthExport(change) }
             return count + historical
         }
+        await attempt("Beat-to-beat", types: [HKSeriesType.heartbeat()]) {
+            try await writeHeartbeats(whoopStore: whoopStore, sessions: sessions)
+        }
         await attempt("Heart rate", types: [HKQuantityType.quantityType(forIdentifier: .heartRate)].compactMap { $0 }) {
             let change = changes.first { $0.kind == "heartRate" }
             var current = try await writeHeartRate(whoopStore: whoopStore, fromTs: fromTs, nowTs: nowTs)
@@ -1747,6 +1751,89 @@ final class HealthKitBridge: ObservableObject {
             try await store.delete(stale)
             HealthSyncStats.recordDeleted(stale.count)
             try await whoopStore.invalidateHealthExports(ids: stale.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
+        }
+        return count
+    }
+
+    /// UserDefaults key for the fingerprint of each night's heartbeat series as last written, keyed by
+    /// `HealthWriteback.appleHealthHeartbeatKey`.
+    private static let heartbeatWrittenKey = "hkHeartbeatWritten.v1"
+
+    /// Write each finished night's R-R intervals as heartbeat series (`HKHeartbeatSeriesSample`), the
+    /// beat-to-beat data a reader computes its own HRV from. A single nightly SDNN sample gives such a
+    /// reader nothing to compute from: Bevel's Recovery, for one, reads HRV from beat-to-beat measurements
+    /// inside the sleep window.
+    ///
+    /// The beats are the ones every R-R consumer reads (`WhoopStore.rrIntervals`, the per-segment path
+    /// choice), cut into five-minute segments, and only the segments that clear
+    /// `HRVAnalyzer.exportableBeatSegments` are written, so no reader is handed intervals NOOP would refuse
+    /// to compute the same statistic from. A night is rewritten only when its fingerprint moves and cleared
+    /// when nothing of it is exportable any more. Series are immutable, so a rewrite deletes the night's
+    /// series by key (scoped to our own `HKSource`) first; the fingerprint is recorded only after the whole
+    /// night is written, so a failure mid-night retries. Returns the number of series written.
+    ///
+    /// Adopted from Iskrata/noop (cfd61587), with the trust gate moved from the whole night to each segment.
+    private func writeHeartbeats(whoopStore: WhoopStore, sessions: [CachedSleepSession]) async throws -> Int {
+        let type = HKSeriesType.heartbeat()
+        guard store.authorizationStatus(for: type) == .sharingAuthorized else { return 0 }
+        var nights: [(key: String, fingerprint: String?)] = []
+        var beatsByKey: [String: (ts: [Int], rr: [Int])] = [:]
+        for entry in Self.sleepPlan(sessions: sessions) where entry.spanEnd > entry.spanStart {
+            let key = HealthWriteback.appleHealthHeartbeatKey(startTs: entry.keyStartTs)
+            let rows = try await whoopStore.rrIntervals(deviceId: noopDeviceId, from: entry.spanStart,
+                                                        to: entry.spanEnd, limit: StreamReadCap.rr)
+            let kept = HRVAnalyzer.exportableBeatSegments(rows).flatMap { $0 }
+            guard !kept.isEmpty else {
+                nights.append((key, nil))
+                continue
+            }
+            let ts = kept.map(\.ts), rr = kept.map(\.rrMs)
+            nights.append((key, HealthWriteback.heartbeatFingerprint(tsSec: ts, rrMs: rr)))
+            beatsByKey[key] = (ts, rr)
+        }
+        let written = UserDefaults.standard.dictionary(forKey: Self.heartbeatWrittenKey) as? [String: String] ?? [:]
+        let plan = HealthWriteback.heartbeatSyncPlan(nights: nights, written: written)
+        // A night still owed a clear or a rewrite keeps its old entry until that work succeeds, so a failed
+        // delete is retried on the next pass instead of being forgotten with the series left in Health.
+        var record = plan.kept
+        for key in plan.clear + plan.rewrite.map(\.key) { record[key] = written[key] }
+        UserDefaults.standard.set(record, forKey: Self.heartbeatWrittenKey)
+
+        let bySource = HKQuery.predicateForObjects(from: HKSource.default())
+        func deleteSeries(_ key: String) async throws {
+            let byKey = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeyExternalUUID, allowedValues: [key])
+            _ = try await store.deleteObjects(
+                of: type, predicate: NSCompoundPredicate(andPredicateWithSubpredicates: [bySource, byKey]))
+        }
+        for key in plan.clear {
+            try await deleteSeries(key)
+            record[key] = nil
+            UserDefaults.standard.set(record, forKey: Self.heartbeatWrittenKey)
+        }
+        var count = 0
+        for night in plan.rewrite {
+            guard let beats = beatsByKey[night.key] else { continue }
+            try await deleteSeries(night.key)
+            for chunk in HealthWriteback.heartbeatSeriesPlan(tsSec: beats.ts, rrMs: beats.rr) {
+                let builder = HKHeartbeatSeriesBuilder(healthStore: store, device: nil,
+                                                       start: Date(timeIntervalSince1970: chunk.start))
+                for beat in chunk.beats {
+                    try await withCheckedThrowingContinuation { (done: CheckedContinuation<Void, Error>) in
+                        builder.addHeartbeatWithTimeInterval(sinceSeriesStartDate: beat.offset,
+                                                             precededByGap: beat.precededByGap) { added, error in
+                            if let error { done.resume(throwing: error) }
+                            else if !added { done.resume(throwing: HKError(.errorInvalidArgument)) }
+                            else { done.resume() }
+                        }
+                    }
+                }
+                try await builder.addMetadata([HKMetadataKeyExternalUUID: night.key,
+                                               Self.originMetadataKey: Self.originMetadataValue])
+                _ = try await builder.finishSeries()
+                count += 1
+            }
+            record[night.key] = night.fingerprint
+            UserDefaults.standard.set(record, forKey: Self.heartbeatWrittenKey)
         }
         return count
     }
