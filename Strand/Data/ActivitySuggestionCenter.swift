@@ -39,6 +39,8 @@ final class ActivitySuggestionCenter: ObservableObject {
     func attach(_ repo: Repository) {
         guard self.repo !== repo else { return }
         self.repo = repo
+        // A read already in flight belongs to the previous repository; make it read once more from this one.
+        if inflight != nil { reloadAgain = true }
         refreshWatch = repo.$refreshSeq.removeDuplicates().sink { [weak self] _ in
             Task { @MainActor in await self?.reload() }
         }
@@ -77,13 +79,16 @@ final class ActivitySuggestionCenter: ObservableObject {
     }
 
     private func readAll() async {
-        guard let repo else { return }
+        guard repo != nil else { return }
         guard Self.isEnabled else {
             all = []
             return
         }
+        // The repository is read again on every pass: `attach` can swap it while a read is in flight, and a
+        // pass that kept the one it started with would return the previous store's suggestions.
         repeat {
             reloadAgain = false
+            guard let repo else { return }
             all = await repo.activitySuggestions(settings: Self.settings)
         } while reloadAgain
         ActivitySuggestionNotifier.update(with: toAsk, now: now)
