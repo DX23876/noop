@@ -361,6 +361,22 @@ class CoreParityTest {
         "HydrationGoal.dailyGoal" to { i ->
             HydrationGoal.dailyGoalMl(i.getString("sex"), if (i.isNull("effort")) null else i.getDouble("effort"))
         },
+        "SleepStageTotals.groups" to { i ->
+            val b = i.getJSONArray("blocks")
+            val blocks = (0 until b.length()).map { k -> b.getJSONArray(k).let { SleepStageTotals.NightBlock(it.getLong(0), it.getLong(1)) } }
+            val off = i.getLong("offset")
+            obj("groups" to SleepStageTotals.bridgedNightGroups(blocks, off).map { g ->
+                    obj("indices" to g.indices, "gaps" to g.gaps.map { listOf(it.first, it.second) }) },
+                "main" to SleepStageTotals.mainNightGroupIndices(blocks, off, if (i.isNull("habitual")) null else i.getLong("habitual")),
+                "clamped" to SleepStageTotals.clampStagesToOnset(if (i.isNull("stages")) null else i.getString("stages"), i.getLong("onset"))
+                    ?.let(::canonical))
+        },
+        "WorkoutDetector.activitySeries" to { i ->
+            val g = i.getJSONArray("g")
+            WorkoutDetector.activitySeries((0 until g.length()).map { k -> g.getJSONArray(k).let {
+                com.noop.data.GravitySample(deviceId = "parity", ts = it.getDouble(0).toLong(), x = it.getDouble(1), y = it.getDouble(2), z = it.getDouble(3)) } })
+                .map { listOf(it.ts, it.intensity) }
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */

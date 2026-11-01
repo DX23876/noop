@@ -744,6 +744,38 @@ final class CoreParityOracleTests: XCTestCase {
                    ["sex": ["male", "female", "nonbinary", ""][r.int(0...3)], "effort": r.chance(0.2) ? NSNull() : r.double(0...100)]
                },
                run: { a in HydrationGoal.dailyGoalML(sex: a["sex"] as! String, effort: a["effort"] as? Double) }),
+        Oracle(name: "SleepStageTotals.groups",
+               inputs: cases(50, seed: 41) { r in
+                   var t = 1_760_000_000 + r.int(0...86_400)
+                   let blocks: [[Int]] = (0..<r.int(0...7)).map { _ in
+                       t += r.int(60...20_000); let s = t; t += r.int(600...30_000); return [s, t]
+                   }
+                   let onset = (blocks.first?[0] ?? 0) + r.int(-1_800...3_600)
+                   return ["blocks": blocks, "offset": [0, 3_600, -18_000, 32_400][r.int(0...3)],
+                           "habitual": r.chance(0.5) ? NSNull() : r.int(0...86_399),
+                           "stages": blocks.isEmpty ? NSNull() as Any : stagesJSON(&r, from: blocks[0][0], to: blocks[0][1]) as Any,
+                           "onset": onset]
+               },
+               run: { a in
+                   let blocks = (a["blocks"] as! [[Int]]).map { SleepStageTotals.NightBlock(start: $0[0], end: $0[1]) }
+                   let off = a["offset"] as! Int
+                   return ["groups": SleepStageTotals.bridgedNightGroups(blocks, offsetSec: off).map {
+                               ["indices": $0.indices, "gaps": $0.gaps.map { [$0.start, $0.end] }] },
+                           "main": nn(SleepStageTotals.mainNightGroupIndices(blocks, offsetSec: off,
+                                                                             habitualMidsleepSec: a["habitual"] as? Int)),
+                           "clamped": nn(SleepStageTotals.clampStagesToOnset(a["stages"] as? String, onsetSec: a["onset"] as! Int)
+                                            .map(CoreParityOracleTests.canonicalJSON))]
+               }),
+        Oracle(name: "WorkoutDetector.activitySeries",
+               inputs: cases(30, seed: 42) { r in
+                   var ts = 1_760_000_000
+                   return ["g": (0..<r.int(0...80)).map { _ -> [Double] in
+                       ts += r.int(1...30); return [Double(ts), r.double(-1...1), r.double(-1...1), r.double(-1...1)] }]
+               },
+               run: { a in
+                   WorkoutDetector.activitySeries((a["g"] as! [[Double]]).map {
+                       GravitySample(ts: Int($0[0]), x: $0[1], y: $0[2], z: $0[3]) }).map { [$0.ts, $0.intensity] as [Any] }
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {
