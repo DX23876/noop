@@ -1,5 +1,6 @@
 package com.noop.ingest
 
+import com.noop.data.DailyMetric
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
