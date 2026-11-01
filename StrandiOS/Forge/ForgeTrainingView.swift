@@ -83,9 +83,17 @@ struct ForgeTrainingView: View {
         let workouts = weekWorkouts
         let minutes = workouts.reduce(0.0) { $0 + ($1.durationS ?? Double(max($1.endTs - $1.startTs, 0))) / 60 }
         let cal = Calendar.current
-        let headline = workouts.isEmpty ? String(localized: "No workouts yet")
-            : String(localized: "\(workouts.count) workouts · \(Self.duration(minutes))")
-        return ForgeTabHero(overline: String(localized: "This week"), headline: headline) {
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("This week").font(.system(size: 15, weight: .medium)).foregroundStyle(ForgeColor.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(workouts.isEmpty ? String(localized: "No workouts yet")
+                                      : String(localized: "\(workouts.count) workouts"))
+                    .font(.system(size: 28, weight: .bold)).foregroundStyle(ForgeColor.text)
+                if !workouts.isEmpty {
+                    Text(Self.duration(minutes)).font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(ForgeColor.secondary)
+                }
+            }
             HStack(spacing: 0) {
                 ForEach(weekDays, id: \.self) { day in
                     let done = workouts.contains { cal.isDate(Date(timeIntervalSince1970: TimeInterval($0.startTs)), inSameDayAs: day) }
@@ -113,6 +121,7 @@ struct ForgeTrainingView: View {
             }
             .padding(.top, 10)
         }
+        .padding(.horizontal, 4)
     }
 
     static func duration(_ minutes: Double) -> String {
