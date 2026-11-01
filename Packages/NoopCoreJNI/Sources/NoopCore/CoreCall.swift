@@ -85,6 +85,28 @@ public enum CoreCall {
             guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
             do { try await store.deleteAllData(deviceId: id); return #"{"ok":true}"# }
             catch { return #"{"error":"deleteFailed"}"# }
+        case "nap.evaluate":
+            // Android's nap review card (CORE-ONLY-PLAN, decision 6): the core's NapDetector over the strap's
+            // gravity and heart rate in [from, to], with the wearer's settings.
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            let id = string("deviceId"), from = int("from", 0), to = int("to", 0)
+            let gravity = (try? await store.gravitySamples(deviceId: id, from: from, to: to, limit: 200_000)) ?? []
+            let hr = (try? await store.hrSamples(deviceId: id, from: from, to: to, limit: 200_000)) ?? []
+            let config = NapDetector.Config(
+                enabled: args["enabled"] as? Bool ?? false, minNapMinutes: int("minNapMinutes", 20),
+                maxNapMinutes: int("maxNapMinutes", 90),
+                stillThresholdG: (args["stillThresholdG"] as? NSNumber)?.doubleValue ?? 0.08,
+                hrSettleMarginBpm: int("hrSettleMarginBpm", 8),
+                smoothWindowSeconds: (args["smoothWindowSeconds"] as? NSNumber)?.doubleValue ?? 120)
+            let resting = (args["restingHr"] as? NSNumber)?.intValue
+            let d = NapDetector.evaluate(gravity: gravity, hr: hr, restingHr: resting, config: config)
+            struct Wire: Encodable {
+                let verdict: String; let gravityRows: Int
+                let start: Int?; let end: Int?; let meanHr: Int?; let confidence: Double?
+            }
+            return CoreRead.json(Wire(verdict: d.verdict.rawValue, gravityRows: gravity.count,
+                                      start: d.candidate?.start, end: d.candidate?.end,
+                                      meanHr: d.candidate?.meanHr, confidence: d.candidate?.confidence))
         case "import.file":
             guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
             return await CoreImport.run(kind: string("kind"), path: string("path"), deviceId: string("deviceId"), store: store)

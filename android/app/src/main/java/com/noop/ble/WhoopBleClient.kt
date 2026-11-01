@@ -4881,9 +4881,6 @@ class WhoopBleClient(
                 // Look back over the freshly-offloaded daytime window (the same lookback the inactivity /
                 // stress hooks read), so a brief afternoon nap that just landed gets judged.
                 val from = nowSec - INACTIVITY_LOOKBACK_S
-                val grav = runCatching { repository.gravitySamplesForDevice(deviceId, from, nowSec) }.getOrDefault(emptyList())
-                if (grav.isEmpty()) return@launch
-                val hr = runCatching { repository.hrSamplesForDevice(deviceId, from, nowSec) }.getOrDefault(emptyList())
                 // Honest resting band: the newest daily metric's resting HR, or null (the engine then
                 // leans on motion alone at lower confidence — it never fabricates a band).
                 val restingHr = runCatching {
@@ -4895,12 +4892,17 @@ class WhoopBleClient(
                 // "now" on the first read.
                 val highWater = NapPrefs.highWaterOrSeed(context, nowSec)
 
-                val decision = NapDetector.evaluate(
-                    gravity = grav,
-                    hr = hr.map { HrRow(it.ts, it.bpm) },
-                    restingHr = restingHr,
-                    config = NapPrefs.config(context),
-                )
+                // Android without Room: the shared core judges the window it stored (CoreNap); the Kotlin
+                // detector stays only for a build without the core.
+                val config = NapPrefs.config(context)
+                val decision = com.noop.core.CoreNap.evaluate(deviceId, from, nowSec, restingHr, config) ?: run {
+                    val grav = runCatching { repository.gravitySamplesForDevice(deviceId, from, nowSec) }
+                        .getOrDefault(emptyList())
+                    if (grav.isEmpty()) return@launch
+                    val hr = runCatching { repository.hrSamplesForDevice(deviceId, from, nowSec) }.getOrDefault(emptyList())
+                    NapDetector.evaluate(gravity = grav, hr = hr.map { HrRow(it.ts, it.bpm) }, restingHr = restingHr,
+                                         config = config)
+                }
                 if (decision.verdict == NapVerdict.NAP && decision.candidate != null &&
                     decision.candidate.end > highWater
                 ) {
