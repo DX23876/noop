@@ -374,7 +374,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
     val hcVo2MaxPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
     ) { _ ->
+        // The same one-shot ask carries the GPS route permission for installs set up before routes went out.
         NoopPrefs.setHcVo2MaxAsked(context, true)
+        NoopPrefs.setHcRouteAsked(context, true)
         vm.writebackHealthConnectNow()
     }
 
@@ -394,10 +396,15 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 // #1525: this branch is where an existing install lands — it granted everything that
                 // existed at the time, so it never reaches the launcher below and would never be offered
                 // VO2 max. Ask exactly once, then write regardless of the answer.
-                if (!granted.containsAll(HealthConnectWriter.VO2MAX_PERMISSIONS) &&
+                val askVo2 = !granted.containsAll(HealthConnectWriter.VO2MAX_PERMISSIONS) &&
                     !NoopPrefs.hcVo2MaxAsked(context)
-                ) {
-                    hcVo2MaxPermissionLauncher.launch(HealthConnectWriter.VO2MAX_PERMISSIONS)
+                val askRoute = !granted.containsAll(HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS) &&
+                    !NoopPrefs.hcRouteAsked(context)
+                if (askVo2 || askRoute) {
+                    hcVo2MaxPermissionLauncher.launch(
+                        (if (askVo2) HealthConnectWriter.VO2MAX_PERMISSIONS else emptySet()) +
+                            (if (askRoute) HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS else emptySet()),
+                    )
                 } else {
                     vm.writebackHealthConnectNow()
                 }
@@ -407,7 +414,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 // exercise writeback is opt-in + non-fatal if the user declines it). v1.71 / #412.
                 hcWritePermissionLauncher.launch(
                     HealthConnectWriter.PERMISSIONS + HealthConnectWriter.EXERCISE_PERMISSIONS +
-                        HealthConnectWriter.VO2MAX_PERMISSIONS,
+                        HealthConnectWriter.VO2MAX_PERMISSIONS + HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS,
                 )
             }
         }

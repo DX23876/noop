@@ -870,6 +870,7 @@ object NoopPrefs {
     /** Health Connect writeback (NOOP's computed metrics → HC, for other apps). Default OFF. */
     const val KEY_HC_WRITEBACK = "noop.hcWriteback"
     const val KEY_HC_VO2MAX_ASKED = "noop.hcVo2MaxAsked"
+    const val KEY_HC_ROUTE_ASKED = "noop.hcRouteAsked"
 
     /**
      * #1525: have we already asked this install for the VO2 max write permission? Health Connect grants
@@ -881,6 +882,13 @@ object NoopPrefs {
 
     fun setHcVo2MaxAsked(context: Context, asked: Boolean) {
         of(context).edit().putBoolean(KEY_HC_VO2MAX_ASKED, asked).apply()
+    }
+
+    /** Like [hcVo2MaxAsked], for the GPS route permission: asked once, a decline is respected. */
+    fun hcRouteAsked(context: Context): Boolean = of(context).getBoolean(KEY_HC_ROUTE_ASKED, false)
+
+    fun setHcRouteAsked(context: Context, asked: Boolean) {
+        of(context).edit().putBoolean(KEY_HC_ROUTE_ASKED, asked).apply()
     }
 
     fun hcWriteback(context: Context): Boolean =

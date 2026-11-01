@@ -6,6 +6,7 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
+import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
@@ -21,6 +22,8 @@ import androidx.health.connect.client.units.Length
 import androidx.health.connect.client.units.Percentage
 import com.noop.data.WhoopRepository
 import com.noop.data.WorkoutRow
+import com.noop.location.RoutePoint
+import com.noop.location.RoutePointStore
 import com.noop.ui.NoopPrefs
 import java.time.Instant
 import java.time.LocalDate
@@ -456,8 +459,34 @@ object HealthConnectWriter {
         HealthPermission.getWritePermission(DistanceRecord::class),
     )
 
-    /** Pure: build the records for one workout (testable without a client). */
-    fun buildExerciseRecords(row: WorkoutRow, exerciseType: Int): List<Record> {
+    /**
+     * Write permission for a session's GPS route. Kept out of [EXERCISE_PERMISSIONS] for the reason
+     * [VO2MAX_PERMISSIONS] is: an install that granted the older set would fail the writeback gate. Asked
+     * once beside VO2 max; without it a session is written without its route, never not at all.
+     */
+    val EXERCISE_ROUTE_PERMISSIONS: Set<String> = setOf(HealthPermission.PERMISSION_WRITE_EXERCISE_ROUTE)
+
+    /**
+     * Pure: the route Health Connect accepts for a session, or null. Health Connect rejects a location
+     * outside the session or out of time order, so those are dropped; fewer than two left is no route.
+     */
+    fun exerciseRoute(row: WorkoutRow, points: List<RoutePoint>): ExerciseRoute? {
+        val startMs = row.startTs * 1000
+        val endMs = row.endTs * 1000
+        var lastMs = Long.MIN_VALUE
+        val locations = points.sortedBy { it.tMs }.mapNotNull { p ->
+            if (p.tMs < startMs || p.tMs >= endMs || p.tMs <= lastMs) return@mapNotNull null
+            lastMs = p.tMs
+            ExerciseRoute.Location(
+                time = Instant.ofEpochMilli(p.tMs), latitude = p.lat, longitude = p.lon,
+                altitude = p.altitudeM?.let { Length.meters(it) },
+            )
+        }
+        return if (locations.size >= 2) ExerciseRoute(locations) else null
+    }
+
+    /** Pure: build the records for one workout (testable without a client). [route] rides on the session. */
+    fun buildExerciseRecords(row: WorkoutRow, exerciseType: Int, route: ExerciseRoute? = null): List<Record> {
         val start = Instant.ofEpochSecond(row.startTs)
         val end = Instant.ofEpochSecond(row.endTs)
         val offset = ZoneId.systemDefault().rules.getOffset(start)
@@ -467,6 +496,7 @@ object HealthConnectWriter {
                 startTime = start, startZoneOffset = offset, endTime = end, endZoneOffset = offset,
                 exerciseType = exerciseType, title = row.sport,
                 metadata = Metadata(clientRecordId = "noop-workout-${row.startTs}", clientRecordVersion = row.endTs),
+                exerciseRoute = route,
             ),
         )
         row.distanceM?.let {
@@ -485,8 +515,14 @@ object HealthConnectWriter {
      *  failed exercise share is visible instead of silently swallowed, and records the outcome (#660). */
     suspend fun writeExercise(context: Context, row: WorkoutRow, exerciseType: Int): WritebackResult {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return WritebackResult.UNAVAILABLE
-        val recs = buildExerciseRecords(row, exerciseType)
-        val result = runCatching { HealthConnectClient.getOrCreate(context).insertRecords(recs); recs.size }
+        val client = HealthConnectClient.getOrCreate(context)
+        // The measured route, only where the wearer granted route writing; a session without it still goes.
+        val route = RoutePointStore.load(context, row.startTs, row.sport)?.let { points ->
+            val granted = runCatching { client.permissionController.getGrantedPermissions() }.getOrDefault(emptySet())
+            if (granted.containsAll(EXERCISE_ROUTE_PERMISSIONS)) exerciseRoute(row, points) else null
+        }
+        val recs = buildExerciseRecords(row, exerciseType, route)
+        val result = runCatching { client.insertRecords(recs); recs.size }
             .fold({ WritebackResult(it, emptyList()) }, { WritebackResult(0, listOf(it.writebackCategory())) })
         recordStatus(context, result)
         return result
