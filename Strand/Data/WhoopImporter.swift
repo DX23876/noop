@@ -1,10 +1,58 @@
 import Foundation
 import WhoopStore
 import StrandImport
+import StrandAnalytics
 
 /// Maps a parsed Whoop CSV export into the on-device WhoopStore tables the UI reads
 /// (dailyMetric + sleepSession), so importing lights up the full history immediately.
 enum WhoopImporter {
+    /// UserDefaults cursor of the one-shot repair of rows imported before `skinTempC` was filled
+    /// (`repairAbsoluteSkinTempIfNeeded`).
+    static let skinTempRepairFlagKey = "noop.whoopImport.skinTempDeviationRepair.v1.done"
+
+    /// Fill each row's `skinTempDevC` as its absolute `skinTempC` minus the personal skin-temp baseline folded
+    /// over the nights BEFORE it (`Baselines.metricCfg["skin_temp"]`, the absolute-°C config), rounded like the
+    /// on-device deviation (`Baselines.roundedDelta2dp`). Nil until that baseline is usable. Rows without an
+    /// absolute keep their `skinTempDevC`. The WHOOP export ships absolute °C only; storing it as the deviation
+    /// read an imported night as +33 °C wherever a caller trusts the column (Charge breakdown, Trends).
+    ///
+    /// The column is not homogeneous: an imported night's deviation is against a baseline folded over the
+    /// imported absolutes, a computed night's against the on-device baseline.
+    static func withSkinTempDeviations(_ rows: [DailyMetric]) -> [DailyMetric] {
+        guard let cfg = Baselines.metricCfg["skin_temp"] else { return rows }
+        var state: BaselineState?
+        return rows.sorted { $0.day < $1.day }.map { row in
+            guard let celsius = row.skinTempC else { return row }
+            let deviation = state.flatMap { $0.usable ? $0 : nil }.map { Baselines.roundedDelta2dp(celsius, state: $0) }
+            state = Baselines.update(state, value: celsius, cfg: cfg)
+            return row.with(recovery: row.recovery, skinTempDevC: deviation, skinTempC: celsius)
+        }
+    }
+
+    /// One-shot repair of stored inputs for WHOOP rows imported with the absolute °C in `skinTempDevC` and no
+    /// `skinTempC`: move the absolute into `skinTempC` and recompute the deviation across the imported history.
+    /// Idempotent (a repaired row no longer matches); the cursor only spares later launches the read. Returns
+    /// whether any row changed.
+    @discardableResult
+    static func repairAbsoluteSkinTempIfNeeded(store: WhoopStore, deviceId: String,
+                                               defaults: UserDefaults = .standard) async -> Bool {
+        guard !defaults.bool(forKey: skinTempRepairFlagKey) else { return false }
+        guard let rows = try? await store.dailyMetrics(deviceId: deviceId, from: "0000-01-01", to: "9999-12-31")
+        else { return false }
+        let moved = rows.map { row -> DailyMetric in
+            guard row.skinTempC == nil, let dev = row.skinTempDevC, VitalBands.isAbsoluteSkinTemp(dev) else { return row }
+            return row.with(recovery: row.recovery, skinTempDevC: nil, skinTempC: dev)
+        }
+        let original = Dictionary(rows.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
+        let changed = withSkinTempDeviations(moved).filter {
+            original[$0.day]?.skinTempC != $0.skinTempC || original[$0.day]?.skinTempDevC != $0.skinTempDevC
+        }
+        if !changed.isEmpty {
+            guard (try? await store.upsertDailyMetrics(changed, deviceId: deviceId)) != nil else { return false }
+        }
+        defaults.set(true, forKey: skinTempRepairFlagKey)
+        return !changed.isEmpty
+    }
 
     /// The WHOOP CSV mapping revision, stamped into the Import test-mode parser line. Bump when this
     /// importer's column->store mapping changes so a shared report's parser version is unambiguous.
@@ -36,9 +84,11 @@ enum WhoopImporter {
                 strain: WhoopExportImporter.effortFromImportedDayStrain(c.dayStrain),
                 exerciseCount: nil,
                 spo2Pct: c.bloodOxygenPct,
-                skinTempDevC: c.skinTempCelsius,   // NOTE: Whoop export gives absolute °C, not a baseline deviation
-                respRateBpm: c.respiratoryRate))
+                respRateBpm: c.respiratoryRate,
+                // The export gives ABSOLUTE °C. `skinTempDevC` is filled below from the nights before it.
+                skinTempC: c.skinTempCelsius))
         }
+        metrics = withSkinTempDeviations(metrics)
 
         // sleeps → CachedSleepSession (stage durations encoded as JSON; export has no per-epoch timeline)
         var sessions: [CachedSleepSession] = []

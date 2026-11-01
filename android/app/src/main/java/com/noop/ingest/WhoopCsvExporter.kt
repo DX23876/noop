@@ -174,7 +174,10 @@ object WhoopCsvExporter {
             sb.append(
                 listOf(
                     d.day + " 00:00:00", "", "UTC+00:00",
-                    num(d.recovery), num(d.restingHr), num(d.avgHrv), num(d.skinTempDevC),
+                    num(d.recovery), num(d.restingHr), num(d.avgHrv),
+                    // "Skin temp (celsius)" is an absolute: skinTempC, else an absolute an older import or an
+                    // Apple row left in the deviation column (>= 20 °C), never a deviation.
+                    num(d.skinTempC ?: d.skinTempDevC?.takeIf { it >= 20.0 }),
                     // Day Strain column is WHOOP's 0–21 scale → down-convert our 0–100 Effort so the CSV
                     // is WHOOP-format and a NOOP→NOOP round-trip is lossless (import scales back ×100/21).
                     // Divide by the SAME 100.0/21.0 constant the importer multiplies by (and that Swift's

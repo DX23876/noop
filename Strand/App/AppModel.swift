@@ -708,6 +708,12 @@ final class AppModel: ObservableObject {
             self.observeProfileWeight()
             // Analytics migrations are keyed to their own persisted recipe, never to the app/build
             // version. On an ordinary Xcode reinstall this is a one-row read and no historical work.
+            // One-shot repair of stored inputs, before the recipe rebuild reads them: WHOOP rows imported
+            // before `skinTempC` was filled carry the export's absolute °C in the deviation column.
+            if let store = await self.repo.storeHandle(),
+               await WhoopImporter.repairAbsoluteSkinTempIfNeeded(store: store, deviceId: self.deviceId) {
+                await self.repo.refresh()
+            }
             await self.intelligence.prepareAnalysisRecipe()
             try? await Task.sleep(nanoseconds: 6_000_000_000)  // give the first offload a moment
             // FIX 2(a): DEFER the heavy one-shot 4000-day heal/rescore while an import is in flight. A

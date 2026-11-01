@@ -574,6 +574,16 @@ object Baselines {
         return Deviation(z = z, delta = delta, ratio = ratio, inNormalRange = abs(z) <= 1.0)
     }
 
+    /**
+     * [deviation]'s `delta` rounded to 2 dp HALF-AWAY-FROM-ZERO, the stored skin-temp deviation. Swift's
+     * `Double.rounded()` rounds ties away from zero; `Math.round` rounds them up, so on a negative tie the
+     * platforms would store different values. Twin of the Swift `Baselines.roundedDelta2dp`.
+     */
+    fun roundedDelta2dp(value: Double, state: BaselineState): Double {
+        val scaled = deviation(value, state).delta * 100.0
+        return (if (scaled >= 0) Math.floor(scaled + 0.5) else Math.ceil(scaled - 0.5)) / 100.0
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Trailing-window mean/SD (simple, auditable)
     // ─────────────────────────────────────────────────────────────────────────
