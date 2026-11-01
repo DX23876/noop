@@ -2359,6 +2359,8 @@ final class AICoachEngine: ObservableObject {
                                     ledger.nights.count, need, bal,
                                     bal < 0 ? "(deficit — behind on sleep)" : "(surplus)")
         }
+        let naps = await napsBlock()
+        if !naps.isEmpty { text += "\n\n" + naps }
         return text
     }
 
@@ -3381,6 +3383,8 @@ final class AICoachEngine: ObservableObject {
         if grantsCore, sections.contains(.compactBiometrics) {
             if sections.contains(.detailedBiometrics) {
                 blocks.append(buildContext(includeGoals: false))
+                let naps = await napsBlock()
+                if !naps.isEmpty { blocks.append(naps) }
                 categories.append(.biometricSnapshot)
             } else {
                 blocks.append(buildCompactContext())
