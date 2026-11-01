@@ -154,6 +154,8 @@ public struct DeviceRegistryStore: Sendable {
         "workoutElevation",
         // v83: activity-detection suggestions found in this strap's streams; they go with the streams.
         "activityCandidate",
+        // v84: Android's tombstones for this strap's deleted nights and dismissed bouts.
+        "dismissedSleep", "dismissedWorkout",
         // v25-oura-raw: the opt-in Oura cloud-import raw archive is deviceId-keyed too, so "delete this
         // device's data" must clear it — else an imported Oura source's payloads would survive deletion.
         "ouraRaw",

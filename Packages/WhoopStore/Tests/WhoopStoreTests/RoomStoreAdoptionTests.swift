@@ -75,7 +75,8 @@ final class RoomStoreAdoptionTests: XCTestCase {
 
         XCTAssertEqual(report.roomVersion, 42)
         XCTAssertEqual(report.copiedRows["hrSample"], 2)
-        XCTAssertEqual(report.skipped["coachMessage"], "androidOnly")
+        XCTAssertEqual(report.copiedRows["dismissedSleep"], 2)
+        XCTAssertEqual(report.copiedRows["coachMessage"], 1, "a column a later version added takes a zero of its affinity")
         XCTAssertEqual(report.dismissedSleepTokens, ["100:200", "300:400"])
         XCTAssertEqual(report.hiddenDismissedSleepTokens, ["300:400"])
         XCTAssertEqual(report.dismissedWorkoutTokens, ["500:600"])

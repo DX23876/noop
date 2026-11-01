@@ -2,6 +2,7 @@ package com.noop.core
 
 import android.content.Context
 import com.noop.BuildConfig
+import com.noop.data.BackupSettingsBridge
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -38,8 +39,9 @@ object CoreBackup {
         if (!CoreUserInputs.ensure(context)) return Result.Failed("inputMigration")
         val dir = scratch(context)
         val staged = File(dir, "export.noopbak")
+        val settings = runCatching { BackupSettingsBridge.snapshotJson(context) }.getOrNull()
         val result = parse(SwiftCore.exportBackup(staged.path, dir.path, BuildConfig.VERSION_NAME,
-                                                  BuildConfig.VERSION_CODE.toString()))
+                                                  BuildConfig.VERSION_CODE.toString(), settings))
         if (result == Result.Done) staged.inputStream().use { it.copyTo(out) }
         staged.delete()
         return result
@@ -51,9 +53,10 @@ object CoreBackup {
         val dir = scratch(context)
         val staged = File(dir, "import.noopbak")
         staged.outputStream().use { input.copyTo(it) }
+        restoredSettings(dir).delete()
         val result = parse(SwiftCore.importBackup(staged.path, dir.path, allowOversize))
         if (result !is Result.TooLarge) staged.delete()
-        if (result == Result.Imported) CoreInputLanes.forgetRepairAfterRestore(context)
+        if (result == Result.Imported) afterRestore(context, dir)
         return result
     }
 
@@ -62,9 +65,23 @@ object CoreBackup {
         val dir = scratch(context)
         val staged = File(dir, "import.noopbak")
         if (!staged.isFile) return Result.Failed("noStagedFile")
+        restoredSettings(dir).delete()
         return parse(SwiftCore.importBackup(staged.path, dir.path, true)).also {
             staged.delete()
-            if (it == Result.Imported) CoreInputLanes.forgetRepairAfterRestore(context)
+            if (it == Result.Imported) afterRestore(context, dir)
+        }
+    }
+
+    /** Where the core leaves the restored backup's `settings.json` (`CoreBackup.restoredSettingsURL`). */
+    private fun restoredSettings(dir: File) = File(dir, "restored-settings.json")
+
+    /** The app's own settings from the backup, applied once the store swapped; the restart follows. */
+    private fun afterRestore(context: Context, dir: File) {
+        CoreInputLanes.forgetRepairAfterRestore(context)
+        val settings = restoredSettings(dir)
+        if (settings.isFile) {
+            runCatching { BackupSettingsBridge.apply(context, settings.readText()) }
+            settings.delete()
         }
     }
 }

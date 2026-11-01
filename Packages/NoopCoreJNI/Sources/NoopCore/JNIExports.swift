@@ -167,10 +167,11 @@ public func jniSeedDemo(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?) -
 
 @_cdecl("Java_com_noop_core_SwiftCore_exportBackup")
 public func jniExportBackup(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ dest: jstring?, _ scratch: jstring?,
-                            _ version: jstring?, _ build: jstring?) -> jstring? {
+                            _ version: jstring?, _ build: jstring?, _ settings: jstring?) -> jstring? {
     guard let env, let dest, let scratch, let version, let build, let d = string(env, dest),
           let s = string(env, scratch), let v = string(env, version), let b = string(env, build) else { return nil }
-    return json(env, Bridge.exportBackup(to: d, scratch: s, appVersion: v, appBuild: b))
+    let hostSettings = settings.flatMap { string(env, $0) }
+    return json(env, Bridge.exportBackup(to: d, scratch: s, appVersion: v, appBuild: b, hostSettings: hostSettings))
 }
 
 @_cdecl("Java_com_noop_core_SwiftCore_importBackup")

@@ -74,7 +74,8 @@ object SwiftCore {
     external fun readSeries(metric: String, from: String, to: String): String?
     external fun readHeartRate(from: Long, to: Long): String?
     // Backups (CoreBackup): one result line, "done", "imported", "tooLarge:<entry>" or "failed:<why>".
-    external fun exportBackup(dest: String, scratch: String, version: String, build: String): String?
+    // `settings` is the app's whitelisted `settings.json` (`BackupSettingsBridge.snapshotJson`), or null.
+    external fun exportBackup(dest: String, scratch: String, version: String, build: String, settings: String?): String?
     external fun importBackup(source: String, scratch: String, allowOversize: Boolean): String?
 
     /** Demo builds only: writes the demo history into an empty store; the days written. */

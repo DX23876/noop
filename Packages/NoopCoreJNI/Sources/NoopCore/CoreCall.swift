@@ -85,6 +85,25 @@ public enum CoreCall {
             guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
             do { try await store.deleteAllData(deviceId: id); return #"{"ok":true}"# }
             catch { return #"{"error":"deleteFailed"}"# }
+        case "sql.query": return await CoreSql.query(args)
+        case "sql.exec": return await CoreSql.exec(args)
+        case "store.adoptRoom":
+            // Android without Room (CORE-ONLY-PLAN): a live install's Room file, copied into the core once. The
+            // tombstone tables merge into the defaults lists the shared code reads.
+            let path = string("path")
+            guard path.hasPrefix("/") else { return #"{"error":"invalid"}"# }
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            do {
+                let report = try await store.adoptRoomStore(atPath: path)
+                CoreBackup.applyTombstones(report, replacing: false)
+                struct Wire: Encodable { let ok: Bool; let roomVersion: Int?; let copied: [String: Int]; let skipped: [String: String] }
+                return CoreRead.json(Wire(ok: true, roomVersion: report.roomVersion, copied: report.copiedRows,
+                                          skipped: report.skipped))
+            } catch RoomStoreAdoption.AdoptionError.notRoom {
+                return #"{"error":"notRoom"}"#
+            } catch {
+                return CoreRead.json(["error": "adoptFailed", "detail": error.localizedDescription])
+            }
         case "device.reKey":
             let from = string("from"), to = string("to")
             guard !from.isEmpty, !to.isEmpty else { return #"{"error":"invalid"}"# }

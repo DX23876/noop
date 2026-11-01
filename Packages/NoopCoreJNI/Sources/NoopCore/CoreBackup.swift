@@ -27,8 +27,10 @@ public enum CoreBackup {
 
     /// Writes a consistent SQLite snapshot and derives goal settings from that same snapshot before
     /// archiving and verifying it. Concurrent collection cannot make the two goal readouts disagree.
+    /// `hostSettings` is the Android app's own `settings.json` (`BackupSettingsBridge.snapshotJson`, the whitelist
+    /// the Apple apps write); the goal bundle from the snapshot is added to it.
     public static func export(store: WhoopStore, dbPath: String, to dest: String, scratch: String,
-                              appVersion: String, appBuild: String) async -> Result {
+                              appVersion: String, appBuild: String, hostSettings: Data? = nil) async -> Result {
         let fm = FileManager.default
         let destURL = URL(fileURLWithPath: dest)
         try? fm.removeItem(at: destURL)
@@ -40,9 +42,9 @@ public enum CoreBackup {
             let snapshot = snapshotDirectory.appendingPathComponent(BackupArchive.entryName)
             let goalImage = try await store.writeBackupSnapshot(to: snapshot.path)
             let preferences = try GoalPreferenceImage(serialized: goalImage)
-            let settings = GoalBackupBundle.encode(from: preferences).flatMap {
-                BackupSettings.encode([GoalBackupBundle.settingsKey: $0])
-            }
+            var values = hostSettings.map(BackupSettings.decode) ?? [:]
+            if let goals = GoalBackupBundle.encode(from: preferences) { values[GoalBackupBundle.settingsKey] = goals }
+            let settings = values.isEmpty ? nil : BackupSettings.encode(values)
             try BackupArchive.writeVerified(
                 dbURL: snapshot, to: destURL, settingsJSON: settings,
                 manifestJSON: BackupArchive.manifestJSON(appVersion: appVersion, appBuild: appBuild,
@@ -85,7 +87,11 @@ public enum CoreBackup {
                     return try image.serialized()
                 }
             },
-            applySettings: { _ in })
+            applySettings: { settings in
+                // The host's own settings go back to the Android app, which applies them after the restart
+                // prompt (`CoreBackup.kt`); the goal bundle was already applied to the staged store.
+                try? settings.write(to: restoredSettingsURL(scratch: scratch), options: .atomic)
+            })
         switch outcome {
         case .imported:
             if let adopted { applyTombstones(adopted, replacing: true) }
@@ -95,6 +101,11 @@ public enum CoreBackup {
         case .failure(let failure):
             return .failed(reason(failure))
         }
+    }
+
+    /// Where a restore leaves the backup's `settings.json` for the Android app to apply.
+    public static func restoredSettingsURL(scratch: String) -> URL {
+        URL(fileURLWithPath: scratch, isDirectory: true).appendingPathComponent("restored-settings.json")
     }
 
     /// Room's tombstone tables as the defaults lists the shared code reads (`Repository.dismissedSleepDefaultsKey`,

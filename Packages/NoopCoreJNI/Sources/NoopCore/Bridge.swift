@@ -76,14 +76,16 @@ public enum Bridge {
 
     // MARK: - Backups (CoreBackup), as one result line: "done", "imported", "tooLarge:<entry>" or "failed:<why>".
 
-    public static func exportBackup(to dest: String, scratch: String, appVersion: String, appBuild: String) -> String {
+    public static func exportBackup(to dest: String, scratch: String, appVersion: String, appBuild: String,
+                                    hostSettings: String? = nil) -> String {
         guard let (store, path) = ShadowSession.storeAndPath else { return CoreBackup.Result.failed("noSession").line }
         final class Box: @unchecked Sendable { var value = CoreBackup.Result.failed("timeout") }
         let box = Box()
         let done = DispatchSemaphore(value: 0)
         Task.detached {
             box.value = await CoreBackup.export(store: store, dbPath: path, to: dest, scratch: scratch,
-                                                appVersion: appVersion, appBuild: appBuild)
+                                                appVersion: appVersion, appBuild: appBuild,
+                                                hostSettings: hostSettings.map { Data($0.utf8) })
             done.signal()
         }
         done.wait()

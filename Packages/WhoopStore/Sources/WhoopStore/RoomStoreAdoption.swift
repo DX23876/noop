@@ -40,7 +40,7 @@ public enum RoomStoreAdoption {
         "sleepStateSample", "battery", "event", "ppgHrSample", "ppgWaveformSample", "ecgWaveformSample",
         "v18AuxSample", "appleDaily", "appleStepHour",
         "dailyMetric", "metricSeries", "sleepSession", "workout", "liveSession", "journal", "labMarker",
-        "scoreInputProvenance",
+        "scoreInputProvenance", "dismissedSleep", "dismissedWorkout", "coachMessage",
         "liftExercise", "liftProgram", "liftProgramItem", "liftSession", "liftSet",
     ]
 
@@ -104,8 +104,7 @@ extension RoomStoreAdoption {
                                                                where: "managementVisible = 0")
             report.dismissedWorkoutTokens = try tombstones(db, table: "dismissedWorkout", roomTables: roomTables)
             for table in roomTables.subtracting(sharedTables)
-            where !table.hasPrefix("sqlite_") && !["room_master_table", "android_metadata", "dismissedSleep",
-                                                    "dismissedWorkout"].contains(table) {
+            where !table.hasPrefix("sqlite_") && !["room_master_table", "android_metadata"].contains(table) {
                 report.skipped[table] = "androidOnly"
             }
             // Derived tables now hold Kotlin's rows from before the raw history and nothing after it: the

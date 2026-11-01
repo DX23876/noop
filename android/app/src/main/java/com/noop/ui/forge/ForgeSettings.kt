@@ -1204,13 +1204,7 @@ private fun HelpSection(onOpen: (ForgeSettingsSub) -> Unit) {
 @Composable
 private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
-    var confirms by remember { mutableStateOf(CoreShadow.confirmsHistoryAck(context)) }
     SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = null) {
-        ToggleRow(stringResource(R.string.forge_core_ack), stringResource(R.string.forge_core_ack_detail), confirms) {
-            confirms = it
-            CoreShadow.setConfirmsHistoryAck(context, it)
-        }
-        RowDivider()
         // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
         var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
         ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {

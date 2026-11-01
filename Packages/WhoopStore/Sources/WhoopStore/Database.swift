@@ -2060,6 +2060,20 @@ extension WhoopStore {
         migrator.registerMigration("v83-activity-candidate") { db in
             try WhoopStore.createActivityCandidateTable(db)
         }
+        // Fork (DX23876), Android without Room: the three tables only Android's Room store had, in Room's own
+        // shape, so the Android app keeps them in the core's store (CORE-ONLY-PLAN). Apple keeps the two
+        // tombstone lists in UserDefaults and has no Kotlin coach history; the tables stay empty there.
+        // Additive, so no score goes stale.
+        migrator.registerMigration("v84-android-only-tables") { db in
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS dismissedWorkout (deviceId TEXT NOT NULL, startTs INTEGER NOT NULL,
+                    endTs INTEGER NOT NULL, PRIMARY KEY (deviceId, startTs));
+                CREATE TABLE IF NOT EXISTS dismissedSleep (deviceId TEXT NOT NULL, startTs INTEGER NOT NULL,
+                    endTs INTEGER NOT NULL, managementVisible INTEGER NOT NULL, PRIMARY KEY (deviceId, startTs));
+                CREATE TABLE IF NOT EXISTS coachMessage (id TEXT NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL,
+                    provider TEXT NOT NULL, createdAt INTEGER NOT NULL, orderIndex INTEGER NOT NULL, PRIMARY KEY (id));
+                """)
+        }
         return migrator
     }
 }

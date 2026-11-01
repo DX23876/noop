@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.update
 object CoreShadow {
     private const val TAG = "CoreShadow"
     private const val PREFS = "forge"
-    private const val KEY_CONFIRMS_ACK = "coreConfirmsHistoryAck"
     @Volatile private var started = false
     private val revision = MutableStateFlow(0L)
     val dataRevision = revision.asStateFlow()
@@ -210,17 +209,13 @@ object CoreShadow {
     fun today(): String? = if (started) SwiftCore.shadowToday() else null
 
     /**
-     * Android plan E-4, behind a switch that is off by default: whether the history ack waits for the core. On, the
-     * client sends a chunk's ack only once the core has persisted that chunk (the safe-trim rule, now for the
-     * core's store); a chunk the core has not banked in time keeps its ack, so the strap keeps it and sends it
-     * again on the next sync.
+     * Whether the history ack waits for the core: always, since the core is the only store (CORE-ONLY-PLAN,
+     * decision 5). The client sends a chunk's ack only once the core has persisted that chunk (the safe-trim rule);
+     * a chunk the core has not banked in time, or a core that is not running, keeps its ack, so the strap keeps the
+     * chunk and sends it again on the next sync.
      */
-    fun confirmsHistoryAck(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_CONFIRMS_ACK, false)
-
-    fun setConfirmsHistoryAck(context: Context, on: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_CONFIRMS_ACK, on).apply()
-    }
+    @Suppress("UNUSED_PARAMETER")
+    fun confirmsHistoryAck(context: Context): Boolean = true
 
     /** True once the core has banked the chunk ending in [endData]; false when it has not within [timeoutMs]. */
     fun awaitBanked(endData: ByteArray, timeoutMs: Long): Boolean =

@@ -84,7 +84,8 @@
   "v80-host-input-ownership",
   "v81-ecg-waveform",
   "v82-activity-suggestion-answer",
-  "v83-activity-candidate"
+  "v83-activity-candidate",
+  "v84-android-only-tables"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -1480,8 +1481,8 @@
    "indices": []
   },
   "dismissedSleep": {
-   "platform": "android_only",
-   "reason": "Tombstone for a user-deleted sleep session (#33, Room MIGRATION_9_10). iOS has the twin delete path since #68 but stores its tombstones in UserDefaults.",
+   "platform": "both",
+   "reason": "Tombstone for a user-deleted sleep session (#33, Room MIGRATION_9_10). iOS has the twin delete path since #68 but stores its tombstones in UserDefaults. Since GRDB v84 (Android without Room) the core store carries it in the same shape, empty on Apple.",
    "columns": [
     {
      "name": "deviceId",
@@ -1515,8 +1516,8 @@
    "indices": []
   },
   "dismissedWorkout": {
-   "platform": "android_only",
-   "reason": "Durable 'this detected bout is not a workout' marker (#107, Room MIGRATION_4_5). macOS persists the equivalent as a UserDefaults span list because its read model cannot add a column to the shared workout struct — documented on the entity, not drift.",
+   "platform": "both",
+   "reason": "Durable 'this detected bout is not a workout' marker (#107, Room MIGRATION_4_5). macOS persists the equivalent as a UserDefaults span list because its read model cannot add a column to the shared workout struct — documented on the entity, not drift. Since GRDB v84 (Android without Room) the core store carries it in the same shape, empty on Apple.",
    "columns": [
     {
      "name": "deviceId",
@@ -5366,6 +5367,52 @@
     "deviceId",
     "track",
     "startTs"
+   ],
+   "indices": []
+  },
+  "coachMessage": {
+   "platform": "both",
+   "reason": "The classic Kotlin coach history (Room). Since GRDB v84 (Android without Room) the core store carries it in the same shape, empty on Apple.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "role",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "text",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "provider",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "createdAt",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "orderIndex",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
    ],
    "indices": []
   }
