@@ -382,6 +382,8 @@ public enum CoreCall {
             let value = await reader.habitualMidsleepSec(from: int("from", 0), to: int("to", Int(Date().timeIntervalSince1970)),
                                                          offsetSec: int("offsetSec", TimeZone.current.secondsFromGMT()))
             return CoreRead.json(CoreRead.OptionalValue(value: value))
+        case "export.route":
+            return await CoreRouteExport.run(args, reader: reader)
         case "read.workouts":
             return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
