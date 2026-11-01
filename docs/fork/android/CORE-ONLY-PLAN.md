@@ -44,3 +44,29 @@ iPhone copy (B4 in `STATUS.md`), since the backup change touches iOS as well.
 
 Analysis migration required: no. The Apple recipe is unchanged; an adopted Android store runs the core's
 rebuild once because its derived tables start empty.
+
+## Status (2026-11-01)
+
+Done on the branch:
+
+- Room adoption in the core (`RoomStoreAdoption`), used by a Room backup's restore and by the first start of an
+  install that still has `noop_whoop.db` (waiting screen, then a restart). Checked on the emulator over a Room v41
+  and a Room v42 (demo) install.
+- One backup path through the core for manual, scheduled and classic backups, with the app's whitelisted settings;
+  the restore ceiling is 5 GiB. Settings shows backups only under Data & Backup (CSV export moved there).
+- Room, its migrations and KSP are out of the APK. `Tools/gen_core_dao.py` writes `CoreWhoopDao` from the DAO
+  declarations; every statement runs in the core's store (`CoreDb`, `sql.query`, `sql.exec`). The core gains
+  Room's three Android-only tables (GRDB v84).
+- The core banks a WHOOP strap's frames alone and the history ack waits for it; other devices write their
+  samples into the core's tables through the same data access. The Kotlin scoring engine stands down.
+- File imports parse in the core with the Apple importers (`import.file`). Nap detection runs in the core.
+- Emulator round: Today, Trends, Training, Sleep and More render from the core with no data-access error.
+
+Open before the testing build:
+
+- The 5.0/MG skin-temperature suite (`V5HealthSignals`: cycle phase, body clock, illness heads-up) still runs as
+  Kotlin over the core's daily rows. It stores nothing; on iOS the same adapter sits in `AppModel`, not in a
+  package. Moving it means one shared adapter plus its result types across the bridge.
+- Restoring a real Room `.noopbak` through the picker on the emulator (the path is covered by
+  `BackupArchiveTests`), the full local gate on the final tree, the B4 real-data comparison, release notes.
+- Unverified on hardware: pairing, live heart rate, offload and the core-gated ack.
