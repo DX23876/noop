@@ -1,6 +1,122 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "To answer well, it sends a short summary of your relevant metrics to the provider you chose, using your own key. That happens when you ask, and for its short notes after a workout and in the evening: at most three a day, never between 22:00 and 07:00, and each kind can be turned off. Nothing is sent otherwise." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um gut zu antworten, sendet er eine kurze Zusammenfassung deiner relevanten Werte an den von dir gewählten Anbieter, mit deinem eigenen Schlüssel. Das passiert, wenn du fragst, und für seine kurzen Notizen nach einem Training und am Abend: höchstens drei am Tag, nie zwischen 22:00 und 07:00, und jede Art lässt sich abschalten. Sonst wird nichts gesendet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para responder bien, envía un breve resumen de tus métricas relevantes al proveedor que elegiste, con tu propia clave. Ocurre cuando preguntas y para sus notas breves después de un entreno y por la tarde: como máximo tres al día, nunca entre las 22:00 y las 07:00, y cada tipo se puede desactivar. No se envía nada más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour bien répondre, il envoie un court résumé de tes mesures utiles au fournisseur choisi, avec ta propre clé. Cela se produit quand tu poses une question, et pour ses courtes notes après une séance et le soir : au plus trois par jour, jamais entre 22:00 et 07:00, et chaque type peut être désactivé. Rien d'autre n'est envoyé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per rispondere bene, invia un breve riepilogo delle tue metriche rilevanti al fornitore che hai scelto, con la tua chiave. Succede quando chiedi e per le sue brevi note dopo un allenamento e la sera: al massimo tre al giorno, mai tra le 22:00 e le 07:00, e ogni tipo si può disattivare. Nient'altro viene inviato."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aby dobrze odpowiadać, wysyła krótkie podsumowanie twoich istotnych wskaźników do wybranego dostawcy, z twoim własnym kluczem. Dzieje się to, gdy pytasz, oraz przy jego krótkich notatkach po treningu i wieczorem: najwyżej trzy dziennie, nigdy między 22:00 a 07:00, a każdy rodzaj można wyłączyć. Nic innego nie jest wysyłane."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para responder bem, envia um breve resumo das tuas métricas relevantes ao fornecedor que escolheste, com a tua própria chave. Isso acontece quando perguntas e para as suas notas curtas depois de um treino e à noite: no máximo três por dia, nunca entre as 22:00 e as 07:00, e cada tipo pode ser desligado. Nada mais é enviado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы отвечать точно, он отправляет краткую сводку твоих показателей выбранному провайдеру с твоим собственным ключом. Это происходит, когда ты спрашиваешь, и для его коротких заметок после тренировки и вечером: не более трёх в день, никогда с 22:00 до 07:00, каждый тип можно отключить. Больше ничего не отправляется."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为了更好地回答，它会用你自己的密钥把相关指标的简短摘要发送给你选择的服务商。这发生在你提问时，以及它在训练后和晚间写简短笔记时：每天最多三条，22:00 到 07:00 之间从不发送，每种都可以关闭。除此之外不发送任何内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為了更好地回答，它會用你自己的金鑰把相關指標的簡短摘要傳送給你選擇的服務商。這發生在你提問時，以及它在訓練後和晚間寫簡短筆記時：每天最多三則，22:00 到 07:00 之間從不傳送，每種都可以關閉。除此之外不傳送任何內容。"
+          }
+        }
+      }
+    },
+    "In the new design the coach also writes short notes on its own: one after a workout and an evening recap. Each sends the same kind of short summary, at most three coach notes a day, never between 22:00 and 07:00, and only with data sharing on. They use the cheaper model for card reads, or your provider's own cheaper model. Each kind can be turned off from the note itself." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im neuen Design schreibt der Coach auch von sich aus kurze Notizen: eine nach einem Training und einen Abendrückblick. Jede sendet die gleiche Art kurzer Zusammenfassung, höchstens drei Coach-Notizen am Tag, nie zwischen 22:00 und 07:00 und nur mit eingeschalteter Datenfreigabe. Sie nutzen das günstigere Modell für Kartenauswertungen oder das günstigere Modell Ihres Anbieters. Jede Art lässt sich direkt an der Notiz abschalten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En el nuevo diseño el coach también escribe notas breves por su cuenta: una después de un entreno y un resumen por la tarde. Cada una envía el mismo tipo de resumen breve, como máximo tres notas del coach al día, nunca entre las 22:00 y las 07:00 y solo con el uso de datos activado. Usan el modelo más económico para tarjetas o el modelo económico de tu proveedor. Cada tipo se puede desactivar desde la propia nota."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans le nouveau design, le coach écrit aussi de courtes notes de lui-même : une après une séance et un bilan du soir. Chacune envoie le même type de court résumé, au plus trois notes du coach par jour, jamais entre 22:00 et 07:00 et seulement avec le partage des données activé. Elles utilisent le modèle moins cher des lectures de cartes ou celui de ton fournisseur. Chaque type se désactive depuis la note elle-même."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nel nuovo design il coach scrive anche brevi note di sua iniziativa: una dopo un allenamento e un riepilogo serale. Ognuna invia lo stesso tipo di breve riepilogo, al massimo tre note del coach al giorno, mai tra le 22:00 e le 07:00 e solo con la condivisione dei dati attiva. Usano il modello più economico delle letture delle schede o quello economico del tuo fornitore. Ogni tipo si può disattivare dalla nota stessa."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W nowym wyglądzie coach pisze też sam krótkie notatki: jedną po treningu i podsumowanie wieczoru. Każda wysyła ten sam rodzaj krótkiego podsumowania, najwyżej trzy notatki coacha dziennie, nigdy między 22:00 a 07:00 i tylko przy włączonym udostępnianiu danych. Korzystają z tańszego modelu do odczytu kart lub z tańszego modelu twojego dostawcy. Każdy rodzaj można wyłączyć bezpośrednio przy notatce."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No novo design o coach também escreve notas curtas por iniciativa própria: uma depois de um treino e um resumo da noite. Cada uma envia o mesmo tipo de resumo curto, no máximo três notas do coach por dia, nunca entre as 22:00 e as 07:00 e apenas com a partilha de dados ligada. Usam o modelo mais barato das leituras de cartões ou o modelo barato do teu fornecedor. Cada tipo pode ser desligado na própria nota."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В новом дизайне коуч также сам пишет короткие заметки: после тренировки и итоги вечера. Каждая отправляет такую же краткую сводку, не более трёх заметок коуча в день, никогда с 22:00 до 07:00 и только при включённом доступе к данным. Они используют более дешёвую модель для карточек или дешёвую модель твоего провайдера. Каждый тип можно отключить прямо в заметке."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在新设计中，教练也会主动写简短笔记：训练后一条，以及晚间回顾。每条都会发送同样的简短摘要，每天最多三条教练笔记，22:00 到 07:00 之间从不发送，并且仅在开启数据共享时发送。它们使用用于卡片解读的较便宜模型，或你服务商自带的较便宜模型。每种都可以直接在笔记上关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在新設計中，教練也會主動寫簡短筆記：訓練後一則，以及晚間回顧。每則都會傳送同樣的簡短摘要，每天最多三則教練筆記，22:00 到 07:00 之間從不傳送，並且僅在開啟資料共享時傳送。它們使用用於卡片解讀的較便宜模型，或你服務商自帶的較便宜模型。每種都可以直接在筆記上關閉。"
+          }
+        }
+      }
+    },
     "Goals and coach" : {
       "localizations" : {
         "de" : {

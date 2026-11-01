@@ -26,6 +26,9 @@ struct CoachFirstUseSheet: View {
     /// Called when the user acknowledges — the host sets the persisted flag and dismisses.
     let onAcknowledge: () -> Void
     @State private var showInfo = false
+    /// The redesign preview adds proactive notes, so its data point says when they are sent.
+    @AppStorage(ForgeDesignPrefs.previewKey) private var forgePreview = ForgeDesignPrefs.defaultPreview
+    private var forgeDesign: Bool { forgePreview || ForgeDesignPrefs.launchOverride }
 
     /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
@@ -61,7 +64,9 @@ struct CoachFirstUseSheet: View {
                         point("arrow.up.forward.app", "coach.firstUse.dataConsent",
                               coach.dataConsent ? "It works with your data" : "It needs your data, off by default",
                               coach.dataConsent
-                              ? "To answer well, it sends a short summary of your relevant metrics to the provider you chose — using your own key, and only when you ask. Nothing is sent otherwise."
+                              ? (forgeDesign
+                                 ? "To answer well, it sends a short summary of your relevant metrics to the provider you chose, using your own key. That happens when you ask, and for its short notes after a workout and in the evening: at most three a day, never between 22:00 and 07:00, and each kind can be turned off. Nothing is sent otherwise."
+                                 : "To answer well, it sends a short summary of your relevant metrics to the provider you chose — using your own key, and only when you ask. Nothing is sent otherwise.")
                               : "Data sharing is OFF right now, so answers stay generic. Turn on \"Let the coach use my data\" in Settings → Privacy & data to have it answer from your real metrics — using your own key, and only when you ask.")
                     }
 
@@ -123,6 +128,8 @@ struct CoachFirstUseSheet: View {
 struct CoachInfoView: View {
     @EnvironmentObject var coach: AICoachEngine
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(ForgeDesignPrefs.previewKey) private var forgePreview = ForgeDesignPrefs.defaultPreview
+    private var forgeDesign: Bool { forgePreview || ForgeDesignPrefs.launchOverride }
 
     /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
@@ -143,6 +150,9 @@ struct CoachInfoView: View {
                     section("What stays here, what's sent", icon: "lock.shield", colorID: "coach.info.whatIsShared") {
                         para("Everything is computed on \(Platform.deviceNounPhrase). The coach is the ONE feature in NOOP that talks to the internet.")
                         para("When you ask a question with data sharing on, it sends a short text summary or a permitted tool result to your chosen provider — never raw sensor streams or unrestricted database access. With data sharing off, it sends only your question. Nothing leaves until you ask or opt into a Coach automation.")
+                        if forgeDesign {
+                            para("In the new design the coach also writes short notes on its own: one after a workout and an evening recap. Each sends the same kind of short summary, at most three coach notes a day, never between 22:00 and 07:00, and only with data sharing on. They use the cheaper model for card reads, or your provider's own cheaper model. Each kind can be turned off from the note itself.")
+                        }
                         para("Deep historical questions use on-device aggregates, not years of daily rows. Sensitive journal information is excluded unless you separately allow it in Data access for an explicitly sensitive question.")
                     }
 
