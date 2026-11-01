@@ -42,6 +42,8 @@ object CoreRoomAdoption {
         if (adoptedAt > 0 && shouldDeleteLegacy(adoptedAt, nowMs)) deleteLegacy(context)
         if (!room.isFile) return Outcome.NotNeeded
         if (!SwiftCore.available) return Outcome.Failed("noCore")
+        // The core's store opens here when nothing else opened it yet; the strap follows later (CoreShadow).
+        if (!CoreShadow.openStore(context)) return Outcome.Failed("noStore")
         val answer = SwiftCore.call("store.adoptRoom", JSONObject().put("path", room.path).toString())
             ?.let { runCatching { JSONObject(it) }.getOrNull() }
             ?: return Outcome.Failed("noAnswer").also { Log.e(TAG, "the core gave no answer") }
