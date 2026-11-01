@@ -71,9 +71,28 @@ final class SleepTimingConsistencyTests: XCTestCase {
         fmt.dateFormat = "yyyy-MM-dd"
         func key(_ ts: Int) -> String { fmt.string(from: Date(timeIntervalSince1970: Double(ts))) }
         let scores = SleepTimingConsistency.scoresByDay(sessions: sessions, from: day0, to: day0 + 10 * 86_400,
-                                                        dayOf: key)
+                                                        offsetSec: 0, dayOf: key)
         XCTAssertEqual(Set(scores.keys), Set([4, 5, 6, 7].map { key(day0 + $0 * 86_400) }))
         XCTAssertEqual(scores[key(day0 + 4 * 86_400)] ?? 0, 100, accuracy: 1e-9)
         XCTAssertLessThan(scores[key(day0 + 7 * 86_400)] ?? 100, 100, "the afternoon nap falls in the next night's 24 h")
+    }
+
+    /// A night split by an hour awake (the reinmaker/noop #76 shape: 01:57 to 06:26, then 07:30 to 10:23)
+    /// is scored at its real wake, not at the end of its longer first fragment.
+    func testScoresByDayScoresASplitNightAtItsLastWake() {
+        let day0 = 1_790_000_000 - 1_790_000_000 % 86_400   // a UTC midnight
+        var sessions = (0..<5).map { k -> SleepTimingConsistency.Interval in
+            .init(start: day0 + k * day + 2 * hour, end: day0 + k * day + 10 * hour + 23 * 60)
+        }
+        let last = day0 + 5 * day
+        let first = SleepTimingConsistency.Interval(start: last + hour + 57 * 60, end: last + 6 * hour + 26 * 60)
+        let second = SleepTimingConsistency.Interval(start: last + 7 * hour + 30 * 60, end: last + 10 * hour + 23 * 60)
+        sessions += [first, second]
+        let scores = SleepTimingConsistency.scoresByDay(sessions: sessions, from: last, to: last + day,
+                                                        offsetSec: 0) { _ in "last" }
+        let atWake = SleepTimingConsistency.score(sleeps: sessions, wakeAt: second.end)!
+        let atFirstFragment = SleepTimingConsistency.score(sleeps: sessions, wakeAt: first.end)!
+        XCTAssertNotEqual(atWake, atFirstFragment, accuracy: 1, "the scenario must tell the two anchors apart")
+        XCTAssertEqual(scores["last"] ?? -1, atWake, accuracy: 1e-9)
     }
 }

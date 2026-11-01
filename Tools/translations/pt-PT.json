@@ -3289,5 +3289,6 @@
   "Yesterday from %@ to %@. About %lld minutes.": "Ontem das %1$@ às %2$@. Cerca de %3$lld minutos.",
   "Today, %@ to %@": "Hoje, das %1$@ às %2$@",
   "Yesterday, %@ to %@": "Ontem, das %1$@ às %2$@",
-  "%@, %@ to %@": "%1$@, das %2$@ às %3$@"
+  "%@, %@ to %@": "%1$@, das %2$@ às %3$@",
+  "Beat-to-beat": "Batimento a batimento"
 }

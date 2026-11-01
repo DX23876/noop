@@ -397,6 +397,34 @@ public enum HRVAnalyzer {
         return segmentSDNNs.reduce(0, +) / Double(segmentSDNNs.count)
     }
 
+    /// The beats of a night that may be handed to another app as beat-to-beat data (Apple Health's heartbeat
+    /// series), cut into the same five-minute segments `sdnnIndex` scores. A reader computes its own
+    /// successive-difference HRV from them, so a segment is kept only when it clears both gates NOOP applies
+    /// before trusting that statistic itself: no over-counted beats (`successiveDiffIsTrustworthy`) and
+    /// individually accurate values rather than a record period decomposed across one timestamp
+    /// (`beatValuesAreTrustworthy`). A refused segment drops out on its own and the rest of the night is kept.
+    /// Segments come back in time order, each sorted stably by `ts`. Pure.
+    public static func exportableBeatSegments(_ rr: [RRInterval], segmentSec: Int = 300) -> [[RRInterval]] {
+        guard segmentSec > 0, let first = rr.map(\.ts).min(), let last = rr.map(\.ts).max() else { return [] }
+        let sorted = rr.sortedByTsStable()
+        var out: [[RRInterval]] = []
+        var segStart = first
+        while segStart <= last {
+            let segment = sorted.filter { $0.ts >= segStart && $0.ts < segStart + segmentSec && $0.rrMs > 0 }
+            segStart += segmentSec
+            guard !segment.isEmpty else { continue }
+            let times = segment.map(\.ts)
+            let values = segment.map { Double($0.rrMs) }
+            let verdict = classifyCoverage(coverage: rrCoverage(tsSec: times, rrMs: values),
+                                           collapsed: collapsedCoverage(tsSec: times, rrMs: values))
+            guard successiveDiffIsTrustworthy(verdict),
+                  beatValuesAreTrustworthy(beatAccurateFraction: beatAccurateFraction(tsSec: times, rrMs: values))
+            else { continue }
+            out.append(segment)
+        }
+        return out
+    }
+
     // MARK: - Rolling / windowed rMSSD timeline (#803)
 
     /// One windowed rMSSD point: the rMSSD (ms) over the trailing `windowSec` of R-R intervals ending at
