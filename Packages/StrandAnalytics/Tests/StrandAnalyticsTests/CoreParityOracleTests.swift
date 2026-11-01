@@ -619,6 +619,29 @@ final class CoreParityOracleTests: XCTestCase {
                                                                  "tier": $0.tier, "priority": $0.sourcePriority,
                                                                  "reason": $0.reason] }]
                }),
+        Oracle(name: "WeeklyDigestEngine.build",
+               inputs: cases(25, seed: 33) { r in
+                   let anchor = 20_700 + r.int(0...300)
+                   var by: [String: [String: Double]] = [:]
+                   for (m, range) in [("charge", 1.0...99.0), ("effort", 0.0...100.0), ("rest", 20.0...100.0),
+                                      ("rhr", 40.0...80.0), ("hrv", 15.0...140.0)] where r.chance(0.85) {
+                       var series: [String: Double] = [:]
+                       for d in 0..<r.int(0...70) where r.chance(0.8) { series[day(anchor - d)] = r.double(range) }
+                       by[m] = series
+                   }
+                   return ["by": by, "anchor": day(anchor), "factor": [1.0, 0.21][r.int(0...1)]]
+               },
+               run: { a in
+                   var by: [WeeklyMetric: [String: Double]] = [:]
+                   for (k, v) in a["by"] as! [String: [String: Double]] { by[WeeklyMetric(rawValue: k)!] = v }
+                   let d = WeeklyDigestEngine.build(byMetric: by, anchorDay: a["anchor"] as! String,
+                                                    effortDisplayFactor: a["factor"] as! Double)
+                   return ["start": d.weekStart, "end": d.weekEnd, "days": d.daysWithData,
+                           "sleepSD": nn(d.sleepConsistencySD), "balance": d.balance.rawValue, "focal": d.focalPoints,
+                           "metrics": d.metrics.map { ["metric": $0.metric.rawValue, "mean": $0.thisWeek.mean,
+                                                       "median": $0.thisWeek.median, "delta": $0.weekOverWeek.delta,
+                                                       "baseline": nn($0.baselineMean), "vs": nn($0.vsBaseline)] }]
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

@@ -306,6 +306,17 @@ class CoreParityTest {
                                                                "priority" to it.sourcePriority, "reason" to it.reason) })
             }
         },
+        "WeeklyDigestEngine.build" to { i ->
+            val raw = i.getJSONObject("by")
+            val by = raw.keys().asSequence().associate { k ->
+                WeeklyMetric.entries.first { it.key == k } to raw.getJSONObject(k).let { o -> o.keys().asSequence().associateWith { o.getDouble(it) } }
+            }
+            val d = WeeklyDigestEngine.build(by, i.getString("anchor"), i.getDouble("factor"))
+            obj("start" to d.weekStart, "end" to d.weekEnd, "days" to d.daysWithData, "sleepSD" to d.sleepConsistencySD,
+                "balance" to d.balance.name.lowercase(), "focal" to d.focalPoints,
+                "metrics" to d.metrics.map { obj("metric" to it.metric.key, "mean" to it.thisWeek.mean, "median" to it.thisWeek.median,
+                                                 "delta" to it.weekOverWeek.delta, "baseline" to it.baselineMean, "vs" to it.vsBaseline) })
+        },
     )
 
     /** A JSON text as plain values, so key order and number spelling cannot differ between encoders. */
