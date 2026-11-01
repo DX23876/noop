@@ -40,6 +40,13 @@ import kotlin.math.max
 object SleepStageHealer {
 
     /**
+     * The core's staging of a window, with the wearer's own stager settings; null when this build has no core.
+     * `NoopApplication` points it at [com.noop.core.CoreMath.restage]. An answer whose value is null means the core
+     * found too little raw data, which the caller treats as it treats this copy's null.
+     */
+    @Volatile var coreRestage: ((deviceId: String, start: Long, end: Long) -> com.noop.core.CoreMath.Answer<String?>?)? = null
+
+    /**
      * Re-derive stages from the raw streams for `[start, end]` (read under the strap [deviceId]),
      * returning the encoded `stagesJSON`, or `null` when the strap does NOT densely cover the window —
      * i.e. there isn't enough worn-night data to stage (a couple of stray samples must not trigger a
@@ -50,13 +57,6 @@ object SleepStageHealer {
      * context, but the density gate counts ONLY samples strictly within `[start, end]` — padding must
      * not make a sparse in-window night look dense.
      */
-    /**
-     * The core's staging of a window, with the wearer's own stager settings; null when this build has no core.
-     * `NoopApplication` points it at [com.noop.core.CoreMath.restage]. An answer whose value is null means the core
-     * found too little raw data, which the caller treats as it treats this copy's null.
-     */
-    @Volatile var coreRestage: ((deviceId: String, start: Long, end: Long) -> com.noop.core.CoreMath.Answer<String?>?)? = null
-
     suspend fun restageFromRaw(
         repo: WhoopRepository,
         deviceId: String,

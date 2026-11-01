@@ -376,6 +376,13 @@ object IntelligenceEngine {
     }
 
     /**
+     * Fork (DX23876), Android without Room (`docs/fork/android/CORE-ONLY-PLAN.md`): whether the shared core scores
+     * the days, in which case this engine writes nothing. `NoopApplication` points it at the running core; the
+     * pure-JVM tests keep the default and exercise the engine as before.
+     */
+    @Volatile var coreOwnsScores: () -> Boolean = { false }
+
+    /**
      * Compute on-device scores for each of the last [maxDays] that actually has raw HR
      * data, persisting them under the computed "<importedDeviceId>-noop" source.
      *
@@ -400,13 +407,6 @@ object IntelligenceEngine {
      * ANR-killed the app once a few nights had accumulated. Dispatchers.Default is the CPU pool; Room's
      * suspend DAO calls are main-safe under any dispatcher. (#125)
      */
-    /**
-     * Fork (DX23876), Android without Room (`docs/fork/android/CORE-ONLY-PLAN.md`): whether the shared core scores
-     * the days, in which case this engine writes nothing. `NoopApplication` points it at the running core; the
-     * pure-JVM tests keep the default and exercise the engine as before.
-     */
-    @Volatile var coreOwnsScores: () -> Boolean = { false }
-
     suspend fun analyzeRecent(
         repo: WhoopRepository,
         profile: UserProfile = UserProfile(),
