@@ -253,6 +253,33 @@ class DeviceConfigWriteGateTest {
     // The verdict table: the ack never decides, the read-back does -----------------------------------
 
     @Test
+    fun scalarReadBackMatchesTheSwiftOracle() {
+        val inputs = listOf("1", "0", "2", "10", "100", "1.0", "00", "0.0", "0.5")
+        val actual = inputs.map { text ->
+            val short = byteArrayOf(1) + echoRecord("flag", text)
+            DeviceConfigReadProbe.ValueResponse(1, short + ByteArray(65 - short.size)).valueFor("flag")
+        }
+        // Literal output from the standalone Swift accessor oracle, in input order:
+        // 49, 48, 50, null, null, null, null, null, null
+        assertEquals(listOf(49, 48, 50, null, null, null, null, null, null), actual)
+    }
+
+    @Test
+    fun multiCharacterReadBackNeverConfirmsASingleDigitGate() {
+        for ((text, on) in listOf("10" to true, "100" to true, "1.0" to true,
+                                  "00" to false, "0.0" to false, "0.5" to false)) {
+            val short = byteArrayOf(0x01) + echoRecord("enable_raw_data_w_ecg", text)
+            val record = short + ByteArray(65 - short.size)
+            val reply = parseReadBack(readBackFrame(record))
+            val report = EcgRawDataGateReport(on)
+            report.noteReadBack(reply)
+            assertEquals(text, EcgRawDataGateReport.Verdict.NOT_CLAIMED, report.verdict)
+            assertNull(text, report.storedValue)
+            assertTrue("retain the full evidence", reply.record.take(record.size).toByteArray().contentEquals(record))
+        }
+    }
+
+    @Test
     fun confirmedOnlyWhenTheReadBackReturnsWhatWasAsked() {
         val report = EcgRawDataGateReport(true)
         assertEquals(EcgRawDataGateReport.Verdict.PENDING, report.verdict)
