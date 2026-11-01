@@ -306,6 +306,52 @@ final class CoreParityOracleTests: XCTestCase {
                            "observed": coverage.observed, "missing": coverage.missing,
                            "since": nn(Baselines.nightsSinceNewestValidNight(dayKeys: days, nightlyHrv: values, today: today))]
                }),
+        Oracle(name: "StepsCounter.stepsInWindow",
+               inputs: cases(40, seed: 17) { r in
+                   var ts = 1_760_000_000, counter = r.int(0...65_535)
+                   let classes = r.chance(0.5)
+                   let rows: [[String: Any]] = (0..<r.int(0...80)).map { _ in
+                       ts += r.int(1...120); counter = (counter + r.int(0...40)) & 0xFFFF
+                       return ["ts": ts, "counter": counter, "cls": classes && r.chance(0.9) ? r.int(0...6) as Any : NSNull()]
+                   }
+                   return ["rows": rows]
+               },
+               run: { a in
+                   nn(StepsCounter.stepsInWindow((a["rows"] as! [[String: Any]]).map {
+                       StepSample(ts: $0["ts"] as! Int, counter: $0["counter"] as! Int, activityClass: $0["cls"] as? Int)
+                   }))
+               }),
+        Oracle(name: "HRVReadiness.evaluate",
+               inputs: cases(50, seed: 18) { r in
+                   let base = r.double(20...120)
+                   return ["hrv": (0..<r.int(0...40)).map { _ in r.chance(0.15) ? NSNull() as Any : base + r.double(-30...30) as Any }]
+               },
+               run: { a in
+                   guard let res = HRVReadiness.evaluate(avgHrv: (a["hrv"] as! [Any]).map { $0 as? Double }) else { return NSNull() }
+                   return ["tier": String(describing: res.tier), "baseline": res.baseline7Ms, "low": res.normalLowMs,
+                           "high": res.normalHighMs]
+               }),
+        Oracle(name: "StepsEstimateEngine.estimate",
+               inputs: cases(50, seed: 19) { r in
+                   ["motion": r.double(-10...20_000), "coefficient": r.double(-1...3)]
+               },
+               run: { a in
+                   nn(StepsEstimateEngine.estimate(motion: a["motion"] as! Double, calibration: .init(
+                       coefficient: a["coefficient"] as! Double, sampleDays: 10, confidence: 0.5, manual: false)))
+               }),
+        Oracle(name: "SleepStageTotals.mainNightIndex",
+               inputs: cases(50, seed: 20) { r in
+                   var t = 1_760_000_000 + r.int(0...86_400)
+                   let blocks: [[Int]] = (0..<r.int(0...6)).map { _ in
+                       t += r.int(600...30_000); let start = t; t += r.int(600...36_000); return [start, t]
+                   }
+                   return ["blocks": blocks, "offset": [0, 3_600, -18_000, 32_400][r.int(0...3)],
+                           "habitual": r.chance(0.5) ? NSNull() : r.int(0...86_399)]
+               },
+               run: { a in
+                   nn(SleepStageTotals.mainNightIndex((a["blocks"] as! [[Int]]).map { .init(start: $0[0], end: $0[1]) },
+                                                      offsetSec: a["offset"] as! Int, habitualMidsleepSec: a["habitual"] as? Int))
+               }),
     ]
 
     func testEveryOracleMatchesTheSwiftCode() throws {

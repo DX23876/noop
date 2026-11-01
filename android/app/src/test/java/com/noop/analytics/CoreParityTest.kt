@@ -151,6 +151,28 @@ class CoreParityTest {
                 "observed" to coverage.observed, "missing" to coverage.missing,
                 "since" to Baselines.nightsSinceNewestValidNight(days, values, today))
         },
+        "StepsCounter.stepsInWindow" to { i ->
+            val rows = i.getJSONArray("rows")
+            StepsCounter.stepsInWindow((0 until rows.length()).map { k ->
+                val r = rows.getJSONObject(k)
+                com.noop.data.StepSample(deviceId = "parity", ts = r.getLong("ts"), counter = r.getInt("counter"),
+                                         activityClass = if (r.isNull("cls")) null else r.getInt("cls"))
+            })
+        },
+        "HRVReadiness.evaluate" to { i ->
+            val raw = i.getJSONArray("hrv")
+            HRVReadiness.evaluate((0 until raw.length()).map { if (raw.isNull(it)) null else raw.getDouble(it) })
+                ?.let { obj("tier" to camel(it.tier.name), "baseline" to it.baseline7Ms, "low" to it.normalLowMs, "high" to it.normalHighMs) }
+        },
+        "StepsEstimateEngine.estimate" to { i ->
+            StepsEstimateEngine.estimate(i.getDouble("motion"),
+                StepsEstimateEngine.Calibration(coefficient = i.getDouble("coefficient"), sampleDays = 10, confidence = 0.5, manual = false))
+        },
+        "SleepStageTotals.mainNightIndex" to { i ->
+            val b = i.getJSONArray("blocks")
+            SleepStageTotals.mainNightIndex((0 until b.length()).map { k -> b.getJSONArray(k).let { SleepStageTotals.NightBlock(it.getLong(0), it.getLong(1)) } },
+                i.getLong("offset"), if (i.isNull("habitual")) null else i.getLong("habitual"))
+        },
     )
 
     private fun oracleDir(): File {

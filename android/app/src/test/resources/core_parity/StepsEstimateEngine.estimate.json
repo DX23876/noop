@@ -1,0 +1,355 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "coefficient" : 0.46600000000000003,
+        "motion" : 14714.514999999999
+      },
+      "output" : 6857
+    },
+    {
+      "input" : {
+        "coefficient" : 0.33000000000000002,
+        "motion" : 7275.7200000000003
+      },
+      "output" : 2401
+    },
+    {
+      "input" : {
+        "coefficient" : 3.8319999999999999,
+        "motion" : 15688.749
+      },
+      "output" : 60000
+    },
+    {
+      "input" : {
+        "coefficient" : 2.278,
+        "motion" : 9541.4940000000006
+      },
+      "output" : 21736
+    },
+    {
+      "input" : {
+        "coefficient" : 2.0990000000000002,
+        "motion" : 4972.1700000000001
+      },
+      "output" : 10437
+    },
+    {
+      "input" : {
+        "coefficient" : 3.7029999999999998,
+        "motion" : 18096.226999999999
+      },
+      "output" : 60000
+    },
+    {
+      "input" : {
+        "coefficient" : 3.4910000000000001,
+        "motion" : 16266.59
+      },
+      "output" : 56787
+    },
+    {
+      "input" : {
+        "coefficient" : 2.988,
+        "motion" : 15594.285
+      },
+      "output" : 46596
+    },
+    {
+      "input" : {
+        "coefficient" : 2.2650000000000001,
+        "motion" : 11022.727999999999
+      },
+      "output" : 24966
+    },
+    {
+      "input" : {
+        "coefficient" : 2.3119999999999998,
+        "motion" : 8797.6710000000003
+      },
+      "output" : 20340
+    },
+    {
+      "input" : {
+        "coefficient" : 1.395,
+        "motion" : 11383.591
+      },
+      "output" : 15880
+    },
+    {
+      "input" : {
+        "coefficient" : 0.121,
+        "motion" : 10825.972
+      },
+      "output" : 1310
+    },
+    {
+      "input" : {
+        "coefficient" : 1.4810000000000001,
+        "motion" : 11813.83
+      },
+      "output" : 17496
+    },
+    {
+      "input" : {
+        "coefficient" : 1.6819999999999999,
+        "motion" : 2464.3420000000001
+      },
+      "output" : 4145
+    },
+    {
+      "input" : {
+        "coefficient" : 0.40500000000000003,
+        "motion" : 14189.212
+      },
+      "output" : 5747
+    },
+    {
+      "input" : {
+        "coefficient" : 2.9489999999999998,
+        "motion" : 8492.2189999999991
+      },
+      "output" : 25044
+    },
+    {
+      "input" : {
+        "coefficient" : 2.984,
+        "motion" : 8843.3089999999993
+      },
+      "output" : 26388
+    },
+    {
+      "input" : {
+        "coefficient" : 1.575,
+        "motion" : 3052.7840000000001
+      },
+      "output" : 4808
+    },
+    {
+      "input" : {
+        "coefficient" : 2.7280000000000002,
+        "motion" : 16661.904999999999
+      },
+      "output" : 45454
+    },
+    {
+      "input" : {
+        "coefficient" : 3.8140000000000001,
+        "motion" : 9735.3619999999992
+      },
+      "output" : 37131
+    },
+    {
+      "input" : {
+        "coefficient" : 3.1760000000000002,
+        "motion" : 4479.7839999999997
+      },
+      "output" : 14228
+    },
+    {
+      "input" : {
+        "coefficient" : 1.1699999999999999,
+        "motion" : 7495.9210000000003
+      },
+      "output" : 8770
+    },
+    {
+      "input" : {
+        "coefficient" : 2.0739999999999998,
+        "motion" : 7309.3860000000004
+      },
+      "output" : 15160
+    },
+    {
+      "input" : {
+        "coefficient" : 3.5579999999999998,
+        "motion" : 4154.192
+      },
+      "output" : 14781
+    },
+    {
+      "input" : {
+        "coefficient" : 2.0990000000000002,
+        "motion" : 12440.559999999999
+      },
+      "output" : 26113
+    },
+    {
+      "input" : {
+        "coefficient" : 2.9369999999999998,
+        "motion" : 16619.764999999999
+      },
+      "output" : 48812
+    },
+    {
+      "input" : {
+        "coefficient" : 0.42399999999999999,
+        "motion" : 827.08900000000006
+      },
+      "output" : 351
+    },
+    {
+      "input" : {
+        "coefficient" : 2.0750000000000002,
+        "motion" : 3502.0149999999999
+      },
+      "output" : 7267
+    },
+    {
+      "input" : {
+        "coefficient" : 2.7799999999999998,
+        "motion" : 4063.9400000000001
+      },
+      "output" : 11298
+    },
+    {
+      "input" : {
+        "coefficient" : 0.30499999999999999,
+        "motion" : 10687.079
+      },
+      "output" : 3260
+    },
+    {
+      "input" : {
+        "coefficient" : 0.78200000000000003,
+        "motion" : 9833.0720000000001
+      },
+      "output" : 7689
+    },
+    {
+      "input" : {
+        "coefficient" : 0.47699999999999998,
+        "motion" : 17853.937000000002
+      },
+      "output" : 8516
+    },
+    {
+      "input" : {
+        "coefficient" : 2.7869999999999999,
+        "motion" : 7989.4200000000001
+      },
+      "output" : 22267
+    },
+    {
+      "input" : {
+        "coefficient" : 2.8260000000000001,
+        "motion" : 4389.7860000000001
+      },
+      "output" : 12406
+    },
+    {
+      "input" : {
+        "coefficient" : 0.22700000000000001,
+        "motion" : 6099.8029999999999
+      },
+      "output" : 1385
+    },
+    {
+      "input" : {
+        "coefficient" : 3.3530000000000002,
+        "motion" : 5757.6350000000002
+      },
+      "output" : 19305
+    },
+    {
+      "input" : {
+        "coefficient" : 0.70199999999999996,
+        "motion" : 7139.7049999999999
+      },
+      "output" : 5012
+    },
+    {
+      "input" : {
+        "coefficient" : 2.21,
+        "motion" : 377.428
+      },
+      "output" : 834
+    },
+    {
+      "input" : {
+        "coefficient" : 0.46800000000000003,
+        "motion" : 17934.772000000001
+      },
+      "output" : 8393
+    },
+    {
+      "input" : {
+        "coefficient" : 2.286,
+        "motion" : 11021.743
+      },
+      "output" : 25196
+    },
+    {
+      "input" : {
+        "coefficient" : 1.843,
+        "motion" : 4778.7520000000004
+      },
+      "output" : 8807
+    },
+    {
+      "input" : {
+        "coefficient" : 0.46300000000000002,
+        "motion" : 2501.5279999999998
+      },
+      "output" : 1158
+    },
+    {
+      "input" : {
+        "coefficient" : 0.38200000000000001,
+        "motion" : 15378.403
+      },
+      "output" : 5875
+    },
+    {
+      "input" : {
+        "coefficient" : 2.8100000000000001,
+        "motion" : 7993.384
+      },
+      "output" : 22461
+    },
+    {
+      "input" : {
+        "coefficient" : 1.8160000000000001,
+        "motion" : 10057.793
+      },
+      "output" : 18265
+    },
+    {
+      "input" : {
+        "coefficient" : 3.8730000000000002,
+        "motion" : 2542.5610000000001
+      },
+      "output" : 9847
+    },
+    {
+      "input" : {
+        "coefficient" : 1.1919999999999999,
+        "motion" : 9478.6560000000009
+      },
+      "output" : 11299
+    },
+    {
+      "input" : {
+        "coefficient" : 3.3969999999999998,
+        "motion" : 7011.9409999999998
+      },
+      "output" : 23820
+    },
+    {
+      "input" : {
+        "coefficient" : 3.8780000000000001,
+        "motion" : 18098.958999999999
+      },
+      "output" : 60000
+    },
+    {
+      "input" : {
+        "coefficient" : 0.60199999999999998,
+        "motion" : 2405.4180000000001
+      },
+      "output" : 1448
+    }
+  ],
+  "function" : "StepsEstimateEngine.estimate"
+}
