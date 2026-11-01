@@ -1,0 +1,785 @@
+{
+  "cases" : [
+    {
+      "input" : {
+        "duration" : 23.202000000000002,
+        "tempMin" : 10.351000000000001,
+        "wake" : 20.609999999999999
+      },
+      "output" : {
+        "bed" : 13.648999999999999,
+        "chronotype" : "evening",
+        "offset" : 7.7589999999999986,
+        "wakeHour" : 12.851000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 10.257999999999999,
+        "tempMin" : 11.798,
+        "wake" : 14.074999999999999
+      },
+      "output" : {
+        "bed" : 4.0400000000000009,
+        "chronotype" : "evening",
+        "offset" : -0.22300000000000075,
+        "wakeHour" : 14.298
+      }
+    },
+    {
+      "input" : {
+        "duration" : 11.666,
+        "tempMin" : 22.087,
+        "wake" : 4.3609999999999998
+      },
+      "output" : {
+        "bed" : 12.920999999999999,
+        "chronotype" : "morning",
+        "offset" : 3.774,
+        "wakeHour" : 0.58699999999999974
+      }
+    },
+    {
+      "input" : {
+        "duration" : 20.643999999999998,
+        "tempMin" : 12.898999999999999,
+        "wake" : 16.716000000000001
+      },
+      "output" : {
+        "bed" : 18.755000000000003,
+        "chronotype" : "evening",
+        "offset" : 1.3170000000000019,
+        "wakeHour" : 15.398999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 17.684999999999999,
+        "tempMin" : 13.032,
+        "wake" : 20.420999999999999
+      },
+      "output" : {
+        "bed" : 21.847000000000001,
+        "chronotype" : "evening",
+        "offset" : 4.8889999999999993,
+        "wakeHour" : 15.532
+      }
+    },
+    {
+      "input" : {
+        "duration" : 15.803000000000001,
+        "tempMin" : 19.059999999999999,
+        "wake" : 4.0540000000000003
+      },
+      "output" : {
+        "bed" : 5.7569999999999979,
+        "chronotype" : "morning",
+        "offset" : 6.4939999999999998,
+        "wakeHour" : 21.559999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 3.4940000000000002,
+        "tempMin" : 18.268000000000001,
+        "wake" : 8.7810000000000006
+      },
+      "output" : {
+        "bed" : 17.274000000000001,
+        "chronotype" : "morning",
+        "offset" : -11.987,
+        "wakeHour" : 20.768000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 15.955,
+        "tempMin" : 0.26200000000000001,
+        "wake" : 3.1829999999999998
+      },
+      "output" : {
+        "bed" : 10.807,
+        "chronotype" : "morning",
+        "offset" : 0.42099999999999982,
+        "wakeHour" : 2.762
+      }
+    },
+    {
+      "input" : {
+        "duration" : 23.585000000000001,
+        "tempMin" : 12.882999999999999,
+        "wake" : 13.535
+      },
+      "output" : {
+        "bed" : 15.797999999999998,
+        "chronotype" : "evening",
+        "offset" : -1.847999999999999,
+        "wakeHour" : 15.382999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 6.492,
+        "tempMin" : 20.866,
+        "wake" : 15.907999999999999
+      },
+      "output" : {
+        "bed" : 16.873999999999999,
+        "chronotype" : "morning",
+        "offset" : -7.4580000000000002,
+        "wakeHour" : 23.366
+      }
+    },
+    {
+      "input" : {
+        "duration" : 1.385,
+        "tempMin" : 22.454999999999998,
+        "wake" : 7.9459999999999997
+      },
+      "output" : {
+        "bed" : 23.569999999999997,
+        "chronotype" : "morning",
+        "offset" : 6.9910000000000014,
+        "wakeHour" : 0.95499999999999829
+      }
+    },
+    {
+      "input" : {
+        "duration" : 23.059999999999999,
+        "tempMin" : 4.3959999999999999,
+        "wake" : 20.798999999999999
+      },
+      "output" : {
+        "bed" : 7.8360000000000021,
+        "chronotype" : "intermediate",
+        "offset" : -10.097000000000001,
+        "wakeHour" : 6.8959999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 25.619,
+        "tempMin" : 14.718,
+        "wake" : 20.138000000000002
+      },
+      "output" : {
+        "bed" : null,
+        "chronotype" : "evening",
+        "offset" : 2.9200000000000017,
+        "wakeHour" : null
+      }
+    },
+    {
+      "input" : {
+        "duration" : 19.391999999999999,
+        "tempMin" : 4.7789999999999999,
+        "wake" : 23.469000000000001
+      },
+      "output" : {
+        "bed" : 11.887,
+        "chronotype" : "intermediate",
+        "offset" : -7.8099999999999987,
+        "wakeHour" : 7.2789999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 6.7759999999999998,
+        "tempMin" : 0.062,
+        "wake" : 3.8799999999999999
+      },
+      "output" : {
+        "bed" : 19.786000000000001,
+        "chronotype" : "morning",
+        "offset" : 1.3180000000000001,
+        "wakeHour" : 2.5619999999999998
+      }
+    },
+    {
+      "input" : {
+        "duration" : 25.155000000000001,
+        "tempMin" : 12.103,
+        "wake" : 10.605
+      },
+      "output" : {
+        "bed" : null,
+        "chronotype" : "evening",
+        "offset" : -3.9979999999999993,
+        "wakeHour" : null
+      }
+    },
+    {
+      "input" : {
+        "duration" : 9.5440000000000005,
+        "tempMin" : 22.029,
+        "wake" : 18.382000000000001
+      },
+      "output" : {
+        "bed" : 14.984999999999999,
+        "chronotype" : "morning",
+        "offset" : -6.1469999999999985,
+        "wakeHour" : 0.52899999999999991
+      }
+    },
+    {
+      "input" : {
+        "duration" : 13.656000000000001,
+        "tempMin" : 11.121,
+        "wake" : 6.3330000000000002
+      },
+      "output" : {
+        "bed" : 23.965,
+        "chronotype" : "evening",
+        "offset" : -7.2880000000000003,
+        "wakeHour" : 13.621
+      }
+    },
+    {
+      "input" : {
+        "duration" : 22.001000000000001,
+        "tempMin" : 17.305,
+        "wake" : 21.302
+      },
+      "output" : {
+        "bed" : 21.803999999999998,
+        "chronotype" : "morning",
+        "offset" : 1.4969999999999999,
+        "wakeHour" : 19.805
+      }
+    },
+    {
+      "input" : {
+        "duration" : 3.6160000000000001,
+        "tempMin" : 16.282,
+        "wake" : 4.1050000000000004
+      },
+      "output" : {
+        "bed" : 15.166,
+        "chronotype" : "evening",
+        "offset" : 9.3230000000000004,
+        "wakeHour" : 18.782
+      }
+    },
+    {
+      "input" : {
+        "duration" : 11.452,
+        "tempMin" : 12.968999999999999,
+        "wake" : 15.875999999999999
+      },
+      "output" : {
+        "bed" : 4.0169999999999995,
+        "chronotype" : "evening",
+        "offset" : 0.40700000000000003,
+        "wakeHour" : 15.468999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 8.6389999999999993,
+        "tempMin" : 1.2370000000000001,
+        "wake" : 4.5890000000000004
+      },
+      "output" : {
+        "bed" : 19.097999999999999,
+        "chronotype" : "morning",
+        "offset" : 0.85200000000000031,
+        "wakeHour" : 3.7370000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 9.6329999999999991,
+        "tempMin" : 4.4749999999999996,
+        "wake" : 17.606999999999999
+      },
+      "output" : {
+        "bed" : 21.341999999999999,
+        "chronotype" : "intermediate",
+        "offset" : 10.632,
+        "wakeHour" : 6.9749999999999996
+      }
+    },
+    {
+      "input" : {
+        "duration" : 17.422999999999998,
+        "tempMin" : 9.2469999999999999,
+        "wake" : 4.0469999999999997
+      },
+      "output" : {
+        "bed" : 18.324000000000002,
+        "chronotype" : "evening",
+        "offset" : -7.7000000000000002,
+        "wakeHour" : 11.747
+      }
+    },
+    {
+      "input" : {
+        "duration" : 6.306,
+        "tempMin" : 8.9160000000000004,
+        "wake" : 0.14999999999999999
+      },
+      "output" : {
+        "bed" : 5.1100000000000003,
+        "chronotype" : "evening",
+        "offset" : -11.266,
+        "wakeHour" : 11.416
+      }
+    },
+    {
+      "input" : {
+        "duration" : 9.2010000000000005,
+        "tempMin" : 0.80100000000000005,
+        "wake" : 20.164000000000001
+      },
+      "output" : {
+        "bed" : 18.100000000000001,
+        "chronotype" : "morning",
+        "offset" : -7.1370000000000005,
+        "wakeHour" : 3.3010000000000002
+      }
+    },
+    {
+      "input" : {
+        "duration" : 24.724,
+        "tempMin" : 10.991,
+        "wake" : 8.9130000000000003
+      },
+      "output" : {
+        "bed" : null,
+        "chronotype" : "evening",
+        "offset" : -4.5779999999999994,
+        "wakeHour" : null
+      }
+    },
+    {
+      "input" : {
+        "duration" : 18.013000000000002,
+        "tempMin" : 13.045999999999999,
+        "wake" : 6.633
+      },
+      "output" : {
+        "bed" : 21.532999999999998,
+        "chronotype" : "evening",
+        "offset" : -8.9130000000000003,
+        "wakeHour" : 15.545999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 1.208,
+        "tempMin" : 18.353999999999999,
+        "wake" : 14.391
+      },
+      "output" : {
+        "bed" : 19.646000000000001,
+        "chronotype" : "morning",
+        "offset" : -6.4629999999999992,
+        "wakeHour" : 20.853999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 0.73999999999999999,
+        "tempMin" : 16.806000000000001,
+        "wake" : 13.151999999999999
+      },
+      "output" : {
+        "bed" : 18.566000000000003,
+        "chronotype" : "morning",
+        "offset" : -6.1540000000000017,
+        "wakeHour" : 19.306000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 12.308,
+        "tempMin" : 7.4379999999999997,
+        "wake" : 2.379
+      },
+      "output" : {
+        "bed" : 21.629999999999999,
+        "chronotype" : "evening",
+        "offset" : -7.5589999999999993,
+        "wakeHour" : 9.9379999999999988
+      }
+    },
+    {
+      "input" : {
+        "duration" : 12.081,
+        "tempMin" : 23.013000000000002,
+        "wake" : 14.792999999999999
+      },
+      "output" : {
+        "bed" : 13.432000000000002,
+        "chronotype" : "morning",
+        "offset" : -10.720000000000002,
+        "wakeHour" : 1.5130000000000017
+      }
+    },
+    {
+      "input" : {
+        "duration" : 19.484999999999999,
+        "tempMin" : 10.164999999999999,
+        "wake" : 15.031000000000001
+      },
+      "output" : {
+        "bed" : 17.18,
+        "chronotype" : "evening",
+        "offset" : 2.3660000000000014,
+        "wakeHour" : 12.664999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 24.577999999999999,
+        "tempMin" : 0.33100000000000002,
+        "wake" : 3.1720000000000002
+      },
+      "output" : {
+        "bed" : null,
+        "chronotype" : "morning",
+        "offset" : 0.34100000000000019,
+        "wakeHour" : null
+      }
+    },
+    {
+      "input" : {
+        "duration" : 23.456,
+        "tempMin" : 12.797000000000001,
+        "wake" : 3.8879999999999999
+      },
+      "output" : {
+        "bed" : 15.841000000000001,
+        "chronotype" : "evening",
+        "offset" : -11.409000000000001,
+        "wakeHour" : 15.297000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 20.210000000000001,
+        "tempMin" : 1.173,
+        "wake" : 4.5410000000000004
+      },
+      "output" : {
+        "bed" : 7.463000000000001,
+        "chronotype" : "morning",
+        "offset" : 0.86800000000000033,
+        "wakeHour" : 3.673
+      }
+    },
+    {
+      "input" : {
+        "duration" : 24.788,
+        "tempMin" : 20.803999999999998,
+        "wake" : 4.8570000000000002
+      },
+      "output" : {
+        "bed" : null,
+        "chronotype" : "morning",
+        "offset" : 5.5530000000000008,
+        "wakeHour" : null
+      }
+    },
+    {
+      "input" : {
+        "duration" : 18.727,
+        "tempMin" : 7.7670000000000003,
+        "wake" : 8.9800000000000004
+      },
+      "output" : {
+        "bed" : 15.539999999999999,
+        "chronotype" : "evening",
+        "offset" : -1.286999999999999,
+        "wakeHour" : 10.266999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 17.916,
+        "tempMin" : 1.468,
+        "wake" : 8.6379999999999999
+      },
+      "output" : {
+        "bed" : 10.052,
+        "chronotype" : "morning",
+        "offset" : 4.6699999999999999,
+        "wakeHour" : 3.968
+      }
+    },
+    {
+      "input" : {
+        "duration" : 1.5369999999999999,
+        "tempMin" : 18.829000000000001,
+        "wake" : 17.678999999999998
+      },
+      "output" : {
+        "bed" : 19.792000000000002,
+        "chronotype" : "morning",
+        "offset" : -3.6500000000000021,
+        "wakeHour" : 21.329000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 16.530999999999999,
+        "tempMin" : 19.957999999999998,
+        "wake" : 21.814
+      },
+      "output" : {
+        "bed" : 5.9269999999999996,
+        "chronotype" : "morning",
+        "offset" : -0.64399999999999835,
+        "wakeHour" : 22.457999999999998
+      }
+    },
+    {
+      "input" : {
+        "duration" : 13.616,
+        "tempMin" : 3.1680000000000001,
+        "wake" : 0.69999999999999996
+      },
+      "output" : {
+        "bed" : 16.052,
+        "chronotype" : "morning",
+        "offset" : -4.968,
+        "wakeHour" : 5.6680000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 1.3069999999999999,
+        "tempMin" : 7.1349999999999998,
+        "wake" : 7.5839999999999996
+      },
+      "output" : {
+        "bed" : 8.3279999999999994,
+        "chronotype" : "evening",
+        "offset" : -2.0510000000000002,
+        "wakeHour" : 9.6349999999999998
+      }
+    },
+    {
+      "input" : {
+        "duration" : 4.7300000000000004,
+        "tempMin" : 4.6479999999999997,
+        "wake" : 11.834
+      },
+      "output" : {
+        "bed" : 2.4179999999999993,
+        "chronotype" : "intermediate",
+        "offset" : 4.6859999999999999,
+        "wakeHour" : 7.1479999999999997
+      }
+    },
+    {
+      "input" : {
+        "duration" : 20.172999999999998,
+        "tempMin" : 0.66200000000000003,
+        "wake" : 15.138999999999999
+      },
+      "output" : {
+        "bed" : 6.9890000000000008,
+        "chronotype" : "morning",
+        "offset" : 11.977,
+        "wakeHour" : 3.1619999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 24.501999999999999,
+        "tempMin" : 8.4979999999999993,
+        "wake" : 22.260999999999999
+      },
+      "output" : {
+        "bed" : null,
+        "chronotype" : "evening",
+        "offset" : 11.263,
+        "wakeHour" : null
+      }
+    },
+    {
+      "input" : {
+        "duration" : 16.431000000000001,
+        "tempMin" : 16.373000000000001,
+        "wake" : 5.5940000000000003
+      },
+      "output" : {
+        "bed" : 2.4420000000000002,
+        "chronotype" : "evening",
+        "offset" : 10.721,
+        "wakeHour" : 18.873000000000001
+      }
+    },
+    {
+      "input" : {
+        "duration" : 12.831,
+        "tempMin" : 2.7829999999999999,
+        "wake" : 5.8170000000000002
+      },
+      "output" : {
+        "bed" : 16.451999999999998,
+        "chronotype" : "morning",
+        "offset" : 0.5340000000000007,
+        "wakeHour" : 5.2829999999999995
+      }
+    },
+    {
+      "input" : {
+        "duration" : 6.0570000000000004,
+        "tempMin" : 3.194,
+        "wake" : 15.911
+      },
+      "output" : {
+        "bed" : 23.637,
+        "chronotype" : "morning",
+        "offset" : 10.216999999999999,
+        "wakeHour" : 5.694
+      }
+    },
+    {
+      "input" : {
+        "duration" : 1.329,
+        "tempMin" : 4.0469999999999997,
+        "wake" : 9.3209999999999997
+      },
+      "output" : {
+        "bed" : 5.218,
+        "chronotype" : "intermediate",
+        "offset" : 2.774,
+        "wakeHour" : 6.5469999999999997
+      }
+    },
+    {
+      "input" : {
+        "duration" : 17.317,
+        "tempMin" : 0.92700000000000005,
+        "wake" : 20.079999999999998
+      },
+      "output" : {
+        "bed" : 10.109999999999999,
+        "chronotype" : "morning",
+        "offset" : -7.3470000000000013,
+        "wakeHour" : 3.427
+      }
+    },
+    {
+      "input" : {
+        "duration" : 22.942,
+        "tempMin" : 6.4569999999999999,
+        "wake" : 18
+      },
+      "output" : {
+        "bed" : 10.015000000000001,
+        "chronotype" : "evening",
+        "offset" : 9.0429999999999993,
+        "wakeHour" : 8.9570000000000007
+      }
+    },
+    {
+      "input" : {
+        "duration" : 7.952,
+        "tempMin" : 13.984,
+        "wake" : 20.190999999999999
+      },
+      "output" : {
+        "bed" : 8.5320000000000018,
+        "chronotype" : "evening",
+        "offset" : 3.7069999999999972,
+        "wakeHour" : 16.484000000000002
+      }
+    },
+    {
+      "input" : {
+        "duration" : 3.7599999999999998,
+        "tempMin" : 2.391,
+        "wake" : 19.382999999999999
+      },
+      "output" : {
+        "bed" : 1.1310000000000002,
+        "chronotype" : "morning",
+        "offset" : -9.5080000000000009,
+        "wakeHour" : 4.891
+      }
+    },
+    {
+      "input" : {
+        "duration" : 5.6459999999999999,
+        "tempMin" : 22.045000000000002,
+        "wake" : 10.898999999999999
+      },
+      "output" : {
+        "bed" : 18.899000000000001,
+        "chronotype" : "morning",
+        "offset" : 10.353999999999997,
+        "wakeHour" : 0.54500000000000171
+      }
+    },
+    {
+      "input" : {
+        "duration" : 0.72099999999999997,
+        "tempMin" : 22.219000000000001,
+        "wake" : 1.7330000000000001
+      },
+      "output" : {
+        "bed" : 23.998000000000001,
+        "chronotype" : "morning",
+        "offset" : 1.0139999999999989,
+        "wakeHour" : 0.71900000000000119
+      }
+    },
+    {
+      "input" : {
+        "duration" : 19.216000000000001,
+        "tempMin" : 12.757999999999999,
+        "wake" : 2.0289999999999999
+      },
+      "output" : {
+        "bed" : 20.041999999999998,
+        "chronotype" : "evening",
+        "offset" : 10.771000000000001,
+        "wakeHour" : 15.257999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 0.45300000000000001,
+        "tempMin" : 13.404999999999999,
+        "wake" : 14.516999999999999
+      },
+      "output" : {
+        "bed" : 15.452,
+        "chronotype" : "evening",
+        "offset" : -1.3879999999999999,
+        "wakeHour" : 15.904999999999999
+      }
+    },
+    {
+      "input" : {
+        "duration" : 21.846,
+        "tempMin" : 21.646000000000001,
+        "wake" : 12.301
+      },
+      "output" : {
+        "bed" : 2.3000000000000007,
+        "chronotype" : "morning",
+        "offset" : -11.845000000000001,
+        "wakeHour" : 0.1460000000000008
+      }
+    },
+    {
+      "input" : {
+        "duration" : 20.311,
+        "tempMin" : 22.030999999999999,
+        "wake" : 22.539999999999999
+      },
+      "output" : {
+        "bed" : 4.2199999999999989,
+        "chronotype" : "morning",
+        "offset" : -1.9909999999999997,
+        "wakeHour" : 0.53099999999999881
+      }
+    }
+  ],
+  "function" : "CircadianEngine.bodyClock"
+}
