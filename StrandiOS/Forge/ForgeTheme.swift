@@ -42,6 +42,7 @@ enum ForgeColor {
     static let cyclePeriod = dyn(0xC94A63, 0xFF7A93)
     static let cycleFollicular = dyn(0x21877B, 0x5FD3C4)
     static let cycleShift = dyn(0xB07A0C, 0xE8B64A)
+    static let cycleFertile = dyn(0x4E9F2E, 0x9BDB6B)
 
     /// The faint per-tab wash at the top of a plain screen.
     static func wash(_ tab: ForgeTab) -> Color {

@@ -403,6 +403,9 @@ enum AppleDemoSeeder {
         var workoutHeartRate: [HRSample] = []
         var journal: [JournalEntry] = []
         let demoCycle = CommandLine.arguments.contains("--demo-cycle")
+        // `--demo-cycle-day N` puts today on cycle day N (default 20) for captures of every state.
+        let demoCycleToday = CommandLine.arguments.firstIndex(of: "--demo-cycle-day")
+            .flatMap { CommandLine.arguments.indices.contains($0 + 1) ? Int(CommandLine.arguments[$0 + 1]) : nil } ?? 20
         var cycleRows: [MetricPoint] = []
 
         // An elite strength athlete's frame: ~98 kg at 181 cm, in a slow accumulation phase rather
@@ -446,7 +449,7 @@ enum AppleDemoSeeder {
             // `--demo-cycle` only: a 27-day biphasic cycle with today on day 20, so the cycle page has a
             // real temperature shift, resting-HR rise and HRV drop to read. Every other demo is unchanged.
             if demoCycle {
-                let cycleDay = ((19 + i - (DAYS - 1)) % 27 + 27) % 27 + 1
+                let cycleDay = ((demoCycleToday - 1 + i - (DAYS - 1)) % 27 + 27) % 27 + 1
                 if cycleDay >= 15 { skinTempDev = skinTempDev * 0.4 + 0.35; rhr += 2; hrv -= 6 }
                 else if cycleDay >= 13 { skinTempDev = skinTempDev * 0.4 + 0.1 }
                 else { skinTempDev = skinTempDev * 0.4 - 0.15 }

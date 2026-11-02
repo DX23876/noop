@@ -105,6 +105,7 @@ struct ForgeTodayView: View {
                                 Color.clear.preference(key: ForgeHeroBottomKey.self,
                                                        value: geo.frame(in: .named("forge-today")).maxY)
                             })
+                        ForgeCycleSummaryCard(showsLogButtons: false)
                         laterToday
                         timeline
                     }

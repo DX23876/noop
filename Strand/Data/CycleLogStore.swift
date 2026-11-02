@@ -13,6 +13,8 @@ enum CycleLog {
     static let flowKey = "flow"
     static let symptomPrefix = "symptom."
     static let moodPrefix = "mood."
+    /// A positive ovulation (LH) test on that day.
+    static let ovulationTestKey = "ovulation_test"
 
     enum Flow: Int, CaseIterable, Identifiable {
         case spotting = 1, light, medium, heavy
@@ -45,7 +47,8 @@ enum CycleLog {
         var flow: Flow?
         var symptoms: Set<String> = []
         var moods: Set<String> = []
-        var isEmpty: Bool { flow == nil && symptoms.isEmpty && moods.isEmpty }
+        var ovulationTest = false
+        var isEmpty: Bool { flow == nil && symptoms.isEmpty && moods.isEmpty && !ovulationTest }
     }
 }
 
@@ -55,7 +58,7 @@ extension Repository {
     func cycleLog(from: String, to: String) async -> [String: CycleLog.Day] {
         guard let store = await storeHandle() else { return [:] }
         let keys = ((try? await store.metricKeys(deviceId: CycleTrackingStore.sourceId)) ?? [])
-            .filter { $0 == CycleLog.flowKey || $0.hasPrefix(CycleLog.symptomPrefix) || $0.hasPrefix(CycleLog.moodPrefix) }
+            .filter { $0 == CycleLog.flowKey || $0 == CycleLog.ovulationTestKey || $0.hasPrefix(CycleLog.symptomPrefix) || $0.hasPrefix(CycleLog.moodPrefix) }
         var out: [String: CycleLog.Day] = [:]
         for key in keys {
             let rows = (try? await store.metricSeries(deviceId: CycleTrackingStore.sourceId, key: key, from: from, to: to)) ?? []
@@ -63,6 +66,8 @@ extension Repository {
                 var day = out[row.day] ?? CycleLog.Day()
                 if key == CycleLog.flowKey {
                     day.flow = CycleLog.Flow(rawValue: Int(row.value.rounded()))
+                } else if key == CycleLog.ovulationTestKey {
+                    day.ovulationTest = row.value >= 1
                 } else if key.hasPrefix(CycleLog.symptomPrefix), row.value >= 1 {
                     day.symptoms.insert(String(key.dropFirst(CycleLog.symptomPrefix.count)))
                 } else if key.hasPrefix(CycleLog.moodPrefix), row.value >= 1 {
@@ -84,6 +89,11 @@ extension Repository {
             upserts.append(MetricPoint(day: day, key: CycleLog.flowKey, value: Double(flow.rawValue)))
         } else if previous.flow != nil {
             deletes.append(CycleLog.flowKey)
+        }
+        if log.ovulationTest {
+            upserts.append(MetricPoint(day: day, key: CycleLog.ovulationTestKey, value: 1))
+        } else if previous.ovulationTest {
+            deletes.append(CycleLog.ovulationTestKey)
         }
         for id in log.symptoms { upserts.append(MetricPoint(day: day, key: CycleLog.symptomPrefix + id, value: 1)) }
         for id in previous.symptoms.subtracting(log.symptoms) { deletes.append(CycleLog.symptomPrefix + id) }

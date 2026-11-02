@@ -111,6 +111,9 @@ struct ForgeHealthView: View {
                             vitalTile(last)
                         }
 
+                        // The cycle at a glance, only while cycle tracking is on.
+                        ForgeCycleSummaryCard()
+
                         ForgeSectionTitle(title: "Focus areas")
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                             ForEach(ForgeFocusArea.allCases) { area in

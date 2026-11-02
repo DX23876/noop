@@ -22,6 +22,7 @@ struct ForgeCycleView: View {
     @State private var pattern: CycleTrainingPattern.Result?
     @StateObject private var strength = StrengthModel()
     @AppStorage(ForgeCyclePush.learningKey) private var learning = true
+    @AppStorage(ForgeCycleSnapshot.fertileKey) private var showFertile = true
 
     var body: some View {
         ScrollView {
@@ -31,7 +32,7 @@ struct ForgeCycleView: View {
                     optIn
                 } else if loaded {
                     let snap = ForgeCycleSnapshot.make(result: appModel.cyclePhase, starts: starts, log: log,
-                                                       days: repo.days, today: Date())
+                                                       days: repo.days, today: Date(), showFertile: showFertile)
                     content(snap)
                 } else {
                     ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
@@ -42,7 +43,7 @@ struct ForgeCycleView: View {
         }
         .background(ForgeBackground(tab: .health))
         .forgeDetailBar(title: String(localized: "Cycle"), showsTitle: scrolledPast)
-        .task(id: repo.cycleTrackingSeq) { await load() }
+        .task(id: "\(repo.cycleTrackingSeq)-\(repo.refreshSeq)") { await load() }
         .sheet(isPresented: $logging) {
             ForgeCycleLogSheet(day: Repository.localDayKey(Date()), existing: log[Repository.localDayKey(Date())] ?? CycleLog.Day(),
                                starts: starts) {
@@ -116,7 +117,9 @@ struct ForgeCycleView: View {
     }
 
     private var footer: some View {
-        Text("Awareness only. Not contraception, not a fertility predictor and not a diagnosis.")
+        Text(showFertile && cycleEnabled
+             ? String(localized: "Awareness only. Fertile days are a rough estimate, not contraception and not a diagnosis.")
+             : String(localized: "Awareness only. Not contraception, not a fertility predictor and not a diagnosis."))
             .font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -124,8 +127,29 @@ struct ForgeCycleView: View {
     // MARK: Content
 
     @ViewBuilder private func content(_ snap: ForgeCycleSnapshot) -> some View {
-        ForgeCycleDial(snap: snap)
-            .forgeCard(radius: 26, padding: 16)
+        VStack(spacing: 14) {
+            ForgeCycleDial(snap: snap)
+            if let line = snap.fertileLine {
+                NavigationLink {
+                    ForgeCycleFertileInfo(snap: snap) { logging = true }
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle().fill(ForgeColor.cycleFertile).frame(width: 9, height: 9)
+                        // One text so a long language wraps instead of cutting the status off.
+                        (Text(line.title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                         + Text(line.detail.map { " · " + $0 } ?? "").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary))
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Image(systemName: "info.circle").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 8).frame(minHeight: 44)
+                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.cycleFertile.opacity(0.16)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("How the fertile days are estimated"))
+            }
+        }
+        .forgeCard(radius: 26, padding: 16)
         logRow
         if let phase = snap.phase {
             ForgeSectionTitle(title: "This phase for you")
@@ -166,6 +190,17 @@ struct ForgeCycleView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Learn from my training").font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Text("Compares how hard your sessions felt and how much you lifted in each phase, to tell you when to push.")
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(ForgeColor.accent)
+            .padding(14)
+            Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 14)
+            Toggle(isOn: $showFertile) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Show likely fertile days").font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Text("A rough estimate from your past cycles. Not birth control.")
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -286,6 +321,36 @@ struct ForgeCycleSnapshot {
     var cyclesSeen: Int
     var engineConfidence: CyclePhaseEngine.Confidence?
     var moodsThisPhase: [String: Int] = [:]
+    /// The rough fertile-days estimate of this cycle, when it may be shown.
+    var fertile: FertileWindow.Estimate?
+    /// Date keys of this cycle's likely fertile days, for the calendar.
+    var fertileDays: Set<String> = []
+
+    static let fertileKey = "noopCycleShowFertile"
+
+    var fertileStatus: FertileWindow.Status? {
+        guard let fertile, let cycleDay else { return nil }
+        return FertileWindow.status(fertile, cycleDay: cycleDay)
+    }
+
+    /// The status line under the dial and on the cards.
+    var fertileLine: (title: String, detail: String?)? {
+        switch fertileStatus {
+        case .before(let n)?:
+            return (n == 1 ? String(localized: "Likely fertile from tomorrow") : String(localized: "\(n) days until your likely fertile days"), nil)
+        case .during(let day, let of)?:
+            return (String(localized: "Likely fertile today"), String(localized: "day \(day) of \(of)"))
+        case .over?:
+            return (String(localized: "Fertile days are over"), shiftDay.map { String(localized: "rise on day \($0)") })
+        case nil:
+            return nil
+        }
+    }
+
+    func isFertile(day d: Int) -> Bool {
+        guard let fertile else { return false }
+        return (fertile.firstDay...fertile.lastDay).contains(d)
+    }
 
     /// This cycle's luteal nights against its first half, for the Body, Exercise and Mind cards.
     struct Compare {
@@ -330,7 +395,7 @@ struct ForgeCycleSnapshot {
     }
 
     static func make(result: CyclePhaseEngine.Result?, starts: [String], log: [String: CycleLog.Day],
-                     days: [DailyMetric], today: Date) -> ForgeCycleSnapshot {
+                     days: [DailyMetric], today: Date, showFertile: Bool = false) -> ForgeCycleSnapshot {
         let cal = Calendar.current
         let todayStart = cal.startOfDay(for: today)
         func date(_ key: String) -> Date? { dayFormatter.date(from: key).map { cal.startOfDay(for: $0) } }
@@ -425,6 +490,23 @@ struct ForgeCycleSnapshot {
                 }
             }
         }
+        if showFertile, let current, let cycleDay {
+            // The rise days of completed past cycles, newest first, then this cycle's own rise or test.
+            let all = cycles(starts: starts, log: log, result: result).sorted { $0.start > $1.start }
+            let pastRises: [Int] = all.dropFirst().compactMap { c in
+                guard let shift = c.shift, let a = date(c.start), let b = date(shift) else { return nil }
+                return diff(a, b) + 1
+            }
+            let testDay = (0..<cycleDay).first { offset in
+                cal.date(byAdding: .day, value: offset, to: current).map { log[Repository.localDayKey($0)]?.ovulationTest == true } ?? false
+            }.map { $0 + 1 }
+            if let estimate = FertileWindow.estimate(pastRiseDays: pastRises, currentRiseDay: shiftDay, positiveTestDay: testDay) {
+                snap.fertile = estimate
+                for d in estimate.firstDay...estimate.lastDay {
+                    if let date = cal.date(byAdding: .day, value: d - 1, to: current) { snap.fertileDays.insert(Repository.localDayKey(date)) }
+                }
+            }
+        }
         return snap
     }
 
@@ -503,11 +585,29 @@ struct ForgeCycleDial: View {
     }
 
     private var legend: some View {
-        HStack(spacing: 12) {
-            ForEach(ForgeCyclePhase.allCases, id: \.self) { p in
+        VStack(spacing: 6) {
+            HStack(spacing: 12) {
+                ForEach(ForgeCyclePhase.allCases, id: \.self) { p in
+                    HStack(spacing: 4) {
+                        Circle().fill(p.color).frame(width: 8, height: 8)
+                        Text(p.shortTitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                }
+            }
+            if snap.fertile != nil || snap.nextWindow != nil {
+                HStack(spacing: 12) { extraLegend }
+            }
+        }
+        .lineLimit(1).minimumScaleFactor(0.8)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var extraLegend: some View {
+        Group {
+            if snap.fertile != nil {
                 HStack(spacing: 4) {
-                    Circle().fill(p.color).frame(width: 8, height: 8)
-                    Text(p.shortTitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    Circle().fill(ForgeColor.cycleFertile).frame(width: 8, height: 8)
+                    Text("Likely fertile").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
             }
             if snap.nextWindow != nil {
@@ -518,8 +618,6 @@ struct ForgeCycleDial: View {
                 }
             }
         }
-        .lineLimit(1).minimumScaleFactor(0.8)
-        .accessibilityHidden(true)
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
@@ -530,10 +628,18 @@ struct ForgeCycleDial: View {
                    with: .color(ForgeColor.fill), lineWidth: 22)
         let today = snap.todayOnWheel
         let next = snap.nextWindow.flatMap { w in today.map { ($0 + w.lowerBound)...($0 + w.upperBound) } }
+        func angle(_ d: Double) -> Angle { .radians(-Double.pi / 2 + (d - 1) / Double(n) * 2 * .pi) }
+        if let f = snap.fertile {
+            // The likely fertile days as a soft arc behind their dots.
+            var arc = Path()
+            arc.addArc(center: c, radius: r, startAngle: angle(Double(f.firstDay) - 0.35), endAngle: angle(Double(f.lastDay) + 0.35), clockwise: false)
+            ctx.stroke(arc, with: .color(ForgeColor.cycleFertile.opacity(0.28)), style: StrokeStyle(lineWidth: 22, lineCap: .round))
+        }
         for d in 1...max(n, 1) {
             let a = -Double.pi / 2 + Double(d - 1) / Double(n) * 2 * .pi
             let p = CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a))
-            let colour = snap.phase(onDay: d)?.color ?? ForgeColor.tertiary
+            let fertileDay = snap.isFertile(day: d)
+            let colour = fertileDay && (today.map { d >= $0 } ?? false) ? ForgeColor.cycleFertile : (snap.phase(onDay: d)?.color ?? ForgeColor.tertiary)
             func dot(_ radius: CGFloat) -> Path { Path(ellipseIn: CGRect(x: p.x - radius, y: p.y - radius, width: 2 * radius, height: 2 * radius)) }
             if d == today {
                 ctx.fill(dot(13), with: .color(colour))
@@ -542,6 +648,8 @@ struct ForgeCycleDial: View {
                 ctx.fill(dot(6.5), with: .color(colour))
             } else if let next, next.contains(d) {
                 ctx.stroke(dot(6), with: .color(ForgeColor.cyclePeriod), style: StrokeStyle(lineWidth: 2, dash: [3, 2.4]))
+            } else if fertileDay {
+                ctx.fill(dot(6), with: .color(ForgeColor.cycleFertile.opacity(0.85)))
             } else {
                 ctx.fill(dot(5), with: .color(colour.opacity(0.3)))
             }
@@ -735,10 +843,13 @@ struct ForgeCycleCalendar: View {
                 }
                 ForEach(days, id: \.self) { d in
                     let key = Repository.localDayKey(d)
-                    cell(d, isToday: key == todayKey, period: snap.periodDays.contains(key), likely: next.contains(key))
+                    cell(d, isToday: key == todayKey, period: snap.periodDays.contains(key), likely: next.contains(key),
+                         fertile: snap.fertileDays.contains(key))
                 }
             }
-            Text("Filled: periods you logged. Dashed: the likely window for the next one, from your nights.")
+            Text(snap.fertileDays.isEmpty
+                 ? String(localized: "Filled: periods you logged. Dashed: the likely window for the next one, from your nights.")
+                 : String(localized: "Red: periods you logged. Green: the likely fertile days. Dashed: the likely next period."))
                 .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -752,7 +863,7 @@ struct ForgeCycleCalendar: View {
         return Array(s[1...] + s[..<1])
     }
 
-    private func cell(_ d: Date, isToday: Bool, period: Bool, likely: Bool) -> some View {
+    private func cell(_ d: Date, isToday: Bool, period: Bool, likely: Bool, fertile: Bool) -> some View {
         Text("\(Calendar.current.component(.day, from: d))")
             .font(.system(.subheadline, weight: isToday ? .bold : .regular))
             .foregroundStyle(isToday ? ForgeColor.card : (period ? .white : ForgeColor.text))
@@ -762,12 +873,15 @@ struct ForgeCycleCalendar: View {
                     Circle().fill(ForgeColor.text)
                 } else if period {
                     Circle().fill(ForgeColor.cyclePeriod)
+                } else if fertile {
+                    Circle().fill(ForgeColor.cycleFertile.opacity(0.22))
                 } else if likely {
                     Circle().strokeBorder(ForgeColor.cyclePeriod, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5]))
                 }
             }
             .accessibilityLabel(Text(d.formatted(.dateTime.day().month(.wide).locale(AppLanguage.activeLocale))))
-            .accessibilityValue(Text(period ? String(localized: "cycle.period", defaultValue: "Period") : (likely ? String(localized: "Likely next period") : "")))
+            .accessibilityValue(Text(period ? String(localized: "cycle.period", defaultValue: "Period")
+                                     : (fertile ? String(localized: "Likely fertile") : (likely ? String(localized: "Likely next period") : ""))))
     }
 }
 
@@ -803,6 +917,11 @@ struct ForgeCycleLogSheet: View {
                     section(String(localized: "Mood")) {
                         ForEach(CycleLog.moods, id: \.id) { m in
                             chip(m.title, on: draft.moods.contains(m.id), tint: ForgeColor.rest) { toggle(&draft.moods, m.id) }
+                        }
+                    }
+                    section(String(localized: "Ovulation test")) {
+                        chip(String(localized: "Positive test today"), on: draft.ovulationTest, tint: ForgeColor.cycleFertile) {
+                            draft.ovulationTest.toggle()
                         }
                     }
                     Text("Stays on this iPhone. Symptoms and mood feed the Mind card, never the cycle estimate. Logging a period with no start in the last ten days makes today cycle day 1.")
