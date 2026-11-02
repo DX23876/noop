@@ -3544,5 +3544,6 @@
   "usual": "平常",
   "volume": "训练量",
   "vs your 30 days": "对比你的 30 天",
-  "working sets": "正式组"
+  "working sets": "正式组",
+  "Volume counts %lld of %lld sets; the others carry no weight.": "训练量计入 %2$lld 组中的 %1$lld 组，其余各组没有负重。"
 }

@@ -3420,5 +3420,6 @@
   "usual": "как обычно",
   "volume": "объём",
   "vs your 30 days": "к твоим 30 дням",
-  "working sets": "рабочие подходы"
+  "working sets": "рабочие подходы",
+  "Volume counts %lld of %lld sets; the others carry no weight.": "Объём учитывает %1$lld из %2$lld подходов, остальные без веса."
 }

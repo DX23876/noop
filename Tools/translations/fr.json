@@ -3444,5 +3444,6 @@
   "usual": "habituel",
   "volume": "volume",
   "vs your 30 days": "par rapport à tes 30 jours",
-  "working sets": "séries de travail"
+  "working sets": "séries de travail",
+  "Volume counts %lld of %lld sets; the others carry no weight.": "Le volume compte %1$lld séries sur %2$lld ; les autres n'ont pas de charge."
 }

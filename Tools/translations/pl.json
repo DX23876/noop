@@ -4548,5 +4548,6 @@
   "usual": "zwykle",
   "volume": "objętość",
   "vs your 30 days": "wobec twoich 30 dni",
-  "working sets": "serie robocze"
+  "working sets": "serie robocze",
+  "Volume counts %lld of %lld sets; the others carry no weight.": "Objętość obejmuje %1$lld z %2$lld serii; pozostałe nie mają ciężaru."
 }

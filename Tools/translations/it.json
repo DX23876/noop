@@ -3537,5 +3537,6 @@
   "usual": "solito",
   "volume": "volume",
   "vs your 30 days": "rispetto ai tuoi 30 giorni",
-  "working sets": "serie allenanti"
+  "working sets": "serie allenanti",
+  "Volume counts %lld of %lld sets; the others carry no weight.": "Il volume conta %1$lld serie su %2$lld; le altre non hanno carico."
 }

@@ -588765,6 +588765,64 @@
           }
         }
       }
+    },
+    "Volume counts %lld of %lld sets; the others carry no weight." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Volumen zählt %1$lld von %2$lld Sätzen, die übrigen haben kein Gewicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El volumen cuenta %1$lld de %2$lld series; las demás no llevan peso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le volume compte %1$lld séries sur %2$lld ; les autres n'ont pas de charge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il volume conta %1$lld serie su %2$lld; le altre non hanno carico."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objętość obejmuje %1$lld z %2$lld serii; pozostałe nie mają ciężaru."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O volume conta %1$lld de %2$lld séries; as restantes não têm carga."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Объём учитывает %1$lld из %2$lld подходов, остальные без веса."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练量计入 %2$lld 组中的 %1$lld 组，其余各组没有负重。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練量計入 %2$lld 組中的 %1$lld 組，其餘各組沒有負重。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

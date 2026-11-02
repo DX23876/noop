@@ -39,6 +39,9 @@ struct StrengthSessionDetailView: View {
     /// did not cover the session.
     @State private var zoneMinutes: [Double]?
     @State private var loadedHR = false
+    /// The session's energy: the recorded figure when the mirrored row has one, otherwise the same
+    /// estimate the workout detail and the list show, so the three cannot disagree.
+    @State private var energy: WorkoutEnergyEstimate.Resolved?
     @StateObject private var profile = ProfileStore()
     @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
 
@@ -92,6 +95,7 @@ struct StrengthSessionDetailView: View {
             }
             .task {
                 await loadHeartRate()
+                await loadEnergy()
                 await scrollToDemoBottom(proxy)
             }
             }
@@ -129,6 +133,7 @@ struct StrengthSessionDetailView: View {
             (durationText, String(localized: "time")),
         ]
         if let hr = matchedRow?.avgHr { stats.append(("\(hr)", String(localized: "avg heart"))) }
+        if let kcal = WorkoutEnergyDisplay.text(energy) { stats.append((kcal, String(localized: "kcal"))) }
         if let rpe = breakdown.summary.meanRpe {
             stats.append((rpe.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale)),
                           String(localized: "mean RPE")))
@@ -147,7 +152,11 @@ struct StrengthSessionDetailView: View {
                         .accessibilityElement(children: .combine)
                     }
                 }
-                Text(volumeCoverage).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                if breakdown.summary.volumeSetCount < breakdown.summary.workingSetCount {
+                    Text("Volume counts \(breakdown.summary.volumeSetCount) of \(breakdown.summary.workingSetCount) sets; the others carry no weight.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -219,6 +228,12 @@ struct StrengthSessionDetailView: View {
                          caption: String(localized: "\(breakdown.summary.rpeSetCount)/\(breakdown.summary.workingSetCount) rated"),
                          accent: StrandPalette.metricRose)
             }
+            if let kcal = WorkoutEnergyDisplay.text(energy) {
+                StatTile(label: "Calories",
+                         value: kcal,
+                         caption: WorkoutEnergyDisplay.caption(energy) ?? String(localized: "kcal"),
+                         accent: StrandPalette.metricAmber)
+            }
             if let hr = matchedRow?.avgHr {
                 StatTile(label: "Avg HR",
                          value: "\(hr)",
@@ -280,10 +295,6 @@ struct StrengthSessionDetailView: View {
                                    valueFormat: { String(format: "%.0f bpm", $0) },
                                    dateFormat: { $0.formatted(date: .omitted, time: .shortened) },
                                    accessibilityLabel: String(localized: "Heart rate during the session"))
-                        Text("Recorded by your strap over this session's window. Lifting never becomes Effort on its own — the heart rate here is already counted in the day's Effort, and the sets are not added on top.")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -302,6 +313,18 @@ struct StrengthSessionDetailView: View {
         guard let lo = values.min(), let hi = values.max(), hi > lo else { return 40...180 }
         let pad = max(5.0, (hi - lo) * 0.15)
         return max(30, lo - pad)...(hi + pad)
+    }
+
+    private func loadEnergy() async {
+        guard let row = matchedRow else { return }
+        let analytics = Repository.analyticsProfile(profile)
+        let day = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+        let restingByDay = await repo.restingHrByDay(fromDay: day, toDay: day)
+        let strapByKey = await repo.strapSessionEnergy(for: [row])
+        let peakByDay = await repo.energyPeakMETByDay(fromDay: day, toDay: day)
+        energy = WorkoutEnergyDisplay.resolve(row, profile: analytics, hrMax: Double(profile.hrMax),
+                                              restingHrByDay: restingByDay, strapKcalByKey: strapByKey,
+                                              peakMETByDay: peakByDay)
     }
 
     private func loadHeartRate() async {

@@ -3443,5 +3443,6 @@
   "usual": "lo habitual",
   "volume": "volumen",
   "vs your 30 days": "frente a tus 30 días",
-  "working sets": "series efectivas"
+  "working sets": "series efectivas",
+  "Volume counts %lld of %lld sets; the others carry no weight.": "El volumen cuenta %1$lld de %2$lld series; las demás no llevan peso."
 }
