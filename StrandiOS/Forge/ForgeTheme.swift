@@ -37,6 +37,12 @@ enum ForgeColor {
     static let effortInk = dyn(0x8C3911, 0xFFB07A)
     static let restInk = dyn(0x3F3398, 0xC2B5FB)
 
+    /// Cycle phases. The luteal half reads in Rest violet; the others have their own hues so a phase is
+    /// never mistaken for a score.
+    static let cyclePeriod = dyn(0xC94A63, 0xFF7A93)
+    static let cycleFollicular = dyn(0x21877B, 0x5FD3C4)
+    static let cycleShift = dyn(0xB07A0C, 0xE8B64A)
+
     /// The faint per-tab wash at the top of a plain screen.
     static func wash(_ tab: ForgeTab) -> Color {
         switch tab {

@@ -85,6 +85,9 @@ struct ForgeFocusView: View {
     let area: ForgeFocusArea
     @EnvironmentObject private var repo: Repository
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+    @AppStorage(AppModel.cycleAwarenessKey) private var cycleEnabled = false
+    @AppStorage(AppModel.cycleAwarenessHiddenKey) private var cycleHidden = false
+    @EnvironmentObject private var profile: ProfileStore
     @State private var series: [String: [(day: String, value: Double)]] = [:]
     @State private var loaded = false
     @State private var scrolledPast = false
@@ -201,6 +204,9 @@ struct ForgeFocusView: View {
                     FocusLink(title: String(localized: "Energy"), subtitle: String(localized: "Burned and eaten"), symbol: "flame.fill", tint: .orange, target: .tab(.energy)),
                     FocusLink(title: String(localized: "Water"), subtitle: String(localized: "Today and the last week"), symbol: "drop.fill", tint: .blue, target: .tab(.hydration)),
                     FocusLink(title: String(localized: "Health records"), subtitle: String(localized: "Blood tests, blood pressure, measurements"), symbol: "testtube.2", tint: .purple, target: .more(.labBook))]
+                + (!cycleHidden && (cycleEnabled || profile.cycleAwarenessApplies)
+                   ? [FocusLink(title: String(localized: "Cycle"), subtitle: String(localized: "Phase, period and your nights"), symbol: "drop.circle.fill", tint: ForgeColor.cyclePeriod, target: .forge(.cycle))]
+                   : [])
         case .mind:
             return [FocusLink(title: String(localized: "Stress"), subtitle: String(localized: "Through the day"), symbol: "bolt.heart.fill", tint: .orange, target: .tab(.stress)),
                     FocusLink(title: String(localized: "Breathe"), subtitle: String(localized: "Guided breathing"), symbol: "wind", tint: .teal, target: .more(.breathe)),

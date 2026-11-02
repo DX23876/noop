@@ -24,6 +24,8 @@ enum ForgeRoute: Hashable {
     case focus(ForgeFocusArea)
     /// One workout's detail page, straight from a list (the shipped route goes through the old list first).
     case workout(startTs: Int, sport: String)
+    /// The cycle page: dial, logging, phase cards, nightly temperature and calendar.
+    case cycle
 }
 
 extension View {
@@ -42,6 +44,7 @@ extension View {
             case .ageless: ForgeAgeLessView()
             case .focus(let area): ForgeFocusView(area: area)
             case .workout(let startTs, let sport): ForgeWorkoutDetailHost(startTs: startTs, sport: sport)
+            case .cycle: ForgeCycleView()
             }
         }
     }

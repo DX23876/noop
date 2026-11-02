@@ -402,6 +402,8 @@ enum AppleDemoSeeder {
         var workouts: [WorkoutRow] = []
         var workoutHeartRate: [HRSample] = []
         var journal: [JournalEntry] = []
+        let demoCycle = CommandLine.arguments.contains("--demo-cycle")
+        var cycleRows: [MetricPoint] = []
 
         // An elite strength athlete's frame: ~98 kg at 181 cm, in a slow accumulation phase rather
         // than a cut. The seeded body has to agree with the loads below — a 210 kg squat on a 79 kg
@@ -438,8 +440,23 @@ enum AppleDemoSeeder {
                 .clamped(28.0, 150.0)
             var rhr = Int((gauss(&rng, 56.0 - fitness * 0.4, 3.0) + Double(nWorkouts) * 1.2).clamped(42.0, 70.0))
             let spo2 = gauss(&rng, 96.5, 0.8).clamped(93.0, 100.0)
-            let skinTempDev = gauss(&rng, 0.0, 0.25).clamped(-1.2, 1.4)
+            var skinTempDev = gauss(&rng, 0.0, 0.25).clamped(-1.2, 1.4)
             let resp = gauss(&rng, 14.6, 0.9).clamped(11.0, 19.0)
+
+            // `--demo-cycle` only: a 27-day biphasic cycle with today on day 20, so the cycle page has a
+            // real temperature shift, resting-HR rise and HRV drop to read. Every other demo is unchanged.
+            if demoCycle {
+                let cycleDay = ((19 + i - (DAYS - 1)) % 27 + 27) % 27 + 1
+                if cycleDay >= 15 { skinTempDev = skinTempDev * 0.4 + 0.35; rhr += 2; hrv -= 6 }
+                else if cycleDay >= 13 { skinTempDev = skinTempDev * 0.4 + 0.1 }
+                else { skinTempDev = skinTempDev * 0.4 - 0.15 }
+                if cycleDay == 1 {
+                    cycleRows.append(MetricPoint(day: day, key: CycleTrackingStore.periodStartKey, value: CycleTrackingStore.loggedValue))
+                }
+                if cycleDay <= 4, i > DAYS - 30 {
+                    cycleRows.append(MetricPoint(day: day, key: CycleLog.flowKey, value: Double([3, 4, 3, 2][cycleDay - 1])))
+                }
+            }
 
             // Today is a strong, well-recovered morning, so the hero, Momentum and the vitals agree on a
             // good day in captures instead of whatever the RNG drew last (it drew a 32 % Charge).
@@ -598,6 +615,7 @@ enum AppleDemoSeeder {
         _ = try await store.upsertSleepSessions(sleeps, deviceId: whoop)
         _ = try await store.upsertMetricSeries(series, deviceId: whoop)
         _ = try await store.upsertMetricSeries(appleSeries, deviceId: apple)
+        if !cycleRows.isEmpty { _ = try await store.upsertMetricSeries(cycleRows, deviceId: CycleTrackingStore.sourceId) }
         _ = try await store.upsertAppleDaily(appleRows, deviceId: apple)
         if !workouts.isEmpty { _ = try await store.upsertWorkouts(workouts, deviceId: whoop) }
         if !workoutHeartRate.isEmpty {
