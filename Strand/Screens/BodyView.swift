@@ -68,6 +68,17 @@ struct BodyView: View {
                 header
                 if model.loaded && model.metrics.measuredKeys.isEmpty {
                     emptyState
+                } else if NoopVisualStyle.skin == .forge {
+                    // The new design (prototype board "BodyFull"): today's figures, the one action, then
+                    // what changed, body fat, the comparison and the sites.
+                    todayCard
+                    measureButton
+                    developmentCard
+                    compositionCard
+                    comparisonCard
+                    sitesCard
+                    photosCard
+                    remindersCard
                 } else {
                     todayCard
                     developmentCard
@@ -80,6 +91,9 @@ struct BodyView: View {
             }
             .padding(NoopMetrics.gap)
             DemoScrollBottomAnchor()
+        }
+        .background {
+            if NoopVisualStyle.skin == .forge { StrandPalette.surfaceBase.ignoresSafeArea() }
         }
         .task {
             await model.load(repo: repo)
@@ -94,7 +108,30 @@ struct BodyView: View {
 
     // MARK: - Header
 
-    private var header: some View {
+    @ViewBuilder private var header: some View {
+        if NoopVisualStyle.skin == .forge {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Body").font(Font.largeTitle.bold()).foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Text("Measurements").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            }
+            .padding(.top, 4)
+        } else {
+            classicHeader
+        }
+    }
+
+    private var measureButton: some View {
+        Button { capturing = true } label: {
+            Label("Measure", systemImage: "plus.circle.fill")
+                .font(StrandFont.headline)
+                .frame(maxWidth: .infinity, minHeight: 34)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(StrandPalette.accent)
+    }
+
+    private var classicHeader: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -159,11 +196,14 @@ struct BodyView: View {
 
     private func tile(label: String, icon: String, reading: BodyReading?, unit: String,
                       tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Image(systemName: icon)
-                .font(StrandFont.caption)
-                .foregroundStyle(tint)
-                .accessibilityHidden(true)
+        let forge = NoopVisualStyle.skin == .forge
+        return VStack(alignment: .leading, spacing: 2) {
+            if !forge {
+                Image(systemName: icon)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(tint)
+                    .accessibilityHidden(true)
+            }
             Text(reading.map { "\($0.value.formatted(.number.precision(.fractionLength(1)))) \(unit)" }
                  ?? "—")
                 .font(StrandFont.number(26))
@@ -175,9 +215,11 @@ struct BodyView: View {
                 .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 .lineLimit(1)
         }
-        .frame(maxWidth: .infinity, minHeight: 112, maxHeight: 112, alignment: .leading)
-        .padding(NoopMetrics.space2)
-        .background(TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius))
+        .frame(maxWidth: .infinity, minHeight: forge ? 0 : 112, maxHeight: forge ? nil : 112, alignment: .leading)
+        .padding(forge ? 0 : NoopMetrics.space2)
+        .background {
+            if !forge { TodayCardSurface(tint: tint, cornerRadius: NoopMetrics.groupedRadius) }
+        }
     }
 
     // MARK: - Composition

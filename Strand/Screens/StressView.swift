@@ -255,6 +255,193 @@ struct StressView: View {
     @ViewBuilder
     private func content(_ model: StressModel) -> some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            if NoopVisualStyle.skin == .forge {
+                forgeSections(model)
+            } else {
+                classicSections(model)
+            }
+        }
+        // The sustained-stress suggestion opens the existing Breathe trainer in a sheet —
+        // in-app and passive (no alert / notification), inheriting the app environment.
+        .sheet(isPresented: $showBreathe) {
+            NavigationStack {
+                BreathingView()
+                    .toolbar {
+                        ToolbarItem {
+                            Button("Done") { showBreathe = false }
+                        }
+                    }
+            }
+            #if os(macOS)
+            .frame(width: 520, height: 760)
+            #endif
+        }
+    }
+
+    /// The new design's order (prototype board "StressFull"): the number with the day under it, the markers
+    /// as one list against the 30 days, the trend, then the extra readings and how it is worked out.
+    @ViewBuilder private func forgeSections(_ model: StressModel) -> some View {
+        forgeHero(model)
+        if daytime == nil {
+            daytimeLoading()
+        } else if let daytime, !daytime.scored.isEmpty {
+            daytimeSection(daytime)
+        }
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Markers").font(Font.title3.weight(.bold)).foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Text("vs your 30 days").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            }
+            forgeMarkers(model)
+        }
+        trendSection(model)
+        if hasAdvancedReadouts {
+            advancedReadoutsCard()
+        }
+        methodologyCard(model)
+    }
+
+    /// The page's one graphic: today's number glowing in its band colour, where it sits on the three bands,
+    /// and the last two weeks on the same bands, so the number is read against its own recent past.
+    private func forgeHero(_ model: StressModel) -> some View {
+        let tint = StressRamp.color(model.score)
+        let word = model.band.title.lowercased(with: AppLanguage.activeLocale).capitalized(with: AppLanguage.activeLocale)
+        return NoopCard {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 14) {
+                    ZStack {
+                        Circle().fill(RadialGradient(colors: [tint.opacity(0.45), tint.opacity(0)],
+                                                     center: .center, startRadius: 4, endRadius: 70))
+                            .frame(width: 140, height: 140)
+                            .accessibilityHidden(true)
+                        VStack(spacing: 0) {
+                            Text(StressTrace.formatLevel(model.score))
+                                .font(StrandFont.rounded(56, weight: .bold))
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Text("of 3").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                    .frame(width: 112, height: 112)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(word).font(Font.title2.weight(.bold)).foregroundStyle(tint)
+                        Text(model.explanation).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                forgeBands(score: model.score)
+                if model.sparkValues.count > 1 {
+                    forgeRecent(model.sparkValues)
+                }
+            }
+        }
+    }
+
+    /// The three bands as one segmented bar with today's marker on it.
+    private func forgeBands(score: Double) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            GeometryReader { geo in
+                let w = geo.size.width
+                ZStack(alignment: .leading) {
+                    HStack(spacing: 3) {
+                        Capsule().fill(StressRamp.calm.opacity(0.85))
+                        Capsule().fill(StressRamp.steady.opacity(0.85))
+                        Capsule().fill(StressRamp.tense.opacity(0.85))
+                    }
+                    .frame(height: 10)
+                    Circle().fill(StrandPalette.textPrimary)
+                        .overlay(Circle().strokeBorder(StrandPalette.surfaceRaised, lineWidth: 3))
+                        .shadow(color: StressRamp.color(score).opacity(0.8), radius: 6)
+                        .frame(width: 22, height: 22)
+                        .offset(x: max(0, min(w - 22, w * min(max(score, 0), 3) / 3 - 11)))
+                }
+                .frame(height: 22)
+            }
+            .frame(height: 22)
+            HStack {
+                Text("calm").frame(maxWidth: .infinity, alignment: .leading)
+                Text("some").frame(maxWidth: .infinity, alignment: .center)
+                Text("high").frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Stress \(StressTrace.formatLevel(score)) of 3"))
+    }
+
+    /// The last two weeks as bars on the same three bands, today brightest.
+    private func forgeRecent(_ values: [Double]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(Array(values.enumerated()), id: \.offset) { i, v in
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(StressRamp.color(v).opacity(i == values.count - 1 ? 1 : 0.55))
+                        .frame(height: max(4, 54 * CGFloat(min(max(v, 0), 3) / 3)))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 54, alignment: .bottom)
+            Text("The last \(values.count) days").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("The last \(values.count) days"))
+        .accessibilityValue(Text(values.map { StressTrace.formatLevel($0) }.joined(separator: ", ")))
+    }
+
+    private func forgeMarkers(_ model: StressModel) -> some View {
+        NoopCard(padding: 0) {
+            VStack(spacing: 0) {
+                forgeMarkerRow(String(localized: "Resting heart rate"), detail: String(localized: "this morning"),
+                               value: model.rhrToday.map { "\($0)" } ?? "—", unit: "bpm",
+                               chip: Self.forgeDeltaChip(model.rhrDelta, higherIsStress: true))
+                Divider().overlay(StrandPalette.hairline).padding(.leading, 16)
+                forgeMarkerRow(String(localized: "HRV"), detail: String(localized: "last night"),
+                               value: model.hrvToday.map { "\(Int($0.rounded()))" } ?? "—", unit: "ms",
+                               chip: Self.forgeDeltaChip(model.hrvDelta, higherIsStress: false))
+                Divider().overlay(StrandPalette.hairline).padding(.leading, 16)
+                forgeMarkerRow(String(localized: "Calm time"), detail: model.calmTimeCaption,
+                               value: model.calmTimeValue, unit: nil, chip: nil)
+            }
+        }
+    }
+
+    /// The same rule as the classic tiles: no chip without a delta, "usual" inside half a unit, otherwise
+    /// the change tinted by whether it points toward stress.
+    private static func forgeDeltaChip(_ delta: Double?, higherIsStress: Bool) -> (String, Color)? {
+        guard let delta else { return nil }
+        guard abs(delta) >= 0.5 else { return (String(localized: "usual"), StrandPalette.textTertiary) }
+        let up = delta > 0
+        let text = String(localized: "\(up ? "+" : "−")\(Int(abs(delta).rounded())) vs usual")
+        return (text, up == higherIsStress ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+    }
+
+    private func forgeMarkerRow(_ title: String, detail: String?, value: String, unit: String?, chip: (String, Color)?) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(StrandFont.body.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                if let detail { Text(detail).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary) }
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(value).font(StrandFont.rounded(20, weight: .bold)).foregroundStyle(StrandPalette.textPrimary)
+                    if let unit { Text(unit).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary) }
+                }
+                if let chip {
+                    Text(chip.0).font(StrandFont.caption.weight(.semibold)).foregroundStyle(chip.1)
+                        .padding(.horizontal, 8).padding(.vertical, 2)
+                        .background(Capsule().fill(chip.1.opacity(0.14)))
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private func classicSections(_ model: StressModel) -> some View {
 
             // 1. HERO — the liquid stress-level vessel + band + one plain-English line, all in one card.
             heroCard(model)
@@ -295,22 +482,6 @@ struct StressView: View {
             // 5. Transparency — how the number is built.
             methodologyCard(model)
                 .staggeredAppear(index: 4)
-        }
-        // The sustained-stress suggestion opens the existing Breathe trainer in a sheet —
-        // in-app and passive (no alert / notification), inheriting the app environment.
-        .sheet(isPresented: $showBreathe) {
-            NavigationStack {
-                BreathingView()
-                    .toolbar {
-                        ToolbarItem {
-                            Button("Done") { showBreathe = false }
-                        }
-                    }
-            }
-            #if os(macOS)
-            .frame(width: 520, height: 760)
-            #endif
-        }
     }
 
     // MARK: 3 · Daytime timeline (intraday, same 0–3 proxy)
@@ -471,6 +642,17 @@ struct StressView: View {
                     StatePill("\(model.band.title)", tone: model.band.tone, showsDot: true)
                 }
 
+                if NoopVisualStyle.skin == .forge {
+                    // The new design: the number on its scale across the card, the sentence under it. The
+                    // band word is the pill's alone, so it is not repeated beside the number.
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        StressHeroGauge(score: model.score, tint: StressRamp.color(model.score))
+                        Text(model.explanation)
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
                 HStack(alignment: .center, spacing: NoopMetrics.space5) {
                     // The stress-level vessel: fills to score/3, tinted to the live band, the value
                     // counting up over it. Taps splash the gauge (the numeral is hit-transparent).
@@ -488,6 +670,7 @@ struct StressView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
+                }
                 }
             }
         }
@@ -762,6 +945,38 @@ private struct StressHeroGauge: View {
     private var frac: Double { max(0, min(1, score / 3.0)) }
 
     var body: some View {
+        if NoopVisualStyle.skin == .forge { scale } else { vessel }
+    }
+
+    /// The redesign's reading: the level as a large number on a 0 to 3 track in the stress ramp, with the
+    /// day's position marked. Same score, no dark vessel.
+    private var scale: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(StressTrace.formatLevel(score))
+                    .font(StrandFont.rounded(34, weight: .bold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text("of 3").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(LinearGradient(colors: [StressRamp.calm.opacity(0.35), StressRamp.color(1.5).opacity(0.35),
+                                                      StressRamp.color(3).opacity(0.35)], startPoint: .leading, endPoint: .trailing))
+                        .frame(height: 10)
+                    Circle().fill(tint)
+                        .overlay(Circle().strokeBorder(StrandPalette.surfaceRaised, lineWidth: 3))
+                        .frame(width: 20, height: 20)
+                        .offset(x: max(0, min(geo.size.width - 20, geo.size.width * frac - 10)))
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 20, maxHeight: 20)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Stress \(StressTrace.formatLevel(score)) of 3"))
+    }
+
+    private var vessel: some View {
         ZStack {
             LiquidVessel(value: frac, tint: tint, animated: true)
                 .frame(width: 104, height: 104)
@@ -828,19 +1043,21 @@ enum StressRamp {
     /// Band anchors, lifted from the shared palette (no hard-coded hex). These are the
     /// blue / green / amber the totals legend and band dots use, kept in lock-step with
     /// the gauge gradient below.
-    static let calm    = StrandPalette.accent         // #60A0E0 — calm WHOOP blue
-    static let steady  = StrandPalette.statusPositive // #03E095 — balanced WHOOP green
-    static let tense   = StrandPalette.statusWarning  // #F0A020 — high WHOOP amber
+    /// Under the new design the accent is the Forge rust, which reads as alarm, so the bands take the
+    /// app's own meaning colours instead: Charge green for calm, amber in between, red for high.
+    static var calm: Color { NoopVisualStyle.skin == .forge ? StrandPalette.chargeColor : StrandPalette.accent }      // #60A0E0 — calm WHOOP blue
+    static var steady: Color { NoopVisualStyle.skin == .forge ? StrandPalette.metricAmber : StrandPalette.statusPositive } // #03E095 — balanced WHOOP green
+    static var tense: Color { NoopVisualStyle.skin == .forge ? StrandPalette.statusCritical : StrandPalette.statusWarning }  // #F0A020 — high WHOOP amber
 
     /// The 3-stop gauge ramp, evenly spaced (blue → green → amber).
-    static let stops: [Gradient.Stop] = [
-        .init(color: calm,   location: 0.00),
-        .init(color: steady, location: 0.50),
-        .init(color: tense,  location: 1.00),
-    ]
+    static var stops: [Gradient.Stop] {
+        [.init(color: calm,   location: 0.00),
+         .init(color: steady, location: 0.50),
+         .init(color: tense,  location: 1.00)]
+    }
 
     /// The blue→green→amber gauge gradient, built from the WHOOP band anchors above.
-    static let gradient = Gradient(stops: stops)
+    static var gradient: Gradient { Gradient(stops: stops) }
 
     /// Sample the ramp at a 0–3 stress score.
     static func color(_ score: Double) -> Color {

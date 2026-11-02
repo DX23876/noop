@@ -89,7 +89,19 @@ struct WorkoutDetailView: View {
     @State private var stepsPending = true
     @State private var energyPending = true
 
+    /// False when the detail is pushed onto a stack (the new design's Workouts page) rather than shown in a
+    /// sheet, so there is no Done button to close a sheet that is not there.
+    var showsDone = true
+
     var body: some View {
+        if NoopVisualStyle.skin == .forge {
+            forgeBody
+        } else {
+            classicBody
+        }
+    }
+
+    private var classicBody: some View {
         ScreenScaffold(title: "\(WorkoutSource.displaySport(row.sport))",
                        subtitle: "\(dateLabel(row.startTs))",
                        // PERF: chart/map-heavy column (a MapKit route map, the session HR curve, the
@@ -126,8 +138,10 @@ struct WorkoutDetailView: View {
         }
         .toolbar {
             // A Done affordance for the sheet on both platforms (iOS gets the grabber too).
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Done") { dismiss() }
+            if showsDone {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
             }
         }
         .task { await load() }
@@ -777,6 +791,293 @@ struct WorkoutDetailView: View {
     private static let intFmt: NumberFormatter = {
         let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0; return f
     }()
+}
+
+// MARK: - New design (NOOP Forge, prototype board "WorkoutFull")
+//
+// The same loaded values as the classic layout, arranged the way the redesign draws a session: the sport
+// once as the title, every headline number in one card, the heart-rate curve with its zone split under it,
+// the recovery as one number and the export as a row. Nothing here is computed differently.
+
+extension WorkoutDetailView {
+    var forgeBody: some View {
+        ScreenScaffold(title: "\(WorkoutSource.localizedDisplaySport(row.sport))",
+                       subtitle: "\(forgeWhen)", lazy: true) {
+            GoalContributionNote(row: row)
+            forgeStats
+            routeCard
+            WorkoutElevationCard(series: elevationSeries, elevation: elevation, sport: row.sport,
+                                 system: distanceUnitSystem)
+            ForEach(recordings) { recording in
+                WorkoutRecordingSectionsView(timeline: recording.timeline,
+                                             seconds: recording.row.durationS ?? 0,
+                                             sport: recording.row.sport,
+                                             elevation: elevationSeries)
+            }
+            forgeHeart
+            forgeRecovery
+            SessionRPECard(startTs: row.startTs, sport: row.sport,
+                           durationS: row.durationS ?? Double(row.endTs - row.startTs))
+            forgeExport
+        }
+        .toolbar {
+            if showsDone {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .task { await load() }
+    }
+
+    /// "Sunday, 1 November · 18:36 to 20:03" in the reader's language.
+    private var forgeWhen: String {
+        let start = Date(timeIntervalSince1970: TimeInterval(row.startTs))
+        let day = start.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale))
+        guard row.endTs > row.startTs else { return "\(day) · \(timeLabel(row.startTs))" }
+        return String(localized: "\(day) · \(timeLabel(row.startTs)) to \(timeLabel(row.endTs))")
+    }
+
+    private func forgeTitle(_ title: LocalizedStringKey, _ trailing: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            if let trailing {
+                Text(trailing).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+    }
+
+    private struct ForgeStat: Identifiable {
+        let label: String
+        let value: String
+        var unit: String? = nil
+        var tint: Color? = nil
+        var pending = false
+        var id: String { label }
+    }
+
+    private var forgeStatList: [ForgeStat] {
+        var out = [ForgeStat(label: String(localized: "time"), value: durationLabel(row.durationS))]
+        if let m = row.distanceM, m > 0 {
+            out.append(ForgeStat(label: String(localized: "distance"), value: distanceLabel(m)))
+            out.append(ForgeStat(label: String(localized: "pace"), value: paceLabel))
+        }
+        out.append(ForgeStat(label: String(localized: "avg heart"), value: row.avgHr.map { "\($0)" } ?? "–",
+                             unit: row.avgHr != nil ? "bpm" : nil))
+        if row.distanceM == nil || row.distanceM == 0 {
+            out.append(ForgeStat(label: String(localized: "peak heart"), value: row.maxHr.map { "\($0)" } ?? "–",
+                                 unit: row.maxHr != nil ? "bpm" : nil))
+        }
+        if let strain = row.strain {
+            let shown = effortScale == .whoop ? UnitFormatter.effortDisplay(strain, scale: effortScale)
+                                              : "\(Int(UnitFormatter.effortValue(strain, scale: effortScale).rounded()))"
+            out.append(ForgeStat(label: String(localized: "Effort"), value: shown,
+                                 tint: StrandPalette.effortColor))
+        }
+        out.append(ForgeStat(label: String(localized: "kcal"), value: WorkoutEnergyDisplay.text(energy) ?? (energyPending ? "…" : "–"),
+                             pending: energyPending && energy == nil))
+        if WorkoutCatalog.isOnFoot(row.sport) {
+            out.append(ForgeStat(label: String(localized: "steps"), value: steps.map { grouped(Double($0.count)) } ?? "–",
+                                 pending: stepsPending))
+        }
+        return out
+    }
+
+    private var forgeSourceLine: String? {
+        var parts: [String] = []
+        switch WorkoutSource.classify(row.source) {
+        case .whoop: parts.append(String(localized: "Whoop"))
+        case .apple: parts.append(String(localized: "Apple"))
+        case .detected, .confirmed: parts.append(String(localized: "Detected"))
+        case .manual: parts.append(String(localized: "Manual"))
+        case .hevy: parts.append(String(localized: "Hevy"))
+        case .lifting: parts.append(String(localized: "Lifting"))
+        case .activityFile: parts.append(String(localized: "File"))
+        case .oura: parts.append(String(localized: "Oura"))
+        }
+        if let energyCaption, energy != nil { parts.append(energyCaption) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private var forgeStats: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 14) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .leading), count: 3),
+                          alignment: .leading, spacing: 16) {
+                    ForEach(forgeStatList) { stat in
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                                Text(stat.value)
+                                    .font(StrandFont.rounded(22, weight: .bold))
+                                    .foregroundStyle(stat.tint ?? StrandPalette.textPrimary)
+                                    .lineLimit(1).minimumScaleFactor(0.6)
+                                if let unit = stat.unit {
+                                    Text(unit).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                                }
+                                if stat.pending { pendingIndicator }
+                            }
+                            Text(stat.label).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                if let line = forgeSourceLine {
+                    Text(line).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var forgeHeart: some View {
+        if hrPoints.count > 1 {
+            let values = hrPoints.map(\.value)
+            let lo = max(0, (values.min() ?? 60) - 8)
+            let hi = (values.max() ?? 180) + 8
+            NoopCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    forgeTitle("Heart rate", row.avgHr.map { String(localized: "avg \($0)") })
+                    TrendChart(
+                        points: hrPoints,
+                        gradient: StrandPalette.effortGradient,
+                        valueRange: lo...hi,
+                        showsArea: true,
+                        valueFormat: { String(localized: "\(Int($0.rounded())) bpm") },
+                        dateFormat: { Self.tooltipTime.string(from: $0) },
+                        accessibilityLabel: String(localized: "Heart rate during \(WorkoutSource.displaySport(row.sport))"),
+                        workoutTimeAxis: Date(timeIntervalSince1970: TimeInterval(row.startTs))...Date(timeIntervalSince1970: TimeInterval(row.endTs))
+                    )
+                    .frame(height: 150)
+                    .padding(.top, 10)
+                    if let z = zoneMinutes, z.reduce(0, +) > 0 {
+                        forgeZoneBand(z)
+                    }
+                    if avgHrEditedDisclosure(traceMean: values.reduce(0, +) / Double(values.count)) {
+                        Text("The average above was edited. The graph, zones and Effort stay from the recorded session.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        } else if let z = zoneMinutes, z.reduce(0, +) > 0 {
+            NoopCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    forgeTitle("Heart rate zones")
+                    forgeZoneBand(z)
+                }
+            }
+        } else if loaded {
+            NoopCard { emptyNote("No heart-rate samples were recorded over this session's window.") }
+        }
+    }
+
+    /// The zone split as one band, each zone in its colour, minutes under it. Empty zones are left out of
+    /// the legend so the band and the words agree.
+    private func forgeZoneBand(_ z: [Double]) -> some View {
+        let total = z.reduce(0, +)
+        let shown = (0..<min(5, z.count)).filter { z[$0] > 0 }
+        return VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { geo in
+                HStack(spacing: 2) {
+                    ForEach(shown, id: \.self) { i in
+                        Rectangle().fill(StrandPalette.hrZoneColor(i + 1))
+                            .frame(width: max(2, CGFloat(z[i] / total) * (geo.size.width - CGFloat(shown.count - 1) * 2)))
+                    }
+                }
+            }
+            .frame(height: 12)
+            .clipShape(Capsule())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(localized: "Heart-rate zone split: \((1...5).map { String(localized: "zone \($0) \(Int((z[$0 - 1] / total * 100).rounded())) percent") }.joined(separator: ", "))"))
+            HStack(spacing: 10) {
+                ForEach(shown, id: \.self) { i in
+                    HStack(spacing: 4) {
+                        Circle().fill(StrandPalette.hrZoneColor(i + 1)).frame(width: 7, height: 7)
+                        Text(LiveHeartRateStyle.zoneName(i + 1)).font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                        Text(durationLabel(z[i] * 60)).font(StrandFont.caption.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
+                    }
+                    .minimumScaleFactor(0.8)
+                }
+            }
+            Text(!recordings.isEmpty
+                 ? "Zones use the settings recorded during this workout. Gaps are not counted."
+                 : zonesFromImport
+                 ? "WHOOP's imported per-zone split for this session."
+                 : "Time in each %HRmax zone, derived from the strap's heart rate over this window (approximate).")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder private var forgeRecovery: some View {
+        if let recovery = heartRateRecovery {
+            NoopCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    forgeTitle("Recovery after", String(localized: "Peak \(recovery.endHR) bpm"))
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(verbatim: recovery.after1Minute.map { $0 > 0 ? "−\($0)" : "\(-$0)" } ?? "–")
+                            .font(StrandFont.rounded(34, weight: .bold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("bpm in the first minute").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    HStack(spacing: 16) {
+                        forgeRecoveryLater(String(localized: "after 2 min"), recovery.after2Minutes)
+                        forgeRecoveryLater(String(localized: "after 5 min"), recovery.after5Minutes)
+                    }
+                    Text("How far your heart rate fell after the end of the effort. A larger drop is a sign of fitness.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func forgeRecoveryLater(_ label: String, _ value: Int?) -> some View {
+        HStack(spacing: 4) {
+            Text(verbatim: value.map { $0 > 0 ? "−\($0) bpm" : "\(-$0) bpm" } ?? "–")
+                .font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+            Text(label).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private var forgeExport: some View {
+        if route.count >= 2 || !hrPoints.isEmpty {
+            Button { showRouteExport = true } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(StrandFont.body.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(StrandPalette.surfaceInset))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Export workout").font(StrandFont.body.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                        Text("For Strava, Garmin Connect and other apps").font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(StrandFont.footnote.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .padding(14)
+                .background(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
+                    .fill(StrandPalette.surfaceRaised))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .confirmationDialog("Export workout", isPresented: $showRouteExport, titleVisibility: .visible) {
+                if route.count >= 2 {
+                    Button("GPX — Strava, Garmin, most apps") { exportWorkout(.gpx) }
+                }
+                Button("FIT — Garmin Connect") { exportWorkout(.fit) }
+                Button("Cancel", role: .cancel) {}
+            }
+        }
+    }
 }
 
 // MARK: - Route map (#524)

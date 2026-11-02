@@ -184,13 +184,19 @@ struct ForgeWorkoutDetailHost: View {
     let startTs: Int
     let sport: String
     @EnvironmentObject private var repo: Repository
+    @StateObject private var strength = StrengthModel()
     @State private var row: WorkoutRow?
+    @State private var lift: (breakdown: StrengthSessionBreakdown, source: StrengthDataSource)?
     @State private var looked = false
 
     var body: some View {
         Group {
-            if let row {
-                WorkoutDetailView(row: row)
+            if let lift {
+                // A logged strength session opens its own analysis: exercises, sets and volume, with the
+                // strap's heart rate when it covered the window.
+                StrengthSessionDetailView(breakdown: lift.breakdown, matchedRow: row, source: lift.source, embedded: true)
+            } else if let row {
+                WorkoutDetailView(row: row, showsDone: false)
             } else if looked {
                 Text("This workout is no longer stored.")
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
@@ -203,6 +209,14 @@ struct ForgeWorkoutDetailHost: View {
         .task {
             let age = max(1, Int(Date().timeIntervalSince1970) - startTs) / 86_400 + 2
             row = (await repo.workoutRows(days: age, reconcileHrCap: 0)).first { $0.startTs == startTs && $0.sport == sport }
+            if let row {
+                await strength.load(repo: repo)
+                // The logged session this row mirrors, by the same overlap rule the Strength page uses.
+                if let summary = strength.summaries.first(where: { strength.matchedRow(for: $0)?.startTs == row.startTs }),
+                   let breakdown = strength.breakdown(for: summary.workoutId) {
+                    lift = (breakdown, strength.source(for: summary.workoutId))
+                }
+            }
             looked = true
         }
     }

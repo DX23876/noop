@@ -228,7 +228,11 @@ struct GoalsOverviewView: View {
         if !tracking.todayActions.isEmpty {
             NoopCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(String(localized: "Today")).strandOverline()
+                    if NoopVisualStyle.skin == .forge {
+                        Text(String(localized: "Today")).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    } else {
+                        Text(String(localized: "Today")).strandOverline()
+                    }
                     DailyGoalChips(occurrences: tracking.todayActions, onToggleManual: toggleDaily)
                     GoalNotifyOffer(occurrences: tracking.todayActions)
                 }
@@ -275,11 +279,20 @@ struct GoalsOverviewView: View {
 
     private func sectionHeader(_ title: String, detail: String? = nil, route: GoalsRoute? = nil) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title.uppercased())
-                .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                .foregroundStyle(StrandPalette.textSecondary)
-            if let detail {
-                Text("· \(detail)").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            if NoopVisualStyle.skin == .forge {
+                // The new design: a sentence-case section title, the detail as a quiet note beside it.
+                Text(title).font(Font.title3.weight(.bold)).foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                if let detail {
+                    Text(detail).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+            } else {
+                Text(title.uppercased())
+                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                if let detail {
+                    Text("· \(detail)").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
             }
             Spacer()
             if let route {

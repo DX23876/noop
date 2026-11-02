@@ -46,15 +46,28 @@ struct WeightDetailView: View {
     private let historyDays = 365
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                headline
-                if !chartPoints.isEmpty { chart }
-                history
+        Group {
+            if NoopVisualStyle.skin == .forge {
+                ScreenScaffold(title: "Weight") {
+                    forgeHero
+                    if !chartPoints.isEmpty { chart }
+                    if let s = summary { forgeChanges(s) }
+                    logButton
+                    forgeHistory
+                }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                        headline
+                        if !chartPoints.isEmpty { chart }
+                        history
+                    }
+                    .padding(NoopMetrics.screenPadding)
+                }
+                .background(StrandPalette.surfaceBase.ignoresSafeArea())
+                .navigationTitle(Text("Weight"))
             }
-            .padding(NoopMetrics.screenPadding)
         }
-        .navigationTitle(Text("Weight"))
         .task { await loadIfNeeded() }
         .sheet(item: $editing) { draft in
             WeightLogSheet(draft: draft, unitSystem: unitSystem,
@@ -305,6 +318,113 @@ struct WeightDetailView: View {
         // delete button that deletes nothing is worse than no button.
         .contentShape(Rectangle())
         .onTapGesture { if entry.isEditable { editing = WeightLogDraft(entry: entry) } }
+    }
+
+    // MARK: - New design (prototype board "WeightFull")
+
+    /// The newest weigh-in as the one big number, the trend and the goal beside it in words.
+    @ViewBuilder private var forgeHero: some View {
+        if let s = summary {
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(UnitFormatter.massFromKilograms(s.latestKg, system: unitSystem))
+                        .font(StrandFont.rounded(44, weight: .bold))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Text("Last weigh-in \(relative(latestWeighInAt ?? s.latestAt))")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(UnitFormatter.massFromKilograms(s.trendKg, system: unitSystem))
+                        .font(StrandFont.rounded(20, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(s.isTrendReliable ? String(localized: "trend") : String(localized: "trend, still settling"))
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            if let goal = weightGoal, let target = goal.target {
+                Text("Goal \(UnitFormatter.massFromKilograms(target, system: unitSystem))")
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+        } else if loaded {
+            NoopCard { emptyState }
+        }
+    }
+
+    /// The three changes as plain figures in one card. Tinted only against a goal, as in the classic pills.
+    private func forgeChanges(_ s: WeightTrendSummary) -> some View {
+        NoopCard {
+            HStack(alignment: .top, spacing: 12) {
+                forgeChange(String(localized: "7 days"), s.change7dKg)
+                forgeChange(String(localized: "30 days"), s.change30dKg)
+                forgeChange(String(localized: "per week"), s.ratePerWeekKg)
+            }
+        }
+    }
+
+    private func forgeChange(_ label: String, _ delta: Double?) -> some View {
+        let color: Color = {
+            switch tone(for: delta) {
+            case .positive: return StrandPalette.statusPositive
+            case .warning: return StrandPalette.statusWarning
+            default: return StrandPalette.textPrimary
+            }
+        }()
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(delta.map { signedMass($0) } ?? "—")
+                .font(StrandFont.rounded(20, weight: .bold)).foregroundStyle(color)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Every weigh-in in one list; a tap opens the editor for the ones logged here.
+    @ViewBuilder private var forgeHistory: some View {
+        if !entries.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                Text("History").font(Font.title3.weight(.bold)).foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                NoopCard(padding: 0) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(entries.enumerated()), id: \.element.id) { i, entry in
+                            if i > 0 { Divider().overlay(StrandPalette.hairline).padding(.leading, 16) }
+                            forgeHistoryRow(entry)
+                        }
+                    }
+                }
+                Text("Tap a weigh-in you logged here to edit or delete it.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+    }
+
+    private func forgeHistoryRow(_ entry: WeightEntry) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.takenAt.map { $0.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(AppLanguage.activeLocale)) }
+                     ?? entry.day)
+                    .font(StrandFont.body.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                Text([sourceLabel(entry.source), entry.note].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary).lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            Text(UnitFormatter.massFromKilograms(entry.value, system: unitSystem))
+                .font(StrandFont.rounded(17, weight: .semibold)).foregroundStyle(StrandPalette.textPrimary)
+            if entry.isEditable {
+                Image(systemName: "chevron.right").font(StrandFont.footnote.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .onTapGesture { if entry.isEditable { editing = WeightLogDraft(entry: entry) } }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(entry.isEditable ? .isButton : [])
     }
 
     private func sourceLabel(_ source: WeightSource) -> String {

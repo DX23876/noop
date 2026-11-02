@@ -46,13 +46,29 @@ struct StrengthSessionDetailView: View {
         TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
     }
 
+    /// True when pushed onto an existing stack (the new design's Workouts page): no stack of its own and
+    /// no Done button, since there is no sheet to close.
+    var embedded = false
+
     var body: some View {
-        NavigationStack {
+        if embedded {
+            content
+        } else {
+            NavigationStack { content }
+        }
+    }
+
+    private var content: some View {
             ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                    header
-                    statStrip
+                    if NoopVisualStyle.skin == .forge {
+                        forgeHeader
+                        forgeStats
+                    } else {
+                        header
+                        statStrip
+                    }
                     heartRateCard
                     zonesCard
                     SessionRPECard(startTs: breakdown.startTs, sport: title,
@@ -65,17 +81,73 @@ struct StrengthSessionDetailView: View {
                 DemoScrollBottomAnchor()
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
-            .navigationTitle(Text(title))
+            .navigationTitle(Text(NoopVisualStyle.skin == .forge ? "" : title))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                if !embedded {
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                }
             }
             .task {
                 await loadHeartRate()
                 await scrollToDemoBottom(proxy)
             }
+            }
+    }
+
+    // MARK: - New design (prototype board "StrengthFull")
+
+    /// The session's name once, as the page title, with the day and times in the reader's language.
+    private var forgeHeader: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(Font.largeTitle.bold()).foregroundStyle(StrandPalette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text(forgeDateLine).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+        }
+        .padding(.top, 4)
+    }
+
+    private var forgeDateLine: String {
+        let start = Date(timeIntervalSince1970: TimeInterval(breakdown.startTs))
+        let end = Date(timeIntervalSince1970: TimeInterval(breakdown.endTs))
+        let locale = AppLanguage.activeLocale
+        let day = start.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(locale))
+        let from = start.formatted(.dateTime.hour().minute().locale(locale))
+        let to = end.formatted(.dateTime.hour().minute().locale(locale))
+        return String(localized: "\(day) · \(from) to \(to)")
+    }
+
+    /// The session's headline figures in one card: what was lifted first, then time and heart.
+    private var forgeStats: some View {
+        var stats: [(String, String)] = [
+            ("\(breakdown.summary.workingSetCount)", String(localized: "working sets")),
+            ("\(breakdown.summary.exerciseCount)", String(localized: "exercises")),
+            (volumeText(breakdown.summary.volumeLoadKg), String(localized: "volume")),
+            (durationText, String(localized: "time")),
+        ]
+        if let hr = matchedRow?.avgHr { stats.append(("\(hr)", String(localized: "avg heart"))) }
+        if let rpe = breakdown.summary.meanRpe {
+            stats.append((rpe.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale)),
+                          String(localized: "mean RPE")))
+        }
+        return NoopCard {
+            VStack(alignment: .leading, spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .leading), count: 3),
+                          alignment: .leading, spacing: 16) {
+                    ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(stat.0).font(StrandFont.rounded(22, weight: .bold))
+                                .foregroundStyle(StrandPalette.textPrimary)
+                                .lineLimit(1).minimumScaleFactor(0.6)
+                            Text(stat.1).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                Text(volumeCoverage).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
             }
         }
     }

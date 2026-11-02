@@ -1194,8 +1194,14 @@ struct MetricDetailView: View {
                     }
                     // Steps chart summaries are bucketed, but the provenance table deliberately remains
                     // one row per underlying observed day.
-                    readingsTable(windowed: isStepsDetail ? rawWin : win)
-                    correlationCard
+                    if NoopVisualStyle.skin == .forge {
+                        // The new design asks "what goes with it" before the raw readings.
+                        correlationCard
+                        readingsTable(windowed: isStepsDetail ? rawWin : win)
+                    } else {
+                        readingsTable(windowed: isStepsDetail ? rawWin : win)
+                        correlationCard
+                    }
                 }
             }
             .padding(NoopMetrics.screenPadding)
@@ -1229,7 +1235,8 @@ struct MetricDetailView: View {
             }
             .ignoresSafeArea()
         }
-        .navigationTitle(metric.title)
+        // The new design prints the title once, as the page's large title.
+        .navigationTitle(NoopVisualStyle.skin == .forge ? "" : metric.title)
         .task(id: loadTaskID) { await load() }
         // Range changes the window, hence the correlation inputs — recompute the
         // cached scan rather than letting `correlationCard` run it inside body.
@@ -1458,13 +1465,14 @@ struct MetricDetailView: View {
                 if !isStepsDetail { VStack(alignment: .leading, spacing: 2) {
                     // Suppress the category overline when it would just repeat the title (e.g. the Charge
                     // metric in the Charge category) — that's the "CHARGE / Charge" doubling (redesign bug §1).
-                    if !categoryEchoesTitle {
+                    if !categoryEchoesTitle, NoopVisualStyle.skin != .forge {
                         Text(MetricCatalog.categoryDisplayName(metric.category).uppercased()).strandOverline()
                     }
                     Text(metric.title)
-                        .font(StrandFont.title2)
+                        .font(NoopVisualStyle.skin == .forge ? Font.largeTitle.bold() : StrandFont.title2)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
                 } }
                 // Range control on its own row beneath the title.
                 SegmentedPillControl(ExploreRange.displayCases, selection: selectionBinding,
@@ -1478,60 +1486,80 @@ struct MetricDetailView: View {
                 // to its fraction on appear (`heroAnimatedFraction`), so it settles once like TodayView's
                 // rings; the number ticks itself. A liquid accent on the ONE headline value, where it reads
                 // well — never over the chart below.
-                HStack {
-                    Spacer(minLength: 0)
-                    if fraction != nil, let v = value {
-                        VStack(spacing: 10) {
-                            ZStack {
-                                // The big hero vessel stays live (animated) — the one sloshing gauge on the
-                                // screen, exactly like the hero gauges on Today.
-                                LiquidVessel(value: heroAnimatedFraction, tint: domain.bright, animated: true)
-                                    .frame(width: 188, height: 188)
-                                    .accessibilityHidden(true)
-                                VStack(spacing: 2) {
-                                    CountUpNumber(value: v, font: StrandFont.rounded(48))
-                                        .foregroundStyle(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
-                                    if !metric.unit.isEmpty {
-                                        Text(metric.unit)
-                                            .font(StrandFont.footnote)
-                                            .foregroundStyle(.white.opacity(0.85))
-                                            .shadow(color: .black.opacity(0.5), radius: 4, y: 1)
-                                    }
-                                }
-                                .allowsHitTesting(false)
-                            }
-                            Text(asOf)
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                        }
-                        // One VoiceOver stop for the hero read-out (the vessel is decorative above).
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(heroValue), \(asOf)")
-                    } else if let v = value {
-                        VStack(spacing: 6) {
-                            CountUpText(value: v, format: { fmt($0) },
-                                        font: StrandFont.number(54),
-                                        color: StrandPalette.textPrimary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.5)
-                            Text(asOf)
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                        }
-                        .padding(.vertical, 18)
-                    } else {
-                        VStack(spacing: 6) {
+                if NoopVisualStyle.skin == .forge {
+                    // The new design reads the latest value as one big number on the left, the unit and
+                    // the date beside it, with no gauge: a score is a number here, not a ring.
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(heroValue)
-                                .font(StrandFont.number(54))
+                                .font(StrandFont.rounded(56, weight: .bold))
                                 .foregroundStyle(StrandPalette.textPrimary)
-                            Text(asOf)
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                                .lineLimit(1).minimumScaleFactor(0.5)
+                            if !metric.unit.isEmpty, value != nil {
+                                Text(metric.unit).font(StrandFont.headline).foregroundStyle(StrandPalette.textSecondary)
+                            }
                         }
-                        .padding(.vertical, 18)
+                        Text(asOf).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     }
-                    Spacer(minLength: 0)
+                    .padding(.top, 6)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(heroValue), \(asOf)")
+                } else {
+                    HStack {
+                        Spacer(minLength: 0)
+                        if fraction != nil, let v = value {
+                            VStack(spacing: 10) {
+                                ZStack {
+                                    // The big hero vessel stays live (animated) — the one sloshing gauge on the
+                                    // screen, exactly like the hero gauges on Today.
+                                    LiquidVessel(value: heroAnimatedFraction, tint: domain.bright, animated: true)
+                                        .frame(width: 188, height: 188)
+                                        .accessibilityHidden(true)
+                                    VStack(spacing: 2) {
+                                        CountUpNumber(value: v, font: StrandFont.rounded(48))
+                                            .foregroundStyle(.white)
+                                            .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
+                                        if !metric.unit.isEmpty {
+                                            Text(metric.unit)
+                                                .font(StrandFont.footnote)
+                                                .foregroundStyle(.white.opacity(0.85))
+                                                .shadow(color: .black.opacity(0.5), radius: 4, y: 1)
+                                        }
+                                    }
+                                    .allowsHitTesting(false)
+                                }
+                                Text(asOf)
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            // One VoiceOver stop for the hero read-out (the vessel is decorative above).
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(heroValue), \(asOf)")
+                        } else if let v = value {
+                            VStack(spacing: 6) {
+                                CountUpText(value: v, format: { fmt($0) },
+                                            font: StrandFont.number(54),
+                                            color: StrandPalette.textPrimary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.5)
+                                Text(asOf)
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            .padding(.vertical, 18)
+                        } else {
+                            VStack(spacing: 6) {
+                                Text(heroValue)
+                                    .font(StrandFont.number(54))
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                Text(asOf)
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            .padding(.vertical, 18)
+                        }
+                        Spacer(minLength: 0)
+                    }
                 }
 
                 // The "N readings · range" caption (auto-widen flagged when it happens).
@@ -1551,11 +1579,13 @@ struct MetricDetailView: View {
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
             }
-        .padding(NoopMetrics.cardPadding)
+        .padding(NoopVisualStyle.skin == .forge ? 0 : NoopMetrics.cardPadding)
         .background {
-            NoopPanelSurface(tint: domain.color,
-                             cornerRadius: NoopMetrics.cardRadius,
-                             elevated: true)
+            if NoopVisualStyle.skin != .forge {
+                NoopPanelSurface(tint: domain.color,
+                                 cornerRadius: NoopMetrics.cardRadius,
+                                 elevated: true)
+            }
         }
         // The hero shows the LATEST available point (range-independent), so the vessel fills once on
         // appear (0 → its fraction) and settles — like TodayView's rings.
@@ -1578,7 +1608,7 @@ struct MetricDetailView: View {
             // Upstream #743 moved the range control off the title row onto its own full-width row below;
             // the fork keeps its `!categoryEchoesTitle` overline suppression and its curated `displayCases`.
             if !isStepsDetail { VStack(alignment: .leading, spacing: 2) {
-                if !categoryEchoesTitle {
+                if !categoryEchoesTitle, NoopVisualStyle.skin != .forge {
                     Text(MetricCatalog.categoryDisplayName(metric.category).uppercased()).strandOverline()
                 }
                 Text(metric.title)
