@@ -326,7 +326,7 @@ struct ForgeTrainingView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Recent activities").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                 Spacer()
-                NavigationLink(value: TabRoute.workouts) {
+                NavigationLink(value: ForgeRoute.workouts) {
                     Text("All").font(.system(size: 17)).foregroundStyle(ForgeColor.accent)
                 }
             }
@@ -407,7 +407,7 @@ struct ForgeTrainingView: View {
                                     value: vo2max.last.map { String(format: "%.0f", $0) },
                                     unit: "ml/kg/min", trend: Array(vo2max.suffix(30)), tint: ForgeColor.charge)
                 }
-                NavigationLink(value: TabRoute.workouts) {
+                NavigationLink(value: ForgeRoute.workouts) {
                     ForgeMetricTile(label: String(localized: "Last 30 days"), value: "\(recent.count)",
                                     unit: String(localized: "workouts"),
                                     trend: nil, tint: ForgeColor.effort)
@@ -420,7 +420,7 @@ struct ForgeTrainingView: View {
                              subtitle: String(localized: "Both lanes against your usual"))
                 }
                 ForgeRowDivider()
-                NavigationLink(value: TabRoute.strength) {
+                NavigationLink(value: ForgeRoute.strength) {
                     ForgeRow(systemImage: "dumbbell.fill", tint: .orange, title: String(localized: "Strength"),
                              subtitle: String(localized: "Exercises, volume and muscle groups"))
                 }
@@ -443,6 +443,11 @@ struct ForgeTrainingView: View {
         VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "Tools")
             ForgeGroup {
+                NavigationLink(value: ForgeRoute.weekPlan) {
+                    ForgeRow(systemImage: "calendar.day.timeline.left", tint: ForgeColor.accent, title: String(localized: "This week's plan"),
+                             subtitle: String(localized: "Done and planned, day by day"))
+                }
+                ForgeRowDivider()
                 NavigationLink(value: MoreDestination.training) {
                     ForgeRow(systemImage: "calendar", tint: ForgeColor.accent, title: String(localized: "Plan and library"),
                              subtitle: String(localized: "Schedule, routines, imports, past sessions"))

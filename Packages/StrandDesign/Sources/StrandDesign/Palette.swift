@@ -145,11 +145,17 @@ public enum StrandPalette {
     public static var accentChoice: AccentColor = .systemBlue
     /// The custom accent's hex, used only when `accentChoice == .custom`. Set alongside `accentChoice`.
     public static var customAccentHex: String = AccentColor.defaultCustomHex
-    public static var accent: Color { accentChoice.accent }
-    public static var accentHover: Color { accentChoice.accentHover }
-    public static var accentMuted: Color { accentChoice.accentMuted }
+    /// The redesign's accent (ember in Light, gold in Dark). Under the Forge chrome it replaces the user's
+    /// accent choice everywhere, so links and selection match the redesigned tabs.
+    public static let forgeAccent = Color(light: "#9A3E1C", dark: "#E8B64A")
+    /// Text and icons on a `forgeAccent` fill.
+    public static let forgeOnAccent = Color(light: "#FFFFFF", dark: "#2A1D00")
+    private static var forgeChrome: Bool { NoopVisualStyle.skin == .forge }
+    public static var accent: Color { forgeChrome ? forgeAccent : accentChoice.accent }
+    public static var accentHover: Color { forgeChrome ? forgeAccent.opacity(0.85) : accentChoice.accentHover }
+    public static var accentMuted: Color { forgeChrome ? forgeAccent.opacity(0.16) : accentChoice.accentMuted }
     /// Focus ring color — the same accent, on both schemes.
-    public static var focusRing: Color { accentChoice.focusRing }
+    public static var focusRing: Color { forgeChrome ? forgeAccent : accentChoice.focusRing }
     /// Opacity for dimmed/disabled sections (shared so screens don't invent their own value).
     public static let disabledOpacity: Double = 0.45
     /// Liquid-scene activity tint shared by heart-rate feedback and transient sync chrome.

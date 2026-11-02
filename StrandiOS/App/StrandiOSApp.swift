@@ -70,6 +70,11 @@ struct StrandiOSApp: App {
         // #1008: pin the pre-change Overnight-only default for existing installs before
         // anything reads it. Idempotent; a no-op on fresh installs and after the first launch.
         PuffinExperiment.migrateContinuousHrvOvernightDefault()
+
+        // The shared chrome follows the "New design" switch from the first frame, so every screen pushed
+        // from the redesigned tabs wears its colours. RootTabView keeps it in step when the switch changes.
+        NoopVisualStyle.skin = ForgeDesignPrefs.isEnabled() ? .forge : .standard
+        ForgeDesignPrefs.applyListChrome()
         #if DEBUG
         // DEBUG-only promo-screenshot harness: when launched with `--demo-hour <Int>`, pin Today to that
         // hour's day-cycle scene + a per-hour stat frame. No-op (active stays nil) when the arg is absent.

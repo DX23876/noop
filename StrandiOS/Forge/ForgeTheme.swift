@@ -238,3 +238,16 @@ struct ForgeChip: View {
     }
 }
 #endif
+
+#if os(iOS)
+extension ForgeDesignPrefs {
+    /// System lists (`List`, `Form`) paint their own grouped grey, which reads cool against the redesign's
+    /// warm canvas. Under the redesign they draw clear, so the canvas behind every pushed screen shows
+    /// through and their rows keep the system card fill. The standard design never sets the proxy, so its
+    /// lists are untouched; turning the redesign off takes full effect at the next launch.
+    static func applyListChrome() {
+        guard NoopVisualStyle.skin == .forge else { return }
+        UICollectionView.appearance().backgroundColor = .clear
+    }
+}
+#endif

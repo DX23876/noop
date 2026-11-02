@@ -12,6 +12,12 @@ enum ForgeRoute: Hashable {
     case effort(stored: Double?, charge: Double?)
     case rest(Double?)
     case weeklyReport
+    /// Training › Strength and its body map.
+    case strength
+    case muscles
+    case workouts
+    case weekPlan
+    case search
 }
 
 extension View {
@@ -22,6 +28,11 @@ extension View {
             case .effort(let stored, let charge): ForgeEffortDetailView(effortStored: stored, charge: charge, onAsk: onAsk)
             case .rest(let rest): ForgeRestDetailView(rest: rest, onAsk: onAsk)
             case .weeklyReport: ForgeWeeklyReportView(onAsk: onAsk, coach: coach)
+            case .strength: ForgeStrengthView()
+            case .muscles: ForgeMusclesView()
+            case .workouts: ForgeWorkoutsView()
+            case .weekPlan: ForgeWeekPlanView(onAsk: onAsk)
+            case .search: ForgeSearchView()
             }
         }
     }

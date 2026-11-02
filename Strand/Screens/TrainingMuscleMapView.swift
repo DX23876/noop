@@ -4,18 +4,29 @@ import StrandDesign
 import StrandTraining
 
 enum TrainingMuscleMapAppearance {
-    static let scale = HeatmapColorScale(
-        colors: [StrandPalette.hairline, StrandPalette.metricCyan,
-                 StrandPalette.accent, StrandPalette.effortColor],
-        interpolation: .easeInOut)
+    /// Under the redesign's chrome a share reads as one violet ramp (strength's colour there), and a selected
+    /// muscle is outlined in the text colour: its ember accent drew a brown rim that read as an error.
+    private static var forge: Bool { NoopVisualStyle.skin == .forge }
+    private static let forgeStrength = Color(light: "#5B4DBF", dark: "#A996FF")
 
-    static let style = BodyViewStyle(
-        defaultFillColor: StrandPalette.hairline.opacity(0.65),
-        strokeColor: StrandPalette.textTertiary.opacity(0.22), strokeWidth: 0.5,
-        selectionColor: StrandPalette.accent,
-        selectionStrokeColor: StrandPalette.accent, selectionStrokeWidth: 1.5,
-        headColor: StrandPalette.hairline.opacity(0.75),
-        hairColor: StrandPalette.textTertiary.opacity(0.45))
+    static var scale: HeatmapColorScale {
+        forge
+            ? HeatmapColorScale(colors: [StrandPalette.hairline, forgeStrength.opacity(0.45), forgeStrength],
+                                interpolation: .easeInOut)
+            : HeatmapColorScale(colors: [StrandPalette.hairline, StrandPalette.metricCyan,
+                                         StrandPalette.accent, StrandPalette.effortColor],
+                                interpolation: .easeInOut)
+    }
+
+    static var style: BodyViewStyle {
+        BodyViewStyle(
+            defaultFillColor: StrandPalette.hairline.opacity(0.65),
+            strokeColor: StrandPalette.textTertiary.opacity(0.22), strokeWidth: 0.5,
+            selectionColor: forge ? forgeStrength : StrandPalette.accent,
+            selectionStrokeColor: forge ? StrandPalette.textPrimary : StrandPalette.accent, selectionStrokeWidth: 1.5,
+            headColor: StrandPalette.hairline.opacity(0.75),
+            hairColor: StrandPalette.textTertiary.opacity(0.45))
+    }
 
     static func muscle(_ id: String) -> Muscle? {
         switch id {

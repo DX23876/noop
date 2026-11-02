@@ -717,14 +717,18 @@ public struct NoopPrimaryButtonStyle: ButtonStyle {
     public init() {}
     public func makeBody(configuration: Configuration) -> some View {
         let pressed = configuration.isPressed
+        // Under the redesign's chrome the call to action is its own solid accent, as on its tabs.
+        let forge = NoopVisualStyle.skin == .forge
         return configuration.label
             .font(StrandFont.body.weight(.bold))
-            .foregroundStyle(StrandPalette.goldDeepText)
+            .foregroundStyle(forge ? StrandPalette.forgeOnAccent : StrandPalette.goldDeepText)
             .padding(.vertical, 11).padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .fill(LinearGradient(gradient: StrandPalette.goldGradient, startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(forge ? AnyShapeStyle(StrandPalette.forgeAccent)
+                                : AnyShapeStyle(LinearGradient(gradient: StrandPalette.goldGradient,
+                                                               startPoint: .topLeading, endPoint: .bottomTrailing)))
             )
             // A crisp, subtle NEUTRAL elevation — the gold cast-glow read as too much against the
             // clean design, so it's a soft dark lift now, no bloom.

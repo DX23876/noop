@@ -70,7 +70,16 @@ struct ForgeHealthView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ForgeLargeHeader(title: "Health", onProfile: onProfile).id("forge-health-top")
+                    ForgeLargeHeader(title: "Health", onProfile: onProfile) {
+                        NavigationLink(value: ForgeRoute.search) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(ForgeColor.text)
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel(Text("Search"))
+                    }
+                    .id("forge-health-top")
                     VStack(alignment: .leading, spacing: 14) {
                         ForgeTabHero(
                             overline: String(localized: "Vitals last night"),

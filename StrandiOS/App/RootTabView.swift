@@ -137,15 +137,30 @@ struct RootTabView: View {
         // Same for the redesign's pushed pages and sheets, which the board comparison captures one by one.
         if let i = args.firstIndex(of: "--demo-route"), i + 1 < args.count {
             // Effort and Rest take Today's values, so they are opened from the rings instead.
-            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport]
+            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search]
             switch args[i + 1].lowercased() {
             case "settings": _showAllFeatures = State(initialValue: true)
             case "log": _quickAction = State(initialValue: .forgeLog)
             case let key:
+                // Shared screens pushed from the redesign's tabs, by the tab they hang off.
+                let shared: [String: (Int, (inout NavigationPath) -> Void)] = [
+                    "workouts": (2, { $0.append(TabRoute.workouts) }), "strength": (2, { $0.append(TabRoute.strength) }), "cardio": (2, { $0.append(TabRoute.cardio) }),
+                    "trainingload": (2, { $0.append(TabRoute.trainingLoad) }), "goals": (2, { $0.append(TabRoute.goals) }), "plan": (2, { $0.append(MoreDestination.training) }),
+                    "intervals": (2, { $0.append(MoreDestination.intervals) }), "live": (2, { $0.append(MoreDestination.live) }),
+                    "weight": (1, { $0.append(TabRoute.weight) }), "energy": (1, { $0.append(TabRoute.energy) }), "stress": (1, { $0.append(TabRoute.stress) }),
+                    "ecg": (1, { $0.append(MoreDestination.ecg) }), "body": (1, { $0.append(MoreDestination.body) }), "ageless": (1, { $0.append(MoreDestination.ageless) }),
+                    "labbook": (1, { $0.append(MoreDestination.labBook) }), "breathe": (1, { $0.append(MoreDestination.breathe) }), "explore": (1, { $0.append(MoreDestination.explore) }),
+                    "compare": (1, { $0.append(MoreDestination.compare) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }),
+                    "alarms": (3, { $0.append(MoreDestination.alarms) }), "devices": (0, { $0.append(MoreDestination.devices) }), "backup": (0, { $0.append(MoreDestination.backupSync) }),
+                    "datasources": (0, { $0.append(MoreDestination.dataSources) }), "automations": (0, { $0.append(MoreDestination.automations) })]
+                var paths = Array(repeating: NavigationPath(), count: 5)
                 if let route = routes[key] {
-                    var paths = Array(repeating: NavigationPath(), count: 5)
                     paths[0].append(route)
                     _tabPaths = State(initialValue: paths)
+                } else if let (tab, push) = shared[key] {
+                    push(&paths[tab])
+                    _tabPaths = State(initialValue: paths)
+                    _selectedTab = State(initialValue: tab)
                 }
             }
         }
@@ -244,6 +259,8 @@ struct RootTabView: View {
             // per-tab-item override — so this is deliberately a global change across all four tabs.
             // The redesign tints with its own accent (copper in light, gold in dark).
             .tint(forgeDesign ? ForgeColor.accent : StrandPalette.chargeColor)
+            // Shared cards rest on their fill alone under the redesign, as its own cards do.
+            .environment(\.noopQuietCardRims, forgeDesign)
             // #1841: the same "Hide bar when scrolling" preference the macOS settings screen exposes.
             // Here the system owns the behaviour — iOS 26's tab bar MINIMISES to a pill on scroll down
             // rather than sliding away entirely, so this is the platform's read of the same intent.
@@ -499,7 +516,11 @@ struct RootTabView: View {
             presentPendingHomeScreenQuickActionIfPossible()
             ForgeDesignPrefs.mirrorToAppGroup()
         }
-        .onChange(of: forgePreviewStored) { _, _ in ForgeDesignPrefs.mirrorToAppGroup() }
+        .onChange(of: forgePreviewStored) { _, _ in
+            ForgeDesignPrefs.mirrorToAppGroup()
+            NoopVisualStyle.skin = forgeDesign ? .forge : .standard
+            ForgeDesignPrefs.applyListChrome()
+        }
         .onChange(of: homeScreenQuickActions.pendingAction) { _, _ in
             presentPendingHomeScreenQuickActionIfPossible()
         }

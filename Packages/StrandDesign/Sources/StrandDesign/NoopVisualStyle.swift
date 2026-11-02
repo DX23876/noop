@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - NOOP visual foundation
 //
@@ -50,23 +53,54 @@ public enum NoopVisualStyle {
         static let tertiaryText = Pair(light: "#28313FB8", dark: "#E6EDFA96")
     }
 
-    private static func token(_ pair: ChromeHex.Pair) -> Color {
-        Color(light: pair.light, dark: pair.dark)
+    /// The chrome the redesign (NOOP Forge, 2026-11) draws with: a warm paper canvas and near-white cards
+    /// in Light, a deep graphite in Dark, and the system label greys for secondary text. The values are
+    /// the redesign's own tokens (`ForgeColor` in the iOS app), held here so every shared screen pushed
+    /// from the redesigned tabs wears the same chrome without a per-screen rewrite.
+    enum ForgeHex {
+        static let canvas = ChromeHex.Pair(light: "#F4EFE8", dark: "#0A0D12")
+        static let surface = ChromeHex.Pair(light: "#FFFDFA", dark: "#161A20")
+        static let surfaceTop = ChromeHex.Pair(light: "#FFFDFA", dark: "#191E25")
+        static let surfaceBottom = ChromeHex.Pair(light: "#FBF7F1", dark: "#13171D")
+        static let inset = ChromeHex.Pair(light: "#F2ECE3", dark: "#1E232B")
+        static let border = ChromeHex.Pair(light: "#B9AE9F", dark: "#454D59")
+        static let borderHighlight = ChromeHex.Pair(light: "#FFFFFF", dark: "#454D58")
+        static let divider = ChromeHex.Pair(light: "#B9AE9F", dark: "#454D59")
+        static let primaryText = ChromeHex.Pair(light: "#000000", dark: "#FFFFFF")
+        static let secondaryText = ChromeHex.Pair(light: "#3C3C43D8", dark: "#EBEBF5B8")
+        static let tertiaryText = ChromeHex.Pair(light: "#3C3C43C4", dark: "#EBEBF594")
     }
 
-    public static let canvas = token(ChromeHex.canvas)
-    public static let surface = token(ChromeHex.surface)
-    public static let surfaceTop = token(ChromeHex.surfaceTop)
-    public static let surfaceBottom = token(ChromeHex.surfaceBottom)
-    public static let inset = token(ChromeHex.inset)
+    /// Which chrome the shared tokens resolve to. The iOS shell sets it from the "New design" switch
+    /// before its first frame and again when the switch changes; macOS and the watch never touch it.
+    public enum ChromeSkin: Sendable { case standard, forge }
+    public static var skin: ChromeSkin = .standard
 
-    public static let border = token(ChromeHex.border)
-    public static let borderHighlight = token(ChromeHex.borderHighlight)
-    public static let divider = token(ChromeHex.divider)
+    private static func token(_ pair: ChromeHex.Pair, forge: ChromeHex.Pair) -> Color {
+        let standard = Color(light: pair.light, dark: pair.dark)
+        let forged = Color(light: forge.light, dark: forge.dark)
+        #if canImport(UIKit) && !os(watchOS)
+        // Resolved per draw, so a token follows the switch without being rebuilt.
+        let s = UIColor(standard), f = UIColor(forged)
+        return Color(UIColor { trait in (skin == .forge ? f : s).resolvedColor(with: trait) })
+        #else
+        return standard
+        #endif
+    }
 
-    public static let primaryText = token(ChromeHex.primaryText)
-    public static let secondaryText = token(ChromeHex.secondaryText)
-    public static let tertiaryText = token(ChromeHex.tertiaryText)
+    public static let canvas = token(ChromeHex.canvas, forge: ForgeHex.canvas)
+    public static let surface = token(ChromeHex.surface, forge: ForgeHex.surface)
+    public static let surfaceTop = token(ChromeHex.surfaceTop, forge: ForgeHex.surfaceTop)
+    public static let surfaceBottom = token(ChromeHex.surfaceBottom, forge: ForgeHex.surfaceBottom)
+    public static let inset = token(ChromeHex.inset, forge: ForgeHex.inset)
+
+    public static let border = token(ChromeHex.border, forge: ForgeHex.border)
+    public static let borderHighlight = token(ChromeHex.borderHighlight, forge: ForgeHex.borderHighlight)
+    public static let divider = token(ChromeHex.divider, forge: ForgeHex.divider)
+
+    public static let primaryText = token(ChromeHex.primaryText, forge: ForgeHex.primaryText)
+    public static let secondaryText = token(ChromeHex.secondaryText, forge: ForgeHex.secondaryText)
+    public static let tertiaryText = token(ChromeHex.tertiaryText, forge: ForgeHex.tertiaryText)
 
     public static let mint = Color(light: "#149A78", dark: "#69DDB8")
     public static let mintDeep = Color(light: "#0D765C", dark: "#13A982")

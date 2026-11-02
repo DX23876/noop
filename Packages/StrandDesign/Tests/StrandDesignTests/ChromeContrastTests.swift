@@ -212,4 +212,27 @@ final class ChromeContrastTests: XCTestCase {
             XCTAssertNotEqual(top, bottom, "\(scheme.rawValue): panel gradient endpoints are identical")
         }
     }
+    // MARK: - 3: the redesign's chrome holds the same floors
+
+    /// The Forge chrome replaces every token above while the new design is on, so it answers to the same
+    /// floors: AA for secondary and tertiary text, 12:1 for primary text, a visible border.
+    func testForgeChromeClearsTheSameFloors() {
+        let forge = NoopVisualStyle.ForgeHex.self
+        for scheme in Scheme.allCases {
+            let fills = [("canvas", forge.canvas), ("surface", forge.surface), ("surfaceTop", forge.surfaceTop),
+                         ("surfaceBottom", forge.surfaceBottom), ("inset", forge.inset)].map { ($0.0, scheme.hex($0.1)) }
+            for (fillName, fill) in fills {
+                for (name, token, floor) in [("secondaryText", forge.secondaryText, 4.5), ("tertiaryText", forge.tertiaryText, 4.5),
+                                             ("primaryText", forge.primaryText, 12.0)] {
+                    let r = Self.contrastRatio(scheme.hex(token), on: fill)
+                    XCTAssertGreaterThanOrEqual(r, floor, "forge \(scheme.rawValue)/\(name) on \(fillName): \(String(format: "%.2f", r)):1")
+                }
+            }
+            for fill in [scheme.hex(forge.surface), scheme.hex(forge.canvas)] {
+                let r = Self.contrastRatio(scheme.hex(forge.border), on: fill)
+                XCTAssertGreaterThanOrEqual(r, 1.8, "forge \(scheme.rawValue)/border: \(String(format: "%.2f", r)):1")
+            }
+        }
+    }
 }
+
