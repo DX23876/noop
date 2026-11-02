@@ -818,18 +818,22 @@ struct RootTabView: View {
             TabView(selection: forgeSelection) {
                 Tab("Today", systemImage: "sun.max.fill", value: 0) {
                     tabStack(forgeTodayRoot, path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true)
+                        .environment(\.forgeTab, .today)
                         .environment(\.dashboardIsActive, selectedTab == 0)
                 }
                 Tab("Training", systemImage: "figure.run", value: 2) {
                     tabStack(forgeTrainingRoot, path: $tabPaths[2], scrollSignal: scrollTop[2], registersMore: true)
+                        .environment(\.forgeTab, .training)
                         .environment(\.dashboardIsActive, selectedTab == 2)
                 }
                 Tab("Sleep", systemImage: "moon.fill", value: 3) {
                     tabStack(forgeSleepRoot, path: $tabPaths[3], scrollSignal: scrollTop[3], registersMore: true)
+                        .environment(\.forgeTab, .sleep)
                         .environment(\.dashboardIsActive, selectedTab == 3)
                 }
                 Tab("Health", systemImage: "heart.fill", value: 1) {
                     tabStack(forgeHealthRoot, path: $tabPaths[1], scrollSignal: scrollTop[1], registersMore: true)
+                        .environment(\.forgeTab, .health)
                         .environment(\.dashboardIsActive, selectedTab == 1)
                 }
                 if coachFeatureEnabled {

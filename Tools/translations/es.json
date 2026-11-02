@@ -3611,5 +3611,9 @@
   "Wide · both lanes against your usual": "Ancho · ambas vías frente a lo habitual",
   "Wide · this week's goals": "Ancho · los objetivos de esta semana",
   "Wide · burned and eaten today": "Ancho · quemado e ingerido hoy",
-  "Hold the rings to customize Today": "Mantén pulsados los anillos para personalizar Hoy"
+  "Hold the rings to customize Today": "Mantén pulsados los anillos para personalizar Hoy",
+  "%@ °C vs usual": "%@ °C frente a lo habitual",
+  "usually %@": "normalmente %@",
+  "Move earlier": "Mover antes",
+  "Move later": "Mover después"
 }

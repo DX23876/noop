@@ -1220,6 +1220,21 @@ struct MetricDetailView: View {
         // on (the LiquidTodayView treatment, so the transparent cards reveal it the whole way down); the
         // plain canvas when off.
         .background(alignment: .top) {
+            #if os(iOS)
+            if NoopVisualStyle.skin == .forge { ForgeSharedScreenBackground() } else { metricBackdrop }
+            #else
+            metricBackdrop
+            #endif
+        }
+        // The new design prints the title once, as the page's large title.
+        .navigationTitle(NoopVisualStyle.skin == .forge ? "" : metric.title)
+        .task(id: loadTaskID) { await load() }
+        // Range changes the window, hence the correlation inputs — recompute the
+        // cached scan rather than letting `correlationCard` run it inside body.
+        .onChangeCompat(of: range) { _ in recomputeCorrelations() }
+    }
+
+    private var metricBackdrop: some View {
             ZStack(alignment: .top) {
                 StrandPalette.surfaceBase
                 // Custom background image (#custom-background) OVERRIDES the sky, full-bleed.
@@ -1234,13 +1249,6 @@ struct MetricDetailView: View {
                 }
             }
             .ignoresSafeArea()
-        }
-        // The new design prints the title once, as the page's large title.
-        .navigationTitle(NoopVisualStyle.skin == .forge ? "" : metric.title)
-        .task(id: loadTaskID) { await load() }
-        // Range changes the window, hence the correlation inputs — recompute the
-        // cached scan rather than letting `correlationCard` run it inside body.
-        .onChangeCompat(of: range) { _ in recomputeCorrelations() }
     }
 
     /// Two phases, because the screen used to wait for data it does not draw.
@@ -1495,9 +1503,6 @@ struct MetricDetailView: View {
                                 .font(StrandFont.rounded(56, weight: .bold))
                                 .foregroundStyle(StrandPalette.textPrimary)
                                 .lineLimit(1).minimumScaleFactor(0.5)
-                            if !metric.unit.isEmpty, value != nil {
-                                Text(metric.unit).font(StrandFont.headline).foregroundStyle(StrandPalette.textSecondary)
-                            }
                         }
                         Text(asOf).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     }
@@ -1685,9 +1690,10 @@ struct MetricDetailView: View {
             : nil
         let stepsResolution = MetricDetailSteps.resolution(for: effectiveRange)
         return ChartCard(
-            title: isStepsDetail ? LocalizedStringKey("Historical trend") : LocalizedStringKey("\(metric.title)"),
+            // The new design already states the title and the latest value once, above the chart.
+            title: isStepsDetail || NoopVisualStyle.skin == .forge ? LocalizedStringKey("Historical trend") : LocalizedStringKey("\(metric.title)"),
             subtitle: subtitle,
-            trailing: "\(heroValue) · \(asOf)",
+            trailing: NoopVisualStyle.skin == .forge ? nil : "\(heroValue) · \(asOf)",
             height: NoopMetrics.chartHeight + (isStepsDetail ? 70 : 0),
             tint: metricDomain(metric).color
         ) {
@@ -1743,11 +1749,13 @@ struct MetricDetailView: View {
                         .foregroundStyle(StrandPalette.textTertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                ChartFooter([
-                    ("Window", effectiveRange.label),
-                    ("Points", "\(windowed.count)"),
-                    ("Latest", heroValue),
-                ])
+                if NoopVisualStyle.skin != .forge {
+                    ChartFooter([
+                        ("Window", effectiveRange.label),
+                        ("Points", "\(windowed.count)"),
+                        ("Latest", heroValue),
+                    ])
+                }
             }
         }
     }

@@ -61,7 +61,7 @@ struct ForgeRow: View {
                     .foregroundStyle(ForgeColor.text)
                     .lineLimit(1)
                 if let subtitle {
-                    Text(subtitle).font(.system(size: compact ? 12 : 13)).foregroundStyle(ForgeColor.secondary)
+                    Text(subtitle).font(.system(compact ? .caption : .footnote)).foregroundStyle(ForgeColor.secondary)
                         .lineLimit(2)
                 }
             }

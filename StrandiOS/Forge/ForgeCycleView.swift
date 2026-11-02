@@ -15,7 +15,8 @@ struct ForgeCycleView: View {
     @AppStorage(AppModel.cycleAwarenessKey) private var cycleEnabled = false
     @State private var starts: [String] = []
     @State private var log: [String: CycleLog.Day] = [:]
-    @State private var loaded = false
+    /// Worked out once per load, not in `body`: it walks the logged days and the nights of this cycle.
+    @State private var snap: ForgeCycleSnapshot?
     @State private var logging = false
     @State private var showingHistory = false
     @State private var scrolledPast = false
@@ -30,9 +31,7 @@ struct ForgeCycleView: View {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Cycle"), scrolledPast: $scrolledPast)
                 if !cycleEnabled {
                     optIn
-                } else if loaded {
-                    let snap = ForgeCycleSnapshot.make(result: appModel.cyclePhase, starts: starts, log: log,
-                                                       days: repo.days, today: Date(), showFertile: showFertile)
+                } else if let snap {
                     content(snap)
                 } else {
                     ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
@@ -58,17 +57,21 @@ struct ForgeCycleView: View {
     }
 
     private func load() async {
-        guard cycleEnabled else { loaded = true; return }
+        guard cycleEnabled else { snap = nil; return }
         let today = Date()
         let from = Repository.localDayKey(today.addingTimeInterval(-180 * 86_400))
         starts = await repo.periodStarts()
         log = await repo.cycleLog(from: from, to: Repository.localDayKey(today))
         // Always re-read: a phase computed before the nights arrived would otherwise stay "learning".
         await appModel.refreshV5Signals()
-        loaded = true
-        FertileReminder.reschedule(windowStart: ForgeCycleSnapshot.make(result: appModel.cyclePhase, starts: starts, log: log,
-                                                                       days: repo.days, today: today, showFertile: showFertile).fertileStartAhead)
+        rebuild()
+        FertileReminder.reschedule(windowStart: snap?.fertileStartAhead)
         if learning { pattern = await learnPattern() }
+    }
+
+    private func rebuild() {
+        snap = ForgeCycleSnapshot.make(result: appModel.cyclePhase, starts: starts, log: log, days: repo.days,
+                                       today: Date(), showFertile: showFertile)
     }
 
     /// The wearer's own sessions by phase: whole-session RPE where rated, else the mean set RPE, and each
@@ -228,6 +231,10 @@ struct ForgeCycleView: View {
         .onChange(of: learning) { _, on in
             if on { Task { pattern = await learnPattern() } }
         }
+        .onChange(of: showFertile) { _, _ in
+            rebuild()
+            FertileReminder.reschedule(windowStart: self.snap?.fertileStartAhead)
+        }
         footer.padding(.horizontal, 4)
     }
 
@@ -249,7 +256,7 @@ struct ForgeCycleView: View {
                 Image(systemName: symbol).font(.system(.body, weight: .semibold)).foregroundStyle(tint)
                     .frame(width: 40, height: 40).background(Circle().fill(tint.opacity(0.16)))
                 Text(title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    .lineLimit(1).minimumScaleFactor(0.8)
+                    .lineLimit(1).minimumScaleFactor(0.6)
             }
             .frame(maxWidth: .infinity, minHeight: 88)
             .forgeCard(radius: 20, padding: 8)

@@ -305,6 +305,12 @@ struct StressView: View {
 
     /// The page's one graphic: today's number glowing in its band colour, where it sits on the three bands,
     /// and the last two weeks on the same bands, so the number is read against its own recent past.
+    /// `StressTrace.formatLevel` keeps its point for the widget and the other platforms; this page prints
+    /// the reader's decimal mark.
+    private static func forgeLevel(_ value: Double) -> String {
+        StressTrace.formatLevel(value).replacingOccurrences(of: ".", with: AppLanguage.activeLocale.decimalSeparator ?? ".")
+    }
+
     private func forgeHero(_ model: StressModel) -> some View {
         let tint = StressRamp.color(model.score)
         let word = model.band.title.lowercased(with: AppLanguage.activeLocale).capitalized(with: AppLanguage.activeLocale)
@@ -317,7 +323,7 @@ struct StressView: View {
                             .frame(width: 140, height: 140)
                             .accessibilityHidden(true)
                         VStack(spacing: 0) {
-                            Text(StressTrace.formatLevel(model.score))
+                            Text(Self.forgeLevel(model.score))
                                 .font(StrandFont.rounded(56, weight: .bold))
                                 .foregroundStyle(StrandPalette.textPrimary)
                             Text("of 3").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
@@ -368,7 +374,7 @@ struct StressView: View {
             .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Stress \(StressTrace.formatLevel(score)) of 3"))
+        .accessibilityLabel(String(localized: "Stress \(Self.forgeLevel(score)) of 3"))
     }
 
     /// The last two weeks as bars on the same three bands, today brightest.
@@ -387,7 +393,7 @@ struct StressView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("The last \(values.count) days"))
-        .accessibilityValue(Text(values.map { StressTrace.formatLevel($0) }.joined(separator: ", ")))
+        .accessibilityValue(Text(values.map { Self.forgeLevel($0) }.joined(separator: ", ")))
     }
 
     private func forgeMarkers(_ model: StressModel) -> some View {

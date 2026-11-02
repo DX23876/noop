@@ -79,4 +79,32 @@ enum ForgeToday {
         bedtime(now: now, wakeMinutes: { WindDownNudge.wakeMinutes(forWeekday: $0) },
                 sleepNeedMinutes: WindDownNudge.sleepNeedMinutes)
     }
+
+    // MARK: - Charge drivers in the reader's language
+
+    /// `ChargeDrivers` writes its read-outs in fixed English ("15.3 br/min", "-0.2 C vs baseline") because
+    /// tests and the coach read them. These turn one into what a screen prints: the reader's decimal mark,
+    /// plain units and "usual" instead of "baseline".
+    static func driverValue(_ text: String, locale: Locale = AppLanguage.activeLocale) -> String {
+        var out = localizedDecimals(text, locale: locale).replacingOccurrences(of: "br/min", with: "/min")
+        if out.hasSuffix(" C vs baseline") {
+            out = String(out.dropLast(" C vs baseline".count))
+            return String(localized: "\(out) °C vs usual")
+        }
+        return out
+    }
+
+    /// "75 ms baseline" as "usually 75 ms".
+    static func driverUsual(_ text: String, locale: Locale = AppLanguage.activeLocale) -> String {
+        let value = localizedDecimals(text.replacingOccurrences(of: " baseline", with: ""), locale: locale)
+            .replacingOccurrences(of: "br/min", with: "/min")
+        return String(localized: "usually \(value)")
+    }
+
+    private static func localizedDecimals(_ text: String, locale: Locale) -> String {
+        let mark = locale.decimalSeparator ?? "."
+        guard mark != "." else { return text }
+        return text.replacingOccurrences(of: #"(\d)\.(\d)"#, with: "$1\(mark)$2", options: .regularExpression)
+    }
 }
+

@@ -13880,7 +13880,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die ersten Schritte jeder Gehstrecke, die das Band auf einmal meldet, werden wieder mitgezählt. Die bisherige Zählung verwirft sie."
+            "value" : "Die ersten Schritte jeder Gehstrecke, die der Strap auf einmal meldet, werden wieder mitgezählt. Die bisherige Zählung verwirft sie."
           }
         },
         "es" : {
@@ -22131,7 +22131,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "* auf dem Gerät geschätzter Wert: Hauttemperatur variiert nachts um ±°C (firmwareabhängig); keine Schritte über BLE bei 4.0. Keine SpO₂ % off-Daten vom Band. Importiere eine WHOOP-CSV-Datei für einen tatsächlichen %."
+            "value" : "* auf dem Gerät geschätzter Wert: Hauttemperatur variiert nachts um ±°C (firmwareabhängig); keine Schritte über BLE bei 4.0. Keine SpO₂ % off-Daten vom Strap. Importiere eine WHOOP-CSV-Datei für einen tatsächlichen %."
           }
         },
         "es" : {
@@ -22189,7 +22189,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "* auf dem Gerät geschätzter Wert: Hauttemperatur variiert nachts um ±°C, Schritte sind eine reine Bewegungszählung (#78). Keine SpO₂ % off-Daten vom Band. Importiere eine WHOOP-CSV-Datei für einen tatsächlichen %."
+            "value" : "* auf dem Gerät geschätzter Wert: Hauttemperatur variiert nachts um ±°C, Schritte sind eine reine Bewegungszählung (#78). Keine SpO₂ % off-Daten vom Strap. Importiere eine WHOOP-CSV-Datei für einen tatsächlichen %."
           }
         },
         "es" : {
@@ -23001,7 +23001,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**Keine Morgen-Zusammenfassung in einer Nacht, die dein Band noch nicht fertig übertragen hat.** Sie wartet und bietet dir den Schlaf-Editor an, statt deinen Tag auf einer falschen Aufwachzeit zu planen."
+            "value" : "**Keine Morgen-Zusammenfassung in einer Nacht, die dein Strap noch nicht fertig übertragen hat.** Sie wartet und bietet dir den Schlaf-Editor an, statt deinen Tag auf einer falschen Aufwachzeit zu planen."
           }
         },
         "es" : {
@@ -23175,7 +23175,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**Ein WHOOP-Eintrag.** Ein neues Band übernimmt deinen WHOOP-Verlauf, statt eine zweite Karte anzulegen, und zusätzliche Einträge lassen sich nach einem Backup zusammenführen."
+            "value" : "**Ein WHOOP-Eintrag.** Ein neuer Strap übernimmt deinen WHOOP-Verlauf, statt eine zweite Karte anzulegen, und zusätzliche Einträge lassen sich nach einem Backup zusammenführen."
           }
         },
         "es" : {
@@ -23291,7 +23291,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**Setze deine eigenen Herzfrequenzzonen.** Prozente deines Maximums oder absolute Schläge aus einem Schwellentest — die Bänder folgen dir so oder so. Profil › Herzfrequenzzonen."
+            "value" : "**Setze deine eigenen Herzfrequenzzonen.** Prozente deines Maximums oder absolute Schläge aus einem Schwellentest — die Bereiche folgen dir so oder so. Profil › Herzfrequenzzonen."
           }
         },
         "es" : {
@@ -23407,7 +23407,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**Der Coach kann keinen Aufwand mehr vorgeben, den deine Einheit gar nicht erzeugen kann.** Der Zielwert wird jetzt aus Zone und Dauer gegen deine eigenen Bänder berechnet, nicht geschätzt."
+            "value" : "**Der Coach kann keinen Aufwand mehr vorgeben, den deine Einheit gar nicht erzeugen kann.** Der Zielwert wird jetzt aus Zone und Dauer gegen deine eigenen Zonen berechnet, nicht geschätzt."
           }
         },
         "es" : {
@@ -23639,7 +23639,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**Trainiere in einer ausgewählten Herzfrequenzzone.** Wähle vor einem Workout oder einer Live Session eine Profilzone, und das Band signalisiert, wann du steigern, halten oder reduzieren solltest."
+            "value" : "**Trainiere in einer ausgewählten Herzfrequenzzone.** Wähle vor einem Workout oder einer Live Session eine Profilzone, und der Strap signalisiert, wann du steigern, halten oder reduzieren solltest."
           }
         },
         "es" : {
@@ -23813,7 +23813,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**Trainingslast, neu gebaut.** Cardio wird über die Herzfrequenzreserve bewertet, jede Spur behält ihren Verlauf über Monate und Jahre, und ein Doppeltippen aufs Band trägt deinen nächsten Satz ein."
+            "value" : "**Trainingslast, neu gebaut.** Cardio wird über die Herzfrequenzreserve bewertet, jede Spur behält ihren Verlauf über Monate und Jahre, und ein Doppeltippen auf den Strap trägt deinen nächsten Satz ein."
           }
         },
         "es" : {
@@ -30415,7 +30415,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ ist dein aktives Band. Kopple oder wechsle Bänder unter „Geräte“."
+            "value" : "%@ ist dein aktiver Strap. Kopple oder wechsle Straps unter „Geräte“."
           }
         },
         "es" : {
@@ -71095,7 +71095,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein begrenzter Referenzfaktor nur für AKTIVE Energie. Apple bleibt ein Vergleichswert und ersetzt nie die Messung deines Bands."
+            "value" : "Ein begrenzter Referenzfaktor nur für AKTIVE Energie. Apple bleibt ein Vergleichswert und ersetzt nie die Messung deines Straps."
           }
         },
         "es" : {
@@ -76263,7 +76263,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein geschütztes Training mit nur einem Fingertipp: Der Gurt misst Ihre Herzfrequenz im Vergleich zu einem Band, das auf dem heutigen Charge eingestellt ist, und summt immer nur, um den Kurs zu korrigieren. Stille bedeutet, dass Sie auf dem richtigen Weg sind."
+            "value" : "Ein geschütztes Training mit nur einem Fingertipp: Der Strap misst Ihre Herzfrequenz im Vergleich zu einem Strap, das auf dem heutigen Charge eingestellt ist, und summt immer nur, um den Kurs zu korrigieren. Stille bedeutet, dass Sie auf dem richtigen Weg sind."
           }
         },
         "en" : {
@@ -79746,7 +79746,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein Dreißig-Tage-Mittel, dessen Tage überwiegend aus einer Schrittschätzung stammen, ist eine Formelrechnung mit Umweg. Es gemessen zu nennen wäre eine Behauptung, die NOOP nicht belegen kann.\n\nEin Tag gilt deshalb nur dann als gemessen, wenn der Verbrauch aus einer echten Energiequelle kam — Apples eigener Aufteilung oder der Tragezeit des Bandes — und genug vom Tag abgedeckt war. Tage, die diese Hürde nicht nehmen, werden weiterhin gezählt und angezeigt, aber nicht mit Abschlag in die gemessene Zahl eingerechnet, weil die dafür nötige Gewichtung erfunden wäre.\n\nDie Zusammensetzungsliste sagt genau, welche Tage woher kamen."
+            "value" : "Ein Dreißig-Tage-Mittel, dessen Tage überwiegend aus einer Schrittschätzung stammen, ist eine Formelrechnung mit Umweg. Es gemessen zu nennen wäre eine Behauptung, die NOOP nicht belegen kann.\n\nEin Tag gilt deshalb nur dann als gemessen, wenn der Verbrauch aus einer echten Energiequelle kam — Apples eigener Aufteilung oder der Tragezeit des Straps — und genug vom Tag abgedeckt war. Tage, die diese Hürde nicht nehmen, werden weiterhin gezählt und angezeigt, aber nicht mit Abschlag in die gemessene Zahl eingerechnet, weil die dafür nötige Gewichtung erfunden wäre.\n\nDie Zusammensetzungsliste sagt genau, welche Tage woher kamen."
           }
         },
         "es" : {
@@ -90982,7 +90982,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Additiver TRIMP aus Herzfrequenz und Zeit in Intensitätsbereichen. Daten des NOOP-Bands haben Vorrang; mit dem Workout verknüpfte Health-Daten werden nur genutzt, wenn die Bandaufzeichnung unvollständig ist."
+            "value" : "Additiver TRIMP aus Herzfrequenz und Zeit in Intensitätsbereichen. Daten des NOOP-Straps haben Vorrang; mit dem Workout verknüpfte Health-Daten werden nur genutzt, wenn die Bandaufzeichnung unvollständig ist."
           }
         },
         "en" : {
@@ -104688,7 +104688,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fragt das Band nach Konfigurations-WERTEN: GET_DEVICE_CONFIG_VALUE (0x79) und GET_FF_VALUE (0x80), ein Schlüssel pro Austausch. Beide Befehle existieren in dieser Firmware möglicherweise gar nicht — genau das soll herausgefunden werden. Nur lesend — es wird kein Wert geschrieben, und die SET-Befehle werden von dieser Probe nie gesendet. Das Ergebnis wird hier angezeigt und ins Band-Protokoll geschrieben."
+            "value" : "Fragt den Strap nach Konfigurations-WERTEN: GET_DEVICE_CONFIG_VALUE (0x79) und GET_FF_VALUE (0x80), ein Schlüssel pro Austausch. Beide Befehle existieren in dieser Firmware möglicherweise gar nicht — genau das soll herausgefunden werden. Nur lesend — es wird kein Wert geschrieben, und die SET-Befehle werden von dieser Probe nie gesendet. Das Ergebnis wird hier angezeigt und ins Strap-Protokoll geschrieben."
           }
         },
         "es" : {
@@ -104746,7 +104746,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fragt das Band nach den NAMEN der Feature-Flags, die seine eigene Firmware kennt: START_FF_KEY_EXCHANGE (0x75), dann SEND_NEXT_FF (0x76), bis das Band das Ende meldet. Nur lesend — es wird kein Flag-Wert geschrieben, und die SET-Befehle werden von diesem Test nie gesendet. Die Liste wird hier angezeigt und ins Strap-Log geschrieben."
+            "value" : "Fragt den Strap nach den NAMEN der Feature-Flags, die seine eigene Firmware kennt: START_FF_KEY_EXCHANGE (0x75), dann SEND_NEXT_FF (0x76), bis der Strap das Ende meldet. Nur lesend — es wird kein Flag-Wert geschrieben, und die SET-Befehle werden von diesem Test nie gesendet. Die Liste wird hier angezeigt und ins Strap-Log geschrieben."
           }
         },
         "es" : {
@@ -113319,7 +113319,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band: verbunden%@"
+            "value" : "Strap: verbunden%@"
           }
         },
         "es" : {
@@ -113378,7 +113378,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band: getrennt"
+            "value" : "Strap: getrennt"
           }
         },
         "es" : {
@@ -113495,7 +113495,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Banister-TRIMP: Jede Minute zählt danach, wie weit sie in deine Herzfrequenzreserve reichte – nach oben hin steil ansteigend –, mit dem Ruhepuls jener Woche und einem Koeffizienten für dein Profil. Daten des NOOP-Bands haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Bandaufzeichnung unvollständig ist."
+            "value" : "Banister-TRIMP: Jede Minute zählt danach, wie weit sie in deine Herzfrequenzreserve reichte – nach oben hin steil ansteigend –, mit dem Ruhepuls jener Woche und einem Koeffizienten für dein Profil. Daten des NOOP-Straps haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Bandaufzeichnung unvollständig ist."
           }
         },
         "es" : {
@@ -125307,7 +125307,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Herzfrequenz vom Band übertragen"
+            "value" : "Herzfrequenz vom Strap übertragen"
           }
         },
         "es" : {
@@ -140008,7 +140008,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prüfen, was das Band gespeichert hat"
+            "value" : "Prüfen, was der Strap gespeichert hat"
           }
         },
         "en" : {
@@ -143978,7 +143978,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Klassischer Edwards-TRIMP aus der Zeit in Prozentbereichen deiner maximalen Herzfrequenz. Daten des NOOP-Bands haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Bandaufzeichnung unvollständig ist."
+            "value" : "Klassischer Edwards-TRIMP aus der Zeit in Prozentbereichen deiner maximalen Herzfrequenz. Daten des NOOP-Straps haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Bandaufzeichnung unvollständig ist."
           }
         },
         "en" : {
@@ -155006,7 +155006,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mit %@ verbunden. Kopple oder wechsle Bänder unter „Geräte“."
+            "value" : "Mit %@ verbunden. Kopple oder wechsle Straps unter „Geräte“."
           }
         },
         "es" : {
@@ -175852,7 +175852,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auch die Verdauung verbraucht Energie — ungefähr ein Zehntel deiner Aufnahme, an eiweißreichen Tagen mehr. Kein Band misst das, deshalb wird es hier deiner Nahrung gegenübergestellt und nicht dem Verbrauch oben zugerechnet."
+            "value" : "Auch die Verdauung verbraucht Energie — ungefähr ein Zehntel deiner Aufnahme, an eiweißreichen Tagen mehr. Kein Strap misst das, deshalb wird es hier deiner Nahrung gegenübergestellt und nicht dem Verbrauch oben zugerechnet."
           }
         },
         "es" : {
@@ -181050,7 +181050,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tippe zweimal auf dein Band, um einen Satz zu speichern, ohne zum Telefon zu greifen."
+            "value" : "Tippe zweimal auf deinen Strap, um einen Satz zu speichern, ohne zum Telefon zu greifen."
           }
         },
         "en" : {
@@ -187046,7 +187046,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entlaste dein Band, wenn sein Akku zur Neige geht."
+            "value" : "Entlaste deinen Strap, wenn sein Akku zur Neige geht."
           }
         },
         "es" : {
@@ -187105,7 +187105,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entlasten Sie Ihren Gurt, wenn die Batterie fast leer ist. Das Armband speichert die Bankdaten selbstständig, sodass nichts verloren geht – NOOP kommuniziert nur seltener mit ihm, damit es lange hält, bis Sie es aufladen können."
+            "value" : "Entlasten Sie deinen Strap, wenn die Batterie fast leer ist. Der Strap speichert die Bankdaten selbstständig, sodass nichts verloren geht – NOOP kommuniziert nur seltener mit ihm, damit es lange hält, bis Sie es aufladen können."
           }
         },
         "en" : {
@@ -202725,7 +202725,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Experimentell: Wenn dein Band eine Kopplung braucht, sagen wir es dir ehrlich, statt eine falsche Messung zu zeigen."
+            "value" : "Experimentell: Wenn dein Strap eine Kopplung braucht, sagen wir es dir ehrlich, statt eine falsche Messung zu zeigen."
           }
         },
         "es" : {
@@ -202783,7 +202783,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Experimentell: Live-Herzfrequenz, wo das Band sie freigibt. Manche Bänder brauchen eine Kopplung, die wir noch nicht können. NOOP sagt das ehrlich und zeigt nie eine erfundene Zahl. Kein Schlaf, keine Erholung, keine Hauttemperatur, kein SpO₂, keine Schritte."
+            "value" : "Experimentell: Live-Herzfrequenz, wo der Strap sie freigibt. Manche Straps brauchen eine Kopplung, die wir noch nicht können. NOOP sagt das ehrlich und zeigt nie eine erfundene Zahl. Kein Schlaf, keine Erholung, keine Hauttemperatur, kein SpO₂, keine Schritte."
           }
         },
         "es" : {
@@ -236270,7 +236270,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wie viel du an einem Tag verbrauchst, lässt sich außerhalb eines Labors nicht direkt messen. Alles andere ist eine Schätzung auf einem anderen Weg.\n\nNOOP nimmt drei. Eine publizierte Formel sagt voraus, was ein Körper wie deiner kostet. Dein Band zeichnet auf, wie deine Tage tatsächlich aussahen. Und deine Zufuhr gegen deine Gewichtsveränderung sagt, was du verbraucht haben musst — unabhängig davon, was irgendein Gerät dachte.\n\nSie werden sich nicht einig sein. Der Abstand zwischen ihnen ist der nützliche Teil — er sagt dir, wie viel Vertrauen der Plan verdient."
+            "value" : "Wie viel du an einem Tag verbrauchst, lässt sich außerhalb eines Labors nicht direkt messen. Alles andere ist eine Schätzung auf einem anderen Weg.\n\nNOOP nimmt drei. Eine publizierte Formel sagt voraus, was ein Körper wie deiner kostet. Dein Strap zeichnet auf, wie deine Tage tatsächlich aussahen. Und deine Zufuhr gegen deine Gewichtsveränderung sagt, was du verbraucht haben musst — unabhängig davon, was irgendein Gerät dachte.\n\nSie werden sich nicht einig sein. Der Abstand zwischen ihnen ist der nützliche Teil — er sagt dir, wie viel Vertrauen der Plan verdient."
           }
         },
         "es" : {
@@ -238793,7 +238793,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wie man das liest: HRV, Ruhe HR, Schlafdauer, Atemfrequenz und Hauttemperatur werden vom Band gemessen (Hauttemperatur wird als Abweichung von der eigenen Baseline angezeigt). Workouts ist die Anzahl der Aktivitäten, die du protokolliert hast oder die erkannt wurden. Recovery, Strain und Stress sind die eigenen On-Device-Scores von NOOP, keine klinischen Maßnahmen: Erholung ist eine tägliche Bereitschaft Komposit (HRV, Ruhe HR, Schlaf und Haut-Temper-Trend), Strain ist Herz-Kreislauf-Last von der Herzfrequenz abgeleitet, und Stress ist ein 0-3 autonome Last-Index von Ruhe HR und HRV."
+            "value" : "Wie man das liest: HRV, Ruhe HR, Schlafdauer, Atemfrequenz und Hauttemperatur werden vom Strap gemessen (Hauttemperatur wird als Abweichung von der eigenen Baseline angezeigt). Workouts ist die Anzahl der Aktivitäten, die du protokolliert hast oder die erkannt wurden. Recovery, Strain und Stress sind die eigenen On-Device-Scores von NOOP, keine klinischen Maßnahmen: Erholung ist eine tägliche Bereitschaft Komposit (HRV, Ruhe HR, Schlaf und Haut-Temper-Trend), Strain ist Herz-Kreislauf-Last von der Herzfrequenz abgeleitet, und Stress ist ein 0-3 autonome Last-Index von Ruhe HR und HRV."
           }
         },
         "es" : {
@@ -243850,7 +243850,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wenn das Bänder sind, die du nach und nach ersetzt hast, führe sie zu einem WHOOP-Eintrag zusammen. Alle Messwerte bleiben erhalten und dein aktives Band bleibt verbunden. Lass sie getrennt, wenn sie verschiedenen Personen gehören."
+            "value" : "Wenn das Straps sind, die du nach und nach ersetzt hast, führe sie zu einem WHOOP-Eintrag zusammen. Alle Messwerte bleiben erhalten und dein aktiver Strap bleibt verbunden. Lass sie getrennt, wenn sie verschiedenen Personen gehören."
           }
         },
         "es" : {
@@ -244926,7 +244926,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Importiere einen WHOOP-Export, Apple Health oder ein zweites Band, und deine bestmögliche Aufzeichnung entsteht hier, auf diesem Gerät."
+            "value" : "Importiere einen WHOOP-Export, Apple Health oder einen zweiten Strap, und deine bestmögliche Aufzeichnung entsteht hier, auf diesem Gerät."
           }
         },
         "es" : {
@@ -249207,7 +249207,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inkl. Helio. Live-Herzfrequenz, wo das Band sie freigibt. Hilf uns beim Testen."
+            "value" : "Inkl. Helio. Live-Herzfrequenz, wo der Strap sie freigibt. Hilf uns beim Testen."
           }
         },
         "es" : {
@@ -263890,7 +263890,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Ausgangswert wird gelernt, %lld von %lld Nächten. %lld der letzten %lld Nächte haben keine HRV aufgezeichnet. Prüfe, ob das Armband nachts getragen wird und synchronisiert."
+            "value" : "Dein Ausgangswert wird gelernt, %lld von %lld Nächten. %lld der letzten %lld Nächte haben keine HRV aufgezeichnet. Prüfe, ob der Strap nachts getragen wird und synchronisiert."
           }
         },
         "es" : {
@@ -269119,7 +269119,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Live-Herzfrequenz auf Bändern, die keine Kopplung brauchen. Hilf uns beim Testen."
+            "value" : "Live-Herzfrequenz auf Straps, die keine Kopplung brauchen. Hilf uns beim Testen."
           }
         },
         "es" : {
@@ -292163,7 +292163,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die meisten Menschen protokollieren 10–30 % weniger, als sie essen. Das drückt diesen Wert und lässt das Band zu hoch erscheinen. Prüfe dein Ernährungstagebuch, bevor du dem Band die Schuld gibst."
+            "value" : "Die meisten Menschen protokollieren 10–30 % weniger, als sie essen. Das drückt diesen Wert und lässt den Strap zu hoch erscheinen. Prüfe dein Ernährungstagebuch, bevor du dem Strap die Schuld gibst."
           }
         },
         "es" : {
@@ -301226,7 +301226,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Neues, moderneres WHOOP-Band mit Live-Daten und Synchronisation der Vorgeschichte"
+            "value" : "Neuer, modernerer WHOOP-Strap mit Live-Daten und Synchronisation der Vorgeschichte"
           }
         },
         "es" : {
@@ -301285,7 +301285,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Neueres WHOOP-Band, experimentell in NOOP"
+            "value" : "Neuerer WHOOP-Strap, experimentell in NOOP"
           }
         },
         "es" : {
@@ -313010,7 +313010,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keine Armbanddaten decken diese Einheit ab — Hevy zeichnet die Sätze auf, nicht deine Herzfrequenz."
+            "value" : "Keine Strap-Daten decken diese Einheit ab — Hevy zeichnet die Sätze auf, nicht deine Herzfrequenz."
           }
         },
         "es" : {
@@ -315538,7 +315538,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Niemand kann sagen, wie genau ein Wearable die Energie eines Menschen misst. Eine einzelne Erhaltungszahl auszugeben würde das hinter einer Nachkommastelle verstecken.\n\nAlso bekommst du drei, aus drei unabhängigen Wegen: was eine publizierte Formel für einen Körper wie deinen vorhersagt, was dein Wearable aufgezeichnet hat, und was deine Zufuhr und Gewichtsveränderung ergeben. Der letzte ist der einzige, der den Umrechnungsfehler des Bandes nicht erbt — das macht ihn zum Prüfwert und nicht zur dritten Meinung.\n\nDie Lücke zwischen ihnen ist das eigentliche Ergebnis. Ein enger Korridor heißt, die Wege stimmen überein und du kannst gegen die Mitte planen. Ein weiter heißt, du rätst — und das zu wissen ist besser."
+            "value" : "Niemand kann sagen, wie genau ein Wearable die Energie eines Menschen misst. Eine einzelne Erhaltungszahl auszugeben würde das hinter einer Nachkommastelle verstecken.\n\nAlso bekommst du drei, aus drei unabhängigen Wegen: was eine publizierte Formel für einen Körper wie deinen vorhersagt, was dein Wearable aufgezeichnet hat, und was deine Zufuhr und Gewichtsveränderung ergeben. Der letzte ist der einzige, der den Umrechnungsfehler des Straps nicht erbt — das macht ihn zum Prüfwert und nicht zur dritten Meinung.\n\nDie Lücke zwischen ihnen ist das eigentliche Ergebnis. Ein enger Korridor heißt, die Wege stimmen überein und du kannst gegen die Mitte planen. Ein weiter heißt, du rätst — und das zu wissen ist besser."
           }
         },
         "es" : {
@@ -316592,7 +316592,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP-Band"
+            "value" : "NOOP-Strap"
           }
         },
         "en" : {
@@ -317864,7 +317864,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP bietet dir drei tägliche Werte (Charge, Effort und Rest), jede auf einer 0-100-Skala. Sie werden aus den rohen Signalen deines Gurts mit veröffentlichten, von Experten begutachteten Sportwissenschaften aufgebaut und vollständig auf deinem Gerät berechnet. Sie sind NICHT die Ergebnisse von WHOOP: Wir haben keine privaten Algorithmen von WHOOP und tun nicht so, als ob. Sie zielen auf die gleichen drei Fragen mit Open Science, so dass sie normalerweise WHOOP in Richtung verfolgen, aber nicht mit Zahl für Zahl übereinstimmen. Und darum geht es."
+            "value" : "NOOP bietet dir drei tägliche Werte (Charge, Effort und Rest), jede auf einer 0-100-Skala. Sie werden aus den rohen Signalen deines Straps mit veröffentlichten, von Experten begutachteten Sportwissenschaften aufgebaut und vollständig auf deinem Gerät berechnet. Sie sind NICHT die Ergebnisse von WHOOP: Wir haben keine privaten Algorithmen von WHOOP und tun nicht so, als ob. Sie zielen auf die gleichen drei Fragen mit Open Science, so dass sie normalerweise WHOOP in Richtung verfolgen, aber nicht mit Zahl für Zahl übereinstimmen. Und darum geht es."
           }
         },
         "es" : {
@@ -318554,7 +318554,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP öffnet deine Daten auf dem Gerät. Deine gekoppelten Bänder erscheinen hier gleich."
+            "value" : "NOOP öffnet deine Daten auf dem Gerät. Deine gekoppelten Straps erscheinen hier gleich."
           }
         },
         "es" : {
@@ -319257,7 +319257,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP liest Live-Herzfrequenz auf Bändern, die keine Kopplung erfordern. Neuere Bänder brauchen einen Auth-Handshake, den wir noch nicht können."
+            "value" : "NOOP liest Live-Herzfrequenz auf Straps, die keine Kopplung erfordern. Neuere Straps brauchen einen Auth-Handshake, den wir noch nicht können."
           }
         },
         "es" : {
@@ -319315,7 +319315,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP liest Live-Herzfrequenz, wenn das Band sie freigibt. Manche Bänder brauchen eine Kopplung, die wir noch nicht können. Falls ja, sagen wir es ehrlich."
+            "value" : "NOOP liest Live-Herzfrequenz, wenn der Strap sie freigibt. Manche Straps brauchen eine Kopplung, die wir noch nicht können. Falls ja, sagen wir es ehrlich."
           }
         },
         "es" : {
@@ -319374,7 +319374,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP liest Sätze, Wiederholungen, Gewichte und RPE aus Hevy, Hevy-CSV oder Liftosaur und zeigt sie neben den Messwerten deines Armbands."
+            "value" : "NOOP liest Sätze, Wiederholungen, Gewichte und RPE aus Hevy, Hevy-CSV oder Liftosaur und zeigt sie neben den Messwerten deines Straps."
           }
         },
         "es" : {
@@ -320045,7 +320045,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP speichert diesen Schlüssel nur auf diesem Gerät, am selben Ort wie deine gekoppelten Bänder."
+            "value" : "NOOP speichert diesen Schlüssel nur auf diesem Gerät, am selben Ort wie deine gekoppelten Straps."
           }
         },
         "es" : {
@@ -321191,7 +321191,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOPs primäres, voll unterstütztes Band"
+            "value" : "NOOPs primärer, voll unterstützter Strap"
           }
         },
         "es" : {
@@ -336271,7 +336271,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "nur ein Band"
+            "value" : "nur ein Strap"
           }
         },
         "es" : {
@@ -337355,7 +337355,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bisher kann nur ein Weg antworten. Die anderen füllen sich, während dein Band Tage aufzeichnet und du erfasst, was du isst — und der Vergleich ist der Zweck dieses Schirms."
+            "value" : "Bisher kann nur ein Weg antworten. Die anderen füllen sich, während dein Strap Tage aufzeichnet und du erfasst, was du isst — und der Vergleich ist der Zweck dieses Schirms."
           }
         },
         "es" : {
@@ -341068,7 +341068,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Öffnet den Geräte-Bildschirm, wo du Bänder koppelst und wechselst."
+            "value" : "Öffnet den Geräte-Bildschirm, wo du Straps koppelst und wechselst."
           }
         },
         "es" : {
@@ -346806,7 +346806,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kopple und verwalte die Bänder, von denen NOOP liest."
+            "value" : "Kopple und verwalte die Straps, von denen NOOP liest."
           }
         },
         "es" : {
@@ -347329,7 +347329,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Helle Aufsätze sind aus dem Durchschnittspuls eines Workouts geschätzt, wo kein Herzfrequenzverlauf gespeichert wurde. Sie zählen weder für das Niveau noch für das Band."
+            "value" : "Helle Aufsätze sind aus dem Durchschnittspuls eines Workouts geschätzt, wo kein Herzfrequenzverlauf gespeichert wurde. Sie zählen weder für das Niveau noch für den Strap."
           }
         },
         "es" : {
@@ -350048,7 +350048,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sync ausstehend · Armband-Historie wird noch übertragen"
+            "value" : "Sync ausstehend · Strap-Verlauf wird noch übertragen"
           }
         },
         "es" : {
@@ -358398,7 +358398,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Drück den Knopf oder tippe zweimal auf dein Band, wenn der Satz fertig ist."
+            "value" : "Drück den Knopf oder tippe zweimal auf deinen Strap, wenn der Satz fertig ist."
           }
         },
         "en" : {
@@ -363020,7 +363020,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Versetze das Band in den Kopplungsmodus, am Handgelenk und wach."
+            "value" : "Versetze den Strap in den Kopplungsmodus, am Handgelenk und wach."
           }
         },
         "es" : {
@@ -374093,7 +374093,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "„Neu verbinden“ trennt die aktuelle Verbindung, falls vorhanden, und verbindet den Ring erneut. Zum Koppeln oder Wechseln von Bändern öffne „Geräte“."
+            "value" : "„Neu verbinden“ trennt die aktuelle Verbindung, falls vorhanden, und verbindet den Ring erneut. Zum Koppeln oder Wechseln von Straps öffne „Geräte“."
           }
         },
         "es" : {
@@ -374921,7 +374921,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Von deinem Armband über den Zeitraum dieser Einheit aufgezeichnet. Krafttraining wird nie von selbst zu Effort — die Herzfrequenz hier steckt bereits im Effort des Tages, und die Sätze kommen nicht obendrauf."
+            "value" : "Von deinem Strap über den Zeitraum dieser Einheit aufgezeichnet. Krafttraining wird nie von selbst zu Effort — die Herzfrequenz hier steckt bereits im Effort des Tages, und die Sätze kommen nicht obendrauf."
           }
         },
         "es" : {
@@ -387716,7 +387716,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band neu starten ..."
+            "value" : "Strap neu starten ..."
           }
         },
         "es" : {
@@ -387774,7 +387774,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Starte dieses Band neu?"
+            "value" : "Starte diesen Strap neu?"
           }
         },
         "es" : {
@@ -391264,7 +391264,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rezensiert jeden bewerteten Wake-Block auf echte Beweise für das Aufstehen (laufende Kadenz, eine Veränderung der Körperposition) anstelle von nur einem Herzfrequenzanstieg. Ein Wachblock ohne Fortbewegung und eine stabile Haltung - eine heiße Nacht, eine kurze Wende - wird in leichten Schlaf zurückgeklappt; ein echtes Aufstehen bleibt in Ruhe. Überprüft selbst, wie viele Bewegungsdetails Ihr Gurt tatsächlich aufgenommen hat, und bleibt in einer Nacht, die zu spärlich ist, um zu vertrauen (hauptsächlich ältere WHOOP 4.0-Firmware). Standardmäßig ausgeschaltet; tritt in den nächsten inszenierten Nächten in Kraft."
+            "value" : "Rezensiert jeden bewerteten Wake-Block auf echte Beweise für das Aufstehen (laufende Kadenz, eine Veränderung der Körperposition) anstelle von nur einem Herzfrequenzanstieg. Ein Wachblock ohne Fortbewegung und eine stabile Haltung - eine heiße Nacht, eine kurze Wende - wird in leichten Schlaf zurückgeklappt; ein echtes Aufstehen bleibt in Ruhe. Überprüft selbst, wie viele Bewegungsdetails dein Strap tatsächlich aufgenommen hat, und bleibt in einer Nacht, die zu spärlich ist, um zu vertrauen (hauptsächlich ältere WHOOP 4.0-Firmware). Standardmäßig ausgeschaltet; tritt in den nächsten inszenierten Nächten in Kraft."
           }
         },
         "es" : {
@@ -396433,7 +396433,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Läufe, Radfahrten, Schwimm- und Rudereinheiten erscheinen hier, sobald dein Armband sie überträgt oder ein Workout importiert wird — mit Pace, Geschwindigkeit und Distanz, nicht nur mit einer Dauer."
+            "value" : "Läufe, Radfahrten, Schwimm- und Rudereinheiten erscheinen hier, sobald dein Strap sie überträgt oder ein Workout importiert wird — mit Pace, Geschwindigkeit und Distanz, nicht nur mit einer Dauer."
           }
         },
         "es" : {
@@ -399971,7 +399971,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "„Scannen“ verbindet mit %@. Zum Koppeln oder Wechseln von Bändern öffne „Geräte“."
+            "value" : "„Scannen“ verbindet mit %@. Zum Koppeln oder Wechseln von Straps öffne „Geräte“."
           }
         },
         "es" : {
@@ -405138,7 +405138,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sendet den nur lesenden Befehl GET_BODY_LOCATION_AND_STATUS (0x54) und zeigt die vollständige Rohantwort des Bands, wobei der Datensatz (Revision / Position / Konfidenz / Status) auf der WHOOP 4.0 dekodiert wird. Es wird nichts auf das Band geschrieben, und Trageerkennung oder Bewertung werden nie verändert."
+            "value" : "Sendet den nur lesenden Befehl GET_BODY_LOCATION_AND_STATUS (0x54) und zeigt die vollständige Rohantwort des Straps, wobei der Datensatz (Revision / Position / Konfidenz / Status) auf der WHOOP 4.0 dekodiert wird. Es wird nichts auf den Strap geschrieben, und Trageerkennung oder Bewertung werden nie verändert."
           }
         },
         "es" : {
@@ -410563,7 +410563,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sätze in NOOP erfasst · Herzfrequenz vom NOOP-Band"
+            "value" : "Sätze in NOOP erfasst · Herzfrequenz vom NOOP-Strap"
           }
         },
         "en" : {
@@ -440132,7 +440132,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band"
+            "value" : "Strap"
           }
         },
         "en" : {
@@ -440261,7 +440261,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band & Live-Aktivitäten"
+            "value" : "Strap & Live-Aktivitäten"
           }
         },
         "es" : {
@@ -440934,7 +440934,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Akku des Armbands wird geladen, noch keine Anzeige"
+            "value" : "Der Akku des Straps wird geladen, noch keine Anzeige"
           }
         },
         "en" : {
@@ -441120,7 +441120,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gurtbatterie, Gurt nicht angeschlossen"
+            "value" : "Strap-Akku, Strap nicht angeschlossen"
           }
         },
         "en" : {
@@ -441661,7 +441661,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Synchronisierung des Armbandverlaufs ist bei diesem Armband experimentell"
+            "value" : "Die Synchronisierung des Strap-Verlaufs ist bei diesem Strap experimentell"
           }
         },
         "en" : {
@@ -441899,7 +441899,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band live"
+            "value" : "Live vom Strap"
           }
         },
         "es" : {
@@ -442615,7 +442615,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band getragen"
+            "value" : "Strap getragen"
           }
         },
         "es" : {
@@ -450298,7 +450298,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Armbandverlauf wird synchronisiert"
+            "value" : "Strap-Verlauf wird synchronisiert"
           }
         },
         "en" : {
@@ -450755,7 +450755,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Armbandverlauf wird synchronisiert, Abschnitt %lld"
+            "value" : "Strap-Verlauf wird synchronisiert, Abschnitt %lld"
           }
         },
         "en" : {
@@ -456655,7 +456655,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deshalb beginnt eine Watch-Only-Energie mit \"Kalibrieren\". NOOP benötigt etwa sieben Nächte deiner HRV, um zu erfahren, wie normal für dich aussieht. Bis es sie hat, hält es die Punktzahl zurück, anstatt zu erraten. Sobald die Basislinie festgelegt ist, erscheint deine Energie mit ihrem Vertrauen auf der gleichen 0-100-Skala wie ein Gurt."
+            "value" : "Deshalb beginnt eine Watch-Only-Energie mit \"Kalibrieren\". NOOP benötigt etwa sieben Nächte deiner HRV, um zu erfahren, wie normal für dich aussieht. Bis es sie hat, hält es die Punktzahl zurück, anstatt zu erraten. Sobald die Basislinie festgelegt ist, erscheint deine Energie mit ihrem Vertrauen auf der gleichen 0-100-Skala wie ein Strap."
           }
         },
         "es" : {
@@ -456836,7 +456836,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Antwort des Bands erscheint im Band-Log und im Diagnose-Export, samt der empfangenen Rohbytes."
+            "value" : "Die Antwort des Straps erscheint im Strap-Log und im Diagnose-Export, samt der empfangenen Rohbytes."
           }
         },
         "en" : {
@@ -457939,7 +457939,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Zahl mit der besten Quelle pro Metrik über alle Bänder, die du nutzt."
+            "value" : "Die Zahl mit der besten Quelle pro Metrik über alle Straps, die du nutzt."
           }
         },
         "es" : {
@@ -457997,7 +457997,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Veränderung gegenüber deiner Herzfrequenz am Ende der Belastung. Positive Werte bedeuten, dass deine Herzfrequenz gesunken ist; ein Strich bedeutet, dass das Band um diese Minute herum nicht genügend Daten aufgezeichnet hat."
+            "value" : "Die Veränderung gegenüber deiner Herzfrequenz am Ende der Belastung. Positive Werte bedeuten, dass deine Herzfrequenz gesunken ist; ein Strich bedeutet, dass der Strap um diese Minute herum nicht genügend Daten aufgezeichnet hat."
           }
         },
         "es" : {
@@ -460632,7 +460632,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Formel multipliziert deinen Grundumsatz mit einer Aktivitätsstufe. Diese Stufen sind Konventionen — die aus der Literatur, die jeder Kalorienrechner verwendet — und niemandes echtes Leben hat einen Faktor von genau 1,55.\n\nDas ist die Eingabe, die die Antwort der Formel am stärksten bewegt. Eine Stufe rauf oder runter ist ein paar hundert Kilokalorien am Tag wert, mehr als das Defizit der meisten Menschen. Genau diese Empfindlichkeit ist der Grund, warum die Antwort der Formel es wert ist, gegen die Aufzeichnung deines Bandes gehalten zu werden, statt ihr allein zu vertrauen."
+            "value" : "Die Formel multipliziert deinen Grundumsatz mit einer Aktivitätsstufe. Diese Stufen sind Konventionen — die aus der Literatur, die jeder Kalorienrechner verwendet — und niemandes echtes Leben hat einen Faktor von genau 1,55.\n\nDas ist die Eingabe, die die Antwort der Formel am stärksten bewegt. Eine Stufe rauf oder runter ist ein paar hundert Kilokalorien am Tag wert, mehr als das Defizit der meisten Menschen. Genau diese Empfindlichkeit ist der Grund, warum die Antwort der Formel es wert ist, gegen die Aufzeichnung deines Straps gehalten zu werden, statt ihr allein zu vertrauen."
           }
         },
         "es" : {
@@ -461057,7 +461057,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der ehrliche Haken: Eine Uhr ist kein Brustgurt. Sie ist brillant bei Schlaf, Schritten, Workouts und Fitness und leichter bei der dichten Herzfrequenzvariabilität, die ein Gurt die ganze Nacht misst. Die Erholung braucht daher etwa eine Woche zum Kalibrieren, und ein paar Metriken hängen von deinem Uhrenmodell ab. NOOP ist bei all dem offen. Jede von der Uhr abgeleitete Zahl trägt eine Konfidenz, und wo die Uhr nicht ehrlich sein kann, zeigt NOOP nichts statt einer erfundenen Zahl."
+            "value" : "Der ehrliche Haken: Eine Uhr ist kein Brustgurt. Sie ist brillant bei Schlaf, Schritten, Workouts und Fitness und leichter bei der dichten Herzfrequenzvariabilität, die ein Strap die ganze Nacht misst. Die Erholung braucht daher etwa eine Woche zum Kalibrieren, und ein paar Metriken hängen von deinem Uhrenmodell ab. NOOP ist bei all dem offen. Jede von der Uhr abgeleitete Zahl trägt eine Konfidenz, und wo die Uhr nicht ehrlich sein kann, zeigt NOOP nichts statt einer erfundenen Zahl."
           }
         },
         "es" : {
@@ -464357,7 +464357,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band akzeptiert die Schreibvorgänge, ein eigener Live-Stream wurde aber nicht beobachtet. Dies ist nicht der Rohdaten-Collector."
+            "value" : "Der Strap akzeptiert die Schreibvorgänge, ein eigener Live-Stream wurde aber nicht beobachtet. Dies ist nicht der Rohdaten-Collector."
           }
         },
         "es" : {
@@ -465820,7 +465820,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der WHOOP 4.0-Reboot-Frame wird nicht bestätigt - ein normaler Neustart wird ignoriert (# 235). Sende sie an jeden Kandidaten und beobachte dabei sowohl das Straplog als auch den Strap selbst. \"Keine Trennung innerhalb von 12s\" bedeutet, dass das Band den Rahmen ignoriert hat. Eine \"Link Drop\" -Linie bedeutet, dass der Rahmen den Riemen erreicht hat - aber ein Drop Link allein ist kein Neustart: Ein echter Neustart schaltet auch das Sensorlicht des Riemens für ein paar Sekunden aus, also wenn das Licht anblieb, war es nur eine Drop-Verbindung, kein Neustart. Zerstörungsfrei - deine Daten werden gespeichert. Bitte teile das Protokoll, damit wir den echten Rahmen anheften können."
+            "value" : "Der WHOOP 4.0-Reboot-Frame wird nicht bestätigt - ein normaler Neustart wird ignoriert (# 235). Sende sie an jeden Kandidaten und beobachte dabei sowohl das Straplog als auch den Strap selbst. \"Keine Trennung innerhalb von 12s\" bedeutet, dass der Strap den Rahmen ignoriert hat. Eine \"Link Drop\" -Linie bedeutet, dass der Rahmen den Riemen erreicht hat - aber ein Drop Link allein ist kein Neustart: Ein echter Neustart schaltet auch das Sensorlicht des Riemens für ein paar Sekunden aus, also wenn das Licht anblieb, war es nur eine Drop-Verbindung, kein Neustart. Zerstörungsfrei - deine Daten werden gespeichert. Bitte teile das Protokoll, damit wir den echten Rahmen anheften können."
           }
         },
         "es" : {
@@ -474440,7 +474440,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieses Armband sendet SpO₂ nicht über Bluetooth. Importieren Sie einen WHOOP-Export oder Health Connect, um ihn anzuzeigen."
+            "value" : "Dieser Strap sendet SpO₂ nicht über Bluetooth. Importieren Sie einen WHOOP-Export oder Health Connect, um ihn anzuzeigen."
           }
         },
         "en" : {
@@ -474504,7 +474504,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieses Band bekommt einen eigenen Eintrag, zum Beispiel für das Band einer zweiten Person."
+            "value" : "Dieser Strap bekommt einen eigenen Eintrag, zum Beispiel für den Strap einer zweiten Person."
           }
         },
         "es" : {
@@ -474562,7 +474562,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieser Gurt sendet keinen rohen Atemstrom aus. Ihre geschätzte Atemfrequenz wird auf dem Gesundheitsbildschirm angezeigt."
+            "value" : "Dieser Strap sendet keinen rohen Atemstrom aus. Ihre geschätzte Atemfrequenz wird auf dem Gesundheitsbildschirm angezeigt."
           }
         },
         "en" : {
@@ -474873,7 +474873,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Meist heißt das, dass das Band noch nicht fertig synchronisiert hat."
+            "value" : "Meist heißt das, dass der Strap noch nicht fertig synchronisiert hat."
           }
         },
         "en" : {
@@ -477481,7 +477481,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zeit in jeder %HFmax-Zone über diese Einheit, aus den eigenen Messwerten deines Armbands (näherungsweise). Es fließt in keine Bewertung ein — der Effort einer Krafteinheit kommt bereits aus derselben Herzfrequenz."
+            "value" : "Zeit in jeder %HFmax-Zone über diese Einheit, aus den eigenen Messwerten deines Straps (näherungsweise). Es fließt in keine Bewertung ein — der Effort einer Krafteinheit kommt bereits aus derselben Herzfrequenz."
           }
         },
         "es" : {
@@ -490187,7 +490187,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aktivieren Sie Einstellungen → „Entsperren Sie WHOOP 5/MG Deep Data (R22)“, schließen Sie Ihren Gurt wieder an, öffnen Sie dann NOOP in der Nähe und lassen Sie die Bewegung ein oder zwei Tage lang synchronisieren. Sobald die Bewegung erreicht ist, werden Ihre Schrittschätzung und die Kalibrierung unten eingefügt."
+            "value" : "Aktivieren Sie Einstellungen → „Entsperren Sie WHOOP 5/MG Deep Data (R22)“, schließen Sie deinen Strap wieder an, öffnen Sie dann NOOP in der Nähe und lassen Sie die Bewegung ein oder zwei Tage lang synchronisieren. Sobald die Bewegung erreicht ist, werden Ihre Schrittschätzung und die Kalibrierung unten eingefügt."
           }
         },
         "en" : {
@@ -490728,7 +490728,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zwei unabhängige Protokolltabellen widersprechen sich beim Extended-Battery-Opcode (98 vs. 87). Dies sendet das kuratierte, nur lesende 98 und zeigt die vollständige Rohantwort des Bands. Eine batterieartige Nutzlast bestätigt 98 auf deiner Firmware; ein kurzer Stub bleibt mehrdeutig. Es wird nichts auf das Band geschrieben."
+            "value" : "Zwei unabhängige Protokolltabellen widersprechen sich beim Extended-Battery-Opcode (98 vs. 87). Dies sendet das kuratierte, nur lesende 98 und zeigt die vollständige Rohantwort des Straps. Eine batterieartige Nutzlast bestätigt 98 auf deiner Firmware; ein kurzer Stub bleibt mehrdeutig. Es wird nichts auf den Strap geschrieben."
           }
         },
         "es" : {
@@ -503604,7 +503604,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Warte auf die Antwort des Bands…"
+            "value" : "Warte auf die Antwort des Straps…"
           }
         },
         "es" : {
@@ -512496,7 +512496,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Was jedes Band erfasst (und wofür NOOP es nutzt)."
+            "value" : "Was jeder Strap erfasst (und wofür NOOP es nutzt)."
           }
         },
         "es" : {
@@ -512613,7 +512613,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Was jedes Band live lesen kann und was einen Import erfordert."
+            "value" : "Was jeder Strap live lesen kann und was einen Import erfordert."
           }
         },
         "es" : {
@@ -515586,7 +515586,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Was dein Band aufgezeichnet hat"
+            "value" : "Was dein Strap aufgezeichnet hat"
           }
         },
         "es" : {
@@ -516562,7 +516562,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wenn NOOP die Herzfrequenz aus der optischen Wellenform WHOOP 5/MG v26 rekonstruiert (die Sekunden, in denen das Band keine HR gespeichert hat), verfeinere den Autokorrelationspeak mit einem parabolischen Sublag-Fit, so dass die Schätzung nicht auf etwa 16 bpm-Schritte in der Nähe einer hohen HR quantifiziert wird. Es füllt nur Sekunden, die das Band nie gemeldet hat; es überschreibt niemals eine gespeicherte HR. 5/MG, standardmäßig ausgeschaltet."
+            "value" : "Wenn NOOP die Herzfrequenz aus der optischen Wellenform WHOOP 5/MG v26 rekonstruiert (die Sekunden, in denen der Strap keine HR gespeichert hat), verfeinere den Autokorrelationspeak mit einem parabolischen Sublag-Fit, so dass die Schätzung nicht auf etwa 16 bpm-Schritte in der Nähe einer hohen HR quantifiziert wird. Es füllt nur Sekunden, die der Strap nie gemeldet hat; es überschreibt niemals eine gespeicherte HR. 5/MG, standardmäßig ausgeschaltet."
           }
         },
         "es" : {
@@ -520319,7 +520319,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WHOOP ist NOOPs primäres, voll unterstütztes Band. Andere Herzfrequenzgurte sind eine frühe Ergänzung in Entwicklung: Sie streamen Live-Herzfrequenz und HRV, aber nicht WHOOPs tiefere Schlaf- und Erholungsdaten."
+            "value" : "WHOOP ist NOOPs primärer, voll unterstützter Strap. Andere Herzfrequenzgurte sind eine frühe Ergänzung in Entwicklung: Sie streamen Live-Herzfrequenz und HRV, aber nicht WHOOPs tiefere Schlaf- und Erholungsdaten."
           }
         },
         "es" : {
@@ -520377,7 +520377,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WHOOP ist NOOPs primäres, voll unterstütztes Band. Andere Herzfrequenzgurte streamen Live-Herzfrequenz und HRV, aber nicht WHOOPs tiefere Schlaf- und Erholungsdaten."
+            "value" : "WHOOP ist NOOPs primärer, voll unterstützter Strap. Andere Herzfrequenzgurte streamen Live-Herzfrequenz und HRV, aber nicht WHOOPs tiefere Schlaf- und Erholungsdaten."
           }
         },
         "es" : {
@@ -529940,7 +529940,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Du hast deinen aktiven Strap entfernt. Wähle, welches gekoppelte Band deine Live-Daten liefert, oder lass keins aktiv und kopple später eins."
+            "value" : "Du hast deinen aktiven Strap entfernt. Wähle, welcher gekoppelte Strap deine Live-Daten liefert, oder lass keins aktiv und kopple später eins."
           }
         },
         "es" : {
@@ -532636,7 +532636,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Band"
+            "value" : "Dein Strap"
           }
         },
         "es" : {
@@ -532758,7 +532758,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Bänder melden unterschiedliche Zahlen. Hier ist jede Quelle und die, die NOOP verwendet."
+            "value" : "Deine Straps melden unterschiedliche Zahlen. Hier ist jede Quelle und die, die NOOP verwendet."
           }
         },
         "es" : {
@@ -540742,7 +540742,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Band hat heute noch nicht synchronisiert — bis dahin ist dies eine Schätzung."
+            "value" : "Dein Strap hat heute noch nicht synchronisiert — bis dahin ist dies eine Schätzung."
           }
         },
         "es" : {
@@ -541219,7 +541219,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ihr Gurt akzeptiert den Alarm nicht"
+            "value" : "dein Strap akzeptiert den Alarm nicht"
           }
         },
         "es" : {
@@ -541393,7 +541393,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Band hat über Nacht wenig Bewegung aufgezeichnet (häufig bei WHOOP 4.0), daher wurde diese Nacht möglicherweise nicht vollständig erfasst und die Schlafdauer kann zu kurz erscheinen. Stelle sicher, dass das Band vollständig synchronisiert wurde; die Werte bleiben unverändert."
+            "value" : "Dein Strap hat über Nacht wenig Bewegung aufgezeichnet (häufig bei WHOOP 4.0), daher wurde diese Nacht möglicherweise nicht vollständig erfasst und die Schlafdauer kann zu kurz erscheinen. Stelle sicher, dass der Strap vollständig synchronisiert wurde; die Werte bleiben unverändert."
           }
         },
         "es" : {
@@ -541451,7 +541451,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Band hat %@ als Aufwachzeit erfasst. Stimmt das nicht, ist die heutige Erholung falsch — und jeder Plan, der darauf aufbaut, ebenfalls."
+            "value" : "Dein Strap hat %@ als Aufwachzeit erfasst. Stimmt das nicht, ist die heutige Erholung falsch — und jeder Plan, der darauf aufbaut, ebenfalls."
           }
         },
         "en" : {
@@ -541573,7 +541573,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Verlauf deines Bandes wird in einen WHOOP-Eintrag übernommen. Nichts wird gelöscht. Bisher %lld Messwerte."
+            "value" : "Der Verlauf deines Straps wird in einen WHOOP-Eintrag übernommen. Nichts wird gelöscht. Bisher %lld Messwerte."
           }
         },
         "es" : {
@@ -544192,7 +544192,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein WHOOP-Eintrag samt Verlauf geht auf dieses Band über."
+            "value" : "Dein WHOOP-Eintrag samt Verlauf geht auf diesen Strap über."
           }
         },
         "es" : {
@@ -546610,7 +546610,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tippe oben auf „Heute“ auf das leuchtende F neben NOOP, um deine Benachrichtigungen zu öffnen: neue Funktionen, Hinweise zum Armband und Neuigkeiten zu deinen Zielen."
+            "value" : "Tippe oben auf „Heute“ auf das leuchtende F neben NOOP, um deine Benachrichtigungen zu öffnen: neue Funktionen, Hinweise zum Strap und Neuigkeiten zu deinen Zielen."
           }
         },
         "en" : {
@@ -547620,7 +547620,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band hat während der Messung die Verbindung verloren."
+            "value" : "Der Strap hat während der Messung die Verbindung verloren."
           }
         },
         "es" : {
@@ -547678,7 +547678,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band hat keine EKG-Daten gesendet."
+            "value" : "Der Strap hat keine EKG-Daten gesendet."
           }
         },
         "es" : {
@@ -547736,7 +547736,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band ist nicht innerhalb von zwei Minuten fertig geworden."
+            "value" : "Der Strap ist nicht innerhalb von zwei Minuten fertig geworden."
           }
         },
         "es" : {
@@ -547852,7 +547852,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band hat die Messung abgebrochen."
+            "value" : "Der Strap hat die Messung abgebrochen."
           }
         },
         "es" : {
@@ -548142,7 +548142,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band konnte sich nicht festlegen. Eine weitere Messung klärt das meistens."
+            "value" : "Der Strap konnte sich nicht festlegen. Eine weitere Messung klärt das meistens."
           }
         },
         "es" : {
@@ -549479,7 +549479,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ergebniscode des Bands"
+            "value" : "Ergebniscode des Straps"
           }
         },
         "es" : {
@@ -551103,7 +551103,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "25 mm/s, 10 mm/mV nominell: Die Amplitude des Bands ist nicht geeicht."
+            "value" : "25 mm/s, 10 mm/mV nominell: Die Amplitude des Straps ist nicht geeicht."
           }
         },
         "es" : {
@@ -551219,7 +551219,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band hat nicht bestätigt, dass die EKG-Aufnahme beendet ist. Eine neue Messung beendet sie zuerst."
+            "value" : "Der Strap hat nicht bestätigt, dass die EKG-Aufnahme beendet ist. Eine neue Messung beendet sie zuerst."
           }
         },
         "es" : {
@@ -551277,7 +551277,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band wird vorbereitet"
+            "value" : "Strap wird vorbereitet"
           }
         },
         "es" : {
@@ -551393,7 +551393,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Warte, bis das Band jeden Befehl bestätigt."
+            "value" : "Warte, bis der Strap jeden Befehl bestätigt."
           }
         },
         "es" : {
@@ -551451,7 +551451,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "EKG des Bands wird ausgeschaltet."
+            "value" : "EKG des Straps wird ausgeschaltet."
           }
         },
         "es" : {
@@ -551509,7 +551509,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band hat die Startbefehle nicht bestätigt."
+            "value" : "Der Strap hat die Startbefehle nicht bestätigt."
           }
         },
         "es" : {
@@ -551567,7 +551567,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Band hat den Neustart nicht bestätigt."
+            "value" : "Der Strap hat den Neustart nicht bestätigt."
           }
         },
         "es" : {
@@ -551799,7 +551799,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zum Vergleich mit derselben Methode ausgewertet wie das Band. Aus Apple Health gelesen, NOOP speichert nichts davon."
+            "value" : "Zum Vergleich mit derselben Methode ausgewertet wie der Strap. Aus Apple Health gelesen, NOOP speichert nichts davon."
           }
         },
         "es" : {
@@ -551915,7 +551915,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Noch keine Band-Messung zum Vergleich."
+            "value" : "Noch keine Strap-Messung zum Vergleich."
           }
         },
         "es" : {
@@ -552031,7 +552031,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vergleich mit dem Band"
+            "value" : "Vergleich mit dem Strap"
           }
         },
         "es" : {
@@ -552205,7 +552205,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Band-Messung vom %@. Puls und RMSSD unterscheiden sich zwischen zwei Zeitpunkten von Natur aus. Die Zeiten, QTc und die R-Zacke sollten eng übereinstimmen, wenn beide Geräte dieselbe Ableitung messen."
+            "value" : "Strap-Messung vom %@. Puls und RMSSD unterscheiden sich zwischen zwei Zeitpunkten von Natur aus. Die Zeiten, QTc und die R-Zacke sollten eng übereinstimmen, wenn beide Geräte dieselbe Ableitung messen."
           }
         },
         "es" : {
@@ -552669,7 +552669,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die P-Welle ist beim Band zu schwach, um sie zuverlässig zu vermessen."
+            "value" : "Die P-Welle ist beim Strap zu schwach, um sie zuverlässig zu vermessen."
           }
         },
         "es" : {
@@ -552785,7 +552785,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Experimentell. Geprüft an Markierungen von Kardiologen (PhysioNet QT Database) und beim Band im Vergleich mit einer Apple Watch, aber nicht klinisch validiert. Ein Messpunkt alle 10 ms begrenzt jede Zeitangabe. Eine einzelne Ableitung am Handgelenk zeigt weder die Herzachse noch die ST-Veränderungen, auf die ein 12-Kanal-EKG achtet."
+            "value" : "Experimentell. Geprüft an Markierungen von Kardiologen (PhysioNet QT Database) und beim Strap im Vergleich mit einer Apple Watch, aber nicht klinisch validiert. Ein Messpunkt alle 10 ms begrenzt jede Zeitangabe. Eine einzelne Ableitung am Handgelenk zeigt weder die Herzachse noch die ST-Veränderungen, auf die ein 12-Kanal-EKG achtet."
           }
         },
         "es" : {
@@ -553423,7 +553423,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Rhythmus-Ergebnis berechnet das Band selbst. NOOP zeigt es nur an und kann nicht prüfen, ob es stimmt. Puls, Variabilität und Zeiten sind eigene Schätzungen von NOOP aus der gespeicherten Kurve und nicht validiert."
+            "value" : "Das Rhythmus-Ergebnis berechnet der Strap selbst. NOOP zeigt es nur an und kann nicht prüfen, ob es stimmt. Puls, Variabilität und Zeiten sind eigene Schätzungen von NOOP aus der gespeicherten Kurve und nicht validiert."
           }
         },
         "es" : {
@@ -553539,7 +553539,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine Ableitung am Handgelenk, 100 Messpunkte pro Sekunde, eine nicht geeichte Amplitude und ein Filter im Band. Bewegung, lockerer Kontakt oder ein langsamer Puls können falsche Ergebnisse liefern. Eine einzelne Ableitung ersetzt kein 12-Kanal-EKG."
+            "value" : "Eine Ableitung am Handgelenk, 100 Messpunkte pro Sekunde, eine nicht geeichte Amplitude und ein Filter im Strap. Bewegung, lockerer Kontakt oder ein langsamer Puls können falsche Ergebnisse liefern. Eine einzelne Ableitung ersetzt kein 12-Kanal-EKG."
           }
         },
         "es" : {
@@ -553829,7 +553829,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die EKG-Funktion von WHOOP ist von der FDA nur zusammen mit WHOOPs eigener App zugelassen. Diese Zulassung gilt nicht für NOOP: Das Auslesen des Bands und die Auswertung der Kurve hier sind weder von der FDA noch von einer anderen Behörde zugelassen."
+            "value" : "Die EKG-Funktion von WHOOP ist von der FDA nur zusammen mit WHOOPs eigener App zugelassen. Diese Zulassung gilt nicht für NOOP: Das Auslesen des Straps und die Auswertung der Kurve hier sind weder von der FDA noch von einer anderen Behörde zugelassen."
           }
         },
         "es" : {
@@ -554177,7 +554177,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "**EKG mit dem WHOOP MG.** Nimm eine 30-Sekunden-Messung mit dem Band auf, sieh sie im Papiermaßstab mit Rhythmus, HRV und Intervallen und vergleiche sie mit einem Apple-Watch-EKG. Kein Medizinprodukt."
+            "value" : "**EKG mit dem WHOOP MG.** Nimm eine 30-Sekunden-Messung mit dem Strap auf, sieh sie im Papiermaßstab mit Rhythmus, HRV und Intervallen und vergleiche sie mit einem Apple-Watch-EKG. Kein Medizinprodukt."
           }
         },
         "es" : {
@@ -555975,7 +555975,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trag dein Band weiter; das Bild wird schärfer, je mehr sich dein Sechs-Monats-Fenster füllt."
+            "value" : "Trag deinen Strap weiter; das Bild wird schärfer, je mehr sich dein Sechs-Monats-Fenster füllt."
           }
         },
         "es" : {
@@ -561021,7 +561021,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Braucht fünf Nächte am Stück, aufgezeichnet vom Band"
+            "value" : "Braucht fünf Nächte am Stück, aufgezeichnet vom Strap"
           }
         },
         "es" : {
@@ -598548,6 +598548,238 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "長按圓環即可自訂今日"
+          }
+        }
+      }
+    },
+    "%@ °C vs usual" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ °C zum Üblichen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ °C frente a lo habitual"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ °C par rapport à l'habitude"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ °C rispetto al solito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ °C wobec normy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ °C face ao habitual"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ °C к обычному"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "较平常 %@ °C"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "較平常 %@ °C"
+          }
+        }
+      }
+    },
+    "usually %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "üblich %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "normalmente %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "d'habitude %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "di solito %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zwykle %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "normalmente %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "обычно %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通常 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通常 %@"
+          }
+        }
+      }
+    },
+    "Move earlier" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach vorne"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover antes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer avant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sposta prima"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przenieś wcześniej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover para antes"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переместить выше"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前移"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前移"
+          }
+        }
+      }
+    },
+    "Move later" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach hinten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover después"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer après"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sposta dopo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przenieś później"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover para depois"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переместить ниже"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "后移"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "後移"
           }
         }
       }

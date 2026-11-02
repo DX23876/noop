@@ -111,7 +111,7 @@ struct ForgeWorkoutsView: View {
         let week = rows.filter { Date(timeIntervalSince1970: TimeInterval($0.startTs)) >= start }
         let minutes = week.reduce(0.0) { $0 + ($1.durationS ?? Double(max($1.endTs - $1.startTs, 0))) / 60 }
         let effort = week.compactMap(\.strain).reduce(0, +)
-        return HStack(spacing: 0) {
+        return HStack(alignment: .top, spacing: 12) {
             stat("\(week.count)", String(localized: "this week"))
             stat(ForgeTrainingView.duration(minutes), String(localized: "time"))
             stat(ForgeToday.effortText(effort, scale: effortScale), String(localized: "Effort total"))

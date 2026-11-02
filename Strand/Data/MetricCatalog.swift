@@ -44,7 +44,7 @@ struct MetricDescriptor: Identifiable, Hashable {
     private var isSkinTemp: Bool { key == "skin_temp" }
 
     func format(_ v: Double) -> String {
-        let n = decimals == 0 ? String(Int(v.rounded())) : String(format: "%.\(decimals)f", v)
+        let n = decimals == 0 ? String(Int(v.rounded())) : UnitFormatter.localizedMark(String(format: "%.\(decimals)f", v))
         return unit.isEmpty ? n : "\(n) \(unit)"
     }
 

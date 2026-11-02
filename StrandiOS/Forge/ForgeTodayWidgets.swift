@@ -55,6 +55,15 @@ final class ForgeTodayWidgetStore: ObservableObject {
         save()
     }
 
+    /// Moves `id` one place up or down the list.
+    func shift(_ id: UUID, by delta: Int) {
+        guard let from = widgets.firstIndex(where: { $0.id == id }) else { return }
+        let to = from + delta
+        guard widgets.indices.contains(to) else { return }
+        widgets.swapAt(from, to)
+        save()
+    }
+
     #if DEBUG
     /// `--demo-widgets` seeds the board's set for captures.
     func seedDemoIfRequested() {
@@ -163,6 +172,9 @@ struct ForgeTodayWidgetArea: View {
                     .accessibilityLabel(Text("Remove widget"))
                 }
                 .contentShape(Rectangle())
+                // Dragging is not the only way: VoiceOver and Switch Control move a widget by action.
+                .accessibilityAction(named: Text("Move earlier")) { store.shift(w.id, by: -1) }
+                .accessibilityAction(named: Text("Move later")) { store.shift(w.id, by: 1) }
                 .draggable(w.id.uuidString)
                 .dropDestination(for: String.self) { items, _ in
                     guard let s = items.first, let id = UUID(uuidString: s) else { return false }

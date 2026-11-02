@@ -93,7 +93,9 @@ struct BodyView: View {
             DemoScrollBottomAnchor()
         }
         .background {
-            if NoopVisualStyle.skin == .forge { StrandPalette.surfaceBase.ignoresSafeArea() }
+            #if os(iOS)
+            if NoopVisualStyle.skin == .forge { ForgeSharedScreenBackground() }
+            #endif
         }
         .task {
             await model.load(repo: repo)

@@ -3612,5 +3612,9 @@
   "Wide · both lanes against your usual": "Large · les deux volets par rapport à ton habitude",
   "Wide · this week's goals": "Large · les objectifs de la semaine",
   "Wide · burned and eaten today": "Large · dépensé et mangé aujourd'hui",
-  "Hold the rings to customize Today": "Maintiens les anneaux pour personnaliser Aujourd'hui"
+  "Hold the rings to customize Today": "Maintiens les anneaux pour personnaliser Aujourd'hui",
+  "%@ °C vs usual": "%@ °C par rapport à l'habitude",
+  "usually %@": "d'habitude %@",
+  "Move earlier": "Déplacer avant",
+  "Move later": "Déplacer après"
 }

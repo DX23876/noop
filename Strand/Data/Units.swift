@@ -426,9 +426,16 @@ enum UnitFormatter {
 
     // MARK: Helpers
 
-    private static func oneDecimal(_ v: Double) -> String { String(format: "%.1f", v) }
+    private static func oneDecimal(_ v: Double) -> String { localizedMark(String(format: "%.1f", v)) }
+
+    /// The reader's decimal mark on an already rounded number. A locale passed to `String(format:)` itself
+    /// would round exact halves differently, and a language must never move a value.
+    static func localizedMark(_ number: String) -> String {
+        let mark = AppLanguage.activeLocale.decimalSeparator ?? "."
+        return mark == "." ? number : number.replacingOccurrences(of: ".", with: mark)
+    }
 
     private static func decimalString(_ v: Double, _ decimals: Int) -> String {
-        decimals == 0 ? "\(Int(v.rounded()))" : String(format: "%.\(decimals)f", v)
+        decimals == 0 ? "\(Int(v.rounded()))" : localizedMark(String(format: "%.\(decimals)f", v))
     }
 }

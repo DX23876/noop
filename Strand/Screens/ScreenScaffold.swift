@@ -55,7 +55,8 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             #if os(iOS)
             // One shared page gutter keeps every screen aligned with Today and the grouped lists.
             .padding(.horizontal, NoopMetrics.screenHPadding)
-            .padding(.top, 24)
+            // The new design's large title sits where its own pages put it, right under the back button.
+            .padding(.top, NoopVisualStyle.skin == .forge ? 6 : 24)
             // No tab-bar reserve here any more. The iOS shell uses the PLATFORM tab bar, which is part
             // of the safe area, so the scroll view already ends above it. The old
             // `NoopMetrics.tabBarClearance` compensated for a custom bar drawn OVER the content; keeping
@@ -87,11 +88,23 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         // band (see SceneScreenBackground.height) so it fades out ABOVE the dashboard cards, which then sit
         // on the opaque canvas and stay fully legible (2026-06-23: cards were "losing the data").
         .background(alignment: .top) {
+            #if os(iOS)
+            if NoopVisualStyle.skin == .forge {
+                ForgeSharedScreenBackground()
+            } else {
+                ZStack(alignment: .top) {
+                    StrandPalette.surfaceBase
+                    topBackground
+                }
+                .ignoresSafeArea()
+            }
+            #else
             ZStack(alignment: .top) {
                 StrandPalette.surfaceBase
                 topBackground
             }
             .ignoresSafeArea()
+            #endif
         }
         .modifier(RefreshableIfNeeded(onRefresh: onRefresh))
         .modifier(HardTopEdgeIfPinned(active: pinnedHeader != nil))
@@ -156,7 +169,9 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 if let title {
-                    Text(title).font(StrandFont.title1).foregroundStyle(titleColor)
+                    // The new design's pages all open on the same large title.
+                    Text(title).font(NoopVisualStyle.skin == .forge ? Font.largeTitle.bold() : StrandFont.title1).foregroundStyle(titleColor)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 if let subtitle {
                     Text(subtitle).font(StrandFont.subhead).foregroundStyle(subtitleColor)

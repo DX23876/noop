@@ -70,7 +70,13 @@ struct EnergyDetailView: View {
             // slate hairline. Presentation only; every value and source below is unchanged.
             .environment(\.noopQuietCardRims, true)
         }
-        .background(StrandPalette.surfaceBase.ignoresSafeArea())
+        .background {
+            #if os(iOS)
+            ForgeSharedScreenBackground()
+            #else
+            StrandPalette.surfaceBase.ignoresSafeArea()
+            #endif
+        }
         .navigationTitle(Text("Energy"))
         // The day control belongs in the bar, beside the title it qualifies — a second large
         // "Energy" heading inside the scroll view just to host it printed the screen's name twice.

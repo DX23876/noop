@@ -113,12 +113,10 @@ struct ForgeCycleSummaryCard: View {
     var body: some View {
         // Loaded from the body, not a `.task`: with nothing to show yet the view has no children, and SwiftUI
         // never runs a task attached to an empty group (the same reason `PeriodStartsLoader` exists).
-        let _ = loader.request(seq: cycleEnabled ? repo.cycleTrackingSeq * 1_000_003 + repo.refreshSeq : -1,
+        let _ = loader.request(seq: cycleEnabled ? "\(repo.cycleTrackingSeq)-\(repo.refreshSeq)-\(showFertile)-\(appModel.cyclePhase?.phase.rawValue ?? "")" : "off",
                                 repo: repo, model: appModel, enabled: cycleEnabled)
         Group {
-            if cycleEnabled, !loader.starts.isEmpty {
-                let snap = ForgeCycleSnapshot.make(result: appModel.cyclePhase, starts: loader.starts, log: loader.log, days: repo.days,
-                                                   today: Date(), showFertile: showFertile)
+            if cycleEnabled, !loader.starts.isEmpty, let snap = loader.snapshot {
                 card(snap)
             }
         }
@@ -213,10 +211,12 @@ struct ForgeCycleSummaryCard: View {
 final class ForgeCycleLoader: ObservableObject {
     @Published private(set) var starts: [String] = []
     @Published private(set) var log: [String: CycleLog.Day] = [:]
-    private var lastSeq: Int?
+    /// Worked out here rather than in the card's `body`, which runs whenever Today re-renders.
+    @Published private(set) var snapshot: ForgeCycleSnapshot?
+    private var lastSeq: String?
     private var load: Task<Void, Never>?
 
-    func request(seq: Int, repo: Repository, model: AppModel, enabled: Bool) {
+    func request(seq: String, repo: Repository, model: AppModel, enabled: Bool) {
         guard seq != lastSeq else { return }
         lastSeq = seq
         load?.cancel()
@@ -231,8 +231,10 @@ final class ForgeCycleLoader: ObservableObject {
             self.starts = starts
             self.log = log
             let showFertile = UserDefaults.standard.object(forKey: ForgeCycleSnapshot.fertileKey) as? Bool ?? true
-            FertileReminder.reschedule(windowStart: ForgeCycleSnapshot.make(result: model.cyclePhase, starts: starts, log: log,
-                                                                           days: repo.days, today: today, showFertile: showFertile).fertileStartAhead)
+            let snap = ForgeCycleSnapshot.make(result: model.cyclePhase, starts: starts, log: log,
+                                               days: repo.days, today: today, showFertile: showFertile)
+            self.snapshot = snap
+            FertileReminder.reschedule(windowStart: snap.fertileStartAhead)
         }
     }
 }

@@ -74,6 +74,17 @@ enum ForgeFont {
 
 // MARK: - Background
 
+extension EnvironmentValues {
+    /// The tab a page was pushed from, so a shared screen takes its tab's wash under the new design.
+    @Entry var forgeTab: ForgeTab = .today
+}
+
+/// `ForgeBackground` for shared screens: the tab comes from the environment.
+struct ForgeSharedScreenBackground: View {
+    @Environment(\.forgeTab) private var tab
+    var body: some View { ForgeBackground(tab: tab) }
+}
+
 /// The page backdrop. Precedence follows the shipped app: the custom photo, then the day-cycle sky, then
 /// the plain canvas with a faint per-tab wash. The sky reads the SAME switch the shipped design uses, but
 /// defaults it off here (see `ForgeDesignPrefs.skyDefaultInNewDesign`).
@@ -171,24 +182,26 @@ struct ForgeLargeHeader<Trailing: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            // No spacing: every button carries its own 44 pt hit area around a smaller visual.
-            HStack(spacing: 0) {
-                Text((subtitle ?? ForgeHeaderDate.formatter.string(from: Date())).uppercased(with: AppLanguage.activeLocale))
-                    .font(ForgeFont.overDate)
-                    .foregroundStyle(ForgeColor.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer(minLength: 8)
-                DashboardBatteryButton(size: 34)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-                trailing()
-                Button(action: onProfile) {
-                    ProfileAvatarView(imageData: profile.avatarImageData, size: 32, fallbackTint: ForgeColor.accent)
-                        .frame(width: 44, height: 44)
+            // The date beside the buttons, shortened if it must, and above them only with large text, so
+            // it is never cut off.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 0) {
+                    date
+                    Spacer(minLength: 8)
+                    buttons
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Profile and settings"))
+                HStack(spacing: 0) {
+                    shortDate
+                    Spacer(minLength: 8)
+                    buttons
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    date
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        buttons
+                    }
+                }
             }
             Text(title)
                 .font(ForgeFont.largeTitle)
@@ -196,6 +209,40 @@ struct ForgeLargeHeader<Trailing: View>: View {
                 .accessibilityAddTraits(.isHeader)
         }
         .padding(.horizontal, 20)
+    }
+}
+
+private extension ForgeLargeHeader {
+    var date: some View {
+        Text((subtitle ?? ForgeHeaderDate.formatter.string(from: Date())).uppercased(with: AppLanguage.activeLocale))
+            .font(ForgeFont.overDate)
+            .foregroundStyle(ForgeColor.secondary)
+            .lineLimit(1)
+    }
+
+    /// "MO., 2. NOV." where the full date does not fit beside the buttons; a set subtitle stays as it is.
+    var shortDate: some View {
+        Text((subtitle ?? Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)))
+            .uppercased(with: AppLanguage.activeLocale))
+            .font(ForgeFont.overDate)
+            .foregroundStyle(ForgeColor.secondary)
+            .lineLimit(1)
+    }
+
+    /// No spacing: every button carries its own 44 pt hit area around a smaller visual.
+    var buttons: some View {
+        HStack(spacing: 0) {
+            DashboardBatteryButton(size: 34)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+            trailing()
+            Button(action: onProfile) {
+                ProfileAvatarView(imageData: profile.avatarImageData, size: 32, fallbackTint: ForgeColor.accent)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Profile and settings"))
+        }
     }
 }
 

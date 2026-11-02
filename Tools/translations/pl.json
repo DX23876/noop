@@ -4716,5 +4716,9 @@
   "Wide · both lanes against your usual": "Szeroki · oba tory wobec twojej normy",
   "Wide · this week's goals": "Szeroki · cele na ten tydzień",
   "Wide · burned and eaten today": "Szeroki · spalone i zjedzone dziś",
-  "Hold the rings to customize Today": "Przytrzymaj pierścienie, by dostosować Dziś"
+  "Hold the rings to customize Today": "Przytrzymaj pierścienie, by dostosować Dziś",
+  "%@ °C vs usual": "%@ °C wobec normy",
+  "usually %@": "zwykle %@",
+  "Move earlier": "Przenieś wcześniej",
+  "Move later": "Przenieś później"
 }

@@ -458,7 +458,7 @@ public struct ChartFooter: View {
         HStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, it in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(it.0).textCase(.uppercase).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    Text(it.0).textCase(NoopVisualStyle.skin == .forge ? nil : .uppercase).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     Text(it.1).font(StrandFont.captionNumber).foregroundStyle(StrandPalette.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

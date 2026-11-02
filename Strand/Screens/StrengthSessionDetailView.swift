@@ -83,7 +83,13 @@ struct StrengthSessionDetailView: View {
                 .padding(NoopMetrics.screenPadding)
                 DemoScrollBottomAnchor()
             }
-            .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            .background {
+                #if os(iOS)
+                if embedded { ForgeSharedScreenBackground() } else { StrandPalette.surfaceBase.ignoresSafeArea() }
+                #else
+                StrandPalette.surfaceBase.ignoresSafeArea()
+                #endif
+            }
             .navigationTitle(Text(NoopVisualStyle.skin == .forge ? "" : title))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

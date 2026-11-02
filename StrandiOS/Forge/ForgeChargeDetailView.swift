@@ -127,8 +127,8 @@ struct ForgeChargeDetailView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(breakdown.drivers.enumerated()), id: \.offset) { index, driver in
                             if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
-                            ForgeWhyRow(label: driver.label, value: driver.valueText, delta: driver.deltaPoints,
-                                        usual: driver.baselineText.isEmpty ? nil : driver.baselineText)
+                            ForgeWhyRow(label: driver.label, value: ForgeToday.driverValue(driver.valueText), delta: driver.deltaPoints,
+                                        usual: driver.baselineText.isEmpty ? nil : ForgeToday.driverUsual(driver.baselineText))
                                 .accessibilityElement(children: .ignore)
                                 .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
                         }

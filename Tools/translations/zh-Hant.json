@@ -3766,5 +3766,9 @@
   "Wide · both lanes against your usual": "寬 · 兩類訓練與平常對比",
   "Wide · this week's goals": "寬 · 本週目標",
   "Wide · burned and eaten today": "寬 · 今日消耗與攝取",
-  "Hold the rings to customize Today": "長按圓環即可自訂今日"
+  "Hold the rings to customize Today": "長按圓環即可自訂今日",
+  "%@ °C vs usual": "較平常 %@ °C",
+  "usually %@": "通常 %@",
+  "Move earlier": "前移",
+  "Move later": "後移"
 }

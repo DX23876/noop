@@ -610,7 +610,7 @@ struct ForgeTodayView: View {
                         Text(driver.label).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
                             .lineLimit(1).minimumScaleFactor(0.8)
                         Spacer()
-                        Text(driver.valueText).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text(ForgeToday.driverValue(driver.valueText)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         ForgeDirection(delta: driver.deltaPoints)
                     }
                     .accessibilityElement(children: .ignore)

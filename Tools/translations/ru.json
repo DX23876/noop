@@ -3588,5 +3588,9 @@
   "Wide · both lanes against your usual": "Широкий · оба направления против обычного",
   "Wide · this week's goals": "Широкий · цели этой недели",
   "Wide · burned and eaten today": "Широкий · потрачено и съедено сегодня",
-  "Hold the rings to customize Today": "Удерживай кольца, чтобы настроить «Сегодня»"
+  "Hold the rings to customize Today": "Удерживай кольца, чтобы настроить «Сегодня»",
+  "%@ °C vs usual": "%@ °C к обычному",
+  "usually %@": "обычно %@",
+  "Move earlier": "Переместить выше",
+  "Move later": "Переместить ниже"
 }
