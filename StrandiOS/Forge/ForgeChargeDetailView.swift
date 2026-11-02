@@ -18,6 +18,8 @@ enum ForgeRoute: Hashable {
     case workouts
     case weekPlan
     case search
+    /// The redesigned AgeLess page. Routing this case to `AgeLessScreen()` restores the shipped page.
+    case ageless
 }
 
 extension View {
@@ -33,6 +35,7 @@ extension View {
             case .workouts: ForgeWorkoutsView()
             case .weekPlan: ForgeWeekPlanView(onAsk: onAsk)
             case .search: ForgeSearchView()
+            case .ageless: ForgeAgeLessView()
             }
         }
     }

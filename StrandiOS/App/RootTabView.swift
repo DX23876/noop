@@ -137,7 +137,7 @@ struct RootTabView: View {
         // Same for the redesign's pushed pages and sheets, which the board comparison captures one by one.
         if let i = args.firstIndex(of: "--demo-route"), i + 1 < args.count {
             // Effort and Rest take Today's values, so they are opened from the rings instead.
-            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search]
+            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search, "forgeageless": .ageless]
             switch args[i + 1].lowercased() {
             case "settings": _showAllFeatures = State(initialValue: true)
             case "settings-strap", "settings-devices", "settings-scores":

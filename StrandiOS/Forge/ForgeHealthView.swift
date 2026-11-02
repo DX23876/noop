@@ -21,6 +21,7 @@ struct ForgeHealthView: View {
     @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
     @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+    @State private var healthspan: HealthspanWeek?
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
 
     @State private var hrvOverCountByDay: [String: Double] = [:]
@@ -158,6 +159,7 @@ struct ForgeHealthView: View {
                         .buttonStyle(.plain)
 
                         ForgeSectionTitle(title: "Long term and patterns", action: nil)
+                        if healthspanEnabled { agelessCard }
                         weekInRings
                         ForgeGroup {
                             NavigationLink(value: TabRoute.trends) {
@@ -165,16 +167,9 @@ struct ForgeHealthView: View {
                                          title: String(localized: "Trends"),
                                          subtitle: String(localized: "Charge, Effort and Rest over months"))
                             }
-                            if healthspanEnabled {
-                                ForgeRowDivider()
-                                NavigationLink(value: MoreDestination.ageless) {
-                                    ForgeRow(systemImage: "hourglass", tint: .mint, title: String(localized: "AgeLess"),
-                                             subtitle: String(localized: "Your health age"))
-                                }
-                            }
                             ForgeRowDivider()
-                            NavigationLink(value: MoreDestination.insights) {
-                                ForgeRow(systemImage: "lightbulb.fill", tint: .yellow, title: String(localized: "Patterns"),
+                            NavigationLink(value: MoreDestination.insightsHub) {
+                                ForgeRow(systemImage: "lightbulb.fill", tint: .yellow, title: String(localized: "What works"),
                                          subtitle: String(localized: "What helps you, what hurts you"))
                             }
                             ForgeRowDivider()
@@ -198,6 +193,10 @@ struct ForgeHealthView: View {
         .background(ForgeBackground(tab: .health))
         .refreshable { await repo.refresh() }
         .task(id: repo.days.count) { await load() }
+        .task(id: "\(repo.refreshSeq)|\(healthspanEnabled)") {
+            guard healthspanEnabled, let sex = HealthspanEngine.Sex(profileValue: profile.sex) else { healthspan = nil; return }
+            healthspan = await HealthspanSnapshot.load(repo: repo, age: profile.age, sex: sex)?.weeks.last
+        }
     }
 
     /// "Your week in rings": the last seven days' Charge, Effort and Rest as small stacked rings.
@@ -284,6 +283,40 @@ struct ForgeHealthView: View {
         let today = Repository.logicalDayKey(Date())
         energyKcal = (await repo.energySummaries(days: 2, profile: Repository.analyticsProfile(profile)))
             .last(where: { $0.day == today })?.totalBurnedSoFar
+    }
+}
+
+extension ForgeHealthView {
+    /// AgeLess on Health: the top of its page only (AgeLess age, actual age, pace, six months on) on the
+    /// same age line, opening the full page. Without a week to show (no sex in the profile, too few nights)
+    /// it still opens the page, which says what is missing.
+    @ViewBuilder var agelessCard: some View {
+        NavigationLink(value: ForgeRoute.ageless) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("AgeLess", systemImage: "hourglass").font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
+                }
+                if let week = healthspan {
+                    let age = week.result.healthspanAge, actual = week.result.chronologicalAge
+                    let projected = week.pace.map { HealthspanEngine.projectedAge(currentAge: age, pace: $0) }
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(HealthspanSection.years(age)).font(ForgeFont.rounded(34, .bold))
+                            .foregroundStyle(age <= actual ? ForgeColor.chargeInk : ForgeColor.effortInk)
+                        Text("AgeLess age · actual \(HealthspanSection.years(actual))").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                    ForgeAgeLine(actual: actual, age: age, projected: projected).frame(height: 70)
+                    if let pace = week.pace {
+                        Text(ForgeAgeLessView.paceSentence(pace)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                } else {
+                    Text("Your health age").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                }
+            }
+            .forgeCard(radius: 22, padding: 14)
+        }
+        .buttonStyle(.plain)
     }
 }
 #endif
