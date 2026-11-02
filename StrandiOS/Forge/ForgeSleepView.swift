@@ -4,10 +4,12 @@ import Charts
 import StrandDesign
 import StrandAnalytics
 import StrandCore
+import WhoopStore
 
-/// The redesign's Sleep tab (2026-11): last night's Rest and time asleep, tonight's bedtime from the
-/// wind-down planner, the night's stages, and the way into the full Sleep screen (night by night, edits,
-/// naps, marks, customisation), which stays the shipped one so nothing is lost.
+/// The redesign's Sleep tab (2026-11): the night with arrows to the nights before, Rest and time asleep,
+/// tonight's bedtime from the wind-down planner, the night's stages, highlights against the wearer's
+/// usual, the night's figures, history and the alarm. The full Sleep screen (edits, naps, marks,
+/// customisation) stays one tap away so nothing is lost.
 ///
 /// Reads the SAME `SleepPresentationStore` model the shipped Sleep screen draws, so both agree.
 struct ForgeSleepView: View {
@@ -21,10 +23,16 @@ struct ForgeSleepView: View {
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
     private var sleepStore: SleepPresentationStore { sceneSleepStore ?? repo.sleepPresentation }
     @AppStorage(SleepChartStyle.storageKey) private var chartStyleRaw = SleepChartStyle.classic.rawValue
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
 
+    @State private var presentation: SleepPresentation?
     @State private var model: SleepModel?
-    @State private var restHistory: [(day: String, value: Double)] = []
+    /// 0 = the latest night; 1 the one before, and so on (the arrows above the tiles).
+    @State private var nightOffset = 0
+    @State private var shownNight: Night?
+    @State private var restByDay: [String: Double] = [:]
     @State private var historyRange: HistoryRange = .week
+    @State private var loaded = false
 
     enum HistoryRange: String, CaseIterable, Identifiable {
         case week, month, year
@@ -32,9 +40,12 @@ struct ForgeSleepView: View {
         var days: Int { switch self { case .week: 7; case .month: 30; case .year: 365 } }
         var label: LocalizedStringKey { switch self { case .week: "Week"; case .month: "Month"; case .year: "Year" } }
     }
-    @State private var loaded = false
 
     private var revision: SleepPresentationRevision { SleepPresentationRevision(repo: repo) }
+    private var night: Night? { shownNight ?? model?.night }
+    private var wakeKey: String? { night.map { Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.session.endTs))) } }
+    private var nightRow: DailyMetric? { wakeKey.flatMap { key in repo.days.last(where: { $0.day == key }) } }
+    private var need: Double { Double(WindDownNudge.sleepNeedMinutes) }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -42,21 +53,19 @@ struct ForgeSleepView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     ForgeLargeHeader(title: "Sleep", onProfile: onProfile).id("forge-sleep-top")
                     VStack(alignment: .leading, spacing: 14) {
-                        if let model {
-                            Text("\(nightDays(model)) · \(model.night.onsetText) to \(model.night.wakeText)")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(ForgeColor.secondary)
-                                .padding(.horizontal, 4)
-                            summaryTiles(model)
+                        if let model, let night {
+                            nightNavigator(night)
+                            summaryTiles(model, night: night)
                             if coachFeatureEnabled {
                                 Button {
                                     onAsk(String(localized: "Look at my last night's sleep and tell me what stood out and what I could change tonight."))
                                 } label: {
-                                    Label("Discuss last night with the coach", systemImage: "sparkles")
+                                    Label("Discuss last night with the coach", systemImage: "bubble.left")
                                         .font(.system(size: 15, weight: .semibold))
                                         .foregroundStyle(ForgeColor.accent)
-                                        .frame(maxWidth: .infinity, minHeight: 44)
-                                        .background(Capsule().fill(ForgeColor.fill))
+                                        .frame(maxWidth: .infinity, minHeight: 46)
+                                        .background(Capsule().fill(ForgeColor.card.opacity(0.6)))
+                                        .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 1))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -65,10 +74,13 @@ struct ForgeSleepView: View {
                                          headline: String(localized: "No night recorded yet"))
                         }
                         tonightCard
-                        if let model { nightCard(model) }
-                        GoalsContextCard(context: .sleep)
-                        if let model { nightFacts(model) }
-                        if restHistory.count > 1 { history }
+                        if let model, let night {
+                            nightCard(night)
+                            GoalsContextCard(context: .sleep)
+                            highlights(model, night: night)
+                            nightFacts(model)
+                        }
+                        history
                         more
                     }
                     .padding(.horizontal, 16)
@@ -85,34 +97,75 @@ struct ForgeSleepView: View {
         .refreshable { await repo.refresh() }
         .task(id: revision) {
             let key = revision
-            if let presentation = try? await sleepStore.presentation(repo: repo, revision: key), key == revision {
-                model = presentation.model
+            if let p = try? await sleepStore.presentation(repo: repo, revision: key), key == revision {
+                presentation = p
+                model = p.model
             }
             loaded = true
-            let series = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource, days: 365)
-            restHistory = series.map { ($0.day, $0.value) }
+            let series = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource, days: 400)
+            restByDay = Dictionary(series.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         }
+        .task(id: nightOffset) {
+            guard nightOffset > 0, let presentation else { shownNight = nil; return }
+            shownNight = try? await sleepStore.night(offset: nightOffset, presentation: presentation, repo: repo,
+                                                     revision: revision)
+        }
+    }
+
+    // MARK: Night navigation
+
+    private func nightNavigator(_ night: Night) -> some View {
+        HStack {
+            Button { nightOffset += 1 } label: {
+                Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold))
+                    .frame(width: 44, height: 36)
+            }
+            .accessibilityLabel(Text("Previous night"))
+            Spacer()
+            Text("\(nightDays(night)) · \(night.onsetText) to \(night.wakeText)")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(ForgeColor.text)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Spacer()
+            Button { if nightOffset > 0 { nightOffset -= 1 } } label: {
+                Image(systemName: "chevron.right").font(.system(size: 17, weight: .semibold))
+                    .frame(width: 44, height: 36)
+            }
+            .disabled(nightOffset == 0)
+            .accessibilityLabel(Text("Next night"))
+        }
+        .foregroundStyle(ForgeColor.text)
     }
 
     // MARK: Summary
 
-    private func summaryTiles(_ m: SleepModel) -> some View {
-        HStack(spacing: 10) {
-            NavigationLink(value: TabRoute.metric(HeroRingMetric.rest)) {
+    /// The last seven days' weekday initials, Monday-first order kept from the dates themselves.
+    private func weekdayLabels(_ count: Int) -> [String] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        return (0..<count).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
+            .map { $0.formatted(.dateTime.weekday(.narrow).locale(AppLanguage.activeLocale)) }
+    }
+
+    private func summaryTiles(_ m: SleepModel, night: Night) -> some View {
+        let rest = wakeKey.flatMap { restByDay[$0] } ?? (nightOffset == 0 ? m.performance.latest : nil)
+        let asleepWeek = repo.days.suffix(7).map { ($0.totalSleepMin ?? 0) / 60 }
+        return HStack(spacing: 10) {
+            NavigationLink(value: ForgeRoute.rest(rest)) {
                 ForgeMetricTile(label: DomainTheme.rest.productName,
-                                value: m.performance.latest.map { "\(Int($0.rounded()))" }, unit: "%",
+                                value: rest.map { "\(Int($0.rounded()))" }, unit: "%",
                                 trend: Array(m.performance.series.suffix(7)), tint: ForgeColor.rest,
-                                badge: m.performance.typical.map {
-                                    (String(localized: "usually \(Int($0.rounded())) %"), ForgeBadge.Tone.neutral)
-                                })
+                                badge: rest.map { r in
+                                    (ForgeToday.restWord(r), r >= 80 ? ForgeBadge.Tone.good : r >= 60 ? .neutral : .attention)
+                                },
+                                axisLabels: weekdayLabels(7))
             }
             NavigationLink(value: TabRoute.sleep) {
-                ForgeMetricTile(label: String(localized: "Asleep"),
-                                value: ForgeTodayView.hoursMinutes(m.night.stages.asleep), unit: "h",
-                                trend: nil, tint: ForgeColor.rest,
-                                badge: m.typicalTotalMin.map {
-                                    (String(localized: "usually \(ForgeTodayView.hoursMinutes($0)) h"), ForgeBadge.Tone.neutral)
-                                })
+                ForgeMetricTile(label: String(localized: "Sleep duration"),
+                                value: ForgeTodayView.hoursMinutes(night.stages.asleep), unit: "h",
+                                trend: asleepWeek.count > 1 ? asleepWeek : nil, tint: ForgeColor.rest,
+                                badge: (String(localized: "Goal \(ForgeTodayView.hoursMinutes(need)) h"), .attention),
+                                axisLabels: weekdayLabels(7))
             }
         }
         .buttonStyle(LiquidPressStyle())
@@ -122,29 +175,33 @@ struct ForgeSleepView: View {
 
     private var tonightCard: some View {
         let bed = ForgeToday.plannedBedtime(now: Date())
-        let need = WindDownNudge.sleepNeedMinutes
         return NavigationLink(value: MoreDestination.alarms) {
-            HStack(alignment: .center, spacing: 12) {
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(ForgeColor.rest)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Tonight").font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    Text("Need \(ForgeTodayView.hoursMinutes(Double(need))) h · alarm \(wakeText)")
-                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                }
-                Spacer()
-                if let bed {
-                    VStack(alignment: .trailing, spacing: 0) {
-                        Text(bed, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                            .font(ForgeFont.rounded(26, .bold)).foregroundStyle(ForgeColor.text)
-                        Text("bedtime").font(.system(size: 11)).foregroundStyle(ForgeColor.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "moon.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(ForgeColor.rest)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Tonight").font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text("for full recovery").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                    Spacer()
+                    if let bed {
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Text(bed, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
+                                .font(.system(size: 32, weight: .regular, design: .rounded))
+                                .foregroundStyle(ForgeColor.restInk)
+                            Text("bedtime").font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                        }
                     }
                 }
+                Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
+                Text("Need **\(ForgeTodayView.hoursMinutes(need)) h** · alarm \(wakeText)")
+                    .font(.system(size: 15)).foregroundStyle(ForgeColor.secondary)
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: 24, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -158,36 +215,38 @@ struct ForgeSleepView: View {
     }
 
     /// "Sat to Sun": the two weekdays the night spans.
-    private func nightDays(_ m: SleepModel) -> String {
-        let start = m.night.onsetDate
-        let end = Date(timeIntervalSince1970: TimeInterval(m.night.session.endTs))
+    private func nightDays(_ night: Night) -> String {
+        let start = night.onsetDate
+        let end = Date(timeIntervalSince1970: TimeInterval(night.session.endTs))
         let style = Date.FormatStyle.dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale)
         return String(localized: "\(start.formatted(style)) to \(end.formatted(style))")
     }
 
     // MARK: Night
 
-    private func nightCard(_ m: SleepModel) -> some View {
-        // The per-stage rows ("Classic") need a full-width card; the tab draws the stepped chart instead,
-        // in the palette the person chose.
+    private func nightCard(_ night: Night) -> some View {
+        // The prototype draws the stages as lanes; "Classic" (per-stage rows) maps to that here, any other
+        // style the person chose keeps its own look.
         let chosen = SleepChartStyle.resolve(chartStyleRaw)
-        let style: SleepChartStyle = chosen == .classic ? .filled : chosen
+        let filled = chosen == .classic ? false : chosen.isFilled
+        let palette = chosen == .classic ? SleepStagePalette.noop : chosen.stagePalette
         return NavigationLink(value: TabRoute.sleep) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Last night").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
+                    Text(nightOffset == 0 ? "Last night" : "This night").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
                     Spacer()
-                    Text("\(m.night.onsetText) to \(m.night.wakeText)")
+                    Text("\(night.onsetText) to \(night.wakeText)")
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
-                Hypnogram(intervals: m.intervals, height: 150, showsStageAxis: true, showsHover: false,
-                          nightStart: m.night.onsetDate, showsTimeAxis: true,
-                          filled: style.isFilled, stagePalette: style.stagePalette)
+                Hypnogram(intervals: night.intervals, height: 170, showsStageAxis: true, showsHover: false,
+                          nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.card))
                 HStack(spacing: 14) {
-                    stageFact(String(localized: "Deep"), m.night.stages.deep)
-                    stageFact(String(localized: "REM"), m.night.stages.rem)
-                    stageFact(String(localized: "Light"), m.night.stages.light)
-                    stageFact(String(localized: "Awake"), m.night.stages.awake)
+                    stageFact(String(localized: "Deep"), night.stages.deep)
+                    stageFact(String(localized: "REM"), night.stages.rem)
+                    stageFact(String(localized: "Light"), night.stages.light)
+                    stageFact(String(localized: "Awake"), night.stages.awake)
                 }
             }
             .forgeCard(radius: 24, padding: 14)
@@ -204,67 +263,137 @@ struct ForgeSleepView: View {
         .accessibilityElement(children: .combine)
     }
 
+    // MARK: Highlights
+
+    private struct Highlight: Identifiable {
+        let id: String
+        let title: String
+        let detail: String
+        let word: String
+        let tone: ForgeBadge.Tone
+    }
+
+    /// What this night did differently from the wearer's usual, from the typical values the sleep model
+    /// already keeps. Only differences of at least ten minutes count.
+    private func highlightItems(_ m: SleepModel, night: Night) -> [Highlight] {
+        let rows: [(String, String, Double, Double?)] = [
+            ("asleep", String(localized: "Time asleep"), night.stages.asleep, m.typicalTotalMin),
+            ("deep", String(localized: "Deep sleep"), night.stages.deep, m.typicalDeepMin),
+            ("rem", String(localized: "REM sleep"), night.stages.rem, m.typicalRemMin),
+            ("light", String(localized: "Light sleep"), night.stages.light, m.typicalLightMin),
+        ]
+        return rows.compactMap { id, title, value, typical in
+            guard let typical, abs(value - typical) >= 10 else { return nil }
+            let more = value > typical
+            return Highlight(id: id, title: title,
+                             detail: String(localized: "\(ForgeTodayView.hoursMinutes(value)), usually \(ForgeTodayView.hoursMinutes(typical))"),
+                             word: more ? String(localized: "more") : String(localized: "less"),
+                             tone: more ? .good : .attention)
+        }
+    }
+
+    @ViewBuilder private func highlights(_ m: SleepModel, night: Night) -> some View {
+        let items = highlightItems(m, night: night)
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForgeSectionTitle(title: "Highlights")
+                TabView {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "clock.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(ForgeColor.restInk)
+                                    .frame(width: 38, height: 38)
+                                    .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(item.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                                    Text(item.detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                                }
+                                Spacer()
+                                ForgeBadge(text: item.word, tone: item.tone)
+                            }
+                            Text("\(index + 1) of \(items.count)").font(.system(size: 12)).foregroundStyle(ForgeColor.tertiary)
+                        }
+                        .padding(.bottom, 18)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+                .frame(height: 110)
+                .forgeCard(radius: 22, padding: 14)
+            }
+        }
+    }
+
+    // MARK: This night
+
     private func nightFacts(_ m: SleepModel) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let row = nightRow
+        let temp = row?.skinTempDevC.map { String(format: "%+.1f °C", $0) }
+        let facts: [(String?, String)] = [
+            (m.efficiency.latest.map { "\(Int($0.rounded()))%" }, String(localized: "Efficiency")),
+            (row?.disturbances.map(String.init), String(localized: "Wake-ups")),
+            (row?.restingHr.map(String.init), String(localized: "Resting HR at night")),
+            (row?.avgHrv.map { "\(Int($0.rounded())) ms" }, String(localized: "HRV")),
+            (row?.respRateBpm.map { String(format: "%.1f", $0) }, String(localized: "Breaths/min")),
+            (temp, String(localized: "Skin temperature")),
+        ]
+        return VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "This night")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                NavigationLink(value: TabRoute.metric("sleep_efficiency")) {
-                    ForgeMetricTile(label: String(localized: "Efficiency"),
-                                    value: m.efficiency.latest.map { "\(Int($0.rounded()))" }, unit: "%",
-                                    trend: Array(m.efficiency.series.suffix(7)), tint: ForgeColor.rest)
-                }
-                NavigationLink(value: TabRoute.metric("sleep_debt_min")) {
-                    ForgeMetricTile(label: String(localized: "Sleep debt"),
-                                    value: m.sleepDebt.latest.map { ForgeTodayView.hoursMinutes($0) }, unit: "h",
-                                    trend: Array(m.sleepDebt.series.suffix(7)), tint: ForgeColor.rest)
-                }
-                NavigationLink(value: TabRoute.metric("sleep_consistency")) {
-                    ForgeMetricTile(label: String(localized: "Consistency"),
-                                    value: m.consistency.latest.map { "\(Int($0.rounded()))" }, unit: "%",
-                                    trend: Array(m.consistency.series.suffix(7)), tint: ForgeColor.rest)
-                }
-                NavigationLink(value: TabRoute.metric("resp_rate")) {
-                    ForgeMetricTile(label: String(localized: "Breathing"),
-                                    value: m.respiratory.latest.map { String(format: "%.1f", $0) }, unit: "/min",
-                                    trend: Array(m.respiratory.series.suffix(7)), tint: ForgeColor.rest)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), alignment: .leading, spacing: 14) {
+                ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(fact.0 ?? "–").font(ForgeFont.rounded(19, .regular)).foregroundStyle(ForgeColor.text)
+                        Text(fact.1).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary).lineLimit(2)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
             }
-            .buttonStyle(LiquidPressStyle())
+            .forgeCard(radius: 22, padding: 16)
         }
     }
 
     // MARK: History
 
-    /// Rest night by night over a week, a month or a year: the same stored series the Rest detail reads.
+    /// Hours asleep night by night with the sleep need as a dotted line, as in the prototype.
     private var history: some View {
-        let points = restHistory.suffix(historyRange.days).compactMap { p -> (Date, Double)? in
-            Self.dayParser.date(from: p.day).map { ($0, p.value) }
+        let points: [(Date, Double)] = repo.days.suffix(historyRange.days).compactMap { d in
+            guard let m = d.totalSleepMin, let date = Self.dayParser.date(from: d.day) else { return nil }
+            return (date, m / 60)
         }
         return VStack(alignment: .leading, spacing: 10) {
             ForgeSectionTitle(title: "History")
-            VStack(alignment: .leading, spacing: 10) {
-                Picker("Range", selection: $historyRange) {
-                    ForEach(HistoryRange.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
+            Picker("Range", selection: $historyRange) {
+                ForEach(HistoryRange.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            if points.count > 1 {
                 Chart {
-                    ForEach(points, id: \.0) { p in
-                        if historyRange == .week {
-                            BarMark(x: .value("Night", p.0, unit: .day), y: .value("Rest", p.1))
-                                .foregroundStyle(ForgeColor.rest.opacity(0.85))
-                                .cornerRadius(5)
-                        } else {
-                            LineMark(x: .value("Night", p.0), y: .value("Rest", p.1))
-                                .interpolationMethod(.monotone)
-                                .foregroundStyle(ForgeColor.rest)
+                    ForEach(Array(points.enumerated()), id: \.offset) { index, p in
+                        BarMark(x: .value("Night", p.0, unit: .day), y: .value("Hours", p.1))
+                            .foregroundStyle(ForgeColor.rest.opacity(index == points.count - 1 ? 1 : 0.55))
+                            .cornerRadius(historyRange == .year ? 1 : 5)
+                    }
+                    RuleMark(y: .value("Need", need / 60))
+                        .foregroundStyle(ForgeColor.restInk)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [2, 4]))
+                }
+                .chartYAxis(.hidden)
+                .chartXAxis {
+                    if historyRange == .week {
+                        AxisMarks(values: .stride(by: .day)) { _ in
+                            AxisValueLabel(format: .dateTime.weekday(.narrow), centered: true)
+                        }
+                    } else {
+                        AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                            AxisValueLabel(format: .dateTime.day().month(.abbreviated))
                         }
                     }
                 }
-                .chartYScale(domain: 0...100)
                 .frame(height: 150)
-                .accessibilityLabel(Text("Rest night by night"))
+                .forgeCard(radius: 22, padding: 14)
+                .accessibilityLabel(Text("Hours asleep night by night"))
             }
-            .forgeCard(radius: 22, padding: 14)
         }
     }
 
@@ -276,20 +405,33 @@ struct ForgeSleepView: View {
         return f
     }()
 
-    // MARK: More
+    // MARK: Alarm and naps
+
+    private var reminderText: String {
+        guard WindDownNudge.isEnabled, let bed = ForgeToday.plannedBedtime(now: Date()) else {
+            return String(localized: "Off")
+        }
+        let at = bed.addingTimeInterval(TimeInterval(-WindDownNudge.leadMinutes * 60))
+        return String(localized: "Reminder at \(at.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale)))")
+    }
 
     private var more: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForgeSectionTitle(title: "Nights, alarm and naps")
+            ForgeSectionTitle(title: "Alarm and naps")
             ForgeGroup {
-                NavigationLink(value: TabRoute.sleep) {
-                    ForgeRow(systemImage: "bed.double.fill", tint: ForgeColor.rest, title: String(localized: "Night by night"),
-                             subtitle: String(localized: "Every night, edit times, naps and marks"))
+                NavigationLink(value: MoreDestination.alarms) {
+                    ForgeRow(systemImage: "alarm.fill", tint: ForgeColor.rest, title: String(localized: "Smart alarm"),
+                             subtitle: String(localized: "Wakes you in a light phase, alarm \(wakeText)"))
                 }
                 ForgeRowDivider()
                 NavigationLink(value: MoreDestination.alarms) {
-                    ForgeRow(systemImage: "alarm.fill", tint: .orange, title: String(localized: "Smart alarm and bedtime"),
-                             subtitle: String(localized: "Wake window and wind-down reminder"))
+                    ForgeRow(systemImage: "moon.fill", tint: ForgeColor.rest, title: String(localized: "Bedtime"),
+                             subtitle: reminderText)
+                }
+                ForgeRowDivider()
+                NavigationLink(value: TabRoute.sleep) {
+                    ForgeRow(systemImage: "bed.double.fill", tint: ForgeColor.rest, title: String(localized: "Naps and every night"),
+                             subtitle: String(localized: "Edit times, log a nap, marks"))
                 }
             }
             .buttonStyle(.plain)

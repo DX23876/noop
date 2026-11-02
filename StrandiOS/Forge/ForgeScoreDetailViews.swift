@@ -24,10 +24,14 @@ struct ForgeEffortDetailView: View {
     private var target: ClosedRange<Double>? { ForgeToday.effortTargetStored(charge: charge) }
     private var shown: Double? { effortStored.map { UnitFormatter.effortValue($0, scale: effortScale) } }
 
+    @State private var scrolledPast = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(spacing: 8) {
+                ForgeDetailHeader(overline: String(localized: "Today"), title: DomainTheme.effort.productName,
+                                  scrolledPast: $scrolledPast)
+                VStack(spacing: 10) {
                     OrganicScoreHeroClock(dataReady: true) { frame in
                         OrganicScoreRing(
                             model: OrganicScoreVisualModel.resolve(metric: .effort, value: shown,
@@ -36,70 +40,98 @@ struct ForgeEffortDetailView: View {
                             decimals: effortScale == .whoop ? 1 : 0, frame: frame, diameter: 170, hitDiameter: 170)
                             .frame(width: 170, height: 170)
                     }
+                    ForgeScoreCaption(name: DomainTheme.effort.productName, tint: ForgeColor.effortInk,
+                                      detail: target.map {
+                                          let t = ForgeToday.targetText($0, scale: effortScale)
+                                          return String(localized: "target \(t.low) to \(t.high)")
+                                      })
                     if let line = ForgeToday.summary(effortStored: effortStored, charge: charge, scale: effortScale) {
-                        Text(line).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                        Text(line).font(.system(size: 17)).foregroundStyle(ForgeColor.text)
                             .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, 8)
 
-                if let effortStored, let target {
-                    ForgeEffortTargetBar(effort: effortStored, target: target, scale: effortScale)
-                }
-
-                if coachFeatureEnabled {
-                    ForgeChip(title: String(localized: "How hard should I go today?"), systemImage: "sparkles",
-                              prominent: true) {
-                        onAsk(String(localized: "Look at my Charge and today's Effort so far, and tell me how hard I should still train today."))
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    ForgeSectionTitle(title: "What added to it today")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(effortStored.map { value -> LocalizedStringKey in
+                        let figure = ForgeToday.effortText(value, scale: effortScale)
+                        return "Why \(figure)?"
+                    } ?? "What added to it today")
+                        .font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                        .padding(.horizontal, 4)
                     if todayWorkouts.isEmpty {
                         Text("No workout yet today. Effort also counts everyday movement and heart rate through the day.")
                             .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary).padding(.horizontal, 4)
                     } else {
-                        ForgeGroup {
+                        VStack(spacing: 0) {
                             ForEach(Array(todayWorkouts.enumerated()), id: \.offset) { index, row in
-                                if index > 0 { ForgeRowDivider() }
+                                if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
                                 NavigationLink(value: TabRoute.workoutDetail(startTs: row.startTs, sport: row.sport)) {
-                                    ForgeRow(systemImage: "figure.mixed.cardio",
-                                             tint: AppleInspiredColors.role(forSport: row.sport).color,
-                                             title: WorkoutSource.localizedDisplaySport(row.sport),
-                                             subtitle: String(localized: "\(Int((row.durationS ?? Double(row.endTs - row.startTs)) / 60)) min"),
-                                             value: row.strain.map { ForgeToday.effortText($0, scale: effortScale) })
+                                    workoutRow(row)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .forgeCard(radius: 22, padding: 14)
                     }
                 }
 
                 ForgeDailyChart(title: String(localized: "Last 14 days"),
-                                points: repo.days.suffix(14).compactMap { d in
-                                    d.strain.map { (d.day, UnitFormatter.effortValue($0, scale: effortScale)) }
+                                points: lastDays.map { ($0.day, UnitFormatter.effortValue($0.strain ?? 0, scale: effortScale)) },
+                                maxValue: effortScale == .whoop ? 21 : 100, tint: ForgeColor.effort, bars: true,
+                                history: TabRoute.effort(DashboardEffortReadout(day: Repository.logicalDayKey(Date()),
+                                                                                value: effortStored)),
+                                bands: lastDays.map { d in
+                                    ForgeToday.effortTargetStored(charge: d.recovery).map {
+                                        UnitFormatter.effortValue($0.lowerBound, scale: effortScale)
+                                            ... UnitFormatter.effortValue($0.upperBound, scale: effortScale)
+                                    }
                                 },
-                                maxValue: effortScale == .whoop ? 21 : 100, tint: ForgeColor.effort, bars: true)
+                                caption: String(localized: "The shaded band is the target your Charge allowed on each day."))
 
                 ForgeExplainer(title: "How Effort is made",
-                               text: "Effort adds up how hard your heart worked through the day against your own resting and maximum heart rate, workouts included. The target comes from this morning's Charge: more Charge, more room. Everything is calculated on this iPhone.",
-                               historyRoute: TabRoute.effort(DashboardEffortReadout(day: Repository.logicalDayKey(Date()),
-                                                                                    value: effortStored)))
+                               text: "Effort adds up how hard your heart worked through the day against your own resting and maximum heart rate, workouts included. The target comes from this morning's Charge: more Charge, more room. Everything is calculated on this iPhone.")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
         .background(ForgeBackground(tab: .training))
-        .navigationTitle(Text(DomainTheme.effort.productName))
-        .navigationBarTitleDisplayMode(.large)
+        .forgeDetailBar(title: DomainTheme.effort.productName, showsTitle: scrolledPast)
         .task {
             let cal = Calendar.current
             todayWorkouts = (await repo.workoutRows(days: 2, reconcileHrCap: 0))
                 .filter { cal.isDateInToday(Date(timeIntervalSince1970: TimeInterval($0.startTs))) }
                 .sorted { $0.startTs > $1.startTs }
         }
+    }
+
+    private var lastDays: [DailyMetric] { Array(repo.days.suffix(14).filter { $0.strain != nil }) }
+
+    /// One session of today: sport, start time and length, and the session's own Effort. Effort is not a
+    /// sum of its sessions, so the rows list what happened without splitting the day's figure into shares.
+    private func workoutRow(_ row: WorkoutRow) -> some View {
+        let start = Date(timeIntervalSince1970: TimeInterval(row.startTs))
+        let minutes = Int((row.durationS ?? Double(row.endTs - row.startTs)) / 60)
+        return HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(WorkoutSource.localizedDisplaySport(row.sport))
+                    .font(.system(size: 16)).foregroundStyle(ForgeColor.text)
+                Text("\(start.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))) · \(minutes) min")
+                    .font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+            }
+            Spacer(minLength: 8)
+            if let strain = row.strain {
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(ForgeToday.effortText(strain, scale: effortScale))
+                        .font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
+                    Text(DomainTheme.effort.productName).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -115,10 +147,14 @@ struct ForgeRestDetailView: View {
     private var sleepStore: SleepPresentationStore { sceneSleepStore ?? repo.sleepPresentation }
     @State private var model: SleepModel?
 
+    @State private var scrolledPast = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(spacing: 8) {
+                ForgeDetailHeader(overline: String(localized: "Last night"), title: DomainTheme.rest.productName,
+                                  scrolledPast: $scrolledPast)
+                VStack(spacing: 10) {
                     OrganicScoreHeroClock(dataReady: true) { frame in
                         OrganicScoreRing(
                             model: OrganicScoreVisualModel.resolve(metric: .rest, value: rest, scaleMaximum: 100),
@@ -126,31 +162,34 @@ struct ForgeRestDetailView: View {
                             diameter: 170, hitDiameter: 170)
                             .frame(width: 170, height: 170)
                     }
+                    ForgeScoreCaption(name: DomainTheme.rest.productName, tint: ForgeColor.restInk,
+                                      detail: rest.map { ForgeToday.restWord($0).lowercased(with: AppLanguage.activeLocale) })
                     if let m = model {
                         Text("\(ForgeTodayView.hoursMinutes(m.night.stages.asleep)) h asleep, \(m.night.onsetText) to \(m.night.wakeText)")
-                            .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                            .font(.system(size: 17)).foregroundStyle(ForgeColor.text)
+                            .multilineTextAlignment(.center)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, 8)
 
                 if let m = model {
-                    ForgeSectionTitle(title: "What shaped it")
-                    ForgeGroup {
-                        factor(String(localized: "Hours against your need"), m.hoursVsNeeded, unit: "%")
-                        ForgeRowDivider()
-                        factor(String(localized: "Efficiency"), m.efficiency, unit: "%")
-                        ForgeRowDivider()
-                        factor(String(localized: "Consistency"), m.consistency, unit: "%")
-                        ForgeRowDivider()
-                        factor(String(localized: "Restorative sleep"), m.restorative, unit: "%")
-                    }
-                }
-
-                if coachFeatureEnabled {
-                    ForgeChip(title: String(localized: "Discuss last night with the coach"), systemImage: "sparkles",
-                              prominent: true) {
-                        onAsk(String(localized: "Look at my last night's sleep and tell me what stood out and what I could change tonight."))
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(rest.map { value -> LocalizedStringKey in
+                            let figure = "\(Int(value.rounded())) %"
+                            return "Why \(figure)?"
+                        } ?? "What shaped it")
+                            .font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                            .padding(.horizontal, 4)
+                        VStack(spacing: 0) {
+                            factor(String(localized: "Hours against your need"), m.hoursVsNeeded)
+                            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
+                            factor(String(localized: "Efficiency"), m.efficiency)
+                            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
+                            factor(String(localized: "Consistency"), m.consistency)
+                            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
+                            factor(String(localized: "Restorative sleep"), m.restorative)
+                        }
+                        .forgeCard(radius: 22, padding: 14)
                     }
                 }
 
@@ -158,39 +197,35 @@ struct ForgeRestDetailView: View {
                                 points: Array((model?.performance.series ?? []).suffix(14).enumerated()).map {
                                     (String($0.offset), $0.element)
                                 },
-                                maxValue: 100, tint: ForgeColor.rest, bars: true, indexed: true)
+                                maxValue: 100, tint: ForgeColor.rest, bars: false, indexed: true,
+                                history: TabRoute.metric(HeroRingMetric.rest))
 
                 ForgeExplainer(title: "How Rest is made",
-                               text: "Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got. Everything is calculated on this iPhone.",
-                               historyRoute: TabRoute.metric(HeroRingMetric.rest))
+                               text: "Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got. Everything is calculated on this iPhone.")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
         .background(ForgeBackground(tab: .sleep))
-        .navigationTitle(Text(DomainTheme.rest.productName))
-        .navigationBarTitleDisplayMode(.large)
+        .forgeDetailBar(title: DomainTheme.rest.productName, showsTitle: scrolledPast)
         .task {
             let revision = SleepPresentationRevision(repo: repo)
             model = (try? await sleepStore.presentation(repo: repo, revision: revision))?.model
         }
     }
 
-    /// One factor: last night's value beside the wearer's usual, both from the sleep model.
-    private func factor(_ label: String, _ metric: SleepModel.Metric, unit: String) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(label).font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                if let typical = metric.typical {
-                    Text("usually \(Int(typical.rounded())) %").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                }
-            }
-            Spacer()
-            Text(metric.latest.map { "\(Int($0.rounded())) \(unit)" } ?? "–")
-                .font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 11)
-        .accessibilityElement(children: .combine)
+    /// One factor: last night's value, which way it moved Rest against the wearer's usual, and both on the
+    /// 0 to 100 track. Two points either way count as usual.
+    private func factor(_ label: String, _ metric: SleepModel.Metric) -> some View {
+        let delta: Int = {
+            guard let latest = metric.latest, let typical = metric.typical else { return 0 }
+            return latest - typical >= 2 ? 1 : (latest - typical <= -2 ? -1 : 0)
+        }()
+        return ForgeWhyRow(label: label,
+                           value: metric.latest.map { "\(Int($0.rounded())) %" } ?? "–",
+                           delta: delta,
+                           usual: metric.typical.map { String(localized: "usually \(Int($0.rounded())) %") },
+                           track: metric.latest.map { ($0, metric.typical) })
     }
 }
 
@@ -226,7 +261,8 @@ struct ForgeEffortTargetBar: View {
     }
 }
 
-/// A small chart card of one value per day (bars), keyed by day or by position.
+/// "Last 14 days" as the prototype draws it: the title with a History link beside it, then one value per
+/// day in a card, as bars or a line, optionally over a shaded band per day (Effort's daily target).
 struct ForgeDailyChart: View {
     let title: String
     let points: [(String, Double)]
@@ -235,46 +271,186 @@ struct ForgeDailyChart: View {
     var bars = true
     /// When the keys are positions rather than day keys (a series without dates).
     var indexed = false
+    var history: TabRoute? = nil
+    /// A band per point (same order as `points`), drawn behind the marks.
+    var bands: [ClosedRange<Double>?] = []
+    var caption: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
-            if points.count > 1 {
-                Chart {
-                    ForEach(Array(points.enumerated()), id: \.offset) { index, p in
-                        BarMark(x: .value("Day", index), y: .value("Value", p.1))
-                            .foregroundStyle(tint.opacity(index == points.count - 1 ? 1 : 0.6))
-                            .cornerRadius(4)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                if let history {
+                    NavigationLink(value: history) {
+                        Text("History").font(.system(size: 17)).foregroundStyle(ForgeColor.accent)
                     }
                 }
-                .chartYScale(domain: 0...maxValue)
-                .chartXAxis(.hidden)
-                .frame(height: 140)
-            } else {
-                Text("Not enough days yet.").font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
             }
+            .padding(.horizontal, 4)
+            VStack(alignment: .leading, spacing: 8) {
+                if points.count > 1 {
+                    // Days as categories: relative bar and band widths need a categorical axis.
+                    Chart {
+                        ForEach(Array(points.enumerated()), id: \.offset) { index, p in
+                            if index < bands.count, let band = bands[index] {
+                                RectangleMark(x: .value("Day", "\(index)"),
+                                              yStart: .value("Low", band.lowerBound), yEnd: .value("High", band.upperBound),
+                                              width: .ratio(1))
+                                    .foregroundStyle(tint.opacity(0.14))
+                            }
+                            if bars {
+                                BarMark(x: .value("Day", "\(index)"), y: .value("Value", p.1), width: .ratio(0.62))
+                                    .foregroundStyle(tint.opacity(index == points.count - 1 ? 1 : 0.6))
+                                    .cornerRadius(4)
+                            } else {
+                                AreaMark(x: .value("Day", "\(index)"), y: .value("Value", p.1))
+                                    .interpolationMethod(.linear)
+                                    .foregroundStyle(LinearGradient(colors: [tint.opacity(0.22), tint.opacity(0.02)],
+                                                                    startPoint: .top, endPoint: .bottom))
+                                LineMark(x: .value("Day", "\(index)"), y: .value("Value", p.1))
+                                    .interpolationMethod(.linear)
+                                    .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                                    .foregroundStyle(tint)
+                                if index == points.count - 1 {
+                                    PointMark(x: .value("Day", "\(index)"), y: .value("Value", p.1))
+                                        .symbolSize(40).foregroundStyle(tint)
+                                }
+                            }
+                        }
+                    }
+                    .chartYScale(domain: 0...maxValue)
+                    .chartXAxis(.hidden)
+                    .chartYAxis(.hidden)
+                    .frame(height: 120)
+                    if let caption {
+                        Text(caption).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    Text("Not enough days yet.").font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                }
+            }
+            .forgeCard(radius: 22, padding: 14)
         }
-        .forgeCard(radius: 22, padding: 14)
     }
 }
 
-/// "How X is made" with a link to the full history.
-struct ForgeExplainer<Route: Hashable>: View {
+/// "How X is made": one short paragraph under the page's chart.
+struct ForgeExplainer: View {
     let title: LocalizedStringKey
     let text: LocalizedStringKey
-    let historyRoute: Route
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
+            Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
             Text(text).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            NavigationLink(value: historyRoute) {
-                Text("Full history").font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.accent)
-            }
-            .padding(.top, 4)
         }
         .padding(.horizontal, 4)
+    }
+}
+
+/// A pushed score page's header as the prototype draws it: an optional overline above the large title.
+/// The bar shows the title once the header has scrolled away (`forgeDetailBar`).
+struct ForgeDetailHeader: View {
+    let overline: String?
+    let title: String
+    @Binding var scrolledPast: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let overline {
+                Text(overline.uppercased(with: AppLanguage.activeLocale))
+                    .font(ForgeFont.overDate).foregroundStyle(ForgeColor.secondary)
+            }
+            Text(title).font(ForgeFont.largeTitle).foregroundStyle(ForgeColor.text)
+                .accessibilityAddTraits(.isHeader)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
+        .onGeometryChange(for: Bool.self) { $0.frame(in: .scrollView).maxY < 0 } action: { scrolledPast = $0 }
+    }
+}
+
+/// The score's name in its colour with a short word under it, between the ring and the page's sentence.
+struct ForgeScoreCaption: View {
+    let name: String
+    let tint: Color
+    let detail: String?
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(name).font(.system(size: 17, weight: .semibold)).foregroundStyle(tint)
+            if let detail {
+                Text(detail).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// One "Why N?" row: the factor, its value, which way it moved the score, and a 0 to 100 track with the
+/// wearer's usual marked and last night's value as a dot (only for values that live on that scale).
+struct ForgeWhyRow: View {
+    let label: String
+    let value: String
+    let delta: Int
+    var usual: String? = nil
+    /// Last night and the usual value on a 0 to 100 scale, when the factor has one.
+    var track: (value: Double, usual: Double?)? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // Driver labels come from the analytics package in English; the catalog carries their translations.
+                Text(LocalizedStringKey(label)).font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    .lineLimit(2).layoutPriority(1)
+                Spacer(minLength: 8)
+                Text(value).font(ForgeFont.rounded(19, .regular)).foregroundStyle(ForgeColor.text)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                ForgeDirection(delta: delta).frame(minWidth: 64, alignment: .trailing)
+            }
+            if let track {
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let dot = delta > 0 ? ForgeColor.chargeInk : delta < 0 ? ForgeColor.effortInk : ForgeColor.secondary
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(ForgeColor.fill).frame(height: 6)
+                        if let usual = track.usual {
+                            Capsule().fill(ForgeColor.chargeInk.opacity(0.55)).frame(width: 3, height: 14)
+                                .offset(x: max(0, min(w - 3, w * usual / 100 - 1.5)))
+                        }
+                        Circle().fill(dot).frame(width: 14, height: 14)
+                            .overlay(Circle().strokeBorder(ForgeColor.card, lineWidth: 2))
+                            .offset(x: max(0, min(w - 14, w * track.value / 100 - 7)))
+                    }
+                    .frame(height: 14)
+                }
+                .frame(height: 14)
+            }
+            if let usual {
+                Text(usual).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+            }
+        }
+        .padding(.vertical, 11)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension View {
+    /// The inline bar of a pushed score page: empty while its own header shows, the title once scrolled.
+    func forgeDetailBar(title: String, showsTitle: Bool) -> some View {
+        navigationTitle(Text(title))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(title).font(.headline).foregroundStyle(ForgeColor.text)
+                        .opacity(showsTitle ? 1 : 0)
+                        .accessibilityHidden(!showsTitle)
+                }
+            }
     }
 }
 #endif

@@ -38,12 +38,24 @@ struct ForgeRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: compact ? 13 : 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: compact ? 28 : 32, height: compact ? 28 : 32)
-                .background(RoundedRectangle(cornerRadius: compact ? 7 : 8, style: .continuous).fill(tint))
-                .accessibilityHidden(true)
+            // Settings rows keep the iOS Settings tile (white glyph on a coloured square); list rows use the
+            // prototype's tinted circle with a coloured glyph.
+            Group {
+                if compact {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tint))
+                } else {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(tint)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(tint.opacity(0.16)))
+                }
+            }
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.system(size: 16, weight: compact ? .regular : .semibold))
                     .foregroundStyle(ForgeColor.text)
@@ -108,6 +120,10 @@ struct ForgeMetricTile: View {
     var trend: [Double]? = nil
     var tint: Color = ForgeColor.accent
     var badge: (text: String, tone: ForgeBadge.Tone)? = nil
+    /// Day bars (Monday first) instead of a trend line; the last non-zero bar is drawn full strength.
+    var bars: [Double]? = nil
+    /// Small labels under the chart (weekday initials), as in the prototype's tiles.
+    var axisLabels: [String]? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -119,13 +135,35 @@ struct ForgeMetricTile: View {
                     Text(unit).font(.system(size: 13, weight: .medium)).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            if let trend, trend.count > 1 {
+            if let bars, bars.contains(where: { $0 > 0 }) {
+                let top = max(bars.max() ?? 1, 1)
+                let lastIndex = bars.lastIndex(where: { $0 > 0 })
+                HStack(alignment: .bottom, spacing: 4) {
+                    ForEach(Array(bars.enumerated()), id: \.offset) { i, v in
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(tint.opacity(i == lastIndex ? 1 : 0.45))
+                            .frame(height: max(3, 30 * v / top))
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 30, alignment: .bottom)
+                .accessibilityHidden(true)
+            } else if let trend, trend.count > 1 {
                 Sparkline(values: trend, gradient: Gradient(colors: [tint.opacity(0.55), tint]),
                           lineWidth: 1.8, showsArea: true)
                     .frame(height: 30)
                     .accessibilityHidden(true)
             } else {
                 Spacer(minLength: 30)
+            }
+            if let axisLabels, (bars != nil || (trend?.count ?? 0) > 1) {
+                HStack(spacing: 0) {
+                    ForEach(Array(axisLabels.enumerated()), id: \.offset) { _, label in
+                        Text(label).font(.system(size: 10)).foregroundStyle(ForgeColor.tertiary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .accessibilityHidden(true)
             }
             if let badge { ForgeBadge(text: badge.text, tone: badge.tone) }
         }
@@ -155,6 +193,118 @@ struct ForgeTabHero<Accessory: View>: View {
 extension ForgeTabHero where Accessory == EmptyView {
     init(overline: String, headline: String) {
         self.init(overline: overline, headline: headline, accessory: { EmptyView() })
+    }
+}
+/// Which way a factor moved a score, as the prototype writes it: "↑ raises", "↓ lowers", "– neutral".
+struct ForgeDirection: View {
+    let delta: Int
+
+    var body: some View {
+        let (icon, word, color): (String, String, Color) = delta > 0
+            ? ("arrow.up", String(localized: "raises"), ForgeColor.chargeInk)
+            : delta < 0 ? ("arrow.down", String(localized: "lowers"), ForgeColor.effortInk)
+                        : ("minus", String(localized: "neutral"), ForgeColor.secondary)
+        HStack(spacing: 3) {
+            Image(systemName: icon).font(.system(size: 11, weight: .bold))
+            Text(word).font(.system(size: 13, weight: .semibold))
+        }
+        .foregroundStyle(color)
+        .fixedSize()
+    }
+}
+
+/// Heart-rate zones of a session as one bar with each zone's name and minutes underneath, from the zone
+/// shares the session stored.
+struct ForgeZoneBar: View {
+    let percents: [Double]
+    let minutes: Double
+
+    var body: some View {
+        let total = max(percents.reduce(0, +), 1)
+        VStack(alignment: .leading, spacing: 4) {
+            GeometryReader { geo in
+                HStack(spacing: 3) {
+                    ForEach(Array(percents.enumerated()), id: \.offset) { i, p in
+                        Capsule().fill(StrandPalette.hrZoneColor(i + 1))
+                            .frame(width: max(4, (geo.size.width - 12) * p / total))
+                    }
+                }
+            }
+            .frame(height: 7)
+            HStack(spacing: 4) {
+                ForEach(Array(percents.enumerated()), id: \.offset) { i, p in
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LiveHeartRateStyle.zoneName(i + 1)).lineLimit(1).minimumScaleFactor(0.6)
+                        Text("\(Int((minutes * p / total).rounded()))")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(ForgeColor.secondary)
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Heart rate zones"))
+    }
+}
+
+/// A night's stage shares as one strip in the stage colours (deep, light, REM, awake).
+struct ForgeStageStrip: View {
+    let deep: Double
+    let rem: Double
+    let light: Double
+    let awake: Double
+
+    var body: some View {
+        let parts: [(Double, Color)] = [(deep, StrandPalette.sleepStageColor(.deep)),
+                                        (light, StrandPalette.sleepStageColor(.light)),
+                                        (rem, StrandPalette.sleepStageColor(.rem)),
+                                        (awake, StrandPalette.sleepStageColor(.awake))]
+        let total = max(parts.map(\.0).reduce(0, +), 1)
+        GeometryReader { geo in
+            HStack(spacing: 2) {
+                ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
+                    if part.0 > 0 {
+                        RoundedRectangle(cornerRadius: 3).fill(part.1)
+                            .frame(width: max(3, (geo.size.width - 6) * part.0 / total))
+                    }
+                }
+            }
+        }
+        .frame(height: 8)
+        .accessibilityHidden(true)
+    }
+}
+/// Charge, Effort and Rest of one day as three small concentric rings (outer to inner), each filled to
+/// its stored value on the 0 to 100 axis.
+struct ForgeMiniRings: View {
+    let charge: Double?
+    let effort: Double?
+    let rest: Double?
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            let line = side * 0.12
+            ZStack {
+                ring(charge, ForgeColor.charge, inset: line / 2, line: line)
+                ring(effort, ForgeColor.effort, inset: line * 1.6, line: line)
+                ring(rest, ForgeColor.rest, inset: line * 2.7, line: line)
+            }
+            .frame(width: side, height: side)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func ring(_ value: Double?, _ color: Color, inset: CGFloat, line: CGFloat) -> some View {
+        ZStack {
+            Circle().stroke(color.opacity(0.2), lineWidth: line)
+            Circle().trim(from: 0, to: max(0, min(1, (value ?? 0) / 100)))
+                .stroke(color, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .padding(inset)
     }
 }
 #endif

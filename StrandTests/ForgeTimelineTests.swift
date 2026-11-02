@@ -35,6 +35,12 @@ final class ForgeTimelineTests: XCTestCase {
         XCTAssertEqual(split.body, "HRV is up.\nSleep was long.")
     }
 
+    func testSplitNoteKeepsEmphasisInTheBodyOnly() {
+        let split = ForgeTimeline.splitNote("**Solid** night. You slept **7 h 40**, above your need.")
+        XCTAssertEqual(split.headline, "Solid night.")
+        XCTAssertEqual(split.body, "You slept **7 h 40**, above your need.")
+    }
+
     func testSplitNoteKeepsTheWholeSentenceWhenTheHeadlineIsCut() {
         let long = String(repeating: "word ", count: 40) + "end."
         let split = ForgeTimeline.splitNote(long, maxHeadline: 30)

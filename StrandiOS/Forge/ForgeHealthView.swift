@@ -25,6 +25,8 @@ struct ForgeHealthView: View {
 
     @State private var hrvOverCountByDay: [String: Double] = [:]
     @State private var weightKg: Double?
+    @State private var weightChange30d: Double?
+    @State private var restByDay: [String: Double] = [:]
     @State private var energyKcal: Double?
 
     private var readings: [BodyVitalReading] {
@@ -36,6 +38,29 @@ struct ForgeHealthView: View {
             skinTempPreferred: SkinTempDisplay.Kind(rawValue: skinTempDisplayRaw) ?? .absolute)
             // The raw optical reading is an experimental instrument; an empty one is noise on this tab.
             .filter { !($0.key == "spo2raw" && $0.value == nil) }
+            // The prototype's order: HRV, resting heart rate, blood oxygen, breathing, then the rest.
+            .sorted { Self.order($0.key) < Self.order($1.key) }
+    }
+
+    private func vitalTile(_ r: BodyVitalReading) -> some View {
+        NavigationLink(value: TabRoute.metric(r.key == "spo2raw" ? "spo2" : r.key)) {
+            ForgeMetricTile(label: r.label, value: r.value.map(r.format), unit: r.unit,
+                            trend: r.sparkline, tint: r.metricColor,
+                            badge: (r.stateText, badgeTone(r)))
+        }
+        .buttonStyle(LiquidPressStyle())
+    }
+
+    /// "−1,7 kg in 30 days" with a real minus and the reader's decimal separator.
+    private func weightChangeText(_ kg: Double) -> String {
+        let value = unitSystem == .imperial ? UnitFormatter.kgToPounds(kg) : kg
+        let figure = abs(value).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale))
+        let signed = "\(value < 0 ? "−" : "+")\(figure) \(UnitFormatter.massUnit(unitSystem))"
+        return String(localized: "\(signed) in 30 days")
+    }
+
+    private static func order(_ key: String) -> Int {
+        ["hrv", "rhr", "spo2", "resp_rate", "skin_temp", "spo2raw"].firstIndex(of: key) ?? 99
     }
 
     var body: some View {
@@ -53,43 +78,36 @@ struct ForgeHealthView: View {
                                 : String(localized: "\(inRange) of \(scored.count) in range")) {
                             FlowRows(spacing: 6) {
                                 ForEach(scored) { r in
-                                    HStack(spacing: 4) {
-                                        Image(systemName: r.banding.band == .inRange ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                                            .foregroundStyle(r.banding.band == .inRange ? ForgeColor.charge : ForgeColor.effort)
-                                        Text(r.label).foregroundStyle(ForgeColor.text)
+                                    let ok = r.banding.band == .inRange
+                                    HStack(spacing: 6) {
+                                        Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                            .foregroundStyle(ok ? ForgeColor.text : ForgeColor.effortInk)
+                                        Text(r.label).foregroundStyle(ok ? ForgeColor.text : ForgeColor.effortInk)
                                     }
-                                    .font(.system(size: 13, weight: .medium))
-                                    .padding(.horizontal, 10).padding(.vertical, 5)
-                                    .background(Capsule().fill(ForgeColor.fill))
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .padding(.horizontal, 10).frame(minHeight: 30)
+                                    .background(Capsule().fill(ok ? ForgeColor.card.opacity(0.75) : ForgeColor.effort.opacity(0.16)))
+                                    .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 1))
                                 }
                             }
                             .padding(.top, 6)
-                            if coachFeatureEnabled, inRange < scored.count {
-                                ForgeChip(title: String(localized: "What's behind it?"), systemImage: "sparkles",
-                                          prominent: true) {
-                                    onAsk(String(localized: "Some of my vitals were outside my usual range last night. What could be behind it, and should I change anything today?"))
-                                }
-                                .padding(.top, 8)
-                            }
+                        }
+
+                        if let off = scored.first(where: { $0.banding.band == .outOfRange }) {
+                            offRangeCard(off)
                         }
 
                         ForgeSectionTitle(title: "Vitals")
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
                                   spacing: 10) {
-                            ForEach(readings) { r in
-                                NavigationLink(value: TabRoute.metric(r.key == "spo2raw" ? "spo2" : r.key)) {
-                                    ForgeMetricTile(label: r.label, value: r.value.map(r.format), unit: r.unit,
-                                                    trend: r.sparkline, tint: r.metricColor,
-                                                    badge: (r.stateText, badgeTone(r)))
-                                }
-                                .buttonStyle(LiquidPressStyle())
+                            ForEach(readings.count % 2 == 0 ? readings : Array(readings.dropLast())) { r in
+                                vitalTile(r)
                             }
                         }
-                        Text("Once NOOP has 14 nights of history, in-range compares each vital to your own baseline (approximate, not medical advice); until then, typical adult ranges apply.")
-                            .font(ForgeFont.caption)
-                            .foregroundStyle(ForgeColor.tertiary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 4)
+                        // An odd last vital spans the row instead of leaving a hole beside it.
+                        if readings.count % 2 == 1, let last = readings.last {
+                            vitalTile(last)
+                        }
 
                         ForgeSectionTitle(title: "Heart and stress")
                         ForgeGroup {
@@ -113,9 +131,11 @@ struct ForgeHealthView: View {
                         ForgeSectionTitle(title: "Body and energy")
                         ForgeGroup {
                             NavigationLink(value: TabRoute.weight) {
-                                ForgeRow(systemImage: "scalemass.fill", tint: .indigo, title: String(localized: "Weight"),
-                                         subtitle: String(localized: "Weigh-ins and trend"),
-                                         value: weightKg.map { UnitFormatter.massFromKilograms($0, system: unitSystem) })
+                                ForgeRow(systemImage: "figure.stand", tint: .indigo, title: String(localized: "Weight"),
+                                         subtitle: weightChange30d.map(weightChangeText) ?? String(localized: "Weigh-ins and trend"),
+                                         value: weightKg.map { String(format: "%.1f", locale: AppLanguage.activeLocale,
+                                                                      unitSystem == .imperial ? UnitFormatter.kgToPounds($0) : $0) },
+                                         unit: UnitFormatter.massUnit(unitSystem))
                             }
                             ForgeRowDivider()
                             NavigationLink(value: TabRoute.energy) {
@@ -136,7 +156,8 @@ struct ForgeHealthView: View {
                         }
                         .buttonStyle(.plain)
 
-                        ForgeSectionTitle(title: "Long term and patterns")
+                        ForgeSectionTitle(title: "Long term and patterns", action: nil)
+                        weekInRings
                         ForgeGroup {
                             NavigationLink(value: TabRoute.trends) {
                                 ForgeRow(systemImage: "chart.line.uptrend.xyaxis", tint: ForgeColor.charge,
@@ -178,6 +199,70 @@ struct ForgeHealthView: View {
         .task(id: repo.days.count) { await load() }
     }
 
+    /// "Your week in rings": the last seven days' Charge, Effort and Rest as small stacked rings.
+    private var weekInRings: some View {
+        let days = Array(repo.days.suffix(7))
+        return NavigationLink(value: TabRoute.trends) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Your week in rings").font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                HStack(spacing: 0) {
+                    ForEach(days, id: \.day) { d in
+                        VStack(spacing: 4) {
+                            ForgeMiniRings(charge: d.recovery, effort: d.strain, rest: restByDay[d.day])
+                                .frame(width: 34, height: 34)
+                            Text(Self.weekday(d.day)).font(.system(size: 11)).foregroundStyle(ForgeColor.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .forgeCard(radius: 22, padding: 14)
+        }
+        .buttonStyle(LiquidPressStyle())
+    }
+
+    private static func weekday(_ key: String) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        guard let date = f.date(from: key) else { return "" }
+        return date.formatted(.dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
+    }
+
+    /// The first vital outside the wearer's range, as the prototype's card: what it is, last night's value
+    /// and its recent nights large, with the coach's questions when the coach is on. Works with it off.
+    private func offRangeCard(_ r: BodyVitalReading) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Outside your usual range", systemImage: "waveform.path.ecg")
+                .font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+            Text("\(r.label) is outside your usual range").font(.system(size: 19, weight: .bold))
+                .foregroundStyle(ForgeColor.text).fixedSize(horizontal: false, vertical: true)
+            if let value = r.value {
+                Text("**\(r.format(value)) \(r.unit)** last night. \(r.stateText).")
+                    .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+            }
+            if let line = r.sparkline, line.count > 1 {
+                Sparkline(values: line, gradient: Gradient(colors: [ForgeColor.effort.opacity(0.6), ForgeColor.effort]),
+                          lineWidth: 2, showsArea: true)
+                    .frame(height: 90)
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.card))
+                    .accessibilityHidden(true)
+            }
+            if coachFeatureEnabled {
+                FlowRows(spacing: 8) {
+                    ForgeChip(title: String(localized: "What's causing it?")) {
+                        onAsk(String(localized: "My \(r.label) was outside my usual range last night. What could be causing it?"))
+                    }
+                    ForgeChip(title: String(localized: "Should I rest?")) {
+                        onAsk(String(localized: "My \(r.label) was outside my usual range last night. Should I rest or train lighter today?"))
+                    }
+                }
+            }
+        }
+        .forgeCard(radius: 24, padding: 16)
+    }
+
     private func badgeTone(_ r: BodyVitalReading) -> ForgeBadge.Tone {
         switch r.banding.band {
         case .inRange: return .good
@@ -190,8 +275,11 @@ struct ForgeHealthView: View {
         // Same flags the shipped Health tiles read, so an over-counted night is captioned identically.
         let oc = await repo.exploreSeries(key: "hrv_rr_overcount", source: "my-whoop", days: 14)
         hrvOverCountByDay = Dictionary(oc.map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
-        weightKg = WeightSeries.currentWeight(summary: await repo.weightTrendSummary(days: 91),
-                                              profileWeightKg: profile.weightKg).kg
+        let summary = await repo.weightTrendSummary(days: 91)
+        weightKg = WeightSeries.currentWeight(summary: summary, profileWeightKg: profile.weightKg).kg
+        weightChange30d = summary?.change30dKg
+        let rest = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource, days: 14)
+        restByDay = Dictionary(rest.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         let today = Repository.logicalDayKey(Date())
         energyKcal = (await repo.energySummaries(days: 2, profile: Repository.analyticsProfile(profile)))
             .last(where: { $0.day == today })?.totalBurnedSoFar

@@ -134,6 +134,21 @@ struct RootTabView: View {
                 _selectedTab = State(initialValue: tab)
             }
         }
+        // Same for the redesign's pushed pages and sheets, which the board comparison captures one by one.
+        if let i = args.firstIndex(of: "--demo-route"), i + 1 < args.count {
+            // Effort and Rest take Today's values, so they are opened from the rings instead.
+            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport]
+            switch args[i + 1].lowercased() {
+            case "settings": _showAllFeatures = State(initialValue: true)
+            case "log": _quickAction = State(initialValue: .forgeLog)
+            case let key:
+                if let route = routes[key] {
+                    var paths = Array(repeating: NavigationPath(), count: 5)
+                    paths[0].append(route)
+                    _tabPaths = State(initialValue: paths)
+                }
+            }
+        }
         #endif
         let appearance = UITabBarAppearance()
         appearance.selectionIndicatorTintColor = .clear
@@ -735,7 +750,8 @@ struct RootTabView: View {
             },
             onCoach: { if coachFeatureEnabled { showCoach = true } },
             onSleep: { withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 } },
-            onCoachSettings: { pushOnToday(MoreDestination.coachSettings) }
+            onCoachSettings: { pushOnToday(MoreDestination.coachSettings) },
+            onAsk: askCoach
         )
         .safeAreaInset(edge: .bottom, spacing: 0) { AnalysisUpdateBanner() }
     }

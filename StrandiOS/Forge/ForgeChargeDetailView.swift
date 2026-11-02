@@ -36,6 +36,7 @@ struct ForgeChargeDetailView: View {
     @EnvironmentObject private var repo: Repository
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var rest: Double?
+    @State private var scrolledPast = false
     @State private var rowWidth: CGFloat = 0
 
     private var todayKey: String { Repository.logicalDayKey(Date()) }
@@ -58,7 +59,8 @@ struct ForgeChargeDetailView: View {
         let breakdown = ChargeBreakdownFormat.compute(row: row, baselines: repo.chargeBaselines, restScore: rest)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(spacing: 8) {
+                ForgeDetailHeader(overline: nil, title: DomainTheme.charge.productName, scrolledPast: $scrolledPast)
+                VStack(spacing: 10) {
                     OrganicScoreHeroClock(dataReady: true) { frame in
                         OrganicScoreRing(
                             model: OrganicScoreVisualModel.resolve(metric: .charge, value: pct, scaleMaximum: 100),
@@ -66,21 +68,18 @@ struct ForgeChargeDetailView: View {
                             score: pct, decimals: 0, frame: frame, diameter: 170, hitDiameter: 170)
                             .frame(width: 170, height: 170)
                     }
-                    if let pct {
-                        Text(ChargeBand.of(score: pct).word.capitalized(with: AppLanguage.activeLocale))
-                            .font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.chargeInk)
-                    }
+                    ForgeScoreCaption(name: DomainTheme.charge.productName, tint: ForgeColor.chargeInk,
+                                      detail: pct.map { ChargeBand.of(score: $0).word.lowercased(with: AppLanguage.activeLocale) })
                     if let caption = display.carriedCaption {
                         Text(caption).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     }
                     if let target = ForgeToday.effortTargetStored(charge: pct) {
                         let t = ForgeToday.targetText(target, scale: UnitPrefs.currentEffortScale())
                         Text("Today's Effort target: \(t.low) to \(t.high).")
-                            .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                            .font(.system(size: 17)).foregroundStyle(ForgeColor.text)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, 8)
 
                 if let breakdown {
                     HStack(alignment: .firstTextBaseline) {
@@ -96,7 +95,10 @@ struct ForgeChargeDetailView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(breakdown.drivers.enumerated()), id: \.offset) { index, driver in
                             if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
-                            driverRow(driver)
+                            ForgeWhyRow(label: driver.label, value: driver.valueText, delta: driver.deltaPoints,
+                                        usual: driver.baselineText.isEmpty ? nil : driver.baselineText)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
                         }
                     }
                     .forgeCard(radius: 22, padding: 14)
@@ -107,92 +109,28 @@ struct ForgeChargeDetailView: View {
 
                 if coachFeatureEnabled {
                     HStack(spacing: 8) {
-                        ForgeChip(title: String(localized: "What can I improve?"), systemImage: "sparkles", prominent: true) {
+                        ForgeChip(title: String(localized: "What can I improve?")) {
                             onAsk(String(localized: "Look at what shaped my Charge today and tell me the one thing I could improve."))
                         }
                     }
                 }
 
-                lastDays
+                ForgeDailyChart(title: String(localized: "Last 14 days"),
+                                points: repo.days.suffix(14).compactMap { d in d.recovery.map { (d.day, $0) } },
+                                maxValue: 100, tint: ForgeColor.charge, bars: false,
+                                history: TabRoute.metric(HeroRingMetric.charge))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("How Charge is made").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
-                    Text("Charge compares last night's heart rate variability, resting heart rate, breathing and sleep with your own usual values. Everything is calculated on this iPhone.")
-                        .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    NavigationLink(value: TabRoute.metric(HeroRingMetric.charge)) {
-                        Text("Full history").font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.accent)
-                    }
-                    .padding(.top, 4)
-                }
-                .padding(.horizontal, 4)
+                ForgeExplainer(title: "How Charge is made",
+                               text: "Charge compares last night's heart rate variability, resting heart rate, breathing and sleep with your own usual values. Everything is calculated on this iPhone.")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
         .background(ForgeBackground(tab: .today))
-        .navigationTitle(Text(DomainTheme.charge.productName))
-        .navigationBarTitleDisplayMode(.large)
+        .forgeDetailBar(title: DomainTheme.charge.productName, showsTitle: scrolledPast)
         .task {
             rest = DashboardRestScore.value(day: todayKey, days: repo.days, importedSleep: repo.importedSleep)
         }
     }
-
-    private func driverRow(_ driver: ChargeDriver) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(driver.label).font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                if !driver.baselineText.isEmpty {
-                    Text(driver.baselineText).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                }
-                Text(driver.verdict).font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(driver.valueText).font(ForgeFont.rounded(17, .bold)).foregroundStyle(ForgeColor.text)
-                ForgeBadge(text: ChargeBreakdownFormat.chipLabel(deltaPoints: driver.deltaPoints),
-                           tone: driver.deltaPoints > 0 ? .good : (driver.deltaPoints < 0 ? .attention : .neutral))
-            }
-        }
-        .padding(.vertical, 10)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
-    }
-
-    private var lastDays: some View {
-        let points = repo.days.suffix(14).compactMap { d -> (Date, Double)? in
-            guard let r = d.recovery, let date = Self.dayParser.date(from: d.day) else { return nil }
-            return (date, r)
-        }
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Last 14 days").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
-            if points.count > 1 {
-                Chart {
-                    ForEach(points, id: \.0) { p in
-                        LineMark(x: .value("Day", p.0), y: .value("Charge", p.1))
-                            .interpolationMethod(.monotone)
-                            .foregroundStyle(ForgeColor.charge)
-                        PointMark(x: .value("Day", p.0), y: .value("Charge", p.1))
-                            .symbolSize(18)
-                            .foregroundStyle(ForgeColor.charge)
-                    }
-                }
-                .chartYScale(domain: 0...100)
-                .chartXAxis { AxisMarks(values: .stride(by: .day, count: 3)) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
-                .frame(height: 150)
-            } else {
-                Text("Not enough nights yet.").font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
-            }
-        }
-        .forgeCard(radius: 22, padding: 14)
-    }
-
-    private static let dayParser: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
 }
 #endif

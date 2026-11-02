@@ -26,7 +26,7 @@ enum ForgeColor {
     static let tertiary = dyn(0x3C3C43, 0xEBEBF5, light: 0.42, dark: 0.42)
     static let fill = dyn(0x767680, 0x767680, light: 0.13, dark: 0.26)
     static let separator = dyn(0x3C3C43, 0x545458, light: 0.18, dark: 0.55)
-    static let hairline = dyn(0xFFFFFF, 0xFFFFFF, light: 0.75, dark: 0.12)
+    static let hairline = dyn(0xFFFFFF, 0xFFFFFF, light: 0.9, dark: 0.12)
     static let accent = dyn(0x9A3E1C, 0xE8B64A)
     static let onAccent = dyn(0xFFFFFF, 0x2A1D00)
 
@@ -83,9 +83,12 @@ struct ForgeBackground: View {
             } else if sky {
                 SceneScreenBackground(height: 640)
             } else {
-                LinearGradient(colors: [ForgeColor.wash(tab).opacity(0.85), ForgeColor.wash(tab).opacity(0)],
+                // The prototype's per-tab tint reaches about the middle of the screen before it fades.
+                LinearGradient(stops: [.init(color: ForgeColor.wash(tab).opacity(0.95), location: 0),
+                                       .init(color: ForgeColor.wash(tab).opacity(0.55), location: 0.45),
+                                       .init(color: ForgeColor.wash(tab).opacity(0), location: 1)],
                                startPoint: .top, endPoint: .bottom)
-                    .frame(height: 520)
+                    .frame(height: 720)
             }
         }
         .ignoresSafeArea()
@@ -97,28 +100,33 @@ struct ForgeBackground: View {
 // MARK: - Glass cards
 
 /// A redesign card: frosted glass whose fill follows the existing Card transparency setting, with a light
-/// top highlight. On a plain canvas at 100 % it reads as a solid card; with a sky or photo behind it the
-/// material lets the scene through.
+/// rim and, in light mode, a soft shadow. When the person never set a transparency, the redesign uses its
+/// own glass default (the prototype's look) instead of the shipped design's solid 100 %.
 struct ForgeCardModifier: ViewModifier {
     var radius: CGFloat = 26
     var padding: CGFloat = 16
-    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = CardAppearancePrefs.defaultPercent
+    /// The redesign's glass when no Card transparency was ever chosen.
+    static let defaultGlassPercent = 78
+    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         let opacity = reduceTransparency ? 1 : max(0.35, Double(opacityPercent) / 100)
+        let light = colorScheme == .light
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .clipShape(shape)
             .background {
                 ZStack {
                     if opacity < 0.99 { shape.fill(.ultraThinMaterial) }
                     shape.fill(ForgeColor.card.opacity(opacity))
-                    shape.strokeBorder(ForgeColor.hairline, lineWidth: 0.6)
+                    shape.strokeBorder(ForgeColor.hairline, lineWidth: light ? 1 : 0.6)
                 }
+                .shadow(color: .black.opacity(light ? 0.07 : 0), radius: 14, x: 0, y: 5)
             }
-            .clipShape(shape)
     }
 }
 

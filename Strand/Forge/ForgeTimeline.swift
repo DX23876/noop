@@ -120,16 +120,14 @@ enum ForgeTimeline {
     /// asterisks. A first sentence longer than `maxHeadline` characters is cut at the last word boundary
     /// with an ellipsis and the full sentence stays in the body, so nothing the coach said is lost.
     static func splitNote(_ raw: String, maxHeadline: Int = 90) -> (kicker: String?, headline: String, body: String) {
-        var text = raw.replacingOccurrences(of: "**", with: "")
-            .replacingOccurrences(of: "__", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return (nil, "", "") }
         var kicker: String?
         if let gap = text.range(of: "\n\n") {
             let first = text[..<gap.lowerBound].trimmingCharacters(in: .whitespaces)
             if !first.isEmpty, first.count <= 40, !first.contains("\n"),
                first.last.map({ !".!?:".contains($0) }) ?? false {
-                kicker = first
+                kicker = stripEmphasis(first)
                 text = String(text[gap.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
@@ -144,6 +142,8 @@ enum ForgeTimeline {
             let remainder = String(lead[next...]).trimmingCharacters(in: .whitespaces)
             rest = [remainder, rest].filter { !$0.isEmpty }.joined(separator: "\n")
         }
+        // The headline is plain text; the body keeps the model's emphasis so figures can show in bold.
+        headline = stripEmphasis(headline)
         if headline.count > maxHeadline {
             let cut = headline.prefix(maxHeadline)
             let wordEnd = cut.lastIndex(of: " ") ?? cut.endIndex
@@ -152,5 +152,10 @@ enum ForgeTimeline {
             headline = short
         }
         return (kicker, headline, rest.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Markdown emphasis markers removed, for text shown plain (headlines, kickers, notifications).
+    static func stripEmphasis(_ s: String) -> String {
+        s.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: "")
     }
 }

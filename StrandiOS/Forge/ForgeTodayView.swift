@@ -22,6 +22,8 @@ struct ForgeTodayView: View {
     let onSleep: () -> Void
     /// Opens Coach settings (memory, usage, data access) on the Today stack.
     var onCoachSettings: () -> Void = {}
+    /// Sends a quick reply or question to the coach (inline consent handled by the shell).
+    var onAsk: (String) -> Void = { _ in }
 
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
@@ -62,6 +64,8 @@ struct ForgeTodayView: View {
         var notes: [String: ChatMessage] = [:]
         /// The Charge drivers for the row the ring shows, bound under the morning note.
         var drivers: [ChargeDriver] = []
+        /// The weight trend's 30-day change, shown under a weigh-in.
+        var weightChange30d: Double?
     }
 
     var body: some View {
@@ -166,7 +170,8 @@ struct ForgeTodayView: View {
     private var effortTarget: ClosedRange<Double>? { ForgeToday.effortTargetStored(charge: chargeScore) }
 
     private var hero: some View {
-        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth)
+        // A little smaller than the shipped hero, as in the prototype: the card carries more than the rings.
+        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth) * 0.88
         let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
         return VStack(spacing: 12) {
             OrganicScoreHeroClock(dataReady: snapshot.loaded || effortScore != nil) { frame in
@@ -181,7 +186,8 @@ struct ForgeTodayView: View {
                              maxValue: effortScale == .whoop ? 21 : 100, decimals: effortScale == .whoop ? 1 : 0,
                              route: ForgeRoute.effort(stored: snapshot.effortStored, charge: chargeScore))
                     ringCell(metric: .rest, label: DomainTheme.rest.productName, score: snapshot.loaded ? snapshot.rest : nil,
-                             tint: StrandPalette.organicRest, caption: nil,
+                             tint: StrandPalette.organicRest,
+                             caption: (snapshot.loaded ? snapshot.rest : nil).map(ForgeToday.restWord),
                              frame: frame, diameter: diameter, hit: hit,
                              route: ForgeRoute.rest(snapshot.loaded ? snapshot.rest : nil))
                 }
@@ -196,7 +202,7 @@ struct ForgeTodayView: View {
             if let line = ForgeToday.summary(effortStored: snapshot.effortStored, charge: chargeScore, scale: effortScale) {
                 Text(line)
                     .font(ForgeFont.body)
-                    .foregroundStyle(ForgeColor.secondary)
+                    .foregroundStyle(ForgeColor.text)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .fixedSize(horizontal: false, vertical: true)
@@ -272,7 +278,7 @@ struct ForgeTodayView: View {
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
                 Text(label)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Self.labelTint(metric))
                     .lineLimit(1).minimumScaleFactor(0.8)
                 Text(caption ?? " ")
@@ -358,51 +364,53 @@ struct ForgeTodayView: View {
                     HStack(spacing: 8) {
                         if showsWeeklyChip {
                             NavigationLink(value: ForgeRoute.weeklyReport) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "doc.text.fill").font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(ForgeColor.accent)
-                                    Text("Weekly report").font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(ForgeColor.text)
-                                }
-                                .padding(.horizontal, 14)
-                                .frame(minHeight: 44)
-                                .forgeCard(radius: 22, padding: 0)
-                                .fixedSize()
+                                laterChip(time: nil, systemImage: "doc.text.fill", tint: ForgeColor.accent,
+                                          title: String(localized: "Weekly report"))
                             }
                             .buttonStyle(.plain)
                         }
                         ForEach(items) { item in
                             Button(action: item.action) {
-                                HStack(spacing: 8) {
-                                    if let time = item.time {
-                                        Text(time, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                                            .font(.system(size: 13, weight: .medium).monospacedDigit())
-                                            .foregroundStyle(ForgeColor.secondary)
-                                    }
-                                    Image(systemName: item.systemImage)
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(item.tint)
-                                    Text(item.title)
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(ForgeColor.text)
-                                }
-                                .padding(.horizontal, 14)
-                                .frame(minHeight: 44)
-                                .forgeCard(radius: 22, padding: 0)
-                                .fixedSize()
+                                laterChip(time: item.time, systemImage: item.systemImage, tint: item.tint, title: item.title)
                             }
                             .buttonStyle(.plain)
                         }
                     }
+                    .padding(.vertical, 6)
                 }
                 .scrollIndicators(.hidden)
             }
         }
     }
 
+    /// One "Later Today" chip as in the prototype: time, a tinted round icon, the title.
+    private func laterChip(time: Date?, systemImage: String, tint: Color, title: String) -> some View {
+        HStack(spacing: 10) {
+            if let time {
+                Text(time, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
+                    .font(.system(size: 14, weight: .medium).monospacedDigit())
+                    .foregroundStyle(ForgeColor.secondary)
+            }
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(tint.opacity(0.18)))
+            Text(title)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(ForgeColor.text)
+                .lineLimit(1)
+        }
+        .padding(.leading, time == nil ? 10 : 16)
+        .padding(.trailing, 18)
+        .frame(minHeight: 54)
+        .forgeCard(radius: 27, padding: 0)
+        .fixedSize()
+    }
+
     // MARK: - Timeline
 
-    private static let timeWidth: CGFloat = 38
+    private static let timeWidth: CGFloat = 42
 
     private var timeline: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -411,7 +419,7 @@ struct ForgeTodayView: View {
                 Text("Workouts, nights and notes from the coach appear here as the day goes on.")
                     .font(ForgeFont.body)
                     .foregroundStyle(ForgeColor.secondary)
-                    .padding(.leading, Self.timeWidth + 25)
+                    .padding(.leading, Self.timeWidth + 28)
                     .padding(.vertical, 12)
             }
             ForEach(Array(snapshot.timeline.enumerated()), id: \.element.id) { index, day in
@@ -419,7 +427,9 @@ struct ForgeTodayView: View {
                     dayDivider(day.date)
                 }
                 ForEach(day.entries) { entry in
-                    railRow(time: entry.date) { entryCard(entry) }
+                    railRow(time: entry.date, accent: { if case .coach = entry.kind { return true } else { return false } }()) {
+                        entryCard(entry)
+                    }
                 }
             }
         }
@@ -429,11 +439,12 @@ struct ForgeTodayView: View {
     private var nowMarker: some View {
         HStack(spacing: 8) {
             Text(Date(), format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .font(.system(size: 13, weight: .semibold).monospacedDigit())
                 .foregroundStyle(ForgeColor.accent)
                 .fixedSize()
                 .frame(width: Self.timeWidth, alignment: .trailing)
-            Circle().fill(ForgeColor.accent).frame(width: 9, height: 9)
+            Circle().fill(ForgeColor.accent).frame(width: 11, height: 11)
+                .overlay(Circle().strokeBorder(ForgeColor.card, lineWidth: 2))
             Text("Now")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(ForgeColor.onAccent)
@@ -465,10 +476,11 @@ struct ForgeTodayView: View {
         return date.formatted(.dateTime.weekday(.wide).locale(AppLanguage.activeLocale))
     }
 
-    private func railRow<Content: View>(time: Date, @ViewBuilder content: () -> Content) -> some View {
+    private func railRow<Content: View>(time: Date, accent: Bool = false,
+                                        @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(time, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                .font(.system(size: 13, weight: .medium).monospacedDigit())
                 .foregroundStyle(ForgeColor.tertiary)
                 .fixedSize()
                 .frame(width: Self.timeWidth, alignment: .trailing)
@@ -477,10 +489,14 @@ struct ForgeTodayView: View {
             // One continuous rail: the line runs the full row height, the dot sits on it at the card's
             // first line, so consecutive rows join into a single thread.
             ZStack(alignment: .top) {
-                Rectangle().fill(ForgeColor.separator).frame(width: 1.5).frame(maxHeight: .infinity)
-                Circle().fill(ForgeColor.tertiary).frame(width: 7, height: 7).padding(.top, 18)
+                Rectangle().fill(ForgeColor.separator).frame(width: 2).frame(maxHeight: .infinity)
+                // Coach notes get the accent dot; everything else a hollow ring, as in the prototype.
+                Circle().fill(accent ? ForgeColor.accent : ForgeColor.canvas)
+                    .overlay(Circle().strokeBorder(accent ? ForgeColor.accent : ForgeColor.tertiary, lineWidth: 2))
+                    .frame(width: 12, height: 12)
+                    .padding(.top, 17)
             }
-            .frame(width: 9)
+            .frame(width: 12)
             .accessibilityHidden(true)
             content()
                 .padding(.bottom, 10)
@@ -492,7 +508,7 @@ struct ForgeTodayView: View {
         case .coach(let origin): coachCard(entry, origin: origin)
         case .workout: workoutCard(entry)
         case .wake: wakeCard(entry)
-        case .weight: EmptyView()
+        case .weight: weightCard(entry)
         }
     }
 
@@ -509,8 +525,8 @@ struct ForgeTodayView: View {
     private func coachCard(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label(coachLabel(entry, origin: origin), systemImage: "sparkles")
-                    .font(.system(size: 13, weight: .semibold))
+                Label(coachLabel(entry, origin: origin), systemImage: "waveform.path.ecg")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(ForgeColor.accent)
                 Spacer()
                 Button { whyEntry = entry } label: {
@@ -523,19 +539,24 @@ struct ForgeTodayView: View {
                 .accessibilityLabel(Text("Why am I seeing this?"))
             }
             Text(entry.title)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 19, weight: .bold))
                 .foregroundStyle(ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
             if !entry.detail.isEmpty {
-                Text(entry.detail)
+                Text(Self.markdown(entry.detail))
                     .font(ForgeFont.body)
                     .foregroundStyle(ForgeColor.secondary)
                     .lineLimit(5)
                     .fixedSize(horizontal: false, vertical: true)
             }
             noteFigures(entry, origin: origin)
-            HStack(spacing: 8) {
-                ForgeChip(title: String(localized: "Reply"), systemImage: "arrowshape.turn.up.left", prominent: true,
+            FlowRows(spacing: 8) {
+                if coachFeatureEnabled {
+                    ForEach(quickReplies(entry, origin: origin), id: \.self) { reply in
+                        ForgeChip(title: reply) { onAsk(reply) }
+                    }
+                }
+                ForgeChip(title: String(localized: "Reply"), systemImage: "square.and.pencil", prominent: true,
                           action: onCoach)
             }
             .padding(.top, 2)
@@ -546,6 +567,27 @@ struct ForgeTodayView: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// The coach's emphasis rendered (bold figures), never raw asterisks.
+    static func markdown(_ text: String) -> AttributedString {
+        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+            ?? AttributedString(text)
+    }
+
+    /// Short answers offered under a note, as in the prototype. Each is sent as the person's reply.
+    private func quickReplies(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> [String] {
+        if entry.kicker == String(localized: "After your workout") {
+            return [String(localized: "How long should I rest?"), String(localized: "That was hard")]
+        }
+        if entry.kicker == String(localized: "Evening recap") {
+            return [String(localized: "Plan tomorrow")]
+        }
+        switch origin {
+        case .brief: return [String(localized: "Yes, push today"), String(localized: "Rather easy")]
+        case .weeklyReview: return [String(localized: "Plan next week")]
+        case .checkIn, .nudge: return [String(localized: "Tell me more")]
+        }
+    }
+
     // MARK: Figures under a coach note (read on the device, never written by the model)
 
     @ViewBuilder private func noteFigures(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> some View {
@@ -553,13 +595,12 @@ struct ForgeTodayView: View {
            Calendar.current.isDateInToday(entry.date) {
             VStack(spacing: 6) {
                 ForEach(Array(snapshot.drivers.prefix(3).enumerated()), id: \.offset) { _, driver in
-                    HStack {
-                        Text(driver.label).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
-                            .lineLimit(1)
+                    HStack(spacing: 8) {
+                        Text(driver.label).font(.system(size: 14)).foregroundStyle(ForgeColor.secondary)
+                            .lineLimit(1).minimumScaleFactor(0.8)
                         Spacer()
-                        Text(driver.valueText).font(.system(size: 13, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                        ForgeBadge(text: ChargeBreakdownFormat.chipLabel(deltaPoints: driver.deltaPoints),
-                                   tone: driver.deltaPoints > 0 ? .good : (driver.deltaPoints < 0 ? .attention : .neutral))
+                        Text(driver.valueText).font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        ForgeDirection(delta: driver.deltaPoints)
                     }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
@@ -589,6 +630,10 @@ struct ForgeTodayView: View {
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
             }
             .buttonStyle(.plain)
+            if let zones = WorkoutZones.percents(row.zonesJSON) {
+                ForgeZoneBar(percents: zones,
+                             minutes: (row.durationS ?? Double(max(row.endTs - row.startTs, 0))) / 60)
+            }
         } else if entry.kicker == String(localized: "Evening recap"), let effort = snapshot.effortStored,
                   let target = effortTarget, Calendar.current.isDateInToday(entry.date) {
             ForgeEffortTargetBar(effort: effort, target: target, scale: effortScale)
@@ -643,6 +688,33 @@ struct ForgeTodayView: View {
         }
     }
 
+    /// A weigh-in with its time (only entries that record one reach the timeline).
+    private func weightCard(_ entry: ForgeTimeline.Entry) -> some View {
+        NavigationLink(value: TabRoute.weight) {
+            HStack(spacing: 12) {
+                Image(systemName: "figure.stand")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(ForgeColor.rest)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Weight logged").font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    if let change = snapshot.weightChange30d {
+                        Text("\(UnitFormatter.massFromKilograms(change, system: UnitSystem(rawValue: unitSystemRaw) ?? .metric).replacingOccurrences(of: "-", with: "−")) in 30 days")
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                }
+                Spacer(minLength: 6)
+                if let kg = entry.value {
+                    Text(UnitFormatter.massFromKilograms(kg, system: UnitSystem(rawValue: unitSystemRaw) ?? .metric))
+                        .font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
+                }
+            }
+            .forgeCard(radius: 22, padding: 14)
+        }
+        .buttonStyle(LiquidPressStyle())
+    }
+
     private func workoutDetail(_ row: WorkoutRow) -> String {
         var parts: [String] = []
         let secs = row.durationS ?? Double(max(row.endTs - row.startTs, 0))
@@ -684,6 +756,12 @@ struct ForgeTodayView: View {
                             .font(.system(size: 11))
                             .foregroundStyle(ForgeColor.secondary)
                     }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .safeAreaInset(edge: .bottom, spacing: 10) {
+                if let stages = session.flatMap({ SleepView.decodeStages($0.stagesJSON) }) {
+                    ForgeStageStrip(deep: stages.deep, rem: stages.rem, light: stages.light, awake: stages.awake)
                 }
             }
             .forgeCard(radius: 22, padding: 14)
@@ -774,6 +852,11 @@ struct ForgeTodayView: View {
         let sleeps = await repo.sleepSessions(from: nowTs - 3 * 86_400, to: nowTs)
 
         var input = ForgeTimeline.Input()
+        // Weigh-ins that carry their own time (NOOP's own entries; Apple's daily cells have none).
+        for w in await repo.weightEntries(days: 3) {
+            if let at = w.takenAt { input.weights.append(.init(date: at, kg: w.value)) }
+        }
+        next.weightChange30d = await repo.weightTrendSummary(days: 91)?.change30dKg
         for w in workouts {
             let id = "\(w.startTs)|\(w.sport)"
             next.workouts[id] = w

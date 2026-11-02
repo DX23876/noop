@@ -55,6 +55,12 @@ enum ForgeToday {
         }
     }
 
+    /// Rest in one word, with the same thresholds and words the Overview dashboard uses for its Rest tile,
+    /// so the two designs never describe the same night differently.
+    static func restWord(_ score: Double) -> String {
+        score >= 80 ? String(localized: "Good") : score >= 60 ? String(localized: "Fair") : String(localized: "Low")
+    }
+
     /// Tonight's bedtime from the wind-down planner's own inputs: tomorrow's wake time minus the sleep
     /// need. The planner owns both values (Alarms and Sleep edit them), so every screen that names a
     /// bedtime reads this one function.

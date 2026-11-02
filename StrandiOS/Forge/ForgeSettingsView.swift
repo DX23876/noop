@@ -24,16 +24,16 @@ struct ForgeSettingsView<DeviceRow: View>: View {
             VStack(alignment: .leading, spacing: 14) {
                 NavigationLink(value: MoreDestination.settingsPage(.profile)) {
                     HStack(spacing: 14) {
-                        ProfileAvatarView(imageData: profile.avatarImageData, size: 52, fallbackTint: ForgeColor.accent)
+                        ProfileAvatarView(imageData: profile.avatarImageData, size: 64, fallbackTint: ForgeColor.accent)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Your profile").font(.system(size: 19, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                            Text("Your profile").font(.system(size: 22, weight: .bold)).foregroundStyle(ForgeColor.text)
                             Text("Body, heart rate and fitness").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(ForgeColor.tertiary)
                     }
-                    .forgeCard(radius: 22, padding: 14)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
@@ -48,7 +48,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
                     pageRow(.dataBackup)
                     ForgeRowDivider()
                     NavigationLink(value: MoreDestination.dataSources) {
-                        ForgeRow(systemImage: "arrow.triangle.merge", tint: .indigo,
+                        ForgeRow(systemImage: "arrow.triangle.branch", tint: .indigo,
                                  title: String(localized: "Data sources"),
                                  subtitle: String(localized: "Apple Health, imports and other devices"), compact: true)
                     }
@@ -120,25 +120,12 @@ struct ForgeSettingsView<DeviceRow: View>: View {
         }
     }
 
-    /// One system colour per settings area, like the iOS Settings app.
+    /// The prototype keeps the settings tiles to three system colours, so no area shouts louder than another.
     private static func tint(_ page: SettingsPage) -> Color {
         switch page {
-        case .profile, .goals: return .orange
-        case .coach: return .purple
-        case .strap: return .blue
-        case .batteryRecording: return .green
-        case .strapActions: return .orange
-        case .training: return .red
-        case .todayTrends: return .teal
-        case .notifications: return .red
-        case .appearance: return .indigo
-        case .languageUnits: return .blue
-        case .siri: return .pink
-        case .calculations: return .green
-        case .dataBackup: return .gray
-        case .help: return .orange
-        case .lab: return .purple
-        case .about: return .gray
+        case .profile, .goals, .batteryRecording, .todayTrends, .calculations: return .green
+        case .strapActions, .notifications, .siri, .help, .training: return .orange
+        case .coach, .strap, .appearance, .languageUnits, .dataBackup, .lab, .about: return .indigo
         }
     }
 }
