@@ -3,6 +3,15 @@ import XCTest
 
 final class BaselinesTests: XCTestCase {
 
+    /// A fold over nightly skin-temperature DEVIATIONS becomes usable with the deviation bounds, and never
+    /// with the absolute ones, which reject every value near zero (the cycle engine sat on "learning").
+    func testSkinTempDeviationFoldBecomesUsable() {
+        let deviations: [Double?] = (0..<30).map { i in i % 2 == 0 ? -0.2 : 0.3 }
+        XCTAssertTrue(Baselines.foldHistory(deviations, cfg: Baselines.skinTempDeviationCfg).usable)
+        XCTAssertFalse(Baselines.foldHistory(deviations, cfg: Baselines.metricCfg["skin_temp"]!).usable)
+    }
+
+
     func testFirstNightSeeds() {
         let s = Baselines.update(nil, value: 50, cfg: Baselines.hrvCfg)
         XCTAssertEqual(s.baseline, 50.0, accuracy: 1e-9)

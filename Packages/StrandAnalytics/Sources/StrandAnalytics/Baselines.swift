@@ -201,6 +201,12 @@ public enum Baselines {
     /// metrics above (5.0 vs ~1-2% of range elsewhere) because day-to-day training load is
     /// EXPECTED to swing hard (a rest day vs a hard day is a normal, large delta) — a tight
     /// floor would make the z-score hypersensitive to routine training variation. Same
+    /// The nightly skin-temperature DEVIATION (°C from the person's usual), centred on zero. The absolute
+    /// `skin_temp` bounds (20 to 42 °C) reject every deviation as a hard outlier, so a fold over deviations
+    /// needs its own: ±5 °C is far outside any real night, with the same floor and half-lives.
+    public static let skinTempDeviationCfg = MetricCfg(minVal: -5.0, maxVal: 5.0, floorSpread: 0.3,
+                                                       halfLifeB: 14.0, halfLifeS: 21.0)
+
     /// half-lives as the other metrics for consistency.
     public static let metricCfg: [String: MetricCfg] = [
         "hrv": MetricCfg(minVal: 5.0, maxVal: 250.0, floorSpread: 5.0,

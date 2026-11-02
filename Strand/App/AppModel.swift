@@ -3138,8 +3138,10 @@ final class AppModel: ObservableObject {
     private func computeCyclePhase() async {
         guard cycleAwarenessEnabled else { cyclePhase = nil; cycleCurve = []; return }
         let days = repo.days
-        guard let tempCfg = Baselines.metricCfg["skin_temp"],
-              let rhrCfg = Baselines.metricCfg["resting_hr"],
+        // The deviation's own bounds: the absolute skin_temp cfg (20 to 42 °C) rejected every night, so the
+        // baseline never became usable and the engine stayed on "learning" for everyone.
+        let tempCfg = Baselines.skinTempDeviationCfg
+        guard let rhrCfg = Baselines.metricCfg["resting_hr"],
               let hrvCfg = Baselines.metricCfg["hrv"] else { return }
 
         // The nightly absolute skin-temp mean isn't in repo.days (only the °C DEVIATION is), so z-score
