@@ -255,10 +255,15 @@ struct GoalsTodaySection: View {
     private var outsideHeader: some View {
         HStack(alignment: .firstTextBaseline) {
             NavigationLink(value: TabRoute.goals) {
-                Text(String(localized: "Goals").uppercased())
-                    .font(StrandFont.overline)
-                    .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                // The new design titles a card in sentence case, like every other card on its Today.
+                if NoopVisualStyle.skin == .forge {
+                    Text(String(localized: "Goals")).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                } else {
+                    Text(String(localized: "Goals").uppercased())
+                        .font(StrandFont.overline)
+                        .tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
             }
             .buttonStyle(.plain)
             Spacer()

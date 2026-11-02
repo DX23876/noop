@@ -3757,5 +3757,14 @@
   "A notification the evening before and on the morning of the first likely fertile day.": "在第一個可能易孕日的前一晚和當天早上各提醒一次。",
   "Discreet on the Lock Screen": "鎖定畫面上低調顯示",
   "Shows only \"Cycle update\", so nobody reading your Lock Screen learns more.": "只顯示「週期更新」，看到鎖定畫面的人不會得知更多。",
-  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "在第一個可能易孕日的前一晚和當天早上各提醒一次。粗略估計，不能用於避孕。"
+  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "在第一個可能易孕日的前一晚和當天早上各提醒一次。粗略估計，不能用於避孕。",
+  "Edit Today": "編輯今日",
+  "Add a widget": "加入小工具",
+  "Remove widget": "移除小工具",
+  "Small · the latest value and its month": "小 · 最新數值及近一個月",
+  "Measures": "指標",
+  "Wide · both lanes against your usual": "寬 · 兩類訓練與平常對比",
+  "Wide · this week's goals": "寬 · 本週目標",
+  "Wide · burned and eaten today": "寬 · 今日消耗與攝取",
+  "Hold the rings to customize Today": "長按圓環即可自訂今日"
 }

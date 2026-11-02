@@ -3602,5 +3602,14 @@
   "A notification the evening before and on the morning of the first likely fertile day.": "Una notificación la noche anterior y la mañana del primer día probablemente fértil.",
   "Discreet on the Lock Screen": "Discreto en la pantalla bloqueada",
   "Shows only \"Cycle update\", so nobody reading your Lock Screen learns more.": "Muestra solo «Novedad del ciclo», para que nadie que mire tu pantalla bloqueada sepa más.",
-  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "Una notificación la noche anterior y la mañana del primer día probablemente fértil. Una estimación aproximada, no anticoncepción."
+  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "Una notificación la noche anterior y la mañana del primer día probablemente fértil. Una estimación aproximada, no anticoncepción.",
+  "Edit Today": "Editar Hoy",
+  "Add a widget": "Añadir un widget",
+  "Remove widget": "Quitar widget",
+  "Small · the latest value and its month": "Pequeño · el último valor y su mes",
+  "Measures": "Medidas",
+  "Wide · both lanes against your usual": "Ancho · ambas vías frente a lo habitual",
+  "Wide · this week's goals": "Ancho · los objetivos de esta semana",
+  "Wide · burned and eaten today": "Ancho · quemado e ingerido hoy",
+  "Hold the rings to customize Today": "Mantén pulsados los anillos para personalizar Hoy"
 }

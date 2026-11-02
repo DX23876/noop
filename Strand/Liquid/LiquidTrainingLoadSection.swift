@@ -37,8 +37,12 @@ struct LiquidTrainingLoadSection: View {
     var body: some View {
         VStack(spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline) {
-                Text("TRAINING LOAD").font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                if NoopVisualStyle.skin == .forge {
+                    Text("Training load").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                } else {
+                    Text("TRAINING LOAD").font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
                 Spacer()
                 NavigationLink(value: TabRoute.trainingLoad) {
                     HStack(spacing: 3) {

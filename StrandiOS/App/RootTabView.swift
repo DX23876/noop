@@ -128,6 +128,7 @@ struct RootTabView: View {
         // Analysis migration required: no. This DEBUG-only selector opens an existing tab for
         // deterministic screenshots and does not affect production navigation or derived values.
         let args = CommandLine.arguments
+        ForgeTodayWidgetStore.shared.seedDemoIfRequested()
         if let i = args.firstIndex(of: "--demo-tab"), i + 1 < args.count {
             let demoTabs = ["today": 0, "trends": 1, "health": 1, "training": 2, "sleep": 3, "more": 4]
             if let tab = demoTabs[args[i + 1].lowercased()] {

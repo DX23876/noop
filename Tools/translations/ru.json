@@ -3579,5 +3579,14 @@
   "A notification the evening before and on the morning of the first likely fertile day.": "Уведомление накануне вечером и утром первого вероятно фертильного дня.",
   "Discreet on the Lock Screen": "Незаметно на экране блокировки",
   "Shows only \"Cycle update\", so nobody reading your Lock Screen learns more.": "Показывает только «Новое о цикле», чтобы никто не узнал больше с экрана блокировки.",
-  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "Уведомление накануне вечером и утром первого вероятно фертильного дня. Грубая оценка, не контрацепция."
+  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "Уведомление накануне вечером и утром первого вероятно фертильного дня. Грубая оценка, не контрацепция.",
+  "Edit Today": "Изменить «Сегодня»",
+  "Add a widget": "Добавить виджет",
+  "Remove widget": "Удалить виджет",
+  "Small · the latest value and its month": "Маленький · последнее значение и месяц",
+  "Measures": "Показатели",
+  "Wide · both lanes against your usual": "Широкий · оба направления против обычного",
+  "Wide · this week's goals": "Широкий · цели этой недели",
+  "Wide · burned and eaten today": "Широкий · потрачено и съедено сегодня",
+  "Hold the rings to customize Today": "Удерживай кольца, чтобы настроить «Сегодня»"
 }

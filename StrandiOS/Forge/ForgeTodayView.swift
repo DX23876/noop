@@ -49,6 +49,9 @@ struct ForgeTodayView: View {
     @State private var whyEntry: ForgeTimeline.Entry?
     /// True once the rings have scrolled out of view; a compact glass bar then keeps the three scores.
     @State private var heroHidden = false
+    @State private var editingWidgets = false
+    @ObservedObject private var widgetStore = ForgeTodayWidgetStore.shared
+    @AppStorage("forge.today.widgetsHintSeen") private var widgetsHintSeen = false
     /// Bumped by a tap on the pinned bar: back to the rings.
     @State private var backToTop = 0
 
@@ -112,13 +115,38 @@ struct ForgeTodayView: View {
                                 action: { router.openDevices() })
                         }
                         hero
+                            // Holding the rings offers the widget editor, as the system menu, so a hold never also
+                            // opens the ring it lands on.
+                            .contextMenu {
+                                Button { startEditingWidgets() } label: { Label("Customize Today", systemImage: "square.grid.2x2") }
+                            }
                             .background(GeometryReader { geo in
                                 Color.clear.preference(key: ForgeHeroBottomKey.self,
                                                        value: geo.frame(in: .named("forge-today")).maxY)
                             })
+                        if !widgetsHintSeen && widgetStore.widgets.isEmpty && !editingWidgets {
+                            Button { startEditingWidgets() } label: {
+                                Text("Hold the rings to customize Today")
+                                    .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                                    .padding(.horizontal, 14).frame(minHeight: 36)
+                                    .background(Capsule().fill(ForgeColor.fill))
+                            }
+                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity)
+                        }
+                        ForgeTodayWidgetArea(editing: $editingWidgets)
                         ForgeCycleSummaryCard(showsLogButtons: false)
                         laterToday
                         timeline
+                        if !editingWidgets {
+                            Button { startEditingWidgets() } label: {
+                                Label("Customize Today", systemImage: "square.grid.2x2")
+                                    .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 8)
+                        }
                     }
                     .padding(.horizontal, 16)
                 }
@@ -176,6 +204,12 @@ struct ForgeTodayView: View {
     private var reloadKey: String {
         let lastNote = coach.conversations.last?.messages.last?.id.uuidString ?? ""
         return "\(repo.days.count)|\(repo.today?.day ?? "")|\(repo.today?.strain ?? -1)|\(repo.today?.recovery ?? -1)|\(lastNote)|\(coachFeatureEnabled)"
+    }
+
+    private func startEditingWidgets() {
+        widgetsHintSeen = true
+        withAnimation(.snappy) { editingWidgets = true }
+        backToTop += 1
     }
 
     // MARK: - Hero
