@@ -47,7 +47,28 @@ struct ForgeSearchView: View {
             Screen(title: String(localized: "Weight"), place: health, symbol: "scalemass.fill", target: .tab(.weight), keywords: ["weigh-in", "kg", "scale"]),
             Screen(title: String(localized: "Energy"), place: health, symbol: "flame.fill", target: .tab(.energy), keywords: ["calories", "kcal", "food", "eaten"]),
             Screen(title: String(localized: "Water"), place: health, symbol: "drop.fill", target: .tab(.hydration), keywords: ["hydration", "drink"]),
-            Screen(title: String(localized: "Blood tests"), place: health, symbol: "testtube.2", target: .more(.labBook), keywords: ["lab", "cholesterol", "markers", "lab book"]),
+            Screen(title: String(localized: "Health records"), place: health, symbol: "testtube.2", target: .more(.labBook),
+                   keywords: ["lab book", "biomarkers", "blood tests", "blood pressure", "cholesterol", "imaging", "appointment"]),
+            Screen(title: String(localized: "What works"), place: health, symbol: "wand.and.sparkles", target: .more(.insightsHub),
+                   keywords: ["insights", "habits", "alcohol", "patterns", "effects"]),
+            Screen(title: String(localized: "Journal"), place: health, symbol: "book.closed.fill", target: .more(.insights),
+                   keywords: ["log", "behaviour", "experiment", "caffeine"]),
+            Screen(title: String(localized: "Momentum"), place: health, symbol: "bolt.horizontal", target: .more(.momentum), keywords: ["priority", "what matters", "levers"]),
+            Screen(title: String(localized: "Your scoring model"), place: profile, symbol: "brain.head.profile", target: .more(.intelligence),
+                   keywords: ["how scoring works", "intelligence", "forecast", "tomorrow"]),
+            Screen(title: String(localized: "Values by source"), place: profile, symbol: "square.stack.3d.up.fill", target: .more(.fusedRecord),
+                   keywords: ["your data, fused", "fused", "sources"]),
+            Screen(title: String(localized: "Heart rhythm"), place: health, symbol: "waveform.path", target: .more(.rhythm), keywords: ["beat rhythm", "irregular", "beta"]),
+            Screen(title: String(localized: "Daily rhythm"), place: health, symbol: "sun.and.horizon", target: .more(.rhythmAge), keywords: ["rhythm age", "circadian"]),
+            Screen(title: "Apple Health", place: profile, symbol: "heart.text.square.fill", target: .more(.appleHealth), keywords: ["health app", "sync", "import"]),
+            Screen(title: "Mi Band", place: profile, symbol: "figure.walk.motion", target: .more(.miBand), keywords: ["xiaomi", "zepp"]),
+            Screen(title: String(localized: "Coach"), place: health, symbol: "bubble.left.and.text.bubble.right.fill", target: .more(.coach), keywords: ["chat", "ask", "svea"]),
+            Screen(title: String(localized: "Strength analysis"), place: training, symbol: "chart.bar.xaxis", target: .tab(.strength), keywords: ["records", "sessions", "muscle load"]),
+            Screen(title: String(localized: "Trends"), place: health, symbol: "chart.line.uptrend.xyaxis", target: .tab(.trends), keywords: ["months", "history", "recap"]),
+            Screen(title: "Test Centre", place: profile, symbol: "stethoscope", target: .more(.testCentre), keywords: ["bug", "log", "diagnostics"]),
+            Screen(title: String(localized: "Power saving"), place: profile, symbol: "battery.25percent", target: .more(.powerSaving), keywords: ["battery", "recording"]),
+            Screen(title: String(localized: "Siri and Shortcuts"), place: profile, symbol: "mic.fill", target: .more(.siriShortcuts), keywords: ["voice", "shortcut"]),
+            Screen(title: String(localized: "What NOOP reads"), place: profile, symbol: "list.bullet.rectangle", target: .more(.noopLimitations), keywords: ["limitations", "4.0", "5.0", "mg"]),
             Screen(title: "AgeLess", place: health, symbol: "hourglass", target: .more(.ageless), keywords: ["age", "healthspan", "rhythm age"]),
             Screen(title: String(localized: "The whole day"), place: health, symbol: "chart.xyaxis.line", target: .tab(.fullDayChart), keywords: ["day chart", "timeline"]),
             Screen(title: String(localized: "All metrics"), place: health, symbol: "list.bullet", target: .more(.explore), keywords: ["explore", "metrics"]),
@@ -66,7 +87,7 @@ struct ForgeSearchView: View {
         let q = query.trimmingCharacters(in: .whitespaces)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                ForgeDetailHeader(overline: String(localized: "Health"), title: String(localized: "Search"), scrolledPast: $scrolledPast)
+                ForgeDetailHeader(overline: nil, title: String(localized: "Search"), scrolledPast: $scrolledPast)
                 field
                 if q.isEmpty {
                     recentSection
@@ -187,6 +208,19 @@ struct ForgeSearchView: View {
         let term = q.trimmingCharacters(in: .whitespaces)
         guard !term.isEmpty else { return }
         recentRaw = ([term] + recents.filter { $0.caseInsensitiveCompare(term) != .orderedSame }).prefix(8).joined(separator: "|")
+    }
+}
+/// The magnifier every redesigned tab carries in its header: one search for metrics, screens and settings.
+struct ForgeSearchButton: View {
+    var body: some View {
+        NavigationLink(value: ForgeRoute.search) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(ForgeColor.text)
+                .frame(width: 36, height: 36)
+                .forgeGlassCapsule()
+        }
+        .accessibilityLabel(Text("Search"))
     }
 }
 #endif

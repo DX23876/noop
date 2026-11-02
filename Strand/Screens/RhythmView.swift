@@ -326,7 +326,7 @@ struct RhythmView: View {
 
     private var visualization: some View {
         ScreenScaffold(
-            title: "Rhythm",
+            title: "Heart rhythm",
             subtitle: "An experimental picture of your beat-to-beat timing",
             // PERF: chart-heavy column (the Poincaré beat-to-beat scatter, the stats grid and the
             // methodology card). The LazyVStack path builds the off-screen cards — including the scatter

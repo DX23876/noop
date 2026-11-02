@@ -140,6 +140,12 @@ struct RootTabView: View {
             let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search]
             switch args[i + 1].lowercased() {
             case "settings": _showAllFeatures = State(initialValue: true)
+            case "settings-strap", "settings-devices", "settings-scores":
+                let sub: [String: ForgeSettingsRoute] = ["settings-strap": .strap, "settings-devices": .devicesSources, "settings-scores": .scoringGuide]
+                var paths = Array(repeating: NavigationPath(), count: 5)
+                if let route = sub[args[i + 1].lowercased()] { paths[4].append(route) }
+                _tabPaths = State(initialValue: paths)
+                _showAllFeatures = State(initialValue: true)
             case "log": _quickAction = State(initialValue: .forgeLog)
             case let key:
                 // Shared screens pushed from the redesign's tabs, by the tab they hang off.
@@ -374,11 +380,18 @@ struct RootTabView: View {
                                 .noopCardKind(.navigation)
                                 .navigationBarTitleDisplayMode(.inline)
                         case .scoringGuide:
-                            ScoringGuideView(onClose: {
+                            ForgeHowScoresView(onClose: {
                                 if !tabPaths[4].isEmpty { tabPaths[4].removeLast() }
                             })
+                        case .strap:
+                            ForgeStrapSettingsView { MoreDeviceRow(model: model) }
+                        case .devicesSources:
+                            ForgeDevicesSourcesView()
                         }
                     }
+                    // The Settings search and its results open the redesign's pages and the shared screens.
+                    .forgeRouteDestinations(coach: coach, onAsk: askCoach)
+                    .tabRouteDestinations()
             }
             .onChangeCompat(of: tabPaths[4].count) { _ in moreSearchFocused = false }
             .presentationDragIndicator(.visible)

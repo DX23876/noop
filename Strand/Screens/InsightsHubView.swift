@@ -38,7 +38,7 @@ struct InsightsHubView: View {
     @State private var outcome: InsightsHubViewModel.Outcome = .recovery
 
     var body: some View {
-        ScreenScaffold(title: "Insights",
+        ScreenScaffold(title: "What works",
                        subtitle: "Patterns in your own data: association, not cause.",
                        // PERF (scroll): lazy column — byte-identical layout (LazyVStack == eager VStack
                        // alignment/spacing/header). The content is one inner eager VStack, so the staggered

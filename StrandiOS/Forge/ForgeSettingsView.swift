@@ -4,10 +4,14 @@ import StrandDesign
 
 /// Pushes inside the redesign's Settings sheet that are not a `MoreDestination`.
 enum ForgeSettingsRoute: Hashable {
-    /// The full former More index (every screen, with search), so nothing is out of reach.
+    /// The full former More index (every screen, with search). No longer listed in Settings, where the one
+    /// search covers every screen; kept as a route for deep links.
     case allFeatures
-    /// How Charge, Effort and Rest are scored.
+    /// How Charge, Effort and Rest are scored: the guide and the model, as one page.
     case scoringGuide
+    /// The grouped Strap page and the Devices and data sources page.
+    case strap
+    case devicesSources
 }
 
 /// The redesign's Settings (opened from the profile photo): profile and strap first, then the existing
@@ -37,42 +41,56 @@ struct ForgeSettingsView<DeviceRow: View>: View {
                 }
                 .buttonStyle(.plain)
 
-                deviceRow()
+                NavigationLink(value: ForgeRoute.search) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                        Text("Search settings and screens")
+                        Spacer()
+                    }
+                    .font(.system(size: 17))
+                    .foregroundStyle(ForgeColor.secondary)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.fill))
+                }
+                .buttonStyle(.plain)
 
-                group("Goals and coach", [.goals, .coach])
-                group("Strap", [.strap, .batteryRecording, .strapActions])
-                group("App", [.todayTrends, .notifications, .appearance, .languageUnits, .siri, .training])
-                section("Data") {
-                    pageRow(.calculations)
+                group("You", [.goals])
+                section("Strap and devices") {
+                    NavigationLink(value: ForgeSettingsRoute.strap) {
+                        ForgeRow(systemImage: "antenna.radiowaves.left.and.right", tint: .green, title: String(localized: "Strap"),
+                                 subtitle: String(localized: "Connection, recording, battery, double-tap, steps"), compact: true)
+                    }
                     ForgeRowDivider()
-                    pageRow(.dataBackup)
-                    ForgeRowDivider()
-                    NavigationLink(value: MoreDestination.dataSources) {
-                        ForgeRow(systemImage: "arrow.triangle.branch", tint: .indigo,
-                                 title: String(localized: "Data sources"),
-                                 subtitle: String(localized: "Apple Health, imports and other devices"), compact: true)
+                    NavigationLink(value: ForgeSettingsRoute.devicesSources) {
+                        ForgeRow(systemImage: "arrow.triangle.branch", tint: .indigo, title: String(localized: "Devices and data sources"),
+                                 subtitle: String(localized: "Apple Health, imports, other devices"), compact: true)
                     }
                 }
-                section("Help") {
+                section("Alerts") {
+                    NavigationLink(value: MoreDestination.settingsPage(.notifications)) {
+                        ForgeRow(systemImage: "bell.badge.fill", tint: .red, title: String(localized: "Alerts and reminders"),
+                                 subtitle: String(localized: "Lock Screen, wrist alerts and reminders"), compact: true)
+                    }
+                }
+                group("App", [.appearance, .languageUnits, .todayTrends, .training, .coach, .siri])
+                section("Data and help") {
+                    pageRow(.dataBackup)
+                    ForgeRowDivider()
+                    pageRow(.calculations)
+                    ForgeRowDivider()
                     NavigationLink(value: ForgeSettingsRoute.scoringGuide) {
                         ForgeRow(systemImage: "gauge.with.dots.needle.67percent", tint: .green,
-                                 title: String(localized: "How scores work"),
-                                 subtitle: String(localized: "Charge, Effort and Rest explained"), compact: true)
+                                 title: String(localized: "How NOOP scores"),
+                                 subtitle: String(localized: "The three scores explained, and your own model"), compact: true)
                     }
                     ForgeRowDivider()
                     pageRow(.help)
-                    ForgeRowDivider()
+                }
+                section(nil) {
                     pageRow(.lab)
                     ForgeRowDivider()
                     pageRow(.about)
-                }
-
-                section("Everything") {
-                    NavigationLink(value: ForgeSettingsRoute.allFeatures) {
-                        ForgeRow(systemImage: "square.grid.3x3.fill", tint: ForgeColor.accent,
-                                 title: String(localized: "All features"),
-                                 subtitle: String(localized: "Every screen and setting, with search"), compact: true)
-                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -105,16 +123,18 @@ struct ForgeSettingsView<DeviceRow: View>: View {
     }
 
     /// An iOS Settings section: a small uppercase header over a grouped card.
-    private func section<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
+    private func section<Content: View>(_ title: LocalizedStringKey?, @ViewBuilder content: () -> Content) -> some View {
         let rows = content()
         return VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .textCase(.uppercase)
-                .foregroundStyle(ForgeColor.secondary)
-                .padding(.leading, 16)
-                .padding(.top, 8)
-                .accessibilityAddTraits(.isHeader)
+            if let title {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(ForgeColor.secondary)
+                    .padding(.leading, 16)
+                    .padding(.top, 8)
+                    .accessibilityAddTraits(.isHeader)
+            }
             ForgeGroup { rows }
                 .buttonStyle(.plain)
         }

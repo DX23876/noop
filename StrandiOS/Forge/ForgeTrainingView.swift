@@ -69,7 +69,7 @@ struct ForgeTrainingView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ForgeLargeHeader(title: "Training", onProfile: onProfile).id("forge-training-top")
+                    ForgeLargeHeader(title: "Training", onProfile: onProfile) { ForgeSearchButton() }.id("forge-training-top")
                     VStack(alignment: .leading, spacing: 14) {
                         weekHero
                         startRow

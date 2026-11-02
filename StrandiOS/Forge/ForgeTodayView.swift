@@ -73,6 +73,7 @@ struct ForgeTodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     ForgeLargeHeader(title: "Today", onProfile: onProfile) {
+                        ForgeSearchButton()
                         NavigationLink(value: ForgeRoute.weeklyReport) {
                             Image(systemName: "calendar")
                                 .font(.system(size: 17, weight: .semibold))

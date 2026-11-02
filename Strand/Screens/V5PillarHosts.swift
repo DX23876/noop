@@ -30,7 +30,7 @@ struct FusedRecordHost: View {
             if loaded {
                 FusedRecordView(record: record)
             } else {
-                ScreenScaffold(title: "Your Data, Fused",
+                ScreenScaffold(title: "Values by source",
                                subtitle: "Building your best-sourced record…") {
                     ComingSoon.loading("Reading your sources…", title: "Reading your sources", symbol: "square.stack.3d.up")
                 }

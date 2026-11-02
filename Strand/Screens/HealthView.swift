@@ -1648,10 +1648,10 @@ private struct HealthHubLinksSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Records & sources", overline: "On \(Platform.deviceNounPhrase)")
-            linkRow(title: String(localized: "Lab Book"),
+            linkRow(title: String(localized: "Health records"),
                     subtitle: String(localized: "Keep your bloods, BP and body numbers private, on \(Platform.deviceNounPhrase)."),
                     symbol: "books.vertical.fill", tint: StrandPalette.metricCyan) { router.openLabBook() }
-            linkRow(title: String(localized: "Your Data, Fused"),
+            linkRow(title: String(localized: "Values by source"),
                     subtitle: String(localized: "The best-sourced number per metric across every band you use."),
                     symbol: "square.stack.3d.up.fill", tint: StrandPalette.accent) { router.openFusedRecord() }
         }

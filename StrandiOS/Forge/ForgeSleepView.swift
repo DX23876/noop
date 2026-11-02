@@ -51,7 +51,7 @@ struct ForgeSleepView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ForgeLargeHeader(title: "Sleep", onProfile: onProfile).id("forge-sleep-top")
+                    ForgeLargeHeader(title: "Sleep", onProfile: onProfile) { ForgeSearchButton() }.id("forge-sleep-top")
                     VStack(alignment: .leading, spacing: 14) {
                         if let model, let night {
                             nightNavigator(night)

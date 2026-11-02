@@ -115,12 +115,12 @@ enum MoreCatalog {
                       keywords: ["today", "priority", "what matters", "insights", "goals"]),
             // Renamed to match InsightsHubView's own ScreenScaffold title ("Insights") — the word
             // freed up once the section became "Analysis" and the old "Insights" row became "Journal".
-            MoreEntry("Insights", "wand.and.sparkles", .insightsHub,
-                      keywords: ["correlations", "weekly review", "patterns"]),
+            MoreEntry("What works", "wand.and.sparkles", .insightsHub,
+                      keywords: ["insights", "correlations", "weekly review", "patterns", "habits"]),
             // Renamed from "Intelligence": names what the screen actually explains (its own subtitle
             // is "NOOP scores your charge, effort and rest itself: on-device, no cloud.").
-            MoreEntry("How Scoring Works", "brain.head.profile", .intelligence,
-                      keywords: ["scoring", "charge", "effort", "rest", "on-device"]),
+            MoreEntry("Your scoring model", "brain.head.profile", .intelligence,
+                      keywords: ["how scoring works", "intelligence", "scoring", "charge", "effort", "rest", "on-device", "forecast"]),
             MoreEntry("Goals", "target", .goalJourney,
                       keywords: ["goals", "weekly goal", "monthly goal", "journey", "plan", "progress", "coach"]),
             // Named "Journal" (was "Insights", colliding with this section's name — redesign bug §1):
@@ -134,8 +134,8 @@ enum MoreCatalog {
                       keywords: ["two metrics", "overlay", "correlation"]),
             // Coach settings moved to Settings › AI Coach (2026-10 reorganisation). It stays reachable
             // there while the Coach itself is off, which is where a person turns it on again.
-            MoreEntry("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord,
-                      keywords: ["merged record", "all sources", "one timeline"]),
+            MoreEntry("Values by source", "square.stack.3d.up.fill", .fusedRecord,
+                      keywords: ["your data, fused", "fused", "merged record", "all sources", "one timeline"]),
         ]),
         MoreGroup(category: .healthBody, entries: [
             MoreEntry("Training", "dumbbell.fill", .training,
@@ -161,13 +161,13 @@ enum MoreCatalog {
                       featureKey: RhythmAgeFeature.defaultsKey),
             // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the
             // record-keeping metaphor.
-            MoreEntry("Biomarkers", "books.vertical.fill", .labBook,
-                      keywords: ["blood", "blood pressure", "lab results", "body composition"]),
+            MoreEntry("Health records", "books.vertical.fill", .labBook,
+                      keywords: ["lab book", "biomarkers", "blood", "blood pressure", "lab results", "body composition", "imaging", "appointment"]),
             MoreEntry("Stress", "bolt.heart.fill", .stress,
                       keywords: ["strain", "load", "tension"]),
             // Experimental beat-to-beat regularity visualization — self-gates on its own consent.
             // Renamed from "Rhythm": explicit that this is about heartbeat, not daily/circadian rhythm.
-            MoreEntry("Beat Rhythm", "waveform.path", .rhythm,
+            MoreEntry("Heart rhythm", "waveform.path", .rhythm,
                       keywords: ["beat-to-beat", "R-R", "regularity", "experimental"]),
             // Saved WHOOP MG readings, independent of the Devices card that starts one.
             MoreEntry("Saved ECGs", "waveform.path.ecg.rectangle", .ecg,

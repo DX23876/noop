@@ -80,7 +80,7 @@ struct FusedRecordView: View {
 
     var body: some View {
         ScreenScaffold(
-            title: "Your Data, Fused",
+            title: "Values by source",
             subtitle: subtitle
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {

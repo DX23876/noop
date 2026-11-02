@@ -53,7 +53,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .today: return "Today"
         case .momentum: return "Momentum"
         case .intelligence: return "Intelligence"
-        case .insightsHub: return "What Moves You"
+        case .insightsHub: return "What works"
         case .coach: return "Coach"
         case .goalJourney: return "Goals"
         case .live: return "Live"
@@ -61,7 +61,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .intervals: return "Intervals"
         case .explore: return "Explore"
         case .compare: return "Compare"
-        case .insights: return "Insights"
+        case .insights: return "Journal"
         case .sleep: return "Sleep"
         case .trends: return "Trends"
         case .workouts: return "Workouts"
@@ -73,14 +73,14 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .energyPlan: return "Energy"
         case .health: return "Health"
         case .stress: return "Stress"
-        case .labBook: return "Lab Book"
-        case .rhythm: return "Rhythm"
+        case .labBook: return "Health records"
+        case .rhythm: return "Heart rhythm"
         case .ecg: return "Saved ECGs"
         case .appleHealth: return "Apple Health"
         case .miBand: return "Mi Band"
         case .dataSources: return "Data Sources"
         case .backupSync: return "Backup & Sync"
-        case .fusedRecord: return "Your Data, Fused"
+        case .fusedRecord: return "Values by source"
         case .devices: return "Devices"
         case .noopLimitations: return "NOOP Limitations"
         case .notifications: return "Notifications"
@@ -106,7 +106,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .today: return String(localized: "Today")
         case .momentum: return String(localized: "Momentum")
         case .intelligence: return String(localized: "Intelligence")
-        case .insightsHub: return String(localized: "What Moves You")
+        case .insightsHub: return String(localized: "What works")
         case .coach: return String(localized: "Coach")
         case .goalJourney: return String(localized: "Goals")
         case .live: return String(localized: "Live")
@@ -114,7 +114,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .intervals: return String(localized: "Intervals")
         case .explore: return String(localized: "Explore")
         case .compare: return String(localized: "Compare")
-        case .insights: return String(localized: "Insights")
+        case .insights: return String(localized: "Journal")
         case .sleep: return String(localized: "Sleep")
         case .trends: return String(localized: "Trends")
         case .workouts: return String(localized: "Workouts")
@@ -126,14 +126,14 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .energyPlan: return String(localized: "Energy")
         case .health: return String(localized: "Health")
         case .stress: return String(localized: "Stress")
-        case .labBook: return String(localized: "Lab Book")
-        case .rhythm: return String(localized: "Rhythm")
+        case .labBook: return String(localized: "Health records")
+        case .rhythm: return String(localized: "Heart rhythm")
         case .ecg: return String(localized: "Saved ECGs")
         case .appleHealth: return String(localized: "Apple Health")
         case .miBand: return String(localized: "Mi Band")
         case .dataSources: return String(localized: "Data Sources")
         case .backupSync: return String(localized: "Backup & Sync")
-        case .fusedRecord: return String(localized: "Your Data, Fused")
+        case .fusedRecord: return String(localized: "Values by source")
         case .devices: return String(localized: "Devices")
         case .noopLimitations: return String(localized: "NOOP Limitations")
         case .notifications: return String(localized: "Notifications")

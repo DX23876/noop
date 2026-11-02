@@ -58,7 +58,7 @@ struct LabBookView: View {
 
     var body: some View {
         ScreenScaffold(
-            title: "Lab Book",
+            title: "Health records",
             subtitle: "Your bloods, BP and body numbers. Kept private, on \(Platform.deviceNounPhrase).",
             onRefresh: { await load() },
             // PERF: the column ends in one `categorySection` per marker category (bloods / BP / body / …),
