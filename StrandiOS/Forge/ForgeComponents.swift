@@ -43,13 +43,13 @@ struct ForgeRow: View {
             Group {
                 if compact {
                     Image(systemName: systemImage)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(.footnote, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 28, height: 28)
                         .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tint))
                 } else {
                     Image(systemName: systemImage)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(.callout, weight: .semibold))
                         .foregroundStyle(tint)
                         .frame(width: 38, height: 38)
                         .background(Circle().fill(tint.opacity(0.16)))
@@ -57,7 +57,7 @@ struct ForgeRow: View {
             }
             .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 16, weight: compact ? .regular : .semibold))
+                Text(title).font(.system(.callout, weight: compact ? .regular : .semibold))
                     .foregroundStyle(ForgeColor.text)
                     .lineLimit(1)
                 if let subtitle {
@@ -69,12 +69,12 @@ struct ForgeRow: View {
             if let value {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(value).font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
-                    if let unit { Text(unit).font(.system(size: 11)).foregroundStyle(ForgeColor.secondary) }
+                    if let unit { Text(unit).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary) }
                 }
             }
             if showsChevron {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(.footnote, weight: .semibold))
                     .foregroundStyle(ForgeColor.tertiary)
                     .accessibilityHidden(true)
             }
@@ -104,7 +104,7 @@ struct ForgeBadge: View {
         case .neutral: ForgeColor.fill
         }
         Text(text)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(.caption, weight: .semibold))
             .foregroundStyle(color)
             .lineLimit(1)
             .padding(.horizontal, 8).padding(.vertical, 3)
@@ -127,12 +127,12 @@ struct ForgeMetricTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.system(size: 13, weight: .medium)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
+            Text(label).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value ?? "–").font(ForgeFont.rounded(28, .bold)).foregroundStyle(ForgeColor.text)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 if value != nil {
-                    Text(unit).font(.system(size: 13, weight: .medium)).foregroundStyle(ForgeColor.secondary)
+                    Text(unit).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary)
                 }
             }
             if let bars, bars.contains(where: { $0 > 0 }) {
@@ -159,7 +159,7 @@ struct ForgeMetricTile: View {
             if let axisLabels, (bars != nil || (trend?.count ?? 0) > 1) {
                 HStack(spacing: 0) {
                     ForEach(Array(axisLabels.enumerated()), id: \.offset) { _, label in
-                        Text(label).font(.system(size: 10)).foregroundStyle(ForgeColor.tertiary)
+                        Text(label).font(.system(.caption2)).foregroundStyle(ForgeColor.tertiary)
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -181,8 +181,8 @@ struct ForgeTabHero<Accessory: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(overline).font(.system(size: 15, weight: .medium)).foregroundStyle(ForgeColor.secondary)
-            Text(headline).font(.system(size: 28, weight: .bold)).foregroundStyle(ForgeColor.text)
+            Text(overline).font(.system(.subheadline, weight: .medium)).foregroundStyle(ForgeColor.secondary)
+            Text(headline).font(.system(.title, weight: .bold)).foregroundStyle(ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
             accessory()
         }
@@ -205,8 +205,8 @@ struct ForgeDirection: View {
             : delta < 0 ? ("arrow.down", String(localized: "lowers"), ForgeColor.effortInk)
                         : ("minus", String(localized: "neutral"), ForgeColor.secondary)
         HStack(spacing: 3) {
-            Image(systemName: icon).font(.system(size: 11, weight: .bold))
-            Text(word).font(.system(size: 13, weight: .semibold))
+            Image(systemName: icon).font(.system(.caption2, weight: .bold))
+            Text(word).font(.system(.footnote, weight: .semibold))
         }
         .foregroundStyle(color)
         .fixedSize()
@@ -240,7 +240,7 @@ struct ForgeZoneBar: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .font(.system(size: 11))
+            .font(.system(.caption2))
             .foregroundStyle(ForgeColor.secondary)
         }
         .padding(.horizontal, 2)

@@ -156,7 +156,10 @@ struct RootTabView: View {
                     "weight": (1, { $0.append(TabRoute.weight) }), "energy": (1, { $0.append(TabRoute.energy) }), "stress": (1, { $0.append(TabRoute.stress) }),
                     "ecg": (1, { $0.append(MoreDestination.ecg) }), "body": (1, { $0.append(MoreDestination.body) }), "ageless": (1, { $0.append(MoreDestination.ageless) }),
                     "labbook": (1, { $0.append(MoreDestination.labBook) }), "breathe": (1, { $0.append(MoreDestination.breathe) }), "explore": (1, { $0.append(MoreDestination.explore) }),
-                    "compare": (1, { $0.append(MoreDestination.compare) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }),
+                    "compare": (1, { $0.append(MoreDestination.compare) }), "trends": (1, { $0.append(TabRoute.trends) }), "metric-hrv": (1, { $0.append(TabRoute.metric("hrv")) }),
+                    "focus-fitness": (1, { $0.append(ForgeRoute.focus(.fitness)) }), "focus-sleep": (1, { $0.append(ForgeRoute.focus(.sleep)) }),
+                    "focus-vitals": (1, { $0.append(ForgeRoute.focus(.vitals)) }), "focus-body": (1, { $0.append(ForgeRoute.focus(.body)) }),
+                    "focus-mind": (1, { $0.append(ForgeRoute.focus(.mind)) }), "focus-more": (1, { $0.append(ForgeRoute.focus(.more)) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }),
                     "alarms": (3, { $0.append(MoreDestination.alarms) }), "devices": (0, { $0.append(MoreDestination.devices) }), "backup": (0, { $0.append(MoreDestination.backupSync) }),
                     "datasources": (0, { $0.append(MoreDestination.dataSources) }), "automations": (0, { $0.append(MoreDestination.automations) })]
                 var paths = Array(repeating: NavigationPath(), count: 5)

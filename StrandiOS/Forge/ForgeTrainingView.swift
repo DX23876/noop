@@ -105,13 +105,13 @@ struct ForgeTrainingView: View {
         let minutes = workouts.reduce(0.0) { $0 + ($1.durationS ?? Double(max($1.endTs - $1.startTs, 0))) / 60 }
         let cal = Calendar.current
         return VStack(alignment: .leading, spacing: 4) {
-            Text("This week").font(.system(size: 15, weight: .medium)).foregroundStyle(ForgeColor.secondary)
+            Text("This week").font(.system(.subheadline, weight: .medium)).foregroundStyle(ForgeColor.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(workouts.isEmpty ? String(localized: "No workouts yet")
                                       : String(localized: "\(workouts.count) workouts"))
-                    .font(.system(size: 28, weight: .bold)).foregroundStyle(ForgeColor.text)
+                    .font(.system(.title, weight: .bold)).foregroundStyle(ForgeColor.text)
                 if !workouts.isEmpty {
-                    Text(Self.duration(minutes)).font(.system(size: 17, weight: .medium))
+                    Text(Self.duration(minutes)).font(.system(.body, weight: .medium))
                         .foregroundStyle(ForgeColor.secondary)
                 }
             }
@@ -133,7 +133,7 @@ struct ForgeTrainingView: View {
                                 }
                             }
                         Text(day, format: .dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
-                            .font(.system(size: 12, weight: isToday ? .bold : .regular))
+                            .font(.system(.caption, weight: isToday ? .bold : .regular))
                             .foregroundStyle(isToday ? ForgeColor.text : ForgeColor.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -178,7 +178,7 @@ struct ForgeTrainingView: View {
     /// The prototype's quick-start chip: a light glass capsule with a dark icon and title.
     private func chipLabel(_ title: LocalizedStringKey, _ image: String) -> some View {
         Label(title, systemImage: image)
-            .font(.system(size: 15, weight: .semibold))
+            .font(.system(.subheadline, weight: .semibold))
             .foregroundStyle(ForgeColor.text)
             .padding(.horizontal, 16)
             .frame(minHeight: 46)
@@ -195,22 +195,22 @@ struct ForgeTrainingView: View {
         if let routine = planned.first {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Planned today", systemImage: "calendar")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(.subheadline, weight: .semibold))
                     .foregroundStyle(ForgeColor.accent)
                 HStack(spacing: 12) {
                     Image(systemName: "dumbbell.fill")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(.subheadline, weight: .semibold))
                         .foregroundStyle(ForgeColor.effort)
                         .frame(width: 38, height: 38)
                         .background(Circle().fill(ForgeColor.effort.opacity(0.18)))
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(routine.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text(routine.title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         Text("\(routine.exercises.count) exercises").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     }
                     Spacer()
                     Button { session.requestStrength(routines: [routine]) } label: {
                         Label("Start", systemImage: "play.fill")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(.subheadline, weight: .semibold))
                             .foregroundStyle(ForgeColor.onAccent)
                             .padding(.horizontal, 16).frame(minHeight: 40)
                             .background(Capsule().fill(ForgeColor.accent))
@@ -251,7 +251,7 @@ struct ForgeTrainingView: View {
             Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
             Spacer()
             NavigationLink(value: route) {
-                Text(link).font(.system(size: 17)).foregroundStyle(ForgeColor.accent)
+                Text(link).font(.system(.body)).foregroundStyle(ForgeColor.accent)
             }
         }
         .padding(.horizontal, 4).padding(.top, 14)
@@ -266,7 +266,7 @@ struct ForgeTrainingView: View {
                     Text("Routines").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                     Spacer()
                     NavigationLink(value: MoreDestination.training) {
-                        Text("All").font(.system(size: 17)).foregroundStyle(ForgeColor.accent)
+                        Text("All").font(.system(.body)).foregroundStyle(ForgeColor.accent)
                     }
                 }
                 .padding(.horizontal, 4).padding(.top, 14)
@@ -303,15 +303,15 @@ struct ForgeTrainingView: View {
     private func routineCard(title: String, subtitle: String, systemImage: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Image(systemName: systemImage)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(.title3, weight: .semibold))
                 .foregroundStyle(ForgeColor.text)
             Spacer(minLength: 8)
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(.callout, weight: .semibold))
                 .foregroundStyle(ForgeColor.text)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
-            Text(subtitle).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
+            Text(subtitle).font(.system(.caption)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
         }
         .padding(14)
         .frame(width: 150, height: 120, alignment: .topLeading)
@@ -327,7 +327,7 @@ struct ForgeTrainingView: View {
                 Text("Recent activities").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                 Spacer()
                 NavigationLink(value: ForgeRoute.workouts) {
-                    Text("All").font(.system(size: 17)).foregroundStyle(ForgeColor.accent)
+                    Text("All").font(.system(.body)).foregroundStyle(ForgeColor.accent)
                 }
             }
             .padding(.horizontal, 4).padding(.top, 14)
@@ -338,7 +338,7 @@ struct ForgeTrainingView: View {
                 ForgeGroup {
                     ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                         if index > 0 { ForgeRowDivider() }
-                        NavigationLink(value: TabRoute.workoutDetail(startTs: row.startTs, sport: row.sport)) {
+                        NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                             workoutRow(row)
                         }
                         .buttonStyle(.plain)
@@ -357,7 +357,7 @@ struct ForgeTrainingView: View {
                 .background(Circle().fill(tint.opacity(0.16)))
             VStack(alignment: .leading, spacing: 1) {
                 Text(WorkoutSource.localizedDisplaySport(row.sport))
-                    .font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
+                    .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
                 Text(detail(row)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
@@ -365,10 +365,10 @@ struct ForgeTrainingView: View {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(ForgeToday.effortText(strain, scale: effortScale))
                         .font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
-                    Text(DomainTheme.effort.productName).font(.system(size: 11)).foregroundStyle(ForgeColor.secondary)
+                    Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+            Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold))
                 .foregroundStyle(ForgeColor.tertiary)
         }
         .padding(.horizontal, 14).padding(.vertical, 11)

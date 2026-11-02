@@ -40,7 +40,7 @@ struct ForgeLogSheet: View {
             Item(choice: .sleep, title: String(localized: "Sleep"), systemImage: "moon.fill"),
             Item(choice: .labMarkers, title: String(localized: "Blood pressure"), systemImage: "drop.fill"),
             Item(choice: .journal, title: String(localized: "Mood"), systemImage: "face.smiling.inverse"),
-            Item(choice: .labMarkers, title: String(localized: "Biomarkers"), systemImage: "flask.fill"),
+            Item(choice: .labMarkers, title: String(localized: "Health records"), systemImage: "flask.fill"),
             Item(choice: .journal, title: String(localized: "Medication"), systemImage: "cross.case.fill"),
             Item(choice: .breathe, title: String(localized: "Breathe"), systemImage: "wind"),
             Item(choice: .liveHeartRate, title: String(localized: "Live heart rate"), systemImage: "heart.fill"),
@@ -71,10 +71,10 @@ struct ForgeLogSheet: View {
                         Button { onPick(item.choice) } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: item.systemImage)
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.system(.subheadline, weight: .semibold))
                                     .foregroundStyle(ForgeColor.accent)
                                 Text(item.title)
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.system(.callout, weight: .medium))
                                     .foregroundStyle(ForgeColor.text)
                             }
                             .padding(.horizontal, 14)
@@ -103,11 +103,11 @@ struct ForgeLogSheet: View {
     private func coachIcon(_ title: LocalizedStringKey, _ image: String) -> some View {
         VStack(spacing: 8) {
             Image(systemName: image)
-                .font(.system(size: 21, weight: .semibold))
+                .font(.system(.title3, weight: .semibold))
                 .foregroundStyle(ForgeColor.accent)
                 .frame(width: 60, height: 60)
                 .background(Circle().fill(ForgeColor.fill))
-            Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.text)
+            Text(title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
         }
     }
 

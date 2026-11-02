@@ -96,15 +96,15 @@ struct ForgeWeeklyReportView: View {
             if let note {
                 let split = ForgeTimeline.splitNote(note.text)
                 Label("Coach · weekly report", systemImage: "waveform.path.ecg")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.accent)
-                Text(split.headline).font(.system(size: 21, weight: .bold)).foregroundStyle(ForgeColor.text)
+                    .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+                Text(split.headline).font(.system(.title3, weight: .bold)).foregroundStyle(ForgeColor.text)
                     .fixedSize(horizontal: false, vertical: true)
                 if !split.body.isEmpty {
                     Text(ForgeTodayView.markdown(split.body)).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             } else {
-                Text("Your week").font(.system(size: 21, weight: .bold)).foregroundStyle(ForgeColor.text)
+                Text("Your week").font(.system(.title3, weight: .bold)).foregroundStyle(ForgeColor.text)
             }
             OrganicScoreHeroClock(dataReady: true) { frame in
                 HStack(alignment: .top, spacing: 4) {
@@ -128,7 +128,7 @@ struct ForgeWeeklyReportView: View {
                             .frame(width: 32, height: 32)
                         if let day = Self.parse(w.this.days[i]) {
                             Text(day, format: .dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
-                                .font(.system(size: 11)).foregroundStyle(ForgeColor.secondary)
+                                .font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -157,14 +157,14 @@ struct ForgeWeeklyReportView: View {
                              tint: value == nil ? StrandPalette.organicMissing : tint, score: value, decimals: decimals,
                              frame: frame, diameter: 84, hitDiameter: 108)
                 .frame(width: 108, height: 96)
-            Text(name).font(.system(size: 15, weight: .semibold)).foregroundStyle(ink)
+            Text(name).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ink)
             if let value, let previous {
                 let delta = value - previous
                 HStack(spacing: 2) {
                     Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down").font(.system(size: 10, weight: .bold))
                     Text("\(format(abs(delta))) vs last week").lineLimit(1).minimumScaleFactor(0.8)
                 }
-                .font(.system(size: 12, weight: .medium)).foregroundStyle(ink)
+                .font(.system(.caption, weight: .medium)).foregroundStyle(ink)
             }
         }
         .frame(maxWidth: .infinity)
@@ -193,7 +193,7 @@ struct ForgeWeeklyReportView: View {
                 }
                 if let row = hardestSession(week), let strain = row.strain {
                     let day = Date(timeIntervalSince1970: TimeInterval(row.startTs))
-                    NavigationLink(value: TabRoute.workoutDetail(startTs: row.startTs, sport: row.sport)) {
+                    NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                         highlightTile(String(localized: "Hardest session"), "dumbbell.fill", ForgeColor.effortInk,
                                       value: ForgeToday.effortText(strain, scale: effortScale),
                                       unit: DomainTheme.effort.productName,
@@ -226,14 +226,14 @@ struct ForgeWeeklyReportView: View {
     private func highlightTile(_ label: String, _ icon: String, _ tint: Color, value: String, unit: String?,
                                detail: String?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(label, systemImage: icon).font(.system(size: 13, weight: .semibold)).foregroundStyle(tint)
+            Label(label, systemImage: icon).font(.system(.footnote, weight: .semibold)).foregroundStyle(tint)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value).font(ForgeFont.rounded(24, .semibold)).foregroundStyle(ForgeColor.text)
-                if let unit { Text(unit).font(.system(size: 14)).foregroundStyle(ForgeColor.secondary) }
+                if let unit { Text(unit).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary) }
             }
             .lineLimit(1).minimumScaleFactor(0.7)
             if let detail {
-                Text(detail).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
+                Text(detail).font(.system(.footnote)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
         }
@@ -323,7 +323,7 @@ struct ForgeWeeklyReportView: View {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 HStack(spacing: 5) {
                     Capsule().fill(item.1).frame(width: 14, height: item.2 ? 2 : 3)
-                    Text(item.0).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                    Text(item.0).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
                 }
             }
         }

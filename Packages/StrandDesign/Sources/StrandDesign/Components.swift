@@ -207,7 +207,8 @@ public struct SectionHeader: View {
     public var body: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                if let overline { Text(overline).strandOverline() }
+                // The redesign drops the kicker above a section heading; the heading carries itself.
+                if let overline, NoopVisualStyle.skin != .forge { Text(overline).strandOverline() }
                 Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
             }
             // The title wins the space contest. Without this the trailing text — usually a date range,

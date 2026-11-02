@@ -61,7 +61,7 @@ struct ForgeSleepView: View {
                                     onAsk(String(localized: "Look at my last night's sleep and tell me what stood out and what I could change tonight."))
                                 } label: {
                                     Label("Discuss last night with the coach", systemImage: "bubble.left")
-                                        .font(.system(size: 15, weight: .semibold))
+                                        .font(.system(.subheadline, weight: .semibold))
                                         .foregroundStyle(ForgeColor.accent)
                                         .frame(maxWidth: .infinity, minHeight: 46)
                                         .background(Capsule().fill(ForgeColor.card.opacity(0.6)))
@@ -76,6 +76,7 @@ struct ForgeSleepView: View {
                         tonightCard
                         if let model, let night {
                             nightCard(night)
+                            ForgeNightBreakdown(model: model, night: night)
                             GoalsContextCard(context: .sleep)
                             highlights(model, night: night)
                             nightFacts(model)
@@ -117,18 +118,18 @@ struct ForgeSleepView: View {
     private func nightNavigator(_ night: Night) -> some View {
         HStack {
             Button { nightOffset += 1 } label: {
-                Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold))
+                Image(systemName: "chevron.left").font(.system(.body, weight: .semibold))
                     .frame(width: 44, height: 36)
             }
             .accessibilityLabel(Text("Previous night"))
             Spacer()
             Text("\(nightDays(night)) · \(night.onsetText) to \(night.wakeText)")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(.callout, weight: .semibold))
                 .foregroundStyle(ForgeColor.text)
                 .lineLimit(1).minimumScaleFactor(0.8)
             Spacer()
             Button { if nightOffset > 0 { nightOffset -= 1 } } label: {
-                Image(systemName: "chevron.right").font(.system(size: 17, weight: .semibold))
+                Image(systemName: "chevron.right").font(.system(.body, weight: .semibold))
                     .frame(width: 44, height: 36)
             }
             .disabled(nightOffset == 0)
@@ -179,12 +180,12 @@ struct ForgeSleepView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 12) {
                     Image(systemName: "moon.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(.body, weight: .semibold))
                         .foregroundStyle(ForgeColor.rest)
                         .frame(width: 40, height: 40)
                         .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Tonight").font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text("Tonight").font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         Text("for full recovery").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     }
                     Spacer()
@@ -193,13 +194,13 @@ struct ForgeSleepView: View {
                             Text(bed, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
                                 .font(.system(size: 32, weight: .regular, design: .rounded))
                                 .foregroundStyle(ForgeColor.restInk)
-                            Text("bedtime").font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                            Text("bedtime").font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
                         }
                     }
                 }
                 Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
                 Text("Need **\(ForgeTodayView.hoursMinutes(need)) h** · alarm \(wakeText)")
-                    .font(.system(size: 15)).foregroundStyle(ForgeColor.secondary)
+                    .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
             }
             .forgeCard(radius: 24, padding: 16)
         }
@@ -257,7 +258,7 @@ struct ForgeSleepView: View {
     private func stageFact(_ label: String, _ minutes: Double) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(ForgeTodayView.hoursMinutes(minutes)).font(ForgeFont.rounded(17, .bold)).foregroundStyle(ForgeColor.text)
-            Text(label).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+            Text(label).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -302,18 +303,18 @@ struct ForgeSleepView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 12) {
                                 Image(systemName: "clock.fill")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.system(.callout, weight: .semibold))
                                     .foregroundStyle(ForgeColor.restInk)
                                     .frame(width: 38, height: 38)
                                     .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                                    Text(item.title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                                     Text(item.detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                                 }
                                 Spacer()
                                 ForgeBadge(text: item.word, tone: item.tone)
                             }
-                            Text("\(index + 1) of \(items.count)").font(.system(size: 12)).foregroundStyle(ForgeColor.tertiary)
+                            Text("\(index + 1) of \(items.count)").font(.system(.caption)).foregroundStyle(ForgeColor.tertiary)
                         }
                         .padding(.bottom, 18)
                     }
@@ -344,7 +345,7 @@ struct ForgeSleepView: View {
                 ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
                     VStack(alignment: .leading, spacing: 1) {
                         Text(fact.0 ?? "–").font(ForgeFont.rounded(19, .regular)).foregroundStyle(ForgeColor.text)
-                        Text(fact.1).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary).lineLimit(2)
+                        Text(fact.1).font(.system(.caption)).foregroundStyle(ForgeColor.secondary).lineLimit(2)
                     }
                     .accessibilityElement(children: .combine)
                 }

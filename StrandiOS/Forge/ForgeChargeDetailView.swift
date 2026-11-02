@@ -20,6 +20,10 @@ enum ForgeRoute: Hashable {
     case search
     /// The redesigned AgeLess page. Routing this case to `AgeLessScreen()` restores the shipped page.
     case ageless
+    /// One of the Health tab's focus areas.
+    case focus(ForgeFocusArea)
+    /// One workout's detail page, straight from a list (the shipped route goes through the old list first).
+    case workout(startTs: Int, sport: String)
 }
 
 extension View {
@@ -36,6 +40,8 @@ extension View {
             case .weekPlan: ForgeWeekPlanView(onAsk: onAsk)
             case .search: ForgeSearchView()
             case .ageless: ForgeAgeLessView()
+            case .focus(let area): ForgeFocusView(area: area)
+            case .workout(let startTs, let sport): ForgeWorkoutDetailHost(startTs: startTs, sport: sport)
             }
         }
     }
@@ -45,6 +51,15 @@ extension View {
 /// the last 14 days, and how Charge is made. The drivers are `ChargeBreakdownFormat.compute`, the SAME
 /// composition the shipped Today's breakdown sheet reads, against the SAME row the ring shows.
 struct ForgeChargeDetailView: View {
+    /// How sure the breakdown is, in words: the shipped chip abbreviates it ("REL.", "EST.").
+    static func confidenceWord(_ c: ScoreConfidence) -> String {
+        switch c {
+        case .calibrating: return String(localized: "Calibrating")
+        case .building: return String(localized: "Still building")
+        case .solid: return String(localized: "Reliable")
+        }
+    }
+
     var onAsk: (String) -> Void = { _ in }
 
     @EnvironmentObject private var repo: Repository
@@ -90,7 +105,7 @@ struct ForgeChargeDetailView: View {
                     if let target = ForgeToday.effortTargetStored(charge: pct) {
                         let t = ForgeToday.targetText(target, scale: UnitPrefs.currentEffortScale())
                         Text("Today's Effort target: \(t.low) to \(t.high).")
-                            .font(.system(size: 17)).foregroundStyle(ForgeColor.text)
+                            .font(.system(.body)).foregroundStyle(ForgeColor.text)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -103,7 +118,7 @@ struct ForgeChargeDetailView: View {
                         } ?? "What shaped it")
                             .font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                         Spacer()
-                        ForgeBadge(text: ChargeBreakdownFormat.tierTag(breakdown.confidence), tone: .neutral)
+                        ForgeBadge(text: Self.confidenceWord(breakdown.confidence), tone: .neutral)
                     }
                     .padding(.horizontal, 4)
                     VStack(spacing: 0) {

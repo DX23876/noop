@@ -30,18 +30,18 @@ struct ForgeWorkoutsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: String(localized: "Training"), title: String(localized: "Workouts"),
+                ForgeDetailHeader(overline: nil, title: String(localized: "Workouts"),
                                   scrolledPast: $scrolledPast)
                 calendarCard
                 weekNumbers
                 ForEach(weeks, id: \.start) { week in
                     Text(Self.weekTitle(week.start, calendar: calendar))
-                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                        .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
                         .padding(.horizontal, 4).padding(.top, 4)
                     ForgeGroup {
                         ForEach(Array(week.rows.enumerated()), id: \.offset) { index, row in
                             if index > 0 { ForgeRowDivider() }
-                            NavigationLink(value: TabRoute.workoutDetail(startTs: row.startTs, sport: row.sport)) {
+                            NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                                 sessionRow(row)
                             }
                             .buttonStyle(.plain)
@@ -79,7 +79,7 @@ struct ForgeWorkoutsView: View {
         let top = max(load.values.max() ?? 1, 1)
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Last 13 weeks").font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                Text("Last 13 weeks").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                 Spacer()
                 Text("active energy per day").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
@@ -160,7 +160,7 @@ struct ForgeWorkoutsView: View {
                 .background(Circle().fill(tint.opacity(0.16)))
             VStack(alignment: .leading, spacing: 1) {
                 Text(WorkoutSource.localizedDisplaySport(row.sport))
-                    .font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
+                    .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
                 Text(parts.joined(separator: " · ")).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
@@ -168,14 +168,43 @@ struct ForgeWorkoutsView: View {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(ForgeToday.effortText(strain, scale: effortScale)).font(ForgeFont.rounded(19, .bold))
                         .foregroundStyle(ForgeColor.effortInk)
-                    Text(DomainTheme.effort.productName).font(.system(size: 11)).foregroundStyle(ForgeColor.secondary)
+                    Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
+            Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
         }
         .padding(.horizontal, 14).padding(.vertical, 11)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Opens one workout's shipped detail page directly: finds the row the list showed and hands it over.
+struct ForgeWorkoutDetailHost: View {
+    let startTs: Int
+    let sport: String
+    @EnvironmentObject private var repo: Repository
+    @State private var row: WorkoutRow?
+    @State private var looked = false
+
+    var body: some View {
+        Group {
+            if let row {
+                WorkoutDetailView(row: row)
+            } else if looked {
+                Text("This workout is no longer stored.")
+                    .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(ForgeBackground(tab: .training))
+        .task {
+            let age = max(1, Int(Date().timeIntervalSince1970) - startTs) / 86_400 + 2
+            row = (await repo.workoutRows(days: age, reconcileHrCap: 0)).first { $0.startTs == startTs && $0.sport == sport }
+            looked = true
+        }
     }
 }
 #endif

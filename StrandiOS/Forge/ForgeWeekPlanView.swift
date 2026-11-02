@@ -64,7 +64,7 @@ struct ForgeWeekPlanView: View {
         let week = self.week
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: String(localized: "Training"), title: String(localized: "This week's plan"),
+                ForgeDetailHeader(overline: nil, title: String(localized: "This week's plan"),
                                   scrolledPast: $scrolledPast)
                 effortColumns(week)
                 ForgeSectionTitle(title: "This week")
@@ -106,7 +106,7 @@ struct ForgeWeekPlanView: View {
         let cal = Calendar.current
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Effort").font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                Text("Effort").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                 Spacer()
                 Text("filled: done · dashed: planned").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
@@ -127,7 +127,7 @@ struct ForgeWeekPlanView: View {
                         }
                         .frame(height: 96)
                         Text(day.date, format: .dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
-                            .font(.system(size: 12, weight: cal.isDateInToday(day.date) ? .bold : .regular))
+                            .font(.system(.caption, weight: cal.isDateInToday(day.date) ? .bold : .regular))
                             .foregroundStyle(cal.isDateInToday(day.date) ? ForgeColor.accent : ForgeColor.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -170,11 +170,11 @@ struct ForgeWeekPlanView: View {
                     .font(ForgeFont.rounded(20, .semibold))
                     .foregroundStyle(past && day.done.isEmpty ? ForgeColor.secondary : ForgeColor.text)
                 Text(day.date, format: .dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale))
-                    .font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                    .font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
             }
             .frame(width: 44)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 16, weight: .semibold))
+                Text(title).font(.system(.callout, weight: .semibold))
                     .foregroundStyle(past && day.done.isEmpty ? ForgeColor.secondary : ForgeColor.text)
                 if let detail { Text(detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary) }
             }

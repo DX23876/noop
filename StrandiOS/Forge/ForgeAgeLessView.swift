@@ -68,14 +68,14 @@ struct ForgeAgeLessView: View {
                     .font(ForgeFont.rounded(52, .bold))
                     .foregroundStyle(gap <= 0 ? ForgeColor.chargeInk : ForgeColor.effortInk)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("AgeLess age").font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Text("AgeLess age").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Text("actual age \(HealthspanSection.years(actual))").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
             }
             ForgeAgeLine(actual: actual, age: age, projected: projected)
                 .frame(height: 74)
             if let pace = week.pace {
-                Text(Self.paceSentence(pace)).font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                Text(Self.paceSentence(pace)).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                 if let projected {
                     Text("In 6 months: \(HealthspanSection.years(projected)) if the last 30 days continue")
                         .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
@@ -107,7 +107,7 @@ struct ForgeAgeLessView: View {
     private func narrative(_ week: HealthspanWeek) -> some View {
         let n = HealthspanEngine.narrative(result: week.result, pace: week.pace, levers: week.levers)
         return VStack(alignment: .leading, spacing: 4) {
-            Text(HealthspanDetailView.title(n.kind)).font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+            Text(HealthspanDetailView.title(n.kind)).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
             Text(HealthspanDetailView.body(n)).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -128,14 +128,14 @@ struct ForgeAgeLessView: View {
                     withAnimation(.snappy) { if open.contains(d) { open.remove(d) } else { open.insert(d) } }
                 } label: {
                     HStack(spacing: 10) {
-                        Text(HealthspanSection.domainName(d)).font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text(HealthspanSection.domainName(d)).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
                             .frame(width: 88, alignment: .leading)
                         ForgeYearsBar(years: years, span: span).frame(height: 14)
                         Text(HealthspanSection.signedYears(years)).font(ForgeFont.rounded(15, .semibold))
                             .foregroundStyle(years <= 0 ? ForgeColor.chargeInk : ForgeColor.effortInk)
                             .frame(width: 70, alignment: .trailing)
                         Image(systemName: open.contains(d) ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
+                            .font(.system(.caption, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
                     }
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
@@ -151,7 +151,7 @@ struct ForgeAgeLessView: View {
                 Spacer()
                 Text("older").foregroundStyle(ForgeColor.effortInk)
             }
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(.caption, weight: .medium))
             .padding(.leading, 98).padding(.trailing, 92).padding(.top, 2)
         }
         .padding(.horizontal, 14).padding(.vertical, 4)
@@ -265,14 +265,14 @@ struct ForgeAgeLine: View {
                     .frame(width: 24, height: 24).offset(x: x(age) - 12, y: mid - 12)
                 Text(younger ? String(localized: "\(HealthspanSection.years(actual - age)) years younger")
                              : String(localized: "\(HealthspanSection.years(age - actual)) years older"))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(.footnote, weight: .semibold))
                     .foregroundStyle(younger ? ForgeColor.chargeInk : ForgeColor.effortInk)
                     .fixedSize()
                     .position(x: min(max((x(actual) + x(age)) / 2, 60), w - 60), y: 6)
-                Text("actual").font(.system(size: 11)).foregroundStyle(ForgeColor.secondary).fixedSize()
+                Text("actual").font(.system(.caption2)).foregroundStyle(ForgeColor.secondary).fixedSize()
                     .position(x: x(actual), y: mid + 24)
                 if let projected {
-                    Text("in 6 months").font(.system(size: 11)).foregroundStyle(ForgeColor.secondary).fixedSize()
+                    Text("in 6 months").font(.system(.caption2)).foregroundStyle(ForgeColor.secondary).fixedSize()
                         .position(x: x(projected), y: mid + 38)
                 }
             }

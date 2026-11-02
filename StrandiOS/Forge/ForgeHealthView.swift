@@ -45,7 +45,7 @@ struct ForgeHealthView: View {
 
     private func vitalTile(_ r: BodyVitalReading) -> some View {
         NavigationLink(value: TabRoute.metric(r.key == "spo2raw" ? "spo2" : r.key)) {
-            ForgeMetricTile(label: r.label, value: r.value.map(r.format), unit: r.unit,
+            ForgeMetricTile(label: Self.plainLabel(r), value: r.value.map(r.format), unit: r.unit,
                             trend: r.sparkline, tint: r.metricColor,
                             badge: (r.stateText, badgeTone(r)))
         }
@@ -84,9 +84,9 @@ struct ForgeHealthView: View {
                                     HStack(spacing: 6) {
                                         Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                                             .foregroundStyle(ok ? ForgeColor.text : ForgeColor.effortInk)
-                                        Text(r.label).foregroundStyle(ok ? ForgeColor.text : ForgeColor.effortInk)
+                                        Text(Self.plainLabel(r)).foregroundStyle(ok ? ForgeColor.text : ForgeColor.effortInk)
                                     }
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(.system(.footnote, weight: .semibold))
                                     .padding(.horizontal, 10).frame(minHeight: 30)
                                     .background(Capsule().fill(ok ? ForgeColor.card.opacity(0.75) : ForgeColor.effort.opacity(0.16)))
                                     .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 1))
@@ -111,52 +111,13 @@ struct ForgeHealthView: View {
                             vitalTile(last)
                         }
 
-                        ForgeSectionTitle(title: "Heart and stress")
-                        ForgeGroup {
-                            NavigationLink(value: TabRoute.stress) {
-                                ForgeRow(systemImage: "bolt.heart.fill", tint: .orange, title: String(localized: "Stress"),
-                                         subtitle: String(localized: "Through the day"))
-                            }
-                            ForgeRowDivider()
-                            NavigationLink(value: TabRoute.fullDayChart) {
-                                ForgeRow(systemImage: "waveform.path.ecg", tint: .red, title: String(localized: "Heart rate"),
-                                         subtitle: String(localized: "The whole day, beat by beat"))
-                            }
-                            ForgeRowDivider()
-                            NavigationLink(value: MoreDestination.ecg) {
-                                ForgeRow(systemImage: "heart.text.square.fill", tint: .pink, title: String(localized: "ECG"),
-                                         subtitle: String(localized: "Saved readings"))
+                        ForgeSectionTitle(title: "Focus areas")
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                            ForEach(ForgeFocusArea.allCases) { area in
+                                NavigationLink(value: ForgeRoute.focus(area)) { ForgeFocusTile(area: area) }
+                                    .buttonStyle(LiquidPressStyle())
                             }
                         }
-                        .buttonStyle(.plain)
-
-                        ForgeSectionTitle(title: "Body and energy")
-                        ForgeGroup {
-                            NavigationLink(value: TabRoute.weight) {
-                                ForgeRow(systemImage: "figure.stand", tint: .indigo, title: String(localized: "Weight"),
-                                         subtitle: weightChange30d.map(weightChangeText) ?? String(localized: "Weigh-ins and trend"),
-                                         value: weightKg.map { String(format: "%.1f", locale: AppLanguage.activeLocale,
-                                                                      unitSystem == .imperial ? UnitFormatter.kgToPounds($0) : $0) },
-                                         unit: UnitFormatter.massUnit(unitSystem))
-                            }
-                            ForgeRowDivider()
-                            NavigationLink(value: TabRoute.energy) {
-                                ForgeRow(systemImage: "flame.fill", tint: .orange, title: String(localized: "Energy today"),
-                                         subtitle: String(localized: "Burned so far"),
-                                         value: energyKcal.map { "\(Int($0.rounded()))" }, unit: energyKcal == nil ? nil : "kcal")
-                            }
-                            ForgeRowDivider()
-                            NavigationLink(value: MoreDestination.body) {
-                                ForgeRow(systemImage: "figure.stand", tint: .teal, title: String(localized: "Body"),
-                                         subtitle: String(localized: "Measurements and composition"))
-                            }
-                            ForgeRowDivider()
-                            NavigationLink(value: MoreDestination.labBook) {
-                                ForgeRow(systemImage: "testtube.2", tint: .purple, title: String(localized: "Lab values"),
-                                         subtitle: String(localized: "Blood pressure, blood tests"))
-                            }
-                        }
-                        .buttonStyle(.plain)
 
                         ForgeSectionTitle(title: "Long term and patterns", action: nil)
                         if healthspanEnabled { agelessCard }
@@ -204,13 +165,13 @@ struct ForgeHealthView: View {
         let days = Array(repo.days.suffix(7))
         return NavigationLink(value: TabRoute.trends) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Your week in rings").font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                Text("Your week in rings").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
                 HStack(spacing: 0) {
                     ForEach(days, id: \.day) { d in
                         VStack(spacing: 4) {
                             ForgeMiniRings(charge: d.recovery, effort: d.strain, rest: restByDay[d.day])
                                 .frame(width: 34, height: 34)
-                            Text(Self.weekday(d.day)).font(.system(size: 11)).foregroundStyle(ForgeColor.secondary)
+                            Text(Self.weekday(d.day)).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -234,8 +195,8 @@ struct ForgeHealthView: View {
     private func offRangeCard(_ r: BodyVitalReading) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Outside your usual range", systemImage: "waveform.path.ecg")
-                .font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.accent)
-            Text("\(r.label) is outside your usual range").font(.system(size: 19, weight: .bold))
+                .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+            Text("\(Self.plainLabel(r)) is outside your usual range").font(.system(.title3, weight: .bold))
                 .foregroundStyle(ForgeColor.text).fixedSize(horizontal: false, vertical: true)
             if let value = r.value {
                 Text("**\(r.format(value)) \(r.unit)** last night. \(r.stateText).")
@@ -294,9 +255,9 @@ extension ForgeHealthView {
         NavigationLink(value: ForgeRoute.ageless) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Label("AgeLess", systemImage: "hourglass").font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Label("AgeLess", systemImage: "hourglass").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
+                    Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
                 }
                 if let week = healthspan {
                     let age = week.result.healthspanAge, actual = week.result.chronologicalAge
@@ -317,6 +278,20 @@ extension ForgeHealthView {
             .forgeCard(radius: 22, padding: 14)
         }
         .buttonStyle(.plain)
+    }
+}
+
+extension ForgeHealthView {
+    /// The vitals in whole words on this tab ("Resting heart rate", not "Resting HR"): the shared labels are
+    /// abbreviated for the denser shipped screens.
+    static func plainLabel(_ r: BodyVitalReading) -> String {
+        switch r.key {
+        case "rhr": return String(localized: "Resting heart rate")
+        case "resp": return String(localized: "Breathing rate")
+        case "spo2", "spo2raw": return String(localized: "Blood oxygen")
+        case "skin": return String(localized: "Skin temperature")
+        default: return r.label
+        }
     }
 }
 #endif

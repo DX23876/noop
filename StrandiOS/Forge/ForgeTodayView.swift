@@ -76,10 +76,12 @@ struct ForgeTodayView: View {
                         ForgeSearchButton()
                         NavigationLink(value: ForgeRoute.weeklyReport) {
                             Image(systemName: "calendar")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(.system(.body, weight: .semibold))
                                 .foregroundStyle(ForgeColor.text)
                                 .frame(width: 36, height: 36)
                                 .forgeGlassCapsule()
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel(Text("Weekly report"))
                     }
@@ -242,7 +244,7 @@ struct ForgeTodayView: View {
         HStack(spacing: 5) {
             Circle().fill(tint).frame(width: 8, height: 8)
             Text(value ?? "–").font(ForgeFont.rounded(16, .bold)).foregroundStyle(ForgeColor.text)
-            Text(label).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+            Text(label).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
         }
     }
 
@@ -279,11 +281,11 @@ struct ForgeTodayView: View {
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
                 Text(label)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(.subheadline, weight: .semibold))
                     .foregroundStyle(Self.labelTint(metric))
                     .lineLimit(1).minimumScaleFactor(0.8)
                 Text(caption ?? " ")
-                    .font(.system(size: 12))
+                    .font(.system(.caption))
                     .foregroundStyle(ForgeColor.secondary)
                     .lineLimit(1).minimumScaleFactor(0.75)
             }
@@ -314,7 +316,7 @@ struct ForgeTodayView: View {
     private func heroButton(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(.subheadline, weight: .semibold))
                 .foregroundStyle(ForgeColor.accent)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(Capsule().fill(ForgeColor.fill))
@@ -389,16 +391,16 @@ struct ForgeTodayView: View {
         HStack(spacing: 10) {
             if let time {
                 Text(time, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                    .font(.system(size: 14, weight: .medium).monospacedDigit())
+                    .font(.system(.subheadline, weight: .medium).monospacedDigit())
                     .foregroundStyle(ForgeColor.secondary)
             }
             Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(.footnote, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(tint.opacity(0.18)))
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(.subheadline, weight: .semibold))
                 .foregroundStyle(ForgeColor.text)
                 .lineLimit(1)
         }
@@ -440,14 +442,14 @@ struct ForgeTodayView: View {
     private var nowMarker: some View {
         HStack(spacing: 8) {
             Text(Date(), format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                .font(.system(.footnote, weight: .semibold).monospacedDigit())
                 .foregroundStyle(ForgeColor.accent)
                 .fixedSize()
                 .frame(width: Self.timeWidth, alignment: .trailing)
             Circle().fill(ForgeColor.accent).frame(width: 11, height: 11)
                 .overlay(Circle().strokeBorder(ForgeColor.card, lineWidth: 2))
             Text("Now")
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(.caption, weight: .bold))
                 .foregroundStyle(ForgeColor.onAccent)
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(Capsule().fill(ForgeColor.accent))
@@ -461,9 +463,9 @@ struct ForgeTodayView: View {
         HStack(spacing: 8) {
             Color.clear.frame(width: Self.timeWidth, height: 1)
             Circle().fill(ForgeColor.text).frame(width: 9, height: 9)
-            Text(dayTitle(date)).font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+            Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
             Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
-                .font(.system(size: 15)).foregroundStyle(ForgeColor.secondary)
+                .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
             Spacer()
         }
         .padding(.vertical, 10)
@@ -481,7 +483,7 @@ struct ForgeTodayView: View {
                                         @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(time, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                .font(.system(size: 13, weight: .medium).monospacedDigit())
+                .font(.system(.footnote, weight: .medium).monospacedDigit())
                 .foregroundStyle(ForgeColor.tertiary)
                 .fixedSize()
                 .frame(width: Self.timeWidth, alignment: .trailing)
@@ -527,12 +529,12 @@ struct ForgeTodayView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Label(coachLabel(entry, origin: origin), systemImage: "waveform.path.ecg")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(.subheadline, weight: .semibold))
                     .foregroundStyle(ForgeColor.accent)
                 Spacer()
                 Button { whyEntry = entry } label: {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 15))
+                        .font(.system(.subheadline))
                         .foregroundStyle(ForgeColor.tertiary)
                         .frame(width: 32, height: 28)
                 }
@@ -540,7 +542,7 @@ struct ForgeTodayView: View {
                 .accessibilityLabel(Text("Why am I seeing this?"))
             }
             Text(entry.title)
-                .font(.system(size: 19, weight: .bold))
+                .font(.system(.title3, weight: .bold))
                 .foregroundStyle(ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
             if !entry.detail.isEmpty {
@@ -597,10 +599,10 @@ struct ForgeTodayView: View {
             VStack(spacing: 6) {
                 ForEach(Array(snapshot.drivers.prefix(3).enumerated()), id: \.offset) { _, driver in
                     HStack(spacing: 8) {
-                        Text(driver.label).font(.system(size: 14)).foregroundStyle(ForgeColor.secondary)
+                        Text(driver.label).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
                             .lineLimit(1).minimumScaleFactor(0.8)
                         Spacer()
-                        Text(driver.valueText).font(.system(size: 14, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text(driver.valueText).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         ForgeDirection(delta: driver.deltaPoints)
                     }
                     .accessibilityElement(children: .ignore)
@@ -610,7 +612,7 @@ struct ForgeTodayView: View {
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
         } else if entry.kicker == String(localized: "After your workout"), let row = workoutBefore(entry.date) {
-            NavigationLink(value: TabRoute.workoutDetail(startTs: row.startTs, sport: row.sport)) {
+            NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                 HStack(spacing: 10) {
                     WorkoutTypeIcon(workoutType: row.sport, size: 15, weight: .semibold,
                                     color: AppleInspiredColors.role(forSport: row.sport).color)
@@ -618,8 +620,8 @@ struct ForgeTodayView: View {
                         .background(Circle().fill(ForgeColor.fill))
                     VStack(alignment: .leading, spacing: 1) {
                         Text(WorkoutSource.localizedDisplaySport(row.sport))
-                            .font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                        Text(workoutDetail(row)).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                            .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text(workoutDetail(row)).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
                     }
                     Spacer()
                     if let strain = row.strain {
@@ -654,7 +656,7 @@ struct ForgeTodayView: View {
     @ViewBuilder private func workoutCard(_ entry: ForgeTimeline.Entry) -> some View {
         if let row = entry.sourceId.flatMap({ snapshot.workouts[$0] }) {
             let tint = AppleInspiredColors.role(forSport: row.sport).color
-            NavigationLink(value: TabRoute.workoutDetail(startTs: row.startTs, sport: row.sport)) {
+            NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle().fill(tint.opacity(0.18))
@@ -663,7 +665,7 @@ struct ForgeTodayView: View {
                     .frame(width: 40, height: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(WorkoutSource.localizedDisplaySport(row.sport))
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.system(.body, weight: .semibold))
                             .foregroundStyle(ForgeColor.text)
                             .lineLimit(1)
                         Text(workoutDetail(row))
@@ -678,7 +680,7 @@ struct ForgeTodayView: View {
                                 .font(ForgeFont.rounded(22, .bold))
                                 .foregroundStyle(ForgeColor.text)
                             Text(DomainTheme.effort.productName)
-                                .font(.system(size: 11))
+                                .font(.system(.caption2))
                                 .foregroundStyle(ForgeColor.secondary)
                         }
                     }
@@ -694,12 +696,12 @@ struct ForgeTodayView: View {
         NavigationLink(value: TabRoute.weight) {
             HStack(spacing: 12) {
                 Image(systemName: "figure.stand")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(.body, weight: .semibold))
                     .foregroundStyle(ForgeColor.rest)
                     .frame(width: 40, height: 40)
                     .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Weight logged").font(.system(size: 17, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Text("Weight logged").font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     if let change = snapshot.weightChange30d {
                         Text("\(UnitFormatter.massFromKilograms(change, system: UnitSystem(rawValue: unitSystemRaw) ?? .metric).replacingOccurrences(of: "-", with: "−")) in 30 days")
                             .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
@@ -733,13 +735,13 @@ struct ForgeTodayView: View {
                 ZStack {
                     Circle().fill(ForgeColor.rest.opacity(0.18))
                     Image(systemName: "sun.horizon.fill")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(.body, weight: .semibold))
                         .foregroundStyle(ForgeColor.rest)
                 }
                 .frame(width: 40, height: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Woke up")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(.body, weight: .semibold))
                         .foregroundStyle(ForgeColor.text)
                     if let start {
                         Text("\(start.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))) to \(entry.date.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale)))")
@@ -754,7 +756,7 @@ struct ForgeTodayView: View {
                             .font(ForgeFont.rounded(22, .bold))
                             .foregroundStyle(ForgeColor.text)
                         Text("h asleep")
-                            .font(.system(size: 11))
+                            .font(.system(.caption2))
                             .foregroundStyle(ForgeColor.secondary)
                     }
                 }

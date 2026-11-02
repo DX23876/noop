@@ -116,7 +116,7 @@ struct ForgeSearchView: View {
                     .accessibilityLabel(Text("Clear search"))
             }
         }
-        .font(.system(size: 17))
+        .font(.system(.body))
         .padding(.horizontal, 12)
         .frame(minHeight: 44)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.fill))
@@ -215,10 +215,12 @@ struct ForgeSearchButton: View {
     var body: some View {
         NavigationLink(value: ForgeRoute.search) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(.body, weight: .semibold))
                 .foregroundStyle(ForgeColor.text)
                 .frame(width: 36, height: 36)
                 .forgeGlassCapsule()
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .accessibilityLabel(Text("Search"))
     }

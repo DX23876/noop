@@ -60,7 +60,7 @@ struct ForgeCoachWhySheet: View {
                             FlowRows(spacing: 6) {
                                 ForEach(readList, id: \.self) { item in
                                     Text(item)
-                                        .font(.system(size: 13, weight: .medium))
+                                        .font(.system(.footnote, weight: .medium))
                                         .foregroundStyle(ForgeColor.text)
                                         .padding(.horizontal, 10).padding(.vertical, 5)
                                         .background(Capsule().fill(ForgeColor.fill))
@@ -73,14 +73,14 @@ struct ForgeCoachWhySheet: View {
                     if let kind = noteKind {
                         Toggle(isOn: kind == .afterWorkout ? $workoutNotes : $eveningNotes) {
                             Text(kind == .afterWorkout ? "Notes after workouts" : "Evening recap")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(.callout, weight: .semibold))
                         }
                         .tint(ForgeColor.accent)
                         .forgeCard(radius: 18, padding: 14)
                     }
                     Button(action: onCoachSettings) {
                         Label("Coach settings, memory and usage", systemImage: "slider.horizontal.3")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(.callout, weight: .semibold))
                             .foregroundStyle(ForgeColor.accent)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .background(Capsule().fill(ForgeColor.fill))

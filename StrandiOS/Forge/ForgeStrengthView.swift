@@ -21,7 +21,7 @@ struct ForgeStrengthView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: String(localized: "Training"), title: String(localized: "Strength"),
+                ForgeDetailHeader(overline: nil, title: String(localized: "Strength"),
                                   scrolledPast: $scrolledPast)
                 nextUp
                 volume
@@ -57,16 +57,16 @@ struct ForgeStrengthView: View {
         if let next = nextPlanned {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Next up").font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Text("Next up").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Spacer()
                     Text(Self.dayText(next.day)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
-                Text(next.routine.title).font(.system(size: 24, weight: .bold)).foregroundStyle(ForgeColor.text)
+                Text(next.routine.title).font(.system(.title2, weight: .bold)).foregroundStyle(ForgeColor.text)
                 Text("\(next.routine.exercises.count) exercises")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 Button { session.requestStrength(routines: [next.routine]) } label: {
                     Label("Start", systemImage: "play.fill")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(.body, weight: .semibold))
                         .foregroundStyle(ForgeColor.onAccent)
                         .frame(maxWidth: .infinity, minHeight: 50)
                         .background(Capsule().fill(ForgeColor.accent))
@@ -118,7 +118,7 @@ struct ForgeStrengthView: View {
             let top = max(tonnes.max() ?? 1, 0.1)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Volume").font(.system(size: 15, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Text("Volume").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Spacer()
                     Text("tonnes lifted per week").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
@@ -215,7 +215,7 @@ struct ForgeMusclesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: String(localized: "Strength"), title: String(localized: "Muscles"),
+                ForgeDetailHeader(overline: nil, title: String(localized: "Muscles"),
                                   scrolledPast: $scrolledPast)
                 MuscleAnalyticsSurface(history: model.resolvedHistory, compact: false)
                     .forgeCard(radius: 24, padding: 14)

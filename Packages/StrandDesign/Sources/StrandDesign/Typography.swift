@@ -137,9 +137,12 @@ public enum StrandFont {
 public extension Text {
     /// Style as a compact section overline: uppercase, semibold, restrained tracking.
     func strandOverline() -> some View {
-        self.font(StrandFont.overline)
-            .tracking(StrandFont.overlineTracking)
-            .textCase(.uppercase)
+        // Under the redesign's chrome an overline reads as a quiet label in sentence case: its uppercase
+        // kicker over every block was one of the patterns the redesign drops.
+        let forge = NoopVisualStyle.skin == .forge
+        return self.font(forge ? StrandFont.overline.weight(.semibold) : StrandFont.overline)
+            .tracking(forge ? 0 : StrandFont.overlineTracking)
+            .textCase(forge ? nil : .uppercase)
             .foregroundStyle(StrandPalette.textSecondary)
     }
 }

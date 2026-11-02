@@ -621,11 +621,12 @@ struct CoachView: View {
 
     /// A new chat introduces the coach instead of opening on a bare heading — the big avatar is the one
     /// place the identity still gets a proper portrait now that the header runs compact.
-    private var emptyState: some View {
+    @ViewBuilder private var emptyState: some View {
         VStack(spacing: 10) {
             CoachAvatarView(size: 76)
                 .padding(.bottom, 2)
-            Text("Hi, I'm \(identityStore.identity.name)")
+            Text(NoopVisualStyle.skin == .forge ? Self.greeting(identityStore.identity.name)
+                                                 : String(localized: "Hi, I'm \(identityStore.identity.name)"))
                 .font(StrandFont.title2)
                 .foregroundStyle(StrandPalette.textPrimary)
             Text(coach.dataConsent
@@ -641,6 +642,23 @@ struct CoachView: View {
         .padding(.top, 24)
         .padding(.bottom, 10)
         .accessibilityElement(children: .combine)
+        // The redesign shows the way back to earlier chats on the start screen, not only in the menu.
+        if NoopVisualStyle.skin == .forge {
+            Button { activeSheet = .history } label: {
+                Label("Earlier conversations", systemImage: "clock.arrow.circlepath")
+                    .font(StrandFont.subhead.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// The redesign's greeting by time of day, with the coach's own name.
+    static func greeting(_ name: String) -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 11 { return String(localized: "Good morning, I'm \(name)") }
+        if hour < 18 { return String(localized: "Good afternoon, I'm \(name)") }
+        return String(localized: "Good evening, I'm \(name)")
     }
 
     // MARK: - Not connected (no key yet)

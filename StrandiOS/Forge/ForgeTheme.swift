@@ -57,12 +57,12 @@ enum ForgeFont {
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
     }
-    static let largeTitle = Font.system(size: 34, weight: .bold)
-    static let section = Font.system(size: 22, weight: .bold)
-    static let cardTitle = Font.system(size: 19, weight: .semibold)
-    static let body = Font.system(size: 15)
-    static let caption = Font.system(size: 13)
-    static let overDate = Font.system(size: 13, weight: .semibold)
+    static let largeTitle = Font.system(.largeTitle, weight: .bold)
+    static let section = Font.system(.title2, weight: .bold)
+    static let cardTitle = Font.system(.title3, weight: .semibold)
+    static let body = Font.system(.subheadline)
+    static let caption = Font.system(.footnote)
+    static let overDate = Font.system(.footnote, weight: .semibold)
 }
 
 // MARK: - Background
@@ -164,13 +164,17 @@ struct ForgeLargeHeader<Trailing: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
+            // No spacing: every button carries its own 44 pt hit area around a smaller visual.
+            HStack(spacing: 0) {
                 Text((subtitle ?? ForgeHeaderDate.formatter.string(from: Date())).uppercased(with: AppLanguage.activeLocale))
                     .font(ForgeFont.overDate)
                     .foregroundStyle(ForgeColor.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Spacer(minLength: 8)
                 DashboardBatteryButton(size: 34)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
                 trailing()
                 Button(action: onProfile) {
                     ProfileAvatarView(imageData: profile.avatarImageData, size: 32, fallbackTint: ForgeColor.accent)
@@ -206,7 +210,7 @@ struct ForgeSectionTitle: View {
             Spacer()
             if let action {
                 Button(action: action.run) {
-                    Text(action.label).font(.system(size: 17)).foregroundStyle(ForgeColor.accent)
+                    Text(action.label).font(.system(.body)).foregroundStyle(ForgeColor.accent)
                 }
                 .buttonStyle(.plain)
             }
@@ -226,8 +230,8 @@ struct ForgeChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                if let systemImage { Image(systemName: systemImage).font(.system(size: 14, weight: .semibold)) }
-                Text(title).font(.system(size: 15, weight: .medium)).lineLimit(1)
+                if let systemImage { Image(systemName: systemImage).font(.system(.subheadline, weight: .semibold)) }
+                Text(title).font(.system(.subheadline, weight: .medium)).lineLimit(1)
             }
             .foregroundStyle(prominent ? ForgeColor.accent : ForgeColor.text)
             .padding(.horizontal, 14)

@@ -30,7 +30,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
                     HStack(spacing: 14) {
                         ProfileAvatarView(imageData: profile.avatarImageData, size: 64, fallbackTint: ForgeColor.accent)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Your profile").font(.system(size: 22, weight: .bold)).foregroundStyle(ForgeColor.text)
+                            Text("Your profile").font(.system(.title2, weight: .bold)).foregroundStyle(ForgeColor.text)
                             Text("Body, heart rate and fitness").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                         }
                         Spacer()
@@ -47,7 +47,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
                         Text("Search settings and screens")
                         Spacer()
                     }
-                    .font(.system(size: 17))
+                    .font(.system(.body))
                     .foregroundStyle(ForgeColor.secondary)
                     .padding(.horizontal, 12)
                     .frame(minHeight: 44)
@@ -128,7 +128,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
         return VStack(alignment: .leading, spacing: 6) {
             if let title {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(.footnote, weight: .semibold))
                     .textCase(.uppercase)
                     .foregroundStyle(ForgeColor.secondary)
                     .padding(.leading, 16)

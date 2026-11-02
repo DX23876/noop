@@ -46,7 +46,7 @@ struct ForgeEffortDetailView: View {
                                           return String(localized: "target \(t.low) to \(t.high)")
                                       })
                     if let line = ForgeToday.summary(effortStored: effortStored, charge: charge, scale: effortScale) {
-                        Text(line).font(.system(size: 17)).foregroundStyle(ForgeColor.text)
+                        Text(line).font(.system(.body)).foregroundStyle(ForgeColor.text)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -67,7 +67,7 @@ struct ForgeEffortDetailView: View {
                         VStack(spacing: 0) {
                             ForEach(Array(todayWorkouts.enumerated()), id: \.offset) { index, row in
                                 if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
-                                NavigationLink(value: TabRoute.workoutDetail(startTs: row.startTs, sport: row.sport)) {
+                                NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                                     workoutRow(row)
                                 }
                                 .buttonStyle(.plain)
@@ -116,16 +116,16 @@ struct ForgeEffortDetailView: View {
         return HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(WorkoutSource.localizedDisplaySport(row.sport))
-                    .font(.system(size: 16)).foregroundStyle(ForgeColor.text)
+                    .font(.system(.callout)).foregroundStyle(ForgeColor.text)
                 Text("\(start.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))) · \(minutes) min")
-                    .font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+                    .font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)
             }
             Spacer(minLength: 8)
             if let strain = row.strain {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(ForgeToday.effortText(strain, scale: effortScale))
                         .font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
-                    Text(DomainTheme.effort.productName).font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                    Text(DomainTheme.effort.productName).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
                 }
             }
         }
@@ -166,7 +166,7 @@ struct ForgeRestDetailView: View {
                                       detail: rest.map { ForgeToday.restWord($0).lowercased(with: AppLanguage.activeLocale) })
                     if let m = model {
                         Text("\(ForgeTodayView.hoursMinutes(m.night.stages.asleep)) h asleep, \(m.night.onsetText) to \(m.night.wakeText)")
-                            .font(.system(size: 17)).foregroundStyle(ForgeColor.text)
+                            .font(.system(.body)).foregroundStyle(ForgeColor.text)
                             .multilineTextAlignment(.center)
                     }
                 }
@@ -253,7 +253,7 @@ struct ForgeEffortTargetBar: View {
             }
             .frame(height: 12)
             Text("Effort \(ForgeToday.effortText(effort, scale: scale)), target \(t.low) to \(t.high)")
-                .font(.system(size: 12)).foregroundStyle(ForgeColor.secondary)
+                .font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
@@ -284,7 +284,7 @@ struct ForgeDailyChart: View {
                 Spacer()
                 if let history {
                     NavigationLink(value: history) {
-                        Text("History").font(.system(size: 17)).foregroundStyle(ForgeColor.accent)
+                        Text("History").font(.system(.body)).foregroundStyle(ForgeColor.accent)
                     }
                 }
             }
@@ -325,7 +325,7 @@ struct ForgeDailyChart: View {
                     .chartYAxis(.hidden)
                     .frame(height: 120)
                     if let caption {
-                        Text(caption).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+                        Text(caption).font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 } else {
@@ -382,9 +382,9 @@ struct ForgeScoreCaption: View {
 
     var body: some View {
         VStack(spacing: 1) {
-            Text(name).font(.system(size: 17, weight: .semibold)).foregroundStyle(tint)
+            Text(name).font(.system(.body, weight: .semibold)).foregroundStyle(tint)
             if let detail {
-                Text(detail).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+                Text(detail).font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -405,7 +405,7 @@ struct ForgeWhyRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 // Driver labels come from the analytics package in English; the catalog carries their translations.
-                Text(LocalizedStringKey(label)).font(.system(size: 16, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                Text(LocalizedStringKey(label)).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     .lineLimit(2).layoutPriority(1)
                 Spacer(minLength: 8)
                 Text(value).font(ForgeFont.rounded(19, .regular)).foregroundStyle(ForgeColor.text)
@@ -431,7 +431,7 @@ struct ForgeWhyRow: View {
                 .frame(height: 14)
             }
             if let usual {
-                Text(usual).font(.system(size: 13)).foregroundStyle(ForgeColor.secondary)
+                Text(usual).font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)
             }
         }
         .padding(.vertical, 11)
