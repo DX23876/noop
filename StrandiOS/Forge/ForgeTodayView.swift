@@ -73,6 +73,17 @@ struct ForgeTodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     ForgeLargeHeader(title: "Today", onProfile: onProfile) {
+                        Button(action: onLog) {
+                            Image(systemName: "plus")
+                                .font(.system(.body, weight: .semibold))
+                                .foregroundStyle(ForgeColor.text)
+                                .frame(width: 36, height: 36)
+                                .forgeGlassCapsule()
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Log"))
                         ForgeSearchButton()
                         NavigationLink(value: ForgeRoute.weeklyReport) {
                             Image(systemName: "calendar")
@@ -173,52 +184,37 @@ struct ForgeTodayView: View {
     private var effortScore: Double? { snapshot.effortStored.map { UnitFormatter.effortValue($0, scale: effortScale) } }
     private var effortTarget: ClosedRange<Double>? { ForgeToday.effortTargetStored(charge: chargeScore) }
 
+    /// The rings on their own, as in the first Forge boards: three equal rings with their names, no card, no
+    /// sentence and no buttons, and room below before the rest of the day. Log moved to the header; a workout
+    /// starts from the Training tab.
     private var hero: some View {
-        // A little smaller than the shipped hero, as in the prototype: the card carries more than the rings.
-        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth) * 0.88
+        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth) * 0.92
         let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
-        return VStack(spacing: 12) {
-            OrganicScoreHeroClock(dataReady: snapshot.loaded || effortScore != nil) { frame in
-                HStack(alignment: .top, spacing: 0) {
-                    ringCell(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
-                             tint: chargeScore.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.organicMissing,
-                             caption: chargeCaption, frame: frame, diameter: diameter, hit: hit,
-                             route: ForgeRoute.charge)
-                    ringCell(metric: .effort, label: DomainTheme.effort.productName, score: effortScore,
-                             tint: StrandPalette.organicEffort, caption: effortCaption,
-                             frame: frame, diameter: diameter, hit: hit,
-                             maxValue: effortScale == .whoop ? 21 : 100, decimals: effortScale == .whoop ? 1 : 0,
-                             route: ForgeRoute.effort(stored: snapshot.effortStored, charge: chargeScore))
-                    ringCell(metric: .rest, label: DomainTheme.rest.productName, score: snapshot.loaded ? snapshot.rest : nil,
-                             tint: StrandPalette.organicRest,
-                             caption: (snapshot.loaded ? snapshot.rest : nil).map(ForgeToday.restWord),
-                             frame: frame, diameter: diameter, hit: hit,
-                             route: ForgeRoute.rest(snapshot.loaded ? snapshot.rest : nil))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .background(GeometryReader { geo in
-                Color.clear
-                    .onAppear { rowWidth = geo.size.width }
-                    .onChange(of: geo.size.width) { _, w in rowWidth = w }
-            })
-
-            if let line = ForgeToday.summary(effortStored: snapshot.effortStored, charge: chargeScore, scale: effortScale) {
-                Text(line)
-                    .font(ForgeFont.body)
-                    .foregroundStyle(ForgeColor.text)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            HStack(spacing: 10) {
-                heroButton("Log", systemImage: "plus", action: onLog)
-                heroButton("Workout", systemImage: "figure.run", action: onWorkout)
+        return OrganicScoreHeroClock(dataReady: snapshot.loaded || effortScore != nil) { frame in
+            HStack(alignment: .top, spacing: 0) {
+                ringCell(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
+                         tint: chargeScore.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.organicMissing,
+                         caption: nil, frame: frame, diameter: diameter, hit: hit,
+                         route: ForgeRoute.charge)
+                ringCell(metric: .effort, label: DomainTheme.effort.productName, score: effortScore,
+                         tint: StrandPalette.organicEffort, caption: nil,
+                         frame: frame, diameter: diameter, hit: hit,
+                         maxValue: effortScale == .whoop ? 21 : 100, decimals: effortScale == .whoop ? 1 : 0,
+                         route: ForgeRoute.effort(stored: snapshot.effortStored, charge: chargeScore))
+                ringCell(metric: .rest, label: DomainTheme.rest.productName, score: snapshot.loaded ? snapshot.rest : nil,
+                         tint: StrandPalette.organicRest, caption: nil,
+                         frame: frame, diameter: diameter, hit: hit,
+                         route: ForgeRoute.rest(snapshot.loaded ? snapshot.rest : nil))
             }
         }
-        .padding(.top, 6)
-        .forgeCard(radius: 30, padding: 14)
+        .frame(maxWidth: .infinity)
+        .background(GeometryReader { geo in
+            Color.clear
+                .onAppear { rowWidth = geo.size.width }
+                .onChange(of: geo.size.width) { _, w in rowWidth = w }
+        })
+        .padding(.top, 8)
+        .padding(.bottom, 22)
     }
 
     /// The three scores in one glass bar while the rings are scrolled away. Tapping returns to the top.
@@ -258,20 +254,6 @@ struct ForgeTodayView: View {
         }
     }
 
-    private var chargeCaption: String? {
-        switch snapshot.charge {
-        case .carried, .calibrating: return snapshot.charge.stateLabel
-        case .scored(let pct): return ChargeBand.of(score: pct).word.capitalized(with: AppLanguage.activeLocale)
-        case .noData: return nil
-        }
-    }
-
-    private var effortCaption: String? {
-        guard let target = effortTarget else { return nil }
-        let t = ForgeToday.targetText(target, scale: effortScale)
-        return String(localized: "target \(t.low) to \(t.high)")
-    }
-
     private func ringCell<Route: Hashable>(metric: OrganicScoreMetric, label: String, score: Double?, tint: Color,
                                            caption: String?, frame: OrganicScoreFrame, diameter: CGFloat, hit: CGFloat,
                                            maxValue: Double = 100, decimals: Int = 0, route: Route) -> some View {
@@ -285,10 +267,12 @@ struct ForgeTodayView: View {
                     .font(.system(.subheadline, weight: .semibold))
                     .foregroundStyle(Self.labelTint(metric))
                     .lineLimit(1).minimumScaleFactor(0.8)
-                Text(caption ?? " ")
-                    .font(.system(.caption))
-                    .foregroundStyle(ForgeColor.secondary)
-                    .lineLimit(1).minimumScaleFactor(0.75)
+                if let caption {
+                    Text(caption)
+                        .font(.system(.caption))
+                        .foregroundStyle(ForgeColor.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                }
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -312,17 +296,6 @@ struct ForgeTodayView: View {
         }
         if let caption { parts.append(caption) }
         return parts.joined(separator: ", ")
-    }
-
-    private func heroButton(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.system(.subheadline, weight: .semibold))
-                .foregroundStyle(ForgeColor.accent)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(Capsule().fill(ForgeColor.fill))
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Later today
