@@ -3747,5 +3747,15 @@
   "In your last %lld cycles it rose between day %lld and day %lld.": "在你最近 %1$lld 個週期中，體溫在第 %2$lld 至 %3$lld 天之間上升。",
   "For you this cycle: about day %lld to %lld.": "你本週期約為第 %1$lld 至 %2$lld 天。",
   "Cycle · %@": "週期 · %@",
-  "Rough estimate, not birth control.": "粗略估計，不能用於避孕。"
+  "Rough estimate, not birth control.": "粗略估計，不能用於避孕。",
+  "Cycle update": "週期更新",
+  "Fertile days start tomorrow": "易孕期明天開始",
+  "Open NOOP to see your cycle.": "打開 NOOP 查看你的週期。",
+  "Likely fertile from today": "從今天起可能進入易孕期",
+  "Notifications are off for NOOP. Turn them on in the iPhone Settings app.": "NOOP 的通知已關閉，請在 iPhone 的設定 App 中開啟。",
+  "Remind me of my fertile days": "提醒我易孕期",
+  "A notification the evening before and on the morning of the first likely fertile day.": "在第一個可能易孕日的前一晚和當天早上各提醒一次。",
+  "Discreet on the Lock Screen": "鎖定畫面上低調顯示",
+  "Shows only \"Cycle update\", so nobody reading your Lock Screen learns more.": "只顯示「週期更新」，看到鎖定畫面的人不會得知更多。",
+  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "在第一個可能易孕日的前一晚和當天早上各提醒一次。粗略估計，不能用於避孕。"
 }

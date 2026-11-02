@@ -38,6 +38,8 @@ struct AutomationsView: View {
     private var cycleOptInApplies: Bool { model.profile.cycleAwarenessApplies }
     /// v5 Rhythm experimental gate (the screen still shows its own consent clickwrap when opened).
     @AppStorage(RhythmConsent.enabledKey) private var rhythmEnabled = false
+    @AppStorage(FertileReminder.enabledKey) private var fertileReminder = false
+    @AppStorage(FertileReminder.discreetKey) private var fertileDiscreet = true
     /// Inactivity reminder (#419) — UI-local store, persisted in UserDefaults. The buzz itself fires
     /// from the BLE offload path (BLEManager.maybeBuzzInactivity → the shipped SedentaryDetector); this
     /// screen only edits the prefs the engine reads.
@@ -522,6 +524,21 @@ struct AutomationsView: View {
                                 Task { await model.refreshV5Signals() }
                             }
                         rowDivider
+                        if cycleAwareness {
+                            // The same switches as on the cycle page (same keys), so a reminder can be found
+                            // where every other reminder lives.
+                            ToggleRow(label: String(localized: "Remind me of my fertile days"),
+                                      help: String(localized: "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control."),
+                                      isOn: Binding(get: { fertileReminder },
+                                                    set: { on in FertileReminder.setEnabled(on) { fertileReminder = $0 == .scheduled } }))
+                            rowDivider
+                            if fertileReminder {
+                                ToggleRow(label: String(localized: "Discreet on the Lock Screen"),
+                                          help: String(localized: "Shows only \"Cycle update\", so nobody reading your Lock Screen learns more."),
+                                          isOn: Binding(get: { fertileDiscreet }, set: { FertileReminder.setDiscreet($0) }))
+                                rowDivider
+                            }
+                        }
                     }
                 }
                 ToggleRow(label: String(localized: "Rhythm visualization (experimental)"),

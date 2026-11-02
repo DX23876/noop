@@ -66,6 +66,8 @@ struct ForgeCycleView: View {
         // Always re-read: a phase computed before the nights arrived would otherwise stay "learning".
         await appModel.refreshV5Signals()
         loaded = true
+        FertileReminder.reschedule(windowStart: ForgeCycleSnapshot.make(result: appModel.cyclePhase, starts: starts, log: log,
+                                                                       days: repo.days, today: today, showFertile: showFertile).fertileStartAhead)
         if learning { pattern = await learnPattern() }
     }
 
@@ -207,6 +209,11 @@ struct ForgeCycleView: View {
             }
             .tint(ForgeColor.accent)
             .padding(14)
+            if showFertile {
+                Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 14)
+                ForgeFertileReminderToggles()
+                    .padding(14)
+            }
             Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 14)
             Button(role: .destructive) {
                 cycleEnabled = false
@@ -345,6 +352,12 @@ struct ForgeCycleSnapshot {
         case nil:
             return nil
         }
+    }
+
+    /// The first likely fertile day as a date, while it still lies ahead; what the reminder arms.
+    var fertileStartAhead: Date? {
+        guard case .before? = fertileStatus, let fertile, let startDate else { return nil }
+        return Calendar.current.date(byAdding: .day, value: fertile.firstDay - 1, to: startDate)
     }
 
     func isFertile(day d: Int) -> Bool {

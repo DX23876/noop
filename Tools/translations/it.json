@@ -3686,5 +3686,15 @@
   "In your last %lld cycles it rose between day %lld and day %lld.": "Negli ultimi %1$lld cicli è salita tra il giorno %2$lld e il giorno %3$lld.",
   "For you this cycle: about day %lld to %lld.": "Per te in questo ciclo: circa dal giorno %1$lld al %2$lld.",
   "Cycle · %@": "Ciclo · %@",
-  "Rough estimate, not birth control.": "Stima approssimativa, non contraccezione."
+  "Rough estimate, not birth control.": "Stima approssimativa, non contraccezione.",
+  "Cycle update": "Novità sul ciclo",
+  "Fertile days start tomorrow": "I giorni fertili iniziano domani",
+  "Open NOOP to see your cycle.": "Apri NOOP per vedere il tuo ciclo.",
+  "Likely fertile from today": "Probabilmente fertile da oggi",
+  "Notifications are off for NOOP. Turn them on in the iPhone Settings app.": "Le notifiche di NOOP sono disattivate. Attivale nell'app Impostazioni dell'iPhone.",
+  "Remind me of my fertile days": "Ricordami i giorni fertili",
+  "A notification the evening before and on the morning of the first likely fertile day.": "Una notifica la sera prima e la mattina del primo giorno probabilmente fertile.",
+  "Discreet on the Lock Screen": "Discreto sulla schermata di blocco",
+  "Shows only \"Cycle update\", so nobody reading your Lock Screen learns more.": "Mostra solo «Novità sul ciclo», così chi guarda la schermata di blocco non scopre altro.",
+  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "Una notifica la sera prima e la mattina del primo giorno probabilmente fertile. Una stima approssimativa, non contraccezione."
 }

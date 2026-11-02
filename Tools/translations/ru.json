@@ -3569,5 +3569,15 @@
   "In your last %lld cycles it rose between day %lld and day %lld.": "В последних %1$lld циклах она поднималась между днём %2$lld и днём %3$lld.",
   "For you this cycle: about day %lld to %lld.": "Для тебя в этом цикле: примерно дни %1$lld–%2$lld.",
   "Cycle · %@": "Цикл · %@",
-  "Rough estimate, not birth control.": "Грубая оценка, не контрацепция."
+  "Rough estimate, not birth control.": "Грубая оценка, не контрацепция.",
+  "Cycle update": "Новое о цикле",
+  "Fertile days start tomorrow": "Фертильные дни начинаются завтра",
+  "Open NOOP to see your cycle.": "Открой NOOP, чтобы увидеть свой цикл.",
+  "Likely fertile from today": "С сегодняшнего дня вероятно фертильна",
+  "Notifications are off for NOOP. Turn them on in the iPhone Settings app.": "Уведомления NOOP выключены. Включи их в приложении «Настройки» на iPhone.",
+  "Remind me of my fertile days": "Напоминать о фертильных днях",
+  "A notification the evening before and on the morning of the first likely fertile day.": "Уведомление накануне вечером и утром первого вероятно фертильного дня.",
+  "Discreet on the Lock Screen": "Незаметно на экране блокировки",
+  "Shows only \"Cycle update\", so nobody reading your Lock Screen learns more.": "Показывает только «Новое о цикле», чтобы никто не узнал больше с экрана блокировки.",
+  "A notification the evening before and on the morning of the first likely fertile day. A rough estimate, not birth control.": "Уведомление накануне вечером и утром первого вероятно фертильного дня. Грубая оценка, не контрацепция."
 }

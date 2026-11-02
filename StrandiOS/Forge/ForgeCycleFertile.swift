@@ -230,6 +230,48 @@ final class ForgeCycleLoader: ObservableObject {
             guard !Task.isCancelled, let self else { return }
             self.starts = starts
             self.log = log
+            let showFertile = UserDefaults.standard.object(forKey: ForgeCycleSnapshot.fertileKey) as? Bool ?? true
+            FertileReminder.reschedule(windowStart: ForgeCycleSnapshot.make(result: model.cyclePhase, starts: starts, log: log,
+                                                                           days: repo.days, today: today, showFertile: showFertile).fertileStartAhead)
+        }
+    }
+}
+/// The fertile-days reminder switches, on the cycle page. The same keys back the switches in Alerts and
+/// reminders, so either place shows the other's choice.
+struct ForgeFertileReminderToggles: View {
+    @AppStorage(FertileReminder.enabledKey) private var enabled = false
+    @AppStorage(FertileReminder.discreetKey) private var discreet = true
+    @State private var denied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle(isOn: Binding(get: { enabled }, set: { on in
+                FertileReminder.setEnabled(on) { outcome in denied = outcome == .denied }
+            })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Remind me of my fertile days").font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Text("A notification the evening before and on the morning of the first likely fertile day.")
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(ForgeColor.accent)
+            if denied {
+                Text("Notifications are off for NOOP. Turn them on in the iPhone Settings app.")
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.effort)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if enabled {
+                Toggle(isOn: Binding(get: { discreet }, set: { FertileReminder.setDiscreet($0) })) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Discreet on the Lock Screen").font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text("Shows only \"Cycle update\", so nobody reading your Lock Screen learns more.")
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(ForgeColor.accent)
+            }
         }
     }
 }
