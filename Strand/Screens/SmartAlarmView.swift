@@ -48,29 +48,33 @@ struct SmartAlarmView: View {
             // The wake schedule comes first because both features below are read from it: the strap alarm
             // buzzes at it, the reminder is timed back from it. The honesty note closes the screen rather
             // than splitting the two features, and still sits below the alarm it describes.
-            if NoopVisualStyle.skin == .forge {
-                forgeBody
-            } else {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 windowHero
-                wakeScheduleCard
-                strapAlarmCard
-                strapRejectedCard   // #34: only shows when the strap keeps refusing the alarm
-                windDownCard
-                honestyCard
+                if Self.forge {
+                    // New design: when it goes off first, then the alarm, the schedule and the evening.
+                    strapRejectedCard
+                    ForgeSectionHeading("Strap wake-alarm")
+                    strapAlarmCard
+                    ForgeSectionHeading("Schedule")
+                    wakeScheduleCard
+                    ForgeSectionHeading("Evening")
+                    windDownCard
+                    DisclosureGroup {
+                        honestyCard
+                    } label: {
+                        Text("The strap alarm is a silent buzz, not a sound")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    .tint(StrandPalette.textSecondary)
+                } else {
+                    wakeScheduleCard
+                    strapAlarmCard
+                    strapRejectedCard   // #34: only shows when the strap keeps refusing the alarm
+                    windDownCard
+                    honestyCard
+                }
             }
-            }
-        }
-        .onChangeCompat(of: behavior.smartAlarmEnabled) { _ in
-            if NoopVisualStyle.skin == .forge { model.applySmartAlarm() }
-        }
-        .onChangeCompat(of: behavior.smartAlarmWeekdays) { _ in
-            if NoopVisualStyle.skin == .forge { model.applySmartAlarm() }
-        }
-        .onChangeCompat(of: behavior.smartAlarmMinutes) { minutes in
-            guard NoopVisualStyle.skin == .forge else { return }
-            WindDownNudge.setWakeMinutes(minutes)
-            rearmStrapAlarmIfOn()
         }
         .onAppear(perform: unifyWakeTimesOnce)
         .alert(String(localized: "Notifications are off"), isPresented: $showNotifDeniedAlert) {
@@ -79,154 +83,6 @@ struct SmartAlarmView: View {
         } message: {
             Text("Turn on notifications for NOOP in Settings to get your wind-down reminder.")
         }
-    }
-
-    // MARK: - New design
-
-    /// When it goes off first, then what can be set: the alarm, the wake schedule, the evening.
-    private var forgeBody: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-            forgeHero
-            strapRejectedCard
-            ForgeSectionHeading("Strap wake-alarm")
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    forgeToggle("Wake me with a strap buzz", "Arms the strap to buzz at your wake time, even if NOOP is closed.",
-                                isOn: $behavior.smartAlarmEnabled)
-                    if behavior.smartAlarmEnabled {
-                        Divider().overlay(StrandPalette.hairline)
-                        alarmWeekdayPicker
-                        if model.whoop5Detected && !PuffinExperiment.isEnabled {
-                            Text("WHOOP 5/MG strap alarms require Protocol probes (Test Centre → 5/MG protocol diagnostics). Your wake time is saved, but the strap is not armed yet. Keep a backup alarm.")
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.statusWarningForeground)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else if model.whoop5Detected {
-                            Text("Armed on the strap with an experimental 5/MG command. Strap-driven wakes have been reported on 5.0 and MG, but are not guaranteed. Keep a backup alarm for anything you cannot miss.")
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            Divider().overlay(StrandPalette.hairline)
-                            Button { model.ble.getStrapAlarm() } label: {
-                                HStack {
-                                    Text("Check what the strap has stored")
-                                        .font(StrandFont.subhead)
-                                        .foregroundStyle(StrandPalette.textPrimary)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(StrandFont.caption.weight(.semibold))
-                                        .foregroundStyle(StrandPalette.textTertiary)
-                                }
-                                .frame(minHeight: 44)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-            ForgeSectionHeading("Schedule")
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    HStack {
-                        Text("Your usual wake time").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        DatePicker("", selection: wakeBinding, displayedComponents: .hourAndMinute)
-                            .labelsHidden().datePickerStyle(.compact)
-                            .accessibilityLabel("Your usual wake time")
-                    }
-                    .frame(minHeight: 44)
-                    Divider().overlay(StrandPalette.hairline)
-                    perDaySection
-                }
-            }
-            ForgeSectionHeading("Evening")
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    forgeToggle("Remind me to wind down", "A calm evening reminder, timed from your wake time and usual sleep need. It's a suggestion, not an alarm.",
-                                isOn: $windDownOn)
-                        .onChangeCompat(of: windDownOn) { on in
-                            WindDownNudge.setEnabled(on) { outcome in
-                                if outcome == .denied {
-                                    windDownOn = false
-                                    showNotifDeniedAlert = true
-                                }
-                            }
-                        }
-                    if windDownOn {
-                        Divider().overlay(StrandPalette.hairline)
-                        Text("You'll be reminded around \(timeLabel(WindDownNudge.nudgeMinuteOfDay(forWake: nextWakeMinutes))).")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                    }
-                }
-            }
-            DisclosureGroup {
-                Text("The wake-alarm above buzzes your wrist from the strap's own firmware. It can't sound a loud alarm. We also schedule a backup notification at your wake time, but a sideloaded app can't sound a guaranteed wake on this device (that needs a critical-alert permission this build doesn't have), so Focus or silent mode can still mute it. Keep your phone's built-in Clock alarm as your real backup. NOOP's phone-based smart wake (light-sleep detection) is available on the Android app.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, NoopMetrics.space2)
-            } label: {
-                Text("The strap alarm is a silent buzz, not a sound")
-                    .font(StrandFont.subhead.weight(.semibold))
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            .tint(StrandPalette.textSecondary)
-        }
-    }
-
-    /// The next moment anything happens, as large as the page allows.
-    private var forgeHero: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                TimelineView(.periodic(from: .now, by: 60)) { tick in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(timeLabel(nextWakeMinutes))
-                            .font(StrandFont.rounded(56, weight: .bold).monospacedDigit())
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        if let countdown = strapAlarmCountdown(from: tick.date) {
-                            Text(countdown)
-                                .font(StrandFont.subhead.weight(.semibold))
-                                .foregroundStyle(StrandPalette.accent)
-                                .fixedSize(horizontal: false, vertical: true)
-                            if let stamp = nextStrapAlarmStamp(from: tick.date) {
-                                Text(stamp).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                            }
-                        } else {
-                            Text("Usual wake").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                        }
-                    }
-                }
-                if windDownOn {
-                    Divider().overlay(StrandPalette.hairline)
-                    HStack {
-                        Label("Wind down", systemImage: "moon.zzz.fill")
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                        Spacer()
-                        Text(timeLabel(WindDownNudge.nudgeMinuteOfDay(forWake: nextWakeMinutes)))
-                            .font(StrandFont.number(17).monospacedDigit())
-                            .foregroundStyle(StrandPalette.textPrimary)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private func forgeToggle(_ title: LocalizedStringKey, _ subtitle: LocalizedStringKey, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                Text(subtitle).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .tint(StrandPalette.chargeColor)
-        .frame(minHeight: 44)
     }
 
     /// Deep-link to the OS notification settings so a user who denied can flip it back on — the system
@@ -246,11 +102,23 @@ struct SmartAlarmView: View {
     // A small Rest-tinted hero — the wind-down readout as a clean time pairing (wind-down → wake)
     // over a scenic Rest backdrop, so a glance gives the night's shape. It's about winding down to
     // sleep, so it reads in the Rest world (indigo) rather than the brand-green chrome below.
+    private static var forge: Bool { NoopVisualStyle.skin == .forge }
+
     private var windowHero: some View {
         ZStack {
-            ScenicHeroBackground(domain: .rest)
-                .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+            if Self.forge {
+                FrostedCardSurface(cornerRadius: NoopMetrics.cardRadius)
+            } else {
+                ScenicHeroBackground(domain: .rest)
+                    .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+            }
             VStack(alignment: .leading, spacing: 12) {
+                if Self.forge {
+                    // The next wake is the page's answer, as large as it can be.
+                    Text(timeLabel(nextWakeMinutes))
+                        .font(StrandFont.rounded(56, weight: .bold).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                } else {
                 Text("Tonight").strandOverline()
                 // Both figures resolve the NEXT wake, per-day override included, so a Saturday lie-in
                 // shows Saturday's pair rather than the base time or a blank.
@@ -273,6 +141,7 @@ struct SmartAlarmView: View {
                     // that time on the days it is on. It gets the countdown block below instead, which
                     // states exactly when it next fires.
                     Spacer(minLength: 0)
+                }
                 }
                 // How long until it actually goes off. "10:00" does not say whether that is nine hours
                 // away or thirty-three, which is the thing you want at a glance. It lives HERE rather
@@ -305,12 +174,28 @@ struct SmartAlarmView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+                if Self.forge {
+                    if windDownOn {
+                        HStack {
+                            Label("Wind down", systemImage: "moon.zzz.fill")
+                                .font(StrandFont.subhead)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                            Spacer()
+                            Text(timeLabel(WindDownNudge.nudgeMinuteOfDay(forWake: nextWakeMinutes)))
+                                .font(StrandFont.number(17).monospacedDigit())
+                                .foregroundStyle(StrandPalette.textPrimary)
+                        }
+                    } else {
+                        Text("Usual wake").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                } else {
                 Text(windDownOn
                      ? "A calm nudge \(WindDownNudge.sleepNeedMinutes / 60)h \(WindDownNudge.leadMinutes)m before your usual wake time."
                      : "Turn on the wind-down reminder below to land at your usual wake time rested.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(20)
         }
@@ -354,7 +239,14 @@ struct SmartAlarmView: View {
     // The up-front, honest note about the difference between the strap's silent buzz (above) and a loud
     // phone wake. The strap alarm is real, but it's a gentle wrist buzz, not a sound, so we say plainly
     // to keep a backup, and that the louder smart wake lives on Android.
-    private var honestyCard: some View {
+    @ViewBuilder private var honestyCard: some View {
+        if Self.forge {
+            Text("The wake-alarm above buzzes your wrist from the strap's own firmware. It can't sound a loud alarm. We also schedule a backup notification at your wake time, but a sideloaded app can't sound a guaranteed wake on this device (that needs a critical-alert permission this build doesn't have), so Focus or silent mode can still mute it. Keep your phone's built-in Clock alarm as your real backup. NOOP's phone-based smart wake (light-sleep detection) is available on the Android app.")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, NoopMetrics.space2)
+        } else {
         StrandCard(padding: 20) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "bell.slash")
@@ -371,6 +263,7 @@ struct SmartAlarmView: View {
                 }
             }
         }
+        }
     }
 
     // MARK: - Strap silent wake-alarm (#766, moved here from Automations)
@@ -379,8 +272,9 @@ struct SmartAlarmView: View {
     // even if the phone is asleep or NOOP is closed. Lifted verbatim (behaviour intact) out of
     // AutomationsView.alarmCard so users stop conflating it with the wind-down reminder below.
     private var strapAlarmCard: some View {
-        StrandCard(padding: 20, tint: behavior.smartAlarmEnabled ? StrandPalette.accent : nil) {
+        StrandCard(padding: Self.forge ? 16 : 20, tint: behavior.smartAlarmEnabled && !Self.forge ? StrandPalette.accent : nil) {
             VStack(alignment: .leading, spacing: 16) {
+                if !Self.forge {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Morning").strandOverline()
                     HStack(spacing: 10) {
@@ -392,13 +286,14 @@ struct SmartAlarmView: View {
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
                 }
+                }
 
                 HStack(alignment: .center, spacing: 16) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Wake me with a strap buzz")
                             .font(StrandFont.body)
                             .foregroundStyle(StrandPalette.textPrimary)
-                        Text("Arms the strap to buzz at your wake time, even if NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss.")
+                        Text(Self.forge ? "Arms the strap to buzz at your wake time, even if NOOP is closed." : "Arms the strap to buzz at your wake time, even if NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -437,10 +332,12 @@ struct SmartAlarmView: View {
                             .foregroundStyle(StrandPalette.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
+                        if !Self.forge {
                         Text("Armed on the strap itself, so it can buzz at your wake time even if your phone is asleep or NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                         // #1706: ask the strap what it actually has stored. The readback was otherwise
                         // only reachable by ARMING, so anyone whose alarm is off could not produce the
                         // frame that explains a wrong reported time.
@@ -479,8 +376,9 @@ struct SmartAlarmView: View {
     /// so there is one time to set and one answer. It is shown whatever either switch says, because the
     /// reminder alone needs a wake time just as much as the alarm does.
     private var wakeScheduleCard: some View {
-        StrandCard(padding: 20) {
+        StrandCard(padding: Self.forge ? 16 : 20) {
             VStack(alignment: .leading, spacing: 16) {
+                if !Self.forge {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Schedule").strandOverline()
                     HStack(spacing: 10) {
@@ -491,6 +389,7 @@ struct SmartAlarmView: View {
                             .font(StrandFont.title2)
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
+                }
                 }
 
                 HStack(alignment: .center, spacing: 16) {
@@ -525,8 +424,9 @@ struct SmartAlarmView: View {
 
     private var windDownCard: some View {
         // Rest-tinted when armed so the active state reads in the sleep world; neutral when off.
-        StrandCard(padding: 20, tint: windDownOn ? StrandPalette.restColor : nil) {
+        StrandCard(padding: Self.forge ? 16 : 20, tint: windDownOn && !Self.forge ? StrandPalette.restColor : nil) {
             VStack(alignment: .leading, spacing: 16) {
+                if !Self.forge {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Evening").strandOverline()
                     HStack(spacing: 10) {
@@ -537,6 +437,7 @@ struct SmartAlarmView: View {
                             .font(StrandFont.title2)
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
+                }
                 }
 
                 HStack(alignment: .center, spacing: 16) {
