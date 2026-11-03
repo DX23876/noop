@@ -125,13 +125,13 @@ struct ForgeTrainingView: View {
                     VStack(spacing: 5) {
                         // A trained day shows that day's sport, as in the prototype; an open day stays light.
                         Circle()
-                            .fill(done ? ForgeColor.effort : ForgeColor.card.opacity(0.7))
-                            .overlay(Circle().strokeBorder(isToday ? ForgeColor.text : ForgeColor.hairline,
-                                                           lineWidth: isToday ? 2 : 1))
+                            .fill(done ? ForgeColor.effort.opacity(0.22) : ForgeColor.card.opacity(0.7))
+                            .overlay(Circle().strokeBorder(isToday ? ForgeColor.effortInk : ForgeColor.hairline,
+                                                           lineWidth: isToday ? 1.5 : 1))
                             .frame(width: 36, height: 36)
                             .overlay {
                                 if let first {
-                                    WorkoutTypeIcon(workoutType: first.sport, size: 14, weight: .semibold, color: .white)
+                                    WorkoutTypeIcon(workoutType: first.sport, size: 14, weight: .semibold, color: ForgeColor.effortInk)
                                 }
                             }
                         Text(day, format: .dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
@@ -279,10 +279,10 @@ struct ForgeTrainingView: View {
                 .padding(.horizontal, 4).padding(.top, 14)
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
-                        ForEach(Array(hub.plan.routines.enumerated()), id: \.element.id) { index, routine in
+                        ForEach(hub.plan.routines) { routine in
                             Button { session.requestStrength(routines: [routine]) } label: {
                                 routineCard(title: routine.title, subtitle: String(localized: "\(routine.exercises.count) exercises"),
-                                            systemImage: "dumbbell.fill", tint: Self.routineTints[index % Self.routineTints.count])
+                                            systemImage: "dumbbell.fill")
                             }
                             .buttonStyle(LiquidPressStyle())
                             .accessibilityLabel(Text("Start \(routine.title)"))
@@ -293,7 +293,7 @@ struct ForgeTrainingView: View {
                             } label: {
                                 routineCard(title: String(localized: "Create with the coach"),
                                             subtitle: String(localized: "from your goals"),
-                                            systemImage: "wand.and.stars", tint: ForgeColor.accent)
+                                            systemImage: "wand.and.stars")
                             }
                             .buttonStyle(LiquidPressStyle())
                         }
@@ -304,10 +304,8 @@ struct ForgeTrainingView: View {
         }
     }
 
-    /// The prototype's routine colours: each card a light wash of a domain colour.
-    private static let routineTints: [Color] = [ForgeColor.effort, ForgeColor.charge, ForgeColor.rest]
-
-    private func routineCard(title: String, subtitle: String, systemImage: String, tint: Color) -> some View {
+    /// Every routine in one light wash of Effort, the tab's colour: the title tells them apart.
+    private func routineCard(title: String, subtitle: String, systemImage: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Image(systemName: systemImage)
                 .font(.system(.title3, weight: .semibold))
@@ -322,7 +320,7 @@ struct ForgeTrainingView: View {
         }
         .padding(14)
         .frame(width: 150, height: 120, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(tint.opacity(0.22)))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(ForgeColor.effort.opacity(0.14)))
     }
 
     // MARK: Recent

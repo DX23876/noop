@@ -31,7 +31,6 @@ struct ForgeTodayView: View {
     @EnvironmentObject private var profile: ProfileStore
     @EnvironmentObject private var router: NavRouter
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
@@ -49,10 +48,7 @@ struct ForgeTodayView: View {
 
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var motifOn = ForgeDesignPrefs.skyDefaultInNewDesign
     @ObservedObject private var backdropPhoto = BackgroundImageStore.shared
-    /// The motif at night is dark in either appearance, so what sits on it reads as on a dark page.
-    private var onDarkMotif: Bool {
-        motifOn && !backdropPhoto.isActive && DayCycleScene.isDark(hour: Calendar.current.component(.hour, from: Date()))
-    }
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var snapshot = Snapshot()
     @State private var showPlan = false
@@ -94,8 +90,7 @@ struct ForgeTodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForgeTodayHeader(onProfile: onProfile)
-                            .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
+                        ForgeLargeHeader(title: "Today", onProfile: onProfile)
                             .id("forge-today-top")
                         VStack(alignment: .leading, spacing: 14) {
                             HealthAlertBanner()
@@ -112,7 +107,6 @@ struct ForgeTodayView: View {
                                     action: { router.openDevices() })
                             }
                             hero
-                                .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
                                 // Holding the rings offers the tile editor too, as the system menu, so a hold
                                 // never also opens the ring it lands on.
                                 .contextMenu {
@@ -123,7 +117,6 @@ struct ForgeTodayView: View {
                                                            value: geo.frame(in: .named("forge-today")).maxY)
                                 })
                             actions
-                                .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
                             if !tilesBelowTimeline || editingWidgets {
                                 ForgeTodayWidgetArea(editing: $editingWidgets)
                             }
@@ -209,7 +202,7 @@ struct ForgeTodayView: View {
                     .font(.system(.body, weight: .semibold))
                     .foregroundStyle(ForgeColor.text)
                     .frame(width: 46, height: 46)
-                    .forgeGlassCapsule()
+                    .modifier(ForgeTodayActionSurface())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Customize Today"))
@@ -217,12 +210,14 @@ struct ForgeTodayView: View {
     }
 
     private func actionLabel(_ title: LocalizedStringKey, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.system(.subheadline, weight: .semibold))
-            .foregroundStyle(ForgeColor.text)
-            .frame(maxWidth: .infinity, minHeight: 46)
-            .forgeGlassCapsule()
-            .contentShape(Capsule())
+        HStack(spacing: 8) {
+            Image(systemName: systemImage).foregroundStyle(ForgeColor.accent)
+            Text(title).foregroundStyle(ForgeColor.text)
+        }
+        .font(.system(.subheadline, weight: .semibold))
+        .frame(maxWidth: .infinity, minHeight: 46)
+        .modifier(ForgeTodayActionSurface())
+        .contentShape(Capsule())
     }
 
     // MARK: - Hero
@@ -238,7 +233,7 @@ struct ForgeTodayView: View {
         return OrganicScoreHeroClock(dataReady: snapshot.loaded || effortScore != nil) { frame in
             HStack(alignment: .top, spacing: 0) {
                 ringCell(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
-                         tint: chargeScore.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.organicMissing,
+                         tint: chargeScore == nil ? StrandPalette.organicMissing : StrandPalette.chargeColor,
                          caption: nil, frame: frame, diameter: diameter, hit: hit,
                          route: ForgeRoute.charge)
                 ringCell(metric: .effort, label: DomainTheme.effort.productName, score: effortScore,
@@ -264,8 +259,7 @@ struct ForgeTodayView: View {
     /// The three scores in one glass bar while the rings are scrolled away. Tapping returns to the top.
     private var pinnedBar: some View {
         HStack(spacing: 18) {
-            pinnedValue(DomainTheme.charge.productName, chargeScore.map { "\(Int($0.rounded()))" },
-                        chargeScore.map { StrandPalette.chargeRingColor($0) } ?? ForgeColor.charge)
+            pinnedValue(DomainTheme.charge.productName, chargeScore.map { "\(Int($0.rounded()))" }, ForgeColor.charge)
             pinnedValue(DomainTheme.effort.productName,
                         snapshot.effortStored.map { ForgeToday.effortText($0, scale: effortScale) }, ForgeColor.effort)
             pinnedValue(DomainTheme.rest.productName,
@@ -310,6 +304,9 @@ struct ForgeTodayView: View {
                 OrganicScoreRing(model: model, tint: tint, score: score, decimals: decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
+                    // A ring on a picture glows only in its dark drawing: the light one turns to a blur with
+                    // black figures. Its name below stays in the page's own ink.
+                    .environment(\.colorScheme, motifOn || backdropPhoto.isActive ? .dark : colorScheme)
                 Text(label)
                     .font(.system(.subheadline, weight: .semibold))
                     .foregroundStyle(Self.labelTint(metric))
@@ -939,6 +936,18 @@ struct ForgeTodayView: View {
         }
     }
 }
+/// Log, Start and the pencil on the same solid surface as the tiles under them, not glass over the motif.
+private struct ForgeTodayActionSurface: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(Capsule().fill(ForgeColor.card))
+            .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 0.6))
+            .shadow(color: .black.opacity(colorScheme == .light ? 0.06 : 0), radius: 10, y: 3)
+    }
+}
+
 private extension View {
     /// An event on the day sheet: a quiet inset, the sheet itself being the card.
     func forgeEventTile() -> some View {

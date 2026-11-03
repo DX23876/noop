@@ -828,30 +828,39 @@ struct RootTabView: View {
     @ViewBuilder private var forgeTabView: some View {
         if #available(iOS 18.0, *) {
             TabView(selection: forgeSelection) {
-                Tab("Today", systemImage: "sun.max.fill", value: 0) {
+                Tab(value: 0) {
                     tabStack(forgeTodayRoot, path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true)
                         .environment(\.forgeTab, .today)
                         .environment(\.dashboardIsActive, selectedTab == 0)
+                } label: {
+                    forgeTabLabel("Today", symbol: "sun.max", selected: selectedTab == 0)
                 }
-                Tab("Training", systemImage: "figure.run", value: 2) {
+                Tab(value: 2) {
                     tabStack(forgeTrainingRoot, path: $tabPaths[2], scrollSignal: scrollTop[2], registersMore: true)
                         .environment(\.forgeTab, .training)
                         .environment(\.dashboardIsActive, selectedTab == 2)
+                } label: {
+                    forgeTabLabel("Training", symbol: "figure.run", selected: selectedTab == 2)
                 }
-                Tab("Sleep", systemImage: "moon.fill", value: 3) {
+                Tab(value: 3) {
                     tabStack(forgeSleepRoot, path: $tabPaths[3], scrollSignal: scrollTop[3], registersMore: true)
                         .environment(\.forgeTab, .sleep)
                         .environment(\.dashboardIsActive, selectedTab == 3)
+                } label: {
+                    forgeTabLabel("Sleep", symbol: "moon", selected: selectedTab == 3)
                 }
-                Tab("Health", systemImage: "heart.fill", value: 1) {
+                Tab(value: 1) {
                     tabStack(forgeHealthRoot, path: $tabPaths[1], scrollSignal: scrollTop[1], registersMore: true)
                         .environment(\.forgeTab, .health)
                         .environment(\.dashboardIsActive, selectedTab == 1)
+                } label: {
+                    forgeTabLabel("Health", symbol: "heart", selected: selectedTab == 1)
                 }
                 if coachFeatureEnabled {
-                    Tab("Coach", systemImage: "bubble.left.and.text.bubble.right.fill", value: Self.forgeCoachTag,
-                        role: .search) {
+                    Tab(value: Self.forgeCoachTag, role: .search) {
                         Color.clear
+                    } label: {
+                        forgeTabLabel("Coach", symbol: "bubble.left.and.text.bubble.right", selected: false)
                     }
                 }
             }
@@ -863,6 +872,12 @@ struct RootTabView: View {
                 tab(forgeHealthRoot, "Health", "heart.fill", path: $tabPaths[1], scrollSignal: scrollTop[1], registersMore: true).environment(\.dashboardIsActive, selectedTab == 1).tag(1)
             }
         }
+    }
+
+    /// A tab's label: a fine line at rest, filled only while open, so the bar stays calm.
+    private func forgeTabLabel(_ title: LocalizedStringKey, symbol: String, selected: Bool) -> some View {
+        Label(title, systemImage: symbol)
+            .environment(\.symbolVariants, selected ? .fill : .none)
     }
 
     /// Where a route that used to land on the More tab goes: the More tab itself, or in the redesign the

@@ -57,6 +57,15 @@ enum ForgeToday {
 
     /// Rest in one word, with the same thresholds and words the Overview dashboard uses for its Rest tile,
     /// so the two designs never describe the same night differently.
+    /// The hour of the day-cycle scene a light page shows: the night hours map to the nearest bright scene.
+    static func lightPageSceneHour(_ hour: Int) -> Int {
+        switch hour {
+        case 0...5: return 6
+        case 19...23: return 18
+        default: return hour
+        }
+    }
+
     static func restWord(_ score: Double) -> String {
         score >= 80 ? String(localized: "Good") : score >= 60 ? String(localized: "Fair") : String(localized: "Low")
     }

@@ -109,7 +109,7 @@ struct ForgeWeeklyReportView: View {
             OrganicScoreHeroClock(dataReady: true) { frame in
                 HStack(alignment: .top, spacing: 4) {
                     weekRing(.charge, w.this.mean(\.charge), w.last.mean(\.charge), name: DomainTheme.charge.productName,
-                             tint: StrandPalette.chargeRingColor(w.this.mean(\.charge) ?? 60), ink: ForgeColor.chargeInk,
+                             tint: StrandPalette.chargeColor, ink: ForgeColor.chargeInk,
                              scaleMaximum: 100, decimals: 0, frame: frame, format: { "\(Int($0.rounded()))" })
                     weekRing(.effort, w.this.mean(\.effort).map { UnitFormatter.effortValue($0, scale: effortScale) },
                              w.last.mean(\.effort).map { UnitFormatter.effortValue($0, scale: effortScale) },

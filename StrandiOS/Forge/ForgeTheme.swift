@@ -50,8 +50,9 @@ enum ForgeColor {
         let table: [ForgeTab: (UInt32, UInt32)]
         switch NoopVisualStyle.forgeProfile {
         case .colorful:
-            table = [.today: (0xB9D8FF, 0x12335F), .training: (0xBFF0CC, 0x0D4A2F),
-                     .sleep: (0xD3CBFF, 0x2A2270), .health: (0xFFC9D8, 0x511A30)]
+            // Each tab in the colour of what it holds: Training is Effort, Sleep is Rest, Health is Charge.
+            table = [.today: (0xCFE4FF, 0x12335F), .training: (0xFFE3CC, 0x4A2A12),
+                     .sleep: (0xE0DAFF, 0x2A2270), .health: (0xCDEFDC, 0x0D4A2F)]
         case .stone:
             table = [.today: (0xC9D6E8, 0x22314A), .training: (0xF0D2BC, 0x3A2418),
                      .sleep: (0xDCD4F0, 0x241F44), .health: (0xCFE2E0, 0x173040)]
@@ -71,9 +72,9 @@ enum ForgeColor {
         guard NoopVisualStyle.forgeProfile == .colorful else { return accent }
         switch tab {
         case .today: return dyn(0x007AFF, 0x0A84FF)
-        case .training: return dyn(0x248A3D, 0x30D158)
+        case .training: return dyn(0xC2570C, 0xFF9F5A)
         case .sleep: return dyn(0x5856D6, 0x7D7AFF)
-        case .health: return dyn(0xD70040, 0xFF375F)
+        case .health: return dyn(0x13896B, 0x3DDC97)
         case nil: return dyn(0x0071A4, 0x64D2FF)
         }
     }
@@ -88,7 +89,11 @@ enum ForgeFont {
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
     }
-    static let largeTitle = Font.system(.largeTitle, weight: .bold)
+    /// Page titles in New York, Apple's serif: softer than the system face and on every iPhone.
+    static var largeTitle: Font {
+        .system(.title, design: UserDefaults.standard.object(forKey: "forge.titleSerif") as? Bool ?? true ? .serif : .default,
+                weight: .bold)
+    }
     static let section = Font.system(.title2, weight: .bold)
     static let cardTitle = Font.system(.title3, weight: .semibold)
     static let body = Font.system(.subheadline)
@@ -125,19 +130,38 @@ struct ForgeBackground: View {
             if photo.isActive {
                 BackgroundImageBackdrop()
             } else if sky && showsMotif {
-                SceneScreenBackground(height: 640)
+                ForgeTodayMotif()
             } else {
-                // The prototype's per-tab tint reaches about the middle of the screen before it fades.
-                LinearGradient(stops: [.init(color: ForgeColor.wash(tab).opacity(0.95), location: 0),
-                                       .init(color: ForgeColor.wash(tab).opacity(0.55), location: 0.45),
+                // A soft per-tab tint that has gone by the middle of the screen.
+                LinearGradient(stops: [.init(color: ForgeColor.wash(tab).opacity(0.85), location: 0),
+                                       .init(color: ForgeColor.wash(tab).opacity(0.35), location: 0.5),
                                        .init(color: ForgeColor.wash(tab).opacity(0), location: 1)],
                                startPoint: .top, endPoint: .bottom)
-                    .frame(height: 720)
+                    .frame(height: 560)
             }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+/// Today's day-cycle motif, kept out of the way of what sits on it. A light page takes no night sky: it would
+/// turn the status bar's dark clock unreadable and fade to grey, so its evening stays at sunset and its small
+/// hours at dawn. On a dark page the night keeps its moon, raised past the title.
+private struct ForgeTodayMotif: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if colorScheme == .light {
+            SceneScreenBackground(hour: ForgeToday.lightPageSceneHour(hour), height: 540)
+                .opacity(0.8)
+        } else if hour >= 21 || hour <= 4 {
+            SceneScreenBackground(hour: hour, height: 750).offset(y: -110)
+        } else {
+            SceneScreenBackground(hour: hour, height: 640)
+        }
     }
 }
 
@@ -187,18 +211,8 @@ extension View {
 
 // MARK: - Header
 
-/// The weekday and date above every large title ("SUNDAY, NOVEMBER 1").
-enum ForgeHeaderDate {
-    static let formatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = AppLanguage.activeLocale
-        f.setLocalizedDateFormatFromTemplate("EEEEdMMMM")
-        return f
-    }()
-}
-
-/// Apple-style large title with the date above it and the strap battery, optional extra buttons and the
-/// profile button on the right.
+/// A tab's header in one row: the title with the date beside it, the strap's ring, optional extra buttons and
+/// the profile. One row leaves the height to the page. The date gives way first when space runs out.
 struct ForgeLargeHeader<Trailing: View>: View {
     let title: LocalizedStringKey
     var subtitle: String? = nil
@@ -207,57 +221,18 @@ struct ForgeLargeHeader<Trailing: View>: View {
     @EnvironmentObject private var profile: ProfileStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            // The date beside the buttons, shortened if it must, and above them only with large text, so
-            // it is never cut off.
+        HStack(alignment: .center, spacing: 0) {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 0) {
-                    date
-                    Spacer(minLength: 8)
-                    buttons
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    titleText
+                    Text(subtitle ?? Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)))
+                        .font(.system(.subheadline, weight: .medium))
+                        .foregroundStyle(ForgeColor.text.opacity(0.75))
+                        .lineLimit(1)
                 }
-                HStack(spacing: 0) {
-                    shortDate
-                    Spacer(minLength: 8)
-                    buttons
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    date
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        buttons
-                    }
-                }
+                titleText
             }
-            Text(title)
-                .font(ForgeFont.largeTitle)
-                .foregroundStyle(ForgeColor.text)
-                .accessibilityAddTraits(.isHeader)
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-private extension ForgeLargeHeader {
-    var date: some View {
-        Text((subtitle ?? ForgeHeaderDate.formatter.string(from: Date())).uppercased(with: AppLanguage.activeLocale))
-            .font(ForgeFont.overDate)
-            .foregroundStyle(ForgeColor.secondary)
-            .lineLimit(1)
-    }
-
-    /// "MO., 2. NOV." where the full date does not fit beside the buttons; a set subtitle stays as it is.
-    var shortDate: some View {
-        Text((subtitle ?? Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)))
-            .uppercased(with: AppLanguage.activeLocale))
-            .font(ForgeFont.overDate)
-            .foregroundStyle(ForgeColor.secondary)
-            .lineLimit(1)
-    }
-
-    /// No spacing: every button carries its own 44 pt hit area around a smaller visual.
-    var buttons: some View {
-        HStack(spacing: 0) {
+            Spacer(minLength: 8)
             // The ring already shows the level; the figure stays for VoiceOver and on the battery page.
             DashboardBatteryButton(size: 34, showsPercent: false)
                 .frame(minWidth: 44, minHeight: 44)
@@ -270,54 +245,22 @@ private extension ForgeLargeHeader {
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Profile and settings"))
         }
+        .padding(.leading, 20)
+        .padding(.trailing, 12)
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(ForgeFont.largeTitle)
+            .foregroundStyle(ForgeColor.text)
+            .lineLimit(1)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
 extension ForgeLargeHeader where Trailing == EmptyView {
     init(title: LocalizedStringKey, subtitle: String? = nil, onProfile: @escaping () -> Void) {
         self.init(title: title, subtitle: subtitle, onProfile: onProfile, trailing: { EmptyView() })
-    }
-}
-
-/// Today's header in one row: the bold title with the date beside it, the strap's ring and the profile. One
-/// row leaves the height to the rings. The date gives way first when text runs large.
-struct ForgeTodayHeader: View {
-    let onProfile: () -> Void
-    @EnvironmentObject private var profile: ProfileStore
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    title
-                    Text(Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)))
-                        .font(.system(.subheadline, weight: .semibold))
-                        .foregroundStyle(ForgeColor.text.opacity(0.8))
-                        .lineLimit(1)
-                }
-                title
-            }
-            Spacer(minLength: 8)
-            DashboardBatteryButton(size: 34, showsPercent: false)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
-            Button(action: onProfile) {
-                ProfileAvatarView(imageData: profile.avatarImageData, size: 32, fallbackTint: ForgeColor.accent)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text("Profile and settings"))
-        }
-        .padding(.leading, 20)
-        .padding(.trailing, 12)
-    }
-
-    private var title: some View {
-        Text("Today")
-            .font(.system(.largeTitle, weight: .heavy))
-            .foregroundStyle(ForgeColor.text)
-            .lineLimit(1)
-            .accessibilityAddTraits(.isHeader)
     }
 }
 

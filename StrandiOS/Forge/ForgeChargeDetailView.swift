@@ -96,7 +96,7 @@ struct ForgeChargeDetailView: View {
                     OrganicScoreHeroClock(dataReady: true) { frame in
                         OrganicScoreRing(
                             model: OrganicScoreVisualModel.resolve(metric: .charge, value: pct, scaleMaximum: 100),
-                            tint: pct.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.organicMissing,
+                            tint: pct.map { _ in StrandPalette.chargeColor } ?? StrandPalette.organicMissing,
                             score: pct, decimals: 0, frame: frame, diameter: 170, hitDiameter: 170)
                             .frame(width: 170, height: 170)
                     }
