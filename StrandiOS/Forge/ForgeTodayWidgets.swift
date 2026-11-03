@@ -344,9 +344,11 @@ struct ForgeBeatingHeart: View {
     let bpm: Int?
     var size: CGFloat = 26
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The gate every never-settling loop consults: when it says still, the heart stands still.
+    @ObservedObject private var motion = NoopMotionState.shared
 
     var body: some View {
-        if let bpm, bpm > 0, !reduceMotion {
+        if let bpm, bpm > 0, !motion.poseStill(reduceMotion) {
             TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                 heart(tint: StrandPalette.metricRose)
                     .scaleEffect(Self.scale(at: context.date.timeIntervalSinceReferenceDate, bpm: bpm))
