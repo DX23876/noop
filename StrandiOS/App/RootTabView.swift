@@ -66,6 +66,10 @@ struct RootTabView: View {
     /// Selected tab — bound so tab switches can crossfade (README §Motion: ~240ms opacity swap
     /// between tab roots, calm easing). Defaults to Today.
     @State private var selectedTab: Int = 0
+    /// The open area of the new design's tab bar; nil on the Coach tab.
+    private var forgeOpenTab: ForgeTab? {
+        [0: ForgeTab.today, 1: .health, 2: .training, 3: .sleep][selectedTab]
+    }
     @State private var customizeTodayAfterDismissal = false
     /// One `NavigationPath` per tab, indexed by tab tag. Re-tapping the already-active tab pops
     /// that tab's stack to its root (#135) by clearing its path — an animated pop that leaves the
@@ -277,7 +281,7 @@ struct RootTabView: View {
             // configurable Accent colour. `.tint()` colours the whole bar uniformly — there is no native
             // per-tab-item override — so this is deliberately a global change across all four tabs.
             // The redesign tints with its own accent (copper in light, gold in dark).
-            .tint(forgeDesign ? ForgeColor.accent : StrandPalette.chargeColor)
+            .tint(forgeDesign ? ForgeColor.tabTint(forgeOpenTab) : StrandPalette.chargeColor)
             // Shared cards rest on their fill alone under the redesign, as its own cards do.
             .environment(\.noopQuietCardRims, forgeDesign)
             // #1841: the same "Hide bar when scrolling" preference the macOS settings screen exposes.

@@ -48,10 +48,10 @@ private enum ForgeWidgetColor {
                            blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
         })
     }
-    static let canvas = pick(0xF4EFE8, 0x0A0D12)
+    static var canvas: Color { NoopVisualStyle.canvas }
     static let text = pick(0x000000, 0xFFFFFF)
     static let secondary = pick(0x6B6B70, 0xA8A8B0)
-    static let accent = pick(0x9A3E1C, 0xE8B64A)
+    static var accent: Color { StrandPalette.forgeAccent }
     static let effort = pick(0xD45F28, 0xFF8A3D)
     static let rest = pick(0x5B4DBF, 0xA996FF)
 }

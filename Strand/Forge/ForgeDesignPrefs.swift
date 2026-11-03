@@ -11,10 +11,15 @@ enum ForgeDesignPrefs {
     static let previewKey = "noop.forgeDesign.preview"
     static let defaultPreview = false
 
-    /// The day-cycle sky is ON by default in the shipped design. The new design starts plain, so its readers
-    /// default the SAME key to off: a person who never touched the switch sees the plain canvas, a person
-    /// who turned the sky on keeps it.
-    static let skyDefaultInNewDesign = false
+    /// The day-cycle sky follows the colour profile until the person sets it: on under Colorful, off under
+    /// the calm ones. Choosing a profile also writes the switch, and a person's own choice stays after that.
+    static var skyDefaultInNewDesign: Bool { NoopVisualStyle.forgeProfile == .colorful }
+
+    /// The stored colour profile, read before the first frame.
+    static func applyStoredProfile(_ defaults: UserDefaults = .standard) {
+        NoopVisualStyle.forgeProfile = NoopVisualStyle.ForgeColorProfile.resolve(
+            defaults.string(forKey: NoopVisualStyle.ForgeColorProfile.storageKey))
+    }
 
     /// `--new-design` in a DEBUG build turns the design on for simulator checks without writing the switch.
     static var launchOverride: Bool {
@@ -35,5 +40,8 @@ enum ForgeDesignPrefs {
     static func mirrorToAppGroup(_ defaults: UserDefaults = .standard) {
         UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?
             .set(isEnabled(defaults), forKey: WatchScoreSnapshot.forgeDesignKey)
+        UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?
+            .set(defaults.string(forKey: NoopVisualStyle.ForgeColorProfile.storageKey),
+                 forKey: NoopVisualStyle.ForgeColorProfile.storageKey)
     }
 }

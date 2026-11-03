@@ -18,17 +18,17 @@ enum ForgeColor {
         })
     }
 
-    static let canvas = dyn(0xF4EFE8, 0x0A0D12)
-    static let card = dyn(0xFFFDFA, 0x161A20)
-    static let raised = dyn(0xF2ECE3, 0x1E232B)
+    static let canvas = NoopVisualStyle.canvas
+    static let card = NoopVisualStyle.surface
+    static let raised = NoopVisualStyle.inset
     static let text = dyn(0x000000, 0xFFFFFF)
     static let secondary = dyn(0x3C3C43, 0xEBEBF5, light: 0.62, dark: 0.62)
     static let tertiary = dyn(0x3C3C43, 0xEBEBF5, light: 0.42, dark: 0.42)
     static let fill = dyn(0x767680, 0x767680, light: 0.13, dark: 0.26)
     static let separator = dyn(0x3C3C43, 0x545458, light: 0.18, dark: 0.55)
     static let hairline = dyn(0xFFFFFF, 0xFFFFFF, light: 0.9, dark: 0.12)
-    static let accent = dyn(0x9A3E1C, 0xE8B64A)
-    static let onAccent = dyn(0xFFFFFF, 0x2A1D00)
+    static var accent: Color { StrandPalette.forgeAccent }
+    static var onAccent: Color { StrandPalette.forgeOnAccent }
 
     static let charge = dyn(0x13896B, 0x3DDC97)
     static let effort = dyn(0xD45F28, 0xFF8A3D)
@@ -44,13 +44,37 @@ enum ForgeColor {
     static let cycleShift = dyn(0xB07A0C, 0xE8B64A)
     static let cycleFertile = dyn(0x4E9F2E, 0x9BDB6B)
 
-    /// The faint per-tab wash at the top of a plain screen.
+    /// The per-tab wash at the top of a plain screen. Colorful gives each area its own colour; the calm
+    /// profiles stay close to their canvas and differ only slightly from tab to tab.
     static func wash(_ tab: ForgeTab) -> Color {
+        let table: [ForgeTab: (UInt32, UInt32)]
+        switch NoopVisualStyle.forgeProfile {
+        case .colorful:
+            table = [.today: (0xB9D8FF, 0x12335F), .training: (0xBFF0CC, 0x0D4A2F),
+                     .sleep: (0xD3CBFF, 0x2A2270), .health: (0xFFC9D8, 0x511A30)]
+        case .stone:
+            table = [.today: (0xC9D6E8, 0x22314A), .training: (0xF0D2BC, 0x3A2418),
+                     .sleep: (0xDCD4F0, 0x241F44), .health: (0xCFE2E0, 0x173040)]
+        case .slate:
+            table = [.today: (0xD3DBE6, 0x1E2835), .training: (0xD6DEE4, 0x1F2A32),
+                     .sleep: (0xD8D9E8, 0x20233A), .health: (0xD4E0E3, 0x1C2C33)]
+        case .sage:
+            table = [.today: (0xD6E0D2, 0x1F2C25), .training: (0xDCE3CE, 0x262D1E),
+                     .sleep: (0xD6DDD8, 0x20292A), .health: (0xCFE0D4, 0x1A2E25)]
+        }
+        let colors = table[tab] ?? (0xE5E5EA, 0x1C1C1E)
+        return dyn(colors.0, colors.1)
+    }
+
+    /// The tab bar's colour for the open tab. Colorful gives each area its own, as Apple's apps do.
+    static func tabTint(_ tab: ForgeTab?) -> Color {
+        guard NoopVisualStyle.forgeProfile == .colorful else { return accent }
         switch tab {
-        case .today: return dyn(0xC9D6E8, 0x22314A)
-        case .training: return dyn(0xF0D2BC, 0x3A2418)
-        case .sleep: return dyn(0xDCD4F0, 0x241F44)
-        case .health: return dyn(0xCFE2E0, 0x173040)
+        case .today: return dyn(0x007AFF, 0x0A84FF)
+        case .training: return dyn(0x248A3D, 0x30D158)
+        case .sleep: return dyn(0x5856D6, 0x7D7AFF)
+        case .health: return dyn(0xD70040, 0xFF375F)
+        case nil: return dyn(0x0071A4, 0x64D2FF)
         }
     }
 }
@@ -90,6 +114,8 @@ struct ForgeSharedScreenBackground: View {
 /// defaults it off here (see `ForgeDesignPrefs.skyDefaultInNewDesign`).
 struct ForgeBackground: View {
     let tab: ForgeTab
+    /// Only Today's own page carries the motif; everything pushed from it takes the area's colour.
+    var showsMotif = false
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var sky = ForgeDesignPrefs.skyDefaultInNewDesign
     @ObservedObject private var photo = BackgroundImageStore.shared
 
@@ -98,7 +124,7 @@ struct ForgeBackground: View {
             ForgeColor.canvas
             if photo.isActive {
                 BackgroundImageBackdrop()
-            } else if sky {
+            } else if sky && showsMotif {
                 SceneScreenBackground(height: 640)
             } else {
                 // The prototype's per-tab tint reaches about the middle of the screen before it fades.

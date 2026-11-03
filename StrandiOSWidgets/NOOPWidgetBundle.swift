@@ -16,6 +16,8 @@ struct NOOPWidgetBundle: WidgetBundle {
     init() {
         let on = UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?.bool(forKey: WatchScoreSnapshot.forgeDesignKey) ?? false
         NoopVisualStyle.skin = on ? .forge : .standard
+        NoopVisualStyle.forgeProfile = NoopVisualStyle.ForgeColorProfile.resolve(
+            UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?.string(forKey: NoopVisualStyle.ForgeColorProfile.storageKey))
     }
 
     var body: some Widget {

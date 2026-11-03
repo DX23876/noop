@@ -71,32 +71,87 @@ public enum NoopVisualStyle {
         static let tertiaryText = ChromeHex.Pair(light: "#3C3C43C4", dark: "#EBEBF594")
     }
 
+    /// One colour profile's chrome and accent. A nil accent follows the wearer's accent choice.
+    struct ForgeProfileHex {
+        let canvas, surface, surfaceTop, surfaceBottom, inset, border, borderHighlight, divider: ChromeHex.Pair
+        var accent: ChromeHex.Pair?
+        var onAccent: ChromeHex.Pair?
+    }
+
+    /// How the new design colours the whole app. Colorful is the default; the other three are calmer.
+    public enum ForgeColorProfile: String, CaseIterable, Identifiable, Sendable {
+        case colorful, stone, slate, sage
+        public var id: String { rawValue }
+        public static let storageKey = "noop.forgeDesign.colorProfile"
+        public static func resolve(_ raw: String?) -> ForgeColorProfile { raw.flatMap(ForgeColorProfile.init) ?? .colorful }
+
+        var hex: ForgeProfileHex {
+            func pair(_ light: String, _ dark: String) -> ChromeHex.Pair { .init(light: light, dark: dark) }
+            switch self {
+            // Apple's neutral greys and pure white cards: the accent and the data carry the colour.
+            case .colorful:
+                return .init(canvas: pair("#F2F2F7", "#000000"), surface: pair("#FFFFFF", "#1C1C1E"),
+                             surfaceTop: pair("#FFFFFF", "#1F1F21"), surfaceBottom: pair("#FBFBFD", "#19191B"),
+                             inset: pair("#E9E9EE", "#2C2C2E"), border: pair("#AEAEB2", "#636366"),
+                             borderHighlight: pair("#FFFFFF", "#48484A"), divider: pair("#AEAEB2", "#636366"))
+            case .stone:
+                return .init(canvas: ForgeHex.canvas, surface: ForgeHex.surface, surfaceTop: ForgeHex.surfaceTop,
+                             surfaceBottom: ForgeHex.surfaceBottom, inset: ForgeHex.inset, border: ForgeHex.border,
+                             borderHighlight: ForgeHex.borderHighlight, divider: ForgeHex.divider,
+                             accent: pair("#9A3E1C", "#E8B64A"), onAccent: pair("#FFFFFF", "#2A1D00"))
+            case .slate:
+                return .init(canvas: pair("#EEF1F5", "#0B0F14"), surface: pair("#FFFFFF", "#161B22"),
+                             surfaceTop: pair("#FFFFFF", "#191F27"), surfaceBottom: pair("#F9FAFC", "#13181E"),
+                             inset: pair("#E4E8EE", "#202730"), border: pair("#A3ADBB", "#4D5764"),
+                             borderHighlight: pair("#FFFFFF", "#4D5764"), divider: pair("#A3ADBB", "#4D5764"),
+                             accent: pair("#3F5F85", "#8FB3DC"), onAccent: pair("#FFFFFF", "#0B1B2B"))
+            case .sage:
+                return .init(canvas: pair("#EFF2EC", "#0B100D"), surface: pair("#FFFFFF", "#151B17"),
+                             surfaceTop: pair("#FFFFFF", "#181F1A"), surfaceBottom: pair("#F9FBF8", "#121714"),
+                             inset: pair("#E4E9E0", "#1F2721"), border: pair("#A0AB99", "#4E5A52"),
+                             borderHighlight: pair("#FFFFFF", "#4E5A52"), divider: pair("#A0AB99", "#4E5A52"),
+                             accent: pair("#4A6B52", "#9CC7A8"), onAccent: pair("#FFFFFF", "#0D2214"))
+            }
+        }
+    }
+    public static var forgeProfile: ForgeColorProfile = .colorful
+
     /// Which chrome the shared tokens resolve to. The iOS shell sets it from the "New design" switch
     /// before its first frame and again when the switch changes; macOS and the watch never touch it.
     public enum ChromeSkin: Sendable { case standard, forge }
     public static var skin: ChromeSkin = .standard
 
-    private static func token(_ pair: ChromeHex.Pair, forge: ChromeHex.Pair) -> Color {
+    private static func token(_ pair: ChromeHex.Pair, forge: ChromeHex.Pair,
+                              profile: KeyPath<ForgeProfileHex, ChromeHex.Pair>? = nil) -> Color {
         let standard = Color(light: pair.light, dark: pair.dark)
-        let forged = Color(light: forge.light, dark: forge.dark)
         #if canImport(UIKit) && !os(watchOS)
-        // Resolved per draw, so a token follows the switch without being rebuilt.
-        let s = UIColor(standard), f = UIColor(forged)
-        return Color(UIColor { trait in (skin == .forge ? f : s).resolvedColor(with: trait) })
+        // Resolved per draw, so a token follows the switch and the profile without being rebuilt.
+        let s = UIColor(standard), f = UIColor(Color(light: forge.light, dark: forge.dark))
+        var byProfile: [ForgeColorProfile: UIColor] = [:]
+        if let profile {
+            for option in ForgeColorProfile.allCases {
+                let hex = option.hex[keyPath: profile]
+                byProfile[option] = UIColor(Color(light: hex.light, dark: hex.dark))
+            }
+        }
+        return Color(UIColor { trait in
+            let chosen = skin != .forge ? s : (byProfile[forgeProfile] ?? f)
+            return chosen.resolvedColor(with: trait)
+        })
         #else
         return standard
         #endif
     }
 
-    public static let canvas = token(ChromeHex.canvas, forge: ForgeHex.canvas)
-    public static let surface = token(ChromeHex.surface, forge: ForgeHex.surface)
-    public static let surfaceTop = token(ChromeHex.surfaceTop, forge: ForgeHex.surfaceTop)
-    public static let surfaceBottom = token(ChromeHex.surfaceBottom, forge: ForgeHex.surfaceBottom)
-    public static let inset = token(ChromeHex.inset, forge: ForgeHex.inset)
+    public static let canvas = token(ChromeHex.canvas, forge: ForgeHex.canvas, profile: \.canvas)
+    public static let surface = token(ChromeHex.surface, forge: ForgeHex.surface, profile: \.surface)
+    public static let surfaceTop = token(ChromeHex.surfaceTop, forge: ForgeHex.surfaceTop, profile: \.surfaceTop)
+    public static let surfaceBottom = token(ChromeHex.surfaceBottom, forge: ForgeHex.surfaceBottom, profile: \.surfaceBottom)
+    public static let inset = token(ChromeHex.inset, forge: ForgeHex.inset, profile: \.inset)
 
-    public static let border = token(ChromeHex.border, forge: ForgeHex.border)
-    public static let borderHighlight = token(ChromeHex.borderHighlight, forge: ForgeHex.borderHighlight)
-    public static let divider = token(ChromeHex.divider, forge: ForgeHex.divider)
+    public static let border = token(ChromeHex.border, forge: ForgeHex.border, profile: \.border)
+    public static let borderHighlight = token(ChromeHex.borderHighlight, forge: ForgeHex.borderHighlight, profile: \.borderHighlight)
+    public static let divider = token(ChromeHex.divider, forge: ForgeHex.divider, profile: \.divider)
 
     public static let primaryText = token(ChromeHex.primaryText, forge: ForgeHex.primaryText)
     public static let secondaryText = token(ChromeHex.secondaryText, forge: ForgeHex.secondaryText)

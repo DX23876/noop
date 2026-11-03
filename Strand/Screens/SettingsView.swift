@@ -251,6 +251,7 @@ struct SettingsView: View {
     @AppStorage(SleepChartStyle.storageKey) private var sleepChartStyleRaw = SleepChartStyle.classic.rawValue
     // Chrome accent colour (system blue / mint / WHOOP blue / custom). Chrome only — never data colours.
     @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.systemBlue.rawValue
+    @AppStorage(NoopVisualStyle.ForgeColorProfile.storageKey) private var forgeProfileRaw = NoopVisualStyle.ForgeColorProfile.colorful.rawValue
     @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
     // Day-cycle scene backdrop behind Today (#698). Default OFF. On adds the moving time-of-day scene;
     // off (the default) keeps the plain dark canvas. TodayView reads the same key to gate its
@@ -1606,8 +1607,33 @@ struct SettingsView: View {
                     .accessibilityLabel("Theme")
                 }
                 rowDivider
+                #if os(iOS)
+                if NoopVisualStyle.skin == .forge {
+                    FormRow(label: "Color profile") {
+                        Picker("Color profile", selection: $forgeProfileRaw) {
+                            Text("Colorful").tag(NoopVisualStyle.ForgeColorProfile.colorful.rawValue)
+                            Text("Stone").tag(NoopVisualStyle.ForgeColorProfile.stone.rawValue)
+                            Text("Slate").tag(NoopVisualStyle.ForgeColorProfile.slate.rawValue)
+                            Text("Sage").tag(NoopVisualStyle.ForgeColorProfile.sage.rawValue)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .tint(StrandPalette.accent)
+                        .accessibilityLabel("Color profile")
+                        .onChangeCompat(of: forgeProfileRaw) { raw in
+                            // The profile brings its backdrop along; the switch stays the person's after that.
+                            showDayCycleBackground = NoopVisualStyle.ForgeColorProfile.resolve(raw) == .colorful
+                            NoopVisualStyle.forgeProfile = NoopVisualStyle.ForgeColorProfile.resolve(raw)
+                            ForgeDesignPrefs.mirrorToAppGroup()
+                        }
+                    }
+                    rowDivider
+                }
+                #endif
                 // Accent controls links, buttons, focus, and selection. Chart colours controls health data
                 // only (recovery, strain, sleep); it never changes chrome. Custom reveals a colour well.
+                // A calm profile brings its own accent, so there is nothing to choose then.
+                if NoopVisualStyle.skin != .forge || NoopVisualStyle.forgeProfile == .colorful {
                 FormRow(label: "Accent") {
                     Picker("Accent", selection: $accentRaw) {
                         ForEach(AccentColor.allCases) { c in
@@ -1626,6 +1652,7 @@ struct SettingsView: View {
                             .labelsHidden()
                             .accessibilityLabel("Custom accent colour")
                     }
+                }
                 }
                 #if os(iOS)
                 rowDivider   // #79: separator before App icon (inside #if so macOS keeps a single divider)

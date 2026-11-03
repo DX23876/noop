@@ -178,6 +178,14 @@ public extension View {
     }
 }
 
+/// Applies the new design's colour profile and keys the content so a change re-renders live.
+public extension View {
+    func noopForgeProfile(_ raw: String) -> some View {
+        NoopVisualStyle.forgeProfile = NoopVisualStyle.ForgeColorProfile.resolve(raw)
+        return self.id("noop.forgeProfile.\(raw)")
+    }
+}
+
 /// A named THEME preset — a one-tap bundle that coordinates the accent, the chart colour world, the
 /// day-cycle backdrop, and the card opacity. Purely an orchestration over settings that already exist:
 /// selecting a preset writes those four prefs, and the granular controls stay available underneath. There

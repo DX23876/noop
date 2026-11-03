@@ -893,3 +893,12 @@ ships a range and never asserts normality; this fork now does, on the new design
 
 Analysis migration required: no. Nothing stored changes; the rating is computed when the page draws.
 
+## Colour profiles in the new design, colourful by default (2026-11-03)
+
+The owner found the warm stone and copper chrome too uniform and asked for the whole app to be colourful
+again, as NOOP Forge was, with calmer looks as an option. `NoopVisualStyle.ForgeColorProfile` holds four:
+Colorful (default: Apple's neutral greys, the wearer's accent, a colour per area, the day-cycle motif on
+Today), Stone (the former chrome), Slate and Sage. Only Today's own page carries the motif. Charge, Effort
+and Rest keep their colours in every profile, since those colours mean something. Choosing a profile also
+writes the motif switch; the person's own setting stays after that. The contrast floors are tested per
+profile in `ChromeContrastTests`.

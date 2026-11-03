@@ -53,6 +53,7 @@ struct StrandiOSApp: App {
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
     /// Chrome accent colour (system blue / mint / WHOOP blue / custom). Chrome only — never data colours.
     @AppStorage(AccentColor.storageKey) private var accentRaw = AccentColor.systemBlue.rawValue
+    @AppStorage(NoopVisualStyle.ForgeColorProfile.storageKey) private var forgeProfileRaw = NoopVisualStyle.ForgeColorProfile.colorful.rawValue
     @AppStorage(AccentColor.customHexKey) private var accentCustomHex = AccentColor.defaultCustomHex
     /// Effort's display scale is also embedded in the shared widget snapshot. Observe it here so a
     /// Settings change gets one accurate full rebuild instead of waiting for an unrelated repo refresh.
@@ -75,6 +76,7 @@ struct StrandiOSApp: App {
         // The shared chrome follows the "New design" switch from the first frame, so every screen pushed
         // from the redesigned tabs wears its colours. RootTabView keeps it in step when the switch changes.
         NoopVisualStyle.skin = ForgeDesignPrefs.isEnabled() ? .forge : .standard
+        ForgeDesignPrefs.applyStoredProfile()
         ForgeDesignPrefs.applyListChrome()
         #if DEBUG
         // DEBUG-only promo-screenshot harness: when launched with `--demo-hour <Int>`, pin Today to that
@@ -289,6 +291,7 @@ struct StrandiOSApp: App {
                     }
                 }
                 .noopAccent(accentRaw, customHex: accentCustomHex)
+                .noopForgeProfile(forgeProfileRaw)
                 // Dynamic Type now scales the prose/label roles (StrandFont). Cap the upper end so the
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.

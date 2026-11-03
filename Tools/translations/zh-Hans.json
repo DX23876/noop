@@ -3861,5 +3861,10 @@
   "Wide · the coach's latest line": "宽 · 教练的最新一句",
   "Opens the rest page": "打开休息页面",
   "Rest is over.": "休息结束。",
-  "of %@ · next: %@": "共 %1$@ · 下一个：%2$@"
+  "of %@ · next: %@": "共 %1$@ · 下一个：%2$@",
+  "Color profile": "颜色配置",
+  "Colorful": "多彩",
+  "Stone": "石色",
+  "Slate": "板岩",
+  "Sage": "鼠尾草"
 }

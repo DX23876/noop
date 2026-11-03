@@ -3761,5 +3761,10 @@
   "Wide · the coach's latest line": "Large · la dernière ligne du coach",
   "Opens the rest page": "Ouvre la page de repos",
   "Rest is over.": "Le repos est terminé.",
-  "of %@ · next: %@": "sur %1$@ · ensuite : %2$@"
+  "of %@ · next: %@": "sur %1$@ · ensuite : %2$@",
+  "Color profile": "Profil de couleurs",
+  "Colorful": "Coloré",
+  "Stone": "Pierre",
+  "Slate": "Ardoise",
+  "Sage": "Sauge"
 }

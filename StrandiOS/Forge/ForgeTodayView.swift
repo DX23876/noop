@@ -34,6 +34,7 @@ struct ForgeTodayView: View {
     /// Routines the training plan schedules for today, shown under Later Today.
     @State private var plannedRoutines: [TrainingRoutine] = []
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
@@ -48,6 +49,13 @@ struct ForgeTodayView: View {
     @AppStorage(DashboardMomentum.Keys.lastAt) private var momentumLastAt: Double = 0
     @AppStorage(DashboardMomentum.Keys.snoozed) private var momentumSnoozedRaw = ""
     @AppStorage(DashboardMomentum.Keys.stepGoal) private var momentumStepGoal = 0
+
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var motifOn = ForgeDesignPrefs.skyDefaultInNewDesign
+    @ObservedObject private var backdropPhoto = BackgroundImageStore.shared
+    /// The motif at night is dark in either appearance, so what sits on it reads as on a dark page.
+    private var onDarkMotif: Bool {
+        motifOn && !backdropPhoto.isActive && DayCycleScene.isDark(hour: Calendar.current.component(.hour, from: Date()))
+    }
 
     @State private var snapshot = Snapshot()
     @State private var showPlan = false
@@ -106,6 +114,7 @@ struct ForgeTodayView: View {
                         }
                         .accessibilityLabel(Text("Weekly report"))
                     }
+                    .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
                     .id("forge-today-top")
                     VStack(alignment: .leading, spacing: 14) {
                         HealthAlertBanner()
@@ -122,6 +131,7 @@ struct ForgeTodayView: View {
                                 action: { router.openDevices() })
                         }
                         hero
+                            .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
                             // Holding the rings offers the widget editor, as the system menu, so a hold never also
                             // opens the ring it lands on.
                             .contextMenu {
@@ -139,6 +149,13 @@ struct ForgeTodayView: View {
                                     .background(Capsule().fill(ForgeColor.fill))
                             }
                             .buttonStyle(.plain)
+                            .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
+                            // Said once: it fades by itself and does not come back.
+                            .task {
+                                try? await Task.sleep(for: .seconds(6))
+                                guard !Task.isCancelled else { return }
+                                withAnimation(.easeOut) { widgetsHintSeen = true }
+                            }
                             .frame(maxWidth: .infinity)
                         }
                         ForgeTodayWidgetArea(editing: $editingWidgets)
@@ -189,7 +206,7 @@ struct ForgeTodayView: View {
                 withAnimation(.smooth) { proxy.scrollTo("forge-today-top", anchor: .top) }
             }
         }
-        .background(ForgeBackground(tab: .today))
+        .background(ForgeBackground(tab: .today, showsMotif: true))
         .refreshable { await repo.refresh(); await load(force: true) }
         .task(id: reloadKey) { await load(force: false) }
         .onChange(of: scenePhase) { _, phase in

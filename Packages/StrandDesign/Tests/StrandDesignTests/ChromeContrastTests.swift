@@ -216,6 +216,40 @@ final class ChromeContrastTests: XCTestCase {
 
     /// The Forge chrome replaces every token above while the new design is on, so it answers to the same
     /// floors: AA for secondary and tertiary text, 12:1 for primary text, a visible border.
+    func testEveryColorProfileClearsTheSameFloors() {
+        let forge = NoopVisualStyle.ForgeHex.self
+        for profile in NoopVisualStyle.ForgeColorProfile.allCases {
+            let hex = profile.hex
+            for scheme in Scheme.allCases {
+                let fills = [("canvas", hex.canvas), ("surface", hex.surface), ("surfaceTop", hex.surfaceTop),
+                             ("surfaceBottom", hex.surfaceBottom), ("inset", hex.inset)].map { ($0.0, scheme.hex($0.1)) }
+                for (fillName, fill) in fills {
+                    for (name, token, floor) in [("secondaryText", forge.secondaryText, 4.5), ("tertiaryText", forge.tertiaryText, 4.5),
+                                                 ("primaryText", forge.primaryText, 12.0)] {
+                        let r = Self.contrastRatio(scheme.hex(token), on: fill)
+                        XCTAssertGreaterThanOrEqual(r, floor, "\(profile) \(scheme.rawValue)/\(name) on \(fillName)")
+                    }
+                }
+                for fill in [scheme.hex(hex.surface), scheme.hex(hex.canvas)] {
+                    let r = Self.contrastRatio(scheme.hex(hex.border), on: fill)
+                    XCTAssertGreaterThanOrEqual(r, 1.8, "\(profile) \(scheme.rawValue)/border")
+                }
+                if let accent = hex.accent, let onAccent = hex.onAccent {
+                    XCTAssertGreaterThanOrEqual(Self.contrastRatio(scheme.hex(onAccent), on: scheme.hex(accent)), 4.5,
+                                                "\(profile) \(scheme.rawValue)/onAccent")
+                    XCTAssertGreaterThanOrEqual(Self.contrastRatio(scheme.hex(accent), on: scheme.hex(hex.surface)), 4.5,
+                                                "\(profile) \(scheme.rawValue)/accent text")
+                }
+            }
+        }
+    }
+
+    func testAnUnknownStoredProfileIsColorful() {
+        XCTAssertEqual(NoopVisualStyle.ForgeColorProfile.resolve(nil), .colorful)
+        XCTAssertEqual(NoopVisualStyle.ForgeColorProfile.resolve("gone"), .colorful)
+        XCTAssertEqual(NoopVisualStyle.ForgeColorProfile.resolve("sage"), .sage)
+    }
+
     func testForgeChromeClearsTheSameFloors() {
         let forge = NoopVisualStyle.ForgeHex.self
         for scheme in Scheme.allCases {

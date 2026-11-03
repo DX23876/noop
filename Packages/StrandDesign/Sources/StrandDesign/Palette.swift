@@ -145,11 +145,18 @@ public enum StrandPalette {
     public static var accentChoice: AccentColor = .systemBlue
     /// The custom accent's hex, used only when `accentChoice == .custom`. Set alongside `accentChoice`.
     public static var customAccentHex: String = AccentColor.defaultCustomHex
-    /// The redesign's accent (ember in Light, gold in Dark). Under the Forge chrome it replaces the user's
-    /// accent choice everywhere, so links and selection match the redesigned tabs.
-    public static let forgeAccent = Color(light: "#9A3E1C", dark: "#E8B64A")
+    /// The redesign's accent. Colorful follows the wearer's accent choice (system blue unless changed);
+    /// each calm profile has its own, replacing the choice everywhere.
+    public static var forgeAccent: Color {
+        guard let hex = NoopVisualStyle.forgeProfile.hex.accent else { return accentChoice.accent }
+        return Color(light: hex.light, dark: hex.dark)
+    }
     /// Text and icons on a `forgeAccent` fill.
-    public static let forgeOnAccent = Color(light: "#FFFFFF", dark: "#2A1D00")
+    public static var forgeOnAccent: Color {
+        if let hex = NoopVisualStyle.forgeProfile.hex.onAccent { return Color(light: hex.light, dark: hex.dark) }
+        // Mint turns light in Dark, where white would not read on it.
+        return accentChoice == .mint ? Color(light: "#FFFFFF", dark: "#06281E") : .white
+    }
     private static var forgeChrome: Bool { NoopVisualStyle.skin == .forge }
     public static var accent: Color { forgeChrome ? forgeAccent : accentChoice.accent }
     public static var accentHover: Color { forgeChrome ? forgeAccent.opacity(0.85) : accentChoice.accentHover }
