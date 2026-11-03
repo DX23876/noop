@@ -154,7 +154,8 @@ struct ForgeMetricTile: View {
                     .frame(height: 30)
                     .accessibilityHidden(true)
             } else {
-                Spacer(minLength: 30)
+                // Keeps a tile without a chart level with its neighbour, without growing past it.
+                Color.clear.frame(height: 30)
             }
             if let axisLabels, (bars != nil || (trend?.count ?? 0) > 1) {
                 HStack(spacing: 0) {

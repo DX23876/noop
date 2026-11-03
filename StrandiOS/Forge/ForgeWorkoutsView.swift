@@ -7,9 +7,13 @@ import StrandTraining
 import WhoopStore
 
 /// The redesign's Workouts page (prototype board "Workouts"): thirteen weeks of activity as a calendar,
-/// this week in numbers, and the sessions grouped by week. Each session opens the shipped workout detail.
+/// this week in numbers, and the sessions grouped by week. Each session opens the shipped workout detail;
+/// holding one edits, relabels or removes it; a session can be added afterwards. The shipped list stays one
+/// tap away for its filters, multi-select and merging.
 struct ForgeWorkoutsView: View {
     @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var intelligence: IntelligenceEngine
+    @State private var editor: ForgeWorkoutEditor.Target?
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     @AppStorage(UnitPrefs.distanceSystemKey) private var distanceSystemRaw = ""
@@ -32,6 +36,7 @@ struct ForgeWorkoutsView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Workouts"),
                                   scrolledPast: $scrolledPast)
+                actions
                 calendarCard
                 weekNumbers
                 ForEach(weeks, id: \.start) { week in
@@ -45,6 +50,7 @@ struct ForgeWorkoutsView: View {
                                 sessionRow(row)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu { rowMenu(row) }
                         }
                     }
                 }
@@ -60,6 +66,55 @@ struct ForgeWorkoutsView: View {
         .forgeDetailBar(title: String(localized: "Workouts"), showsTitle: scrolledPast)
         .task(id: repo.refreshSeq) {
             rows = (await repo.workoutRows(days: 91, reconcileHrCap: 0)).sorted { $0.startTs > $1.startTs }
+        }
+        .sheet(item: $editor) { ForgeWorkoutEditor(target: $0) }
+    }
+
+    // MARK: Actions
+
+    private var actions: some View {
+        HStack(spacing: 8) {
+            Button { editor = .init() } label: {
+                ForgeWorkoutActionChip(title: "Add workout", symbol: "plus", prominent: true)
+            }
+            .buttonStyle(.plain)
+            NavigationLink(value: TabRoute.workouts) {
+                ForgeWorkoutActionChip(title: "Manage sessions", symbol: "line.3.horizontal.decrease")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// The same choices as the shipped list: imported history stays read-only and can only be copied.
+    @ViewBuilder private func rowMenu(_ row: WorkoutRow) -> some View {
+        switch WorkoutSource.classify(row.source) {
+        case .detected:
+            Menu("Re-label as") {
+                ForEach(WorkoutsView.relabelSports, id: \.self) { sport in
+                    Button(sport) { Task { await repo.relabelDetected(row, sport: sport); await repo.refresh() } }
+                }
+            }
+            Button("Edit details…") { editor = .init(editing: row) }
+            Divider()
+            Button("Dismiss (not a workout)", role: .destructive) {
+                Task { await repo.dismissDetected(row); await repo.refresh() }
+            }
+        case .manual, .confirmed:
+            Button("Edit…") { editor = .init(editing: row) }
+            Divider()
+            Button("Delete", role: .destructive) { delete(row) }
+        case .whoop, .apple, .lifting, .activityFile, .hevy, .oura:
+            Button("Duplicate as manual…") { editor = .init(editing: WorkoutsView.manualCopy(of: row), isCopy: true) }
+        }
+    }
+
+    private func delete(_ row: WorkoutRow) {
+        RouteStore.remove(startTs: row.startTs, sport: row.sport)
+        Task {
+            await repo.deleteWorkout(row)
+            // A workout mutation is invisible to the per-day fingerprint, so the day is re-derived by saying so.
+            await intelligence.analyzeRecent(allowDayReuse: false)
+            await repo.refresh()
         }
     }
 
@@ -176,6 +231,48 @@ struct ForgeWorkoutsView: View {
         .padding(.horizontal, 14).padding(.vertical, 11)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// A capsule action at the top of the Workouts page.
+private struct ForgeWorkoutActionChip: View {
+    let title: LocalizedStringKey
+    let symbol: String
+    var prominent = false
+
+    var body: some View {
+        Label(title, systemImage: symbol)
+            .font(.system(.subheadline, weight: .semibold))
+            .foregroundStyle(prominent ? ForgeColor.onAccent : ForgeColor.text)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background(Capsule().fill(prominent ? ForgeColor.accent : ForgeColor.fill))
+    }
+}
+
+/// The shipped add and edit form, saving the way the shipped list does: the session is rescored from the
+/// strap's heart rate right away, and every screen reading the list refreshes.
+struct ForgeWorkoutEditor: View {
+    struct Target: Identifiable {
+        var editing: WorkoutRow? = nil
+        /// A copy pre-fills the form but replaces nothing (see `WorkoutsView`).
+        var isCopy = false
+        let id = UUID()
+    }
+
+    var target = Target()
+    @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var intelligence: IntelligenceEngine
+
+    var body: some View {
+        ManualWorkoutSheet(editing: target.editing, hrSource: repo) { row, replacing in
+            Task {
+                await repo.saveManualWorkout(row, replacing: target.isCopy ? nil : replacing)
+                await repo.refresh()
+                await intelligence.analyzeRecent(allowDayReuse: false)
+                await repo.refresh()
+            }
+        }
     }
 }
 

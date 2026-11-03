@@ -258,7 +258,8 @@ private extension ForgeLargeHeader {
     /// No spacing: every button carries its own 44 pt hit area around a smaller visual.
     var buttons: some View {
         HStack(spacing: 0) {
-            DashboardBatteryButton(size: 34)
+            // The ring already shows the level; the figure stays for VoiceOver and on the battery page.
+            DashboardBatteryButton(size: 34, showsPercent: false)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
             trailing()

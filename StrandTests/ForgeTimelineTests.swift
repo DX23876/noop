@@ -41,12 +41,113 @@ final class ForgeTimelineTests: XCTestCase {
         XCTAssertEqual(split.body, "You slept **7 h 40**, above your need.")
     }
 
-    func testSplitNoteKeepsTheWholeSentenceWhenTheHeadlineIsCut() {
+    func testSplitNoteNeverCutsANumber() {
+        let split = ForgeTimeline.splitNote("Last night's sleep: you got only **1.7 hours** recorded. That's a problem.")
+        XCTAssertEqual(split.headline, "Last night's sleep: you got only 1.7 hours recorded.")
+        XCTAssertEqual(split.body, "That's a problem.")
+    }
+
+    func testSplitNoteLeavesNoLoneAsterisks() {
+        let split = ForgeTimeline.splitNote("That walk held at a steady **13.2/21 effort** today. Good.")
+        XCTAssertEqual(split.headline, "That walk held at a steady 13.2/21 effort today.")
+        XCTAssertEqual(split.body, "Good.")
+        XCTAssertFalse(ForgeTimeline.splitNote("Fine. Half **bold only").body.contains("*"))
+    }
+
+    func testSplitNoteDividesALongSentenceAtAClauseAndSaysNothingTwice() {
+        let split = ForgeTimeline.splitNote("Your sleep has dropped noticeably over the last three nights — roughly 38% shorter than your recent norm. A real dip.")
+        XCTAssertEqual(split.headline, "Your sleep has dropped noticeably over the last three nights.")
+        XCTAssertEqual(split.body, "Roughly 38% shorter than your recent norm.\nA real dip.")
+        XCTAssertFalse(split.body.contains("Your sleep has dropped"))
+    }
+
+    func testSplitNoteKeepsALongSentenceWholeWithoutAClause() {
         let long = String(repeating: "word ", count: 40) + "end."
         let split = ForgeTimeline.splitNote(long, maxHeadline: 30)
-        XCTAssertTrue(split.headline.hasSuffix("…"))
-        XCTAssertLessThanOrEqual(split.headline.count, 31)
-        XCTAssertTrue(split.body.hasSuffix("end."))
+        XCTAssertEqual(split.headline, long)
+        XCTAssertEqual(split.body, "")
+    }
+
+    // MARK: One thing happens once
+
+    func testANoteAboutAWorkoutTakesItsPlaceAtTheMomentItEnded() {
+        var input = ForgeTimeline.Input()
+        input.workouts = [.init(id: "w", start: at(1), end: at(2), sport: "Run", effort: 40, distanceM: nil, energyKcal: nil),
+                          .init(id: "other", start: at(3), end: at(4), sport: "Run", effort: 40, distanceM: nil, energyKcal: nil)]
+        input.coach = [.init(id: "c", date: at(5), text: "Strong run.", origin: .nudge, workoutId: "w")]
+        let entries = ForgeTimeline.build(input, now: at(10), dayKey: key)[0].entries
+        XCTAssertEqual(entries.map(\.id), ["workout-other", "coach-c"])
+        XCTAssertEqual(entries[1].date, at(2))
+        XCTAssertEqual(entries[1].workoutId, "w")
+    }
+
+    func testANoteWithoutABoundWorkoutLeavesWorkoutsAlone() {
+        var input = ForgeTimeline.Input()
+        input.workouts = [.init(id: "w", start: at(1), end: at(2), sport: "Run", effort: nil, distanceM: nil, energyKcal: nil)]
+        input.coach = [.init(id: "c", date: at(3), text: "Old note.", origin: .nudge)]
+        let entries = ForgeTimeline.build(input, now: at(10), dayKey: key)[0].entries
+        XCTAssertEqual(entries.map(\.id), ["coach-c", "workout-w"])
+        XCTAssertNil(entries[0].workoutId)
+    }
+
+    func testTheMorningBriefCarriesTheNightItReads() {
+        var input = ForgeTimeline.Input()
+        input.sleeps = [.init(start: at(-6), end: at(1), minutesAsleep: 400, rest: nil)]
+        input.coach = [.init(id: "b", date: at(2), text: "Well rested.", origin: .brief)]
+        let entries = ForgeTimeline.build(input, now: at(10), dayKey: key)[0].entries
+        XCTAssertEqual(entries.map(\.id), ["coach-b"])
+        XCTAssertEqual(entries[0].wake, at(1))
+    }
+
+    func testAShortNightStillAppearsWithoutACoach() {
+        var input = ForgeTimeline.Input()
+        input.sleeps = [.init(start: at(0), end: at(1.8), minutesAsleep: 105, rest: nil)]
+        input.naps = [.init(start: at(5), end: at(6), minutesAsleep: 50)]
+        let kinds = ForgeTimeline.build(input, now: at(10), dayKey: key)[0].entries.map(\.kind)
+        XCTAssertEqual(kinds, [.nap, .wake])
+    }
+
+    func testDailyFiguresWithoutATimeSitAtTheEndOfTheirDay() {
+        var input = ForgeTimeline.Input()
+        input.workouts = [.init(id: "w", start: at(1), end: at(2), sport: "Run", effort: nil, distanceM: nil, energyKcal: nil)]
+        input.weights = [.init(date: at(0.5), kg: 96, timed: false)]
+        let entries = ForgeTimeline.build(input, now: at(10), dayKey: key)[0].entries
+        XCTAssertEqual(entries.last?.kind, .weight)
+        XCTAssertEqual(entries.last?.timed, false)
+    }
+
+    // MARK: What the coach says, and when it stays quiet
+
+    func testAWalkOrAShortOrUnconfirmedSessionGetsNoNote() {
+        XCTAssertFalse(ForgeCoachNotes.isWorthANote(sport: "Walking", minutes: 50, isDetected: false))
+        XCTAssertFalse(ForgeCoachNotes.isWorthANote(sport: "Running", minutes: 10, isDetected: false))
+        XCTAssertFalse(ForgeCoachNotes.isWorthANote(sport: "Running", minutes: 40, isDetected: true))
+        XCTAssertTrue(ForgeCoachNotes.isWorthANote(sport: "Running", minutes: 40, isDetected: false))
+    }
+
+    func testRepliesComeOnlyFromTheNoteAndAreNeverShownAsText() {
+        let asked = ForgeCoachNotes.splitReplies("Tempo held well. Run again tomorrow?\nREPLIES: Yes | Rather rest | Maybe | Never")
+        XCTAssertEqual(asked.text, "Tempo held well. Run again tomorrow?")
+        XCTAssertEqual(asked.replies, ["Yes", "Rather rest"])
+        let plain = ForgeCoachNotes.splitReplies("Tempo held well.")
+        XCTAssertEqual(plain.text, "Tempo held well.")
+        XCTAssertTrue(plain.replies.isEmpty)
+    }
+
+    func testTheCoachIsToldWhatItAlreadySaid() {
+        XCTAssertNil(ForgeCoachNotes.alreadySaidClause([]))
+        let clause = ForgeCoachNotes.alreadySaidClause(["You slept 1.7 hours."])
+        XCTAssertEqual(clause?.contains("You slept 1.7 hours."), true)
+        XCTAssertEqual(clause?.contains(ForgeCoachNotes.skipWord), true)
+        XCTAssertTrue(ForgeCoachNotes.isSkip(" SKIP.\n"))
+        XCTAssertFalse(ForgeCoachNotes.isSkip("SKIP this one tomorrow."))
+    }
+
+    func testAnOlderTranscriptStillDecodes() throws {
+        let old = #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","role":"assistant","text":"Hi"}"#
+        let message = try JSONDecoder().decode(ChatMessage.self, from: Data(old.utf8))
+        XCTAssertNil(message.workoutId)
+        XCTAssertTrue(message.replies.isEmpty)
     }
 
     func testSplitNoteTakesTheSeededLabelAsKicker() {

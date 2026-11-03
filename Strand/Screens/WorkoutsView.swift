@@ -540,7 +540,7 @@ struct WorkoutsView: View {
 
     /// Common sports offered when re-labelling a detected bout (keeps the menu short and honest —
     /// the user can fine-tune via Edit afterwards).
-    private static let relabelSports = ["Running", "Walking", "Cycling", "Strength Training",
+    static let relabelSports = ["Running", "Walking", "Cycling", "Strength Training",
                                         "Swimming", "Rowing", "Yoga", "HIIT",
                                         "CrossFit", "Hiking", "Tennis"]
 
@@ -1829,7 +1829,9 @@ struct WorkoutsView: View {
 
     /// A manual-source copy of an imported row, so "Duplicate as manual" opens the add sheet pre-filled
     /// without ever mutating the imported original (the sheet saves under the strap source).
-    private func asManualCopy(_ row: WorkoutRow) -> WorkoutRow {
+    private func asManualCopy(_ row: WorkoutRow) -> WorkoutRow { Self.manualCopy(of: row) }
+
+    static func manualCopy(of row: WorkoutRow) -> WorkoutRow {
         WorkoutRow(startTs: row.startTs, endTs: row.endTs, sport: WorkoutSource.displaySport(row.sport),
                    source: "manual", durationS: row.durationS, energyKcal: row.energyKcal,
                    avgHr: row.avgHr, maxHr: row.maxHr, strain: row.strain, distanceM: row.distanceM,

@@ -89,10 +89,14 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     /// fact is the store's to own, so an edit made later never leaves a stale copy in the transcript.
     /// Empty for user turns, for replies that wrote nothing, and for transcripts predating this field.
     let memoryWrites: [UUID]
+    /// The workout an unprompted note is about ("start|sport"), so a screen can show the two as one thing.
+    let workoutId: String?
+    /// Answers the coach offered with this note, written for it. Empty for nearly every message.
+    let replies: [String]
 
     init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(),
          toolsUsed: [String] = [], localContextUsed: [LocalContextCategory] = [], origin: Origin = .reply,
-         memoryWrites: [UUID] = []) {
+         memoryWrites: [UUID] = [], workoutId: String? = nil, replies: [String] = []) {
         self.id = id
         self.role = role
         self.text = text
@@ -101,10 +105,12 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         self.localContextUsed = localContextUsed
         self.origin = origin
         self.memoryWrites = memoryWrites
+        self.workoutId = workoutId
+        self.replies = replies
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, role, text, date, toolsUsed, localContextUsed, origin, memoryWrites
+        case id, role, text, date, toolsUsed, localContextUsed, origin, memoryWrites, workoutId, replies
     }
 
     init(from decoder: Decoder) throws {
@@ -117,6 +123,8 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         localContextUsed = try c.decodeIfPresent([LocalContextCategory].self, forKey: .localContextUsed) ?? []
         origin = try c.decodeIfPresent(Origin.self, forKey: .origin) ?? .reply
         memoryWrites = try c.decodeIfPresent([UUID].self, forKey: .memoryWrites) ?? []
+        workoutId = try c.decodeIfPresent(String.self, forKey: .workoutId)
+        replies = try c.decodeIfPresent([String].self, forKey: .replies) ?? []
     }
 
     /// The same message with different text, every other field carried over.
@@ -128,14 +136,16 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     /// mistake impossible rather than relying on each call site to re-list eight arguments.
     func replacingText(_ newText: String) -> ChatMessage {
         ChatMessage(id: id, role: role, text: newText, date: date, toolsUsed: toolsUsed,
-                    localContextUsed: localContextUsed, origin: origin, memoryWrites: memoryWrites)
+                    localContextUsed: localContextUsed, origin: origin, memoryWrites: memoryWrites,
+                    workoutId: workoutId, replies: replies)
     }
 
     /// The same message with the evidence chain attached — what a finished turn knows and a streaming
     /// placeholder could not.
     func attaching(toolsUsed newTools: [String], memoryWrites newWrites: [UUID]) -> ChatMessage {
         ChatMessage(id: id, role: role, text: text, date: date, toolsUsed: newTools,
-                    localContextUsed: localContextUsed, origin: origin, memoryWrites: newWrites)
+                    localContextUsed: localContextUsed, origin: origin, memoryWrites: newWrites,
+                    workoutId: workoutId, replies: replies)
     }
 
     /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
@@ -3171,7 +3181,7 @@ final class AICoachEngine: ObservableObject {
     /// leave `sendTask` pointing at the wrong task — with the composer's Stop button attached to it.
     @discardableResult
     func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
-                                          stampValue: String? = nil,
+                                          stampValue: String? = nil, workoutId: String? = nil,
                                           origin: ChatMessage.Origin) async -> Bool {
         while let inFlight = sendTask {
             await inFlight.value
@@ -3188,7 +3198,7 @@ final class AICoachEngine: ObservableObject {
             guard let self else { return }
             self.lastAutoTurnSpoke = await self.generateSeededTurn(
                 instruction: instruction, prefix: prefix, stampKey: stampKey,
-                stampValue: stampValue, origin: origin)
+                stampValue: stampValue, workoutId: workoutId, origin: origin)
         }
         sendTask = task
         await task.value
@@ -3205,7 +3215,7 @@ final class AICoachEngine: ObservableObject {
     /// stop after the first turn that speaks.
     @discardableResult
     private func generateSeededTurn(instruction: String, prefix: String, stampKey: String,
-                                    stampValue: String? = nil,
+                                    stampValue: String? = nil, workoutId: String? = nil,
                                     origin: ChatMessage.Origin) async -> Bool {
         var spoke = false
         guard isConfigured, dataConsent, !sending else { return spoke }
@@ -3222,16 +3232,24 @@ final class AICoachEngine: ObservableObject {
         let preamble = [context, relevant]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
-        let trailer = preamble.isEmpty ? instruction : preamble + "\n\n---\n\n" + instruction
+        // The goal and weekly reviews stand on their own; everything else must not repeat today's notes.
+        let saidToday = origin == .weeklyReview ? nil : ForgeCoachNotes.alreadySaidClause(headlinesToday())
+        let task = [instruction, saidToday, ForgeCoachNotes.repliesClause].compactMap { $0 }.joined(separator: "\n\n")
+        let trailer = preamble.isEmpty ? task : preamble + "\n\n---\n\n" + task
         let history = Self.wirePairs(from: windowedMessages(), context: "")
         let wire = Self.appendTrailingUserTurn(history, content: trailer)
         do {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !clean.isEmpty {
-                appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
+            if ForgeCoachNotes.isSkip(clean) {
+                // Decided to stay quiet: answered, so the moment is not asked again, but nothing was said.
+                UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
+            } else if !clean.isEmpty {
+                let note = ForgeCoachNotes.splitReplies(clean)
+                appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + note.text,
                                           toolsUsed: reply.toolsUsed, origin: origin,
-                                          memoryWrites: takeMemoryWrites()))
+                                          memoryWrites: takeMemoryWrites(), workoutId: workoutId,
+                                          replies: note.replies))
                 UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
                 spoke = true
             }
@@ -3243,6 +3261,15 @@ final class AICoachEngine: ObservableObject {
             }
         }
         return spoke
+    }
+
+    /// The first sentence of each note the coach wrote on its own today.
+    private func headlinesToday(now: Date = Date()) -> [String] {
+        let today = LogicalDay.key(now)
+        return conversations.flatMap(\.messages)
+            .filter { $0.role == .assistant && $0.origin.isCoachInitiated && LogicalDay.key($0.date) == today }
+            .map { ForgeTimeline.splitNote($0.text).headline }
+            .filter { !$0.isEmpty }
     }
 
     // MARK: - Card AI (#P11)

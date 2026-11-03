@@ -29,6 +29,8 @@ enum ForgeCoachNotes {
     static let eveningStartHour = 19
     /// A workout is "just finished" for this long after it ends.
     static let workoutWindow: TimeInterval = 6 * 3600
+    /// A shorter session gets no note of its own.
+    static let minNoteMinutes = 15
 
     static let lastWorkoutNoteKey = "noop.forge.coachNote.lastWorkoutId"
     static let lastEveningDayKey = "noop.forge.coachNote.lastEveningDay"
@@ -65,14 +67,32 @@ enum ForgeCoachNotes {
         return id(newest) == lastNotedId ? nil : newest
     }
 
+    /// A session worth a note: long enough to say something about and not an everyday walk. A walk is a
+    /// fact for the timeline; nobody needs a coach's verdict or a rest suggestion for it.
+    static func isWorthANote(sport: String, minutes: Int, isDetected: Bool) -> Bool {
+        guard !isDetected, minutes >= minNoteMinutes else { return false }
+        return !sport.localizedCaseInsensitiveContains("walk")
+    }
+
     // MARK: Instructions (the model writes the words; figures come from its tools)
 
-    static func workoutInstruction(sport: String, minutes: Int) -> String {
+    /// The whole reply when the coach has nothing new to say. Nothing is posted.
+    static let skipWord = "SKIP"
+
+    /// Answers are the model's, written for this one note. A note that asks nothing offers none.
+    static let repliesClause = """
+    Only if your note asks the user something or offers a real choice, add a last line in exactly this form: \
+    REPLIES: first answer | second answer. At most two answers of at most four words each, in the user's \
+    language. Otherwise leave that line out.
+    """
+
+    static func workoutInstruction(sport: String, minutes: Int, ended: String) -> String {
         """
-        The user just finished a workout: \(sport), about \(minutes) minutes. Unprompted, write a short note \
-        about it. Use the tools to read the session and today's Charge before saying anything about effort \
-        or recovery; never invent a figure. One headline sentence, then at most two short sentences: what \
-        stood out and one practical suggestion for the rest of the day. No greeting, no list.
+        The user finished a workout: \(sport), about \(minutes) minutes, ended at \(ended). Unprompted, write \
+        a short note about this one session. Use the tools to read it before saying anything about it; never \
+        invent a figure. Say what stood out in the session and what it means for their training. Stay on the \
+        session: do not bring up sleep or the scores of the day, other notes cover those. One headline \
+        sentence, then at most one short sentence, under 30 words in all. No greeting, no list, no dashes.
         """
     }
 
@@ -80,8 +100,39 @@ enum ForgeCoachNotes {
         """
         It is evening. Unprompted, write a short recap of the user's day. Use the tools to read today's \
         Effort, any workouts and goals progress; never invent a figure. One headline sentence, then at most \
-        two short sentences, ending with one concrete point for tonight or tomorrow (for example when to go \
-        to bed). No greeting, no list.
+        one short sentence ending with one concrete point for tonight or tomorrow, under 30 words in all. \
+        No greeting, no list, no dashes.
         """
+    }
+
+    /// Added to every unprompted turn: what the coach has already told the person today. Three notes in a row
+    /// about one bad night is the failure this prevents.
+    static func alreadySaidClause(_ headlines: [String]) -> String? {
+        guard !headlines.isEmpty else { return nil }
+        let list = headlines.map { "- \($0)" }.joined(separator: "\n")
+        return """
+        Earlier today you already told the user:
+        \(list)
+        Do not repeat any of those points or their topic. If you would only be repeating them, reply with \
+        exactly \(skipWord) and nothing else.
+        """
+    }
+
+    static func isSkip(_ reply: String) -> Bool {
+        reply.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters)) == skipWord
+    }
+
+    /// Separates the REPLIES line from the note, so it is never shown as text.
+    static func splitReplies(_ reply: String) -> (text: String, replies: [String]) {
+        var lines = reply.components(separatedBy: "\n")
+        while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty { lines.removeLast() }
+        guard let last = lines.last?.trimmingCharacters(in: .whitespaces), last.hasPrefix("REPLIES:") else {
+            return (reply.trimmingCharacters(in: .whitespacesAndNewlines), [])
+        }
+        lines.removeLast()
+        let answers = last.dropFirst("REPLIES:".count).split(separator: "|")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return (lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), Array(answers.prefix(2)))
     }
 }

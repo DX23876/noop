@@ -90,6 +90,8 @@ enum StrapBatteryCopy {
 struct DashboardBatteryButton: View {
     @EnvironmentObject private var live: LiveState
     var size: CGFloat = 36
+    /// The number beside the ring. The redesign's crowded header draws the ring alone.
+    var showsPercent = true
 
     private var state: StrapBatteryDisplayState {
         .resolve(activeIsWhoop: live.activeIsWhoop, connected: live.connected,
@@ -110,7 +112,7 @@ struct DashboardBatteryButton: View {
                 // would leave a gap.
                 HStack(spacing: 5) {
                     ring
-                    if case .charge(let pct, _, _) = state {
+                    if showsPercent, case .charge(let pct, _, _) = state {
                         Text(StrapBatteryCopy.percentText(pct))
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(StrandPalette.textSecondary)
@@ -118,9 +120,9 @@ struct DashboardBatteryButton: View {
                             .fixedSize()
                     }
                 }
-                .padding(.trailing, isCharge ? 8 : 0)
+                .padding(.trailing, isCharge && showsPercent ? 8 : 0)
                 .background {
-                    if isCharge {
+                    if isCharge && showsPercent {
                         Capsule().fill(StrandPalette.surfaceInset)
                             .overlay(Capsule().noopRestingRim())
                     }

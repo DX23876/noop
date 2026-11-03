@@ -32,7 +32,7 @@ struct ForgeLogSheet: View {
     /// paired markers); mood and medication open the journal, where both are logged.
     private var direct: [Item] {
         [
-            Item(choice: .workout, title: String(localized: "Training"), systemImage: "figure.walk"),
+            Item(choice: .workout, title: String(localized: "Add workout"), systemImage: "figure.walk"),
             Item(choice: .weight, title: String(localized: "Weight"), systemImage: "figure.stand"),
             Item(choice: .journal, title: String(localized: "Journal"), systemImage: "book.fill"),
             Item(choice: .drink, title: String(localized: "Drink"), systemImage: "drop.fill"),

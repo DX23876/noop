@@ -142,7 +142,7 @@ struct ForgeTodayWidgetArea: View {
                 ForEach(rows, id: \.first!.id) { row in
                     HStack(alignment: .top, spacing: 10) {
                         ForEach(row) { w in cell(w) }
-                        if row.count == 1, !row[0].isWide { Color.clear.frame(maxWidth: .infinity) }
+                        if row.count == 1, !row[0].isWide { Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
                     }
                 }
                 if editing {
@@ -240,24 +240,28 @@ struct ForgeWaterWidget: View {
 /// The heart rate right now, while a strap streams it. Opens the Live page.
 struct ForgeLiveHeartWidget: View {
     @EnvironmentObject private var model: AppModel
+    /// The readings since this tile came on screen, drawn as its line. Never stored.
+    @State private var recent: [Double] = []
 
     var body: some View {
         NavigationLink(value: MoreDestination.live) {
             ForgeMetricTile(label: String(localized: "Live heart rate"), value: model.bpm.map { "\($0)" },
-                            unit: "bpm", trend: nil, tint: ForgeColor.accent)
+                            unit: "bpm", trend: recent, tint: ForgeColor.accent)
         }
         .buttonStyle(LiquidPressStyle())
+        .onChange(of: model.bpm) { _, bpm in
+            guard let bpm else { return }
+            recent = Array((recent + [Double(bpm)]).suffix(60))
+        }
     }
 }
 
 /// The last main night: hours asleep, its stages, bedtime to wake. Opens the Rest page.
 struct ForgeLastNightWidget: View {
     @EnvironmentObject private var repo: Repository
-    @State private var night: CachedSleepSession?
+    @State private var night: ForgeRecentSleep.Night?
 
-    private var asleep: Int? {
-        night.map { Int(SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs)) }
-    }
+    private var asleep: Int? { night.map { Int($0.asleepMinutes) } }
 
     var body: some View {
         NavigationLink(value: ForgeRoute.rest(nil)) {
@@ -269,7 +273,7 @@ struct ForgeLastNightWidget: View {
                             .font(.system(.title3, weight: .semibold).monospacedDigit())
                             .foregroundStyle(ForgeColor.text)
                         Spacer(minLength: 4)
-                        Text(verbatim: "\(Self.time(night.effectiveStartTs)) – \(Self.time(night.endTs))")
+                        Text(verbatim: "\(Self.time(night.start)) – \(Self.time(night.end))")
                             .font(ForgeFont.caption)
                             .foregroundStyle(ForgeColor.secondary)
                     }
@@ -282,15 +286,12 @@ struct ForgeLastNightWidget: View {
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
-            let now = Int(Date().timeIntervalSince1970)
-            let sessions = await repo.sleepSessions(from: now - 2 * 86_400, to: now)
-            night = sessions.filter { SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs) >= 180 }
-                .max { $0.endTs < $1.endTs }
+            night = await ForgeRecentSleep.load(repo: repo, days: 3).nights.max { $0.end < $1.end }
         }
     }
 
-    private static func time(_ ts: Int) -> String {
-        Date(timeIntervalSince1970: TimeInterval(ts)).formatted(date: .omitted, time: .shortened)
+    private static func time(_ date: Date) -> String {
+        date.formatted(date: .omitted, time: .shortened)
     }
 }
 

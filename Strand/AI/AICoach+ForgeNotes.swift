@@ -47,16 +47,22 @@ extension AICoachEngine {
         if ForgeCoachNotes.mayPost(.afterWorkout, now: now, enabled: ForgeCoachNotes.isEnabled(.afterWorkout),
                                    initiatedToday: used),
            let workout = ForgeCoachNotes.workoutDue(
-               workouts, now: now, lastNotedId: defaults.string(forKey: ForgeCoachNotes.lastWorkoutNoteKey),
+               workouts.filter { row in
+                   ForgeCoachNotes.isWorthANote(sport: row.sport, minutes: Self.noteMinutes(row),
+                                                isDetected: WorkoutSource.classify(row.source) == .detected)
+               },
+               now: now, lastNotedId: defaults.string(forKey: ForgeCoachNotes.lastWorkoutNoteKey),
                end: { Date(timeIntervalSince1970: TimeInterval($0.endTs)) },
                id: { "\($0.startTs)|\($0.sport)" }) {
-            let minutes = Int(((workout.durationS ?? Double(workout.endTs - workout.startTs)) / 60).rounded())
+            let workoutId = "\(workout.startTs)|\(workout.sport)"
+            let ended = Date(timeIntervalSince1970: TimeInterval(workout.endTs)).formatted(date: .omitted, time: .shortened)
             let spoke = await runSeededTurnCancellable(
                 instruction: ForgeCoachNotes.workoutInstruction(
-                    sport: WorkoutSource.localizedDisplaySport(workout.sport), minutes: minutes),
+                    sport: WorkoutSource.localizedDisplaySport(workout.sport),
+                    minutes: Self.noteMinutes(workout), ended: ended),
                 prefix: String(localized: "After your workout"),
                 stampKey: ForgeCoachNotes.lastWorkoutNoteKey,
-                stampValue: "\(workout.startTs)|\(workout.sport)", origin: .nudge)
+                stampValue: workoutId, workoutId: workoutId, origin: .nudge)
             if spoke { announceLatestNote(now: now) }
             return spoke
         }
@@ -72,6 +78,10 @@ extension AICoachEngine {
             return spoke
         }
         return false
+    }
+
+    private static func noteMinutes(_ row: WorkoutRow) -> Int {
+        Int(((row.durationS ?? Double(row.endTs - row.startTs)) / 60).rounded())
     }
 
     /// The note just written, as a local notification with its headline. No extra model call: the text

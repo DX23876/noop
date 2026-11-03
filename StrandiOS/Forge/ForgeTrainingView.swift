@@ -12,6 +12,7 @@ import WhoopStore
 struct ForgeTrainingView: View {
     let onProfile: () -> Void
     let onStartWorkout: () -> Void
+    @State private var addingWorkout = false
     var onAsk: (String) -> Void = { _ in }
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
@@ -93,6 +94,7 @@ struct ForgeTrainingView: View {
         .background(ForgeBackground(tab: .training))
         .refreshable { await repo.refresh() }
         .task(id: "\(repo.refreshSeq)|\(weekStartRaw)") { await load() }
+        .sheet(isPresented: $addingWorkout) { ForgeWorkoutEditor() }
         .onChange(of: session.hasLiveSession) { _, live in
             if !live { Task { await load(force: true) } }
         }
@@ -160,6 +162,11 @@ struct ForgeTrainingView: View {
             HStack(spacing: 8) {
                 Button(action: onStartWorkout) {
                     chipLabel("Start workout", "play.fill")
+                }
+                .buttonStyle(.plain)
+                // A session that already happened, for one the strap missed or that was forgotten.
+                Button { addingWorkout = true } label: {
+                    chipLabel("Add workout", "plus")
                 }
                 .buttonStyle(.plain)
                 quickChip("Intervals", "timer", MoreDestination.intervals)

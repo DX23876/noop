@@ -714,6 +714,8 @@ struct RootTabView: View {
             ForgeLogSheet(onPick: { choice in handleForgeLog(choice) }, acceptsPhotos: coach.acceptsPhotos)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        case .addWorkout:
+            ForgeWorkoutEditor()
         case .liveSession, .battery, .customizeToday, .goals:
             // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover) and
             // the device row to the Today stack, so this arm only keeps the switch exhaustive.
@@ -904,16 +906,18 @@ struct RootTabView: View {
                 Task {
                     await coach.sendPhoto(png, question: String(localized: "Here is a photo I want to log, such as a meal or a workout screen. Say what you see and what I could log from it. Mark any estimate as an estimate and do not log anything yourself."))
                 }
-            case .workout:
-                if model.activeWorkout != nil { session.present() }
-                else { withAnimation(Self.sheetEase) { quickAction = .workout } }
+            // Logging is for what already happened; a live session starts from the Training tab.
+            case .workout: withAnimation(Self.sheetEase) { quickAction = .addWorkout }
             case .journal: withAnimation(Self.sheetEase) { quickAction = .journal }
             case .breathe: withAnimation(Self.sheetEase) { quickAction = .breathe }
             case .liveHeartRate: withAnimation(Self.sheetEase) { quickAction = .live }
             case .weight: pushOnToday(TabRoute.weight)
             case .drink: pushOnToday(TabRoute.hydration)
             case .energy: pushOnToday(TabRoute.energy)
-            case .sleep: withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+            case .sleep:
+                // The full Sleep screen, where marks are logged and a night is edited.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+                tabPaths[3] = NavigationPath([TabRoute.sleep])
             case .labMarkers: routedPillar = .labBook
             }
         }
@@ -1278,6 +1282,8 @@ private enum QuickAction: Int, Identifiable {
     case goals
     /// The redesign's Log sheet.
     case forgeLog
+    /// Adding a session that already happened, from the Log sheet.
+    case addWorkout
     var id: Int { rawValue }
 }
 
