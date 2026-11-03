@@ -13,8 +13,47 @@ struct SiriShortcutsSettingsView: View {
     var body: some View {
         ScreenScaffold(title: "Siri & Shortcuts",
                        subtitle: "Run NOOP actions hands-free.") {
-            tips
-            shortcutsCard
+            if NoopVisualStyle.skin == .forge {
+                forgeActions
+                forgeExport
+            } else {
+                tips
+                shortcutsCard
+            }
+        }
+    }
+
+    /// What NOOP answers to, one row per action, with the words that start it.
+    private var forgeActions: some View {
+        NoopCard(padding: NoopMetrics.space3) {
+            VStack(spacing: 0) {
+                forgeAction("bolt.fill", StrandPalette.chargeColor, String(localized: "What's my Charge?"), String(localized: "today's score, read aloud"))
+                Divider().overlay(StrandPalette.hairline).padding(.leading, 52)
+                forgeAction("arrow.triangle.2.circlepath", StrandPalette.metricCyan, String(localized: "Sync my strap"), String(localized: "pulls the latest from the strap"))
+                Divider().overlay(StrandPalette.hairline).padding(.leading, 52)
+                forgeAction("waveform", StrandPalette.effortColor, String(localized: "Buzz my strap"), String(localized: "the strap vibrates"))
+                Divider().overlay(StrandPalette.hairline).padding(.leading, 52)
+                forgeAction("mappin", StrandPalette.restColor, String(localized: "Mark a moment"), String(localized: "a marker on today's timeline"))
+                Divider().overlay(StrandPalette.hairline).padding(.leading, 52)
+                forgeAction("target", StrandPalette.metricPurple, String(localized: "How are my goals?"), String(localized: "where your goals stand"))
+            }
+        }
+    }
+
+    private func forgeAction(_ symbol: String, _ tint: Color, _ title: String, _ note: String) -> some View {
+        ForgeTileRow(symbol: symbol, tint: tint, title: title, subtitle: note) { EmptyView() }
+            .padding(.vertical, NoopMetrics.space1)
+    }
+
+    private var forgeExport: some View {
+        ForgeListGroup("Shortcuts") {
+            ForgeLinkRow(title: "Shortcut export", subtitle: "Today's scores as a shortcut input") {
+                ShortcutExportSettingsView()
+            }
+            Divider().overlay(StrandPalette.hairline)
+            ShortcutsLink()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, NoopMetrics.space2)
         }
     }
 

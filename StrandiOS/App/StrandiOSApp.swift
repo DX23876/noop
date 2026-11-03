@@ -5,6 +5,7 @@ import UserNotifications
 import UIKit
 import StrandAnalytics
 import StrandCore
+import StrandTraining
 import WhoopStore
 import WhoopProtocol
 
@@ -755,6 +756,9 @@ enum DemoScreens {
         switch args[i + 1].lowercased() {
         case "today":    return AnyView(TodayView())
         case "startworkout": return AnyView(DemoStartWorkoutHost())
+        case "addworkout": return AnyView(ManualWorkoutSheet(onSave: { _, _ in }))
+        case "weighin": return AnyView(WeightLogSheet(draft: WeightLogDraft(seedKg: 96.4), unitSystem: .metric, onSave: { _, _, _ in }, onDelete: nil))
+        case "library": return AnyView(DemoExerciseLibraryHost())
         // The DEFAULT iOS Today (`noop.liquidTodayEnabled` ships true), so it needs its own entry — plain
         // "today" renders the CLASSIC screen, which is exactly the screen whose behaviour Liquid was found
         // to have diverged from. Without this, the default Today was the one screen the harness could not
@@ -825,6 +829,13 @@ enum DemoScreens {
 private struct DemoStartWorkoutHost: View {
     @EnvironmentObject private var session: ActiveSessionController
     var body: some View { StartWorkoutSheet(session: session) }
+}
+
+/// DEBUG-only host so `--demo-screen library` can render the exercise library.
+private struct DemoExerciseLibraryHost: View {
+    var body: some View {
+        NavigationStack { TrainingExerciseLibraryView(exercises: TrainingStarterCatalog.exercises) }
+    }
 }
 
 /// DEBUG-only host so `--demo-screen addwizard` can render the multi-step Add-a-device wizard.

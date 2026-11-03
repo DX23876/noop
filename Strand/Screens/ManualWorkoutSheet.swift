@@ -154,7 +154,103 @@ struct ManualWorkoutSheet: View {
         #endif
     }
 
-    private var formContent: some View {
+    @ViewBuilder private var formContent: some View {
+        if NoopVisualStyle.skin == .forge {
+            forgeForm
+        } else {
+            shippedForm
+        }
+    }
+
+    /// The new design: Cancel and Save on top, the sport as chips, times and the optional figures in cards.
+    private var forgeForm: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .foregroundStyle(StrandPalette.forgeAccent)
+                Spacer()
+                Text(editing == nil ? "Add Workout" : "Edit Workout")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Spacer()
+                Button(editing == nil ? "Add" : "Save") { save() }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(builtRow == nil ? StrandPalette.textTertiary : StrandPalette.forgeAccent)
+                    .disabled(builtRow == nil)
+                    .accessibilityLabel(editing == nil ? "Add workout" : "Save workout")
+            }
+            .frame(minHeight: 44)
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    ForgeFlowLayout {
+                        ForEach(forgeSportChips, id: \.self) { name in
+                            ForgeFilterChip(title: WorkoutSource.localizedDisplaySport(name), isSelected: sport == name) {
+                                sport = name
+                                sportFocused = false
+                            }
+                        }
+                    }
+                    sportPicker
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .zIndex(1)
+            if let hrSource {
+                WorkoutSpanPicker(repo: hrSource, start: $start, end: $end, editing: editing)
+            }
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    DatePicker("Start", selection: startBinding, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                        .font(StrandFont.subhead)
+                        .accessibilityLabel("Start date and time")
+                    Divider().overlay(StrandPalette.hairline)
+                    DatePicker("End", selection: $end, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                        .font(StrandFont.subhead)
+                        .accessibilityLabel("End date and time")
+                    Divider().overlay(StrandPalette.hairline)
+                    Stepper(value: durationBinding, in: 1...(24 * 60), step: 5) {
+                        HStack {
+                            Text("Duration").font(StrandFont.subhead)
+                            Spacer()
+                            Text(durationLabel)
+                                .font(StrandFont.subhead.monospacedDigit())
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                    .accessibilityLabel("Duration in minutes")
+                }
+            }
+            ForgeListGroup("Optional") {
+                forgeNumberRow(String(localized: "Distance"), numberInput(String(localized: "optional"), text: $distanceText, unit: distanceUnit, field: .distance))
+                Divider().overlay(StrandPalette.hairline)
+                forgeNumberRow(String(localized: "Avg HR"), numberInput(String(localized: "optional"), text: $avgHrText, unit: "bpm", field: .avgHr))
+                Divider().overlay(StrandPalette.hairline)
+                forgeNumberRow(String(localized: "Calories"), numberInput(String(localized: "optional"), text: $kcalText, unit: "kcal", field: .calories))
+            }
+            if let validationNote { noteRow(validationNote) }
+            if avgHrEditedNote { noteRow(String(localized: "Avg HR is shown as typed. The HR graph, zones and Effort stay from the recorded session.")) }
+        }
+    }
+
+    private func forgeNumberRow(_ label: String, _ input: some View) -> some View {
+        HStack(spacing: NoopMetrics.space3) {
+            Text(label).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+            Spacer(minLength: 0)
+            input.frame(maxWidth: 170)
+        }
+        .frame(minHeight: 44)
+    }
+
+    /// The wearer's last sports first, then the catalogue's first ones, eight at most.
+    private var forgeSportChips: [String] {
+        var names = recentSports
+        for candidate in WorkoutCatalog.matching("").map(\.name) where !names.contains(candidate) {
+            names.append(candidate)
+        }
+        return Array(names.prefix(8))
+    }
+
+    private var shippedForm: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space5) {
             header
             VStack(alignment: .leading, spacing: NoopMetrics.space4) {

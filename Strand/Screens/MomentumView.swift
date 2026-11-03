@@ -31,6 +31,8 @@ struct MomentumView: View {
     var availableDestinations: Set<MomentumDestination> = [
         .chargeBreakdown, .goalJourney, .plan, .liveSession,
     ]
+    /// The new design's open row.
+    @State private var openMessage: String?
 
     var body: some View {
         ScreenScaffold(title: "Momentum",
@@ -39,6 +41,8 @@ struct MomentumView: View {
                 unresolvedState
             } else if messages.isEmpty {
                 emptyState
+            } else if NoopVisualStyle.skin == .forge {
+                forgeBody
             } else {
                 if let lead = messages.first {
                     hero(lead)
@@ -49,6 +53,91 @@ struct MomentumView: View {
                         section(tier, Array(group))
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - New design
+
+    /// The new design's feed: what could move most first, what is going well under it. A row opens in place
+    /// to show what it rests on and what can be done about it.
+    @ViewBuilder
+    private var forgeBody: some View {
+        let open = messages.filter { $0.tone != .positive }
+        let going = messages.filter { $0.tone == .positive }
+        if !open.isEmpty { forgeGroup(open) }
+        if !going.isEmpty {
+            ForgeSectionHeading("Going well")
+            forgeGroup(going)
+        }
+    }
+
+    private func forgeGroup(_ group: [MomentumMessage]) -> some View {
+        NoopCard(padding: NoopMetrics.space3) {
+            VStack(spacing: 0) {
+                ForEach(Array(group.enumerated()), id: \.offset) { index, message in
+                    if index > 0 { Divider().overlay(StrandPalette.hairline).padding(.leading, 52) }
+                    forgeRow(message)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func forgeRow(_ m: MomentumMessage) -> some View {
+        let isOpen = openMessage == m.headline
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            Button {
+                withAnimation(.snappy) { openMessage = isOpen ? nil : m.headline }
+            } label: {
+                HStack(alignment: .top, spacing: NoopMetrics.space3) {
+                    Image(systemName: MomentumSymbol.name(for: m.kind))
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.forgeOnAccent)
+                        .frame(width: 40, height: 40)
+                        .background(m.tone == .neutral ? StrandPalette.forgeAccent : tint(m),
+                                    in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(m.headline)
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .multilineTextAlignment(.leading)
+                        Text(m.detail)
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(isOpen ? nil : 2)
+                    }
+                    Spacer(minLength: NoopMetrics.space1)
+                    if let delta = m.deltaText {
+                        Text(delta)
+                            .font(StrandFont.number(15).monospacedDigit())
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                }
+                .padding(.vertical, NoopMetrics.space2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isOpen ? .isSelected : [])
+            if isOpen {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    if let line = m.actionLine {
+                        Text(line)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    evidence(m)
+                    if let action = m.action, availableDestinations.contains(action.destination) {
+                        Button(action.title) { onAction(action.destination) }
+                            .buttonStyle(.noopSecondary)
+                    }
+                }
+                .padding(.leading, 52)
+                .padding(.bottom, NoopMetrics.space2)
+                .transition(.opacity)
             }
         }
     }

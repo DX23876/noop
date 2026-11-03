@@ -164,6 +164,9 @@ struct TestCentreView: View {
     var body: some View {
         ScreenScaffold(title: "Test Centre",
                        subtitle: "Turn on a test for the thing that's wrong, wear the strap, then tap Report. All on \(Platform.deviceNounPhrase).") {
+            if NoopVisualStyle.skin == .forge {
+                forgeBody
+            } else {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 domainModesCard.staggeredAppear(index: 0)
                 diagnosticToolsCard.staggeredAppear(index: 1)
@@ -172,6 +175,7 @@ struct TestCentreView: View {
                 if ouraPaired { ouraCard.staggeredAppear(index: 2) }
                 exportCard.staggeredAppear(index: 2)
                 experimentalAlgorithmsCard.staggeredAppear(index: 3)
+            }
             }
         }
         .id(refreshToken)
@@ -208,9 +212,11 @@ struct TestCentreView: View {
     @ViewBuilder private var domainModesCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                Text("TEST MODES")
-                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                if NoopVisualStyle.skin != .forge {
+                    Text("TEST MODES")
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
                 Text("Each test logs extra detail for one part of the app while you wear the strap, then bundles it for a bug report.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -228,9 +234,11 @@ struct TestCentreView: View {
     @ViewBuilder private var rawDataCollectorCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                Text("5/MG RAW DATA COLLECTOR")
-                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                if NoopVisualStyle.skin != .forge {
+                    Text("5/MG RAW DATA COLLECTOR")
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
                 Text("Record, review, export, and delete bounded 100 Hz motion sessions. Normal sync is unchanged.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -250,9 +258,11 @@ struct TestCentreView: View {
     @ViewBuilder private var fiveMGProtocolDiagnosticsCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                Text("5/MG PROTOCOL DIAGNOSTICS")
-                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                if NoopVisualStyle.skin != .forge {
+                    Text("5/MG PROTOCOL DIAGNOSTICS")
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
                 Text("Developer tools for unmapped protocol features. None of these are required for normal WHOOP 5/MG recording, history sync, or the bounded Raw Data Collector.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -654,48 +664,141 @@ struct TestCentreView: View {
 
                 Divider().overlay(StrandPalette.hairline)
 
-                // Scheduled daily auto-export, the same ScheduledDebugExport reads/writes as the Settings
-                // Diagnostics card. iOS BGAppRefresh is best-effort, the honest caption is kept.
-                Toggle(isOn: $debugExportOn) {
-                    Text("Daily auto-export of the strap log")
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch).appleInspiredTint("testCentre")
-                .onChangeCompat(of: debugExportOn) { on in ScheduledDebugExport.setEnabled(on) }
-
-                if debugExportOn {
-                    HStack {
-                        Text("Time of day").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        DatePicker("", selection: debugExportTimeBinding, displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                            .accessibilityLabel("Daily auto-export time")
-                    }
-                    // Retention (#650): how many scheduled-export generations to keep. Wired to
-                    // ScheduledDebugExport.keepCount; the next write prunes the oldest beyond this count.
-                    HStack {
-                        Text("Keep last exports").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        Picker("Keep last exports", selection: $debugExportKeep) {
-                            ForEach(ScheduledDebugExport.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
-                        }
-                        .labelsHidden().pickerStyle(.menu).appleInspiredTint("testCentre")
-                        .onChangeCompat(of: debugExportKeep) { n in ScheduledDebugExport.keepCount = n }
-                    }
-                    Text("Older scheduled exports beyond this many are pruned automatically, oldest first.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    NoopButton("Run now", systemImage: "square.and.arrow.down.on.square", kind: .secondary) {
-                        runScheduledExportNow()
-                    }
-                    Text("On iPhone this is best-effort (iOS decides when background tasks run). Everything stays on \(Platform.deviceNounPhrase).")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                autoExportControls
                 // Manual clear (#650): always available, even with the toggle off, since files written
                 // while it was on can outlive that toggle flip.
                 NoopButton("Clear scheduled exports", systemImage: "trash", kind: .destructive) {
                     showClearExportsConfirm = true
+                }
+            }
+        }
+    }
+
+    /// The scheduled export's switch and, while it is on, its time and how many files it keeps.
+    @ViewBuilder private var autoExportControls: some View {
+        // Scheduled daily auto-export, the same ScheduledDebugExport reads/writes as the Settings
+        // Diagnostics card. iOS BGAppRefresh is best-effort, the honest caption is kept.
+        Toggle(isOn: $debugExportOn) {
+            Text("Daily auto-export of the strap log")
+                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch).appleInspiredTint("testCentre")
+        .onChangeCompat(of: debugExportOn) { on in ScheduledDebugExport.setEnabled(on) }
+
+        if debugExportOn {
+            HStack {
+                Text("Time of day").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Spacer()
+                DatePicker("", selection: debugExportTimeBinding, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                    .accessibilityLabel("Daily auto-export time")
+            }
+            // Retention (#650): how many scheduled-export generations to keep. Wired to
+            // ScheduledDebugExport.keepCount; the next write prunes the oldest beyond this count.
+            HStack {
+                Text("Keep last exports").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Spacer()
+                Picker("Keep last exports", selection: $debugExportKeep) {
+                    ForEach(ScheduledDebugExport.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
+                }
+                .labelsHidden().pickerStyle(.menu).appleInspiredTint("testCentre")
+                .onChangeCompat(of: debugExportKeep) { n in ScheduledDebugExport.keepCount = n }
+            }
+            Text("Older scheduled exports beyond this many are pruned automatically, oldest first.")
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            NoopButton("Run now", systemImage: "square.and.arrow.down.on.square", kind: .secondary) {
+                runScheduledExportNow()
+            }
+            Text("On iPhone this is best-effort (iOS decides when background tasks run). Everything stays on \(Platform.deviceNounPhrase).")
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - New design
+
+    /// The same tools by what the reader came to do: report something, run a test, repair, try something new.
+    /// The long explanations stay on the pages the rows open.
+    @ViewBuilder private var forgeBody: some View {
+        ForgeListGroup("Report a problem") {
+            Menu {
+                Button("Copy") { PlatformPasteboard.copy(live.exportableLogText()) }
+                Button("Save…") {
+                    Task {
+                        let extra = await DebugDataDiagnostics.dynamicLines(repo: model.repo)
+                        FileExport.exportText(live.exportableLogText(extraHeaderLines: extra),
+                                              suggestedName: FileExport.timestampedName("noop-strap-log", ext: "txt"))
+                    }
+                }
+            } label: {
+                ForgeActionLabel(title: "Strap log", subtitle: "Grab this when you report a bug. It tells me what the app saw.")
+            }
+            .buttonStyle(.plain)
+            Divider().overlay(StrandPalette.hairline)
+            ForgeActionRow(title: "Report a bug with my log",
+                           subtitle: "Builds a redacted .zip and shows you what it contains.") {
+                report.start(mode: TestCentreView.masterReportMode, live: live, repo: model.repo)
+            }
+            if let status = report.lastStatus {
+                Text(status).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let reportText = report.copyableReport {
+                ForgeActionRow(title: "Copy report.txt") { PlatformPasteboard.copy(reportText) }
+            }
+            Divider().overlay(StrandPalette.hairline)
+            autoExportControls
+            ForgeActionRow(title: "Clear scheduled exports", role: .destructive) { showClearExportsConfirm = true }
+        }
+        ForgeListGroup("Testing") {
+            ForgeLinkRow(title: "Test modes", subtitle: "Per area: strap, sleep, workouts and more") {
+                ScreenScaffold(title: "Test modes") { domainModesCard }
+            }
+            if is5MG {
+                Divider().overlay(StrandPalette.hairline)
+                ForgeLinkRow(title: "Raw-data collector", subtitle: "5.0 and MG") { RawDataCollectorView() }
+                Divider().overlay(StrandPalette.hairline)
+                ForgeLinkRow(title: "Protocol diagnostics", subtitle: "5.0 and MG") {
+                    ScreenScaffold(title: "Protocol diagnostics") { fiveMGProtocolDiagnosticsCard }
+                }
+            }
+        }
+        ForgeListGroup("Maintenance") {
+            ForgeActionRow(title: "Recalibrate Charge baseline", subtitle: "Asks first. No stored day is deleted.") {
+                showRecalibrateConfirm = true
+            }
+            Divider().overlay(StrandPalette.hairline)
+            ForgeActionRow(title: "Backfill skin-temp absolutes", subtitle: "Fills gaps only, never overwrites a reading.") {
+                runSkinTempBackfill()
+            }
+            .disabled(skinTempBackfillRunning)
+            if let status = skinTempBackfillStatus {
+                Text(status).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Divider().overlay(StrandPalette.hairline)
+            ForgeActionRow(title: "Copy environment dump") { PlatformPasteboard.copy(live.exportableLogText()) }
+            if let identity = polarIdentity {
+                Divider().overlay(StrandPalette.hairline)
+                Toggle(isOn: $polarDebugLogging) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Polar debug logging").font(StrandFont.subhead)
+                        Text(identity).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+                .tint(StrandPalette.chargeColor)
+                .frame(minHeight: 44)
+            }
+        }
+        ForgeListGroup("Experimental", note: "Experimental writes to a device ask before they run and can be undone.") {
+            ForgeLinkRow(title: "Experimental algorithms", subtitle: "Opt-in, off by default") {
+                ScreenScaffold(title: "Experimental algorithms") { experimentalAlgorithmsCard }
+            }
+            if ouraPaired {
+                Divider().overlay(StrandPalette.hairline)
+                ForgeLinkRow(title: "Oura ring options", subtitle: "Experimental") {
+                    ScreenScaffold(title: "Oura ring options") { ouraCard }
                 }
             }
         }
@@ -710,9 +813,11 @@ struct TestCentreView: View {
     @ViewBuilder private var experimentalAlgorithmsCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                Text("EXPERIMENTAL ALGORITHMS")
-                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                if NoopVisualStyle.skin != .forge {
+                    Text("EXPERIMENTAL ALGORITHMS")
+                        .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
                 Text("Research-grade alternatives / precision tweaks. Opt-in, off by default, non-clinical.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

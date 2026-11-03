@@ -511,6 +511,9 @@ struct MetricExplorerView: View {
         #endif
     }
 
+    /// The new design's source filter. A measurement with several sources opens the chosen source's detail.
+    @State private var forgeSource: ForgeMetricSource = .all
+
     private var availability: MetricExplorerAvailability { MetricExplorerFilter.availability(availabilityRaw) }
     private var collapsed: Set<String> { MetricExplorerFilter.decodeCollapsed(collapsedRaw) }
     /// nil until the cheap probe has answered, so `With Data` never blanks the list while it scans.
@@ -623,17 +626,26 @@ struct MetricExplorerView: View {
             #endif
             .padding(.bottom, NoopMetrics.gap)
 
-            filterBar
-                .padding(.bottom, NoopMetrics.sectionGap - 20)
+            if NoopVisualStyle.skin == .forge {
+                forgeFilterBar
+            } else {
+                filterBar
+                    .padding(.bottom, NoopMetrics.sectionGap - 20)
+            }
 
             let searching = !MetricExplorerFilter.normalised(query).isEmpty
             let visibleByCategory: [(String, [[MetricDescriptor]])] = MetricCatalog.categories.map { category in
                 // Localized at the render site only; `category` itself stays the raw English identifier
                 // that `inCategory` filters on.
                 let groups = MetricCatalog.groupedByMeasurement(MetricCatalog.inCategory(category))
-                return (category, MetricExplorerFilter.visibleGroups(
+                let visible = MetricExplorerFilter.visibleGroups(
                     groups, query: query, categoryName: MetricCatalog.categoryDisplayName(category),
-                    availability: availability, nonEmptyIDs: nonEmptyIDs))
+                    availability: availability, nonEmptyIDs: nonEmptyIDs)
+                guard NoopVisualStyle.skin == .forge else { return (category, visible) }
+                return (category, visible.compactMap { group in
+                    let kept = group.filter(forgeSource.includes)
+                    return kept.isEmpty ? nil : kept
+                })
             }
             if visibleByCategory.allSatisfy({ $0.1.isEmpty }) {
                 Text("No matching metrics")
@@ -644,7 +656,9 @@ struct MetricExplorerView: View {
 
             ForEach(visibleByCategory, id: \.0) { category, groups in
                 let expanded = MetricExplorerFilter.isExpanded(category: category, collapsed: collapsed, query: query)
-                if !groups.isEmpty {
+                if !groups.isEmpty, NoopVisualStyle.skin == .forge {
+                    forgeCategory(category, groups: groups, expanded: expanded, searching: searching)
+                } else if !groups.isEmpty {
                     VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                         categoryHeader(category, count: groups.count, expanded: expanded, searching: searching)
                         if expanded {
@@ -696,9 +710,111 @@ struct MetricExplorerView: View {
                     .padding(.bottom, NoopMetrics.sectionGap - 20)
                 }
             }
+
+            if NoopVisualStyle.skin == .forge {
+                NavigationLink {
+                    CompareView()
+                } label: {
+                    Label("Compare metrics", systemImage: "arrow.left.arrow.right")
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.forgeAccent)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .background(StrandPalette.surfaceInset, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         // Rows push MetricDetailView directly (closure-based NavigationLink above) — no value/destination
         // pairing, which is what double-pushed (#38). Nothing else registers a MetricDescriptor destination.
+    }
+
+    /// The new design's search and filters: one field, then a row of chips for the source and for readings.
+    private var forgeFilterBar: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                TextField(String(localized: "Search metrics"), text: $query)
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .autocorrectionDisabled()
+                if !query.isEmpty {
+                    Button { query = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Clear"))
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 44)
+            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: NoopMetrics.space2) {
+                    ForEach(ForgeMetricSource.allCases) { source in
+                        ForgeFilterChip(title: source.label, isSelected: forgeSource == source) { forgeSource = source }
+                    }
+                    ForgeFilterChip(title: MetricExplorerAvailability.withData.label,
+                              isSelected: availability == .withData) {
+                        availabilityRaw = (availability == .withData ? MetricExplorerAvailability.all : .withData).rawValue
+                    }
+                }
+            }
+        }
+    }
+
+    /// One category in the new design: its name, then one card with a row for each measurement.
+    private func forgeCategory(_ category: String, groups: [[MetricDescriptor]], expanded: Bool, searching: Bool) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            Button { toggle(category) } label: {
+                HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
+                    Text(MetricCatalog.categoryDisplayName(category))
+                        .font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.down")
+                        .font(StrandFont.caption.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .rotationEffect(.degrees(expanded ? 0 : -90))
+                        .accessibilityHidden(true)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(searching)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(MetricCatalog.categoryDisplayName(category)))
+            .accessibilityValue(Text(expanded ? String(localized: "Expanded") : String(localized: "Collapsed")))
+            .accessibilityAddTraits([.isHeader, .isButton])
+            if expanded {
+                NoopCard(padding: NoopMetrics.space3) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(groups.enumerated()), id: \.element.first?.id) { idx, group in
+                            if let metric = group.first {
+                                NavigationLink {
+                                    MetricDetailView(metric: metric)
+                                } label: {
+                                    ForgeMetricRow(metric: metric, sources: group.map(\.sourceLabel),
+                                                   isEmpty: emptyByID[metric.id] ?? false)
+                                }
+                                .buttonStyle(.plain)
+                                if idx < groups.count - 1 {
+                                    Divider().overlay(StrandPalette.hairline).padding(.leading, 52)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .id("category-\(category.lowercased())")
     }
 
     /// The sources of one measurement as tappable chips under its row; each opens that source's detail.
@@ -778,6 +894,97 @@ struct MetricExplorerView: View {
 }
 
 // MARK: - One catalog row
+
+/// The new design's source filter over the catalog.
+private enum ForgeMetricSource: String, CaseIterable, Identifiable {
+    case all, strap, appleHealth, miBand, logged
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: return String(localized: "All")
+        case .strap: return String(localized: "Strap")
+        case .appleHealth: return "Apple Health"
+        case .miBand: return "Mi Band"
+        case .logged: return String(localized: "Logged")
+        }
+    }
+
+    func includes(_ metric: MetricDescriptor) -> Bool {
+        switch self {
+        case .all: return true
+        case .appleHealth: return metric.source == "apple-health"
+        case .miBand: return metric.source == "xiaomi-band"
+        case .logged: return ["nutrition-csv", "noop-mood", "noop-weight"].contains(metric.source)
+        case .strap: return !["apple-health", "xiaomi-band", "nutrition-csv", "noop-mood", "noop-weight"].contains(metric.source)
+        }
+    }
+}
+
+/// A measurement in the new design: where it comes from and its latest reading. The reading loads with the
+/// row, so only the rows on screen read anything.
+private struct ForgeMetricRow: View {
+    let metric: MetricDescriptor
+    let sources: [String]
+    let isEmpty: Bool
+    @EnvironmentObject private var repo: Repository
+    @State private var latest: (day: String, value: Double)?
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+
+    private static let dayParser: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// The figure and its unit, apart.
+    private var figure: (value: String, unit: String)? {
+        guard let latest else { return nil }
+        let system = UnitSystem(rawValue: unitSystemRaw) ?? .metric
+        let temperature = UnitPrefs.resolveTemperature(system: system, override: temperatureRaw)
+        let effort = UnitPrefs.resolveEffortScale(effortScaleRaw)
+        let text = metric.format(latest.value, system: system, temperature: temperature, effortScale: effort)
+        let unit = metric.displayUnit(system: system, temperature: temperature, effortScale: effort)
+        guard !unit.isEmpty, text.hasSuffix(unit) else { return (text, "") }
+        return (String(text.dropLast(unit.count)).trimmingCharacters(in: .whitespaces), unit)
+    }
+
+    private var subtitle: String {
+        let origin = sources.joined(separator: ", ")
+        guard let day = latest?.day, let date = Self.dayParser.date(from: day) else { return origin }
+        return "\(origin) · \(date.formatted(.dateTime.day().month(.abbreviated)))"
+    }
+
+    private var tint: Color {
+        switch metric.category {
+        case "Heart": return StrandPalette.metricRose
+        case "Charge": return StrandPalette.chargeColor
+        case "Rest": return StrandPalette.restColor
+        case "Effort": return StrandPalette.effortColor
+        case "Health": return StrandPalette.metricPurple
+        case "Nutrition": return StrandPalette.metricAmber
+        default: return StrandPalette.metricCyan
+        }
+    }
+
+    var body: some View {
+        ForgeTileRow(symbol: metric.icon, tint: tint, title: metric.title, subtitle: subtitle, showsChevron: true) {
+            if let figure {
+                ForgeRowFigure(value: figure.value, unit: figure.unit)
+            } else if isEmpty {
+                Text("No data").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .padding(.vertical, NoopMetrics.space1)
+        .task(id: "\(metric.id)|\(repo.refreshSeq)") {
+            // A short window is enough for "latest", and it keeps the row's read small.
+            latest = await repo.exploreSeries(key: metric.key, source: metric.source, days: 60).last
+        }
+    }
+}
 
 private struct MetricRow: View {
     let metric: MetricDescriptor

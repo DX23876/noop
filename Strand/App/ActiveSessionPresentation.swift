@@ -228,8 +228,7 @@ private struct StrengthMiniBarContent: View {
                 Button(action: onOpen) {
                     HStack(spacing: NoopMetrics.space2) {
                         Image(systemName: "dumbbell.fill").foregroundStyle(StrandPalette.accent)
-                        if model.draft.state == .active,
-                           let timer = model.draft.timer, timer.kind != .timedSet {
+                        if let timer = runningRest(now: now) {
                             let remaining = WorkoutTimerCoordinator.remaining(timer, now: now)
                             VStack(alignment: .leading, spacing: NoopMetrics.space1) {
                                 Text("Rest")
@@ -253,8 +252,7 @@ private struct StrengthMiniBarContent: View {
                             Text("Paused").font(StrandFont.caption.weight(.semibold))
                                 .foregroundStyle(StrandPalette.statusWarningForeground)
                         }
-                        if model.draft.state != .active || model.draft.timer == nil
-                            || model.draft.timer?.kind == .timedSet {
+                        if runningRest(now: now) == nil {
                             Text(ActiveSessionMiniBar.clock(activeSeconds(now: now)))
                                 .font(StrandFont.headline.monospacedDigit())
                         }
@@ -266,8 +264,7 @@ private struct StrengthMiniBarContent: View {
                 .frame(maxWidth: .infinity)
                 .accessibilityHint(Text("Opens the running workout"))
 
-                if model.draft.state == .active,
-                   let timer = model.draft.timer, timer.kind != .timedSet {
+                if runningRest(now: now) != nil {
                     Button("Skip") { model.skipRest() }
                         .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
                 }
@@ -275,6 +272,13 @@ private struct StrengthMiniBarContent: View {
             .padding(.horizontal, NoopMetrics.space3)
             .padding(.vertical, NoopMetrics.space2)
         }
+    }
+
+    /// The rest still running. A finished one has nothing left to count or skip, so the bar goes back to the session.
+    private func runningRest(now: Int) -> WorkoutTimerState? {
+        guard model.draft.state == .active, let timer = model.draft.timer, timer.kind != .timedSet,
+              WorkoutTimerCoordinator.remaining(timer, now: now) > 0 else { return nil }
+        return timer
     }
 
     private var completed: Int { model.draft.exercises.flatMap(\.sets).filter(\.isCompleted).count }

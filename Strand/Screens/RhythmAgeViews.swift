@@ -240,8 +240,82 @@ struct RhythmAgeDetailView: View {
     @State private var snapshot: RhythmAgeSnapshot?
     @State private var history: [(day: String, advance: Double)] = []
     @State private var showsAbout = false
+    @EnvironmentObject private var profile: ProfileStore
 
     var body: some View {
+        if NoopVisualStyle.skin == .forge {
+            forgeBody
+        } else {
+            shippedBody
+        }
+    }
+
+    // MARK: - New design
+
+    private var forgeBody: some View {
+        ScreenScaffold(title: "Daily rhythm") {
+            if case .reading(let r)? = snapshot {
+                let actual = Double(max(profile.age, 1))
+                HStack(alignment: .firstTextBaseline) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(HealthspanSection.years(actual + r.advance))
+                            .font(StrandFont.number(56).monospacedDigit())
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Spacer(minLength: NoopMetrics.space2)
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("Rhythm age")
+                        Text("Calendar age \(Int(actual))")
+                    }
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .accessibilityElement(children: .combine)
+                RhythmDayCard(hourly: r.hourly)
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        ForgeFactRow(label: "Day vs night", value: Self.contrastWord(r))
+                        ForgeFactRow(label: "Movement over the day", value: Self.movementWord(r))
+                        if let start = RhythmAge.busiestWindowStart(r.hourly) {
+                            ForgeFactRow(label: "Most active", value: RhythmAgeText.window(start))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                lever(r)
+                if history.count >= 2 { trend }
+            } else {
+                RhythmAgeHero(snapshot: snapshot).agelessCard()
+            }
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    Label("Beta, not a medical value", systemImage: "info.circle.fill")
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Button("About the rhythm age") { showsAbout = true }
+                        .font(StrandFont.footnote.weight(.semibold))
+                        .foregroundStyle(StrandPalette.forgeAccent)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .sheet(isPresented: $showsAbout) { RhythmAgeAboutSheet() }
+        .task(id: repo.refreshSeq) { (snapshot, history) = await RhythmAgeSnapshot.load(repo: repo) }
+    }
+
+    private static func contrastWord(_ r: RhythmAgeSnapshot.Reading) -> String {
+        [String(localized: "Hardly any difference"), String(localized: "Like most people"), String(localized: "Clear difference")][
+            RhythmStepRow.index(RhythmAge.contrastLevel(amplitudeMg: r.amplitude))]
+    }
+
+    private static func movementWord(_ r: RhythmAgeSnapshot.Reading) -> String {
+        [String(localized: "Less"), String(localized: "Like most people"), String(localized: "More")][
+            RhythmStepRow.index(RhythmAge.movementLevel(mesorMg: r.mesor))]
+    }
+
+    private var shippedBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: NoopMetrics.space6) {
                 RhythmAgeHero(snapshot: snapshot).agelessCard()

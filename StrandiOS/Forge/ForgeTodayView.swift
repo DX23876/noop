@@ -15,6 +15,8 @@ import StrandTraining
 /// fully with the coach off; coach notes only join it when the coach is on.
 struct ForgeTodayView: View {
     @ObservedObject var coach: AICoachEngine
+    /// Live inputs for the Momentum feed: the raised alert, the strap battery, the cycle phase.
+    var model: AppModel?
     let onProfile: () -> Void
     let onLog: () -> Void
     let onWorkout: () -> Void
@@ -41,6 +43,11 @@ struct ForgeTodayView: View {
         UnitPrefs.resolveDistance(system: UnitSystem(rawValue: unitSystemRaw) ?? .metric, override: distanceSystemRaw)
     }
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
+    // The dwell and snooze bookkeeping every Today shares.
+    @AppStorage(DashboardMomentum.Keys.lastKind) private var momentumLastKind = ""
+    @AppStorage(DashboardMomentum.Keys.lastAt) private var momentumLastAt: Double = 0
+    @AppStorage(DashboardMomentum.Keys.snoozed) private var momentumSnoozedRaw = ""
+    @AppStorage(DashboardMomentum.Keys.stepGoal) private var momentumStepGoal = 0
 
     @State private var snapshot = Snapshot()
     @State private var showPlan = false
@@ -918,6 +925,16 @@ struct ForgeTodayView: View {
         let effort = StrainScorer.effectiveEffort(live: live, stored: displayDay?.day == todayKey ? displayDay?.strain : nil)
         guard !Task.isCancelled else { return }
         snapshot.effortStored = effort
+        // This Today feeds the Momentum page and widget, as the shipped ones do.
+        DashboardMomentum.publish(
+            context: DashboardMomentum.context(
+                displayDay: displayDay, allDays: allDays, hrvBaseline: repo.chargeBaselines?.hrv,
+                dayKey: todayKey, isToday: true,
+                steps: DailyStepsReading.resolve(strapSteps: displayDay?.steps, appleSteps: nil, estimatedSteps: nil),
+                stepGoal: momentumStepGoal, live: DashboardMomentum.LiveInput(model: model)),
+            allDays: allDays,
+            snoozedRaw: momentumSnoozedRaw, lastKind: momentumLastKind, lastAt: momentumLastAt,
+            retrospective: false)
         // A due note (after a workout, in the evening) is written now, the same moment the brief uses.
         // When it lands, the transcript changes and `reloadKey` brings it into the timeline.
         if coachFeatureEnabled {

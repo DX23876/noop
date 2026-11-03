@@ -51,6 +51,7 @@ struct TrainingExerciseLibraryView: View {
     @State private var favoritesOnly = false
     @State private var showingMusclePicker = false
     @AppStorage("training.favoriteExerciseIds") private var favoritePayload = ""
+    @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
 
     var body: some View {
         List {
@@ -70,6 +71,12 @@ struct TrainingExerciseLibraryView: View {
             if !favoritesOnly && !favoriteExercises.isEmpty && query.isEmpty && !hasActiveFilters {
                 Section("Favorites") {
                     ForEach(favoriteExercises) { row($0) }
+                }
+            }
+            // The new design leads with what this wearer has done before.
+            if NoopVisualStyle.skin == .forge, query.isEmpty, !hasActiveFilters, !doneBefore.isEmpty {
+                Section("Done before") {
+                    ForEach(doneBefore) { doneBeforeRow($0) }
                 }
             }
 
@@ -221,7 +228,25 @@ struct TrainingExerciseLibraryView: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(.bar)
+        .background {
+            if NoopVisualStyle.skin != .forge { Rectangle().fill(.bar) }
+        }
+    }
+
+    private var doneBefore: [TrainingExercise] {
+        exercises.filter { performance.records(for: $0.id, mode: $0.mode).sessionCount > 0 }
+    }
+
+    /// A row with the wearer's own record in place of the catalogue's description.
+    private func doneBeforeRow(_ exercise: TrainingExercise) -> some View {
+        let records = performance.records(for: exercise.id, mode: exercise.mode)
+        let unit = TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
+        let subtitle = records.heaviestSetKg.map { TrainingPreferences.formattedWeight($0, unit: unit) }
+            ?? String(localized: "\(records.sessionCount) sessions")
+        return ExerciseLibraryRow(exercise: exercise, subtitle: subtitle,
+                                  isFavorite: favorites.contains(exercise.id), mode: mode,
+                                  onOpen: { selected = exercise },
+                                  onAction: pickAction.map { pick in { pick(exercise) } })
     }
 
     private func filterChip(_ title: String, id: String) -> some View {
@@ -345,6 +370,9 @@ private struct TrainingExerciseDetailView: View {
     var body: some View {
         let info = TrainingLibraryPreparation.Info(exercise)
         ScrollView {
+            if NoopVisualStyle.skin == .forge {
+                forgeContent(info)
+            } else {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 NoopCard {
                     VStack(alignment: .leading, spacing: 10) {
@@ -417,7 +445,9 @@ private struct TrainingExerciseDetailView: View {
                 }
             }
             .padding(NoopMetrics.screenPadding)
+            }
         }
+        .forgeScreenBackground()
         .navigationTitle(Text("Exercise"))
         .safeAreaInset(edge: .bottom) {
             if let onAddToWorkout {
@@ -433,6 +463,132 @@ private struct TrainingExerciseDetailView: View {
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         .sheet(isPresented: $showingMediaManager) {
             NavigationStack { ExerciseMediaManagementView() }
+        }
+    }
+
+    /// The new design: the wearer's best first, then their sessions, then how the exercise is done.
+    private func forgeContent(_ info: TrainingLibraryPreparation.Info) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(exercise.title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+                Spacer(minLength: NoopMetrics.space2)
+                Button(action: onToggleFavorite) {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(StrandFont.headline)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(isFavorite ? StrandPalette.metricAmber : StrandPalette.textSecondary)
+                .accessibilityLabel(Text("Favorite"))
+            }
+            if let best = records.bestEstimatedOneRepMaxKg {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(TrainingPreferences.formattedWeight(best, unit: weightUnit))
+                        .font(StrandFont.number(44).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Spacer(minLength: NoopMetrics.space2)
+                    Text("Best 1RM · est.").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            if !recent.isEmpty {
+                forgeHistory
+            } else {
+                NoopCard {
+                    Text("No sessions with this exercise yet. Once you log one, its records and history appear here.")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            ForgeSectionHeading("How to perform it").padding(.top, NoopMetrics.space2)
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    if let item = ExerciseMediaRegistry.shared.media(for: exercise) {
+                        ExerciseMediaView(media: item, minHeight: 150, maxHeight: 280)
+                        Text(ExerciseMediaStore.Provider.displayCredit)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    } else if exercise.mediaId != nil {
+                        ExerciseMediaDownloadCard(dismissible: false)
+                    }
+                    if exercise.instructions.isEmpty {
+                        Text("Instructions are not available for this exercise yet. You can still use it for logging.")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                    } else {
+                        ForEach(Array(exercise.instructions.enumerated()), id: \.offset) { index, instruction in
+                            HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                                Text("\(index + 1)")
+                                    .font(StrandFont.caption.weight(.bold))
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                    .frame(width: 20, alignment: .leading)
+                                Text(instruction).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                    ForgeFactRow(label: "Primary muscle", value: info.primary.isEmpty ? muscle(nil) : info.primary.map { muscle($0) }.joined(separator: ", "))
+                    if !info.secondary.isEmpty {
+                        ForgeFactRow(label: "Also involved", value: info.secondary.map { muscle($0) }.joined(separator: ", "))
+                    }
+                    ForgeFactRow(label: "Equipment", value: exercise.equipmentIds.isEmpty
+                                 ? String(localized: "No equipment")
+                                 : exercise.equipmentIds.map(TrainingDisplayNames.equipment).joined(separator: ", "))
+                    ForgeFactRow(label: "Content source", value: sourceTitle)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Text(sourceExplanation).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(NoopMetrics.screenPadding)
+    }
+
+    /// The heaviest set of each recent session on a line, the sessions themselves under it.
+    private var forgeHistory: some View {
+        let points = recent.reversed().compactMap { entry -> TrendPoint? in
+            guard let top = entry.workingSets.compactMap(\.weightKg).filter({ $0 > 0 }).max() else { return nil }
+            return TrendPoint(date: Date(timeIntervalSince1970: TimeInterval(entry.startTs)), value: top)
+        }
+        let values = points.map(\.value)
+        return NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Your history").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Text("\(records.sessionCount) sessions").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+                if points.count >= 2, let lo = values.min(), let hi = values.max() {
+                    let range = (lo - 1)...(hi + 1)
+                    TrendChart(points: points, gradient: Gradient(colors: [StrandPalette.restColor, StrandPalette.restColor]),
+                               valueRange: range, showsArea: false, height: 130,
+                               valueFormat: { TrainingPreferences.formattedWeight($0, unit: weightUnit) },
+                               accessibilityLabel: String(localized: "Heaviest set per session"),
+                               yDomain: range)
+                }
+                ForEach(Array(recent.enumerated()), id: \.offset) { index, entry in
+                    if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(Date(timeIntervalSince1970: TimeInterval(entry.startTs)), style: .date)
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        if !entry.isNative {
+                            Text("Imported").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        }
+                        Spacer()
+                        Text(sessionSummary(entry)).font(StrandFont.subhead.monospacedDigit())
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .frame(minHeight: 36)
+                    .accessibilityElement(children: .combine)
+                }
+                if records.bestEstimatedOneRepMaxKg != nil {
+                    Text("The estimated one-rep maximum is a projection from your logged sets, not a lift you performed.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 

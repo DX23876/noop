@@ -592,6 +592,7 @@ struct WeightLogSheet: View {
 
     var body: some View {
         NavigationStack {
+            Group { if NoopVisualStyle.skin == .forge { forgeForm } else {
             Form {
                 Section {
                     HStack {
@@ -625,6 +626,7 @@ struct WeightLogSheet: View {
                 }
             }
             .forgeListBackground()
+            } }
             .navigationTitle(Text(draft.isExisting ? "Edit weigh-in" : "Log weight"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -645,9 +647,63 @@ struct WeightLogSheet: View {
         }
         .onAppear {
             let shown = unitSystem == .imperial ? UnitFormatter.kgToPounds(draft.kg) : draft.kg
-            text = String(format: "%.1f", shown)
+            text = NoopVisualStyle.skin == .forge
+                ? UnitFormatter.localizedMark(String(format: "%.1f", shown))
+                : String(format: "%.1f", shown)
             at = draft.at
             note = draft.note ?? ""
         }
+    }
+
+    /// The new design: the number is the page, the rest sits under it.
+    private var forgeForm: some View {
+        ScrollView {
+            VStack(spacing: NoopMetrics.gap) {
+                HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
+                    TextField("Weight", text: $text)
+                        .font(StrandFont.number(64).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .multilineTextAlignment(.trailing)
+                        .fixedSize()
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                    Text(UnitFormatter.massUnit(unitSystem))
+                        .font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, NoopMetrics.space4)
+                if !text.isEmpty && parsedKg == nil {
+                    Text("Enter a weight between \(Int(GoalMeasure.weightTrend.minVal)) and \(Int(GoalMeasure.weightTrend.maxVal)) kg.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
+                }
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        DatePicker("When", selection: $at, in: ...Date())
+                            .font(StrandFont.subhead)
+                        Divider().overlay(StrandPalette.hairline)
+                        TextField("Note", text: $note, axis: .vertical)
+                            .font(StrandFont.subhead)
+                            .frame(minHeight: 44)
+                    }
+                }
+                if let onDelete {
+                    Button(role: .destructive) {
+                        Task { saving = true; await onDelete(); dismiss() }
+                    } label: {
+                        Text("Delete weigh-in")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.statusCritical)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(StrandPalette.surfaceInset, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(NoopMetrics.screenPadding)
+        }
+        .forgeScreenBackground()
     }
 }

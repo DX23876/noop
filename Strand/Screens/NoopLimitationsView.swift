@@ -77,7 +77,8 @@ struct NoopLimitationsView: View {
     ]
 
     var body: some View {
-        ScreenScaffold(title: "NOOP Limitations", subtitle: "What each WHOOP can read") {
+        ScreenScaffold(title: NoopVisualStyle.skin == .forge ? "What NOOP reads" : "NOOP Limitations",
+                       subtitle: NoopVisualStyle.skin == .forge ? "What NOOP reads from each strap, worked out on this iPhone without an account." : "What each WHOOP can read") {
             tableCard
             legendCard
         }
@@ -88,9 +89,11 @@ struct NoopLimitationsView: View {
     private var tableCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("WHAT NOOP READS").font(StrandFont.overline)
-                    .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                if NoopVisualStyle.skin != .forge {
+                    Text("WHAT NOOP READS").font(StrandFont.overline)
+                        .tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
                 // Column header.
                 HStack {
                     Text("Feature").font(StrandFont.caption)
@@ -123,9 +126,13 @@ struct NoopLimitationsView: View {
     private var legendCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: 10) {
-                Text("LEGEND").font(StrandFont.overline)
-                    .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                if NoopVisualStyle.skin == .forge {
+                    Text("Legend").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                } else {
+                    Text("LEGEND").font(StrandFont.overline)
+                        .tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
                 legendRow(.full, "Read live off the strap")
                 legendRow(.partial, "On-device estimate, or experimental / firmware-gated")
                 legendRow(.none, "Not from the strap. SpO₂ can be filled by importing a WHOOP or Health export.")

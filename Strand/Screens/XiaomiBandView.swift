@@ -122,13 +122,18 @@ struct XiaomiBandView: View {
             } else if !loaded {
                 loadingState
             } else {
+                if NoopVisualStyle.skin == .forge { forgeHead }
                 // Flat children (no wrapping VStack) so the scaffold's LazyVStack can defer each
                 // off-screen chart card instead of building all ~15 at once.
                 rangeControl
                     .background(GeometryReader { g in
                         Color.clear.preference(key: ChartWidthKey.self, value: g.size.width)
                     })
-                tileGrid
+                if NoopVisualStyle.skin == .forge {
+                    forgeReadings
+                } else {
+                    tileGrid
+                }
                 ForEach(pageItems) { item in
                     switch item {
                     case .header(let title, let overline):
@@ -342,6 +347,80 @@ struct XiaomiBandView: View {
     }()
 
     // MARK: - Tiles
+
+    /// Where these values came from, and the way to bring in newer ones.
+    private var forgeHead: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(spacing: NoopMetrics.space3) {
+                    Image(systemName: "applewatch")
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.forgeOnAccent)
+                        .frame(width: 40, height: 40)
+                        .background(StrandPalette.metricCyan, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Mi Band").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        Text("imported").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                Button("Import again") { router.openDataSources() }
+                    .buttonStyle(.noopSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var forgeReadings: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            forgeGroup("Heart and vitals", [
+                forgeTile("rhr", "Resting HR", unit: "bpm", { "\(Int($0.rounded()))" }),
+                forgeTile("spo2", "Blood oxygen", unit: "%", { String(format: "%.0f", $0) }),
+                forgeTile("avg_hr", "Avg HR", unit: "bpm", { "\(Int($0.rounded()))" }),
+            ])
+            forgeGroup("Sleep", [
+                forgeTile("sleep_total_min", "Sleep avg", { durationString($0) }),
+                forgeTile("sleep_score", "Sleep score", { "\(Int($0.rounded()))" }),
+            ])
+            forgeGroup("Activity and energy", [
+                forgeTile("steps", "Steps", { intString($0) }),
+                forgeTile("energy_kcal", "Calories", unit: "kcal", { "\(Int($0.rounded()))" }),
+            ])
+            forgeGroup("Wellbeing", [
+                forgeTile("stress", "Stress avg", { "\(Int($0.rounded()))" }),
+                forgeTile("vitality", "Vitality", { "\(Int($0.rounded()))" }),
+            ])
+        }
+    }
+
+    private struct ForgeReading: Identifiable {
+        let label: LocalizedStringKey
+        let value: String
+        let unit: String?
+        let note: String?
+        var id: String { "\(label)\(value)" }
+    }
+
+    private func forgeTile(_ key: String, _ label: LocalizedStringKey, unit: String? = nil,
+                           _ format: (Double) -> String) -> ForgeReading {
+        let rows = resolvedWindow(key)
+        guard let last = rows.last else { return ForgeReading(label: label, value: "—", unit: nil, note: nil) }
+        return ForgeReading(label: label, value: format(last.value), unit: unit,
+                            note: date(last.day).map { Self.asOfFormatter.string(from: $0) })
+    }
+
+    private func forgeGroup(_ title: LocalizedStringKey, _ readings: [ForgeReading]) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            ForgeSectionHeading(title)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: NoopMetrics.space2), GridItem(.flexible())],
+                      alignment: .leading, spacing: NoopMetrics.space2) {
+                ForEach(readings) { reading in
+                    ForgeValueTile(label: reading.label, value: reading.value, unit: reading.unit, note: reading.note)
+                }
+            }
+        }
+    }
 
     private var tileGrid: some View {
         LazyVGrid(

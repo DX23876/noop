@@ -185,8 +185,12 @@ struct CompareView: View {
                        // Liquid finish: the day-of-sky backdrop carries the liquid atmosphere across the
                        // analysis tabs, exactly like Today and the batch-1 screens.
                        topBackground: liquidScaffoldSky()) {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                metricSection
+            VStack(alignment: .leading, spacing: NoopVisualStyle.skin == .forge ? NoopMetrics.gap : NoopMetrics.sectionGap) {
+                if NoopVisualStyle.skin == .forge {
+                    forgeMetricSection
+                } else {
+                    metricSection
+                }
 
                 if selected.count < minSelection {
                     ComingSoon(what: "Compare needs at least two metrics with history. Import your WHOOP export in Data Sources first.",
@@ -199,6 +203,9 @@ struct CompareView: View {
                         } else {
                             ComingSoon.loading("Reading your history…", title: "Reading your history")
                         }
+                    } else if NoopVisualStyle.skin == .forge {
+                        forgeOverlay(series)
+                        forgeRelationships(series)
                     } else {
                         overlaySection(series)
                         correlationSection(series)
@@ -347,6 +354,133 @@ struct CompareView: View {
             fullSeries[metric.id] = s
         }
         loadedOnce = true
+    }
+
+    // MARK: - New design
+
+    /// The chosen metrics as filled chips, then the range on its own.
+    private var forgeMetricSection: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Metrics").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                        Spacer()
+                        Text("up to 4").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    if selected.isEmpty {
+                        Text("Nothing selected yet.")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    ForgeFlowLayout { forgeChips }
+                    addMenu.frame(minHeight: 44)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            SegmentedPillControl(CompareRange.allCases, selection: rangeBinding) { $0.label }
+                .accessibilityLabel("Time range")
+            if selected.count >= minSelection, anyWidened {
+                Text(rangeCaption)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+            }
+        }
+    }
+
+    private var forgeChips: some View {
+        ForEach(selected) { metric in
+            ForgeFilterChip(title: metric.title, symbol: metric.icon, isSelected: true, showsRemove: true) { remove(metric) }
+                .accessibilityLabel("Remove \(metric.title)")
+        }
+    }
+
+    private func forgeOverlay(_ series: [CompareSeries]) -> some View {
+        let nonEmpty = series.filter { !$0.rows.isEmpty }
+        return NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Overlay").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Text("each on its own scale").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+                OverlayChart(series: nonEmpty, effortScale: effortScale, height: 180)
+                HStack(spacing: NoopMetrics.space3) {
+                    ForEach(nonEmpty) { s in
+                        HStack(spacing: NoopMetrics.space1) {
+                            Capsule().fill(s.color).frame(width: 14, height: 3).accessibilityHidden(true)
+                            Text(s.metric.title).lineLimit(1)
+                        }
+                    }
+                }
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// The strongest pair drawn day by day and said in a sentence. The other pairs stay one tap away.
+    @ViewBuilder
+    private func forgeRelationships(_ series: [CompareSeries]) -> some View {
+        let pairs = pairResults(series)
+        if let first = pairs.first {
+            forgePairCard(first)
+            if pairs.count > 1 {
+                DisclosureGroup(isExpanded: $showsAllRelationships) {
+                    VStack(spacing: NoopMetrics.gap) {
+                        ForEach(Array(pairs.dropFirst())) { forgePairCard($0) }
+                    }
+                    .padding(.top, NoopMetrics.space2)
+                } label: {
+                    Text("All relationships (\(pairs.count))")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .padding(.horizontal, NoopMetrics.space1)
+            }
+        } else {
+            NoopCard {
+                Text("Not enough overlapping days between these metrics in \(range.phrase). Widen the range.")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func forgePairCard(_ p: PairResult) -> some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("How they move together").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer(minLength: NoopMetrics.space2)
+                    Text("one dot per day").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+                ForgePairScatter(points: CorrelationEngine.alignByDay(p.a.rows, p.b.rows), tint: StrandPalette.chargeColor)
+                    .frame(height: 170)
+                    .accessibilityHidden(true)
+                Text(forgeSentence(p))
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(p.a.metric.title), \(p.b.metric.title) · \(p.n) shared days")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func forgeSentence(_ p: PairResult) -> String {
+        let a = p.a.metric.title, b = p.b.metric.title
+        switch (abs(p.r), p.r >= 0) {
+        case (..<0.3, _): return String(localized: "\(a) and \(b) move largely on their own.")
+        case (..<0.5, true): return String(localized: "When \(a) rises, \(b) tends to rise a little. A link, not proof of cause.")
+        case (..<0.5, false): return String(localized: "When \(a) rises, \(b) tends to fall a little. A link, not proof of cause.")
+        case (_, true): return String(localized: "When \(a) rises, \(b) tends to rise. A clear link, not proof of cause.")
+        case (_, false): return String(localized: "When \(a) rises, \(b) tends to fall. A clear link, not proof of cause.")
+        }
     }
 
     // MARK: - Metric picker section (chips + range control)
@@ -697,6 +831,37 @@ struct CompareView: View {
     private func correlationColor(_ r: Double) -> Color {
         let base = r >= 0 ? StrandPalette.statusPositive : StrandPalette.statusCritical
         return base.opacity(0.55 + 0.45 * min(abs(r), 1.0))
+    }
+}
+
+/// One dot per shared day, each axis scaled to its own values, with the line through the cloud.
+private struct ForgePairScatter: View {
+    let points: [(a: Double, b: Double)]
+    let tint: Color
+
+    var body: some View {
+        Canvas { context, size in
+            guard let loA = points.map(\.a).min(), let hiA = points.map(\.a).max(),
+                  let loB = points.map(\.b).min(), let hiB = points.map(\.b).max(),
+                  hiA > loA, hiB > loB else { return }
+            let inset: CGFloat = 8
+            let x = { (v: Double) in inset + CGFloat((v - loA) / (hiA - loA)) * (size.width - inset * 2) }
+            let y = { (v: Double) in size.height - inset - CGFloat((v - loB) / (hiB - loB)) * (size.height - inset * 2) }
+            let n = Double(points.count)
+            let meanA = points.map(\.a).reduce(0, +) / n, meanB = points.map(\.b).reduce(0, +) / n
+            let spread = points.reduce(0) { $0 + pow($1.a - meanA, 2) }
+            if spread > 0 {
+                let slope = points.reduce(0) { $0 + ($1.a - meanA) * ($1.b - meanB) } / spread
+                var line = Path()
+                line.move(to: CGPoint(x: x(loA), y: y(meanB + slope * (loA - meanA))))
+                line.addLine(to: CGPoint(x: x(hiA), y: y(meanB + slope * (hiA - meanA))))
+                context.stroke(line, with: .color(StrandPalette.textTertiary), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            }
+            for p in points {
+                let rect = CGRect(x: x(p.a) - 4, y: y(p.b) - 4, width: 8, height: 8)
+                context.fill(Path(ellipseIn: rect), with: .color(tint.opacity(0.75)))
+            }
+        }
     }
 }
 

@@ -158,8 +158,8 @@ struct RootTabView: View {
                     "workouts": (2, { $0.append(TabRoute.workouts) }), "strength": (2, { $0.append(TabRoute.strength) }), "cardio": (2, { $0.append(TabRoute.cardio) }),
                     "trainingload": (2, { $0.append(TabRoute.trainingLoad) }), "goals": (2, { $0.append(TabRoute.goals) }), "plan": (2, { $0.append(MoreDestination.training) }),
                     "intervals": (2, { $0.append(MoreDestination.intervals) }), "live": (2, { $0.append(MoreDestination.live) }),
-                    "insights": (1, { $0.append(MoreDestination.insightsHub) }), "intelligence": (1, { $0.append(MoreDestination.intelligence) }), "momentum": (1, { $0.append(MoreDestination.momentum) }),
-                    "rhythm": (1, { $0.append(MoreDestination.rhythm) }), "applehealth": (0, { $0.append(MoreDestination.appleHealth) }), "miband": (0, { $0.append(MoreDestination.miBand) }),
+                    "insights": (1, { $0.append(MoreDestination.insightsHub) }), "intelligence": (1, { $0.append(MoreDestination.intelligence) }), "momentum": (0, { $0.append(MoreDestination.momentum) }),
+                    "rhythm": (1, { $0.append(MoreDestination.rhythm) }), "rhythmage": (1, { $0.append(MoreDestination.rhythmAge) }), "applehealth": (0, { $0.append(MoreDestination.appleHealth) }), "miband": (0, { $0.append(MoreDestination.miBand) }),
                     "limits": (0, { $0.append(MoreDestination.noopLimitations) }), "testcentre": (0, { $0.append(MoreDestination.testCentre) }), "siri": (0, { $0.append(MoreDestination.siriShortcuts) }),
                     "powersaving": (0, { $0.append(MoreDestination.powerSaving) }), "journey": (2, { $0.append(MoreDestination.goalJourney) }), "energyplan": (1, { $0.append(MoreDestination.energyPlan) }),
                     "fused": (1, { $0.append(MoreDestination.fusedRecord) }), "shortcutsexport": (0, { $0.append(MoreDestination.shortcutsExport) }),
@@ -789,6 +789,7 @@ struct RootTabView: View {
     private var forgeTodayRoot: some View {
         ForgeTodayView(
             coach: coach,
+            model: model,
             onProfile: { showAllFeatures = true },
             onLog: { withAnimation(Self.sheetEase) { quickAction = .forgeLog } },
             onWorkout: {

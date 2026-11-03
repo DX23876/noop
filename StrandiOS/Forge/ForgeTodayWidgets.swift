@@ -69,6 +69,7 @@ final class ForgeTodayWidgetStore: ObservableObject {
     func seedDemoIfRequested() {
         guard CommandLine.arguments.contains("--demo-widgets") else { return }
         widgets = [
+            .init(kind: .momentum),
             .init(kind: .measure, key: "hrv", source: Repository.whoopSource),
             .init(kind: .measure, key: "rhr", source: Repository.whoopSource),
             .init(kind: .goals),

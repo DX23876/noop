@@ -232,12 +232,28 @@ struct AppleHealthView: View {
                     #if os(iOS)
                     liveSyncCard
                     #endif
-                    rangeControl
-                    tileGrid
-                    heartSection
-                    activitySection
-                    bodySection
-                    sleepSection
+                    if NoopVisualStyle.skin == .forge {
+                        forgeReadings
+                        DisclosureGroup("Charts") {
+                            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                                rangeControl
+                                heartSection
+                                activitySection
+                                bodySection
+                                sleepSection
+                            }
+                            .padding(.top, NoopMetrics.space2)
+                        }
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    } else {
+                        rangeControl
+                        tileGrid
+                        heartSection
+                        activitySection
+                        bodySection
+                        sleepSection
+                    }
                 }
             }
         }
@@ -660,6 +676,66 @@ struct AppleHealthView: View {
     #endif
 
     // MARK: - Metric tiles (uniform 104pt StatTiles in an adaptive grid)
+
+    /// The new design's readings: the latest of each, grouped by what it is about.
+    private var forgeReadings: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            forgeGroup("Heart and vitals", [
+                forgeTile("resting_hr", "Resting HR", unit: "bpm", { "\(Int($0.rounded()))" }),
+                forgeTile("hrv", "HRV", unit: "ms", { "\(Int($0.rounded()))" }),
+                forgeTile("spo2", "Blood oxygen", unit: "%", { String(format: "%.1f", $0) }),
+                forgeTile("vo2max", "VO₂ Max", unit: "ml/kg", { String(format: "%.1f", $0) }),
+            ])
+            forgeGroup("Activity and energy", [
+                forgeTile("steps", "Steps", { intString($0) }),
+                forgeTile("active_kcal", "Active energy", unit: "kcal", { "\(Int($0.rounded()))" }),
+                ForgeReading(label: "Workouts", value: "\(workoutCount)", unit: nil,
+                             note: workoutCount > 0 ? String(localized: "Apple-logged") : nil),
+            ])
+            forgeGroup("Body", [
+                forgeTile("weight", "Weight", { massLabel($0) }),
+                forgeTile("body_fat", "Body Fat", unit: "%", { String(format: "%.1f", $0) }),
+                forgeTile("lean_mass", "Lean Mass", { massLabel($0) }),
+            ])
+            forgeGroup("Sleep", [
+                forgeTile("asleep_min", "Asleep avg", { durationString($0) }, mean: true),
+                forgeTile("resp_rate", "Respiratory rate", unit: "/min", { String(format: "%.1f", $0) }),
+            ])
+        }
+    }
+
+    private struct ForgeReading: Identifiable {
+        let label: LocalizedStringKey
+        let value: String
+        let unit: String?
+        let note: String?
+        var id: String { "\(label)\(value)" }
+    }
+
+    private func forgeTile(_ key: String, _ label: LocalizedStringKey, unit: String? = nil,
+                           _ format: (Double) -> String, mean meanValue: Bool = false) -> ForgeReading {
+        let rows = resolvedWindow(key)
+        let values = rows.map(\.value)
+        guard let last = values.last else { return ForgeReading(label: label, value: "—", unit: nil, note: nil) }
+        if meanValue {
+            return ForgeReading(label: label, value: format(mean(values) ?? last), unit: unit,
+                                note: String(localized: "avg · \(values.count)d"))
+        }
+        let note = rows.last.flatMap { date($0.day) }.map { Self.asOfFormatter.string(from: $0) }
+        return ForgeReading(label: label, value: format(last), unit: unit, note: note)
+    }
+
+    private func forgeGroup(_ title: LocalizedStringKey, _ readings: [ForgeReading]) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            ForgeSectionHeading(title)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: NoopMetrics.space2), GridItem(.flexible())],
+                      alignment: .leading, spacing: NoopMetrics.space2) {
+                ForEach(readings) { reading in
+                    ForgeValueTile(label: reading.label, value: reading.value, unit: reading.unit, note: reading.note)
+                }
+            }
+        }
+    }
 
     private var tileGrid: some View {
         LazyVGrid(
