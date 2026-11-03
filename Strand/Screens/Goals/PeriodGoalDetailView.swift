@@ -30,12 +30,17 @@ struct PeriodGoalDetailView: View {
     var body: some View {
         ScreenScaffold(title: nil, topBackground: liquidScaffoldSky()) {
             if let snapshot, let goal {
-                header(snapshot)
+                if NoopVisualStyle.skin == .forge {
+                    forgeHeader(snapshot)
+                } else {
+                    header(snapshot)
+                }
                 hero(snapshot)
                 facts(snapshot)
                 if let ramp = snapshot.rampSuggestion { rampCard(snapshot, suggested: ramp) }
                 planCard(snapshot)
                 historyCard(snapshot)
+                if NoopVisualStyle.skin == .forge { ForgeSectionHeading("What counted") }
                 countedCard(snapshot)
                 chainCard(goal)
                 settingsCard(goal)
@@ -84,6 +89,41 @@ struct PeriodGoalDetailView: View {
     private func refresh() { Task { await tracking.refresh(repo: repo) } }
 
     // MARK: - Header and hero
+
+    /// The new design's head: a ring with the count in it, the goal's name, where it stands.
+    private func forgeHeader(_ s: PeriodGoalSnapshot) -> some View {
+        NoopCard(padding: NoopMetrics.space3) {
+            HStack(spacing: NoopMetrics.space3) {
+                ZStack {
+                    Circle().stroke(StrandPalette.surfaceInset, lineWidth: 5)
+                    Circle()
+                        .trim(from: 0, to: min(1, s.result.fraction))
+                        .stroke(s.trackTint, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    Text(GoalFormat.number(s.result.current, s.goal.metric))
+                        .font(StrandFont.number(15).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(NoopMetrics.space1)
+                }
+                .frame(width: 52, height: 52)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(GoalFormat.title(s.goal))
+                        .font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(s.style.word)
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(s.style.tone.color)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+        }
+    }
 
     private func header(_ s: PeriodGoalSnapshot) -> some View {
         let identity = goalIdentityColor(s.goal.metric, appleColors: appleColors)
@@ -324,7 +364,7 @@ struct PeriodGoalDetailView: View {
     private func countedCard(_ s: PeriodGoalSnapshot) -> some View {
         NoopCard(padding: 14) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("What counted").strandOverline()
+                if NoopVisualStyle.skin != .forge { Text("What counted").strandOverline() }
                 if s.counted.isEmpty {
                     Text("Nothing yet this \(GoalFormat.periodWord(s.goal.period)).")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)

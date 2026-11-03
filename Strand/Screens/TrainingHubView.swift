@@ -3446,6 +3446,27 @@ private struct RoutineActionsSheet: View {
     }
 }
 
+/// One day of the week in the new design's routine editor.
+private struct ForgeWeekdayChip: View {
+    let title: LocalizedStringKey
+    let short: String
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(verbatim: short)
+                .font(StrandFont.caption.weight(.semibold))
+                .foregroundStyle(isOn ? StrandPalette.forgeOnAccent : StrandPalette.textSecondary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(Circle().fill(isOn ? StrandPalette.forgeAccent : StrandPalette.surfaceInset))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
 private struct RoutineEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State var routine: TrainingRoutine
@@ -3487,12 +3508,24 @@ private struct RoutineEditorView: View {
                 Text("The preview uses the same muscle mapping as completed-workout analytics.")
             }
             Section {
+                if NoopVisualStyle.skin == .forge {
+                    HStack(spacing: NoopMetrics.space1) {
+                        ForEach(TrainingWeekday.allCases, id: \.rawValue) { weekday in
+                            ForgeWeekdayChip(title: weekday.title,
+                                             short: String(Calendar.autoupdatingCurrent.shortStandaloneWeekdaySymbols[weekday.rawValue % 7].prefix(2)),
+                                             isOn: weekdays.contains(weekday)) {
+                                if weekdays.contains(weekday) { weekdays.remove(weekday) } else { weekdays.insert(weekday) }
+                            }
+                        }
+                    }
+                } else {
                 ForEach(TrainingWeekday.allCases, id: \.rawValue) { weekday in
                     Toggle(weekday.title, isOn: Binding(
                         get: { weekdays.contains(weekday) },
                         set: { enabled in
                             if enabled { weekdays.insert(weekday) } else { weekdays.remove(weekday) }
                         }))
+                }
                 }
             } header: {
                 Text("Scheduled days")
