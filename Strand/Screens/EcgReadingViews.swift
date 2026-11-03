@@ -572,6 +572,11 @@ struct EcgReadingListView: View {
             refreshToken &+= 1
         }
         .navigationTitle("Saved ECGs")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(NoopVisualStyle.skin == .forge ? .large : .automatic)
+        #endif
+        .scrollContentBackground(NoopVisualStyle.skin == .forge ? .hidden : .automatic)
+        .forgeScreenBackground()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 EcgInfoButton()

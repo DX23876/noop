@@ -78,11 +78,48 @@ struct InsightsHubView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+            } else if NoopVisualStyle.skin == .forge {
+                NoopCard {
+                    VStack(spacing: NoopMetrics.space2) {
+                        ForEach(model.ranked.indices, id: \.self) { i in
+                            if i > 0 { Divider().overlay(StrandPalette.hairline) }
+                            forgeMoverRow(model.ranked[i])
+                        }
+                    }
+                }
             } else {
                 ForEach(model.ranked.indices, id: \.self) { i in
                     moverCard(model.ranked[i])
                         .staggeredAppear(index: i)
                 }
+            }
+        }
+    }
+
+    /// New design: a ranked effect as a line; the sentence and the two means open under it.
+    private func forgeMoverRow(_ r: RankedEffect) -> some View {
+        let e = r.effect
+        let good = e.delta == 0 ? nil : (e.delta > 0) == outcome.higherIsBetter
+        let tint = good == nil ? StrandPalette.textSecondary
+            : good == true ? StrandPalette.statusPositive : StrandPalette.statusCritical
+        let sign = e.delta > 0 ? "+" : e.delta < 0 ? "−" : ""
+        let value = e.pctChange.map { "\(sign)\(Int(abs($0).rounded()))%" }
+            ?? sign + UnitFormatter.localizedMark(String(format: "%.1f", abs(e.delta)))
+        return ForgeEffectRow(title: r.behavior, note: String(localized: String.LocalizationValue(r.leadLagText)),
+                              value: value, fraction: max(-1, min(1, e.cohensD / 0.8)), tint: tint) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Text(r.sentence())
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Text("With \(outcome.format(e.meanWith)) · n = \(e.nWith)")
+                    Spacer()
+                    Text("Without \(outcome.format(e.meanWithout)) · n = \(e.nWithout)")
+                }
+                .font(StrandFont.caption.monospacedDigit())
+                .foregroundStyle(StrandPalette.textTertiary)
+                ScoreStatePill(Self.scoreState(r.confidence))
             }
         }
     }

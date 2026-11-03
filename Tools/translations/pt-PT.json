@@ -3652,5 +3652,18 @@
   "Presets": "Modelos",
   "Total %@": "Total %@",
   "seconds": "segundos",
-  "Round": "Ronda"
+  "Round": "Ronda",
+  "No folder chosen yet.": "Nenhuma pasta escolhida.",
+  "Clear pattern": "Padrão claro",
+  "Still exploring": "Ainda a explorar",
+  "With %@ · n = %lld": "Com %1$@ · n = %2$lld",
+  "Without %@ · n = %lld": "Sem %1$@ · n = %2$lld",
+  "%lld sessions · next-morning Charge": "%lld sessões · Charge da manhã seguinte",
+  "Back to baseline after %lld days": "De volta à base após %lld dias",
+  "up to %@": "até %@",
+  "%@ · your report": "%@ · o teu relatório",
+  "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result.": "A avaliação compara com o intervalo do teu relatório se o escreveste; caso contrário, com um intervalo geral para adultos. Pode diferir do teu laboratório e não é um diagnóstico. Fala com o teu médico sobre um resultado.",
+  "in range": "no intervalo",
+  "Arms the strap to buzz at your wake time, even if NOOP is closed.": "Programa a banda para vibrar à hora de acordar, mesmo com o NOOP fechado.",
+  "Your bands": "As tuas bandas"
 }

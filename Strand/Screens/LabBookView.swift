@@ -71,18 +71,36 @@ struct LabBookView: View {
             topBackground: liquidScaffoldSky()
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                headerCard
-                importCard
+                if NoopVisualStyle.skin == .forge {
+                    forgeHead
+                } else {
+                    headerCard
+                    importCard
+                }
                 if !loaded {
                     ComingSoon.loading("Reading your logbook…", title: "Reading your logbook", symbol: "books.vertical")
                 } else if markers.isEmpty {
                     emptyState
                 } else {
                     ForEach(orderedCategories, id: \.self) { category in
-                        categorySection(category)
+                        if NoopVisualStyle.skin == .forge {
+                            forgeCategory(category)
+                        } else {
+                            categorySection(category)
+                        }
                     }
                 }
-                disclaimerNote
+                if NoopVisualStyle.skin == .forge {
+                    Button { showingDisclaimer = true } label: {
+                        Label("What Lab Book is (and isn't)", systemImage: "info.circle")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    disclaimerNote
+                }
             }
         }
         .task(id: repo.refreshSeq) { await load() }
@@ -130,6 +148,123 @@ struct LabBookView: View {
     }
 
     // MARK: - Header (count + scope + actions)
+
+    // MARK: - New design
+
+    @State private var forgeQuery = ""
+
+    /// What the page is in one line, the two ways in, and the search once there is enough to search.
+    private var forgeHead: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    Text(countLine).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    HStack(spacing: NoopMetrics.space2) {
+                        NoopButton("Add a reading", systemImage: "plus", kind: .primary, fullWidth: true) {
+                            showingEditor = true
+                        }
+                        Menu {
+                            Button { presentCsvImporter() } label: {
+                                Label("Choose CSV…", systemImage: "tray.and.arrow.down")
+                            }
+                            Button { presentReportImporter() } label: {
+                                Label("Review PDF or photo…", systemImage: "doc.text.magnifyingglass")
+                            }
+                        } label: {
+                            Label(csvImporting || reportImporting ? "Importing…" : "Import", systemImage: "square.and.arrow.down")
+                                .font(StrandFont.subhead.weight(.semibold))
+                                .foregroundStyle(StrandPalette.textPrimary)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(StrandPalette.surfaceInset, in: Capsule())
+                        }
+                        .disabled(csvImporting || reportImporting)
+                    }
+                    if let s = csvSummary {
+                        Text(s).font(StrandFont.footnote)
+                            .foregroundStyle(csvFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let s = reportSummary {
+                        Text(s).font(StrandFont.footnote)
+                            .foregroundStyle(reportFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            if Set(markers.map(\.markerKey)).count > 6 {
+                HStack(spacing: NoopMetrics.space2) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(StrandPalette.textTertiary)
+                    TextField("Search", text: $forgeQuery)
+                        .font(StrandFont.subhead)
+                }
+                .padding(.horizontal, NoopMetrics.space3)
+                .frame(minHeight: 44)
+                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+        }
+    }
+
+    @ViewBuilder private func forgeCategory(_ category: LabMarkerCategory) -> some View {
+        let query = forgeQuery.trimmingCharacters(in: .whitespaces)
+        let keys = markerKeys(in: category).filter {
+            query.isEmpty || displayName(for: $0).localizedCaseInsensitiveContains(query)
+        }
+        if !keys.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                ForgeSectionHeading(LocalizedStringKey(category.displayName))
+                NoopCard {
+                    VStack(spacing: NoopMetrics.space2) {
+                        ForEach(Array(keys.enumerated()), id: \.element) { index, key in
+                            if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                            forgeMarkerRow(key)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// One marker: its name and the range it is read against, the course, the latest value and its rating.
+    private func forgeMarkerRow(_ key: String) -> some View {
+        let series = readings(for: key)
+        let numeric = series.compactMap(\.value)
+        let latest = series.last
+        let range = latest.flatMap { LabReferenceRanges.range(markerKey: key, unit: $0.unit, referenceText: $0.referenceText) }
+        let status = latest?.value.flatMap { range?.status(of: $0) }
+        return Button { detailKey = key } label: {
+            HStack(spacing: NoopMetrics.space3) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(displayName(for: key))
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .multilineTextAlignment(.leading)
+                    Text(range.flatMap { LabBookFormat.rangeCaption($0, key: key, unit: latest?.unit ?? "") } ?? lastTakenCaption(latest))
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: NoopMetrics.space2)
+                if numeric.count > 1 {
+                    Sparkline(values: numeric, gradient: Gradient(colors: [StrandPalette.metricCyan.opacity(0.5), StrandPalette.metricCyan]),
+                              showsHover: false)
+                        .frame(width: 56, height: 24)
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(latestLabel(latest, key: key))
+                        .font(StrandFont.number(15).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                    if let status { ForgeLabStatusChip(status: status) }
+                }
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityElement(children: .combine)
+    }
 
     private var headerCard: some View {
         NoopCard(tint: StrandPalette.metricCyan) {
@@ -688,7 +823,9 @@ private struct MarkerDetailView: View {
                 trendSection
                 if !numericReadings.isEmpty { compareSection }
                 historySection
-                Text("These are your own numbers shown back to you. NOOP doesn't decide whether any value is normal, high or low.")
+                Text(NoopVisualStyle.skin == .forge
+                     ? "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result."
+                     : "These are your own numbers shown back to you. NOOP doesn't decide whether any value is normal, high or low.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1115,3 +1252,45 @@ private func labBookPreviewRepo() -> Repository {
         .preferredColorScheme(.dark)
 }
 #endif
+
+/// High, in range or low as a small word in a colour that means it.
+struct ForgeLabStatusChip: View {
+    let status: LabRangeStatus
+
+    private var color: Color {
+        switch status {
+        case .inRange: return StrandPalette.statusPositive
+        case .low, .high: return StrandPalette.statusWarningForeground
+        }
+    }
+
+    var body: some View {
+        Group {
+            switch status {
+            case .low: Text("low")
+            case .inRange: Text("in range")
+            case .high: Text("high")
+            }
+        }
+        .font(StrandFont.caption.weight(.semibold))
+        .foregroundStyle(color)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(color.opacity(0.14), in: Capsule())
+    }
+}
+
+extension LabBookFormat {
+    /// "range 4.0 to 5.6" or "up to 3.0", whichever bounds the range has, and whose range it is.
+    static func rangeCaption(_ range: LabReferenceRange, key: String, unit: String) -> String? {
+        let text: String
+        switch (range.lower, range.upper) {
+        case let (low?, high?): text = String(localized: "range \(value(low, key: key)) to \(value(high, key: key))")
+        case let (nil, high?): text = String(localized: "up to \(value(high, key: key))")
+        case let (low?, nil): text = String(localized: "from \(value(low, key: key))")
+        case (nil, nil): return nil
+        }
+        return range.origin == .ownReport ? String(localized: "\(text) · your report") : text
+    }
+}
+

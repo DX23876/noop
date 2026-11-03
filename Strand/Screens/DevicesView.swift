@@ -256,7 +256,7 @@ private struct DevicesContent: View {
                 .task(id: activeDevices.count) { await loadStrapCompare() }
             // UPPERCASE overline section header, matching the liquid Today. Counts the paired bands so the
             // multi-WHOOP reality reads at a glance.
-            sectionHead("YOUR BANDS", trailing: activeDevices.count == 1
+            sectionHead(NoopVisualStyle.skin == .forge ? "Your bands" : "YOUR BANDS", trailing: activeDevices.count == 1
                         ? String(localized: "1 paired")
                         : String(localized: "\(activeDevices.count) paired"))
                 .task(id: registry.devices.count) { await model.refreshWhoopFoldOffer() }
@@ -718,7 +718,10 @@ private struct DevicesContent: View {
 
     private func sectionHead(_ title: LocalizedStringKey, trailing: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(StrandFont.overline).tracking(1.6).foregroundStyle(StrandPalette.textTertiary)
+            Text(title).font(NoopVisualStyle.skin == .forge ? StrandFont.title2 : StrandFont.overline)
+                .tracking(NoopVisualStyle.skin == .forge ? 0 : 1.6)
+                .textCase(NoopVisualStyle.skin == .forge ? nil : .uppercase)
+                .foregroundStyle(NoopVisualStyle.skin == .forge ? StrandPalette.textPrimary : StrandPalette.textTertiary)
             Spacer()
             Text(trailing).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         }
@@ -796,7 +799,7 @@ private struct DeviceSyncStatusCard: View {
         tint: Color,
         accessibility: String
     ) -> some View {
-        NoopCard(tint: tint) {
+        NoopCard(tint: NoopVisualStyle.skin == .forge ? nil : tint) {
             HStack(alignment: .center, spacing: NoopMetrics.space3) {
                 Image(systemName: systemImage)
                     .font(.system(size: 18, weight: .semibold))
@@ -919,14 +922,24 @@ private struct DeviceCard: View {
     /// The card's visible content. The required `body` wraps this in the whole-card liquid press button +
     /// the ⋮ menu overlay.
     private var cardContent: some View {
-        StrandCard(padding: 18, tint: isActive ? StrandPalette.accent : nil) {
+        StrandCard(padding: 18, tint: isActive && NoopVisualStyle.skin != .forge ? StrandPalette.accent : nil) {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                HStack(alignment: .top, spacing: NoopMetrics.space3) {
+                HStack(alignment: NoopVisualStyle.skin == .forge ? .center : .top, spacing: NoopMetrics.space3) {
+                    if NoopVisualStyle.skin == .forge {
+                        Image(systemName: icon)
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.forgeOnAccent)
+                            .frame(width: 40, height: 40)
+                            .background(isActive ? StrandPalette.chargeColor : StrandPalette.textTertiary,
+                                        in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                            .accessibilityHidden(true)
+                    } else {
                     Image(systemName: icon)
                         .font(StrandFont.title2)
                         .foregroundStyle(isActive ? StrandPalette.accent : StrandPalette.textSecondary)
                         .frame(width: 28)
                         .accessibilityHidden(true)
+                    }
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(device.displayName)
@@ -948,7 +961,7 @@ private struct DeviceCard: View {
                 // active+connected source right now. States the single-owner reality plainly (if the ring
                 // was reset again or re-claimed in the Oura app, NOOP no longer owns it) without faking a
                 // live reading. Suppressed for the active+connected ring and for removed rings.
-                if device.sourceKind == .oura {
+                if device.sourceKind == .oura || NoopVisualStyle.skin == .forge {
                     DisclosureGroup("More about this device", isExpanded: $showsDeviceDetails) {
                         deviceCapabilityDetails.padding(.top, NoopMetrics.space2)
                     }

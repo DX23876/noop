@@ -218,7 +218,8 @@ struct InsightsView: View {
     private var sectionGap: CGFloat { max(0, NoopMetrics.sectionSpacing - 20) }
 
     var body: some View {
-        ScreenScaffold(title: "Insights", subtitle: "Interrogate what affects what.",
+        ScreenScaffold(title: NoopVisualStyle.skin == .forge ? "What works" : "Insights",
+                       subtitle: NoopVisualStyle.skin == .forge ? "Patterns in your own data: association, not cause." : "Interrogate what affects what.",
                        // PERF (scroll): the sections below are DIRECT children of the scaffold's
                        // LazyVStack, not one inner eager VStack. Wrapped, `lazy: true` bought nothing
                        // here — a single child is built whole, so every chart, effect card and
@@ -232,8 +233,14 @@ struct InsightsView: View {
             // v5: a single row into the "What moves you" hub, the lag-aware ranked-effect feed
             // + alcohol/caffeine dose-response. Reachable as its own destination too; this is the
             // honest in-Insights entry point.
-            whatMovesYouLink
-                .padding(.bottom, sectionGap)
+            if NoopVisualStyle.skin != .forge {
+                whatMovesYouLink
+                    .padding(.bottom, sectionGap)
+            }
+            if NoopVisualStyle.skin == .forge {
+                ForgeSectionHeading("Journal")
+                    .padding(.bottom, NoopMetrics.space2)
+            }
             // Native logging, always reachable: the account-free way into Insights — and deliberately
             // OUTSIDE the `loaded` gate. The card reads the one day it shows by itself, so it is usable
             // while the history read behind the analysis below is still running. It used to sit under
@@ -275,6 +282,10 @@ struct InsightsView: View {
                 activityCostSection
                     .padding(.bottom, sectionGap)
                 relationshipsSection
+                if NoopVisualStyle.skin == .forge {
+                    whatMovesYouLink
+                        .padding(.top, sectionGap)
+                }
             }
         }
         // #860 item 4: key on the data-refresh seq AND today's day-key, so the journal re-loads both on a
@@ -1116,11 +1127,47 @@ struct InsightsView: View {
 
             if ranked.isEmpty {
                 noEffects
+            } else if NoopVisualStyle.skin == .forge {
+                NoopCard {
+                    VStack(spacing: NoopMetrics.space2) {
+                        ForEach(ranked.indices, id: \.self) { i in
+                            if i > 0 { Divider().overlay(StrandPalette.hairline) }
+                            forgeEffectRow(ranked[i])
+                        }
+                    }
+                }
             } else {
                 ForEach(ranked.indices, id: \.self) { i in
                     effectCard(ranked[i])
                         .staggeredAppear(index: i)
                 }
+            }
+        }
+    }
+
+    /// New design: the effect as a line; the sentence and the two means open under it.
+    private func forgeEffectRow(_ e: BehaviorEffect) -> some View {
+        let good = e.delta == 0 ? nil : (e.delta > 0) == outcome.higherIsBetter
+        let tint = good == nil ? StrandPalette.textSecondary
+            : good == true ? StrandPalette.statusPositive : StrandPalette.statusCritical
+        let sign = e.delta > 0 ? "+" : e.delta < 0 ? "−" : ""
+        let value = e.pctChange.map { "\(sign)\(Int(abs($0).rounded()))%" }
+            ?? sign + UnitFormatter.localizedMark(String(format: "%.1f", abs(e.delta)))
+        return ForgeEffectRow(title: e.behavior,
+                              note: e.significant ? String(localized: "Clear pattern") : String(localized: "Still exploring"),
+                              value: value, fraction: max(-1, min(1, e.cohensD / 0.8)), tint: tint) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Text(BehaviorInsights.sentence(e))
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Text("With \(formatOutcome(e.meanWith)) · n = \(e.nWith)")
+                    Spacer()
+                    Text("Without \(formatOutcome(e.meanWithout)) · n = \(e.nWithout)")
+                }
+                .font(StrandFont.caption.monospacedDigit())
+                .foregroundStyle(StrandPalette.textTertiary)
             }
         }
     }
@@ -1257,11 +1304,41 @@ struct InsightsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+            } else if NoopVisualStyle.skin == .forge {
+                NoopCard {
+                    VStack(spacing: NoopMetrics.space2) {
+                        ForEach(Array(activityCosts.enumerated()), id: \.element.sport) { index, cost in
+                            if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                            forgeCostRow(cost)
+                        }
+                    }
+                }
             } else {
                 ForEach(Array(activityCosts.enumerated()), id: \.element.sport) { index, cost in
                     activityCostCard(cost)
                         .staggeredAppear(index: index)
                 }
+            }
+        }
+    }
+
+    /// New design: what an activity costs as a line; the sentence and the bounce back open under it.
+    private func forgeCostRow(_ cost: ActivityCost) -> some View {
+        let costing = cost.delta >= ActivityCostEngine.barelyMovesPoints
+        let lifting = cost.delta <= -ActivityCostEngine.barelyMovesPoints
+        let tint = costing ? StrandPalette.statusCritical : lifting ? StrandPalette.statusPositive : StrandPalette.textSecondary
+        return ForgeEffectRow(title: cost.sport,
+                              note: String(localized: "\(cost.n) sessions · next-morning Charge"),
+                              value: String(format: "%@%.0f", cost.delta >= 0 ? "−" : "+", abs(cost.delta)),
+                              fraction: max(-1, min(1, -cost.delta / 20)), tint: tint) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                Text(cost.sentence())
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(cost.daysToBaseline.map { String(localized: "Back to baseline after \($0) days") } ?? String(localized: "not within 7d"))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
             }
         }
     }
@@ -1335,10 +1412,22 @@ struct InsightsView: View {
             } else {
                 // Every curated relationship terminates in Charge, so the card sits in
                 // the Charge (green) colour world via a faint wash.
-                NoopCard(tint: DomainTheme.charge.color) {
+                NoopCard(tint: NoopVisualStyle.skin == .forge ? nil : DomainTheme.charge.color) {
                     VStack(spacing: 0) {
                         ForEach(Array(rels.enumerated()), id: \.element.id) { idx, rel in
+                            if NoopVisualStyle.skin == .forge {
+                                ForgeEffectRow(title: rel.title, note: rel.corr.pApprox < 0.05 ? String(localized: "Clear pattern") : String(localized: "Still exploring"),
+                                               value: UnitFormatter.correlation(rel.corr.r), fraction: rel.corr.r,
+                                               tint: correlationColor(rel.corr.r)) {
+                                    Text(relationshipSentence(rel))
+                                        .font(StrandFont.footnote)
+                                        .foregroundStyle(StrandPalette.textSecondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .padding(.vertical, NoopMetrics.space1)
+                            } else {
                             relationshipRow(rel)
+                            }
                             if idx < rels.count - 1 {
                                 Divider().overlay(StrandPalette.hairline)
                             }

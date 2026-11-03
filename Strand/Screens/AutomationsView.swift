@@ -727,6 +727,33 @@ private struct Section2<Content: View>: View {
     var active: Bool = false
     @ViewBuilder var content: () -> Content
     var body: some View {
+        if NoopVisualStyle.skin == .forge {
+            // The new design's settings group: the name on the page, the switches on one card.
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                HStack(spacing: NoopMetrics.space2) {
+                    Text(title)
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .accessibilityAddTraits(.isHeader)
+                    if active {
+                        Circle().fill(StrandPalette.chargeColor).frame(width: 6, height: 6)
+                            .accessibilityLabel(Text("ON"))
+                    }
+                }
+                .padding(.horizontal, NoopMetrics.space1)
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        if let blurb { ForgeExpandableText(text: blurb) }
+                        content()
+                    }
+                }
+            }
+        } else {
+            standardBody
+        }
+    }
+
+    private var standardBody: some View {
         StrandCard(padding: 20, tint: StrandPalette.accent) {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -759,8 +786,8 @@ private struct ToggleRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                Text(help).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                Text(label).font(NoopVisualStyle.skin == .forge ? StrandFont.subhead : StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                Text(help).font(NoopVisualStyle.skin == .forge ? StrandFont.caption : StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()

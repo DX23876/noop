@@ -71,7 +71,8 @@ struct DataSourcesView: View {
                        // direct children. NOTE: this screen still observes `LiveState` for the live strap
                        // card, so a ~1 Hz tick still re-evaluates the built cards (see the lane-B2 note).
                        lazy: true) {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            VStack(alignment: .leading, spacing: NoopVisualStyle.skin == .forge ? NoopMetrics.gap : NoopMetrics.sectionSpacing) {
+                if NoopVisualStyle.skin == .forge { liveCard }
                 whoopCard.staggeredAppear(index: 0)
                 appleHealthCard.staggeredAppear(index: 1)
                 xiaomiCard.staggeredAppear(index: 2)
@@ -83,7 +84,7 @@ struct DataSourcesView: View {
                 #if OURA_CLOUD_IMPORT
                 ouraCloudCard.staggeredAppear(index: 8)
                 #endif
-                liveCard.staggeredAppear(index: 10)
+                if NoopVisualStyle.skin != .forge { liveCard.staggeredAppear(index: 10) }
             }
         }
         // A single target-aware importer avoids SwiftUI collapsing competing importers on the same screen.
@@ -928,21 +929,26 @@ struct DataSourcesView: View {
                               status: S = EmptyView(),
                               subtitle: String,
                               @ViewBuilder content: @escaping () -> C) -> some View {
-        NoopCard(padding: 18, tint: tint) {
+        let forge = NoopVisualStyle.skin == .forge
+        return NoopCard(padding: 18, tint: forge ? nil : tint) {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
                 HStack(spacing: NoopMetrics.space2 + 2) {
                     Image(systemName: icon)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(tint)
-                        .frame(width: 30, height: 30)
-                        .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .foregroundStyle(forge ? StrandPalette.forgeOnAccent : tint)
+                        .frame(width: forge ? 40 : 30, height: forge ? 40 : 30)
+                        .background(forge ? tint : tint.opacity(0.14), in: RoundedRectangle(cornerRadius: forge ? 11 : 9, style: .continuous))
                         .accessibilityHidden(true)
-                    Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    Text(title).font(forge ? StrandFont.subhead.weight(.semibold) : StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                     Spacer(minLength: 8)
                     status
                 }
-                Text(subtitle).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if forge {
+                    ForgeExpandableText(text: subtitle)
+                } else {
+                    Text(subtitle).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 content()
             }
         }

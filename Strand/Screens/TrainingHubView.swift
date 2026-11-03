@@ -296,6 +296,15 @@ struct TrainingHubView: View {
                             .buttonStyle(.bordered).tint(StrandPalette.accent)
                     }
                 }
+            } else if forgeHubSkin {
+                NoopCard {
+                    VStack(spacing: NoopMetrics.space2) {
+                        ForEach(Array(model.plan.routines.enumerated()), id: \.element.id) { index, routine in
+                            if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                            forgeRoutineRow(routine)
+                        }
+                    }
+                }
             } else {
                 ForEach(model.plan.routines) { routine in
                     NoopCard {
@@ -331,6 +340,29 @@ struct TrainingHubView: View {
         }
     }
 
+    private var forgeHubSkin: Bool { NoopVisualStyle.skin == .forge }
+
+    /// New design: a routine as a line. The name opens its options, the play button starts it.
+    private func forgeRoutineRow(_ routine: TrainingRoutine) -> some View {
+        HStack(spacing: NoopMetrics.space2) {
+            Button { routineActionsFor = routine } label: {
+                ForgeTileRow(symbol: "dumbbell.fill", tint: StrandPalette.restColor, title: routine.title,
+                             subtitle: String(localized: "\(routine.exercises.count) exercises")) { EmptyView() }
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Routine options"))
+            Button { start([routine]) } label: {
+                Image(systemName: "play.fill")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.forgeOnAccent)
+                    .frame(width: 44, height: 44)
+                    .background(StrandPalette.forgeAccent, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Start \(routine.title)"))
+        }
+    }
+
     private var analysisCard: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Understand your training", overline: "NOOP analysis")
@@ -349,7 +381,15 @@ struct TrainingHubView: View {
     private func analysisRow(_ title: LocalizedStringKey, _ subtitle: LocalizedStringKey,
                              _ icon: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon).frame(width: 28).foregroundStyle(StrandPalette.metricCyan)
+            if forgeHubSkin {
+                Image(systemName: icon)
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.forgeOnAccent)
+                    .frame(width: 40, height: 40)
+                    .background(StrandPalette.effortColor, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            } else {
+                Image(systemName: icon).frame(width: 28).foregroundStyle(StrandPalette.metricCyan)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
                 Text(subtitle).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)

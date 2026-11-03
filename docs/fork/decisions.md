@@ -880,3 +880,16 @@ designed in full and then dropped before any code, because the credential model 
   data (Strava's API terms forbid using it for AI, and the coach would be the reader).
 
 Analysis migration required: no. Nothing is scored differently; export and Health writes only.
+
+## Lab book rates values against medical ranges (2026-11-03)
+
+The owner asked for blood values to read as high, in range or low. Upstream's Health Records spec says NOOP never
+ships a range and never asserts normality; this fork now does, on the new design's lab book.
+
+- **Whose range.** A range typed from the wearer's own report wins. Otherwise a general adult figure with its source
+  in `LabReferenceRanges`. A reading in another unit gets no rating rather than a converted guess, and where a limit
+  differs by sex the wider one stands.
+- **What it says.** Three words and the range, with the note that it can differ from the lab's and is no diagnosis.
+
+Analysis migration required: no. Nothing stored changes; the rating is computed when the page draws.
+

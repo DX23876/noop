@@ -3754,5 +3754,18 @@
   "Presets": "预设",
   "Total %@": "总计 %@",
   "seconds": "秒",
-  "Round": "轮次"
+  "Round": "轮次",
+  "No folder chosen yet.": "尚未选择文件夹。",
+  "Clear pattern": "规律明显",
+  "Still exploring": "仍在观察",
+  "With %@ · n = %lld": "有 %1$@ · n = %2$lld",
+  "Without %@ · n = %lld": "无 %1$@ · n = %2$lld",
+  "%lld sessions · next-morning Charge": "%lld 次训练 · 次日早晨的 Charge",
+  "Back to baseline after %lld days": "%lld 天后回到基线",
+  "up to %@": "不超过 %@",
+  "%@ · your report": "%@ · 你的报告",
+  "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result.": "如果你填写了报告中的范围，评估将与之比较，否则与一般成人范围比较。它可能与你的实验室不同，并非诊断。关于结果请咨询医生。",
+  "in range": "在范围内",
+  "Arms the strap to buzz at your wake time, even if NOOP is closed.": "让手环在起床时间振动，即使 NOOP 已关闭。",
+  "Your bands": "你的手环"
 }

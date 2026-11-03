@@ -3747,5 +3747,18 @@
   "Presets": "Modelli",
   "Total %@": "Totale %@",
   "seconds": "secondi",
-  "Round": "Round"
+  "Round": "Round",
+  "No folder chosen yet.": "Nessuna cartella scelta.",
+  "Clear pattern": "Schema chiaro",
+  "Still exploring": "Ancora da capire",
+  "With %@ · n = %lld": "Con %1$@ · n = %2$lld",
+  "Without %@ · n = %lld": "Senza %1$@ · n = %2$lld",
+  "%lld sessions · next-morning Charge": "%lld sessioni · Charge del mattino dopo",
+  "Back to baseline after %lld days": "Ritorno alla base dopo %lld giorni",
+  "up to %@": "fino a %@",
+  "%@ · your report": "%@ · il tuo referto",
+  "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result.": "La valutazione confronta con l'intervallo del tuo referto se l'hai inserito, altrimenti con un intervallo generale per adulti. Può differire da quello del tuo laboratorio e non è una diagnosi. Chiedi al medico di un risultato.",
+  "in range": "nell'intervallo",
+  "Arms the strap to buzz at your wake time, even if NOOP is closed.": "Imposta lo strap per vibrare all'ora della sveglia, anche con NOOP chiuso.",
+  "Your bands": "I tuoi strap"
 }

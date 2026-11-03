@@ -3808,5 +3808,18 @@
   "Presets": "預設",
   "Total %@": "總計 %@",
   "seconds": "秒",
-  "Round": "輪次"
+  "Round": "輪次",
+  "No folder chosen yet.": "尚未選擇資料夾。",
+  "Clear pattern": "規律明顯",
+  "Still exploring": "仍在觀察",
+  "With %@ · n = %lld": "有 %1$@ · n = %2$lld",
+  "Without %@ · n = %lld": "無 %1$@ · n = %2$lld",
+  "%lld sessions · next-morning Charge": "%lld 次訓練 · 次日早晨的 Charge",
+  "Back to baseline after %lld days": "%lld 天後回到基線",
+  "up to %@": "不超過 %@",
+  "%@ · your report": "%@ · 你的報告",
+  "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result.": "如果你填寫了報告中的範圍，評估將與之比較，否則與一般成人範圍比較。它可能與你的實驗室不同，並非診斷。關於結果請諮詢醫生。",
+  "in range": "在範圍內",
+  "Arms the strap to buzz at your wake time, even if NOOP is closed.": "讓手環在起床時間振動，即使 NOOP 已關閉。",
+  "Your bands": "你的手環"
 }
