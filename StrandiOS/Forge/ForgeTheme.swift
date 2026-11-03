@@ -168,8 +168,8 @@ private struct ForgeTodayMotif: View {
 
 // MARK: - Glass cards
 
-/// A redesign card: frosted glass whose fill follows the existing Card transparency setting, with a light
-/// rim and, in light mode, a soft shadow. When the person never set a transparency, the redesign uses its
+/// A redesign card: a clear, unblurred fill that follows the existing Card transparency setting, with a soft
+/// shadow in light mode. When the person never set a transparency, the redesign uses its
 /// own glass default (the prototype's look) instead of the shipped design's solid 100 %.
 struct ForgeCardModifier: ViewModifier {
     var radius: CGFloat = 26
@@ -190,7 +190,6 @@ struct ForgeCardModifier: ViewModifier {
             .clipShape(shape)
             .background {
                 ZStack {
-                    if opacity < 0.99 { shape.fill(.ultraThinMaterial) }
                     shape.fill(ForgeColor.card.opacity(opacity))
                 }
                 .shadow(color: .black.opacity(light ? 0.07 : 0), radius: 14, x: 0, y: 5)
