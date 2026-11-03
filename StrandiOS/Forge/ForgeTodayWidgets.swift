@@ -306,7 +306,8 @@ private struct ForgeTodayTile: View {
     let tint: Color
     var trend: [Double]? = nil
     @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
-    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
+    /// nil until the wearer sets Card transparency: until then close to solid, so figures stay clean.
+    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent: Int?
 
     var body: some View {
         let dense = KeyMetricPrefs.columns(columnsRaw) > 2
@@ -320,8 +321,7 @@ private struct ForgeTodayTile: View {
                         sparkColor: tint,
                         sparklineHeight: dense ? 22 : 28,
                         dense: dense,
-                        // Close to solid on the picture, so its figures and lines stay clean.
-                        surfaceOpacity: max(0.9, Double(opacityPercent) / 100),
+                        surfaceOpacity: opacityPercent.map { Double($0) / 100 } ?? 0.92,
                         tintsSurface: false)
     }
 }

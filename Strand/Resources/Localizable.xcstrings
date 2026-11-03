@@ -608185,6 +608185,122 @@
           }
         }
       }
+    },
+    "Veil behind the tiles" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schleier hinter den Kacheln"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velo tras los mosaicos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voile derrière les tuiles"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velo dietro i riquadri"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welon za kafelkami"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Véu atrás dos mosaicos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вуаль за плитками"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片后的薄纱"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片後的薄紗"
+          }
+        }
+      }
+    },
+    "How much of the day's picture comes through behind the tiles on Today. Far left turns it off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie viel vom Tagesbild hinter den Kacheln auf Heute durchscheint. Ganz links schaltet ihn aus."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuánta imagen del día se ve tras los mosaicos en Hoy. Totalmente a la izquierda lo desactiva."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La part de l'image du jour visible derrière les tuiles sur Aujourd'hui. Tout à gauche, il est désactivé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanta immagine del giorno traspare dietro i riquadri in Oggi. Tutto a sinistra lo disattiva."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ile obrazu dnia prześwituje za kafelkami na ekranie Dziś. Skrajnie w lewo wyłącza."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto da imagem do dia se vê atrás dos mosaicos em Hoje. Totalmente à esquerda desliga."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько изображение дня просвечивает за плитками на экране «Сегодня». Крайнее левое положение отключает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日页卡片后透出多少当日图片。拖到最左侧即关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日頁卡片後透出多少當日圖片。拖到最左側即關閉。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

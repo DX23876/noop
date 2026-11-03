@@ -266,6 +266,7 @@ struct SettingsView: View {
     @AppStorage(CoachTilePrefs.breathingKey) private var coachTileBreathing = true
     // Card-surface opacity percent (100 = solid). Reactive — moving the slider live-updates every card.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    @AppStorage(ForgeDesignPrefs.tileVeilKey) private var tileVeilPercent = ForgeDesignPrefs.tileVeilDefault
     // "Reduce motion in NOOP" (default OFF): pose every looping animation still and stop the decorative
     // tilt sensor, without needing system Low Power Mode or system Reduce Motion. Apple-only so far —
     // Android has no such toggle yet and its gate reads two signals, not three (#941).
@@ -1912,6 +1913,31 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                // MARK: The veil behind Today's tiles in the new design, apart from the cards' own transparency.
+                if forgeDesignPreview {
+                    HStack {
+                        Text("Veil behind the tiles")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Spacer()
+                        Text(tileVeilPercent == 0 ? String(localized: "Off") : "\(tileVeilPercent)%")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.accent)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { Double(tileVeilPercent) },
+                            set: { tileVeilPercent = Int($0.rounded()) }
+                        ),
+                        in: 0...80, step: 5
+                    )
+                    .appleInspiredTint("settings.controls")
+                    Text("How much of the day's picture comes through behind the tiles on Today. Far left turns it off.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
 
                 rowDivider
                 backgroundImageControls

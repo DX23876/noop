@@ -114,14 +114,19 @@ struct ForgeTodayView: View {
                                                            value: geo.frame(in: .named("forge-today")).maxY)
                                 })
                             actions
-                            if !tilesBelowTimeline || editingWidgets {
-                                ForgeTodayWidgetArea(editing: $editingWidgets)
-                            }
-                            ForgeCycleSummaryCard(showsLogButtons: false)
                         }
                         .padding(.horizontal, 16)
                     }
+                    VStack(alignment: .leading, spacing: 14) {
+                        if !tilesBelowTimeline || editingWidgets {
+                            ForgeTodayWidgetArea(editing: $editingWidgets)
+                        }
+                        ForgeCycleSummaryCard(showsLogButtons: false)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
                     .padding(.bottom, 18)
+                    .background { ForgeTileVeil() }
                     daySheet
                 }
                 .padding(.top, 6)
@@ -926,7 +931,27 @@ struct ForgeTodayView: View {
         }
     }
 }
-/// Log, Start and the pencil on the same solid surface as the tiles under them, not glass over the motif.
+/// Behind the tiles, from just above them to the day's sheet: the page's colour at part strength over the
+/// picture, with no blur, its upper edge melting away. It moves with the page, so it always starts at the
+/// tiles. Its strength is the wearer's, under Appearance; zero turns it off.
+private struct ForgeTileVeil: View {
+    @AppStorage(ForgeDesignPrefs.tileVeilKey) private var percent = ForgeDesignPrefs.tileVeilDefault
+
+    var body: some View {
+        Rectangle()
+            .fill(ForgeColor.canvas.opacity(Double(percent) / 100))
+            .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
+                                         .init(color: .white, location: 0.12)],
+                                 startPoint: .top, endPoint: .bottom))
+            // Reaches above the first tile and under the sheet's rounded corners.
+            .padding(.top, -6)
+            .padding(.bottom, -40)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Log and Start on the same solid surface as the tiles under them, not glass over the motif.
 private struct ForgeTodayActionSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 
