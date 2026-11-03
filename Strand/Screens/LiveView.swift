@@ -116,6 +116,9 @@ struct LiveView: View {
         ScreenScaffold(title: NoopVisualStyle.skin == .forge ? "Live heart rate" : "Live Body Console",
                        subtitle: "Your current heart rate and workout controls.",
                        topBackground: liquidScaffoldSky()) {
+            if NoopVisualStyle.skin == .forge {
+                forgeBody
+            } else {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 // Can't-connect-at-all guidance: the strap wiped its bond (firmware update / WHOOP app
                 // re-bond), so connects loop on "Peer removed pairing information". Show the re-pair steps
@@ -175,7 +178,18 @@ struct LiveView: View {
                 manageDevicesRow
                 }
             }
+            }
         }
+        #if DEBUG
+        // Screenshot QA of the connected page: `--demo-live` fakes a bonded strap on this screen.
+        .onAppear {
+            guard LiveDemo.isOn else { return }
+            live.connected = true
+            live.bonded = true
+            live.encryptedBond = true
+            live.batteryPct = 78
+        }
+        #endif
         .onAppear { refreshLiveSession(); consumeActiveWorkoutRequest() }
         .onDisappear { model.stopRealtimeHR() }
         // A fresh bond/connection re-arms the BLE stream (Apple must re-send startRealtime on a new
@@ -208,6 +222,112 @@ struct LiveView: View {
             }
         } message: {
             Text("This stops recording and saves what's captured so far. It can't be resumed.")
+        }
+    }
+
+    // MARK: - New design
+
+    /// One question, how the heart is doing now: the figure and its trace first, then what can be done with
+    /// the strap. Every control of the shipped console stays, in the same connection gates.
+    private var forgeBody: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            if let guide = live.reconnectGuide { reconnectGuideBanner(guide) }
+            if let hint = live.pairingHint { pairingHintBanner(hint) }
+            if needsConnection {
+                WearableConnectionStateCard(
+                    title: "No live connection",
+                    detail: "Choose a wearable in Devices to start the live stream. Connection logs and protocol details are available in Test Centre.",
+                    actionTitle: "Manage devices",
+                    action: { router.openDevices() }
+                )
+                WorkoutStartControl()
+            } else {
+                ForgeLiveHero(activeIsWhoop: activeIsWhoop, zoneSet: model.profile.hrZoneSet,
+                              detailLabel: forgeConnectionLabel)
+                if activeIsWhoop, !live.connected { offlineConnectCallout }
+                if activeIsOura, ringPhase != .authenticated { ringConnectCallout }
+                if Self.shouldShowStandardHRNote(live.standardHRMode) {
+                    standardHRNote(live.standardHRMode ?? "")
+                }
+                if let workout = model.activeWorkout {
+                    activeWorkoutCard(workout)
+                } else {
+                    NoopButton("Start workout", systemImage: "figure.run", kind: .primary, fullWidth: true) {
+                        showStartSport = true
+                    }
+                    .disabled(!activeConnection)
+                    if let last = model.lastWorkout { workoutSavedRow(last) }
+                }
+                ForgeSectionHeading("Session")
+                ForgeLiveTiles(activeIsWhoop: activeIsWhoop, deviceName: activeDeviceName)
+                ForgeSectionHeading("Strap")
+                forgeStrapRows
+                if activeIsWhoop, !activeConnection {
+                    modelPicker
+                    scanButton
+                } else if activeIsOura {
+                    ringControls
+                }
+                signalTrustRail
+                if activeIsWhoop {
+                    disconnectButton
+                }
+            }
+        }
+    }
+
+    /// What the link can do right now, in a few words above the figure.
+    private var forgeConnectionLabel: String {
+        if activeConnection && live.encryptedBond { return String(localized: "\(activeDeviceName) · live") }
+        if activeConnection { return String(localized: "Live HR (not fully paired)") }
+        if ringStreaming { return String(localized: "\(activeDeviceName) · live") }
+        if live.connected { return String(localized: "Connected") }
+        if live.encryptedBond { return String(localized: "Paired · idle") }
+        return String(localized: "Disconnected")
+    }
+
+    private var forgeStrapRows: some View {
+        NoopCard {
+            VStack(spacing: NoopMetrics.space2) {
+                Button { showHRVSnapshot = true } label: {
+                    ForgeTileRow(symbol: "waveform.path.ecg", tint: StrandPalette.chargeColor,
+                                 title: String(localized: "HRV reading"),
+                                 subtitle: String(localized: "Take a 60-second seated HRV reading from the live R-R stream."),
+                                 showsChevron: true) { EmptyView() }
+                }
+                .buttonStyle(LiquidPressStyle())
+                .disabled(!activeConnection)
+                .opacity(activeConnection ? 1 : StrandPalette.disabledOpacity)
+                Divider().overlay(StrandPalette.hairline)
+                if activeIsWhoop {
+                    Button { model.buzzStrapOnce() } label: {
+                        ForgeTileRow(symbol: "waveform.path", tint: StrandPalette.effortColor,
+                                     title: String(localized: "Buzz strap"),
+                                     subtitle: String(localized: "Fire a test haptic buzz on the strap (requires an active strap connection)"),
+                                     showsChevron: true) { EmptyView() }
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .disabled(!activeConnection)
+                    .opacity(activeConnection ? 1 : StrandPalette.disabledOpacity)
+                    Divider().overlay(StrandPalette.hairline)
+                }
+                Button { model.getBattery() } label: {
+                    ForgeTileRow(symbol: "arrow.clockwise", tint: StrandPalette.metricCyan,
+                                 title: String(localized: "Refresh"),
+                                 subtitle: String(localized: "Refresh strap battery and connection state."),
+                                 showsChevron: true) { EmptyView() }
+                }
+                .buttonStyle(LiquidPressStyle())
+                .disabled(!activeConnection)
+                .opacity(activeConnection ? 1 : StrandPalette.disabledOpacity)
+                Divider().overlay(StrandPalette.hairline)
+                Button { router.openDevices() } label: {
+                    ForgeTileRow(symbol: "badge.plus.radiowaves.right", tint: StrandPalette.restColor,
+                                 title: String(localized: "Manage devices"),
+                                 subtitle: manageDevicesDetail, showsChevron: true) { EmptyView() }
+                }
+                .buttonStyle(LiquidPressStyle())
+            }
         }
     }
 
@@ -818,6 +938,129 @@ struct LiveView: View {
 
 /// The header stats strip (device / battery / worn / last sync). Owns LiveState so battery + wear + sync
 /// updates re-render only this row, never the whole console header.
+#if DEBUG
+enum LiveDemo {
+    static let isOn = ProcessInfo.processInfo.arguments.contains("--demo-live")
+}
+#endif
+
+/// The new design's hero: today's beat in one large figure, the last minutes as a trace and the zone rail.
+/// A leaf that owns LiveState, so the 1 Hz notify redraws this card and not the page.
+private struct ForgeLiveHero: View {
+    let activeIsWhoop: Bool
+    let zoneSet: HRZoneSet
+    let detailLabel: String
+    @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var live: LiveState
+
+    private var bpm: Int? {
+        #if DEBUG
+        if LiveDemo.isOn { return 98 }
+        #endif
+        return model.bpm
+    }
+    private var zone: Int { bpm.map { zoneSet.zoneNumber(forBPM: Double($0)) } ?? 0 }
+    private var tint: Color { bpm == nil ? StrandPalette.textTertiary : LiveHeartRateStyle.tint(zone: zone) }
+    private var samples: [HRSample] {
+        #if DEBUG
+        if LiveDemo.isOn { return Self.demoTrace }
+        #endif
+        let from = Int(Date().timeIntervalSince1970) - 5 * 60
+        return live.recentHrSamples.filter { $0.ts >= from }
+    }
+    #if DEBUG
+    private static let demoTrace: [HRSample] = {
+        let now = Int(Date().timeIntervalSince1970)
+        return (0..<100).map { HRSample(ts: now - (100 - $0) * 3, bpm: 94 + Int(6 * sin(Double($0) / 5))) }
+    }()
+    #endif
+    private var battery: Int? {
+        LiveConsoleReadout.batteryPercent(activeIsWhoop: activeIsWhoop, whoopPct: live.batteryPct,
+                                          ringPct: live.ouraBatteryPct)
+    }
+
+    var body: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack {
+                    Label(detailLabel, systemImage: "antenna.radiowaves.left.and.right")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(1)
+                    Spacer(minLength: NoopMetrics.space2)
+                    if let battery {
+                        Text("Battery \(battery)%")
+                            .font(StrandFont.caption.monospacedDigit())
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    LiveHeartRateValue(bpm: bpm, zone: zone, size: 88)
+                    Text(verbatim: "bpm")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(tint)
+                    Spacer(minLength: 0)
+                    if zone >= 1 {
+                        Text(LiveHeartRateStyle.zoneTitle(zone))
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(tint)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                ForgeHeartTrace(samples: samples)
+                    .frame(height: 64)
+                    .accessibilityHidden(true)
+                HeartRateZoneRail(zone: zone)
+            }
+        }
+    }
+}
+
+/// The running facts of the session as four tiles, read from LiveState alone.
+private struct ForgeLiveTiles: View {
+    let activeIsWhoop: Bool
+    let deviceName: String
+    @EnvironmentObject private var live: LiveState
+
+    private var liveLink: Bool { (activeIsWhoop && live.connected && live.bonded) || (live.connected && live.streamingLiveHR) }
+    private var rmssd: String {
+        let values = live.rrRecent.suffix(12).map(Double.init)
+        guard values.count >= 3 else { return "—" }
+        let diffs = zip(values.dropFirst(), values).map { $0 - $1 }
+        let square = diffs.map { $0 * $0 }.reduce(0, +) / Double(diffs.count)
+        return "\(Int(sqrt(square).rounded())) ms"
+    }
+    private var worn: String {
+        guard liveLink else { return "—" }
+        if let state = live.ouraWearState { return state == .worn ? String(localized: "Yes") : String(localized: "No") }
+        return live.worn || live.streamingLiveHR ? String(localized: "Yes") : String(localized: "No")
+    }
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: NoopMetrics.space2), GridItem(.flexible())],
+                  spacing: NoopMetrics.space2) {
+            tile(String(localized: "HRV"), rmssd)
+            tile(String(localized: "Worn"), worn)
+            tile(String(localized: "Last sync"), LiveSyncFormat.lastSyncLabel(live.lastSyncedAt))
+            tile(String(localized: "Device"), deviceName)
+        }
+    }
+
+    private func tile(_ title: String, _ value: String) -> some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                Text(value)
+                    .font(StrandFont.number(20).monospacedDigit())
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
 private struct LiveHeaderStats: View {
     @EnvironmentObject private var live: LiveState
     let activeConnection: Bool

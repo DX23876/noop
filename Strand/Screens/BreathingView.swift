@@ -116,6 +116,7 @@ private struct BreathingContent: View {
 
     @State private var pace: PaceSelection = .catalog("coherence_5_5")
     @State private var sessionLength: SessionLength = .ten
+    @State private var showAllPaces = false
     @State private var showEdu = false
     @State private var running = false
 
@@ -249,13 +250,100 @@ private struct BreathingContent: View {
     // MARK: - Breathe mode (the shipped fixed-pace trainer)
 
     @ViewBuilder private var breatheMode: some View {
-        statusRow
-        orbCard
-        controlRow
+        if NoopVisualStyle.skin == .forge, !running {
+            forgeSetup
+        } else {
+            statusRow
+            orbCard
+            controlRow
+        }
         if let line = outcomeLine { outcomeCard(line) }
         readoutRow
         coherenceCard
         if !live.bonded { hapticHint }
+    }
+
+    /// The first few rhythms and the one chosen, until the wearer asks for all of them.
+    private var forgeVisiblePaces: [PaceSelection] {
+        guard !showAllPaces else { return availablePaces }
+        var items = Array(availablePaces.prefix(4))
+        if !items.contains(pace) { items.append(pace) }
+        return items
+    }
+
+    /// New design: before a session the page is the choice of rhythm and length; the orb takes the page
+    /// once it runs.
+    @ViewBuilder private var forgeSetup: some View {
+        StrandCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack {
+                    Text("Pick a rhythm").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Button { showEdu = true } label: {
+                        Image(systemName: "info.circle")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(String(localized: "Protocol info"))
+                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: NoopMetrics.space2)],
+                          alignment: .leading, spacing: NoopMetrics.space2) {
+                    ForEach(forgeVisiblePaces, id: \.self) { item in
+                        let on = item == pace
+                        Button { pace = item } label: {
+                            Text(item.label)
+                                .font(StrandFont.subhead.weight(.semibold))
+                                .foregroundStyle(on ? StrandPalette.forgeOnAccent : StrandPalette.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .padding(.horizontal, NoopMetrics.space2)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(on ? StrandPalette.forgeAccent : StrandPalette.surfaceInset, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+                if availablePaces.count > forgeVisiblePaces.count || showAllPaces {
+                    Button {
+                        withAnimation(.snappy) { showAllPaces.toggle() }
+                    } label: {
+                        Text(showAllPaces ? "Show less" : "Show all")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.accent)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                }
+                Text(selectedTagline)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        StrandCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                durationPills
+                Divider().overlay(StrandPalette.hairline)
+                audioCueToggle
+                if live.bonded {
+                    Divider().overlay(StrandPalette.hairline)
+                    Button { model.buzz(loops: 1) } label: {
+                        HStack {
+                            Text("Test buzz").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            Spacer()
+                            Image(systemName: "waveform.path").foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        NoopButton("Start session", systemImage: "play.fill", kind: .primary, fullWidth: true) { start() }
     }
 
     /// Start a one-minute haptic breathing cue at the user's locked resonance pace when "Use my resonance

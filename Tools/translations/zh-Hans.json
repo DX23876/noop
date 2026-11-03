@@ -3739,5 +3739,20 @@
   "Assist": "辅助",
   "%@ · live": "%@ · 实时",
   "Effort so far": "目前的 Effort",
-  "Deep Timeline": "全天"
+  "Deep Timeline": "全天",
+  "Pick a rhythm": "选择节奏",
+  "Show less": "收起",
+  "%@ kcal burned in these sessions.": "这些训练消耗 %@ 千卡。",
+  "Where it comes from": "来源",
+  "Daily movement %@ · Training %@": "日常活动 %1$@ · 训练 %2$@",
+  "balance so far": "目前的收支",
+  "Burned %@": "消耗 %@",
+  "Eaten %@": "摄入 %@",
+  "Eaten": "摄入",
+  "Add a drink": "添加饮品",
+  "Timer": "计时器",
+  "Presets": "预设",
+  "Total %@": "总计 %@",
+  "seconds": "秒",
+  "Round": "轮次"
 }

@@ -3639,5 +3639,20 @@
   "%@ · live": "%@ · live",
   "Effort so far": "Effort bisher",
   "Deep Timeline": "Ganzer Tag",
-  "%lld%% of today's goal": "%lld%% deines Tagesziels"
+  "%lld%% of today's goal": "%lld%% deines Tagesziels",
+  "Pick a rhythm": "Wähle einen Rhythmus",
+  "Show less": "Weniger zeigen",
+  "%@ kcal burned in these sessions.": "%@ kcal in diesen Einheiten verbrannt.",
+  "Where it comes from": "Woher es kommt",
+  "Daily movement %@ · Training %@": "Alltag %1$@ · Training %2$@",
+  "balance so far": "Bilanz bisher",
+  "Burned %@": "Verbraucht %@",
+  "Eaten %@": "Gegessen %@",
+  "Eaten": "Gegessen",
+  "Add a drink": "Getränk hinzufügen",
+  "Timer": "Timer",
+  "Presets": "Vorlagen",
+  "Total %@": "Gesamt %@",
+  "seconds": "Sekunden",
+  "Round": "Runde"
 }

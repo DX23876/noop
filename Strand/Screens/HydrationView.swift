@@ -54,11 +54,19 @@ struct HydrationView: View {
                        // tabs carry, so Hydration sits in one atmosphere.
                        topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                ringSection
-                logSection
-                entriesSection
-                historySection
-                todayTotalSection
+                if NoopVisualStyle.skin == .forge {
+                    forgeHero
+                    forgeAddCard
+                    forgeDrinks
+                    ForgeSectionHeading("Last 7 days")
+                    historySection
+                } else {
+                    ringSection
+                    logSection
+                    entriesSection
+                    historySection
+                    todayTotalSection
+                }
                 Text("A simple goal that adjusts to your effort. General wellness guidance, not medical advice.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
@@ -87,6 +95,103 @@ struct HydrationView: View {
                 customSizeML = newML
                 showCustomSizeSheet = false
             } onCancel: { showCustomSizeSheet = false }
+        }
+    }
+
+    // MARK: - New design
+
+    /// The day's water as a glass filling toward the goal, the figure under it.
+    private var forgeHero: some View {
+        card(padding: 18) {
+            VStack(spacing: NoopMetrics.space3) {
+                ForgeWaterGlass(fraction: heroFraction)
+                    .frame(width: 104, height: 136)
+                    .accessibilityHidden(true)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    CountUpText(value: HydrationGoal.litres(fromML: totalML),
+                                format: { UnitFormatter.localizedMark(String(format: "%.1f", $0)) },
+                                font: StrandFont.rounded(44, weight: .bold),
+                                color: StrandPalette.textPrimary)
+                    Text(String(localized: "of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: Double(goalML))))) L"))
+                        .font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                Text("\(percent)% of today's goal")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var forgeAddCard: some View {
+        card(padding: 18) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                Text("Add a drink")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                HStack(spacing: NoopMetrics.space2) {
+                    forgeDrinkButton("Sip", systemImage: "drop", ml: HydrationGoal.sipML)
+                    forgeDrinkButton("Cup", systemImage: "cup.and.saucer.fill", ml: HydrationGoal.cupML)
+                    forgeDrinkButton("Bottle", systemImage: "drop.fill", ml: HydrationGoal.bottleML)
+                }
+                HStack(spacing: NoopMetrics.space2) {
+                    Button { Task { await add(ml: customSizeML) } } label: {
+                        Label("Custom \(customSizeML) ml", systemImage: "drop.circle")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .accessibilityLabel("Log custom \(customSizeML) millilitres")
+                    Button { showCustomSizeSheet = true } label: {
+                        Image(systemName: "pencil")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .frame(width: 44, height: 44)
+                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Set custom container size")
+                }
+                Text("Sip \(HydrationGoal.sipML) ml · Cup \(HydrationGoal.cupML) ml · Bottle \(HydrationGoal.bottleML) ml")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+    }
+
+    private func forgeDrinkButton(_ title: LocalizedStringKey, systemImage: String, ml: Int) -> some View {
+        Button { Task { await add(ml: ml) } } label: {
+            VStack(spacing: 4) {
+                Image(systemName: systemImage).font(StrandFont.subhead)
+                Text(title)
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(StrandPalette.textPrimary)
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityLabel(Text(title))
+    }
+
+    /// The drinks of the day, or what to do when there are none yet.
+    @ViewBuilder private var forgeDrinks: some View {
+        ForgeSectionHeading("Today's drinks")
+        if entries.isEmpty && importedML <= 0 {
+            card(padding: 18) {
+                Text("No drinks logged yet. Tap Sip, Cup or Bottle to start.")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            entriesSection
         }
     }
 
@@ -186,7 +291,7 @@ struct HydrationView: View {
         if !entries.isEmpty || importedML > 0 {
             card(padding: 18) {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    Text("Today's drinks").strandOverline()
+                    if NoopVisualStyle.skin != .forge { Text("Today's drinks").strandOverline() }
                     if importedML > 0 { importedRow }
                     // #842 — render rows in a plain VStack inside the page ScrollView. The previous nested,
                     // scroll-disabled List with a hardcoded `count * 44 + 8` height clipped every row past
@@ -284,7 +389,7 @@ struct HydrationView: View {
     private var historySection: some View {
         card(padding: 18) {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                Text("Last 7 days").strandOverline()
+                if NoopVisualStyle.skin != .forge { Text("Last 7 days").strandOverline() }
                 historyBars
             }
         }
@@ -299,18 +404,18 @@ struct HydrationView: View {
             // Scale the bars to the LARGER of the goal and the biggest day, so an over-goal day doesn't clip.
             let ceiling = max(Double(max(goalML, 1)), history.map(\.value).max() ?? 0, 1)
             let lastIndex = history.count - 1
+            let barColor = NoopVisualStyle.skin == .forge ? StrandPalette.metricCyan : StrandPalette.accent
             HStack(alignment: .bottom, spacing: 10) {
                 ForEach(Array(history.enumerated()), id: \.element.day) { idx, bar in
                     VStack(spacing: 6) {
                         ZStack(alignment: .bottom) {
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(StrandPalette.textPrimary.opacity(0.10))
+                                .fill(NoopVisualStyle.skin == .forge ? Color.clear : StrandPalette.textPrimary.opacity(0.10))
                                 .frame(height: 96)
                             let frac = min(1.0, max(0.0, bar.value / ceiling))
                             if frac > 0 {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .fill(idx == lastIndex ? StrandPalette.accent
-                                                           : StrandPalette.accent.opacity(0.45))
+                                    .fill(barColor.opacity(idx == lastIndex ? 1 : 0.55))
                                     .frame(height: max(3, 96 * CGFloat(frac)))
                             }
                         }
@@ -482,3 +587,38 @@ private struct HydrationAmountSheet: View {
         #endif
     }
 }
+
+/// A drinking glass filling with water, the new design's picture of the day's fluid.
+struct ForgeWaterGlass: View {
+    let fraction: Double
+
+    var body: some View {
+        Canvas { context, size in
+            let glass = Self.glassPath(in: size)
+            context.fill(glass, with: .color(StrandPalette.surfaceInset))
+            var water = context
+            water.clip(to: glass)
+            let level = size.height * (1 - min(1, max(0, fraction)))
+            let rect = CGRect(x: 0, y: level, width: size.width, height: size.height - level)
+            water.fill(Path(rect), with: .linearGradient(
+                Gradient(colors: [StrandPalette.metricCyan.opacity(0.75), StrandPalette.metricCyan]),
+                startPoint: CGPoint(x: 0, y: level), endPoint: CGPoint(x: 0, y: size.height)))
+            context.stroke(glass, with: .color(StrandPalette.hairlineStrong), lineWidth: 1.5)
+        }
+    }
+
+    private static func glassPath(in size: CGSize) -> Path {
+        let inset = size.width * 0.12
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: size.width, y: 0))
+        path.addLine(to: CGPoint(x: size.width - inset, y: size.height - 8))
+        path.addQuadCurve(to: CGPoint(x: size.width - inset - 8, y: size.height),
+                          control: CGPoint(x: size.width - inset, y: size.height))
+        path.addLine(to: CGPoint(x: inset + 8, y: size.height))
+        path.addQuadCurve(to: CGPoint(x: inset, y: size.height - 8), control: CGPoint(x: inset, y: size.height))
+        path.closeSubpath()
+        return path
+    }
+}
+

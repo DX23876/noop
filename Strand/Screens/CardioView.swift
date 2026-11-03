@@ -55,6 +55,8 @@ struct CardioView: View {
                     ProgressView().frame(maxWidth: .infinity)
                 } else if model.sessions.isEmpty {
                     emptyState
+                } else if NoopVisualStyle.skin == .forge {
+                    forgeBody(proxy)
                 } else {
                     weekControl
                     loadHero
@@ -134,6 +136,135 @@ struct CardioView: View {
                     Text("Record or import a run, ride, swim or row. NOOP then shows its pace, distance, heart-rate intensity and load.")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    // MARK: - New design
+
+    /// How much, how hard, what, how it is going, and the sessions behind it: the page reads top down.
+    @ViewBuilder private func forgeBody(_ proxy: ScrollViewProxy) -> some View {
+        weekControl
+        loadHero
+        loadChart
+        forgeWeekFigures
+        intensityCard.id("intensity")
+        sportMix
+        activityTiles(proxy)
+        sportProgress.id("progress")
+        forgeBests
+        forgeSessions
+        TrainingHistoryLink(focus: .cardio) {
+            TrainingHistoryRow(subtitle: String(localized: "See how heart-rate load and estimated fitness changed over time"))
+        }
+        readingGuide
+        explainers
+    }
+
+    private var forgeWeekFigures: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space4) {
+                    forgeFigure("\(model.week.sessionCount)", String(localized: "Sessions"))
+                    forgeFigure(durationText(model.week.minutes * 60), String(localized: "Moving time"))
+                    forgeFigure(model.week.distanceM > 0 ? UnitFormatter.distanceFromMeters(model.week.distanceM, system: units) : "—",
+                                distanceCoverageText ?? String(localized: "Distance"))
+                }
+                if model.week.energyKcal > 0 {
+                    Text("\(grouped(model.week.energyKcal)) kcal burned in these sessions.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                if let typical = model.typicalMinutes, model.week.minutes > 0 {
+                    Divider().overlay(StrandPalette.hairline)
+                    weekAgainstUsual(typical)
+                }
+            }
+        }
+    }
+
+    private func forgeFigure(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(StrandFont.number(20).monospacedDigit())
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private var forgeBests: some View {
+        if !model.bests.isEmpty, let sport = model.selectedSport {
+            ForgeSectionHeading("Your bests", note: sportName(sport))
+            NoopCard {
+                VStack(spacing: NoopMetrics.space2) {
+                    if let farthest = model.bests.farthest {
+                        forgeBestRow(String(localized: "Farthest"), "point.topleft.down.to.point.bottomright.curvepath",
+                                     UnitFormatter.distanceFromMeters(farthest.value, system: units), farthest.day)
+                    }
+                    if let longest = model.bests.longest {
+                        Divider().overlay(StrandPalette.hairline)
+                        forgeBestRow(String(localized: "Longest"), "clock.fill", durationText(longest.value), longest.day)
+                    }
+                    ForEach(CardioDistanceBand.allCases, id: \.self) { band in
+                        if let best = model.bests.fastestPaceByBand[band] {
+                            Divider().overlay(StrandPalette.hairline)
+                            forgeBestRow(bandTitle(band), "bolt.fill",
+                                         UnitFormatter.paceFromSecPerKm(best.value, system: units), best.day)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func forgeBestRow(_ title: String, _ symbol: String, _ value: String, _ day: String) -> some View {
+        ForgeTileRow(symbol: symbol, tint: StrandPalette.effortColor, title: title,
+                     subtitle: StrengthView.shortDay(day)) {
+            ForgeRowFigure(value: value)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private var forgeSessions: some View {
+        if !model.enduranceSessions.isEmpty {
+            ForgeSectionHeading("Endurance")
+            forgeSessionCard(Array(model.enduranceSessions.prefix(8)))
+        }
+        if !model.conditioningSessions.isEmpty {
+            ForgeSectionHeading("Conditioning")
+            forgeSessionCard(Array(model.conditioningSessions.prefix(8)))
+        }
+        if !model.otherSessions.isEmpty {
+            ForgeSectionHeading("Other")
+            forgeSessionCard(Array(model.otherSessions.prefix(8)))
+        }
+    }
+
+    private func forgeSessionCard(_ sessions: [CardioSessionMetrics]) -> some View {
+        NoopCard {
+            VStack(spacing: NoopMetrics.space2) {
+                ForEach(Array(sessions.enumerated()), id: \.element.startTs) { index, session in
+                    if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                    Button {
+                        openDetail = DetailTarget(startTs: session.startTs, sport: session.sport)
+                    } label: {
+                        ForgeTileRow(symbol: sportSymbol(session), tint: StrandPalette.effortColor,
+                                     title: sportName(session.sport),
+                                     subtitle: Date(timeIntervalSince1970: TimeInterval(session.startTs))
+                                        .formatted(date: .abbreviated, time: .omitted) + " · " + sessionDetailLine(session),
+                                     showsChevron: true) { EmptyView() }
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .accessibilityHint(Text("Opens the session"))
                 }
             }
         }
@@ -312,7 +443,7 @@ struct CardioView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 SectionHeader("Intensity", overline: "Time in zone",
                               trailing: durationText(total * 60))
-                NoopCard(tint: TrainingLane.cardio.color) {
+                NoopCard(tint: NoopVisualStyle.skin == .forge ? nil : TrainingLane.cardio.color) {
                     VStack(alignment: .leading, spacing: 12) {
                         GeometryReader { geo in
                             // Five segments leave four 2-point gaps. Subtract them before distributing

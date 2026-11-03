@@ -268,6 +268,14 @@ struct LoadHeroCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? NoopMetrics.space2 : NoopMetrics.space3) {
             header
+            if NoopVisualStyle.skin == .forge, !compact, let figure {
+                // The measured amount is the page's answer; the comparison reads under it.
+                Text(figure)
+                    .font(StrandFont.rounded(40, weight: .bold).monospacedDigit())
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
             HStack(alignment: .bottom, spacing: NoopMetrics.space3) {
                 VStack(alignment: .leading, spacing: 2) {
                     percentText
@@ -280,7 +288,7 @@ struct LoadHeroCard: View {
                 if !compact, trend.count >= 2 { baselineTrend }
             }
             if compact, trend.count >= 2 { sparkline }
-            if let figure {
+            if let figure, !(NoopVisualStyle.skin == .forge && !compact) {
                 Text(figure)
                     .font(StrandFont.captionNumber)
                     .foregroundStyle(StrandPalette.textPrimary)
@@ -337,7 +345,7 @@ struct LoadHeroCard: View {
     @ViewBuilder private var percentText: some View {
         if percent != nil {
             SignedPercentCountUp(value: shownPercent ?? percent ?? 0)
-                .font(StrandFont.number(compact ? 30 : 42, weight: .bold))
+                .font(StrandFont.number(compact ? 30 : NoopVisualStyle.skin == .forge ? 20 : 42, weight: .bold))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)

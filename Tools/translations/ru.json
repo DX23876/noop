@@ -3615,5 +3615,20 @@
   "Assist": "Помощь",
   "%@ · live": "%@ · в реальном времени",
   "Effort so far": "Effort на данный момент",
-  "Deep Timeline": "Весь день"
+  "Deep Timeline": "Весь день",
+  "Pick a rhythm": "Выберите ритм",
+  "Show less": "Показать меньше",
+  "%@ kcal burned in these sessions.": "%@ ккал сожжено за эти занятия.",
+  "Where it comes from": "Откуда это",
+  "Daily movement %@ · Training %@": "Повседневное движение %1$@ · Тренировки %2$@",
+  "balance so far": "баланс на данный момент",
+  "Burned %@": "Сожжено %@",
+  "Eaten %@": "Съедено %@",
+  "Eaten": "Съедено",
+  "Add a drink": "Добавить напиток",
+  "Timer": "Таймер",
+  "Presets": "Шаблоны",
+  "Total %@": "Всего %@",
+  "seconds": "секунд",
+  "Round": "Раунд"
 }

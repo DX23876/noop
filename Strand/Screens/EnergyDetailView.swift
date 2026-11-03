@@ -32,6 +32,10 @@ struct EnergyDetailView: View {
     @State private var comparisonUnavailable: LocalizedStringKey?
     @State private var showDayPicker = false
     @State private var pickerDate = Date()
+    /// New design: logged meals per day, and which series the 30-day chart shows.
+    @State private var intake: [String: Double] = [:]
+    private enum ForgeSeries: Hashable { case burned, eaten, balance }
+    @State private var forgeSeries: ForgeSeries = .burned
 
     /// How far back the picker and the swipe may go. Tied to the window `energySummaries` loads:
     /// offering a day the screen has no summary for would open an empty screen and call it a date.
@@ -46,10 +50,13 @@ struct EnergyDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                if NoopVisualStyle.skin == .forge {
+                    forgeHead
+                }
                 if !loaded {
                     loadingRow
                 } else if let selectedSummary {
-                    EnergyHeroCard(summary: selectedSummary, breakdown: breakdown)
+                    EnergyHeroCard(summary: selectedSummary, breakdown: breakdown, eatenKcal: intake[selectedDay])
                     if refreshingToday && isToday {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
@@ -62,8 +69,13 @@ struct EnergyDetailView: View {
                 } else {
                     emptyState
                 }
-                if !history.isEmpty { chart }
-                if loaded, let selectedSummary { calculationLink(selectedSummary) }
+                if NoopVisualStyle.skin == .forge {
+                    if !history.isEmpty { forgeHistory }
+                    if loaded, let selectedSummary { forgeOrigins(selectedSummary) }
+                } else {
+                    if !history.isEmpty { chart }
+                    if loaded, let selectedSummary { calculationLink(selectedSummary) }
+                }
             }
             .padding(NoopMetrics.screenPadding)
             // Restrained surfaces (Liquid Today redesign): the cards rest on their fill, without the
@@ -77,15 +89,133 @@ struct EnergyDetailView: View {
             StrandPalette.surfaceBase.ignoresSafeArea()
             #endif
         }
-        .navigationTitle(Text("Energy"))
+        .navigationTitle(NoopVisualStyle.skin == .forge ? Text(verbatim: "") : Text("Energy"))
         // The day control belongs in the bar, beside the title it qualifies — a second large
         // "Energy" heading inside the scroll view just to host it printed the screen's name twice.
-        .toolbar { ToolbarItem(placement: .primaryAction) { dayMenu } }
+        .toolbar {
+            if NoopVisualStyle.skin != .forge { ToolbarItem(placement: .primaryAction) { dayMenu } }
+        }
         .simultaneousGesture(daySwipeGesture)
         .task { await loadIfNeeded() }
         .task(id: selectedDay) { await loadDay() }
         .task(id: "\(selectedDay)|\(comparison.rawValue)") { await loadComparison() }
         .sheet(isPresented: $showDayPicker) { dayPickerSheet }
+    }
+
+    // MARK: - New design
+
+    /// The page title, then the day it is about with a step either way.
+    private var forgeHead: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            Text("Energy")
+                .font(.largeTitle.bold())
+                .foregroundStyle(StrandPalette.textPrimary)
+            HStack {
+                forgeDayStep(-1, symbol: "chevron.left", label: "Previous day")
+                Spacer()
+                dayMenu
+                Spacer()
+                forgeDayStep(1, symbol: "chevron.right", label: "Next day")
+            }
+        }
+    }
+
+    private func forgeDayStep(_ days: Int, symbol: String, label: LocalizedStringKey) -> some View {
+        let target = WeightSeries.date(forDay: selectedDay).map { $0.addingTimeInterval(Double(days) * 86_400) }
+        let allowed = target.map { $0 <= Date() && $0 >= earliestDate } ?? false
+        return Button {
+            if let target { withAnimation(StrandMotion.interactive) { select(Repository.localDayKey(target)) } }
+        } label: {
+            Image(systemName: symbol)
+                .font(StrandFont.subhead.weight(.semibold))
+                .foregroundStyle(allowed ? StrandPalette.textPrimary : StrandPalette.textTertiary)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!allowed)
+        .accessibilityLabel(Text(label))
+    }
+
+    private var forgeHistoryPoints: [TrendPoint] {
+        guard forgeSeries != .burned else { return history }
+        let today = Repository.localDayKey(Date())
+        return summaries.compactMap { s in
+            guard s.day != today, let eaten = intake[s.day], let date = WeightSeries.date(forDay: s.day) else { return nil }
+            if forgeSeries == .eaten { return TrendPoint(date: date, value: eaten) }
+            guard let total = s.totalBurnedSoFar else { return nil }
+            return TrendPoint(date: date, value: eaten - total)
+        }
+    }
+
+    @ViewBuilder private var forgeHistory: some View {
+        ForgeSectionHeading("Last 30 days")
+        if !intake.isEmpty {
+            SegmentedPillControl([ForgeSeries.burned, .eaten, .balance], selection: $forgeSeries, fillsAvailableWidth: true) { series in
+                switch series {
+                case .burned: return String(localized: "Burned")
+                case .eaten: return String(localized: "Eaten")
+                case .balance: return String(localized: "Balance")
+                }
+            }
+        }
+        NoopCard {
+            let points = forgeHistoryPoints
+            let values = points.map(\.value)
+            let pad = max(100.0, ((values.max() ?? 0) - (values.min() ?? 0)) * 0.2)
+            TrendChart(points: points,
+                       gradient: StrandPalette.energyGradient,
+                       valueRange: ((values.min() ?? 0) - pad)...((values.max() ?? 3_000) + pad),
+                       height: 180,
+                       valueFormat: { "\(Int($0.rounded())) kcal" },
+                       dateFormat: { $0.formatted(date: .abbreviated, time: .omitted) },
+                       accessibilityLabel: String(localized: "Daily energy burn"))
+        }
+    }
+
+    private func kcalFigure(_ value: Double) -> String {
+        Int(value.rounded()).formatted(.number.locale(AppLanguage.activeLocale))
+    }
+
+    @ViewBuilder private func forgeOrigins(_ s: DailyEnergySummary) -> some View {
+        ForgeSectionHeading("Where it comes from")
+        NoopCard {
+            VStack(spacing: NoopMetrics.space2) {
+                if let resting = s.basalBurnedSoFar ?? s.estimatedBMR24h {
+                    ForgeTileRow(symbol: "bed.double.fill", tint: StrandPalette.energyResting,
+                                 title: String(localized: "Basal burn"),
+                                 subtitle: s.basalBurnedSoFar == nil ? String(localized: "Basal / day") : nil) {
+                        ForgeRowFigure(value: kcalFigure(resting), unit: "kcal")
+                    }
+                }
+                if let active = s.activeBurnedSoFar {
+                    Divider().overlay(StrandPalette.hairline)
+                    ForgeTileRow(symbol: "figure.run", tint: StrandPalette.energyActive,
+                                 title: String(localized: "Active"),
+                                 subtitle: breakdown.map { String(localized: "Daily movement \(kcalFigure($0.movementKcal)) · Training \(kcalFigure($0.trainingKcal))") }) {
+                        ForgeRowFigure(value: kcalFigure(active), unit: "kcal")
+                    }
+                }
+                if let eaten = intake[selectedDay] {
+                    Divider().overlay(StrandPalette.hairline)
+                    ForgeTileRow(symbol: "fork.knife", tint: StrandPalette.chargeColor,
+                                 title: String(localized: "Eaten")) {
+                        ForgeRowFigure(value: kcalFigure(eaten), unit: "kcal")
+                    }
+                }
+            }
+        }
+        NoopCard {
+            NavigationLink {
+                EnergyCalculationView(summary: s)
+            } label: {
+                ForgeTileRow(symbol: "checkmark.shield.fill", tint: EnergyProvenance.confidenceColor(s.confidence),
+                             title: String(localized: "Data quality & calculation"),
+                             subtitle: EnergyProvenance.compactLine(s) ?? EnergyProvenance.sourceLabel(s.source),
+                             showsChevron: true) { EmptyView() }
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - The day picker
@@ -373,6 +503,9 @@ struct EnergyDetailView: View {
         // Paint from the store first. A model-version migration must never hold the entire detail
         // screen hostage while it walks months of raw one-second movement rows.
         summaries = await repo.energySummaries(days: Self.historyDays, profile: analyticsProfile)
+        if let oldest = summaries.map(\.day).min() {
+            intake = await repo.intakeByDay(from: oldest, to: Repository.localDayKey(Date()))
+        }
         loaded = true
         loading = false
 

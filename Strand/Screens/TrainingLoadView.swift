@@ -255,6 +255,8 @@ struct TrainingLoadView: View {
                        onRefresh: { await model.load(repo: repo) }) {
             if !model.loaded {
                 ProgressView().frame(maxWidth: .infinity)
+            } else if NoopVisualStyle.skin == .forge {
+                forgeBody
             } else {
                 // Named sections for `--demo-scroll-to` screenshot QA (DEBUG only; ids are inert otherwise).
                 hero.id("hero")
@@ -331,6 +333,135 @@ struct TrainingLoadView: View {
 
     /// Strength and cardio side by side, each in its own unit and colour. Never one combined figure: the
     /// two lanes are measured differently, and a blended score would need an invented exchange rate.
+    // MARK: - New design
+
+    /// Where the week stands first, what is left of it, how it got here and what it builds toward.
+    @ViewBuilder private var forgeBody: some View {
+        forgeStandingCard.id("hero")
+        roomCard
+        maturityLine
+        duplicateReviewCard
+        sustainedCard
+        historyCard
+        shapeCard.id("shape")
+        forgeDevelopment.id("lifts")
+        developmentCards
+        TrainingHistoryLink(focus: .all) {
+            TrainingHistoryRow(subtitle: String(localized: "Strength, cardio and session load over months and years"))
+        }
+        explainers.id("method")
+    }
+
+    /// Both lanes on their own usual range, with the verdict sentence under them.
+    private var forgeStandingCard: some View {
+        let advice = advice
+        return NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                laneLink(to: .strength) {
+                    forgeLaneRow(.strength, lane: model.strength, verdict: model.strengthVerdict,
+                                 figure: strengthFigure, evidence: strengthEvidence,
+                                 caveat: strengthCaveat, note: provisionalNote ?? capNote(model.strength))
+                }
+                Divider().overlay(StrandPalette.hairline)
+                laneLink(to: .cardio) {
+                    forgeLaneRow(.cardio, lane: model.cardio, verdict: model.cardioVerdict,
+                                 figure: cardioFigure, evidence: cardioEvidence,
+                                 caveat: cardioCaveat, note: capNote(model.cardio))
+                }
+                Divider().overlay(StrandPalette.hairline)
+                HStack(alignment: .top, spacing: NoopMetrics.space2) {
+                    StatusBadge(symbol: advice.symbol, color: advice.color, size: 32, bounceTrigger: adviceBounce)
+                    Text(advice.text)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func forgeLaneRow(_ laneKind: TrainingLane, lane: TrainingLoadModel.Lane?, verdict: LaneVerdict?,
+                              figure: String?, evidence: String?, caveat: String?, note: String?) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(laneKind.title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                Spacer(minLength: NoopMetrics.space2)
+                Text(verdict?.label ?? "—")
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(laneKind.color)
+                    .lineLimit(1)
+                if let trend = lane?.trend {
+                    Text(verbatim: LoadFormat.signedPercent(trend.percentChange))
+                        .font(StrandFont.captionNumber)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            }
+            if let range = lane?.relative.personalRange, let total = lane?.sevenDayTotal {
+                let top = max(range.usualUpperBound * 1.35, total, 1)
+                TypicalRangeBar(value: total / top,
+                                typical: (range.usualLowerBound / top)...(range.usualUpperBound / top),
+                                color: laneKind.color, height: 10)
+                    .accessibilityHidden(true)
+            }
+            if let figure {
+                Text(figure).font(StrandFont.captionNumber).foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let evidence {
+                Text(evidence).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let caveat {
+                Label {
+                    Text(caveat).foregroundStyle(StrandPalette.textPrimary)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(StrandPalette.statusWarningForeground)
+                }
+                .font(StrandFont.caption)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if let note {
+                Label(note, systemImage: "info.circle")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    /// What the load is doing to the body, each line opening its full reading.
+    @ViewBuilder private var forgeDevelopment: some View {
+        ForgeSectionHeading("Development")
+        NoopCard {
+            VStack(spacing: NoopMetrics.space2) {
+                Button { openSummary = .adaptation } label: {
+                    VStack(spacing: NoopMetrics.space2) {
+                        adaptationMini(.strength, model.strengthAdaptation)
+                        adaptationMini(.cardio, model.cardiovascularAdaptation)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(LiquidPressStyle())
+                .accessibilityLabel(Text("Adaptation"))
+                Divider().overlay(StrandPalette.hairline)
+                Button { openSummary = .recovery } label: {
+                    ForgeTileRow(symbol: "moon.zzz.fill", tint: recoveryTint, title: String(localized: "Recovery"),
+                                 subtitle: recoverySummary, showsChevron: true) { recoveryDots }
+                }
+                .buttonStyle(LiquidPressStyle())
+                Divider().overlay(StrandPalette.hairline)
+                Button { openSummary = .session } label: {
+                    ForgeTileRow(symbol: "person.fill.checkmark", tint: StrandPalette.metricCyan,
+                                 title: String(localized: "Session load"),
+                                 subtitle: sessionText(model.session), showsChevron: true) { EmptyView() }
+                }
+                .buttonStyle(LiquidPressStyle())
+            }
+        }
+    }
+
     private var hero: some View {
         // Analysis migration required: no. This is an adaptive presentation of the same lane readings.
         // Half-width cards remain useful in a wide detail column; on a phone, each lane gets the full

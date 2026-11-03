@@ -33,10 +33,130 @@ struct EnergyActiveBreakdown: Equatable, Sendable {
 struct EnergyHeroCard: View {
     let summary: DailyEnergySummary
     let breakdown: EnergyActiveBreakdown?
+    /// What the day's logged meals add up to. New design only: the card then leads with the balance.
+    var eatenKcal: Double?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        if NoopVisualStyle.skin == .forge {
+            forgeBody
+        } else {
+            standardBody
+        }
+    }
+
+    // MARK: - New design
+
+    private func kcal(_ value: Double) -> String {
+        Int(value.rounded()).formatted(.number.locale(AppLanguage.activeLocale))
+    }
+
+    private var forgeBalance: Double? {
+        guard let eatenKcal, let total = summary.totalBurnedSoFar else { return nil }
+        return eatenKcal - total
+    }
+
+    /// The day's one answer as a large figure, the burned and eaten energy as two bars on one scale.
+    private var forgeBody: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(alignment: .firstTextBaseline) {
+                    if let balance = forgeBalance {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(verbatim: (balance > 0 ? "+" : balance < 0 ? "−" : "") + kcal(abs(balance)))
+                                .font(StrandFont.rounded(48, weight: .bold).monospacedDigit())
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            Text(verbatim: "kcal").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    } else {
+                        Text(EnergyDisplay.totalText(summary, includesUnit: true))
+                            .font(StrandFont.rounded(44, weight: .bold).monospacedDigit())
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                    }
+                    Spacer(minLength: NoopMetrics.space2)
+                    confidencePill
+                }
+                Text(forgeBalance == nil ? "total burned so far" : "balance so far")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                if let range = summary.projectedRangeKcal {
+                    Text("Forecast range: \(forecastRange(range)) kcal")
+                        .font(StrandFont.caption.monospacedDigit())
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                forgeBars
+                if let note = qualityNote {
+                    Label(note, systemImage: "info.circle")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    @ViewBuilder private var forgeBars: some View {
+        let resting = summary.basalBurnedSoFar ?? 0
+        let active = summary.activeBurnedSoFar ?? 0
+        let total = summary.totalBurnedSoFar ?? (resting + active)
+        let top = max(1, total, eatenKcal ?? 0)
+        if total > 0 {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Burned \(kcal(total))")
+                    .font(StrandFont.caption.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+                GeometryReader { proxy in
+                    HStack(spacing: 2) {
+                        // A summary without the split is one block rather than an invented share.
+                        if resting + active > 0 {
+                            Rectangle().fill(StrandPalette.energyResting)
+                                .frame(width: proxy.size.width * resting / top)
+                            Rectangle().fill(StrandPalette.energyActive)
+                                .frame(width: proxy.size.width * active / top)
+                        } else {
+                            Rectangle().fill(StrandPalette.energyResting)
+                                .frame(width: proxy.size.width * total / top)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .clipShape(Capsule())
+                }
+                .frame(height: 12)
+            }
+            if let eatenKcal {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Eaten \(kcal(eatenKcal))")
+                        .font(StrandFont.caption.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+                    GeometryReader { proxy in
+                        Capsule().fill(StrandPalette.textPrimary)
+                            .frame(width: proxy.size.width * eatenKcal / top)
+                    }
+                    .frame(height: 12)
+                }
+            }
+            HStack(spacing: NoopMetrics.space3) {
+                legend("Resting", StrandPalette.energyResting)
+                legend("Active", StrandPalette.energyActive)
+                if eatenKcal != nil { legend("Eaten", StrandPalette.textPrimary) }
+            }
+        }
+    }
+
+    private func legend(_ title: LocalizedStringKey, _ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Capsule().fill(color).frame(width: 12, height: 4)
+            Text(title).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+        }
+    }
+
+    // MARK: - Shipped design
+
+    private var standardBody: some View {
         NoopCard(tint: StrandPalette.energyHighlight) {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 8) {
@@ -45,9 +165,9 @@ struct EnergyHeroCard: View {
                     } icon: {
                         Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
                     }
-                        .font(NoopVisualStyle.skin == .forge ? StrandFont.subhead : StrandFont.overline)
-                        .tracking(NoopVisualStyle.skin == .forge ? 0 : StrandFont.overlineTracking)
-                        .textCase(NoopVisualStyle.skin == .forge ? nil : .uppercase)
+                        .font(StrandFont.overline)
+                        .tracking(StrandFont.overlineTracking)
+                        .textCase(.uppercase)
                         // Neutral words, coloured glyph: the hero's label rule.
                         .foregroundStyle(StrandPalette.textSecondary)
                     Spacer(minLength: 8)

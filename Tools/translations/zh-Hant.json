@@ -3793,5 +3793,20 @@
   "Assist": "輔助",
   "%@ · live": "%@ · 即時",
   "Effort so far": "目前的 Effort",
-  "Deep Timeline": "全天"
+  "Deep Timeline": "全天",
+  "Pick a rhythm": "選擇節奏",
+  "Show less": "收起",
+  "%@ kcal burned in these sessions.": "這些訓練消耗 %@ 千卡。",
+  "Where it comes from": "來源",
+  "Daily movement %@ · Training %@": "日常活動 %1$@ · 訓練 %2$@",
+  "balance so far": "目前的收支",
+  "Burned %@": "消耗 %@",
+  "Eaten %@": "攝入 %@",
+  "Eaten": "攝入",
+  "Add a drink": "新增飲品",
+  "Timer": "計時器",
+  "Presets": "預設",
+  "Total %@": "總計 %@",
+  "seconds": "秒",
+  "Round": "輪次"
 }

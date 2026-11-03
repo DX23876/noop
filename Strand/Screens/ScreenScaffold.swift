@@ -517,3 +517,94 @@ extension View {
         #endif
     }
 }
+
+/// A section title in the new design: a sentence-case heading on the page, an optional note at its end.
+struct ForgeSectionHeading: View {
+    let title: LocalizedStringKey
+    var note: String?
+
+    init(_ title: LocalizedStringKey, note: String? = nil) {
+        self.title = title
+        self.note = note
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(StrandFont.title2)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: NoopMetrics.space2)
+            if let note {
+                Text(note)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+    }
+}
+
+/// A row in the new design's grouped cards: a coloured tile, two lines, a figure at the end.
+struct ForgeTileRow<Trailing: View>: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+    var subtitle: String?
+    var showsChevron = false
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        HStack(spacing: NoopMetrics.space3) {
+            Image(systemName: symbol)
+                .font(StrandFont.subhead.weight(.semibold))
+                .foregroundStyle(StrandPalette.forgeOnAccent)
+                .frame(width: 40, height: 40)
+                .background(tint, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .multilineTextAlignment(.leading)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
+            }
+            Spacer(minLength: NoopMetrics.space2)
+            trailing
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(StrandFont.caption.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+    }
+}
+
+/// A figure with its small unit behind it, the end of a `ForgeTileRow`.
+struct ForgeRowFigure: View {
+    let value: String
+    var unit: String?
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text(value)
+                .font(StrandFont.number(17).monospacedDigit())
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1)
+            if let unit, !unit.isEmpty {
+                Text(unit)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+    }
+}
+

@@ -182,7 +182,7 @@ struct TrendsView: View {
                 // Match the neighbouring ChartFooter columns so the delta is self-describing instead
                 // of appearing as an unlabeled pill at the edge of the statistics row.
                 Text("Trend")
-                    .textCase(.uppercase)
+                    .textCase(NoopVisualStyle.skin == .forge ? nil : .uppercase)
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                 TrendChip(text: deltaText, color: color)
@@ -280,10 +280,17 @@ struct TrendsView: View {
                             .staggeredAppear(index: 0)
                         rangeBar(recovery: recovery)
                             .staggeredAppear(index: 2)
-                        heroRecovery(recovery: recovery)
-                            .staggeredAppear(index: 3)
-                        smallMultiples(hrv: hrv, rhr: rhr, strain: strain)
-                            .staggeredAppear(index: 4)
+                        if NoopVisualStyle.skin == .forge {
+                            forgeScoreCards(recovery: recovery, strain: strain)
+                                .staggeredAppear(index: 3)
+                            forgeSignals(hrv: hrv, rhr: rhr)
+                                .staggeredAppear(index: 4)
+                        } else {
+                            heroRecovery(recovery: recovery)
+                                .staggeredAppear(index: 3)
+                            smallMultiples(hrv: hrv, rhr: rhr, strain: strain)
+                                .staggeredAppear(index: 4)
+                        }
                         // Long-horizon training history. Replaced the "Effort over time" card (CTL/ATL/TSB
                         // on log-scaled Effort): the history view reads the Training Load lanes in their
                         // own units, with the bands the Training Load screen showed at the time.
@@ -587,6 +594,89 @@ struct TrendsView: View {
         NavigationLink(value: TabRoute.metric("recovery")) { card }
             .buttonStyle(LiquidPressStyle())
             .accessibilityHint(Text(String(localized: "Opens the full Charge metric.")))
+    }
+
+    // MARK: New design: the three scores, then the daily signals as rows
+
+    @ViewBuilder
+    private func forgeScoreCards(recovery: ResolvedMetric, strain: ResolvedMetric) -> some View {
+        let rest = metrics["rest"] ?? emptyMetric
+        VStack(spacing: NoopMetrics.gap) {
+            forgeScoreCard(title: "Charge", metricKey: "recovery", points: recovery.points,
+                           gradient: StrandPalette.recoveryGradient, tip: StrandPalette.chargeBright,
+                           color: StrandPalette.chargeColor, higherIsBetter: true, range: 0...106,
+                           fmt: { "\(Int($0.rounded()))" })
+            forgeScoreCard(title: "Effort", metricKey: "strain", points: strain.points,
+                           gradient: gradient(StrandPalette.effortColor), tip: StrandPalette.effortColor,
+                           color: StrandPalette.effortColor, higherIsBetter: nil,
+                           range: valueRange(strain.points, fallback: 0...100),
+                           fmt: { UnitFormatter.effortDisplay($0, scale: effortScale) })
+            forgeScoreCard(title: "Rest", metricKey: "sleep_performance", points: rest.points,
+                           gradient: gradient(StrandPalette.restColor), tip: StrandPalette.restColor,
+                           color: StrandPalette.restColor, higherIsBetter: true, range: 0...106,
+                           fmt: { "\(Int($0.rounded()))" })
+        }
+    }
+
+    /// One score over the chosen window: its average as the figure, the line under it. Opens the metric.
+    private func forgeScoreCard(title: LocalizedStringKey, metricKey: String, points pts: [TrendPoint],
+                                gradient: Gradient, tip: Color, color: Color, higherIsBetter: Bool?,
+                                range: ClosedRange<Double>, fmt: @escaping (Double) -> String) -> some View {
+        NavigationLink(value: TabRoute.metric(metricKey)) {
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(color)
+                        Spacer()
+                        changeChip(pts, higherIsBetter: higherIsBetter, fmt: fmt)
+                    }
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(verbatim: mean(pts).map(fmt) ?? "—")
+                            .font(StrandFont.rounded(30, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("average").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    if pts.count >= 2 {
+                        TrendChart(points: pts, gradient: gradient, valueRange: range, showsArea: true,
+                                   showsBars: TrendChartStyle(rawValue: trendChartStyleRaw) == .bar,
+                                   height: 120, valueFormat: fmt,
+                                   accessibilityLabel: mean(pts).map(fmt) ?? "", nowCapColor: tip)
+                    } else {
+                        sparsePlaceholder.frame(height: 80)
+                    }
+                    if let gap = gapCaption(pts) {
+                        Text(gap).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+            }
+        }
+        .buttonStyle(LiquidPressStyle())
+    }
+
+    @ViewBuilder
+    private func forgeSignals(hrv: ResolvedMetric, rhr: ResolvedMetric) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            ForgeSectionHeading("Daily signals", note: rangeSubtitle)
+            NoopCard {
+                VStack(spacing: NoopMetrics.space2) {
+                    NavigationLink(value: TabRoute.metric("hrv")) {
+                        ForgeTileRow(symbol: "waveform.path.ecg", tint: StrandPalette.chargeColor,
+                                     title: String(localized: "Heart rate variability"), showsChevron: true) {
+                            ForgeRowFigure(value: mean(hrv.points).map { "\(Int($0.rounded()))" } ?? "—", unit: "ms")
+                        }
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    Divider().overlay(StrandPalette.hairline)
+                    NavigationLink(value: TabRoute.metric("rhr")) {
+                        ForgeTileRow(symbol: "heart.fill", tint: StrandPalette.metricRose,
+                                     title: String(localized: "Resting heart rate"), showsChevron: true) {
+                            ForgeRowFigure(value: mean(rhr.points).map { "\(Int($0.rounded()))" } ?? "—", unit: "bpm")
+                        }
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                }
+            }
+        }
     }
 
     // MARK: Small multiples — HRV / Resting HR / Day Strain

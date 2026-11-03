@@ -51,6 +51,11 @@ struct IntervalTimerView: View {
     @State private var hapticTick: Int = 0
     #endif
 
+    /// New design: setting a session up and running it are two views of the page.
+    private enum ForgePane: Hashable { case timer, configure }
+    @State private var forgePane: ForgePane = .configure
+    @AppStorage(HapticPrefs.intervals) private var buzzCues = true
+
     // 1Hz tick.
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -94,15 +99,19 @@ struct IntervalTimerView: View {
     var body: some View {
         ScreenScaffold(title: "Interval Timer",
                        subtitle: "Silent haptic HIIT: the strap buzzes the transitions") {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
-                let cards: [AnyView] = [
-                    AnyView(statusRow),
-                    AnyView(stageCard),
-                    AnyView(overviewCard),
-                    AnyView(configCard),
-                ]
-                ForEach(Array(cards.enumerated()), id: \.offset) { index, card in
-                    card.staggeredAppear(index: index)
+            if NoopVisualStyle.skin == .forge {
+                forgeBody
+            } else {
+                VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                    let cards: [AnyView] = [
+                        AnyView(statusRow),
+                        AnyView(stageCard),
+                        AnyView(overviewCard),
+                        AnyView(configCard),
+                    ]
+                    ForEach(Array(cards.enumerated()), id: \.offset) { index, card in
+                        card.staggeredAppear(index: index)
+                    }
                 }
             }
         }
@@ -132,6 +141,128 @@ struct IntervalTimerView: View {
             }
         }
         #endif
+    }
+
+    // MARK: New design
+
+    /// The presets a session usually starts from. Everything stays editable below them.
+    private struct ForgePreset: Identifiable {
+        let id: String
+        let title: String
+        let work: Int
+        let rest: Int
+        let rounds: Int
+    }
+
+    private var forgePresets: [ForgePreset] {
+        [ForgePreset(id: "tabata", title: "Tabata 20/10", work: 20, rest: 10, rounds: 8),
+         ForgePreset(id: "4x4", title: "4 × 4 min", work: 240, rest: 180, rounds: 4),
+         ForgePreset(id: "emom", title: "EMOM 10", work: 40, rest: 20, rounds: 10),
+         ForgePreset(id: "30-30", title: "30/30 × 10", work: 30, rest: 30, rounds: 10)]
+    }
+
+    private var forgeBody: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            SegmentedPillControl([ForgePane.timer, ForgePane.configure], selection: $forgePane, fillsAvailableWidth: true) { pane in
+                pane == .timer ? String(localized: "Timer") : String(localized: "Configure")
+            }
+            if forgePane == .configure {
+                forgePresetCard
+                forgeSessionCard
+                forgeCuesCard
+                NoopButton("Start", systemImage: "play.fill", kind: .primary, fullWidth: true) {
+                    resetToStart()
+                    withAnimation(.snappy) { forgePane = .timer }
+                    toggleRunning()
+                }
+            } else {
+                statusRow
+                stageCard
+                overviewCard
+            }
+        }
+    }
+
+    private var forgePresetCard: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                Text("Presets").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: NoopMetrics.space2)],
+                          alignment: .leading, spacing: NoopMetrics.space2) {
+                    ForEach(forgePresets) { preset in
+                        let on = preset.work == workSeconds && preset.rest == restSeconds && preset.rounds == rounds
+                        Button {
+                            workSeconds = preset.work
+                            restSeconds = preset.rest
+                            rounds = preset.rounds
+                        } label: {
+                            Text(verbatim: preset.title)
+                                .font(StrandFont.subhead.weight(.semibold))
+                                .foregroundStyle(on ? StrandPalette.forgeOnAccent : StrandPalette.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(on ? StrandPalette.forgeAccent : StrandPalette.surfaceInset, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+            }
+            .disabled(running)
+        }
+    }
+
+    private var forgeSessionCard: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            NoopCard {
+                VStack(spacing: NoopMetrics.space2) {
+                    forgeStepperRow(String(localized: "Work"), value: $workSeconds, range: 5...600, step: 5, seconds: true)
+                    Divider().overlay(StrandPalette.hairline)
+                    forgeStepperRow(String(localized: "Rest"), value: $restSeconds, range: 5...600, step: 5, seconds: true)
+                    Divider().overlay(StrandPalette.hairline)
+                    forgeStepperRow(String(localized: "Rounds"), value: $rounds, range: 1...30, step: 1, seconds: false)
+                }
+                .disabled(running)
+                .opacity(running ? StrandPalette.disabledOpacity : 1)
+            }
+            Text("Total \(timeString(totalPlanned))")
+                .font(StrandFont.footnote.monospacedDigit())
+                .foregroundStyle(StrandPalette.textTertiary)
+                .padding(.horizontal, NoopMetrics.space1)
+        }
+    }
+
+    private func forgeStepperRow(_ title: String, value: Binding<Int>, range: ClosedRange<Int>,
+                                 step: Int, seconds: Bool) -> some View {
+        HStack {
+            Text(title).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+            Spacer()
+            Text(seconds ? timeString(value.wrappedValue) : "\(value.wrappedValue)")
+                .font(StrandFont.number(17).monospacedDigit())
+                .foregroundStyle(StrandPalette.textSecondary)
+            Stepper("", value: value, in: range, step: step)
+                .labelsHidden()
+                .accessibilityLabel(Text(title))
+        }
+    }
+
+    private var forgeCuesCard: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Toggle(isOn: $buzzCues) {
+                    Text("Buzz cues on").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                }
+                .tint(StrandPalette.chargeColor)
+                if !live.bonded {
+                    Label("Bond your strap on the Live screen to feel the transitions hands-free.",
+                          systemImage: "wave.3.right")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 
     // MARK: Status row
@@ -215,9 +346,11 @@ struct IntervalTimerView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                     .contentTransition(.numericText())
-                Text(isFinished ? "SESSION DONE" : "SECONDS")
+                (NoopVisualStyle.skin == .forge
+                    ? Text(isFinished ? "Session done" : "seconds")
+                    : Text(isFinished ? "SESSION DONE" : "SECONDS"))
                     .font(StrandFont.footnote)
-                    .tracking(1.5)
+                    .tracking(NoopVisualStyle.skin == .forge ? 0 : 1.5)
                     .foregroundStyle(StrandPalette.textTertiary)
             }
             .padding(.horizontal, lineWidth + 4)
@@ -242,7 +375,7 @@ struct IntervalTimerView: View {
     /// Frosted round chip — "ROUND n / N".
     private var roundChip: some View {
         HStack(spacing: 6) {
-            Text("ROUND").strandOverline()
+            (NoopVisualStyle.skin == .forge ? Text("Round") : Text("ROUND")).strandOverline()
             Text("\(min(currentRound, rounds))")
                 .font(StrandFont.number(18))
                 .foregroundStyle(StrandPalette.textPrimary)
@@ -320,7 +453,7 @@ struct IntervalTimerView: View {
             //
             // Not yet reported here; found by sweeping for the shape after the Intelligence card was
             // seen rendering "CHARGEEFFORT" on a device. Larger Dynamic Type is where either bites.
-            Text(label.uppercased())
+            Text(NoopVisualStyle.skin == .forge ? label : label.uppercased())
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .lineLimit(1)

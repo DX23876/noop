@@ -3732,5 +3732,20 @@
   "Assist": "Aiuto",
   "%@ · live": "%@ · dal vivo",
   "Effort so far": "Effort finora",
-  "Deep Timeline": "Giornata intera"
+  "Deep Timeline": "Giornata intera",
+  "Pick a rhythm": "Scegli un ritmo",
+  "Show less": "Mostra meno",
+  "%@ kcal burned in these sessions.": "%@ kcal bruciate in queste sessioni.",
+  "Where it comes from": "Da dove viene",
+  "Daily movement %@ · Training %@": "Movimento quotidiano %1$@ · Allenamento %2$@",
+  "balance so far": "bilancio finora",
+  "Burned %@": "Bruciate %@",
+  "Eaten %@": "Mangiate %@",
+  "Eaten": "Mangiato",
+  "Add a drink": "Aggiungi una bevanda",
+  "Timer": "Timer",
+  "Presets": "Modelli",
+  "Total %@": "Totale %@",
+  "seconds": "secondi",
+  "Round": "Round"
 }
