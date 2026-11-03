@@ -158,7 +158,7 @@ struct RootTabView: View {
                     "workouts": (2, { $0.append(TabRoute.workouts) }), "strength": (2, { $0.append(TabRoute.strength) }), "cardio": (2, { $0.append(TabRoute.cardio) }),
                     "trainingload": (2, { $0.append(TabRoute.trainingLoad) }), "goals": (2, { $0.append(TabRoute.goals) }), "plan": (2, { $0.append(MoreDestination.training) }),
                     "intervals": (2, { $0.append(MoreDestination.intervals) }), "live": (2, { $0.append(MoreDestination.live) }),
-                    "weight": (1, { $0.append(TabRoute.weight) }), "energy": (1, { $0.append(TabRoute.energy) }), "stress": (1, { $0.append(TabRoute.stress) }),
+                    "hydration": (1, { $0.append(TabRoute.hydration) }), "weight": (1, { $0.append(TabRoute.weight) }), "energy": (1, { $0.append(TabRoute.energy) }), "stress": (1, { $0.append(TabRoute.stress) }),
                     "ecg": (1, { $0.append(MoreDestination.ecg) }), "body": (1, { $0.append(MoreDestination.body) }), "ageless": (1, { $0.append(MoreDestination.ageless) }),
                     "labbook": (1, { $0.append(MoreDestination.labBook) }), "breathe": (1, { $0.append(MoreDestination.breathe) }), "explore": (1, { $0.append(MoreDestination.explore) }),
                     "compare": (1, { $0.append(MoreDestination.compare) }), "trends": (1, { $0.append(TabRoute.trends) }), "metric-hrv": (1, { $0.append(TabRoute.metric("hrv")) }),

@@ -161,10 +161,12 @@ public struct WeeklyDigest: Equatable, Sendable {
     public let balance: BalanceRead
     /// 1–2 plain-English focal points, most salient first.
     public let focalPoints: [String]
+    /// The same statements as facts, for a screen that words them itself.
+    public let focalDetails: [WeeklyFocalPoint]
 
     public init(weekStart: String, weekEnd: String, metrics: [WeeklyMetricSummary],
                 daysWithData: Int, sleepConsistencySD: Double?, balance: BalanceRead,
-                focalPoints: [String]) {
+                focalPoints: [String], focalDetails: [WeeklyFocalPoint] = []) {
         self.weekStart = weekStart
         self.weekEnd = weekEnd
         self.metrics = metrics
@@ -172,6 +174,7 @@ public struct WeeklyDigest: Equatable, Sendable {
         self.sleepConsistencySD = sleepConsistencySD
         self.balance = balance
         self.focalPoints = focalPoints
+        self.focalDetails = focalDetails
     }
 
     /// Look up one metric's summary.
@@ -204,6 +207,22 @@ public enum BalanceRead: String, Equatable, Sendable {
             return "Not enough Effort and Charge days this week to read your balance."
         }
     }
+}
+
+/// One digest statement as facts, so a screen can word it in the reader's language. The English
+/// sentences stay what `focalPoints` carries, and both come from one selection.
+public enum WeeklyFocalPoint: Equatable, Sendable {
+    /// A metric that moved clearly. `percent` is nil when the change has no usable percentage; `points`
+    /// is then the absolute move on the display scale.
+    case mover(metric: WeeklyMetric, rising: Bool, percent: Int?, points: Double?,
+               thisAverage: Int, lastAverage: Int, goodness: Int)
+    case balance(BalanceRead)
+    /// Fewer days than a comparison needs so far this week.
+    case tooEarly(days: Int)
+    /// Last week had too few days to compare against.
+    case lastWeekSparse(days: Int)
+    case steadyRest(spread: Double)
+    case steady
 }
 
 public enum WeeklyDigestEngine {
@@ -278,14 +297,14 @@ public enum WeeklyDigestEngine {
         let restConsistency: Double? = (restStat?.n ?? 0) >= 2 ? restStat?.stdev : nil
 
         let balance = balanceRead(summaries)
-        let focal = focalPoints(summaries: summaries, balance: balance,
-                                consistencySD: restConsistency,
-                                effortDisplayFactor: effortDisplayFactor)
+        let focal = focalStatements(summaries: summaries, balance: balance,
+                                    consistencySD: restConsistency,
+                                    effortDisplayFactor: effortDisplayFactor)
 
         return WeeklyDigest(
             weekStart: monday, weekEnd: sunday, metrics: summaries,
             daysWithData: (daysSeen ?? []).count, sleepConsistencySD: restConsistency,
-            balance: balance, focalPoints: focal)
+            balance: balance, focalPoints: focal.map(\.sentence), focalDetails: focal.map(\.fact))
     }
 
     // MARK: - Balance read
@@ -327,6 +346,15 @@ public enum WeeklyDigestEngine {
                             balance: BalanceRead,
                             consistencySD: Double?,
                             effortDisplayFactor: Double = 1.0) -> [String] {
+        focalStatements(summaries: summaries, balance: balance, consistencySD: consistencySD,
+                        effortDisplayFactor: effortDisplayFactor).map(\.sentence)
+    }
+
+    /// The one selection behind both readouts, so the English line and the screen's wording cannot disagree.
+    static func focalStatements(summaries: [WeeklyMetricSummary],
+                                balance: BalanceRead,
+                                consistencySD: Double?,
+                                effortDisplayFactor: Double = 1.0) -> [(fact: WeeklyFocalPoint, sentence: String)] {
         // Rank movers by |normalised move|, significant (enough days) first.
         let movers = summaries
             .filter { $0.weekOverWeek.current.n >= minDaysForFocus
@@ -334,17 +362,28 @@ public enum WeeklyDigestEngine {
                    && abs($0.normalisedMove) >= focusThreshold }
             .sorted { abs($0.normalisedMove) > abs($1.normalisedMove) }
 
-        var lines: [String] = []
+        func mover(_ s: WeeklyMetricSummary) -> (fact: WeeklyFocalPoint, sentence: String) {
+            let f = s.metric == .effort ? effortDisplayFactor : 1.0
+            let pct = s.weekOverWeek.pctChange.flatMap { abs($0) >= 1 ? roundedInt(abs($0)) : nil }
+            let fact = WeeklyFocalPoint.mover(metric: s.metric, rising: s.wowDelta > 0, percent: pct,
+                                              points: pct == nil ? round1(abs(s.wowDelta) * f) : nil,
+                                              thisAverage: roundedInt(s.thisWeek.mean * f),
+                                              lastAverage: roundedInt(s.weekOverWeek.previous.mean * f),
+                                              goodness: s.wowGoodness)
+            return (fact, moverSentence(s, effortDisplayFactor: effortDisplayFactor))
+        }
+
+        var lines: [(fact: WeeklyFocalPoint, sentence: String)] = []
 
         if let top = movers.first {
-            lines.append(moverSentence(top, effortDisplayFactor: effortDisplayFactor))
+            lines.append(mover(top))
         }
 
         // Supporting line: prefer a non-trivial balance read, else the 2nd mover.
         if balance == .overreaching || balance == .underloaded {
-            lines.append(balance.sentence)
+            lines.append((.balance(balance), balance.sentence))
         } else if movers.count >= 2 {
-            lines.append(moverSentence(movers[1], effortDisplayFactor: effortDisplayFactor))
+            lines.append(mover(movers[1]))
         }
 
         // Nothing cleared the mover bar. Distinguish three very different reasons:
@@ -362,16 +401,19 @@ public enum WeeklyDigestEngine {
             let prevDays = summaries.map { $0.weekOverWeek.previous.n }.max() ?? 0
             if currentDays >= 1 && currentDays < minDaysForFocus {
                 let dayWord = currentDays == 1 ? "day" : "days"
-                lines.append("Only \(currentDays) \(dayWord) into this week so far, too early to "
-                    + "call a week-over-week trend yet.")
+                lines.append((.tooEarly(days: currentDays),
+                              "Only \(currentDays) \(dayWord) into this week so far, too early to "
+                              + "call a week-over-week trend yet."))
             } else if currentDays >= minDaysForFocus, prevDays >= 1, prevDays < minDaysForFocus {
                 let dayWord = prevDays == 1 ? "day" : "days"
-                lines.append("Last week only had \(prevDays) \(dayWord) of data, so week-over-week "
-                    + "changes are rough, not a trend.")
+                lines.append((.lastWeekSparse(days: prevDays),
+                              "Last week only had \(prevDays) \(dayWord) of data, so week-over-week "
+                              + "changes are rough, not a trend."))
             } else if let sd = consistencySD, sd <= 6.0 {
-                lines.append("A steady week: Rest held even (±\(round1(sd)) pts) and nothing moved much.")
+                lines.append((.steadyRest(spread: round1(sd)),
+                              "A steady week: Rest held even (±\(round1(sd)) pts) and nothing moved much."))
             } else {
-                lines.append("A steady week: no metric moved meaningfully from last week.")
+                lines.append((.steady, "A steady week: no metric moved meaningfully from last week."))
             }
         }
 

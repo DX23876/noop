@@ -22,6 +22,14 @@ struct ActiveSessionPresentation: ViewModifier {
                 ActiveSessionScreen().frame(minWidth: 620, minHeight: 720)
             }
             #endif
+            #if DEBUG
+            // Screenshot QA of the live logger: `--demo-logger` opens it on the first saved routine.
+            .task {
+                guard ProcessInfo.processInfo.arguments.contains("--demo-logger") else { return }
+                await session.loadContextIfNeeded()
+                await session.startStrength(routines: Array(session.context.plan.routines.prefix(1)))
+            }
+            #endif
             .sheet(isPresented: $session.isChoosingStrengthStart) { StrengthStartSheet() }
             .sheet(item: $session.completedWorkout) { workout in
                 StrengthWorkoutSummaryView(workout: workout, exercises: session.context.exercises,

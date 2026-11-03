@@ -100,15 +100,15 @@ struct HydrationView: View {
                 // litre figure counts up over it; the vessel fills to the SAME animated `heroFraction`
                 // driven on appear / after a log, so the fill and the number roll-up land together.
                 ZStack {
-                    LiquidVessel(value: heroFraction, tint: StrandPalette.accent, animated: true)
+                    LiquidVessel(value: heroFraction, tint: NoopVisualStyle.skin == .forge ? StrandPalette.metricCyan : StrandPalette.accent, animated: true)
                         .frame(width: 184, height: 184)
                     VStack(spacing: 2) {
                         CountUpText(value: HydrationGoal.litres(fromML: totalML),
-                                    format: { String(format: "%.1f", $0) },
+                                    format: { UnitFormatter.localizedMark(String(format: "%.1f", $0)) },
                                     font: StrandFont.rounded(40, weight: .bold),
                                     color: StrandPalette.textPrimary)
-                            .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
-                        Text(String(localized: "of \(String(format: "%.1f", HydrationGoal.litres(fromML: Double(goalML)))) L"))
+                            .shadow(color: NoopVisualStyle.skin == .forge ? .clear : .black.opacity(0.5), radius: 6, y: 1)
+                        Text(String(localized: "of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: Double(goalML))))) L"))
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
@@ -116,7 +116,7 @@ struct HydrationView: View {
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Hydration today")
-                .accessibilityValue("\(String(format: "%.1f", HydrationGoal.litres(fromML: totalML))) of \(String(format: "%.1f", HydrationGoal.litres(fromML: Double(goalML)))) litres")
+                .accessibilityValue("\(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: totalML)))) of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: Double(goalML))))) litres")
 
                 Text("\(percent)% of today's goal")
                     .font(StrandFont.footnote)
@@ -171,7 +171,8 @@ struct HydrationView: View {
 
     /// One quick-add button using the secondary (no-gold) NoopButton style. Logs the amount and refreshes.
     private func logButton(_ title: LocalizedStringKey, systemImage: String, ml: Int) -> some View {
-        NoopButton(title, systemImage: systemImage, kind: .secondary, fullWidth: true) {
+        // Three across leave no room for "Flasche" beside a symbol in the new design's type.
+        NoopButton(title, systemImage: NoopVisualStyle.skin == .forge ? nil : systemImage, kind: .secondary, fullWidth: true) {
             Task { await add(ml: ml) }
         }
         .accessibilityLabel(Text(title))
@@ -319,7 +320,7 @@ struct HydrationView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(weekdayInitial(bar.day)): \(String(format: "%.1f", HydrationGoal.litres(fromML: bar.value))) litres")
+                    .accessibilityLabel("\(weekdayInitial(bar.day)): \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: bar.value)))) litres")
                 }
             }
         }

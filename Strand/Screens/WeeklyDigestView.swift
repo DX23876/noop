@@ -147,15 +147,12 @@ func weeklyDigestRangeLabel(_ digest: WeeklyDigest) -> String {
     "\(weeklyDigestShortDate(digest.weekStart))–\(weeklyDigestShortDate(digest.weekEnd))"
 }
 
-/// "Jun 8" from "2026-06-08", via the engine's own pure parse (no Calendar).
+/// "Jun 8" or "8. Nov." from "2026-06-08", through the engine's own pure parse.
 private func weeklyDigestShortDate(_ ymd: String) -> String {
-    guard let (_, month, day) = WeeklyDigestEngine.parseYMD(ymd) else { return ymd }
-    let months = [String(localized: "Jan"), String(localized: "Feb"), String(localized: "Mar"),
-                  String(localized: "Apr"), String(localized: "May"), String(localized: "Jun"),
-                  String(localized: "Jul"), String(localized: "Aug"), String(localized: "Sep"),
-                  String(localized: "Oct"), String(localized: "Nov"), String(localized: "Dec")]
-    let name = (1...12).contains(month) ? months[month - 1] : "\(month)"
-    return "\(name) \(day)"
+    guard let (year, month, day) = WeeklyDigestEngine.parseYMD(ymd),
+          let date = Calendar(identifier: .gregorian).date(from: DateComponents(year: year, month: month, day: day))
+    else { return ymd }
+    return date.formatted(.dateTime.month(.abbreviated).day().locale(AppLanguage.activeLocale))
 }
 
 /// The inner content shared by the card and the full screen. `compact` trims the
@@ -334,8 +331,8 @@ struct WeeklyDigestContent: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if hasFocal {
                         VStack(alignment: .leading, spacing: 8) {
-                            ForEach(Array(digest.focalPoints.enumerated()), id: \.offset) { _, line in
-                                focalRow(line)
+                            ForEach(Array(digest.focalDetails.enumerated()), id: \.offset) { _, point in
+                                focalRow(point.localizedLine)
                             }
                         }
                     }
@@ -434,7 +431,7 @@ struct WeeklyDigestContent: View {
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
             }
-            Text(digest.balance.sentence)
+            Text(digest.balance.localizedSentence)
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -743,10 +740,10 @@ private struct DigestOrganicRingRow: View {
         }
         return VStack(spacing: NoopMetrics.space1) {
             Text(summary.metric.label)
-                .font(StrandFont.overline)
-                .tracking(StrandFont.overlineTracking)
-                .textCase(.uppercase)
-                .foregroundStyle(item.domain.color)
+                .font(NoopVisualStyle.skin == .forge ? StrandFont.subhead.weight(.semibold) : StrandFont.overline)
+                .tracking(NoopVisualStyle.skin == .forge ? 0 : StrandFont.overlineTracking)
+                .textCase(NoopVisualStyle.skin == .forge ? nil : .uppercase)
+                .foregroundStyle(NoopVisualStyle.skin == .forge ? StrandPalette.textPrimary : item.domain.color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             OrganicScoreRing(
@@ -846,3 +843,69 @@ private func previewDigest() -> WeeklyDigest {
     .preferredColorScheme(.dark)
 }
 #endif
+
+// MARK: - Localized digest lines
+
+/// The digest's statements in the reader's language. The engine stays free of localisation and keeps
+/// its English sentences for logs and tests; the screen renders from the same facts.
+extension WeeklyFocalPoint {
+    var localizedLine: String {
+        switch self {
+        case let .mover(metric, rising, percent, points, thisAverage, lastAverage, goodness):
+            let label = metric.localizedLabel
+            let amount: String
+            if let percent {
+                amount = (Double(percent) / 100).formatted(.percent.locale(AppLanguage.activeLocale))
+            } else {
+                let number = UnitFormatter.localizedMark(String(format: "%.1f", points ?? 0))
+                amount = metric.unit.isEmpty ? String(localized: "\(number) points") : "\(number) \(metric.unit)"
+            }
+            let line = rising
+                ? String(localized: "\(label) is up \(amount) on last week (average \(thisAverage), was \(lastAverage)).")
+                : String(localized: "\(label) is down \(amount) on last week (average \(thisAverage), was \(lastAverage)).")
+            switch goodness {
+            case 1: return line + " " + String(localized: "A good sign.")
+            case -1: return line + " " + String(localized: "Worth a look.")
+            default: return line
+            }
+        case let .balance(read):
+            return read.localizedSentence
+        case let .tooEarly(days):
+            return String(localized: "Day \(days) of this week, too early to compare it with last week.")
+        case let .lastWeekSparse(days):
+            return String(localized: "Last week has data for only \(days) of 7 days, so the comparison is rough.")
+        case let .steadyRest(spread):
+            let number = UnitFormatter.localizedMark(String(format: "%.1f", spread))
+            return String(localized: "A steady week: Rest held even (±\(number) points) and nothing moved much.")
+        case .steady:
+            return String(localized: "A steady week: nothing moved much from last week.")
+        }
+    }
+}
+
+extension WeeklyMetric {
+    var localizedLabel: String {
+        switch self {
+        case .charge: return String(localized: "Charge")
+        case .effort: return String(localized: "Effort")
+        case .rest: return String(localized: "Rest")
+        case .rhr: return String(localized: "Resting HR")
+        case .hrv: return String(localized: "HRV")
+        }
+    }
+}
+
+extension BalanceRead {
+    var localizedSentence: String {
+        switch self {
+        case .overreaching:
+            return String(localized: "Your Effort outpaced your Charge this week. Watch for a dip in recovery.")
+        case .balanced:
+            return String(localized: "Effort and Charge tracked together this week, a load you can keep up.")
+        case .underloaded:
+            return String(localized: "You carried more Charge than you spent this week, so there is room to push if you want it.")
+        case .insufficient:
+            return String(localized: "Not enough Effort and Charge days this week to read your balance.")
+        }
+    }
+}

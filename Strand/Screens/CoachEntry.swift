@@ -153,16 +153,18 @@ struct CoachCardButton: View {
                 NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
                 dismiss()
             } label: {
+                let forge = NoopVisualStyle.skin == .forge
                 HStack(spacing: 5) {
                     Image(systemName: "sparkles")
+                        .foregroundStyle(StrandPalette.accent)
                     Text("Ask coach")
                 }
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.accent)
+                .foregroundStyle(forge ? StrandPalette.textPrimary : StrandPalette.accent)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 6)
-                .background(StrandPalette.accent.opacity(0.12), in: Capsule(style: .continuous))
-                .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.accent.opacity(0.25), lineWidth: 1))
+                .background(forge ? StrandPalette.surfaceInset : StrandPalette.accent.opacity(0.12), in: Capsule(style: .continuous))
+                .overlay(Capsule(style: .continuous).strokeBorder(forge ? Color.clear : StrandPalette.accent.opacity(0.25), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Ask coach about \(context.title)")

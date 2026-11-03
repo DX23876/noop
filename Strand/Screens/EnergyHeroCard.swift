@@ -45,9 +45,9 @@ struct EnergyHeroCard: View {
                     } icon: {
                         Image(systemName: "flame.fill").foregroundStyle(StrandPalette.energyHighlight)
                     }
-                        .font(StrandFont.overline)
-                        .tracking(StrandFont.overlineTracking)
-                        .textCase(.uppercase)
+                        .font(NoopVisualStyle.skin == .forge ? StrandFont.subhead : StrandFont.overline)
+                        .tracking(NoopVisualStyle.skin == .forge ? 0 : StrandFont.overlineTracking)
+                        .textCase(NoopVisualStyle.skin == .forge ? nil : .uppercase)
                         // Neutral words, coloured glyph: the hero's label rule.
                         .foregroundStyle(StrandPalette.textSecondary)
                     Spacer(minLength: 8)

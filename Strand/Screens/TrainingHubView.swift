@@ -54,13 +54,15 @@ struct TrainingHubView: View {
                 }
                 .padding(NoopMetrics.screenPadding)
             }
+            .forgeScreenBackground()
             #if DEBUG
             // Analysis migration required: no. This only lets screenshot QA reach the existing end
             // of the Training view; it does not change stored data, scoring, or invalidation.
             .task { await scrollToDemoBottom(proxy) }
             #endif
         }
-        .navigationTitle(Text("Training"))
+        // The new design's head names the page itself, so the bar stays empty.
+        .navigationTitle(NoopVisualStyle.skin == .forge ? Text(verbatim: "") : Text("Training"))
         .task(id: "\(repo.refreshSeq)|\(weekStartRaw)") {
             await model.load(repo: repo, session: session, weekStartsOn: weekStart)
         }
@@ -197,7 +199,13 @@ struct TrainingHubView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            SectionHeader("Training", overline: "Plan and log")
+            if NoopVisualStyle.skin == .forge {
+                Text("Training plan")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(StrandPalette.textPrimary)
+            } else {
+                SectionHeader("Training", overline: "Plan and log")
+            }
             Spacer()
             if let coachContext {
                 CoachCardButton(context: coachContext)
@@ -1148,6 +1156,10 @@ struct NativeWorkoutLoggerView: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
     /// Exercises whose demonstration is open. Closed by default so the sets stay in view.
     @State private var expandedMedia: Set<UUID> = []
+    /// New design: pictures of the exercise being logged are open until tapped closed.
+    @State private var closedMedia: Set<UUID> = []
+    /// New design: exercises other than the current one, opened by hand from their row.
+    @State private var openExercises: Set<UUID> = []
     @State private var showingRoutinePicker = false
     @StateObject private var liveEffort = StrengthLiveEffort()
     @AppStorage("training.activeWorkout.layout") private var layoutRaw = ActiveWorkoutLayout.list.rawValue
@@ -1176,8 +1188,14 @@ struct NativeWorkoutLoggerView: View {
             ScrollView {
                 ScrollViewReader { proxy in
                 LazyVStack(spacing: 14) {
-                    WorkoutLoggerHeader(model: model) {
-                        if !model.isRetrospective { physiologyCard }
+                    if forgeSkin {
+                        ForgeLoggerHeartCard(provider: model.isRetrospective ? .none : loggerProvider,
+                                             sourceText: physiologySource, model: model,
+                                             watchFeed: session.watchHeartRate, effort: liveEffort)
+                    } else {
+                        WorkoutLoggerHeader(model: model) {
+                            if !model.isRetrospective { physiologyCard }
+                        }
                     }
                     if showsStrapTapHint { StrapTapHint() }
                     if let notice = model.strapNotice {
@@ -1189,6 +1207,12 @@ struct NativeWorkoutLoggerView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 10)
                     }.buttonStyle(.bordered).tint(StrandPalette.accent)
                     noteCard
+                    if forgeSkin {
+                        loggerOptionsCard
+                        NoopButton("Finish workout", systemImage: "checkmark", kind: .primary, fullWidth: true) {
+                            requestFinish()
+                        }
+                    }
                 }.padding(NoopMetrics.screenPadding)
                 // In the list, finishing an exercise brings the next one up. Supersets alternate between
                 // their exercises every set and stay put, which would otherwise jump on every check.
@@ -1212,7 +1236,7 @@ struct NativeWorkoutLoggerView: View {
                 }
                 }
             }
-            .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            .background { if !forgeSkin { StrandPalette.surfaceBase.ignoresSafeArea() } }
             // The rest countdown stays in view while scrolling through sets.
             .safeAreaInset(edge: .bottom) {
                 // While a number is typed, the bar over the pad replaces the rest dock. A bottom inset rises
@@ -1223,6 +1247,11 @@ struct NativeWorkoutLoggerView: View {
                     WorkoutRestDock(timer: timer, model: model)
                 }
             }
+            // Outside the dock's inset, so the backdrop also runs behind the dock.
+            .forgeScreenBackground()
+            #if os(iOS)
+            .environment(\.forgeTab, .training)
+            #endif
             // The end-of-rest haptic waits here, not in the dock: the pad's bar replaces the dock while a value
             // is typed, which is just when a rest tends to run out.
             .task(id: runningTimerEnd) {
@@ -1241,12 +1270,16 @@ struct NativeWorkoutLoggerView: View {
                     Button { session.minimize() } label: { Label("Back", systemImage: "chevron.down") }
                 }
                 ToolbarItem(placement: .primaryAction) { sessionMenu }
-                ToolbarItem(placement: .confirmationAction) {
-                    // The one, clearly primary way to end the workout — colored so it doesn't read
-                    // as an ordinary nav-bar action next to "Back" and the "..." menu.
-                    Button("Finish") { requestFinish() }
-                        .fontWeight(.semibold)
-                        .tint(StrandPalette.chargeColor)
+                if forgeSkin {
+                    ToolbarItem(placement: .principal) { forgeNavigationTitle }
+                } else {
+                    ToolbarItem(placement: .confirmationAction) {
+                        // The one, clearly primary way to end the workout — colored so it doesn't read
+                        // as an ordinary nav-bar action next to "Back" and the "..." menu.
+                        Button("Finish") { requestFinish() }
+                            .fontWeight(.semibold)
+                            .tint(StrandPalette.chargeColor)
+                    }
                 }
             }
             .sheet(isPresented: $showingExercises) { exercisePicker }
@@ -1311,6 +1344,13 @@ struct NativeWorkoutLoggerView: View {
             // Live heart rate is only worth streaming while someone is looking at it; the session's
             // stored heart rate does not depend on it.
             // While the logger is visible, a rest-end notification shows no banner over it.
+            #if DEBUG
+            .task {
+                guard WorkoutLoggerDemo.isOn, model.completedSetCount == 0, model.draft.exercises.count > 1 else { return }
+                for index in model.draft.exercises[0].sets.indices { model.toggleSet(exerciseIndex: 0, setIndex: index) }
+                for index in 0..<min(3, model.draft.exercises[1].sets.count) { model.toggleSet(exerciseIndex: 1, setIndex: index) }
+            }
+            #endif
             .onAppear { TrainingRestNotification.loggerOnScreen = true }
             .onDisappear { TrainingRestNotification.loggerOnScreen = false }
             .onAppear {
@@ -1348,6 +1388,195 @@ struct NativeWorkoutLoggerView: View {
         ActiveWorkoutLayout(rawValue: layoutRaw) ?? .list
     }
 
+    private var forgeSkin: Bool { NoopVisualStyle.skin == .forge }
+
+    private var loggerProvider: WorkoutPhysiologyProvider {
+        #if DEBUG
+        if WorkoutLoggerDemo.isOn { return .noopBand }
+        #endif
+        return model.draft.physiologyProvider ?? .none
+    }
+
+    /// The session's name with its clock: time without pauses, and when it started.
+    private var forgeNavigationTitle: some View {
+        VStack(spacing: 0) {
+            Text(model.draft.title)
+                .font(StrandFont.subhead.weight(.semibold))
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let clock = ActiveSessionMiniBar.clock(model.activeSeconds(now: Int(context.date.timeIntervalSince1970)))
+                let started = Date(timeIntervalSince1970: TimeInterval(model.draft.startedAt))
+                    .formatted(date: .omitted, time: .shortened)
+                Text(model.draft.state == .active ? "\(clock) · started \(started)" : "\(clock) · paused")
+                    .font(StrandFont.caption.monospacedDigit())
+                    .foregroundStyle(model.draft.state == .active ? StrandPalette.textSecondary : StrandPalette.statusWarningForeground)
+                    .lineLimit(1)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// How the session is laid out and how large its pictures are, within reach while logging.
+    private var loggerOptionsCard: some View {
+        NoopCard {
+            VStack(spacing: NoopMetrics.space2) {
+                HStack {
+                    Text("Layout").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Picker("Layout", selection: $layoutRaw) {
+                        ForEach(ActiveWorkoutLayout.allCases) { layout in
+                            Text(layout.title).tag(layout.rawValue)
+                        }
+                    }
+                    .labelsHidden().pickerStyle(.menu)
+                }
+                if media.isAvailable {
+                    Divider().overlay(StrandPalette.hairline)
+                    HStack {
+                        Text("Exercise media").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Spacer()
+                        Picker("Exercise media", selection: $mediaPresentationRaw) {
+                            Text("Large").tag(TrainingMediaPresentation.large.rawValue)
+                            Text("Small").tag(TrainingMediaPresentation.small.rawValue)
+                            Text("Hidden").tag(TrainingMediaPresentation.hidden.rawValue)
+                        }
+                        .labelsHidden().pickerStyle(.menu)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: New design: the list of exercises
+
+    /// The exercise being logged stays open, with a superset partner beside it.
+    private func isCurrentExercise(_ exercise: NativeWorkoutExercise) -> Bool {
+        guard let id = nextExerciseId else { return false }
+        if exercise.id == id { return true }
+        guard let group = exercise.supersetId else { return false }
+        return model.draft.exercises.first { $0.id == id }?.supersetId == group
+    }
+
+    /// Runs of collapsed exercises between the open ones, each run sharing one card.
+    private var forgeSegments: [ForgeExerciseSegment] {
+        var segments: [ForgeExerciseSegment] = []
+        var run: [Int] = []
+        func flush() {
+            if let first = run.first {
+                segments.append(ForgeExerciseSegment(id: model.draft.exercises[first].id, open: false, indices: run))
+            }
+            run = []
+        }
+        for (index, exercise) in model.draft.exercises.enumerated() {
+            if isCurrentExercise(exercise) || openExercises.contains(exercise.id) {
+                flush()
+                segments.append(ForgeExerciseSegment(id: exercise.id, open: true, indices: [index]))
+            } else {
+                run.append(index)
+            }
+        }
+        flush()
+        return segments
+    }
+
+    @ViewBuilder private var forgeListContent: some View {
+        ForEach(forgeSegments) { segment in
+            if segment.open, let index = segment.indices.first {
+                exerciseCard(index, model.draft.exercises[index])
+            } else {
+                NoopCard {
+                    VStack(spacing: NoopMetrics.space2) {
+                        ForEach(Array(segment.indices.enumerated()), id: \.element) { position, index in
+                            if position > 0 { Divider().overlay(StrandPalette.hairline) }
+                            forgeExerciseRow(index) {
+                                withAnimation(reduceMotion ? nil : .snappy) { _ = openExercises.insert(model.draft.exercises[index].id) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// One exercise as a line: its picture, name and sets, and whether it is done. A tap opens it.
+    private func forgeExerciseRow(_ index: Int, prefix: LocalizedStringKey? = nil, action: @escaping () -> Void) -> some View {
+        let exercise = model.draft.exercises[index]
+        let definition = exercises.first { $0.id == exercise.exerciseId }
+        let title = definition?.title ?? exercise.exerciseId
+        let done = !exercise.sets.isEmpty && exercise.sets.allSatisfy(\.isCompleted)
+        let started = exercise.sets.contains(where: \.isCompleted)
+        return Button(action: action) {
+            HStack(spacing: NoopMetrics.space3) {
+                if let definition, media.isAvailable,
+                   TrainingMediaPresentation(rawValue: mediaPresentationRaw) != .hidden,
+                   let item = ExerciseMediaRegistry.shared.media(for: definition, variant: .still) {
+                    ExerciseMediaView(media: item, minHeight: 44, maxHeight: 44)
+                        .frame(width: 44, height: 44)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Group {
+                        if let prefix { Text(prefix) + Text(verbatim: " ") + Text(title) } else { Text(title) }
+                    }
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .multilineTextAlignment(.leading)
+                    Text(forgeSetSummary(exercise))
+                        .font(StrandFont.caption.monospacedDigit())
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: NoopMetrics.space2)
+                if done {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3).foregroundStyle(StrandPalette.chargeColor)
+                } else if started {
+                    Text("\(exercise.sets.filter(\.isCompleted).count)/\(exercise.sets.count)")
+                        .font(StrandFont.caption.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+                } else {
+                    Image(systemName: "circle")
+                        .font(.title3).foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .id(exercise.id)
+        .accessibilityHint(Text("Opens the sets of this exercise"))
+    }
+
+    /// "3 × 6 · 127,5 kg": the working sets, their repetitions and the load they share. The done sets of a
+    /// finished exercise, the planned ones otherwise. Without repetitions, how many of them are done.
+    private func forgeSetSummary(_ exercise: NativeWorkoutExercise) -> String {
+        let working = exercise.sets.filter { $0.phase != .warmup }
+        let finished = !working.isEmpty && working.allSatisfy(\.isCompleted)
+        let sets = finished || !working.contains(where: \.isCompleted) ? working : working.filter { !$0.isCompleted }
+        let reps = sets.compactMap(\.reps)
+        var parts: [String] = []
+        if reps.count == sets.count, let first = reps.first {
+            parts.append(reps.allSatisfy { $0 == first } ? "\(reps.count) × \(first)" : reps.map(String.init).joined(separator: ", "))
+        } else {
+            parts.append("\(working.filter(\.isCompleted).count)/\(working.count)")
+        }
+        let weights = sets.compactMap(\.weightKg)
+        if weights.count == sets.count, let first = weights.first, weights.allSatisfy({ $0 == first }) {
+            parts.append(TrainingPreferences.formattedWeight(first, unit: weightUnit))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var forgeExerciseDots: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(model.draft.exercises.enumerated()), id: \.element.id) { index, _ in
+                Capsule()
+                    .fill(index == model.activeExerciseIndex ? StrandPalette.accent : StrandPalette.hairlineStrong)
+                    .frame(width: index == model.activeExerciseIndex ? 22 : 7, height: 7)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
     /// The strap double-tap is explained only where it works: a live session recording from the strap,
     /// with the Training setting on.
     private var showsStrapTapHint: Bool {
@@ -1364,10 +1593,21 @@ struct NativeWorkoutLoggerView: View {
             if model.draft.exercises.indices.contains(model.activeExerciseIndex) {
                 exerciseNavigator
                 exerciseCard(model.activeExerciseIndex, model.draft.exercises[model.activeExerciseIndex])
+                if forgeSkin, model.draft.exercises.indices.contains(model.activeExerciseIndex + 1) {
+                    NoopCard {
+                        forgeExerciseRow(model.activeExerciseIndex + 1, prefix: "Next:") {
+                            model.selectExercise(at: model.activeExerciseIndex + 1)
+                        }
+                    }
+                }
             }
         case .list:
-            ForEach(Array(model.draft.exercises.enumerated()), id: \.element.id) { index, exercise in
-                exerciseCard(index, exercise)
+            if forgeSkin {
+                forgeListContent
+            } else {
+                ForEach(Array(model.draft.exercises.enumerated()), id: \.element.id) { index, exercise in
+                    exerciseCard(index, exercise)
+                }
             }
         case .compact:
             ForEach(Array(model.draft.exercises.enumerated()), id: \.element.id) { index, exercise in
@@ -1383,8 +1623,12 @@ struct NativeWorkoutLoggerView: View {
             } label: { Label("Back", systemImage: "chevron.left") }
             .disabled(model.activeExerciseIndex == 0)
             Spacer()
-            Text("\(model.activeExerciseIndex + 1) / \(model.draft.exercises.count)")
-                .font(StrandFont.caption.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+            if forgeSkin {
+                forgeExerciseDots
+            } else {
+                Text("\(model.activeExerciseIndex + 1) / \(model.draft.exercises.count)")
+                    .font(StrandFont.caption.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+            }
             Spacer()
             Button {
                 model.selectExercise(at: model.activeExerciseIndex + 1)
@@ -1403,6 +1647,10 @@ struct NativeWorkoutLoggerView: View {
     /// Session-wide actions, kept out of the logging surface.
     private var sessionMenu: some View {
         Menu {
+            if forgeSkin {
+                Button { requestFinish() } label: { Label("Finish workout", systemImage: "checkmark") }
+                Divider()
+            }
             Button { showingExercises = true } label: { Label("Add exercise", systemImage: "plus") }
             if !session.context.plan.routines.isEmpty {
                 Button { showingRoutinePicker = true } label: {
@@ -1422,7 +1670,7 @@ struct NativeWorkoutLoggerView: View {
                 Label("Discard workout", systemImage: "trash")
             }
         } label: {
-            Image(systemName: "ellipsis.circle").accessibilityLabel(Text("Workout options"))
+            Image(systemName: forgeSkin ? "ellipsis" : "ellipsis.circle").accessibilityLabel(Text("Workout options"))
         }
     }
 
@@ -1448,7 +1696,7 @@ struct NativeWorkoutLoggerView: View {
     }
 
     private var physiologySource: String {
-        switch model.draft.physiologyProvider ?? .none {
+        switch loggerProvider {
         case .noopBand: String(localized: "NOOP band")
         case .appleWatch: String(localized: "Apple Watch")
         case .externalTracker: model.draft.tracker?.model ?? String(localized: "Tracker")
@@ -1458,23 +1706,37 @@ struct NativeWorkoutLoggerView: View {
 
     private func exerciseCard(_ exerciseIndex: Int, _ exercise: NativeWorkoutExercise) -> some View {
         let definition = exercises.first { $0.id == exercise.exerciseId }
+        let mediaOpen = isMediaOpen(exercise)
         return NoopCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: NoopMetrics.space3) {
-                    if let definition { mediaThumbnail(definition, exerciseId: exercise.id) }
+                    if let definition, !(forgeSkin && mediaOpen) { mediaThumbnail(definition, exerciseId: exercise.id) }
                     // The name opens the exercise's page: how to do it, records and recent sessions.
                     Button { detailExercise = definition } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(definition?.title ?? exercise.exerciseId).font(StrandFont.headline)
-                                .foregroundStyle(definition == nil ? StrandPalette.textPrimary : StrandPalette.accent)
+                            Text(definition?.title ?? exercise.exerciseId).font(forgeSkin ? StrandFont.title2 : StrandFont.headline)
+                                .foregroundStyle(definition == nil || forgeSkin ? StrandPalette.textPrimary : StrandPalette.accent)
                                 .multilineTextAlignment(.leading)
                             Text(definition?.primaryMuscleId.map(TrainingDisplayNames.muscle) ?? "")
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .font(StrandFont.caption).foregroundStyle(forgeSkin ? StrandPalette.textSecondary : StrandPalette.textTertiary)
                         }
                     }
                     .buttonStyle(.plain)
                     .disabled(definition == nil)
                     Spacer()
+                    if forgeSkin, layout == .list, !isCurrentExercise(exercise) {
+                        Button {
+                            withAnimation(reduceMotion ? nil : .snappy) { _ = openExercises.remove(exercise.id) }
+                        } label: {
+                            Image(systemName: "chevron.up")
+                                .font(StrandFont.subhead.weight(.semibold))
+                                .foregroundStyle(StrandPalette.textSecondary)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Close this exercise"))
+                    }
                     Menu {
                         if definition?.mode == .weightReps {
                             Button("Plate calculator") {
@@ -1519,13 +1781,22 @@ struct NativeWorkoutLoggerView: View {
                     }
                          label: {
                              Image(systemName: "ellipsis").accessibilityLabel(Text("Exercise options"))
+                                 .foregroundStyle(forgeSkin ? StrandPalette.textSecondary : StrandPalette.accent)
+                                 .frame(minWidth: 44, minHeight: 44)
                          }
                 }
                 if exercise.supersetId != nil {
                     Label("Superset", systemImage: "link")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.metricCyan)
                 }
-                if let definition, expandedMedia.contains(exercise.id) { workoutMedia(definition, animated: true) }
+                if let definition, mediaOpen {
+                    if forgeSkin {
+                        Button { toggleMedia(exercise) } label: { workoutMedia(definition, animated: true) }
+                            .buttonStyle(.plain)
+                    } else {
+                        workoutMedia(definition, animated: true)
+                    }
+                }
                 if let note = exercise.note {
                     Text(note).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(2)
                 }
@@ -1536,6 +1807,25 @@ struct NativeWorkoutLoggerView: View {
             }
         }
         .id(exercise.id)
+    }
+
+    /// In the new design the exercise being logged shows its picture until it is closed; any other exercise,
+    /// like every exercise in the shipped design, shows it only once opened.
+    private func isMediaOpen(_ exercise: NativeWorkoutExercise) -> Bool {
+        if forgeSkin, layout == .focus || isCurrentExercise(exercise) { return !closedMedia.contains(exercise.id) }
+        return expandedMedia.contains(exercise.id)
+    }
+
+    private func toggleMedia(_ exercise: NativeWorkoutExercise) {
+        withAnimation(.snappy) {
+            if forgeSkin, layout == .focus || isCurrentExercise(exercise) {
+                if closedMedia.contains(exercise.id) { closedMedia.remove(exercise.id) } else { closedMedia.insert(exercise.id) }
+            } else if expandedMedia.contains(exercise.id) {
+                expandedMedia.remove(exercise.id)
+            } else {
+                expandedMedia.insert(exercise.id)
+            }
+        }
     }
 
     private func compactExerciseCard(_ exerciseIndex: Int, _ exercise: NativeWorkoutExercise) -> some View {
@@ -1681,7 +1971,7 @@ struct NativeWorkoutLoggerView: View {
 
     private func setRows(_ exerciseIndex: Int, _ exercise: NativeWorkoutExercise,
                          mode: TrainingMeasurementMode, unilateral: Bool, stacked: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: forgeSkin ? 2 : 10) {
             // Where the rows have no column for it, the last session stays readable as one line.
             if !showsPreviousColumn(mode, stacked: stacked),
                let previous = previousPerformance(for: exercise, mode: mode, unilateral: unilateral) {
@@ -1711,13 +2001,23 @@ struct NativeWorkoutLoggerView: View {
         }
     }
 
+    /// Its own key: the catalogue's plain "Set" is the verb, which German words as "Festlegen".
+    private var setColumnTitle: Text {
+        forgeSkin ? Text(String(localized: "logger.column.set", defaultValue: "Set")) : Text("SET")
+    }
+
+    /// A column heading: capitals in the shipped design, plain words in the new one.
+    private func columnTitle(_ standard: LocalizedStringKey, forge: LocalizedStringKey) -> Text {
+        Text(forgeSkin ? forge : standard)
+    }
+
     private func stackedSetHeader(_ mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
         VStack(spacing: 2) {
             HStack(spacing: SetColumns.spacing) {
-                Text("SET").frame(width: SetColumns.set)
+                setColumnTitle.frame(width: SetColumns.set)
                 switch mode {
-                case .weightReps, .weightedBodyweight: Text("WEIGHT").frame(maxWidth: .infinity)
-                case .assistedBodyweight: Text("ASSIST").frame(maxWidth: .infinity)
+                case .weightReps, .weightedBodyweight: columnTitle("WEIGHT", forge: "Weight").frame(maxWidth: .infinity)
+                case .assistedBodyweight: columnTitle("ASSIST", forge: "Assist").frame(maxWidth: .infinity)
                 default: Spacer(minLength: 0)
                 }
                 if effortPreference != .off { effortHeader }
@@ -1735,27 +2035,27 @@ struct NativeWorkoutLoggerView: View {
 
     private func setHeader(_ mode: TrainingMeasurementMode, unilateral: Bool) -> some View {
         HStack(spacing: SetColumns.spacing) {
-            Text("SET").frame(width: SetColumns.set)
+            setColumnTitle.frame(width: SetColumns.set)
             if showsPreviousColumn(mode, stacked: false) {
-                Text("PREVIOUS").frame(minWidth: SetColumns.previous, maxWidth: .infinity)
+                columnTitle("PREVIOUS", forge: "Last time").frame(minWidth: SetColumns.previous, maxWidth: .infinity)
             }
             switch mode {
             case .weightReps, .weightedBodyweight:
-                Text("WEIGHT").frame(width: SetColumns.weight)
+                columnTitle("WEIGHT", forge: "Weight").frame(width: SetColumns.weight)
                 repsHeader(unilateral: unilateral, compact: true)
             case .assistedBodyweight:
-                Text("ASSIST").frame(width: SetColumns.weight)
+                columnTitle("ASSIST", forge: "Assist").frame(width: SetColumns.weight)
                 repsHeader(unilateral: unilateral, compact: true)
             case .bodyweightReps, .repetitions:
                 repsHeader(unilateral: unilateral, compact: true)
             case .duration:
-                Text("TIME").frame(maxWidth: .infinity)
+                columnTitle("TIME", forge: "Time").frame(maxWidth: .infinity)
             case .distanceDuration:
-                Text("DISTANCE").frame(maxWidth: .infinity); Text("TIME").frame(maxWidth: .infinity)
+                columnTitle("DISTANCE", forge: "Distance").frame(maxWidth: .infinity); columnTitle("TIME", forge: "Time").frame(maxWidth: .infinity)
             case .weightDuration:
-                Text("WEIGHT").frame(width: SetColumns.weight); Text("TIME").frame(maxWidth: .infinity)
+                columnTitle("WEIGHT", forge: "Weight").frame(width: SetColumns.weight); columnTitle("TIME", forge: "Time").frame(maxWidth: .infinity)
             case .distanceWeight:
-                Text("WEIGHT").frame(width: SetColumns.weight); Text("DISTANCE").frame(maxWidth: .infinity)
+                columnTitle("WEIGHT", forge: "Weight").frame(width: SetColumns.weight); columnTitle("DISTANCE", forge: "Distance").frame(maxWidth: .infinity)
             }
             if effortPreference != .off { effortHeader }
             Color.clear.frame(width: SetColumns.check, height: 1)
@@ -1772,10 +2072,10 @@ struct NativeWorkoutLoggerView: View {
 
     @ViewBuilder private func repsHeader(unilateral: Bool, compact: Bool = false) -> some View {
         if unilateral {
-            Text("LEFT").frame(maxWidth: compact ? SetColumns.sideReps : .infinity)
-            Text("RIGHT").frame(maxWidth: compact ? SetColumns.sideReps : .infinity)
+            columnTitle("LEFT", forge: "Left").frame(maxWidth: compact ? SetColumns.sideReps : .infinity)
+            columnTitle("RIGHT", forge: "Right").frame(maxWidth: compact ? SetColumns.sideReps : .infinity)
         } else {
-            Text("REPS").frame(maxWidth: compact ? SetColumns.reps : .infinity)
+            columnTitle("REPS", forge: "Reps").frame(maxWidth: compact ? SetColumns.reps : .infinity)
         }
     }
 
@@ -1820,10 +2120,10 @@ struct NativeWorkoutLoggerView: View {
         .padding(.vertical, NoopMetrics.space1)
         .background {
             RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
-                .fill(isNextSet ? StrandPalette.chargeColor.opacity(0.10) : Color.clear)
+                .fill(!isNextSet ? Color.clear : forgeSkin ? StrandPalette.surfaceInset : StrandPalette.chargeColor.opacity(0.10))
         }
         .overlay {
-            if isNextSet {
+            if isNextSet, !forgeSkin {
                 RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
                     .strokeBorder(StrandPalette.chargeColor.opacity(0.45), lineWidth: 1)
             }
@@ -1869,11 +2169,15 @@ struct NativeWorkoutLoggerView: View {
             model.toggleSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             setCompletionHaptic()
         } label: {
-            Image(systemName: set.isCompleted ? "checkmark.circle.fill"
-                  : isNextSet ? "checkmark.circle" : "circle")
-                .font(.title3)
-                .foregroundStyle(set.isCompleted || isNextSet
-                                 ? StrandPalette.chargeColor : StrandPalette.textTertiary)
+            if forgeSkin {
+                ForgeSetCheck(completed: set.isCompleted, isNext: isNextSet)
+            } else {
+                Image(systemName: set.isCompleted ? "checkmark.circle.fill"
+                      : isNextSet ? "checkmark.circle" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(set.isCompleted || isNextSet
+                                     ? StrandPalette.chargeColor : StrandPalette.textTertiary)
+            }
         }.buttonStyle(.plain).frame(width: SetColumns.check, height: 44)
         .accessibilityLabel(Text(set.isCompleted ? "Mark set incomplete" : "Mark set complete"))
     }
@@ -1886,10 +2190,7 @@ struct NativeWorkoutLoggerView: View {
         if presentation != .hidden, media.isAvailable,
            let item = ExerciseMediaRegistry.shared.media(for: exercise, variant: .still) {
             Button {
-                withAnimation(.snappy) {
-                    if expandedMedia.contains(exerciseId) { expandedMedia.remove(exerciseId) }
-                    else { expandedMedia.insert(exerciseId) }
-                }
+                if let exercise = model.draft.exercises.first(where: { $0.id == exerciseId }) { toggleMedia(exercise) }
             } label: {
                 ExerciseMediaView(media: item, minHeight: 48, maxHeight: 48)
                     .frame(width: 48, height: 48)
@@ -1907,6 +2208,9 @@ struct NativeWorkoutLoggerView: View {
                 ExerciseMediaView(media: item,
                                   minHeight: presentation == .large ? 180 : 80,
                                   maxHeight: presentation == .large ? 260 : 110)
+                    // The animations are drawn on white; a full-width plate keeps them from reading as a square.
+                    .background(forgeSkin ? Color.white : Color.clear,
+                                in: RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
                     .accessibilityLabel(String(localized: "Exercise demonstration for \(exercise.title)"))
                 Text(ExerciseMediaStore.Provider.displayCredit)
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
@@ -2139,7 +2443,7 @@ struct NativeWorkoutLoggerView: View {
                                  : set.intensifier == .none ? StrandPalette.textPrimary : StrandPalette.accent)
                 .lineLimit(1).minimumScaleFactor(0.7)
                 .frame(width: SetColumns.set, height: SetColumns.set)
-                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(forgeSkin ? Color.clear : StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .accessibilityLabel(Text("Set \(setIndex + 1) options"))
     }
@@ -2173,8 +2477,9 @@ struct NativeWorkoutLoggerView: View {
         return editor()
             .frame(minWidth: width, maxWidth: width ?? .infinity, minHeight: 40)
             .background {
+                // The new design's rows read as a table; a focused field keeps its edge.
                 RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
-                    .fill(StrandPalette.surfaceInset)
+                    .fill(forgeSkin ? Color.clear : StrandPalette.surfaceInset)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous)
@@ -2533,6 +2838,35 @@ private struct TrainingHistoryRequest: Identifiable {
 }
 
 /// Earlier sessions of one exercise, readable without leaving the running workout.
+/// A run of the new design's exercise list: one open exercise, or several collapsed in one card.
+private struct ForgeExerciseSegment: Identifiable {
+    let id: UUID
+    let open: Bool
+    let indices: [Int]
+}
+
+/// The new design's completion box: filled once done, edged for the next set, a quiet well otherwise.
+private struct ForgeSetCheck: View {
+    let completed: Bool
+    let isNext: Bool
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        ZStack {
+            shape.fill(completed ? StrandPalette.chargeColor : isNext ? Color.clear : StrandPalette.surfaceInset)
+            if isNext, !completed { shape.strokeBorder(StrandPalette.chargeColor, lineWidth: 2) }
+            if completed {
+                Image(systemName: "checkmark")
+                    .font(StrandFont.subhead.weight(.bold))
+                    .foregroundStyle(StrandPalette.forgeOnAccent)
+            }
+        }
+        .frame(width: 28, height: 28)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+    }
+}
+
 private struct TrainingExerciseHistorySheet: View {
     @Environment(\.dismiss) private var dismiss
     let title: String

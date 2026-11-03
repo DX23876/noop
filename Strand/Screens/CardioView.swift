@@ -76,6 +76,7 @@ struct CardioView: View {
             .padding(NoopMetrics.screenPadding)
             DemoScrollBottomAnchor()
         }
+        .forgeScreenBackground()
         .navigationTitle("")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

@@ -501,3 +501,19 @@ private struct HardTopEdgeIfPinned: ViewModifier {
         #endif
     }
 }
+
+extension View {
+    /// The new design's page backdrop for a screen that builds its own scroll view instead of using
+    /// `ScreenScaffold`. Under the shipped design, and on the Mac, it changes nothing.
+    @ViewBuilder func forgeScreenBackground() -> some View {
+        #if os(iOS)
+        if NoopVisualStyle.skin == .forge {
+            background(alignment: .top) { ForgeSharedScreenBackground() }
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+}

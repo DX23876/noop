@@ -40,6 +40,25 @@ struct TrainingAnalysisHeader: View {
     let subtitle: LocalizedStringKey
 
     var body: some View {
+        if NoopVisualStyle.skin == .forge {
+            // The new design's page head: the title once, no overline, no badge.
+            VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                Text(title)
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text(subtitle)
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+        } else {
+            standardBody
+        }
+    }
+
+    private var standardBody: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             HStack(spacing: NoopMetrics.space2) {
                 if let lane {
@@ -205,6 +224,15 @@ struct LaneHeroSurface: View {
         let shape = RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
         // Lighter on a light background: the secondary text on top has to keep its contrast.
         let dark = scheme == .dark
+        if NoopVisualStyle.skin == .forge {
+            // The new design's cards carry no wash; the lane's colour stays on its badge and its graph.
+            FrostedCardSurface(tint: nil, cornerRadius: NoopMetrics.cardRadius)
+        } else {
+            tinted(shape, dark: dark)
+        }
+    }
+
+    private func tinted(_ shape: RoundedRectangle, dark: Bool) -> some View {
         ZStack {
             shape.fill(StrandPalette.surfaceRaised)
             shape.fill(LinearGradient(colors: [lane.deep.opacity(dark ? 0.62 : 0.2),

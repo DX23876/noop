@@ -2,6 +2,7 @@ import SwiftUI
 import StrandAnalytics
 import StrandDesign
 import StrandTraining
+import WhoopProtocol
 
 // MARK: - Header
 
@@ -57,6 +58,151 @@ struct WorkoutLoggerHeader<HeartRate: View>: View {
     }
 }
 
+#if DEBUG
+/// Screenshot QA of the live logger (`--demo-logger`): a session with a heart rate and a few sets done.
+enum WorkoutLoggerDemo {
+    static let isOn = ProcessInfo.processInfo.arguments.contains("--demo-logger")
+    static var trace: [HRSample] {
+        let now = Int(Date().timeIntervalSince1970)
+        return (0..<120).map { i in
+            let phase = Double(i).truncatingRemainder(dividingBy: 24) / 24
+            let bpm = phase < 0.3 ? 132 + 8 * sin(phase * 10) : 104 + 22 * (1 - phase)
+            return HRSample(ts: now - (120 - i) * 12, bpm: Int(bpm))
+        }
+    }
+}
+#endif
+
+/// The new design's head of a running session: the heart rate and the effort so far with the session's
+/// trace, then the running figures. Without a heart-rate source only the figures remain.
+struct ForgeLoggerHeartCard: View {
+    let provider: WorkoutPhysiologyProvider
+    let sourceText: String
+    @ObservedObject var model: NativeWorkoutSessionModel
+    @ObservedObject var watchFeed: WatchHeartRateFeed
+    @ObservedObject var effort: StrengthLiveEffort
+    @EnvironmentObject private var app: AppModel
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    @State private var showingDetail = false
+
+    private var bpm: Int? {
+        #if DEBUG
+        if WorkoutLoggerDemo.isOn { return 128 }
+        #endif
+        return provider == .appleWatch ? watchFeed.bpm : app.bpm
+    }
+    private var zone: Int { bpm.map { app.profile.hrZoneSet.zoneNumber(forBPM: Double($0)) } ?? 0 }
+
+    private var effortText: String {
+        guard let strain = effort.strain else { return "—" }
+        let scale = UnitPrefs.resolveEffortScale(effortScaleRaw)
+        let shown = UnitFormatter.effortValue(strain, scale: scale)
+        // The same digits as the Effort ring on Today.
+        return scale == .whoop ? UnitFormatter.localizedMark(String(format: "%.1f", shown)) : "\(Int(shown.rounded()))"
+    }
+
+    var body: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                if provider != .none {
+                    Button { showingDetail = true } label: { heartReadout }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(Text("Shows heart rate full screen"))
+                        .sheet(isPresented: $showingDetail) {
+                            StrengthLiveHeartRateDetail(bpm: bpm, zone: zone, strain: effort.strain, sourceText: sourceText)
+                                .presentationDetents([.medium, .large])
+                        }
+                }
+                figures
+            }
+        }
+    }
+
+    private var heartReadout: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    // "Live" only with a reading to show for it.
+                    Group {
+                        if bpm == nil { Text(sourceText) } else { Text("\(sourceText) · live") }
+                    }
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .lineLimit(1)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        LiveHeartRateValue(bpm: bpm, zone: zone, size: 40)
+                        Text(verbatim: "bpm")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(LiveHeartRateStyle.tint(zone: zone))
+                    }
+                }
+                Spacer(minLength: NoopMetrics.space2)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Effort so far")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                    Text(effortText)
+                        .font(StrandFont.rounded(28, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(StrandPalette.effortColor)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            ForgeHeartTrace(samples: effort.trace)
+                .frame(height: 44)
+                .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var figures: some View {
+        HStack(alignment: .center, spacing: NoopMetrics.space4) {
+            WorkoutHeaderStat(title: String(localized: "Volume")) {
+                Text(TrainingPreferences.formattedVolume(model.completedVolumeKg))
+            }
+            WorkoutHeaderStat(title: String(localized: "Sets")) {
+                Text("\(model.completedSetCount)/\(model.totalSetCount)")
+            }
+            Spacer(minLength: 0)
+            if !model.isRetrospective {
+                Button { model.toggleWorkoutPause() } label: {
+                    Label(model.draft.state == .active ? "Pause" : "Resume",
+                          systemImage: model.draft.state == .active ? "pause.fill" : "play.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.headline)
+                        .frame(width: 44, height: 44)
+                        .background(StrandPalette.surfaceInset, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(StrandPalette.textPrimary)
+            }
+        }
+    }
+}
+
+/// The session's heart rate as one thin line. A gap in the stored samples stays a gap.
+struct ForgeHeartTrace: View {
+    let samples: [HRSample]
+
+    var body: some View {
+        Canvas { context, size in
+            guard samples.count > 1, let first = samples.first, let last = samples.last, last.ts > first.ts else { return }
+            let low = Double(samples.map(\.bpm).min() ?? 0) - 4
+            let high = Double(samples.map(\.bpm).max() ?? 0) + 4
+            var path = Path()
+            var previous: HRSample?
+            for sample in samples {
+                let x = size.width * Double(sample.ts - first.ts) / Double(last.ts - first.ts)
+                let y = size.height * (1 - (Double(sample.bpm) - low) / max(1, high - low))
+                let point = CGPoint(x: x, y: y)
+                if let previous, sample.ts - previous.ts <= 120 { path.addLine(to: point) } else { path.move(to: point) }
+                previous = sample
+            }
+            context.stroke(path, with: .color(StrandPalette.effortColor),
+                           style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        }
+    }
+}
+
 /// A small caption over a figure, the unit of the logger's header row.
 struct WorkoutHeaderStat<Value: View>: View {
     let title: String
@@ -87,10 +233,19 @@ struct WorkoutHeaderStat<Value: View>: View {
 @MainActor
 final class StrengthLiveEffort: ObservableObject {
     @Published private(set) var strain: Double?
+    /// The session's heart rate so far, thinned for a small trace on the new design's card.
+    @Published private(set) var trace: [HRSample] = []
     private var task: Task<Void, Never>?
 
     func start(repo: Repository, draft: @escaping () -> WorkoutDraft, profile: ProfileStore) {
         task?.cancel()
+        #if DEBUG
+        if WorkoutLoggerDemo.isOn {
+            trace = WorkoutLoggerDemo.trace
+            strain = 42
+            return
+        }
+        #endif
         task = Task { [weak self] in
             while !Task.isCancelled {
                 let current = draft()
@@ -100,6 +255,8 @@ final class StrengthLiveEffort: ObservableObject {
                     await repo.hrSamples(from: current.startedAt, to: now, limit: 20_000), pauses: pauses)
                 let value = StrainScorer.strain(samples, maxHR: Double(profile.hrMax), lowIntensity: .counted)
                 self?.strain = value
+                let stride = max(1, samples.count / 240)
+                self?.trace = samples.enumerated().filter { $0.offset % stride == 0 }.map(\.element)
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
             }
         }
@@ -145,7 +302,7 @@ struct StrengthLiveHeartRatePanel: View {
     }
 }
 
-private struct StrengthLiveHeartRateDetail: View {
+fileprivate struct StrengthLiveHeartRateDetail: View {
     let bpm: Int?
     let zone: Int
     let strain: Double?
@@ -311,6 +468,9 @@ struct WorkoutRestDock: View {
             let now = Int(context.date.timeIntervalSince1970)
             let remaining = WorkoutTimerCoordinator.remaining(timer, now: now)
             let total = max(1, timer.endsAtTs - timer.startedAtTs)
+            if NoopVisualStyle.skin == .forge {
+                forgeDock(remaining: remaining, total: total)
+            } else {
             VStack(spacing: NoopMetrics.space2) {
                 HStack(alignment: .center, spacing: NoopMetrics.space3) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -346,7 +506,78 @@ struct WorkoutRestDock: View {
             .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).noopRestingRim())
             .padding(.horizontal, NoopMetrics.screenPadding)
             .padding(.bottom, NoopMetrics.space2)
+            }
         }
+    }
+
+    /// The new design's dock: one slim row, the time left first and every control of the shipped dock.
+    private func forgeDock(remaining: Int, total: Int) -> some View {
+        HStack(spacing: NoopMetrics.space2) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(ActiveSessionMiniBar.clock(remaining))
+                    .font(StrandFont.number(22)).monospacedDigit()
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityLabel(Text(timer.kind == .timedSet ? "Time remaining" : "Rest remaining"))
+                Text(timer.kind == .timedSet ? "Time" : "Rest")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
+            Spacer(minLength: 0)
+            dockButton("−15") { model.adjustTimer(by: -15) }
+                .accessibilityLabel(Text("Subtract 15 seconds"))
+            dockButton("+15") { model.adjustTimer(by: 15) }
+                .accessibilityLabel(Text("Add 15 seconds"))
+            Button {
+                if timer.pausedRemainingSeconds == nil { model.pauseTimer() } else { model.resumeTimer() }
+            } label: {
+                Image(systemName: timer.pausedRemainingSeconds == nil ? "pause.fill" : "play.fill")
+                    .frame(width: 44, height: 44)
+                    .background(StrandPalette.surfaceInset, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(StrandPalette.textPrimary)
+            .accessibilityLabel(Text(timer.pausedRemainingSeconds == nil ? "Pause" : "Resume"))
+            Button {
+                if timer.kind == .timedSet { model.finishTimedSet() } else { model.skipRest() }
+            } label: {
+                // "Überspringen" has to fit beside the other controls.
+                Text(timer.kind == .timedSet ? "Finish" : "Skip")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .foregroundStyle(StrandPalette.forgeOnAccent)
+                    .padding(.horizontal, NoopMetrics.space3)
+                    .frame(minHeight: 44)
+                    .background(StrandPalette.forgeAccent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .font(StrandFont.subhead.weight(.semibold))
+        .padding(.horizontal, NoopMetrics.space3)
+        .padding(.vertical, NoopMetrics.space2)
+        .background(alignment: .bottom) {
+            GeometryReader { proxy in
+                Capsule()
+                    .fill(StrandPalette.accent)
+                    .frame(width: proxy.size.width * Double(total - remaining) / Double(total), height: 3)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    .accessibilityHidden(true)
+            }
+        }
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).noopRestingRim())
+        .padding(.horizontal, NoopMetrics.screenPadding)
+        .padding(.bottom, NoopMetrics.space2)
+    }
+
+    private func dockButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(verbatim: title)
+                .monospacedDigit()
+                .foregroundStyle(StrandPalette.textPrimary)
+                .frame(minWidth: 44, minHeight: 44)
+                .background(StrandPalette.surfaceInset, in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 

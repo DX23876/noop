@@ -34,6 +34,10 @@ enum LiquidRender {
     /// touches it will conflict HERE and has to be resolved by hand — this is not one of those
     /// wholesale-drop conflicts like android/ was.
     static func vessel(_ base: GraphicsContext, _ size: CGSize, _ sim: LiquidSim, now: Double, tint: Color) {
+        // The new design's light canvas turns the shipped dark well into a grey ball.
+        let wellColor = NoopVisualStyle.skin == .forge
+            ? StrandPalette.surfaceInset
+            : Color(.sRGB, red: 10/255, green: 11/255, blue: 16/255, opacity: 0.55)
         // Floor at 1 so a degenerate sub-3pt Canvas can't drive R negative (negative well rect / chord math).
         let R = max(1, min(size.width, size.height) / 2 - 1.5)
         let ext = R * 1.8
@@ -42,7 +46,7 @@ enum LiquidRender {
 
         var ctx = base
         ctx.translateBy(x: cx, y: cy)
-        ctx.fill(Path(ellipseIn: well), with: .color(Color(.sRGB, red: 10/255, green: 11/255, blue: 16/255, opacity: 0.55)))
+        ctx.fill(Path(ellipseIn: well), with: .color(wellColor))
 
         var body = ctx
         body.clip(to: Path(ellipseIn: well))
@@ -152,7 +156,7 @@ enum LiquidRender {
 
         // inner top shadow
         body.fill(Path(CGRect(x: -R, y: -R, width: 2 * R, height: R * 0.75)),
-                  with: .linearGradient(Gradient(colors: [.black.opacity(0.30), .black.opacity(0)]),
+                  with: .linearGradient(Gradient(colors: [.black.opacity(NoopVisualStyle.skin == .forge ? 0.05 : 0.30), .black.opacity(0)]),
                                         startPoint: CGPoint(x: 0, y: -R), endPoint: CGPoint(x: 0, y: -R * 0.30)))
         // soft top-left highlight
         body.fill(Path(ellipseIn: CGRect(x: -R * 0.72, y: -R * 0.78, width: R * 0.9, height: R * 0.5)),
@@ -712,7 +716,7 @@ struct CountUpNumber: View, Animatable {
 
     /// A bare number — verbatim, since there is nothing in it to translate.
     private var display: String {
-        decimals > 0 ? String(format: "%.\(decimals)f", value) : "\(Int(value.rounded()))"
+        decimals > 0 ? UnitFormatter.localizedMark(String(format: "%.\(decimals)f", value)) : "\(Int(value.rounded()))"
     }
 }
 

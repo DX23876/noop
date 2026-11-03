@@ -265,10 +265,12 @@ struct IntervalTimerView: View {
                 toggleRunning()
             }
 
+            // Hugs its label: "Zurücksetzen" does not fit half the row.
             NoopButton("Reset", systemImage: "arrow.counterclockwise",
-                       kind: .secondary, fullWidth: true) {
+                       kind: .secondary, fullWidth: false) {
                 stopAndReset()
             }
+            .fixedSize(horizontal: true, vertical: false)
             .disabled(!running && remaining == phaseDuration && currentRound == 1 && phase == .work && elapsed == 0)
         }
     }

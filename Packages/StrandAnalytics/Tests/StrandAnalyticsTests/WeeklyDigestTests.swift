@@ -377,4 +377,13 @@ final class WeeklyDigestTests: XCTestCase {
         }
         return out
     }
+
+    /// The screen's wording and the English lines come from one selection, so they cannot disagree.
+    func testFocalDetailsMatchTheEnglishLinesOneToOne() {
+        let digest = WeeklyDigestEngine.emptyDigest(weekStart: "2026-11-02", weekEnd: "2026-11-08")
+        XCTAssertEqual(digest.focalDetails.count, digest.focalPoints.count)
+        let empty = WeeklyDigestEngine.focalStatements(summaries: digest.metrics, balance: .insufficient, consistencySD: nil)
+        XCTAssertEqual(empty.map(\.fact), [.steady])
+        XCTAssertEqual(empty.map(\.sentence), WeeklyDigestEngine.focalPoints(summaries: digest.metrics, balance: .insufficient, consistencySD: nil))
+    }
 }

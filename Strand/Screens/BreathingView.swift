@@ -174,7 +174,7 @@ private struct BreathingContent: View {
 
     private var selectedTagline: String {
         if case .resonance = pace {
-            return String(localized: "Your locked pace · \(String(format: "%.1f", lockedBpm ?? ResonanceEngine.fallbackBpm)) br/min")
+            return String(localized: "Your locked pace · \(UnitFormatter.localizedMark(String(format: "%.1f", lockedBpm ?? ResonanceEngine.fallbackBpm))) br/min")
         }
         return String(localized: String.LocalizationValue(selectedProtocol?.subtitle ?? ""))
     }
@@ -290,6 +290,8 @@ private struct BreathingContent: View {
                     Text("\(timeString(sessionSeconds)) / \(timeString(target))")
                         .font(StrandFont.number(15))
                         .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 } else {
                     Text(timeString(sessionSeconds))
                         .font(StrandFont.number(15))
@@ -309,7 +311,7 @@ private struct BreathingContent: View {
         StrandCard(padding: 24, tint: StrandPalette.restColor) {
             VStack(spacing: 18) {
                 HStack {
-                    Text(pace.label.uppercased()).strandOverline()
+                    Text(NoopVisualStyle.skin == .forge ? pace.label : pace.label.uppercased()).strandOverline()
                     Spacer()
                     Button {
                         showEdu = true
@@ -320,7 +322,7 @@ private struct BreathingContent: View {
                     }
                     .accessibilityLabel(String(localized: "Protocol info"))
                     if selectedBpm > 0 {
-                        Text(String(localized: "\(String(format: "%.1f", selectedBpm)) br/min"))
+                        Text(String(localized: "\(UnitFormatter.localizedMark(String(format: "%.1f", selectedBpm))) br/min"))
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(StrandPalette.textSecondary)
                     } else if isGuided {
@@ -331,8 +333,10 @@ private struct BreathingContent: View {
                 }
 
                 ZStack {
-                    ScenicHeroBackground(domain: .rest, starCount: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+                    if NoopVisualStyle.skin != .forge {
+                        ScenicHeroBackground(domain: .rest, starCount: 56)
+                            .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+                    }
                     breathingOrb
                         .padding(.vertical, 6)
                 }
@@ -597,7 +601,7 @@ private struct BreathingContent: View {
                         caption: rrBuffer.isEmpty ? String(localized: "Waiting for R-R") : String(localized: "Last \(rrBuffer.count) beats"))
 
             readoutTile(label: String(localized: "Pace"),
-                        value: selectedBpm > 0 ? String(format: "%.1f", selectedBpm) : (isGuided ? "—" : "—"),
+                        value: selectedBpm > 0 ? UnitFormatter.localizedMark(String(format: "%.1f", selectedBpm)) : (isGuided ? "—" : "—"),
                         unit: "br/min",
                         accent: StrandPalette.restBright,
                         caption: paceCaption)
@@ -622,7 +626,7 @@ private struct BreathingContent: View {
                              accent: Color, caption: String) -> some View {
         StrandCard(padding: 14, tint: StrandPalette.restColor) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(label.uppercased()).strandOverline()
+                Text(NoopVisualStyle.skin == .forge ? label : label.uppercased()).strandOverline()
                 Spacer(minLength: 6)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(value)
