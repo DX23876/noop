@@ -107,6 +107,17 @@ final class ForgeTimelineTests: XCTestCase {
         XCTAssertEqual(kinds, [.nap, .wake])
     }
 
+    func testANightEndingBeforeTheRolloverBelongsToTheDayItWakesInto() {
+        // A logical day that rolls at 04:00 of `base`, which starts each key here.
+        func logical(_ d: Date) -> String { String(Int((d.timeIntervalSince(base) - 4 * 3600) / 86_400 + 1000)) }
+        var input = ForgeTimeline.Input()
+        input.sleeps = [.init(start: at(1), end: at(2.75), minutesAsleep: 104, rest: nil)]
+        input.workouts = [.init(id: "w", start: at(7), end: at(7.5), sport: "Walk", effort: nil, distanceM: nil, energyKcal: nil)]
+        let days = ForgeTimeline.build(input, now: at(19), days: 7, dayKey: logical)
+        XCTAssertEqual(days.count, 1)
+        XCTAssertEqual(days[0].entries.map(\.kind), [.workout, .wake])
+    }
+
     func testDailyFiguresWithoutATimeSitAtTheEndOfTheirDay() {
         var input = ForgeTimeline.Input()
         input.workouts = [.init(id: "w", start: at(1), end: at(2), sport: "Run", effort: nil, distanceM: nil, energyKcal: nil)]

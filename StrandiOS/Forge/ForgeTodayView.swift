@@ -68,6 +68,8 @@ struct ForgeTodayView: View {
     @State private var backToTop = 0
     /// Bumped when Today comes back into view, so what was just logged on another page is already there.
     @State private var returned = 0
+    /// Long notes opened in place: figures and a few lines first, the rest on request.
+    @State private var openedNotes: Set<String> = []
 
     struct Snapshot: Equatable {
         var loaded = false
@@ -434,6 +436,9 @@ struct ForgeTodayView: View {
         }
     }
 
+    /// Up to here a note shows whole: about four lines of body text.
+    private static let shortNoteLength = 180
+
     private func coachLabel(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> String {
         let label: String
         if let kicker = entry.kicker {
@@ -473,10 +478,19 @@ struct ForgeTodayView: View {
             // The figures first, then the words about them.
             noteFigures(entry, origin: origin)
             if !entry.detail.isEmpty {
+                let opened = openedNotes.contains(entry.id) || entry.detail.count <= Self.shortNoteLength
                 Text(Self.markdown(entry.detail))
                     .font(ForgeFont.body)
                     .foregroundStyle(ForgeColor.secondary)
+                    .lineLimit(opened ? nil : 4)
                     .fixedSize(horizontal: false, vertical: true)
+                if !opened {
+                    Button("Read more") { withAnimation(.snappy) { _ = openedNotes.insert(entry.id) } }
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(ForgeColor.accent)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: 44, alignment: .leading)
+                }
             }
             FlowRows(spacing: 8) {
                 if coachFeatureEnabled {

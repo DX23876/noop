@@ -127,6 +127,8 @@ enum ForgeTimeline {
     /// drops anything in the future and `days` caps how far back the list reaches.
     static func build(_ input: Input, now: Date, days: Int = 2, dayKey: (Date) -> String) -> [Day] {
         var entries: [Entry] = []
+        // A night belongs to the day it wakes into, even when it ends before the 04:00 rollover.
+        func nightDay(_ wake: Date) -> String { dayKey(wake.addingTimeInterval(nightDayShift)) }
         let shownWorkouts = Dictionary(input.workouts.filter { $0.end <= now }.map { ($0.id, $0) },
                                        uniquingKeysWith: { first, _ in first })
         let shownWakes = input.sleeps.filter { $0.end <= now }
@@ -138,7 +140,7 @@ enum ForgeTimeline {
             if let workout { workoutsInNotes.insert(workout.id) }
             var wake: Date?
             if note.origin == .brief,
-               let night = shownWakes.first(where: { dayKey($0.end) == dayKey(note.date) && $0.end <= note.date }) {
+               let night = shownWakes.first(where: { nightDay($0.end) == dayKey(note.date) && $0.end <= note.date }) {
                 wake = night.end
                 wakesInBriefs.insert(night.end)
             }
@@ -172,7 +174,9 @@ enum ForgeTimeline {
                                  value: e.averageHr.map(Double.init), sourceId: e.id))
         }
 
-        let keyed = Dictionary(grouping: entries, by: { dayKey($0.date) })
+        let keyed = Dictionary(grouping: entries) { entry in
+            entry.kind == .wake ? nightDay(entry.date) : dayKey(entry.date)
+        }
         let keptKeys = keyed.keys.sorted(by: >).prefix(max(0, days))
         return keptKeys.compactMap { key in
             guard let list = keyed[key], let first = list.first else { return nil }
@@ -182,6 +186,9 @@ enum ForgeTimeline {
             return Day(id: key, date: first.date, entries: sorted)
         }
     }
+
+    /// Moves a wake moment past the rollover when working out its day; never far enough to reach the next one.
+    private static let nightDayShift: TimeInterval = 4 * 3600
 
     /// Split a coach note into an optional kicker, a headline (its first sentence) and the remaining text.
     ///
