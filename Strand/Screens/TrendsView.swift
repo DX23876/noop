@@ -602,16 +602,16 @@ struct TrendsView: View {
     private func forgeScoreCards(recovery: ResolvedMetric, strain: ResolvedMetric) -> some View {
         let rest = metrics["rest"] ?? emptyMetric
         VStack(spacing: NoopMetrics.gap) {
-            forgeScoreCard(title: "Charge", metricKey: "recovery", points: recovery.points,
+            forgeScoreCard(title: WeeklyMetric.charge.label, metricKey: "recovery", points: recovery.points,
                            gradient: StrandPalette.recoveryGradient, tip: StrandPalette.chargeBright,
                            color: StrandPalette.chargeColor, higherIsBetter: true, range: 0...106,
                            fmt: { "\(Int($0.rounded()))" })
-            forgeScoreCard(title: "Effort", metricKey: "strain", points: strain.points,
+            forgeScoreCard(title: WeeklyMetric.effort.label, metricKey: "strain", points: strain.points,
                            gradient: gradient(StrandPalette.effortColor), tip: StrandPalette.effortColor,
                            color: StrandPalette.effortColor, higherIsBetter: nil,
                            range: valueRange(strain.points, fallback: 0...100),
                            fmt: { UnitFormatter.effortDisplay($0, scale: effortScale) })
-            forgeScoreCard(title: "Rest", metricKey: "sleep_performance", points: rest.points,
+            forgeScoreCard(title: WeeklyMetric.rest.label, metricKey: "sleep_performance", points: rest.points,
                            gradient: gradient(StrandPalette.restColor), tip: StrandPalette.restColor,
                            color: StrandPalette.restColor, higherIsBetter: true, range: 0...106,
                            fmt: { "\(Int($0.rounded()))" })
@@ -619,14 +619,15 @@ struct TrendsView: View {
     }
 
     /// One score over the chosen window: its average as the figure, the line under it. Opens the metric.
-    private func forgeScoreCard(title: LocalizedStringKey, metricKey: String, points pts: [TrendPoint],
+    /// Named as the ring above names it, so the page does not call one score two things.
+    private func forgeScoreCard(title: String, metricKey: String, points pts: [TrendPoint],
                                 gradient: Gradient, tip: Color, color: Color, higherIsBetter: Bool?,
                                 range: ClosedRange<Double>, fmt: @escaping (Double) -> String) -> some View {
         NavigationLink(value: TabRoute.metric(metricKey)) {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(color)
+                        Text(verbatim: title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(color)
                         Spacer()
                         changeChip(pts, higherIsBetter: higherIsBetter, fmt: fmt)
                     }
