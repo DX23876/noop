@@ -4771,5 +4771,9 @@
   "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result.": "Ocena porównuje z zakresem z twojego wyniku, jeśli go wpisano, a w przeciwnym razie z ogólnym zakresem dla dorosłych. Może różnić się od zakresu laboratorium i nie jest diagnozą. O wynik zapytaj lekarza.",
   "in range": "w zakresie",
   "Arms the strap to buzz at your wake time, even if NOOP is closed.": "Ustawia pasek tak, by wibrował o godzinie pobudki, nawet gdy NOOP jest zamknięty.",
-  "Your bands": "Twoje paski"
+  "Your bands": "Twoje paski",
+  "Nothing stands out today.": "Dziś nic się nie wyróżnia.",
+  "Wide · what matters most right now": "Szeroki · co teraz najważniejsze",
+  "Small · water today against your goal": "Mały · woda dziś względem celu",
+  "Small · your heart rate right now": "Mały · twoje tętno teraz"
 }

@@ -3667,5 +3667,9 @@
   "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result.": "Une appréciation compare à la plage de ton rapport si tu l'as saisie, sinon à une plage générale pour adultes. Elle peut différer de celle de ton laboratoire et n'est pas un diagnostic. Parle d'un résultat à ton médecin.",
   "in range": "dans la plage",
   "Arms the strap to buzz at your wake time, even if NOOP is closed.": "Programme le strap pour vibrer à ton heure de réveil, même si NOOP est fermé.",
-  "Your bands": "Tes straps"
+  "Your bands": "Tes straps",
+  "Nothing stands out today.": "Rien de marquant aujourd'hui.",
+  "Wide · what matters most right now": "Large · ce qui compte le plus maintenant",
+  "Small · water today against your goal": "Petit · l'eau du jour par rapport à ton objectif",
+  "Small · your heart rate right now": "Petit · ta fréquence cardiaque maintenant"
 }

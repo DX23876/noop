@@ -754,6 +754,7 @@ enum DemoScreens {
         guard let i = args.firstIndex(of: "--demo-screen"), i + 1 < args.count else { return nil }
         switch args[i + 1].lowercased() {
         case "today":    return AnyView(TodayView())
+        case "startworkout": return AnyView(DemoStartWorkoutHost())
         // The DEFAULT iOS Today (`noop.liquidTodayEnabled` ships true), so it needs its own entry — plain
         // "today" renders the CLASSIC screen, which is exactly the screen whose behaviour Liquid was found
         // to have diverged from. Without this, the default Today was the one screen the harness could not
@@ -820,6 +821,12 @@ enum DemoScreens {
 #endif
 
 #if DEBUG
+/// DEBUG-only host so `--demo-screen startworkout` can render the one start screen.
+private struct DemoStartWorkoutHost: View {
+    @EnvironmentObject private var session: ActiveSessionController
+    var body: some View { StartWorkoutSheet(session: session) }
+}
+
 /// DEBUG-only host so `--demo-screen addwizard` can render the multi-step Add-a-device wizard.
 /// A SwiftUI View body is main-actor, so it can pull the injected LiveState and hand it to the
 /// wizard's `init(live:)` (the nonisolated DemoScreens switch can't construct a LiveState itself).

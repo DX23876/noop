@@ -206,6 +206,7 @@ struct LongTermGoalPage: View {
                         }
                     }
                 }
+                .forgeListBackground()
                 .navigationTitle(Text("Aim higher"))
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showRaise = false } }

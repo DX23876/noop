@@ -98,6 +98,7 @@ struct BodyCaptureSheet: View {
                     TextField("Optional", text: $note, axis: .vertical).lineLimit(1...4)
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Measure")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

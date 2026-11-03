@@ -444,6 +444,7 @@ struct EffortPickerSheet: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle(Text("How hard was that set?"))
             // A large title cut the question off ("Wie schwer war der S…") in a half-height sheet.
             #if os(iOS)

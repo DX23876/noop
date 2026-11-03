@@ -251,6 +251,7 @@ struct RawDataCollectorView: View {
                         }
                     }
                 }
+                .forgeListBackground()
                 .navigationTitle(initial.markerId == nil ? "Add marker" : "Edit marker")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { markerDraft = nil } }

@@ -31,6 +31,7 @@ struct AcknowledgementsView: View {
                 entry(title: "Exercise media (images and animations)",
                       detail: "© Gym visual — gymvisual.com. Not licensed to NOOP: cloning the exercises-dataset repository is not a licence to its media. NOOP never bundles these files; downloading them is an explicit, disclosed, opt-in action, and the credit line appears under every animation.")
             }
+            .forgeListBackground()
             .navigationTitle(Text("Acknowledgements"))
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: onClose) } }
         }

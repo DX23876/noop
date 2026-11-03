@@ -346,6 +346,7 @@ private struct MuscleMetricDetailView: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(muscleName(muscleId))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }

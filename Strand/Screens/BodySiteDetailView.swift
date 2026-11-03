@@ -272,6 +272,7 @@ struct ReadingEditSheet: View {
                     Text("Changing the date moves this reading on the trend. A measurement entered late belongs to the day it was taken, not the day it was typed.")
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Edit reading")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

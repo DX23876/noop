@@ -13,7 +13,7 @@ import WhoopStore
 
 /// One widget the wearer placed on Today.
 struct ForgeTodayWidget: Codable, Hashable, Identifiable {
-    enum Kind: String, Codable, CaseIterable { case measure, trainingLoad, goals, energy }
+    enum Kind: String, Codable, CaseIterable { case measure, trainingLoad, goals, energy, water, liveHeart, momentum }
 
     var id = UUID()
     var kind: Kind
@@ -21,7 +21,7 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     var key: String? = nil
     var source: String? = nil
 
-    var isWide: Bool { kind != .measure }
+    var isWide: Bool { kind != .measure && kind != .water && kind != .liveHeart }
 }
 
 /// The wearer's widgets, oldest first, kept as JSON in UserDefaults.
@@ -199,7 +199,73 @@ struct ForgeTodayWidgetView: View {
         case .trainingLoad: LiquidTrainingLoadSection(surfaceOpacity: Double(opacityPercent) / 100)
         case .goals: GoalsTodaySection(headerOutside: true)
         case .energy: ForgeEnergyWidget()
+        case .water: ForgeWaterWidget()
+        case .liveHeart: ForgeLiveHeartWidget()
+        case .momentum: ForgeMomentumWidget()
         }
+    }
+}
+
+/// The day's water against its goal. Opens the Hydration page, where drinks are added.
+struct ForgeWaterWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var profile: ProfileStore
+    @State private var totalML: Double = 0
+    @State private var week: [Double] = []
+
+    var body: some View {
+        NavigationLink(value: TabRoute.hydration) {
+            ForgeMetricTile(label: String(localized: "Hydration"),
+                            value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: totalML))),
+                            unit: String(localized: "of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: Double(repo.hydrationGoalML(profileSex: profile.sex)))))) L"),
+                            trend: week.count > 1 ? week : nil,
+                            tint: ForgeColor.accent)
+        }
+        .buttonStyle(LiquidPressStyle())
+        .task(id: repo.refreshSeq) {
+            totalML = await repo.hydrationTotal(day: Repository.localDayKey(Date()))
+            week = await repo.hydrationHistory(days: 7).map(\.value)
+        }
+    }
+}
+
+/// The heart rate right now, while a strap streams it. Opens the Live page.
+struct ForgeLiveHeartWidget: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        NavigationLink(value: MoreDestination.live) {
+            ForgeMetricTile(label: String(localized: "Live heart rate"), value: model.bpm.map { "\($0)" },
+                            unit: "bpm", trend: nil, tint: ForgeColor.accent)
+        }
+        .buttonStyle(LiquidPressStyle())
+    }
+}
+
+/// What matters most right now, from the Momentum feed. Opens the Momentum page.
+struct ForgeMomentumWidget: View {
+    @ObservedObject private var store = MomentumStore.shared
+
+    var body: some View {
+        NavigationLink(value: MoreDestination.momentum) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Momentum").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                if let first = store.messages.first {
+                    Text(first.headline)
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(ForgeColor.text)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Nothing stands out today.")
+                        .font(.system(.subheadline))
+                        .foregroundStyle(ForgeColor.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard()
+        }
+        .buttonStyle(LiquidPressStyle())
     }
 }
 
@@ -296,6 +362,12 @@ struct ForgeWidgetGallery: View {
                         subtitle: String(localized: "Wide · this week's goals")) { store.add(.init(kind: .goals)) }
                     row(symbol: "flame.fill", title: String(localized: "Energy"),
                         subtitle: String(localized: "Wide · burned and eaten today")) { store.add(.init(kind: .energy)) }
+                    row(symbol: "bolt.fill", title: String(localized: "Momentum"),
+                        subtitle: String(localized: "Wide · what matters most right now")) { store.add(.init(kind: .momentum)) }
+                    row(symbol: "drop.fill", title: String(localized: "Hydration"),
+                        subtitle: String(localized: "Small · water today against your goal")) { store.add(.init(kind: .water)) }
+                    row(symbol: "heart.fill", title: String(localized: "Live heart rate"),
+                        subtitle: String(localized: "Small · your heart rate right now")) { store.add(.init(kind: .liveHeart)) }
                 } header: { Text("Cards") }
             }
             .scrollContentBackground(.hidden)

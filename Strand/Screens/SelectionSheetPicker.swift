@@ -49,6 +49,7 @@ struct SelectionSheetPicker<Value: Hashable>: View {
                         .accessibilityAddTraits(option.value == selection ? .isSelected : [])
                     }
                 }
+                .forgeListBackground()
                 .navigationTitle(Text(title))
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)

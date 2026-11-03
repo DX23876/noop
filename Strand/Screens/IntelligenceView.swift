@@ -273,7 +273,7 @@ struct IntelligenceView: View {
                             .frame(width: 24, height: 24)
                             .accessibilityHidden(true)
                     }
-                    Text(d.day).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    Text(NoopVisualStyle.skin == .forge ? forgeDayTitle(d.day) : d.day).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                     Spacer()
                     // A3: the existing per-day Charge confidence as a small dot + tier tag pill
                     // (CALIBRATING / EST. / REL.) next to the source badge. Pure presentation of
@@ -290,7 +290,7 @@ struct IntelligenceView: View {
                     SourceBadge("\(d.source.badge)",
                                 tint: d.source == .computed ? StrandPalette.chargeColor : StrandPalette.accent)
                 }
-                HStack(spacing: 0) {
+                HStack(spacing: NoopVisualStyle.skin == .forge ? 6 : 0) {
                     stat(String(localized: "Charge"), d.recovery.map { "\(Int($0.rounded()))%" } ?? "—",
                          d.recovery.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textSecondary)
                     stat(String(localized: "Effort"), d.strain.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "—",
@@ -322,6 +322,12 @@ struct IntelligenceView: View {
         }
     }
 
+    /// "Mon, 2 Nov" in the reader's language for the new design's rows.
+    private func forgeDayTitle(_ day: String) -> String {
+        guard let date = Self.dayFmt.date(from: day) else { return day }
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
+    }
+
     private func stat(_ label: String, _ value: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             // `lineLimit` + `minimumScaleFactor` so a long label shrinks instead of running into its
@@ -337,7 +343,7 @@ struct IntelligenceView: View {
             // Scaled rather than truncated, matching how the value directly beneath is treated: "CHARG…"
             // reads worse than a slightly smaller "CHARGE". Larger Dynamic Type is where this bites, so
             // the floor has to leave room for the longest label at the widest text size.
-            Text(label.uppercased())
+            Text(NoopVisualStyle.skin == .forge ? label : label.uppercased())
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .lineLimit(1)

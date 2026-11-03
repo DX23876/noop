@@ -624,6 +624,7 @@ struct WeightLogSheet: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle(Text(draft.isExisting ? "Edit weigh-in" : "Log weight"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

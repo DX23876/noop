@@ -105,6 +105,7 @@ struct WorkoutFeedbackSettingsView: View {
                 }
             }
             .tint(StrandPalette.accent)
+            .forgeListBackground()
             .navigationTitle("Workout settings")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .task { sanitizeValues() }

@@ -28,6 +28,7 @@ struct WorkoutUpcomingPhasesView: View {
                     Button("Reload upcoming phases", action: reload)
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Upcoming phases")
             .tint(StrandPalette.accent)
             .toolbar { ToolbarItem(placement: .confirmationAction) {

@@ -55,6 +55,7 @@ struct CoachGoalSetupReviewView: View {
                     Button("Decline draft", role: .destructive, action: decline)
                 }
             }
+            .forgeListBackground()
             .navigationTitle(periodGoals.isEmpty ? Text("Review goal & routines") : Text("Review coach draft"))
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -543,6 +544,7 @@ private struct CoachRoutineDraftEditor: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Edit routine")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

@@ -94,6 +94,7 @@ struct TrainingExerciseLibraryView: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Exercise library"))
         .searchable(text: $query, prompt: Text("Exercise, muscle or equipment"))
         .safeAreaInset(edge: .top) { filterChips }
@@ -592,6 +593,7 @@ struct ExerciseMediaManagementView: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Exercise media"))
         .task(id: media.state) { manifest = media.installedManifest() }
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
@@ -713,6 +715,7 @@ private struct ExerciseMediaDisclosureView: View {
             .font(StrandFont.caption)
             .foregroundStyle(StrandPalette.textSecondary)
         }
+        .forgeListBackground()
         .navigationTitle(Text("Download external media?"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -791,6 +794,7 @@ private struct ExerciseDBSourceView: View {
                 Section { Label(errorMessage, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("ExerciseDB"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -875,6 +879,7 @@ private struct TrainingCustomExerciseEditor: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("New exercise"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

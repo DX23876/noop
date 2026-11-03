@@ -171,6 +171,7 @@ struct ExerciseMusclePickerView: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Find by muscle"))
         .searchable(text: $query, prompt: Text("Exercise or equipment"))
         .task(id: exercises.count) {

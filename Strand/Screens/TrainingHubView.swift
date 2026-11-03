@@ -460,6 +460,7 @@ struct TrainingHubView: View {
                 Text("Templates are editable and stay on your device.")
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Starter plans"))
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingStarterPlans = false } } }
     }
@@ -658,6 +659,7 @@ private struct TrainingRoutineImportPreviewView: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
+            .forgeListBackground()
             .navigationTitle(Text("Import routines"))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -719,6 +721,7 @@ private struct TrainingHistoryImportPreviewView: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
+            .forgeListBackground()
             .navigationTitle(Text("Import preview"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: onCancel) }
@@ -1133,6 +1136,7 @@ private struct PastWorkoutStartView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Log past workout"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -2950,6 +2954,7 @@ private struct TrainingExerciseHistorySheet: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text(title))
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
@@ -3254,6 +3259,7 @@ private struct TrainingPlateCalculatorView: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Plate calculator"))
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
@@ -3380,6 +3386,7 @@ private struct AddRoutineActionsSheet: View {
                 actionRow("Log past workout", systemImage: "calendar.badge.clock", action: onLogPastWorkout)
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Add"))
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
     }
@@ -3411,6 +3418,7 @@ private struct RoutineActionsSheet: View {
                 Label("Duplicate", systemImage: "plus.square.on.square")
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text(routine.title))
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
     }
@@ -3527,6 +3535,7 @@ private struct RoutineEditorView: View {
                 Button("Delete routine", role: .destructive) { confirmingDelete = true }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Edit routine"))
         #if os(iOS)
         .toolbar { EditButton() }
@@ -3664,6 +3673,7 @@ private struct TrainingRoutinePreviewView: View {
                      : String(localized: "The preview uses the same muscle mapping as completed-workout analytics."))
             }
         }
+        .forgeListBackground()
         .navigationTitle(routine.title)
         .safeAreaInset(edge: .bottom) {
             Button {
@@ -3734,6 +3744,7 @@ private struct RoutineExerciseEditor: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(exercise?.title ?? String(localized: "Exercise"))
     }
 }
@@ -3867,6 +3878,7 @@ private struct TrainingScheduleEditorView: View {
                 }
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Weekly schedule"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -3935,6 +3947,7 @@ private struct TrainingDayEditorView: View {
                 Button("Use weekly schedule") { onReset(day); dismiss() }
             }
         }
+        .forgeListBackground()
         .navigationTitle(date.formatted(.dateTime.weekday(.wide).day().month()))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

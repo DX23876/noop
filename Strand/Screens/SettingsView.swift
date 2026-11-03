@@ -4702,6 +4702,7 @@ private struct TrainingEquipmentSettingsView: View {
                 Text("Choose the equipment you can use. The exercise library can then show matching exercises. If nothing is selected, every exercise remains available.")
             }
         }
+        .forgeListBackground()
         .navigationTitle(Text("Available equipment"))
     }
 }

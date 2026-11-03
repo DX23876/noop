@@ -150,6 +150,7 @@ private struct OverviewFocusEditor: View {
                 Text("Choose the three compact cards shown at the top of Overview.")
             }
         }
+        .forgeListBackground()
         .navigationTitle("Today's focus")
     }
     private var values: [String] {

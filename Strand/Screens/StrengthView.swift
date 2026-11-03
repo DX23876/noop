@@ -718,6 +718,7 @@ struct StrengthView: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle(Text(exercise))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

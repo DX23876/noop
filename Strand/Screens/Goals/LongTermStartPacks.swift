@@ -209,6 +209,7 @@ struct LongTermStartPackSheet: View {
                 if let message { Section { Text(message).foregroundStyle(StrandPalette.statusCritical) } }
             }
             // A large title: inline, "Cancel" and "Add" left a pack name like "Kraft aufbauen" no room.
+            .forgeListBackground()
             .navigationTitle(pack.title)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

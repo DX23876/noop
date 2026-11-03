@@ -503,6 +503,15 @@ private struct HardTopEdgeIfPinned: ViewModifier {
 }
 
 extension View {
+    /// The same backdrop behind a native list or form, whose own grey ground would otherwise cover it.
+    @ViewBuilder func forgeListBackground() -> some View {
+        if NoopVisualStyle.skin == .forge {
+            scrollContentBackground(.hidden).forgeScreenBackground()
+        } else {
+            self
+        }
+    }
+
     /// The new design's page backdrop for a screen that builds its own scroll view instead of using
     /// `ScreenScaffold`. Under the shipped design, and on the Mac, it changes nothing.
     @ViewBuilder func forgeScreenBackground() -> some View {

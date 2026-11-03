@@ -68,6 +68,7 @@ struct ModelSearchSheet: View {
             }
             .listStyle(.plain)
             .searchable(text: $query, prompt: Text("Search models"))
+            .forgeListBackground()
             .navigationTitle("Choose a model")
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)

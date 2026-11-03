@@ -49,6 +49,7 @@ struct GoalWorkoutAttributionSheet: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Link activity")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -224,6 +225,7 @@ struct GoalActionEditorView: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle(editingId == nil ? "New daily goal" : "Edit daily goal")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

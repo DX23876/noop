@@ -76,6 +76,7 @@ struct WorkoutPlanEditorView: View {
                 }
             }
             .tint(StrandPalette.accent)
+            .forgeListBackground()
             .navigationTitle("Training plan")
             .toolbar {
                 #if os(iOS)

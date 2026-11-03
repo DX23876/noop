@@ -1245,6 +1245,7 @@ private struct DashboardStepGoalSheet: View {
                     Text("When no goal is set, NOOP shows your steps without inventing a target.")
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Daily step goal")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

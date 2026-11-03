@@ -490,6 +490,7 @@ private struct PlanEffectFeedbackSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(StrandPalette.surfaceBase)
+            .forgeListBackground()
             .navigationTitle("Recommendation effect")
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)

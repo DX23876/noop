@@ -64,6 +64,7 @@ struct MilestoneEditorSheet: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Waypoint")
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)

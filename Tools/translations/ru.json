@@ -3643,5 +3643,9 @@
   "A rating compares with your report's own range when you typed one in, otherwise with a general adult range. It can differ from your lab's and is no diagnosis. Ask your doctor about a result.": "Оценка сравнивает с диапазоном из вашего отчёта, если вы его указали, иначе с общим диапазоном для взрослых. Он может отличаться от диапазона вашей лаборатории и не является диагнозом. О результате спросите врача.",
   "in range": "в норме",
   "Arms the strap to buzz at your wake time, even if NOOP is closed.": "Настраивает браслет на вибрацию во время пробуждения, даже если NOOP закрыт.",
-  "Your bands": "Ваши браслеты"
+  "Your bands": "Ваши браслеты",
+  "Nothing stands out today.": "Сегодня ничего примечательного.",
+  "Wide · what matters most right now": "Широкий · самое важное сейчас",
+  "Small · water today against your goal": "Маленький · вода сегодня относительно цели",
+  "Small · your heart rate right now": "Маленький · ваш пульс сейчас"
 }

@@ -165,8 +165,9 @@ struct WorkoutSelectionScreen: View {
                 }
             }
             .background {
-                StrandPalette.surfaceBase.ignoresSafeArea()
+                if NoopVisualStyle.skin != .forge { StrandPalette.surfaceBase.ignoresSafeArea() }
             }
+            .forgeScreenBackground()
             .navigationBarTitleDisplayModeCompat()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailingCompat) {

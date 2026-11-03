@@ -811,6 +811,7 @@ struct StartPackSheet: View {
                 }
                 if let message { Section { Text(message).foregroundStyle(StrandPalette.statusCritical) } }
             }
+            .forgeListBackground()
             .navigationTitle(pack.title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -882,6 +883,7 @@ struct PeriodGoalEditSheet: View {
                     }
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Change goal")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

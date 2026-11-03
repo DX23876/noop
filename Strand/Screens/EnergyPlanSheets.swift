@@ -147,6 +147,7 @@ struct IntakeEntrySheet: View {
                     Section { Text(error).foregroundStyle(.red) }
                 }
             }
+            .forgeListBackground()
             .navigationTitle("Intake")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
