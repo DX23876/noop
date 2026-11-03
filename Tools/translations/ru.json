@@ -3647,5 +3647,19 @@
   "Nothing stands out today.": "Сегодня ничего примечательного.",
   "Wide · what matters most right now": "Широкий · самое важное сейчас",
   "Small · water today against your goal": "Маленький · вода сегодня относительно цели",
-  "Small · your heart rate right now": "Маленький · ваш пульс сейчас"
+  "Small · your heart rate right now": "Маленький · ваш пульс сейчас",
+  "same day": "в тот же день",
+  "next morning": "на следующее утро",
+  "%lld mornings later": "через %lld утра",
+  "%@ higher on days with this.": "На %@ выше в такие дни.",
+  "%@ lower on days with this.": "На %@ ниже в такие дни.",
+  "No different on days with this.": "В такие дни без разницы.",
+  "In your data so far, this does not move %@ the way it typically does.": "В ваших данных это пока не влияет на %@ так, как обычно.",
+  "Each extra unit typically lines up with about %@ lower %@. A typical pattern, not yet yours.": "Каждая лишняя единица обычно связана с %2$@ ниже примерно на %1$@. Типичная закономерность, ещё не ваша.",
+  "Each extra unit typically lines up with about %@ higher %@. A typical pattern, not yet yours.": "Каждая лишняя единица обычно связана с %2$@ выше примерно на %1$@. Типичная закономерность, ещё не ваша.",
+  "Each extra unit lines up with about %@ lower %@ for you.": "У вас каждая лишняя единица связана с %2$@ ниже примерно на %1$@.",
+  "Each extra unit lines up with about %@ higher %@ for you.": "У вас каждая лишняя единица связана с %2$@ выше примерно на %1$@.",
+  "Sessions like this barely move the next morning's Charge.": "Такие занятия почти не влияют на Charge следующего утра.",
+  "Sessions like this usually cost about %lld Charge points the next morning.": "Такие занятия обычно стоят около %lld баллов Charge на следующее утро.",
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Такие занятия обычно повышают Charge следующего утра примерно на %lld баллов."
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandAnalytics
 
 /// One finding as a line in the new design: its name, a bar from the middle that shows direction and size,
 /// the figure at the end. A tap opens what the line rests on.
@@ -154,6 +155,50 @@ struct ForgeActionRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// The What works findings in the reader's language. The engines keep their English sentences for the coach
+/// and the logs; these say the same from the same figures.
+enum ForgeEffectWording {
+    static func lag(_ days: Int) -> String {
+        switch days {
+        case 0: return String(localized: "same day")
+        case 1: return String(localized: "next morning")
+        default: return String(localized: "\(days) mornings later")
+        }
+    }
+
+    static func line(delta: Double, percent: Double?) -> String {
+        guard delta != 0 else { return String(localized: "No different on days with this.") }
+        let amount = percent.map { "\(Int(abs($0).rounded()))%" }
+            ?? UnitFormatter.localizedMark(String(format: "%.1f", abs(delta)))
+        return delta > 0
+            ? String(localized: "\(amount) higher on days with this.")
+            : String(localized: "\(amount) lower on days with this.")
+    }
+
+    static func dose(_ r: DoseResponse, outcome: String) -> String {
+        let amount = UnitFormatter.localizedMark(String(format: "%.1f", abs(r.perUnit)))
+        if r.contradictsPrior && !r.priorDominated {
+            return String(localized: "In your data so far, this does not move \(outcome) the way it typically does.")
+        }
+        switch (r.priorDominated, r.perUnit <= 0) {
+        case (true, true): return String(localized: "Each extra unit typically lines up with about \(amount) lower \(outcome). A typical pattern, not yet yours.")
+        case (true, false): return String(localized: "Each extra unit typically lines up with about \(amount) higher \(outcome). A typical pattern, not yet yours.")
+        case (false, true): return String(localized: "Each extra unit lines up with about \(amount) lower \(outcome) for you.")
+        case (false, false): return String(localized: "Each extra unit lines up with about \(amount) higher \(outcome) for you.")
+        }
+    }
+
+    static func cost(_ cost: ActivityCost) -> String {
+        let points = Int(abs(cost.delta).rounded())
+        if abs(cost.delta) < ActivityCostEngine.barelyMovesPoints {
+            return String(localized: "Sessions like this barely move the next morning's Charge.")
+        }
+        return cost.delta >= 0
+            ? String(localized: "Sessions like this usually cost about \(points) Charge points the next morning.")
+            : String(localized: "Sessions like this usually lift the next morning's Charge by about \(points) points.")
     }
 }
 

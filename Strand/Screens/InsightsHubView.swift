@@ -105,10 +105,10 @@ struct InsightsHubView: View {
         let sign = e.delta > 0 ? "+" : e.delta < 0 ? "−" : ""
         let value = e.pctChange.map { "\(sign)\(Int(abs($0).rounded()))%" }
             ?? sign + UnitFormatter.localizedMark(String(format: "%.1f", abs(e.delta)))
-        return ForgeEffectRow(title: r.behavior, note: String(localized: String.LocalizationValue(r.leadLagText)),
+        return ForgeEffectRow(title: r.behavior, note: ForgeEffectWording.lag(r.lag),
                               value: value, fraction: max(-1, min(1, e.cohensD / 0.8)), tint: tint) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                Text(r.sentence())
+                Text(ForgeEffectWording.line(delta: e.delta, percent: e.pctChange))
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -305,7 +305,7 @@ private struct DoseResponseCardView: View {
                 header(r)
 
                 // The engine's honest read sentence (prior / yours / contradicts-prior).
-                Text(r.sentence())
+                Text(NoopVisualStyle.skin == .forge ? ForgeEffectWording.dose(r, outcome: card.outcomeName) : r.sentence())
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

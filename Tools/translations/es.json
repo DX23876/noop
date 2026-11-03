@@ -3670,5 +3670,19 @@
   "Nothing stands out today.": "Hoy nada destaca.",
   "Wide · what matters most right now": "Ancho · lo más importante ahora",
   "Small · water today against your goal": "Pequeño · agua de hoy frente a tu objetivo",
-  "Small · your heart rate right now": "Pequeño · tu frecuencia cardíaca ahora"
+  "Small · your heart rate right now": "Pequeño · tu frecuencia cardíaca ahora",
+  "same day": "el mismo día",
+  "next morning": "a la mañana siguiente",
+  "%lld mornings later": "%lld mañanas después",
+  "%@ higher on days with this.": "%@ más alto los días con esto.",
+  "%@ lower on days with this.": "%@ más bajo los días con esto.",
+  "No different on days with this.": "Sin diferencia los días con esto.",
+  "In your data so far, this does not move %@ the way it typically does.": "En tus datos, por ahora esto no mueve %@ como suele hacerlo.",
+  "Each extra unit typically lines up with about %@ lower %@. A typical pattern, not yet yours.": "Cada unidad extra suele ir con unos %1$@ menos de %2$@. Un patrón típico, aún no tuyo.",
+  "Each extra unit typically lines up with about %@ higher %@. A typical pattern, not yet yours.": "Cada unidad extra suele ir con unos %1$@ más de %2$@. Un patrón típico, aún no tuyo.",
+  "Each extra unit lines up with about %@ lower %@ for you.": "Para ti, cada unidad extra va con unos %1$@ menos de %2$@.",
+  "Each extra unit lines up with about %@ higher %@ for you.": "Para ti, cada unidad extra va con unos %1$@ más de %2$@.",
+  "Sessions like this barely move the next morning's Charge.": "Sesiones así apenas mueven la Charge de la mañana siguiente.",
+  "Sessions like this usually cost about %lld Charge points the next morning.": "Sesiones así suelen costar unos %lld puntos de Charge a la mañana siguiente.",
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Sesiones así suelen subir la Charge de la mañana siguiente unos %lld puntos."
 }

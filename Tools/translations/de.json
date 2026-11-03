@@ -3671,5 +3671,19 @@
   "Nothing stands out today.": "Heute sticht nichts heraus.",
   "Wide · what matters most right now": "Breit · was gerade am wichtigsten ist",
   "Small · water today against your goal": "Klein · Wasser heute im Vergleich zum Ziel",
-  "Small · your heart rate right now": "Klein · dein Puls gerade"
+  "Small · your heart rate right now": "Klein · dein Puls gerade",
+  "same day": "am selben Tag",
+  "next morning": "am nächsten Morgen",
+  "%lld mornings later": "%lld Morgen später",
+  "%@ higher on days with this.": "An Tagen damit %@ höher.",
+  "%@ lower on days with this.": "An Tagen damit %@ niedriger.",
+  "No different on days with this.": "An Tagen damit kein Unterschied.",
+  "In your data so far, this does not move %@ the way it typically does.": "In deinen Daten bewegt das %@ bisher nicht so, wie es das meist tut.",
+  "Each extra unit typically lines up with about %@ lower %@. A typical pattern, not yet yours.": "Jede weitere Einheit geht meist mit etwa %1$@ weniger %2$@ einher. Ein typisches Muster, noch nicht deins.",
+  "Each extra unit typically lines up with about %@ higher %@. A typical pattern, not yet yours.": "Jede weitere Einheit geht meist mit etwa %1$@ mehr %2$@ einher. Ein typisches Muster, noch nicht deins.",
+  "Each extra unit lines up with about %@ lower %@ for you.": "Bei dir geht jede weitere Einheit mit etwa %1$@ weniger %2$@ einher.",
+  "Each extra unit lines up with about %@ higher %@ for you.": "Bei dir geht jede weitere Einheit mit etwa %1$@ mehr %2$@ einher.",
+  "Sessions like this barely move the next morning's Charge.": "Solche Einheiten bewegen die Energie am nächsten Morgen kaum.",
+  "Sessions like this usually cost about %lld Charge points the next morning.": "Solche Einheiten kosten am nächsten Morgen meist etwa %lld Energiepunkte.",
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Solche Einheiten heben die Energie am nächsten Morgen meist um etwa %lld Punkte."
 }

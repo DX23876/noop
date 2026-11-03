@@ -3764,5 +3764,19 @@
   "Nothing stands out today.": "Oggi non spicca nulla.",
   "Wide · what matters most right now": "Largo · ciò che conta di più ora",
   "Small · water today against your goal": "Piccolo · acqua di oggi rispetto all'obiettivo",
-  "Small · your heart rate right now": "Piccolo · la tua frequenza cardiaca ora"
+  "Small · your heart rate right now": "Piccolo · la tua frequenza cardiaca ora",
+  "same day": "lo stesso giorno",
+  "next morning": "il mattino dopo",
+  "%lld mornings later": "%lld mattine dopo",
+  "%@ higher on days with this.": "%@ più alto nei giorni con questo.",
+  "%@ lower on days with this.": "%@ più basso nei giorni con questo.",
+  "No different on days with this.": "Nessuna differenza nei giorni con questo.",
+  "In your data so far, this does not move %@ the way it typically does.": "Nei tuoi dati, finora questo non muove %@ come fa di solito.",
+  "Each extra unit typically lines up with about %@ lower %@. A typical pattern, not yet yours.": "Ogni unità in più di solito si accompagna a circa %1$@ in meno di %2$@. Uno schema tipico, non ancora tuo.",
+  "Each extra unit typically lines up with about %@ higher %@. A typical pattern, not yet yours.": "Ogni unità in più di solito si accompagna a circa %1$@ in più di %2$@. Uno schema tipico, non ancora tuo.",
+  "Each extra unit lines up with about %@ lower %@ for you.": "Per te, ogni unità in più si accompagna a circa %1$@ in meno di %2$@.",
+  "Each extra unit lines up with about %@ higher %@ for you.": "Per te, ogni unità in più si accompagna a circa %1$@ in più di %2$@.",
+  "Sessions like this barely move the next morning's Charge.": "Sessioni così muovono appena la Charge del mattino dopo.",
+  "Sessions like this usually cost about %lld Charge points the next morning.": "Sessioni così costano di solito circa %lld punti di Charge il mattino dopo.",
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Sessioni così alzano di solito la Charge del mattino dopo di circa %lld punti."
 }

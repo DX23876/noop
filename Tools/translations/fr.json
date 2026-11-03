@@ -3671,5 +3671,19 @@
   "Nothing stands out today.": "Rien de marquant aujourd'hui.",
   "Wide · what matters most right now": "Large · ce qui compte le plus maintenant",
   "Small · water today against your goal": "Petit · l'eau du jour par rapport à ton objectif",
-  "Small · your heart rate right now": "Petit · ta fréquence cardiaque maintenant"
+  "Small · your heart rate right now": "Petit · ta fréquence cardiaque maintenant",
+  "same day": "le jour même",
+  "next morning": "le lendemain matin",
+  "%lld mornings later": "%lld matins plus tard",
+  "%@ higher on days with this.": "%@ de plus les jours avec cela.",
+  "%@ lower on days with this.": "%@ de moins les jours avec cela.",
+  "No different on days with this.": "Aucune différence les jours avec cela.",
+  "In your data so far, this does not move %@ the way it typically does.": "Dans tes données, cela ne fait pas bouger %@ comme d'habitude pour l'instant.",
+  "Each extra unit typically lines up with about %@ lower %@. A typical pattern, not yet yours.": "Chaque unité de plus va en général avec environ %1$@ de moins sur %2$@. Une tendance typique, pas encore la tienne.",
+  "Each extra unit typically lines up with about %@ higher %@. A typical pattern, not yet yours.": "Chaque unité de plus va en général avec environ %1$@ de plus sur %2$@. Une tendance typique, pas encore la tienne.",
+  "Each extra unit lines up with about %@ lower %@ for you.": "Pour toi, chaque unité de plus va avec environ %1$@ de moins sur %2$@.",
+  "Each extra unit lines up with about %@ higher %@ for you.": "Pour toi, chaque unité de plus va avec environ %1$@ de plus sur %2$@.",
+  "Sessions like this barely move the next morning's Charge.": "Ce genre de séance fait à peine bouger la Charge du lendemain matin.",
+  "Sessions like this usually cost about %lld Charge points the next morning.": "Ce genre de séance coûte en général environ %lld points de Charge le lendemain matin.",
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Ce genre de séance augmente en général la Charge du lendemain matin d'environ %lld points."
 }

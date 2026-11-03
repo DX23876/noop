@@ -3825,5 +3825,19 @@
   "Nothing stands out today.": "今天沒有突出的事項。",
   "Wide · what matters most right now": "寬 · 當前最重要的事",
   "Small · water today against your goal": "小 · 今日飲水與目標",
-  "Small · your heart rate right now": "小 · 當前心率"
+  "Small · your heart rate right now": "小 · 當前心率",
+  "same day": "當天",
+  "next morning": "次日早晨",
+  "%lld mornings later": "%lld 個早晨後",
+  "%@ higher on days with this.": "有此項的日子高 %@。",
+  "%@ lower on days with this.": "有此項的日子低 %@。",
+  "No different on days with this.": "有此項的日子沒有差別。",
+  "In your data so far, this does not move %@ the way it typically does.": "在你目前的資料中，這對 %@ 的影響與通常不同。",
+  "Each extra unit typically lines up with about %@ lower %@. A typical pattern, not yet yours.": "每多一個單位，%2$@ 通常低約 %1$@。這是典型規律，還不是你自己的。",
+  "Each extra unit typically lines up with about %@ higher %@. A typical pattern, not yet yours.": "每多一個單位，%2$@ 通常高約 %1$@。這是典型規律，還不是你自己的。",
+  "Each extra unit lines up with about %@ lower %@ for you.": "對你來說，每多一個單位，%2$@ 低約 %1$@。",
+  "Each extra unit lines up with about %@ higher %@ for you.": "對你來說，每多一個單位，%2$@ 高約 %1$@。",
+  "Sessions like this barely move the next morning's Charge.": "這類訓練幾乎不影響次日早晨的 Charge。",
+  "Sessions like this usually cost about %lld Charge points the next morning.": "這類訓練通常使次日早晨的 Charge 降低約 %lld 分。",
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "這類訓練通常使次日早晨的 Charge 提高約 %lld 分。"
 }

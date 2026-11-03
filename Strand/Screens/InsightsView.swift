@@ -1157,7 +1157,7 @@ struct InsightsView: View {
                               note: e.significant ? String(localized: "Clear pattern") : String(localized: "Still exploring"),
                               value: value, fraction: max(-1, min(1, e.cohensD / 0.8)), tint: tint) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                Text(BehaviorInsights.sentence(e))
+                Text(ForgeEffectWording.line(delta: e.delta, percent: e.pctChange))
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1332,7 +1332,7 @@ struct InsightsView: View {
                               value: String(format: "%@%.0f", cost.delta >= 0 ? "−" : "+", abs(cost.delta)),
                               fraction: max(-1, min(1, -cost.delta / 20)), tint: tint) {
             VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-                Text(cost.sentence())
+                Text(ForgeEffectWording.cost(cost))
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
