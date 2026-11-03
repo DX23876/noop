@@ -3869,5 +3869,16 @@
   "Sage": "鼠尾草",
   "Nap": "小睡",
   "entries": "条记录",
-  "Manage sessions": "管理训练"
+  "Manage sessions": "管理训练",
+  "Naps": "小睡",
+  "Add entry": "记录",
+  "Tiles per row": "每行卡片数",
+  "Tiles start": "卡片起始位置",
+  "Under the rings": "圆环下方",
+  "After the timeline": "当日动态之后",
+  "Change size": "更改大小",
+  "Your week read back": "回顾你的一周",
+  "Small · a heart beating with your pulse": "小 · 随脉搏跳动的心形",
+  "Wide · your heart rate as a curve": "宽 · 以曲线显示心率",
+  "No sleep stages for this night.": "这一晚没有睡眠阶段。"
 }

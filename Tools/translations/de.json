@@ -3769,5 +3769,16 @@
   "Sage": "Salbei",
   "Nap": "Nickerchen",
   "entries": "Einträge",
-  "Manage sessions": "Einheiten verwalten"
+  "Manage sessions": "Einheiten verwalten",
+  "Naps": "Nickerchen",
+  "Add entry": "Eintragen",
+  "Tiles per row": "Kacheln pro Reihe",
+  "Tiles start": "Kacheln beginnen",
+  "Under the rings": "Unter den Ringen",
+  "After the timeline": "Nach dem Tagesverlauf",
+  "Change size": "Größe ändern",
+  "Your week read back": "Deine Woche im Rückblick",
+  "Small · a heart beating with your pulse": "Klein · ein Herz, das mit deinem Puls schlägt",
+  "Wide · your heart rate as a curve": "Breit · dein Puls als Verlauf",
+  "No sleep stages for this night.": "Für diese Nacht gibt es keine Schlafphasen."
 }

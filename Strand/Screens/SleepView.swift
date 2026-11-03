@@ -209,6 +209,7 @@ struct SleepView: View {
                 displayedRevision = key
                 deletedSleepWindows = loadDeletedSleepWindows()
                 if nightOffset != offset { nightOffset = offset }
+                openRequestedEditor(night: night ?? resolved?.night, offset: offset)
             } catch { /* A superseded load must not replace the currently visible night. */ }
         }
         .task(id: deletedSleepNoteRevision) {
@@ -1406,6 +1407,25 @@ struct SleepView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// The redesign's Sleep tab asked for an action on a night: go to it, then act once it is on screen.
+    private func openRequestedEditor(night: Night?, offset: Int) {
+        guard let request = SleepEditRequest.pending else { return }
+        guard request.offset == offset else { nightOffset = request.offset; return }
+        SleepEditRequest.pending = nil
+        switch request.action {
+        case .editNight:
+            if let night { wakeEdit = wakeEdit(for: night) }
+        case .deleteNap(let nap):
+            napPendingDelete = nap
+        }
+    }
+
+    private func wakeEdit(for night: Night) -> WakeEdit? {
+        guard let target = night.editTarget, let window = SleepGroupEdit.groupWindow(night.editGroup) else { return nil }
+        return WakeEdit(group: night.editGroup, detectedStartTs: target.startTs, bedTs: window.start,
+                        wakeTs: window.end, userEdited: night.editGroup.contains(where: \.userEdited))
+    }
+
     /// Pencil affordance that opens the wake-time editor for `night`. Auto-detection misreads the wake
     /// time most often (a late lie-in, or a morning stir read as still-asleep), so a one-tap correction
     /// lives right next to the "Woke" value. A filled pencil marks a night already hand-corrected. (#318)
@@ -1419,16 +1439,10 @@ struct SleepView: View {
         // Resolve the real stored block by identity (the night's main block), never by re-scanning
         // `allSessions` for a wake-time match — that guess could pick the wrong source/night and, when
         // it missed, fall back to the synthetic effective onset (not a real key) so the edit no-oped.
-        if let target = night.editTarget,
-           let window = SleepGroupEdit.groupWindow(night.editGroup) {
-            let group = night.editGroup
-            let isEdited = group.contains(where: \.userEdited)
+        if let edit = wakeEdit(for: night) {
+            let isEdited = edit.userEdited
             Button {
-                wakeEdit = WakeEdit(group: group,
-                                    detectedStartTs: target.startTs,
-                                    bedTs: window.start,
-                                    wakeTs: window.end,
-                                    userEdited: isEdited)
+                wakeEdit = edit
             } label: {
                 Image(systemName: isEdited ? "pencil.circle.fill" : "pencil.circle")
                     .font(StrandFont.headline)
@@ -2589,6 +2603,17 @@ private struct SleepFreshnessNote: View {
 // SleepModel.swift, so the Today host can build the same model without a SleepView instance.
 
 // MARK: - Wake-time editor
+
+/// One-shot request from the redesign's Sleep tab: when the full Sleep screen appears, act on the night at this
+/// offset, the same offset both screens browse by. The edit, delete, undo and rescore stay that screen's.
+@MainActor
+enum SleepEditRequest {
+    enum Action {
+        case editNight
+        case deleteNap(CachedSleepSession)
+    }
+    static var pending: (offset: Int, action: Action)?
+}
 
 /// Identifies the night being edited for `.sheet(item:)`. A night's `startTs` is its stable natural
 /// key (wake-time edits never move it), so it doubles as the sheet identity.

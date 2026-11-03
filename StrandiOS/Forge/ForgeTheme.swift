@@ -279,6 +279,48 @@ extension ForgeLargeHeader where Trailing == EmptyView {
     }
 }
 
+/// Today's header in one row: the bold title with the date beside it, the strap's ring and the profile. One
+/// row leaves the height to the rings. The date gives way first when text runs large.
+struct ForgeTodayHeader: View {
+    let onProfile: () -> Void
+    @EnvironmentObject private var profile: ProfileStore
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 0) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    title
+                    Text(Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)))
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(ForgeColor.text.opacity(0.8))
+                        .lineLimit(1)
+                }
+                title
+            }
+            Spacer(minLength: 8)
+            DashboardBatteryButton(size: 34, showsPercent: false)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+            Button(action: onProfile) {
+                ProfileAvatarView(imageData: profile.avatarImageData, size: 32, fallbackTint: ForgeColor.accent)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Profile and settings"))
+        }
+        .padding(.leading, 20)
+        .padding(.trailing, 12)
+    }
+
+    private var title: some View {
+        Text("Today")
+            .font(.system(.largeTitle, weight: .heavy))
+            .foregroundStyle(ForgeColor.text)
+            .lineLimit(1)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
 /// A section title in the redesign: bold, with an optional trailing link in the accent colour.
 struct ForgeSectionTitle: View {
     let title: LocalizedStringKey

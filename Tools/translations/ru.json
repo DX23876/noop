@@ -3745,5 +3745,16 @@
   "Sage": "Шалфей",
   "Nap": "Дневной сон",
   "entries": "записи",
-  "Manage sessions": "Управление тренировками"
+  "Manage sessions": "Управление тренировками",
+  "Naps": "Дневной сон",
+  "Add entry": "Добавить",
+  "Tiles per row": "Плиток в ряду",
+  "Tiles start": "Плитки начинаются",
+  "Under the rings": "Под кольцами",
+  "After the timeline": "После ленты дня",
+  "Change size": "Изменить размер",
+  "Your week read back": "Ваша неделя в обзоре",
+  "Small · a heart beating with your pulse": "Маленький · сердце бьётся с вашим пульсом",
+  "Wide · your heart rate as a curve": "Широкий · пульс в виде кривой",
+  "No sleep stages for this night.": "Для этой ночи нет фаз сна."
 }

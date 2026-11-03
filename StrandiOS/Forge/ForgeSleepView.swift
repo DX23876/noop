@@ -76,7 +76,8 @@ struct ForgeSleepView: View {
                         tonightCard
                         if let model, let night {
                             nightCard(night)
-                            ForgeNightBreakdown(model: model, night: night)
+                            naps(night)
+                            if night.stages.total > 0 { ForgeNightBreakdown(model: model, night: night) }
                             GoalsContextCard(context: .sleep)
                             highlights(model, night: night)
                             nightFacts(model)
@@ -231,28 +232,94 @@ struct ForgeSleepView: View {
         let chosen = SleepChartStyle.resolve(chartStyleRaw)
         let filled = chosen == .classic ? false : chosen.isFilled
         let palette = chosen == .classic ? SleepStagePalette.noop : chosen.stagePalette
-        return NavigationLink(value: TabRoute.sleep) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(nightOffset == 0 ? "Last night" : "This night").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
-                    Spacer()
-                    Text("\(night.onsetText) to \(night.wakeText)")
-                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+        let edited = night.editGroup.contains(where: \.userEdited)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                Text(nightOffset == 0 ? "Last night" : "This night").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
+                Spacer()
+                Text("\(night.onsetText) to \(night.wakeText)")
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                // The same editor the full Sleep screen opens, for this night.
+                NavigationLink(value: TabRoute.sleep) {
+                    Image(systemName: edited ? "pencil.circle.fill" : "pencil.circle")
+                        .font(.title3)
+                        .foregroundStyle(ForgeColor.restInk)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
-                Hypnogram(intervals: night.intervals, height: 170, showsStageAxis: true, showsHover: false,
-                          nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
-                    .padding(10)
-                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.card))
-                HStack(spacing: 14) {
-                    stageFact(String(localized: "Deep"), night.stages.deep)
-                    stageFact(String(localized: "REM"), night.stages.rem)
-                    stageFact(String(localized: "Light"), night.stages.light)
-                    stageFact(String(localized: "Awake"), night.stages.awake)
-                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { SleepEditRequest.pending = (nightOffset, .editNight) })
+                .accessibilityLabel(Text("Edit sleep times"))
             }
-            .forgeCard(radius: 24, padding: 14)
+            if night.stages.total > 0 {
+                NavigationLink(value: TabRoute.sleep) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Hypnogram(intervals: night.intervals, height: 170, showsStageAxis: true, showsHover: false,
+                                  nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.card))
+                        HStack(spacing: 14) {
+                            stageFact(String(localized: "Deep"), night.stages.deep)
+                            stageFact(String(localized: "REM"), night.stages.rem)
+                            stageFact(String(localized: "Light"), night.stages.light)
+                            stageFact(String(localized: "Awake"), night.stages.awake)
+                        }
+                    }
+                }
+                .buttonStyle(LiquidPressStyle())
+            } else {
+                Text("No sleep stages for this night.")
+                    .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+            }
         }
-        .buttonStyle(LiquidPressStyle())
+        .forgeCard(radius: 24, padding: 14)
+    }
+
+    // MARK: Naps
+
+    /// The day's blocks outside the main night, each removable when it was detected wrongly. The delete, its
+    /// confirmation and its undo are the full Sleep screen's.
+    @ViewBuilder private func naps(_ night: Night) -> some View {
+        let main = Set(SleepView.mainNightGroup(night.sourceBlocks, habitualMidsleepSec: presentation?.habitualMidsleepSec).map(\.startTs))
+        let blocks = night.sourceBlocks.filter { !main.contains($0.startTs) }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+        if !blocks.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForgeSectionTitle(title: "Naps")
+                VStack(spacing: 0) {
+                    ForEach(Array(blocks.enumerated()), id: \.element.startTs) { index, nap in
+                        if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
+                        napRow(nap)
+                    }
+                }
+                .forgeCard(radius: 22, padding: 14)
+            }
+        }
+    }
+
+    private func napRow(_ nap: CachedSleepSession) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "powersleep")
+                .font(.system(.body, weight: .semibold))
+                .foregroundStyle(ForgeColor.rest)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: "\(Night.clockString(nap.effectiveStartTs)) – \(Night.clockString(nap.endTs))")
+                    .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                Text(ForgeTodayView.hoursMinutes(Double(nap.endTs - nap.effectiveStartTs) / 60))
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+            }
+            Spacer(minLength: 8)
+            NavigationLink(value: TabRoute.sleep) {
+                Image(systemName: "trash")
+                    .font(.system(.body))
+                    .foregroundStyle(ForgeColor.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded { SleepEditRequest.pending = (nightOffset, .deleteNap(nap)) })
+            .accessibilityLabel(Text("Delete nap"))
+        }
     }
 
     private func stageFact(_ label: String, _ minutes: Double) -> some View {
@@ -332,7 +399,7 @@ struct ForgeSleepView: View {
         let row = nightRow
         let temp = row?.skinTempDevC.map { String(format: "%+.1f °C", $0) }
         let facts: [(String?, String)] = [
-            (m.efficiency.latest.map { "\(Int($0.rounded()))%" }, String(localized: "Efficiency")),
+            (night.flatMap(ForgeNightBreakdown.efficiency).map { "\(Int($0.rounded()))%" }, String(localized: "Efficiency")),
             (row?.disturbances.map(String.init), String(localized: "Wake-ups")),
             (row?.restingHr.map(String.init), String(localized: "Resting HR at night")),
             (row?.avgHrv.map { "\(Int($0.rounded())) ms" }, String(localized: "HRV")),

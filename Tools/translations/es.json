@@ -3768,5 +3768,16 @@
   "Sage": "Salvia",
   "Nap": "Siesta",
   "entries": "entradas",
-  "Manage sessions": "Gestionar sesiones"
+  "Manage sessions": "Gestionar sesiones",
+  "Naps": "Siestas",
+  "Add entry": "Añadir",
+  "Tiles per row": "Mosaicos por fila",
+  "Tiles start": "Los mosaicos empiezan",
+  "Under the rings": "Bajo los anillos",
+  "After the timeline": "Tras el día",
+  "Change size": "Cambiar tamaño",
+  "Your week read back": "Tu semana en resumen",
+  "Small · a heart beating with your pulse": "Pequeño · un corazón que late con tu pulso",
+  "Wide · your heart rate as a curve": "Ancho · tu pulso como curva",
+  "No sleep stages for this night.": "No hay fases de sueño para esta noche."
 }

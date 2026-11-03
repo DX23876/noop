@@ -126,6 +126,12 @@ struct ForgeHealthView: View {
                         if healthspanEnabled { agelessCard }
                         weekInRings
                         ForgeGroup {
+                            NavigationLink(value: ForgeRoute.weeklyReport) {
+                                ForgeRow(systemImage: "calendar", tint: ForgeColor.accent,
+                                         title: String(localized: "Weekly report"),
+                                         subtitle: String(localized: "Your week read back"))
+                            }
+                            ForgeRowDivider()
                             NavigationLink(value: TabRoute.trends) {
                                 ForgeRow(systemImage: "chart.line.uptrend.xyaxis", tint: ForgeColor.charge,
                                          title: String(localized: "Trends"),

@@ -3769,5 +3769,16 @@
   "Sage": "Sauge",
   "Nap": "Sieste",
   "entries": "entrées",
-  "Manage sessions": "Gérer les séances"
+  "Manage sessions": "Gérer les séances",
+  "Naps": "Siestes",
+  "Add entry": "Ajouter",
+  "Tiles per row": "Tuiles par rangée",
+  "Tiles start": "Les tuiles commencent",
+  "Under the rings": "Sous les anneaux",
+  "After the timeline": "Après la journée",
+  "Change size": "Changer la taille",
+  "Your week read back": "Votre semaine en revue",
+  "Small · a heart beating with your pulse": "Petit · un cœur qui bat à votre rythme",
+  "Wide · your heart rate as a curve": "Large · votre pouls en courbe",
+  "No sleep stages for this night.": "Aucune phase de sommeil pour cette nuit."
 }

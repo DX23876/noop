@@ -6,8 +6,8 @@ import StrandCore
 import WhoopStore
 import StrandTraining
 
-/// The redesigned Today (2026-11, "New design (preview)"): the three organic rings at the top with today's
-/// Effort target, what is still planned for later, then one timeline of what happened, newest first.
+/// The redesigned Today (2026-11, "New design (preview)"): the three organic rings, Log and Start, the wearer's
+/// tiles, then one sheet over the motif with what happened, newest first.
 ///
 /// Every number is read through the same resolvers the shipped Today uses (`ChargeDisplay`,
 /// `DashboardRestScore`/`freshRestScore`, `LiveEffort` floored by `effectiveEffort`), so the two designs can
@@ -30,9 +30,6 @@ struct ForgeTodayView: View {
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
     @EnvironmentObject private var router: NavRouter
-    @EnvironmentObject private var session: ActiveSessionController
-    /// Routines the training plan schedules for today, shown under Later Today.
-    @State private var plannedRoutines: [TrainingRoutine] = []
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
@@ -66,7 +63,7 @@ struct ForgeTodayView: View {
     @State private var heroHidden = false
     @State private var editingWidgets = false
     @ObservedObject private var widgetStore = ForgeTodayWidgetStore.shared
-    @AppStorage("forge.today.widgetsHintSeen") private var widgetsHintSeen = false
+    @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var tilesBelowTimeline = false
     /// Bumped by a tap on the pinned bar: back to the rings.
     @State private var backToTop = 0
     /// Bumped when Today comes back into view, so what was just logged on another page is already there.
@@ -93,93 +90,49 @@ struct ForgeTodayView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    ForgeLargeHeader(title: "Today", onProfile: onProfile) {
-                        Button(action: onLog) {
-                            Image(systemName: "plus")
-                                .font(.system(.body, weight: .semibold))
-                                .foregroundStyle(ForgeColor.text)
-                                .frame(width: 36, height: 36)
-                                .forgeGlassCapsule()
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Text("Log"))
-                        ForgeSearchButton()
-                        NavigationLink(value: ForgeRoute.weeklyReport) {
-                            Image(systemName: "calendar")
-                                .font(.system(.body, weight: .semibold))
-                                .foregroundStyle(ForgeColor.text)
-                                .frame(width: 36, height: 36)
-                                .forgeGlassCapsule()
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .accessibilityLabel(Text("Weekly report"))
-                    }
-                    .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
-                    .id("forge-today-top")
-                    VStack(alignment: .leading, spacing: 14) {
-                        HealthAlertBanner()
-                        ActiveWorkoutIndicatorSection()
-                        ActivitySuggestionPrompt()
-                        MorningSuggestionCard(showPlan: $showPlan)
-                        if snapshot.loaded && repo.days.isEmpty {
-                            // First run: nothing recorded or imported yet. The same calm state Health and
-                            // Live show, with the one next step.
-                            WearableConnectionStateCard(
-                                title: "No biometrics yet",
-                                detail: "Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.",
-                                actionTitle: "Connect a device",
-                                action: { router.openDevices() })
-                        }
-                        hero
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForgeTodayHeader(onProfile: onProfile)
                             .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
-                            // Holding the rings offers the widget editor, as the system menu, so a hold never also
-                            // opens the ring it lands on.
-                            .contextMenu {
-                                Button { startEditingWidgets() } label: { Label("Customize Today", systemImage: "square.grid.2x2") }
+                            .id("forge-today-top")
+                        VStack(alignment: .leading, spacing: 14) {
+                            HealthAlertBanner()
+                            ActiveWorkoutIndicatorSection()
+                            ActivitySuggestionPrompt()
+                            MorningSuggestionCard(showPlan: $showPlan)
+                            if snapshot.loaded && repo.days.isEmpty {
+                                // First run: nothing recorded or imported yet. The same calm state Health and
+                                // Live show, with the one next step.
+                                WearableConnectionStateCard(
+                                    title: "No biometrics yet",
+                                    detail: "Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.",
+                                    actionTitle: "Connect a device",
+                                    action: { router.openDevices() })
                             }
-                            .background(GeometryReader { geo in
-                                Color.clear.preference(key: ForgeHeroBottomKey.self,
-                                                       value: geo.frame(in: .named("forge-today")).maxY)
-                            })
-                        if !widgetsHintSeen && widgetStore.widgets.isEmpty && !editingWidgets {
-                            Button { startEditingWidgets() } label: {
-                                Text("Hold the rings to customize Today")
-                                    .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
-                                    .padding(.horizontal, 14).frame(minHeight: 36)
-                                    .background(Capsule().fill(ForgeColor.fill))
+                            hero
+                                .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
+                                // Holding the rings offers the tile editor too, as the system menu, so a hold
+                                // never also opens the ring it lands on.
+                                .contextMenu {
+                                    Button { startEditingWidgets() } label: { Label("Customize Today", systemImage: "square.grid.2x2") }
+                                }
+                                .background(GeometryReader { geo in
+                                    Color.clear.preference(key: ForgeHeroBottomKey.self,
+                                                           value: geo.frame(in: .named("forge-today")).maxY)
+                                })
+                            actions
+                                .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
+                            if !tilesBelowTimeline || editingWidgets {
+                                ForgeTodayWidgetArea(editing: $editingWidgets)
                             }
-                            .buttonStyle(.plain)
-                            .environment(\.colorScheme, onDarkMotif ? .dark : colorScheme)
-                            // Said once: it fades by itself and does not come back.
-                            .task {
-                                try? await Task.sleep(for: .seconds(6))
-                                guard !Task.isCancelled else { return }
-                                withAnimation(.easeOut) { widgetsHintSeen = true }
-                            }
-                            .frame(maxWidth: .infinity)
+                            ForgeCycleSummaryCard(showsLogButtons: false)
                         }
-                        ForgeTodayWidgetArea(editing: $editingWidgets)
-                        ForgeCycleSummaryCard(showsLogButtons: false)
-                        laterToday
-                        timeline
-                        if !editingWidgets {
-                            Button { startEditingWidgets() } label: {
-                                Label("Customize Today", systemImage: "square.grid.2x2")
-                                    .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.accent)
-                                    .frame(maxWidth: .infinity, minHeight: 44)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.top, 8)
-                        }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.bottom, 18)
+                    daySheet
                 }
                 .padding(.top, 6)
-                .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
             .coordinateSpace(name: "forge-today")
@@ -236,9 +189,38 @@ struct ForgeTodayView: View {
     }
 
     private func startEditingWidgets() {
-        widgetsHintSeen = true
         withAnimation(.snappy) { editingWidgets = true }
         backToTop += 1
+    }
+
+    /// Log, Start and the pencil in one row under the rings, where a thumb finds them.
+    private var actions: some View {
+        HStack(spacing: 8) {
+            Button(action: onLog) { actionLabel("Add entry", systemImage: "plus") }
+                .buttonStyle(.plain)
+            Button(action: onWorkout) { actionLabel("Start", systemImage: "figure.run") }
+                .buttonStyle(.plain)
+            Button {
+                if editingWidgets { withAnimation(.snappy) { editingWidgets = false } } else { startEditingWidgets() }
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundStyle(ForgeColor.text)
+                    .frame(width: 46, height: 46)
+                    .forgeGlassCapsule()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Customize Today"))
+        }
+    }
+
+    private func actionLabel(_ title: LocalizedStringKey, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.system(.subheadline, weight: .semibold))
+            .foregroundStyle(ForgeColor.text)
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .forgeGlassCapsule()
+            .contentShape(Capsule())
     }
 
     // MARK: - Hero
@@ -247,11 +229,9 @@ struct ForgeTodayView: View {
     private var effortScore: Double? { snapshot.effortStored.map { UnitFormatter.effortValue($0, scale: effortScale) } }
     private var effortTarget: ClosedRange<Double>? { ForgeToday.effortTargetStored(charge: chargeScore) }
 
-    /// The rings on their own, as in the first Forge boards: three equal rings with their names, no card, no
-    /// sentence and no buttons, and room below before the rest of the day. Log moved to the header; a workout
-    /// starts from the Training tab.
+    /// The rings on their own: three equal rings with their names, no card and no sentence.
     private var hero: some View {
-        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth) * 0.92
+        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth)
         let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
         return OrganicScoreHeroClock(dataReady: snapshot.loaded || effortScore != nil) { frame in
             HStack(alignment: .top, spacing: 0) {
@@ -276,8 +256,7 @@ struct ForgeTodayView: View {
                 .onAppear { rowWidth = geo.size.width }
                 .onChange(of: geo.size.width) { _, w in rowWidth = w }
         })
-        .padding(.top, 8)
-        .padding(.bottom, 22)
+        .padding(.vertical, 4)
     }
 
     /// The three scores in one glass bar while the rings are scrolled away. Tapping returns to the top.
@@ -364,151 +343,56 @@ struct ForgeTodayView: View {
         return parts.joined(separator: ", ")
     }
 
-    // MARK: - Later today
-
-    private struct LaterItem: Identifiable {
-        let id: String
-        /// nil for a planned routine, which has a day but no time.
-        let time: Date?
-        let title: String
-        let systemImage: String
-        let tint: Color
-        let action: () -> Void
-    }
-
-    private var laterItems: [LaterItem] {
-        let now = Date()
-        var items: [LaterItem] = []
-        if let bed = ForgeToday.plannedBedtime(now: now), bed > now,
-           bed.timeIntervalSince(now) < 16 * 3600 {
-            items.append(LaterItem(id: "bedtime", time: bed, title: String(localized: "Bedtime"),
-                                   systemImage: "moon.fill", tint: ForgeColor.rest, action: onSleep))
-        }
-        // Planned routines first (no time of their own), then the timed items in order.
-        let routines = plannedRoutines.map { routine in
-            LaterItem(id: "routine-\(routine.id)", time: nil, title: routine.title, systemImage: "dumbbell.fill",
-                      tint: ForgeColor.effort, action: { session.requestStrength(routines: [routine]) })
-        }
-        return routines + items.sorted { ($0.time ?? .distantPast) < ($1.time ?? .distantPast) }
-    }
-
-    /// Sunday evening: the week is complete enough to read back.
-    private var showsWeeklyChip: Bool {
-        let cal = Calendar.current
-        return cal.component(.weekday, from: Date()) == 1 && cal.component(.hour, from: Date()) >= 17
-    }
-
-    @ViewBuilder private var laterToday: some View {
-        let items = laterItems
-        if !items.isEmpty || showsWeeklyChip {
-            VStack(alignment: .leading, spacing: 8) {
-                ForgeSectionTitle(title: "Later Today")
-                ScrollView(.horizontal) {
-                    HStack(spacing: 8) {
-                        if showsWeeklyChip {
-                            NavigationLink(value: ForgeRoute.weeklyReport) {
-                                laterChip(time: nil, systemImage: "doc.text.fill", tint: ForgeColor.accent,
-                                          title: String(localized: "Weekly report"))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        ForEach(items) { item in
-                            Button(action: item.action) {
-                                laterChip(time: item.time, systemImage: item.systemImage, tint: item.tint, title: item.title)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 6)
-                }
-                .scrollIndicators(.hidden)
-            }
-        }
-    }
-
-    /// One "Later Today" chip as in the prototype: time, a tinted round icon, the title.
-    private func laterChip(time: Date?, systemImage: String, tint: Color, title: String) -> some View {
-        HStack(spacing: 10) {
-            if let time {
-                Text(time, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                    .font(.system(.subheadline, weight: .medium).monospacedDigit())
-                    .foregroundStyle(ForgeColor.secondary)
-            }
-            Image(systemName: systemImage)
-                .font(.system(.footnote, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(tint.opacity(0.18)))
-            Text(title)
-                .font(.system(.subheadline, weight: .semibold))
-                .foregroundStyle(ForgeColor.text)
-                .lineLimit(1)
-        }
-        .padding(.leading, time == nil ? 10 : 16)
-        .padding(.trailing, 18)
-        .frame(minHeight: 54)
-        .forgeCard(radius: 27, padding: 0)
-        .fixedSize()
-    }
-
     // MARK: - Timeline
 
-    private static let timeWidth: CGFloat = 42
+    /// The day on one sheet over the motif: full width, entries set apart by their own time and not by a rail
+    /// beside them. Fills past its end, so a pull at the bottom never shows the motif through.
+    private var daySheet: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            timeline
+            if tilesBelowTimeline && !editingWidgets {
+                ForgeTodayWidgetArea(editing: $editingWidgets)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 22)
+        .padding(.bottom, 110)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(alignment: .top) {
+            UnevenRoundedRectangle(topLeadingRadius: 30, topTrailingRadius: 30, style: .continuous)
+                .fill(ForgeColor.card)
+                .padding(.bottom, -600)
+        }
+    }
 
     private var timeline: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            nowMarker
+        VStack(alignment: .leading, spacing: 18) {
             if snapshot.loaded && snapshot.timeline.isEmpty {
                 Text("Workouts, nights and notes from the coach appear here as the day goes on.")
                     .font(ForgeFont.body)
                     .foregroundStyle(ForgeColor.secondary)
-                    .padding(.leading, Self.timeWidth + 28)
-                    .padding(.vertical, 12)
             }
             ForEach(Array(snapshot.timeline.enumerated()), id: \.element.id) { index, day in
                 if index > 0 || !Calendar.current.isDateInToday(day.date) {
                     dayDivider(day.date)
                 }
                 ForEach(day.entries) { entry in
-                    railRow(time: entry.timed ? entry.date : nil, accent: { if case .coach = entry.kind { return true } else { return false } }()) {
-                        entryCard(entry)
-                    }
+                    timelineEntry(entry)
                 }
             }
         }
-        .padding(.top, 10)
-    }
-
-    private var nowMarker: some View {
-        HStack(spacing: 8) {
-            Text(Date(), format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                .font(.system(.footnote, weight: .semibold).monospacedDigit())
-                .foregroundStyle(ForgeColor.accent)
-                .fixedSize()
-                .frame(width: Self.timeWidth, alignment: .trailing)
-            Circle().fill(ForgeColor.accent).frame(width: 11, height: 11)
-                .overlay(Circle().strokeBorder(ForgeColor.card, lineWidth: 2))
-            Text("Now")
-                .font(.system(.caption, weight: .bold))
-                .foregroundStyle(ForgeColor.onAccent)
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Capsule().fill(ForgeColor.accent))
-            Spacer()
-        }
-        .padding(.bottom, 6)
-        .accessibilityElement(children: .combine)
     }
 
     private func dayDivider(_ date: Date) -> some View {
-        HStack(spacing: 8) {
-            Color.clear.frame(width: Self.timeWidth, height: 1)
-            Circle().fill(ForgeColor.text).frame(width: 9, height: 9)
-            Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-            Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
-                .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
-            Spacer()
+        HStack(spacing: 10) {
+            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
+            (Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundColor(ForgeColor.text)
+             + Text(verbatim: "  ") + Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
+                .font(.system(.subheadline)).foregroundColor(ForgeColor.secondary))
+                .lineLimit(1).fixedSize()
+            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 4)
         .accessibilityAddTraits(.isHeader)
     }
 
@@ -519,30 +403,22 @@ struct ForgeTodayView: View {
         return date.formatted(.dateTime.weekday(.wide).locale(AppLanguage.activeLocale))
     }
 
-    private func railRow<Content: View>(time: Date?, accent: Bool = false,
-                                        @ViewBuilder content: () -> Content) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text(time?.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale)) ?? "")
-                .font(.system(.footnote, weight: .medium).monospacedDigit())
-                .foregroundStyle(ForgeColor.secondary)
-                .fixedSize()
-                .frame(width: Self.timeWidth, alignment: .trailing)
-                .padding(.top, 15)
-                .accessibilityHidden(true)
-            // One continuous rail: the line runs the full row height, the dot sits on it at the card's
-            // first line, so consecutive rows join into a single thread.
-            ZStack(alignment: .top) {
-                Rectangle().fill(ForgeColor.separator).frame(width: 2).frame(maxHeight: .infinity)
-                // Coach notes get the accent dot; everything else a hollow ring, as in the prototype.
-                Circle().fill(accent ? ForgeColor.accent : ForgeColor.canvas)
-                    .overlay(Circle().strokeBorder(accent ? ForgeColor.accent : ForgeColor.tertiary, lineWidth: 2))
-                    .frame(width: 12, height: 12)
-                    .padding(.top, 17)
+    private static func timeText(_ date: Date) -> String {
+        date.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))
+    }
+
+    /// One entry: its time, then what happened. A figure that only knows its day shows none; a coach note
+    /// carries its time in its own label.
+    private func timelineEntry(_ entry: ForgeTimeline.Entry) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if case .coach = entry.kind {
+                EmptyView()
+            } else if entry.timed {
+                Text(Self.timeText(entry.date))
+                    .font(.system(.footnote, weight: .medium).monospacedDigit())
+                    .foregroundStyle(ForgeColor.secondary)
             }
-            .frame(width: 12)
-            .accessibilityHidden(true)
-            content()
-                .padding(.bottom, 10)
+            entryCard(entry)
         }
     }
 
@@ -559,21 +435,27 @@ struct ForgeTodayView: View {
     }
 
     private func coachLabel(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> String {
-        if let kicker = entry.kicker { return String(localized: "Coach · \(kicker)") }
-        switch origin {
-        case .brief: return String(localized: "Coach · morning")
-        case .checkIn: return String(localized: "Coach · check-in")
-        case .nudge: return String(localized: "Coach")
-        case .weeklyReview: return String(localized: "Coach · weekly review")
+        let label: String
+        if let kicker = entry.kicker {
+            label = String(localized: "Coach · \(kicker)")
+        } else {
+            switch origin {
+            case .brief: label = String(localized: "Coach · morning")
+            case .checkIn: label = String(localized: "Coach · check-in")
+            case .nudge: label = String(localized: "Coach")
+            case .weeklyReview: label = String(localized: "Coach · weekly review")
+            }
         }
+        return "\(Self.timeText(entry.date)) · \(label)"
     }
 
     private func coachCard(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Label(coachLabel(entry, origin: origin), systemImage: "waveform.path.ecg")
-                    .font(.system(.subheadline, weight: .semibold))
+                    .font(.system(.footnote, weight: .semibold))
                     .foregroundStyle(ForgeColor.accent)
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer()
                 Button { whyEntry = entry } label: {
                     Image(systemName: "info.circle")
@@ -588,13 +470,14 @@ struct ForgeTodayView: View {
                 .font(.system(.title3, weight: .bold))
                 .foregroundStyle(ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
+            // The figures first, then the words about them.
+            noteFigures(entry, origin: origin)
             if !entry.detail.isEmpty {
                 Text(Self.markdown(entry.detail))
                     .font(ForgeFont.body)
                     .foregroundStyle(ForgeColor.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            noteFigures(entry, origin: origin)
             FlowRows(spacing: 8) {
                 if coachFeatureEnabled {
                     // Only what the coach offered with this note: a note that asks nothing offers nothing.
@@ -606,8 +489,9 @@ struct ForgeTodayView: View {
                           action: onCoach)
             }
             .padding(.top, 2)
+            Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.top, 8)
         }
-        .forgeCard(radius: 22, padding: 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture(perform: onCoach)
         .accessibilityElement(children: .contain)
@@ -710,7 +594,7 @@ struct ForgeTodayView: View {
                         }
                     }
                 }
-                .forgeCard(radius: 22, padding: 14)
+                .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
         }
@@ -738,7 +622,7 @@ struct ForgeTodayView: View {
                         .font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
                 }
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeEventTile()
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -763,7 +647,7 @@ struct ForgeTodayView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .forgeCard(radius: 22, padding: 14)
+            .forgeEventTile()
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -788,7 +672,7 @@ struct ForgeTodayView: View {
         Button(action: onSleep) {
             factRow(symbol: "moon.zzz.fill", tint: ForgeColor.rest, title: String(localized: "Nap"), detail: nil,
                     value: entry.value.map(Self.hoursMinutes), unit: String(localized: "h asleep"))
-                .forgeCard(radius: 22, padding: 14)
+                .forgeEventTile()
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -800,21 +684,21 @@ struct ForgeTodayView: View {
             NavigationLink(value: TabRoute.hydration) {
                 factRow(symbol: "drop.fill", tint: ForgeColor.accent, title: String(localized: "Drink"), detail: nil,
                         value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: value))), unit: "L")
-                    .forgeCard(radius: 22, padding: 14)
+                    .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
         case .food:
             NavigationLink(value: TabRoute.energy) {
                 factRow(symbol: "fork.knife", tint: ForgeColor.effort, title: String(localized: "Food"), detail: nil,
                         value: "\(Int(value.rounded()))", unit: "kcal")
-                    .forgeCard(radius: 22, padding: 14)
+                    .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
         case .journal:
             NavigationLink(value: MoreDestination.insights) {
                 factRow(symbol: "book.closed.fill", tint: ForgeColor.accent, title: String(localized: "Journal"), detail: nil,
                         value: "\(Int(value))", unit: String(localized: "entries"))
-                    .forgeCard(radius: 22, padding: 14)
+                    .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
         }
@@ -824,7 +708,7 @@ struct ForgeTodayView: View {
         NavigationLink(value: MoreDestination.ecg) {
             factRow(symbol: "waveform.path.ecg.rectangle", tint: ForgeColor.accent, title: String(localized: "ECG"), detail: nil,
                     value: entry.value.map { "\(Int($0))" }, unit: "bpm")
-                .forgeCard(radius: 22, padding: 14)
+                .forgeEventTile()
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -885,23 +769,6 @@ struct ForgeTodayView: View {
         ].filter { $0.date <= now }
     }
     #endif
-
-    /// Today's routines from the training plan, unless a strength session was already recorded today.
-    private static func plannedRoutines(repo: Repository, now: Date, workouts: [WorkoutRow]) async -> [TrainingRoutine] {
-        let cal = Calendar.current
-        let trainedToday = workouts.contains {
-            cal.isDate(Date(timeIntervalSince1970: TimeInterval($0.startTs)), inSameDayAs: now)
-                && $0.sport.localizedCaseInsensitiveContains("strength")
-        }
-        guard !trainedToday else { return [] }
-        let plan = await repo.nativeTrainingPlan()
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        let weekdayIndex = cal.component(.weekday, from: now)
-        let weekday = TrainingWeekday(rawValue: weekdayIndex == 1 ? 7 : weekdayIndex - 1) ?? .monday
-        return plan.routines(day: f.string(from: now), weekday: weekday)
-    }
 
     static func hoursMinutes(_ minutes: Double) -> String {
         let total = Int(minutes.rounded())
@@ -976,7 +843,6 @@ struct ForgeTodayView: View {
 
         next.restByDay = restByDay
         let workouts = await repo.workoutRows(days: Self.timelineDays + 1, reconcileHrCap: 0)
-        plannedRoutines = await Self.plannedRoutines(repo: repo, now: now, workouts: workouts)
         var input = ForgeTimeline.Input()
         // Weigh-ins that carry their own time (NOOP's own entries; Apple's daily cells have none).
         for w in await repo.weightEntries(days: Self.timelineDays + 1) {
@@ -1059,6 +925,15 @@ struct ForgeTodayView: View {
         }
     }
 }
+private extension View {
+    /// An event on the day sheet: a quiet inset, the sheet itself being the card.
+    func forgeEventTile() -> some View {
+        padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(ForgeColor.fill))
+    }
+}
+
 /// The recent nights and naps as the Sleep tab resolves them: every source, one night per wake day. The
 /// on-device nights a strap produces live under the computed source, which the imported-only read misses.
 enum ForgeRecentSleep {

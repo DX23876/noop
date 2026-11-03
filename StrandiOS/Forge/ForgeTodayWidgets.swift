@@ -8,10 +8,10 @@ import WhoopStore
 
 // MARK: - Widgets on Today (board "TodayWFew", 2026-11)
 //
-// Optional tiles between the rings and the timeline. None by default; the wearer adds them from a small
-// gallery and reorders or removes them in place. Small tiles are measures drawn as the Health focus tiles
-// draw them; wide tiles are the app's own cards (Training load, Goals, Energy), unchanged, so a widget never
-// shows a number differently from the page it opens.
+// Tiles between the rings and the timeline, or after it. A first set comes on its own; the wearer adds from a
+// small gallery and reorders or removes them in place, and picks two or three to a row for the phone in hand.
+// Small tiles are the Liquid Today metric tile; wide tiles are the app's own cards (Training load, Goals,
+// Energy), unchanged, so a widget never shows a number differently from the page it opens.
 
 /// One widget the wearer placed on Today.
 struct ForgeTodayWidget: Codable, Hashable, Identifiable {
@@ -22,8 +22,16 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     /// For a measure: the catalog key and the preferred source.
     var key: String? = nil
     var source: String? = nil
+    /// Live heart rate only: a full-width card with its curve instead of a tile with a beating heart.
+    var wide: Bool? = nil
 
-    var isWide: Bool { kind != .measure && kind != .water && kind != .liveHeart }
+    var isWide: Bool {
+        switch kind {
+        case .measure, .water: return false
+        case .liveHeart: return wide == true
+        default: return true
+        }
+    }
 }
 
 /// The wearer's widgets, oldest first, kept as JSON in UserDefaults.
@@ -31,6 +39,10 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
 final class ForgeTodayWidgetStore: ObservableObject {
     static let key = "forge.today.widgets"
     static let shared = ForgeTodayWidgetStore()
+    /// True: the tiles start after the timeline instead of under the rings.
+    static let belowTimelineKey = "forge.today.tilesBelowTimeline"
+    /// Set once the first set of tiles was placed, so removing them all stays removed.
+    private static let seededKey = "forge.today.widgetsSeeded"
 
     @Published private(set) var widgets: [ForgeTodayWidget] = []
 
@@ -38,6 +50,14 @@ final class ForgeTodayWidgetStore: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: Self.key),
            let list = try? JSONDecoder().decode([ForgeTodayWidget].self, from: data) {
             widgets = list
+        }
+        if !UserDefaults.standard.bool(forKey: Self.seededKey) {
+            UserDefaults.standard.set(true, forKey: Self.seededKey)
+            let first: [ForgeTodayWidget] = ["hrv", "rhr", "steps", "sleep_total_min", "stress", "weight"].compactMap { key in
+                ForgeWidgetMeasures.all.first { $0.key == key }.map { .init(kind: .measure, key: $0.key, source: $0.source) }
+            }
+            widgets = first + widgets
+            save()
         }
     }
 
@@ -47,6 +67,13 @@ final class ForgeTodayWidgetStore: ObservableObject {
 
     func add(_ w: ForgeTodayWidget) { widgets.append(w); save() }
     func remove(_ id: UUID) { widgets.removeAll { $0.id == id }; save() }
+
+    /// Live heart rate between its small tile and its full-width card.
+    func toggleWide(_ id: UUID) {
+        guard let i = widgets.firstIndex(where: { $0.id == id }) else { return }
+        widgets[i].wide = widgets[i].isWide ? false : true
+        save()
+    }
 
     /// Moves `id` to the place of `target`.
     func move(_ id: UUID, before target: UUID) {
@@ -106,21 +133,24 @@ struct ForgeTodayWidgetArea: View {
     @ObservedObject private var store = ForgeTodayWidgetStore.shared
     @State private var addingWidget = false
 
-    /// Small tiles pair up two by two; a wide tile takes its own row.
+    @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
+    @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var belowTimeline = false
+    private var columns: Int { KeyMetricPrefs.columns(columnsRaw) }
+
+    /// Small tiles fill a row of two or three; a wide tile takes its own row.
     private var rows: [[ForgeTodayWidget]] {
         var out: [[ForgeTodayWidget]] = []
-        var pending: ForgeTodayWidget?
+        var pending: [ForgeTodayWidget] = []
         for w in store.widgets {
             if w.isWide {
-                if let p = pending { out.append([p]); pending = nil }
+                if !pending.isEmpty { out.append(pending); pending = [] }
                 out.append([w])
-            } else if let p = pending {
-                out.append([p, w]); pending = nil
             } else {
-                pending = w
+                pending.append(w)
+                if pending.count == columns { out.append(pending); pending = [] }
             }
         }
-        if let p = pending { out.append([p]) }
+        if !pending.isEmpty { out.append(pending) }
         return out
     }
 
@@ -138,12 +168,16 @@ struct ForgeTodayWidgetArea: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    layoutChoices
                 }
                 ForEach(rows, id: \.first!.id) { row in
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .top, spacing: 8) {
                         ForEach(row) { w in cell(w) }
-                        if row.count == 1, !row[0].isWide { Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
+                        if !row[0].isWide {
+                            ForEach(row.count..<columns, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
+                        }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 if editing {
                     Button { addingWidget = true } label: {
@@ -157,6 +191,30 @@ struct ForgeTodayWidgetArea: View {
                 }
             }
             .sheet(isPresented: $addingWidget) { ForgeWidgetGallery() }
+        }
+    }
+
+    /// Two or three tiles to a row, for the phone in hand, and where the tiles start.
+    private var layoutChoices: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            layoutChoice("Tiles per row") {
+                Picker("Tiles per row", selection: Binding(get: { columns }, set: { columnsRaw = $0 })) {
+                    ForEach(KeyMetricPrefs.columnChoices, id: \.self) { Text(verbatim: "\($0)").tag($0) }
+                }
+            }
+            layoutChoice("Tiles start") {
+                Picker("Tiles start", selection: $belowTimeline) {
+                    Text("Under the rings").tag(false)
+                    Text("After the timeline").tag(true)
+                }
+            }
+        }
+    }
+
+    private func layoutChoice<Choice: View>(_ title: LocalizedStringKey, @ViewBuilder choice: () -> Choice) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+            choice().pickerStyle(.segmented).labelsHidden()
         }
     }
 
@@ -175,6 +233,19 @@ struct ForgeTodayWidgetArea: View {
                     .buttonStyle(.plain)
                     .offset(x: -14, y: -14)
                     .accessibilityLabel(Text("Remove widget"))
+                }
+                .overlay(alignment: .topTrailing) {
+                    if w.kind == .liveHeart {
+                        Button { withAnimation(.snappy) { store.toggleWide(w.id) } } label: {
+                            Image(systemName: w.isWide ? "arrow.down.right.and.arrow.up.left.circle.fill" : "arrow.up.left.and.arrow.down.right.circle.fill")
+                                .font(.title2)
+                                .symbolRenderingMode(.palette).foregroundStyle(.white, ForgeColor.accent)
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: 14, y: -14)
+                        .accessibilityLabel(Text("Change size"))
+                    }
                 }
                 .contentShape(Rectangle())
                 // Dragging is not the only way: VoiceOver and Switch Control move a widget by action.
@@ -205,12 +276,42 @@ struct ForgeTodayWidgetView: View {
         case .goals: GoalsTodaySection(headerOutside: true)
         case .energy: ForgeEnergyWidget()
         case .water: ForgeWaterWidget()
-        case .liveHeart: ForgeLiveHeartWidget()
+        case .liveHeart:
+            if widget.isWide { ForgeLiveHeartWideWidget() } else { ForgeLiveHeartWidget() }
         case .momentum: ForgeMomentumWidget()
         case .lastNight: ForgeLastNightWidget()
         case .weekPlan: ForgeWeekPlanWidget()
         case .coachNote: ForgeCoachNoteWidget()
         }
+    }
+}
+
+/// The Liquid Today metric tile as Today's tiles draw it: neutral surface, colour on the icon and the line.
+private struct ForgeTodayTile: View {
+    let label: String
+    let symbol: String
+    let value: String?
+    let unit: String
+    var caption: String? = nil
+    let tint: Color
+    var trend: [Double]? = nil
+    @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
+    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
+
+    var body: some View {
+        let dense = KeyMetricPrefs.columns(columnsRaw) > 2
+        TodayMetricTile(label: Text(verbatim: label.uppercased(with: AppLanguage.activeLocale)),
+                        systemImage: symbol,
+                        value: value ?? "–",
+                        unit: value == nil ? "" : unit,
+                        caption: caption,
+                        tint: tint,
+                        sparkline: trend,
+                        sparkColor: tint,
+                        sparklineHeight: dense ? 22 : 28,
+                        dense: dense,
+                        surfaceOpacity: Double(opacityPercent) / 100,
+                        tintsSurface: false)
     }
 }
 
@@ -223,11 +324,12 @@ struct ForgeWaterWidget: View {
 
     var body: some View {
         NavigationLink(value: TabRoute.hydration) {
-            ForgeMetricTile(label: String(localized: "Hydration"),
-                            value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: totalML))),
-                            unit: String(localized: "of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: Double(repo.hydrationGoalML(profileSex: profile.sex)))))) L"),
-                            trend: week.count > 1 ? week : nil,
-                            tint: ForgeColor.accent)
+            ForgeTodayTile(label: String(localized: "Hydration"), symbol: "drop.fill",
+                           value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: totalML))),
+                           unit: "L",
+                           caption: String(localized: "of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: Double(repo.hydrationGoalML(profileSex: profile.sex)))))) L"),
+                           tint: StrandPalette.metricCyan,
+                           trend: week.count > 1 ? week : nil)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
@@ -237,22 +339,82 @@ struct ForgeWaterWidget: View {
     }
 }
 
-/// The heart rate right now, while a strap streams it. Opens the Live page.
+/// A heart that beats at the rate it shows, so the figure reads as live. Still and grey without a reading.
+struct ForgeBeatingHeart: View {
+    let bpm: Int?
+    var size: CGFloat = 26
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if let bpm, bpm > 0, !reduceMotion {
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                heart(tint: StrandPalette.metricRose)
+                    .scaleEffect(Self.scale(at: context.date.timeIntervalSinceReferenceDate, bpm: bpm))
+            }
+        } else {
+            heart(tint: bpm == nil ? ForgeColor.tertiary : StrandPalette.metricRose)
+        }
+    }
+
+    private func heart(tint: Color) -> some View {
+        Image(systemName: "heart.fill")
+            .font(.system(size: size))
+            .foregroundStyle(tint)
+    }
+
+    /// Two quick swells per beat, the second smaller, as a heart sounds.
+    static func scale(at time: TimeInterval, bpm: Int) -> CGFloat {
+        let period = 60 / Double(max(bpm, 1))
+        let phase = time.truncatingRemainder(dividingBy: period) / period
+        func swell(_ from: Double, _ to: Double) -> Double {
+            guard phase >= from, phase < to else { return 0 }
+            return sin((phase - from) / (to - from) * .pi)
+        }
+        return 1 + 0.2 * swell(0, 0.16) + 0.1 * swell(0.22, 0.36)
+    }
+}
+
+/// The heart rate right now as a small tile, with a heart beating at that rate. Opens the Live page.
 struct ForgeLiveHeartWidget: View {
-    @EnvironmentObject private var model: AppModel
-    /// The readings since this tile came on screen, drawn as its line. Never stored.
-    @State private var recent: [Double] = []
+    @EnvironmentObject private var live: LiveState
+
+    /// The same gate the Live card reads: no number without a connected strap reporting one.
+    private var bpm: Int? {
+        guard live.connected, let hr = live.heartRate, hr > 0 else { return nil }
+        return hr
+    }
 
     var body: some View {
         NavigationLink(value: MoreDestination.live) {
-            ForgeMetricTile(label: String(localized: "Live heart rate"), value: model.bpm.map { "\($0)" },
-                            unit: "bpm", trend: recent, tint: ForgeColor.accent)
+            ForgeTodayTile(label: String(localized: "Live"), symbol: "waveform.path.ecg",
+                           value: bpm.map { "\($0)" }, unit: "bpm", tint: StrandPalette.metricRose)
+                .overlay(alignment: .bottomTrailing) {
+                    ForgeBeatingHeart(bpm: bpm)
+                        .padding(12)
+                        .accessibilityHidden(true)
+                }
         }
         .buttonStyle(LiquidPressStyle())
-        .onChange(of: model.bpm) { _, bpm in
-            guard let bpm else { return }
-            recent = Array((recent + [Double(bpm)]).suffix(60))
-        }
+    }
+}
+
+/// The heart rate right now across the whole width, with its curve: the Live card itself, falling back to
+/// today's banked trace while no strap streams.
+struct ForgeLiveHeartWideWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var banked: [HRBucket] = []
+
+    var body: some View {
+        LiquidLiveHR(tint: StrandPalette.metricRose, fallback: banked.map(\.bpm),
+                     fallbackTimes: banked.map { Date(timeIntervalSince1970: TimeInterval($0.ts)) },
+                     animated: !reduceMotion, headerRoute: .fullDayChart)
+            .forgeCard(radius: 22, padding: 14)
+            .task(id: repo.refreshSeq) {
+                let now = Date()
+                banked = await repo.hrBuckets(from: Int(Calendar.current.startOfDay(for: now).timeIntervalSince1970),
+                                              to: Int(now.timeIntervalSince1970), bucketSeconds: 300)
+            }
     }
 }
 
@@ -404,14 +566,43 @@ struct ForgeMeasureWidget: View {
     var body: some View {
         let m = metric ?? ForgeWidgetMeasures.descriptor(key, source)
         NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
-            ForgeMetricTile(label: m?.title ?? key,
-                            value: m.flatMap { ForgeFocusView.format(values.last, $0) },
-                            unit: m.map(ForgeFocusView.unit) ?? "",
-                            trend: values.count > 1 ? Array(values.suffix(30)) : nil,
-                            tint: ForgeColor.accent)
+            ForgeTodayTile(label: Self.shortTitle(key) ?? m?.title ?? key, symbol: m?.icon ?? "chart.xyaxis.line",
+                           value: m.flatMap { ForgeFocusView.format(values.last, $0) },
+                           // Steps speak for themselves, and the word would crowd the number in a small tile.
+                           unit: key == "steps" ? "" : m.map(ForgeFocusView.unit) ?? "",
+                           tint: Self.tint(key),
+                           trend: values.count > 1 ? Array(values.suffix(30)) : nil)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) { await load() }
+    }
+
+    /// The short names the Liquid Today tiles use: a catalog title is cut off in a row of three.
+    private static func shortTitle(_ key: String) -> String? {
+        switch key {
+        case "hrv": return "HRV"
+        case "rhr": return String(localized: "Rest HR")
+        case "sleep_total_min": return String(localized: "Sleep")
+        case "stress": return String(localized: "Stress")
+        case "spo2": return "SpO₂"
+        case "skin_temp": return String(localized: "Skin Temp")
+        case "resp_rate": return String(localized: "Respiratory")
+        default: return nil
+        }
+    }
+
+    /// Each measure in the colour the Liquid Today tiles give it.
+    private static func tint(_ key: String) -> Color {
+        switch key {
+        case "hrv", "spo2": return StrandPalette.metricCyan
+        case "rhr": return StrandPalette.metricRose
+        case "steps": return StrandPalette.chargeColor
+        case "sleep_total_min": return StrandPalette.restColor
+        case "weight", "skin_temp": return StrandPalette.metricAmber
+        case "active_kcal", "calories_in": return StrandPalette.energyHighlight
+        case "stress": return StrandPalette.effortColor
+        default: return StrandPalette.accent
+        }
     }
 
     /// The preferred source first, then any other source of the same measure that has data.
@@ -500,7 +691,9 @@ struct ForgeWidgetGallery: View {
                     row(symbol: "drop.fill", title: String(localized: "Hydration"),
                         subtitle: String(localized: "Small · water today against your goal")) { store.add(.init(kind: .water)) }
                     row(symbol: "heart.fill", title: String(localized: "Live heart rate"),
-                        subtitle: String(localized: "Small · your heart rate right now")) { store.add(.init(kind: .liveHeart)) }
+                        subtitle: String(localized: "Small · a heart beating with your pulse")) { store.add(.init(kind: .liveHeart)) }
+                    row(symbol: "waveform.path.ecg", title: String(localized: "Live heart rate"),
+                        subtitle: String(localized: "Wide · your heart rate as a curve")) { store.add(.init(kind: .liveHeart, wide: true)) }
                 } header: { Text("Cards") }
             }
             .scrollContentBackground(.hidden)

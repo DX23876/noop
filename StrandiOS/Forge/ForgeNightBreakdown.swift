@@ -2,6 +2,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import WhoopStore
 
 /// The rest of one night on the redesign's Sleep tab (prototype board "SleepNight"): the stages against the
 /// wearer's typical night, what shaped the night against the usual, the sleep-debt ledger and the body
@@ -10,6 +11,16 @@ struct ForgeNightBreakdown: View {
     let model: SleepModel
     let night: Night
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var repo: Repository
+
+    /// The wake day's stored row: the figures below belong to the night on screen, not to the newest one.
+    private var wakeKey: String { Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(night.session.endTs))) }
+    private var row: DailyMetric? { repo.days.last { $0.day == wakeKey } }
+
+    /// Share of the time in bed spent asleep, from the night's own stages.
+    static func efficiency(_ night: Night) -> Double? {
+        night.stages.total > 0 ? night.stages.asleep / night.stages.total * 100 : nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -92,30 +103,40 @@ struct ForgeNightBreakdown: View {
     // MARK: What shaped the night
 
     private var shaped: some View {
-        let rows: [(String, SleepModel.Metric, String, Bool)] = [
-            (String(localized: "Hours against need"), model.hoursVsNeeded, "%", true),
-            (String(localized: "Efficiency"), model.efficiency, "%", true),
-            (String(localized: "Steadiness"), model.consistency, "%", true),
-            (String(localized: "Restorative sleep"), model.restorative, "%", true),
-            (String(localized: "Breathing rate"), model.respiratory, String(localized: "/min"), false),
+        let stages = night.stages
+        let upToNight = repo.days.filter { $0.day <= wakeKey }
+        let need = repo.importedSleep[wakeKey]?.needMin ?? SleepModel.sleepNeedMin(days: repo.days)
+        let bedtimes = repo.sleeps.filter { $0.endTs <= night.session.endTs }
+        let candidates: [(String, Double?, Double?, String, Bool)] = [
+            (String(localized: "Hours against need"), need > 0 && stages.asleep > 0 ? stages.asleep / need * 100 : nil,
+             model.hoursVsNeeded.typical, "%", true),
+            (String(localized: "Efficiency"), Self.efficiency(night), model.efficiency.typical, "%", true),
+            (String(localized: "Steadiness"),
+             SleepModel.consistencySeries(days: upToNight, sleeps: bedtimes, importedSleep: repo.importedSleep).series.last,
+             model.consistency.typical, "%", true),
+            (String(localized: "Restorative sleep"), stages.asleep > 0 ? (stages.deep + stages.rem) / stages.asleep * 100 : nil,
+             model.restorative.typical, "%", true),
+            (String(localized: "Breathing rate"), row?.respRateBpm, model.respiratory.typical, String(localized: "/min"), false),
         ]
+        // A figure this night does not have is left out, not drawn as a dash.
+        let rows = candidates.filter { $0.1 != nil }
         return VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "What shaped the night")
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
                     if i > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
-                    shapedRow(r.0, r.1, unit: r.2, higherIsBetter: r.3)
+                    shapedRow(r.0, value: r.1, typical: r.2, unit: r.3, higherIsBetter: r.4)
                 }
             }
             .forgeCard(radius: 22, padding: 14)
         }
     }
 
-    private func shapedRow(_ label: String, _ m: SleepModel.Metric, unit: String, higherIsBetter: Bool) -> some View {
-        let value = m.latest.map { "\(Int($0.rounded()))\(unit == "%" ? " %" : " " + unit)" } ?? "–"
-        let usual = m.typical.map { String(localized: "usual \(Int($0.rounded()))") }
+    private func shapedRow(_ label: String, value number: Double?, typical: Double?, unit: String, higherIsBetter: Bool) -> some View {
+        let value = number.map { "\(Int($0.rounded()))\(unit == "%" ? " %" : " " + unit)" } ?? "–"
+        let usual = typical.map { String(localized: "usual \(Int($0.rounded()))") }
         let delta: Int = {
-            guard let v = m.latest, let t = m.typical, higherIsBetter else { return 0 }
+            guard let v = number, let t = typical, higherIsBetter else { return 0 }
             let d = v - t
             return abs(d) < 2 ? 0 : (d > 0 ? 1 : -1)
         }()
