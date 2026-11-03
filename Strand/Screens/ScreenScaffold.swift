@@ -313,7 +313,7 @@ struct ComingSoon: View {
                     // The same in-progress expression the history sync uses, so "working" looks the
                     // same everywhere in the app rather than being reinvented per screen.
                     StatePill(title, tone: .accent, pulsing: true)
-                } else {
+                } else if !hidesPlaceholderTitle {
                     Text(title)
                         .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 }
@@ -336,9 +336,11 @@ struct ComingSoon: View {
                 .font(.system(size: 34, weight: .light))
                 .foregroundStyle(StrandPalette.textTertiary)
                 .accessibilityHidden(true)
-            Text(title)
-                .font(StrandFont.headline)
-                .foregroundStyle(StrandPalette.textPrimary)
+            if !hidesPlaceholderTitle {
+                Text(title)
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+            }
             Text(what)
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
@@ -349,6 +351,11 @@ struct ComingSoon: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 32)
+    }
+
+    /// The new design lets the sentence stand alone: "Coming together" over "nothing imported yet" says nothing.
+    private var hidesPlaceholderTitle: Bool {
+        NoopVisualStyle.skin == .forge && title == "Coming together"
     }
 
     /// Nothing to offer while still loading — a button that acts on data the screen has not finished

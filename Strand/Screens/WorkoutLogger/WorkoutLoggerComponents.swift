@@ -463,6 +463,11 @@ struct EffortPickerSheet: View {
 struct WorkoutRestDock: View {
     let timer: WorkoutTimerState
     @ObservedObject var model: NativeWorkoutSessionModel
+    /// The live trace the new design's rest page draws. Absent where no strap or watch feeds the session.
+    var effort: StrengthLiveEffort?
+    var provider: WorkoutPhysiologyProvider = .none
+    var watchFeed: WatchHeartRateFeed?
+    @State private var showsRestPage = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -514,13 +519,23 @@ struct WorkoutRestDock: View {
     /// The new design's dock: one slim row, the time left first and every control of the shipped dock.
     private func forgeDock(remaining: Int, total: Int) -> some View {
         HStack(spacing: NoopMetrics.space2) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(ActiveSessionMiniBar.clock(remaining))
-                    .font(StrandFont.number(22)).monospacedDigit()
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .accessibilityLabel(Text(timer.kind == .timedSet ? "Time remaining" : "Rest remaining"))
-                Text(timer.kind == .timedSet ? "Time" : "Rest")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            Button { showsRestPage = true } label: {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(ActiveSessionMiniBar.clock(remaining))
+                        .font(StrandFont.number(22)).monospacedDigit()
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .accessibilityLabel(Text(timer.kind == .timedSet ? "Time remaining" : "Rest remaining"))
+                    Text(timer.kind == .timedSet ? "Time" : "Rest")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Opens the rest page"))
+            .sheet(isPresented: $showsRestPage) {
+                ForgeRestPage(model: model, effort: effort, provider: provider, watchFeed: watchFeed)
+                    .presentationDetents([.large])
             }
             Spacer(minLength: 0)
             dockButton("−15") { model.adjustTimer(by: -15) }
@@ -577,6 +592,137 @@ struct WorkoutRestDock: View {
                 .foregroundStyle(StrandPalette.textPrimary)
                 .frame(minWidth: 44, minHeight: 44)
                 .background(StrandPalette.surfaceInset, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// The rest at full size: the clock, what comes next, the heart settling, the same controls as the dock.
+struct ForgeRestPage: View {
+    @ObservedObject var model: NativeWorkoutSessionModel
+    var effort: StrengthLiveEffort?
+    var provider: WorkoutPhysiologyProvider = .none
+    var watchFeed: WatchHeartRateFeed?
+    @EnvironmentObject private var app: AppModel
+    @Environment(\.dismiss) private var dismiss
+
+    private var liveBpm: Int? {
+        switch provider {
+        case .none: return nil
+        case .appleWatch: return watchFeed?.bpm
+        default: return app.bpm
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                if let timer = model.activeTimer {
+                    content(timer, now: Int(context.date.timeIntervalSince1970))
+                } else {
+                    Text("Rest is over.")
+                        .font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .forgeScreenBackground()
+            .navigationTitle(Text("Rest"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Hide") { dismiss() } }
+            }
+        }
+    }
+
+    private func content(_ timer: WorkoutTimerState, now: Int) -> some View {
+        let remaining = WorkoutTimerCoordinator.remaining(timer, now: now)
+        let total = max(1, timer.endsAtTs - timer.startedAtTs)
+        return ScrollView {
+            VStack(spacing: NoopMetrics.gap) {
+                Text(ActiveSessionMiniBar.clock(remaining))
+                    .font(StrandFont.number(84).monospacedDigit())
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .padding(.top, NoopMetrics.space4)
+                    .accessibilityLabel(Text("Rest remaining"))
+                Text(caption(total: total))
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .multilineTextAlignment(.center)
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(StrandPalette.surfaceInset)
+                        Capsule().fill(StrandPalette.forgeAccent)
+                            .frame(width: proxy.size.width * Double(total - min(remaining, total)) / Double(total))
+                    }
+                }
+                .frame(height: 8)
+                .accessibilityHidden(true)
+                if let effort, effort.trace.count > 1 || liveBpm != nil {
+                    NoopCard {
+                        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                            Text("Heart rate").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                            ForgeHeartTrace(samples: effort.trace)
+                                .frame(height: 90)
+                                .accessibilityHidden(true)
+                            if let liveBpm {
+                                Text(verbatim: "\(liveBpm) bpm")
+                                    .font(StrandFont.subhead.monospacedDigit())
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                HStack(spacing: NoopMetrics.space2) {
+                    control("−15") { model.adjustTimer(by: -15) }
+                        .accessibilityLabel(Text("Subtract 15 seconds"))
+                    control("+15") { model.adjustTimer(by: 15) }
+                        .accessibilityLabel(Text("Add 15 seconds"))
+                    Button {
+                        if timer.pausedRemainingSeconds == nil { model.pauseTimer() } else { model.resumeTimer() }
+                    } label: {
+                        Image(systemName: timer.pausedRemainingSeconds == nil ? "pause.fill" : "play.fill")
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityLabel(Text(timer.pausedRemainingSeconds == nil ? "Pause" : "Resume"))
+                }
+                Button {
+                    if timer.kind == .timedSet { model.finishTimedSet() } else { model.skipRest() }
+                    dismiss()
+                } label: {
+                    Text(timer.kind == .timedSet ? "Finish" : "Skip")
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(StrandPalette.forgeOnAccent)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(StrandPalette.forgeAccent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(NoopMetrics.screenPadding)
+        }
+    }
+
+    private func caption(total: Int) -> String {
+        let length = ActiveSessionMiniBar.clock(total)
+        guard let next = model.nextSetReadout else { return String(localized: "of \(length)") }
+        return String(localized: "of \(length) · next: \(next.exercise)")
+    }
+
+    private func control(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(verbatim: title)
+                .font(StrandFont.subhead.weight(.semibold).monospacedDigit())
+                .foregroundStyle(StrandPalette.textPrimary)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
     }

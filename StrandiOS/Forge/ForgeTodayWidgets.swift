@@ -1,7 +1,9 @@
 #if os(iOS)
 import SwiftUI
+import StrandTraining
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 
 // MARK: - Widgets on Today (board "TodayWFew", 2026-11)
@@ -13,7 +15,7 @@ import WhoopStore
 
 /// One widget the wearer placed on Today.
 struct ForgeTodayWidget: Codable, Hashable, Identifiable {
-    enum Kind: String, Codable, CaseIterable { case measure, trainingLoad, goals, energy, water, liveHeart, momentum }
+    enum Kind: String, Codable, CaseIterable { case measure, trainingLoad, goals, energy, water, liveHeart, momentum, lastNight, weekPlan, coachNote }
 
     var id = UUID()
     var kind: Kind
@@ -70,6 +72,8 @@ final class ForgeTodayWidgetStore: ObservableObject {
         guard CommandLine.arguments.contains("--demo-widgets") else { return }
         widgets = [
             .init(kind: .momentum),
+            .init(kind: .lastNight),
+            .init(kind: .weekPlan),
             .init(kind: .measure, key: "hrv", source: Repository.whoopSource),
             .init(kind: .measure, key: "rhr", source: Repository.whoopSource),
             .init(kind: .goals),
@@ -203,6 +207,9 @@ struct ForgeTodayWidgetView: View {
         case .water: ForgeWaterWidget()
         case .liveHeart: ForgeLiveHeartWidget()
         case .momentum: ForgeMomentumWidget()
+        case .lastNight: ForgeLastNightWidget()
+        case .weekPlan: ForgeWeekPlanWidget()
+        case .coachNote: ForgeCoachNoteWidget()
         }
     }
 }
@@ -240,6 +247,121 @@ struct ForgeLiveHeartWidget: View {
                             unit: "bpm", trend: nil, tint: ForgeColor.accent)
         }
         .buttonStyle(LiquidPressStyle())
+    }
+}
+
+/// The last main night: hours asleep, its stages, bedtime to wake. Opens the Rest page.
+struct ForgeLastNightWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @State private var night: CachedSleepSession?
+
+    private var asleep: Int? {
+        night.map { Int(SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs)) }
+    }
+
+    var body: some View {
+        NavigationLink(value: ForgeRoute.rest(nil)) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Last night").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                if let night, let asleep {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(verbatim: "\(asleep / 60) h \(asleep % 60) min")
+                            .font(.system(.title3, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(ForgeColor.text)
+                        Spacer(minLength: 4)
+                        Text(verbatim: "\(Self.time(night.effectiveStartTs)) – \(Self.time(night.endTs))")
+                            .font(ForgeFont.caption)
+                            .foregroundStyle(ForgeColor.secondary)
+                    }
+                } else {
+                    Text("No night yet.").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard(radius: 22, padding: 14)
+        }
+        .buttonStyle(LiquidPressStyle())
+        .task(id: repo.refreshSeq) {
+            let now = Int(Date().timeIntervalSince1970)
+            let sessions = await repo.sleepSessions(from: now - 2 * 86_400, to: now)
+            night = sessions.filter { SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs) >= 180 }
+                .max { $0.endTs < $1.endTs }
+        }
+    }
+
+    private static func time(_ ts: Int) -> String {
+        Date(timeIntervalSince1970: TimeInterval(ts)).formatted(date: .omitted, time: .shortened)
+    }
+}
+
+/// The week at a glance: one dot per day, filled where a workout happened, ringed where one is planned.
+struct ForgeWeekPlanWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @ObservedObject private var plan = CoachPlanStore.shared
+    @AppStorage("training.weekStartsOn") private var weekStartRaw = TrainingWeekStart.monday.rawValue
+    @State private var doneDays: Set<String> = []
+
+    private var days: [Date] {
+        var cal = Calendar.current
+        cal.firstWeekday = (TrainingWeekStart(rawValue: weekStartRaw) ?? .monday) == .monday ? 2 : 1
+        let start = cal.dateInterval(of: .weekOfYear, for: Date())?.start ?? cal.startOfDay(for: Date())
+        return (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: start) }
+    }
+
+    var body: some View {
+        NavigationLink(value: ForgeRoute.weekPlan) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("This week's plan").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                HStack(spacing: 0) {
+                    ForEach(days, id: \.self) { day in
+                        let key = Repository.localDayKey(day)
+                        let planned = plan.proposals(forDay: key).contains { $0.status.isCommitment }
+                        VStack(spacing: 4) {
+                            Circle()
+                                .fill(doneDays.contains(key) ? ForgeColor.accent : Color.clear)
+                                .overlay(Circle().strokeBorder(doneDays.contains(key) || planned ? ForgeColor.accent : ForgeColor.secondary.opacity(0.3),
+                                                               lineWidth: 1.5))
+                                .frame(width: 20, height: 20)
+                            Text(String(day.formatted(.dateTime.weekday(.narrow))))
+                                .font(ForgeFont.caption)
+                                .foregroundStyle(ForgeColor.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("\(doneDays.count) days with a workout this week"))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard(radius: 22, padding: 14)
+        }
+        .buttonStyle(LiquidPressStyle())
+        .task(id: repo.refreshSeq) {
+            let rows = await repo.workoutRows(days: 7, reconcileHrCap: 0)
+            doneDays = Set(rows.map { Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) })
+        }
+    }
+}
+
+/// The coach's latest stored brief line, the same one the Home Screen widget quotes.
+struct ForgeCoachNoteWidget: View {
+    private var note: String? {
+        guard let text = UserDefaults(suiteName: WidgetSnapshot.suiteName)?.string(forKey: "coachBrief.widgetText")?
+            .replacingOccurrences(of: "**", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        return text.split(separator: "\n").first.map(String.init)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Coach note").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+            Text(note ?? String(localized: "No note yet."))
+                .font(.system(.subheadline))
+                .foregroundStyle(note == nil ? ForgeColor.secondary : ForgeColor.text)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeCard(radius: 22, padding: 14)
     }
 }
 
@@ -343,6 +465,7 @@ struct ForgeEnergyWidget: View {
 struct ForgeWidgetGallery: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = ForgeTodayWidgetStore.shared
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -363,6 +486,14 @@ struct ForgeWidgetGallery: View {
                         subtitle: String(localized: "Wide · this week's goals")) { store.add(.init(kind: .goals)) }
                     row(symbol: "flame.fill", title: String(localized: "Energy"),
                         subtitle: String(localized: "Wide · burned and eaten today")) { store.add(.init(kind: .energy)) }
+                    row(symbol: "moon.fill", title: String(localized: "Last night"),
+                        subtitle: String(localized: "Wide · hours asleep and bedtime")) { store.add(.init(kind: .lastNight)) }
+                    row(symbol: "calendar", title: String(localized: "This week's plan"),
+                        subtitle: String(localized: "Wide · done and planned days")) { store.add(.init(kind: .weekPlan)) }
+                    if coachFeatureEnabled {
+                        row(symbol: "bubble.left.fill", title: String(localized: "Coach note"),
+                            subtitle: String(localized: "Wide · the coach's latest line")) { store.add(.init(kind: .coachNote)) }
+                    }
                     row(symbol: "bolt.fill", title: String(localized: "Momentum"),
                         subtitle: String(localized: "Wide · what matters most right now")) { store.add(.init(kind: .momentum)) }
                     row(symbol: "drop.fill", title: String(localized: "Hydration"),

@@ -3726,5 +3726,16 @@
   "Oura ring options": "Настройки кольца Oura",
   "Done before": "Уже выполняли",
   "Heaviest set per session": "Самый тяжёлый подход за тренировку",
-  "imported": "импортировано"
+  "imported": "импортировано",
+  "Step %lld of 4": "Шаг %lld из 4",
+  "No night yet.": "Пока нет ночи.",
+  "%lld days with a workout this week": "Дней с тренировкой на этой неделе: %lld",
+  "Coach note": "Заметка коуча",
+  "No note yet.": "Пока нет заметок.",
+  "Wide · hours asleep and bedtime": "Широкий · часы сна и время отхода ко сну",
+  "Wide · done and planned days": "Широкий · выполненные и запланированные дни",
+  "Wide · the coach's latest line": "Широкий · последняя строка коуча",
+  "Opens the rest page": "Открывает страницу отдыха",
+  "Rest is over.": "Отдых закончен.",
+  "of %@ · next: %@": "из %1$@ · далее: %2$@"
 }

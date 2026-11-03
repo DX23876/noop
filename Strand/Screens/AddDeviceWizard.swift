@@ -179,8 +179,12 @@ struct AddDeviceWizard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider().overlay(StrandPalette.hairline)
+            if NoopVisualStyle.skin == .forge {
+                forgeHeader
+            } else {
+                header
+                Divider().overlay(StrandPalette.hairline)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                     if type == .oura {
@@ -205,7 +209,8 @@ struct AddDeviceWizard: View {
             #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(StrandPalette.surfaceBase)
+        .background { if NoopVisualStyle.skin != .forge { StrandPalette.surfaceBase } }
+        .forgeScreenBackground()
         // Stop whichever scan is live whenever the sheet goes away (belt-and-braces alongside the
         // per-transition stops below) so neither central keeps scanning after dismiss.
         .onDisappear { stopAllScans() }
@@ -279,6 +284,57 @@ struct AddDeviceWizard: View {
             .accessibilityLabel("Close")
         }
         .padding(20)
+    }
+
+    /// The new design's head: Close or Back, where the wearer is, the question in large type.
+    private var forgeHeader: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            ZStack {
+                if type != .oura {
+                    Text("Step \(forgeStepIndex + 1) of 4")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                HStack {
+                    if showBack {
+                        Button("Back", action: goBack)
+                            .foregroundStyle(StrandPalette.forgeAccent)
+                    }
+                    Spacer()
+                    Button("Close") { stopAllScans(); onClose() }
+                        .foregroundStyle(StrandPalette.forgeAccent)
+                }
+                .font(StrandFont.subhead)
+                .frame(minHeight: 44)
+            }
+            if type != .oura {
+                HStack(spacing: 6) {
+                    ForEach(0..<4, id: \.self) { index in
+                        Capsule()
+                            .fill(index == forgeStepIndex ? StrandPalette.forgeAccent : StrandPalette.surfaceInset)
+                            .frame(width: index == forgeStepIndex ? 22 : 6, height: 6)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(true)
+            }
+            Text(headerTitle).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let sub = headerSubtitle {
+                Text(sub).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, NoopMetrics.space2)
+    }
+
+    private var forgeStepIndex: Int {
+        switch step {
+        case .type: return 0
+        case .prep: return 1
+        case .pick: return 2
+        case .confirm: return 3
+        }
     }
 
     /// Back is shown on every step except the very first (the type list) and, on the Oura adopt flow, the
@@ -381,11 +437,20 @@ struct AddDeviceWizard: View {
             }
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(StrandFont.title2)
-                    .foregroundStyle(StrandPalette.accent)
-                    .frame(width: 30)
-                    .accessibilityHidden(true)
+                if NoopVisualStyle.skin == .forge {
+                    Image(systemName: icon)
+                        .font(StrandFont.title2)
+                        .foregroundStyle(forgeTint(t))
+                        .frame(width: 56, height: 56)
+                        .background(forgeTint(t).opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: icon)
+                        .font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.accent)
+                        .frame(width: 30)
+                        .accessibilityHidden(true)
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title).font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
@@ -404,6 +469,16 @@ struct AddDeviceWizard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(title). \(subtitle)")
+    }
+
+    private func forgeTint(_ t: DeviceType) -> Color {
+        switch t {
+        case .whoop5mg, .whoop4: return StrandPalette.chargeColor
+        case .hrStrap: return StrandPalette.metricRose
+        case .gymEquipment: return StrandPalette.effortColor
+        case .oura: return StrandPalette.textSecondary
+        default: return StrandPalette.metricCyan
+        }
     }
 
     // MARK: Step 2 — type-specific prep + guidance

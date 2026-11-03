@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import StrandDesign
 
 /// The widget extension entry point. Bundles the glanceable widget, the three-rings widget
 /// (redesign §9), the energy widget, the live-HR Live Activity, the heart-rate trace widget (#1957),
@@ -11,6 +12,12 @@ import SwiftUI
 /// the widget, the notification and the Coach transcript quote one model run.
 @main
 struct NOOPWidgetBundle: WidgetBundle {
+    /// The widgets follow the app's design choice, which the app mirrors into the App Group.
+    init() {
+        let on = UserDefaults(suiteName: WatchScoreSnapshot.appGroupId)?.bool(forKey: WatchScoreSnapshot.forgeDesignKey) ?? false
+        NoopVisualStyle.skin = on ? .forge : .standard
+    }
+
     var body: some Widget {
         NOOPWidget()
         NOOPRingsWidget()

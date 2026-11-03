@@ -757,6 +757,8 @@ enum DemoScreens {
         case "today":    return AnyView(TodayView())
         case "startworkout": return AnyView(DemoStartWorkoutHost())
         case "addworkout": return AnyView(ManualWorkoutSheet(onSave: { _, _ in }))
+        case "onboarding": return AnyView(OnboardingWizard(onFinished: {}))
+        case "longtermsetup": return AnyView(NavigationStack { LongTermGoalSetupView() })
         case "weighin": return AnyView(WeightLogSheet(draft: WeightLogDraft(seedKg: 96.4), unitSystem: .metric, onSave: { _, _, _ in }, onDelete: nil))
         case "library": return AnyView(DemoExerciseLibraryHost())
         // The DEFAULT iOS Today (`noop.liquidTodayEnabled` ships true), so it needs its own entry — plain

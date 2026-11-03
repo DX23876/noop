@@ -3904,5 +3904,16 @@
   "Oura ring options": "Oura 戒指選項",
   "Done before": "做過的",
   "Heaviest set per session": "每次訓練最重的一組",
-  "imported": "已匯入"
+  "imported": "已匯入",
+  "Step %lld of 4": "第 %lld 步，共 4 步",
+  "No night yet.": "還沒有夜間紀錄。",
+  "%lld days with a workout this week": "本週有 %lld 天訓練",
+  "Coach note": "教練筆記",
+  "No note yet.": "還沒有筆記。",
+  "Wide · hours asleep and bedtime": "寬 · 睡眠時長和就寢時間",
+  "Wide · done and planned days": "寬 · 已完成和計畫的日子",
+  "Wide · the coach's latest line": "寬 · 教練的最新一句",
+  "Opens the rest page": "開啟休息頁面",
+  "Rest is over.": "休息結束。",
+  "of %@ · next: %@": "共 %1$@ · 下一個：%2$@"
 }

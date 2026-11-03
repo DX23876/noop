@@ -203,10 +203,14 @@ struct WorkoutSelectionScreen: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func sectionOverline(_ title: LocalizedStringKey) -> some View {
-        Text(title)
-            .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-            .foregroundStyle(StrandPalette.textSecondary)
+    @ViewBuilder private func sectionOverline(_ title: LocalizedStringKey) -> some View {
+        if NoopVisualStyle.skin == .forge {
+            ForgeSectionHeading(title)
+        } else {
+            Text(title)
+                .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
     }
 
     private var recentSection: some View {
@@ -277,9 +281,11 @@ private struct StrengthStartSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-            Text("Strength")
-                .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                .foregroundStyle(StrandPalette.textSecondary)
+            if NoopVisualStyle.skin != .forge {
+                Text("Strength")
+                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
             if !todayRoutines.isEmpty {
                 StrengthStartCard(title: Text("Start today's plan"),
                                   subtitle: Text(verbatim: todayRoutines.map(\.title).joined(separator: " · ")),
@@ -295,7 +301,22 @@ private struct StrengthStartSection: View {
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
             } else if !otherRoutines.isEmpty {
-                routineList
+                if NoopVisualStyle.skin == .forge {
+                    // Every routine a card of its own, as the plan's first choice is.
+                    ForEach(showsAllRoutines ? otherRoutines : Array(otherRoutines.prefix(Self.inlineRoutineLimit))) { routine in
+                        StrengthStartCard(title: Text(verbatim: routine.title),
+                                          subtitle: Text("\(routine.exercises.count) exercises"),
+                                          symbol: "dumbbell.fill") { start([routine]) }
+                    }
+                    if otherRoutines.count > Self.inlineRoutineLimit, !showsAllRoutines {
+                        Button("Show all") { showsAllRoutines = true }
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.forgeAccent)
+                            .frame(minHeight: 44)
+                    }
+                } else {
+                    routineList
+                }
             }
         }
         .task { await session.loadContextIfNeeded() }

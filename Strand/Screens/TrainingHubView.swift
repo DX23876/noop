@@ -1288,7 +1288,8 @@ struct NativeWorkoutLoggerView: View {
                 if showsNumberPadBar {
                     numberPadBar
                 } else if let timer = model.activeTimer {
-                    WorkoutRestDock(timer: timer, model: model)
+                    WorkoutRestDock(timer: timer, model: model, effort: liveEffort,
+                                    provider: loggerProvider, watchFeed: session.watchHeartRate)
                 }
             }
             // Outside the dock's inset, so the backdrop also runs behind the dock.

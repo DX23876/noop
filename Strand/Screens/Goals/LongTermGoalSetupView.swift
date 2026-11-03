@@ -261,8 +261,64 @@ struct LongTermGoalSetupView: View {
                     if dismissesItself { dismiss() }
                 }
             }
-            areaGrid(areas)
+            if NoopVisualStyle.skin == .forge {
+                forgeAreaList(areas)
+            } else {
+                areaGrid(areas)
+            }
         }
+    }
+
+    /// The new design's first step: a row for each area, its goals named so the choice says what it leads to.
+    private func forgeAreaList(_ areas: [GoalCatalogArea]) -> some View {
+        let tints = [StrandPalette.restColor, StrandPalette.effortColor, StrandPalette.chargeColor,
+                     StrandPalette.metricCyan, StrandPalette.metricPurple, StrandPalette.metricAmber]
+        return VStack(spacing: NoopMetrics.space2) {
+            ForEach(Array(areas.enumerated()), id: \.element.id) { index, a in
+                Button {
+                    area = a
+                    template = nil
+                    step = .template
+                } label: {
+                    forgeAreaRow(symbol: a.icon, tint: tints[index % tints.count], title: a.title.localizedCatalogValue,
+                                 note: GoalCatalog.offered.filter { $0.area == a }.prefix(2)
+                                    .map { $0.title.localizedCatalogValue }.joined(separator: ", "))
+                }
+                .buttonStyle(.plain)
+            }
+            NavigationLink { CoachGoalOnboardingFlow(pushed: true) } label: {
+                forgeAreaRow(symbol: "sparkles", tint: StrandPalette.textSecondary, title: String(localized: "Own goal"), note: nil)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func forgeAreaRow(symbol: String, tint: Color, title: String, note: String?) -> some View {
+        HStack(spacing: NoopMetrics.space3) {
+            Image(systemName: symbol)
+                .font(StrandFont.headline)
+                .foregroundStyle(tint)
+                .frame(width: 48, height: 48)
+                .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                    .multilineTextAlignment(.leading)
+                if let note {
+                    Text(note).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(StrandFont.caption.weight(.semibold))
+                .foregroundStyle(StrandPalette.textTertiary)
+                .accessibilityHidden(true)
+        }
+        .padding(NoopMetrics.space3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+        .contentShape(Rectangle())
     }
 
     private func areaGrid(_ areas: [GoalCatalogArea]) -> some View {

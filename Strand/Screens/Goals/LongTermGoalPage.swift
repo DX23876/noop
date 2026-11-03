@@ -89,7 +89,11 @@ struct LongTermGoalPage: View {
                 // what to do this week (the coach's tip), the figures behind it, then managing the goal.
                 VStack(alignment: .leading, spacing: NoopMetrics.space6) {
                     VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                        LongTermGoalHero(snapshot: snapshot, content: content)
+                        if NoopVisualStyle.skin == .forge {
+                            forgeHero(content)
+                        } else {
+                            LongTermGoalHero(snapshot: snapshot, content: content)
+                        }
                         if snapshot.reading?.state == .achieved, snapshot.goal.status == .active {
                             reachedCard(snapshot)
                         }
@@ -131,6 +135,43 @@ struct LongTermGoalPage: View {
         .sheet(isPresented: $showRaise) { raiseSheet }
         .sheet(isPresented: Binding(get: { allMilestones != nil }, set: { if !$0 { allMilestones = nil } })) {
             MilestoneListSheet(points: allMilestones ?? [])
+        }
+    }
+
+    /// The new design's head: the goal's name, where it stands, the figure that answers it, its facts.
+    private func forgeHero(_ content: LongTermGoalContent) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(content.title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(content.style.wordText).font(StrandFont.footnote).foregroundStyle(content.style.tone.color)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
+                Text(content.heroValue)
+                    .font(StrandFont.number(48).monospacedDigit())
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                if let caption = content.heroCaption {
+                    Text(caption).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            if !content.stats.isEmpty {
+                NoopCard(padding: NoopMetrics.space3) {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        ForEach(content.stats) { stat in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(verbatim: stat.label).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                                Spacer(minLength: NoopMetrics.space2)
+                                Text(verbatim: stat.value).font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                            }
+                            .frame(minHeight: 32)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
         }
     }
 
@@ -227,7 +268,11 @@ struct LongTermGoalPage: View {
     /// A small uppercase heading over a section, with an optional action at its end ("All").
     private func sectionHeader(_ title: String, action: (label: LocalizedStringKey, run: () -> Void)? = nil) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(verbatim: title).strandOverline()
+            if NoopVisualStyle.skin == .forge {
+                Text(verbatim: title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+            } else {
+                Text(verbatim: title).strandOverline()
+            }
             Spacer(minLength: NoopMetrics.space2)
             if let action {
                 Button(action: action.run) {

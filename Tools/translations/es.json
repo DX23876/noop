@@ -3749,5 +3749,16 @@
   "Oura ring options": "Opciones del anillo Oura",
   "Done before": "Ya hecho",
   "Heaviest set per session": "Serie más pesada por sesión",
-  "imported": "importado"
+  "imported": "importado",
+  "Step %lld of 4": "Paso %lld de 4",
+  "No night yet.": "Aún no hay ninguna noche.",
+  "%lld days with a workout this week": "%lld días con entreno esta semana",
+  "Coach note": "Nota del coach",
+  "No note yet.": "Aún no hay notas.",
+  "Wide · hours asleep and bedtime": "Ancho · horas de sueño y hora de dormir",
+  "Wide · done and planned days": "Ancho · días hechos y planificados",
+  "Wide · the coach's latest line": "Ancho · la última línea del coach",
+  "Opens the rest page": "Abre la página de descanso",
+  "Rest is over.": "El descanso ha terminado.",
+  "of %@ · next: %@": "de %1$@ · siguiente: %2$@"
 }

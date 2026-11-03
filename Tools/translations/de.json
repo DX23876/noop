@@ -3750,5 +3750,16 @@
   "Oura ring options": "Oura-Ring-Optionen",
   "Done before": "Schon gemacht",
   "Heaviest set per session": "Schwerster Satz pro Einheit",
-  "imported": "importiert"
+  "imported": "importiert",
+  "Step %lld of 4": "Schritt %lld von 4",
+  "No night yet.": "Noch keine Nacht.",
+  "%lld days with a workout this week": "%lld Tage mit Workout diese Woche",
+  "Coach note": "Coach-Notiz",
+  "No note yet.": "Noch keine Notiz.",
+  "Wide · hours asleep and bedtime": "Breit · Schlafstunden und Schlafenszeit",
+  "Wide · done and planned days": "Breit · erledigte und geplante Tage",
+  "Wide · the coach's latest line": "Breit · die letzte Zeile des Coachs",
+  "Opens the rest page": "Öffnet die Pausenseite",
+  "Rest is over.": "Die Pause ist vorbei.",
+  "of %@ · next: %@": "von %1$@ · als Nächstes: %2$@"
 }
