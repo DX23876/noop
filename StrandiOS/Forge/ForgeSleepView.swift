@@ -65,7 +65,6 @@ struct ForgeSleepView: View {
                                         .foregroundStyle(ForgeColor.accent)
                                         .frame(maxWidth: .infinity, minHeight: 46)
                                         .background(Capsule().fill(ForgeColor.card.opacity(0.6)))
-                                        .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 1))
                                 }
                                 .buttonStyle(.plain)
                             }

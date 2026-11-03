@@ -158,17 +158,22 @@ struct ForgeTodayWidgetArea: View {
         if editing || !store.widgets.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 if editing {
-                    HStack {
-                        Text("Edit Today").font(.system(.headline)).foregroundStyle(ForgeColor.text)
-                        Spacer()
-                        Button { withAnimation(.snappy) { editing = false } } label: {
-                            Text("Done").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.onAccent)
-                                .padding(.horizontal, 16).frame(minHeight: 36)
-                                .background(Capsule().fill(ForgeColor.accent))
+                    // On a card of its own: the picture behind it changes with the hour.
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Edit Today").font(.system(.headline)).foregroundStyle(ForgeColor.text)
+                            Spacer()
+                            Button { withAnimation(.snappy) { editing = false } } label: {
+                                Text("Done").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.onAccent)
+                                    .padding(.horizontal, 16).frame(minHeight: 36)
+                                    .background(Capsule().fill(ForgeColor.accent))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
+                        layoutChoices
                     }
-                    layoutChoices
+                    .padding(14)
+                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.card))
                 }
                 ForEach(rows, id: \.first!.id) { row in
                     HStack(alignment: .top, spacing: 8) {
@@ -184,13 +189,13 @@ struct ForgeTodayWidgetArea: View {
                         Label("Add a widget", systemImage: "plus.circle.fill")
                             .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.accent)
                             .frame(maxWidth: .infinity, minHeight: 52)
-                            .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .strokeBorder(ForgeColor.separator, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+                            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.card))
                     }
                     .buttonStyle(.plain)
                 }
             }
             .sheet(isPresented: $addingWidget) { ForgeWidgetGallery() }
+            .sensoryFeedback(.impact, trigger: editing)
         }
     }
 
@@ -258,7 +263,12 @@ struct ForgeTodayWidgetArea: View {
                     return true
                 }
         } else {
+            // Held, a tile starts the editor; a plain tap still opens its page.
             content
+                .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                    withAnimation(.snappy) { editing = true }
+                })
+                .accessibilityAction(named: Text("Customize Today")) { editing = true }
         }
     }
 }
@@ -310,7 +320,8 @@ private struct ForgeTodayTile: View {
                         sparkColor: tint,
                         sparklineHeight: dense ? 22 : 28,
                         dense: dense,
-                        surfaceOpacity: Double(opacityPercent) / 100,
+                        // Close to solid on the picture, so its figures and lines stay clean.
+                        surfaceOpacity: max(0.9, Double(opacityPercent) / 100),
                         tintsSurface: false)
     }
 }

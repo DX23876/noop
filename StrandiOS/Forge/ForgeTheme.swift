@@ -89,11 +89,10 @@ enum ForgeFont {
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
     }
-    /// Page titles in New York, Apple's serif: softer than the system face and on every iPhone.
-    static var largeTitle: Font {
-        .system(.title, design: UserDefaults.standard.object(forKey: "forge.titleSerif") as? Bool ?? true ? .serif : .default,
-                weight: .bold)
-    }
+    /// Titles in SF Rounded, the face of the ring figures, so the words and the numbers belong together.
+    static let largeTitle = Font.system(.title, design: .rounded, weight: .bold)
+    /// A tab's title in its one-row header: small, the picture and the rings are the page.
+    static let headerTitle = Font.system(.title3, design: .rounded, weight: .bold)
     static let section = Font.system(.title2, weight: .bold)
     static let cardTitle = Font.system(.title3, weight: .semibold)
     static let body = Font.system(.subheadline)
@@ -146,8 +145,8 @@ struct ForgeBackground: View {
     }
 }
 
-/// Today's day-cycle motif, kept out of the way of what sits on it. A light page takes no night sky: it would
-/// turn the status bar's dark clock unreadable and fade to grey, so its evening stays at sunset and its small
+/// Today's day-cycle picture, whole: no fade and no veil, the day's sheet ends it. A light page takes no night
+/// sky, which would leave the status bar's dark clock unreadable, so its evening stays at sunset and its small
 /// hours at dawn. On a dark page the night keeps its moon, raised past the title.
 private struct ForgeTodayMotif: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -155,14 +154,16 @@ private struct ForgeTodayMotif: View {
     var body: some View {
         let hour = Calendar.current.component(.hour, from: Date())
         if colorScheme == .light {
-            SceneScreenBackground(hour: ForgeToday.lightPageSceneHour(hour), height: 540)
-                .opacity(0.8)
+            SceneScreenBackground(hour: ForgeToday.lightPageSceneHour(hour), height: Self.height, fades: false)
         } else if hour >= 21 || hour <= 4 {
-            SceneScreenBackground(hour: hour, height: 750).offset(y: -110)
+            SceneScreenBackground(hour: hour, height: Self.height + 110, fades: false).offset(y: -110)
         } else {
-            SceneScreenBackground(hour: hour, height: 640)
+            SceneScreenBackground(hour: hour, height: Self.height, fades: false)
         }
     }
+
+    /// Taller than any iPhone, so the picture always reaches the sheet.
+    private static let height: CGFloat = 960
 }
 
 // MARK: - Glass cards
@@ -191,7 +192,6 @@ struct ForgeCardModifier: ViewModifier {
                 ZStack {
                     if opacity < 0.99 { shape.fill(.ultraThinMaterial) }
                     shape.fill(ForgeColor.card.opacity(opacity))
-                    shape.strokeBorder(ForgeColor.hairline, lineWidth: light ? 1 : 0.6)
                 }
                 .shadow(color: .black.opacity(light ? 0.07 : 0), radius: 14, x: 0, y: 5)
             }
@@ -226,7 +226,7 @@ struct ForgeLargeHeader<Trailing: View>: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     titleText
                     Text(subtitle ?? Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)))
-                        .font(.system(.subheadline, weight: .medium))
+                        .font(.system(.footnote, design: .rounded, weight: .medium))
                         .foregroundStyle(ForgeColor.text.opacity(0.75))
                         .lineLimit(1)
                 }
@@ -251,7 +251,7 @@ struct ForgeLargeHeader<Trailing: View>: View {
 
     private var titleText: some View {
         Text(title)
-            .font(ForgeFont.largeTitle)
+            .font(ForgeFont.headerTitle)
             .foregroundStyle(ForgeColor.text)
             .lineLimit(1)
             .accessibilityAddTraits(.isHeader)

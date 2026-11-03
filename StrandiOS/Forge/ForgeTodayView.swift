@@ -107,11 +107,8 @@ struct ForgeTodayView: View {
                                     action: { router.openDevices() })
                             }
                             hero
-                                // Holding the rings offers the tile editor too, as the system menu, so a hold
-                                // never also opens the ring it lands on.
-                                .contextMenu {
-                                    Button { startEditingWidgets() } label: { Label("Customize Today", systemImage: "square.grid.2x2") }
-                                }
+                                // Holding the rings starts the tile editor too, for a page with no tile to hold.
+                                .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in startEditingWidgets() })
                                 .background(GeometryReader { geo in
                                     Color.clear.preference(key: ForgeHeroBottomKey.self,
                                                            value: geo.frame(in: .named("forge-today")).maxY)
@@ -183,29 +180,20 @@ struct ForgeTodayView: View {
         return "\(repo.days.count)|\(repo.today?.day ?? "")|\(repo.today?.strain ?? -1)|\(repo.today?.recovery ?? -1)|\(lastNote)|\(coachFeatureEnabled)|\(repo.refreshSeq)|\(repo.hydrationSeq)|\(repo.sleepPresentationRevision)|\(repo.workoutAnnotationRevision)|\(returned)"
     }
 
+    private var onPicture: Bool { motifOn || backdropPhoto.isActive }
+
     private func startEditingWidgets() {
         withAnimation(.snappy) { editingWidgets = true }
         backToTop += 1
     }
 
-    /// Log, Start and the pencil in one row under the rings, where a thumb finds them.
+    /// Log and Start in one row under the rings, where a thumb finds them. Editing starts by holding a tile.
     private var actions: some View {
         HStack(spacing: 8) {
             Button(action: onLog) { actionLabel("Add entry", systemImage: "plus") }
                 .buttonStyle(.plain)
             Button(action: onWorkout) { actionLabel("Start", systemImage: "figure.run") }
                 .buttonStyle(.plain)
-            Button {
-                if editingWidgets { withAnimation(.snappy) { editingWidgets = false } } else { startEditingWidgets() }
-            } label: {
-                Image(systemName: "pencil")
-                    .font(.system(.body, weight: .semibold))
-                    .foregroundStyle(ForgeColor.text)
-                    .frame(width: 46, height: 46)
-                    .modifier(ForgeTodayActionSurface())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text("Customize Today"))
         }
     }
 
@@ -304,13 +292,12 @@ struct ForgeTodayView: View {
                 OrganicScoreRing(model: model, tint: tint, score: score, decimals: decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
-                    // A ring on a picture glows only in its dark drawing: the light one turns to a blur with
-                    // black figures. Its name below stays in the page's own ink.
-                    .environment(\.colorScheme, motifOn || backdropPhoto.isActive ? .dark : colorScheme)
                 Text(label)
                     .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(Self.labelTint(metric))
+                    // On the picture a name is white, for it crosses snow and rock; the ring carries the colour.
+                    .foregroundStyle(onPicture ? AnyShapeStyle(.white) : AnyShapeStyle(Self.labelTint(metric)))
                     .lineLimit(1).minimumScaleFactor(0.8)
+                    .shadow(color: .black.opacity(onPicture ? 0.45 : 0), radius: 3, y: 1)
                 if let caption {
                     Text(caption)
                         .font(.system(.caption))
@@ -320,6 +307,9 @@ struct ForgeTodayView: View {
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
+            // A ring and its name on a picture take the dark drawing: the light one turns the glow to a blur
+            // with black figures, and dark ink is lost on the mountains.
+            .environment(\.colorScheme, onPicture ? .dark : colorScheme)
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityElement(children: .ignore)
@@ -943,7 +933,6 @@ private struct ForgeTodayActionSurface: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(Capsule().fill(ForgeColor.card))
-            .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 0.6))
             .shadow(color: .black.opacity(colorScheme == .light ? 0.06 : 0), radius: 10, y: 3)
     }
 }

@@ -190,7 +190,6 @@ struct ForgeTrainingView: View {
             .padding(.horizontal, 16)
             .frame(minHeight: 46)
             .background(Capsule().fill(ForgeColor.card.opacity(0.75)))
-            .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 1))
     }
 
     // MARK: Today's plan and the week

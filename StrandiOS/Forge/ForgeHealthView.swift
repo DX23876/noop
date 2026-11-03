@@ -89,7 +89,6 @@ struct ForgeHealthView: View {
                                     .font(.system(.footnote, weight: .semibold))
                                     .padding(.horizontal, 10).frame(minHeight: 30)
                                     .background(Capsule().fill(ok ? ForgeColor.card.opacity(0.75) : ForgeColor.effort.opacity(0.16)))
-                                    .overlay(Capsule().strokeBorder(ForgeColor.hairline, lineWidth: 1))
                                 }
                             }
                             .padding(.top, 6)

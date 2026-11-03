@@ -177,10 +177,13 @@ public struct SceneScreenBackground: View {
     @AppStorage(SceneMotif.storageKey) private var motifRaw = SceneMotif.defaultMotif.rawValue
     /// How far down the screen the scene reaches before it has fully faded into the canvas.
     public var height: CGFloat
+    /// False draws the picture whole: no fade, no veil, for a page where something opaque ends it.
+    public var fades: Bool
 
-    public init(hour: Int = Calendar.current.component(.hour, from: Date()), height: CGFloat = 600) {
+    public init(hour: Int = Calendar.current.component(.hour, from: Date()), height: CGFloat = 600, fades: Bool = true) {
         self.hour = hour
         self.height = height
+        self.fades = fades
     }
 
     /// Backdrop opacity, near-full so the scene reads VIVIDLY (by design). The dark hero CARD floating over it
@@ -199,19 +202,19 @@ public struct SceneScreenBackground: View {
                 LinearGradient(
                     stops: [
                         .init(color: .white, location: 0.0),
-                        .init(color: .white.opacity(0.9), location: 0.34),
-                        .init(color: .white.opacity(0.4), location: 0.62),
-                        .init(color: .clear, location: 0.92),
+                        .init(color: .white.opacity(fades ? 0.9 : 1), location: 0.34),
+                        .init(color: .white.opacity(fades ? 0.4 : 1), location: 0.62),
+                        .init(color: fades ? .clear : .white, location: 0.92),
                     ],
                     startPoint: .top, endPoint: .bottom
                 )
             )
-            .opacity(imageOpacityCap)
+            .opacity(fades ? imageOpacityCap : 1)
             // A whisper of dark under the very top for header legibility — kept light so the scene reads at
             // near-full vividness (the design calls for ~95%, not muted).
             .overlay(
                 LinearGradient(
-                    colors: [StrandPalette.surfaceBase.opacity(0.12), .clear],
+                    colors: [StrandPalette.surfaceBase.opacity(fades ? 0.12 : 0), .clear],
                     startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.22)
                 )
             )

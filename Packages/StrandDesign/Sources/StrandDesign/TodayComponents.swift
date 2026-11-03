@@ -53,7 +53,8 @@ public struct TodayCardSurface: View {
                 }
             }
             .overlay {
-                switch chrome.rim {
+                // The redesign's cards have no edge of their own.
+                switch NoopVisualStyle.skin == .forge ? .none : chrome.rim {
                 case .none:
                     EmptyView()
                 case .hairline:
