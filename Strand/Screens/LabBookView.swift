@@ -235,7 +235,7 @@ struct LabBookView: View {
         return Button { detailKey = key } label: {
             HStack(spacing: NoopMetrics.space3) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(displayName(for: key))
+                    Text(String(localized: String.LocalizationValue(displayName(for: key))))
                         .font(StrandFont.subhead.weight(.semibold))
                         .foregroundStyle(StrandPalette.textPrimary)
                         .multilineTextAlignment(.leading)
@@ -252,7 +252,7 @@ struct LabBookView: View {
                         .accessibilityHidden(true)
                 }
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(latestLabel(latest, key: key))
+                    Text(UnitFormatter.localizedMark(latestLabel(latest, key: key)))
                         .font(StrandFont.number(15).monospacedDigit())
                         .foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1)
@@ -746,6 +746,21 @@ struct LabBookView: View {
             all.append(contentsOf: rows)
         }
         markers = all.sorted { $0.takenAt < $1.takenAt }
+        #if DEBUG
+        // Screenshot QA of the ratings: `--demo-lab` shows a few blood values, nothing is stored.
+        if ProcessInfo.processInfo.arguments.contains("--demo-lab") {
+            let now = Int(Date().timeIntervalSince1970)
+            func row(_ key: String, _ value: Double, _ unit: String, _ age: Int, _ reference: String? = nil) -> LabMarkerRow {
+                LabMarkerRow(id: "demo-\(key)-\(age)", deviceId: repo.deviceId, markerKey: key, category: "bloodPanel",
+                             day: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(now - age * 86_400))),
+                             takenAt: now - age * 86_400, value: value, valueText: nil, unit: unit,
+                             source: "manual", note: nil, referenceText: reference)
+            }
+            markers = [row("ldl", 3.9, "mmol/L", 200), row("ldl", 3.6, "mmol/L", 20), row("hba1c", 36, "mmol/mol", 20),
+                       row("vitamin_d", 42, "nmol/L", 200), row("vitamin_d", 38, "nmol/L", 20),
+                       row("ferritin", 120, "µg/L", 20, "30 - 200"), row("tsh", 2.1, "mIU/L", 20)]
+        }
+        #endif
         loaded = true
     }
 
@@ -1283,11 +1298,12 @@ struct ForgeLabStatusChip: View {
 extension LabBookFormat {
     /// "range 4.0 to 5.6" or "up to 3.0", whichever bounds the range has, and whose range it is.
     static func rangeCaption(_ range: LabReferenceRange, key: String, unit: String) -> String? {
+        func mark(_ number: Double) -> String { UnitFormatter.localizedMark(value(number, key: key)) }
         let text: String
         switch (range.lower, range.upper) {
-        case let (low?, high?): text = String(localized: "range \(value(low, key: key)) to \(value(high, key: key))")
-        case let (nil, high?): text = String(localized: "up to \(value(high, key: key))")
-        case let (low?, nil): text = String(localized: "from \(value(low, key: key))")
+        case let (low?, high?): text = String(localized: "range \(mark(low)) to \(mark(high))")
+        case let (nil, high?): text = String(localized: "up to \(mark(high))")
+        case let (low?, nil): text = String(localized: "from \(mark(low))")
         case (nil, nil): return nil
         }
         return range.origin == .ownReport ? String(localized: "\(text) · your report") : text

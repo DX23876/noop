@@ -376,7 +376,7 @@ struct AppleHealthView: View {
     #if os(iOS)
     @ViewBuilder
     private var liveSyncCard: some View {
-        StrandCard(padding: 20, tint: StrandPalette.metricCyan) {
+        StrandCard(padding: 20, tint: NoopVisualStyle.skin == .forge ? nil : StrandPalette.metricCyan) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Image(systemName: "heart.text.square.fill")

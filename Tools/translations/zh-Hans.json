@@ -3785,5 +3785,22 @@
   "Each extra unit lines up with about %@ higher %@ for you.": "对你来说，每多一个单位，%2$@ 高约 %1$@。",
   "Sessions like this barely move the next morning's Charge.": "这类训练几乎不影响次日早晨的 Charge。",
   "Sessions like this usually cost about %lld Charge points the next morning.": "这类训练通常使次日早晨的 Charge 降低约 %lld 分。",
-  "Sessions like this usually lift the next morning's Charge by about %lld points.": "这类训练通常使次日早晨的 Charge 提高约 %lld 分。"
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "这类训练通常使次日早晨的 Charge 提高约 %lld 分。",
+  "Total cholesterol": "总胆固醇",
+  "LDL cholesterol": "低密度脂蛋白胆固醇",
+  "HDL cholesterol": "高密度脂蛋白胆固醇",
+  "Triglycerides": "甘油三酯",
+  "Fasting glucose": "空腹血糖",
+  "Serum iron": "血清铁",
+  "Transferrin saturation": "转铁蛋白饱和度",
+  "Haemoglobin": "血红蛋白",
+  "Folate": "叶酸",
+  "C-reactive protein (CRP)": "C 反应蛋白 (CRP)",
+  "Creatinine": "肌酐",
+  "Sodium": "钠",
+  "Potassium": "钾",
+  "Resting pulse": "静息脉搏",
+  "Blood pressure (systolic)": "血压（收缩压）",
+  "Blood pressure (diastolic)": "血压（舒张压）",
+  "Achievable %@": "可达到 %@"
 }

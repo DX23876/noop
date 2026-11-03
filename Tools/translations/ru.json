@@ -3661,5 +3661,22 @@
   "Each extra unit lines up with about %@ higher %@ for you.": "У вас каждая лишняя единица связана с %2$@ выше примерно на %1$@.",
   "Sessions like this barely move the next morning's Charge.": "Такие занятия почти не влияют на Charge следующего утра.",
   "Sessions like this usually cost about %lld Charge points the next morning.": "Такие занятия обычно стоят около %lld баллов Charge на следующее утро.",
-  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Такие занятия обычно повышают Charge следующего утра примерно на %lld баллов."
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Такие занятия обычно повышают Charge следующего утра примерно на %lld баллов.",
+  "Total cholesterol": "Общий холестерин",
+  "LDL cholesterol": "Холестерин ЛПНП",
+  "HDL cholesterol": "Холестерин ЛПВП",
+  "Triglycerides": "Триглицериды",
+  "Fasting glucose": "Глюкоза натощак",
+  "Serum iron": "Сывороточное железо",
+  "Transferrin saturation": "Насыщение трансферрина",
+  "Haemoglobin": "Гемоглобин",
+  "Folate": "Фолат",
+  "C-reactive protein (CRP)": "С-реактивный белок (СРБ)",
+  "Creatinine": "Креатинин",
+  "Sodium": "Натрий",
+  "Potassium": "Калий",
+  "Resting pulse": "Пульс в покое",
+  "Blood pressure (systolic)": "Давление (систолическое)",
+  "Blood pressure (diastolic)": "Давление (диастолическое)",
+  "Achievable %@": "Достижимо %@"
 }

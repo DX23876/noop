@@ -1473,7 +1473,7 @@ struct NativeWorkoutLoggerView: View {
                             Text(layout.title).tag(layout.rawValue)
                         }
                     }
-                    .labelsHidden().pickerStyle(.menu)
+                    .labelsHidden().pickerStyle(.menu).tint(StrandPalette.accent)
                 }
                 if media.isAvailable {
                     Divider().overlay(StrandPalette.hairline)
@@ -1485,7 +1485,7 @@ struct NativeWorkoutLoggerView: View {
                             Text("Small").tag(TrainingMediaPresentation.small.rawValue)
                             Text("Hidden").tag(TrainingMediaPresentation.hidden.rawValue)
                         }
-                        .labelsHidden().pickerStyle(.menu)
+                        .labelsHidden().pickerStyle(.menu).tint(StrandPalette.accent)
                     }
                 }
             }
@@ -3183,6 +3183,24 @@ private struct TrainingPlateCalculatorView: View {
 
     var body: some View {
         Form {
+            if NoopVisualStyle.skin == .forge {
+                // New design: the answer first, the setup under it.
+                Section {
+                    VStack(spacing: NoopMetrics.space1) {
+                        Text(TrainingPreferences.formattedWeight(targetKg, unit: weightUnit))
+                            .font(StrandFont.rounded(44, weight: .bold).monospacedDigit())
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        if let loading {
+                            Text("Achievable \(TrainingPreferences.formattedWeight(loading.achievableTotalKg, unit: weightUnit))")
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .combine)
+                }
+                loadSection
+            }
             Section("Equipment profiles") {
                 ForEach(profiles) { profile in
                     Button {
@@ -3230,6 +3248,14 @@ private struct TrainingPlateCalculatorView: View {
                                          set: { setPlate(plate, enabled: $0) }))
                 }
             }
+            if NoopVisualStyle.skin != .forge { loadSection }
+        }
+        .forgeListBackground()
+        .navigationTitle(Text("Plate calculator"))
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+    }
+
+    private var loadSection: some View {
             Section("Load each side") {
                 if let loading {
                     if loading.platesPerSideKg.isEmpty {
@@ -3258,10 +3284,6 @@ private struct TrainingPlateCalculatorView: View {
                     Text("The target must be at least the bar weight.").foregroundStyle(.secondary)
                 }
             }
-        }
-        .forgeListBackground()
-        .navigationTitle(Text("Plate calculator"))
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
 
     private var standardPlates: [Double] {

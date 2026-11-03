@@ -3685,5 +3685,22 @@
   "Each extra unit lines up with about %@ higher %@ for you.": "Bei dir geht jede weitere Einheit mit etwa %1$@ mehr %2$@ einher.",
   "Sessions like this barely move the next morning's Charge.": "Solche Einheiten bewegen die Energie am nächsten Morgen kaum.",
   "Sessions like this usually cost about %lld Charge points the next morning.": "Solche Einheiten kosten am nächsten Morgen meist etwa %lld Energiepunkte.",
-  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Solche Einheiten heben die Energie am nächsten Morgen meist um etwa %lld Punkte."
+  "Sessions like this usually lift the next morning's Charge by about %lld points.": "Solche Einheiten heben die Energie am nächsten Morgen meist um etwa %lld Punkte.",
+  "Total cholesterol": "Gesamtcholesterin",
+  "LDL cholesterol": "LDL-Cholesterin",
+  "HDL cholesterol": "HDL-Cholesterin",
+  "Triglycerides": "Triglyzeride",
+  "Fasting glucose": "Nüchternzucker",
+  "Serum iron": "Serumeisen",
+  "Transferrin saturation": "Transferrinsättigung",
+  "Haemoglobin": "Hämoglobin",
+  "Folate": "Folsäure",
+  "C-reactive protein (CRP)": "C-reaktives Protein (CRP)",
+  "Creatinine": "Kreatinin",
+  "Sodium": "Natrium",
+  "Potassium": "Kalium",
+  "Resting pulse": "Ruhepuls",
+  "Blood pressure (systolic)": "Blutdruck (systolisch)",
+  "Blood pressure (diastolic)": "Blutdruck (diastolisch)",
+  "Achievable %@": "Erreichbar %@"
 }

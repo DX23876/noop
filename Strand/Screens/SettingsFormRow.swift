@@ -26,7 +26,7 @@ struct FormRow<Control: View>: View {
 
     private var labelView: some View {
         Text(label)
-            .font(StrandFont.body)
+            .font(NoopVisualStyle.skin == .forge ? StrandFont.subhead : StrandFont.body)
             .foregroundStyle(StrandPalette.textPrimary)
     }
 }

@@ -13,6 +13,43 @@ struct SettingsSection<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
+        if NoopVisualStyle.skin == .forge {
+            // The new design's settings group: its name on the page, a short note and the controls on the card.
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                if !headerHidden || headerAction != nil {
+                    HStack {
+                        if !headerHidden {
+                            Text(title)
+                                .font(StrandFont.subhead.weight(.semibold))
+                                .foregroundStyle(StrandPalette.textSecondary)
+                                .accessibilityAddTraits(.isHeader)
+                        }
+                        if let headerAction {
+                            Spacer(minLength: NoopMetrics.space2)
+                            Button(headerAction.label, action: headerAction.perform)
+                                .font(StrandFont.subhead.weight(.semibold))
+                                .foregroundStyle(StrandPalette.accent)
+                                .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, NoopMetrics.space1)
+                }
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        Text(blurb)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        content
+                    }
+                }
+            }
+        } else {
+            standardBody
+        }
+    }
+
+    private var standardBody: some View {
         StrandCard(padding: NoopMetrics.space5, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: NoopMetrics.space4) {
                 if !headerHidden || headerAction != nil {
