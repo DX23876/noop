@@ -14,19 +14,26 @@ import Foundation
 //   `everydayMarginHRR`), so one fixed threshold does not fit everyone. A span must also carry a minimum
 //   training load (Edwards' zone minutes) before it is asked about, which keeps housework and errands out.
 //
-// Walk spans are built the GGIR way: a run of qualifying minutes may contain short gaps as long as at least
-// `boutShare` of it qualifies, and it must last `minimumMinutes`. Heart-rate spans join short pieces first
-// (a strength session is sets with rests) and are measured after. Pure: no I/O, no clock, unix seconds.
+// A walk starts and ends on a full walking minute and is then held open: slower minutes keep it going, and
+// standing still ends it only after `walkStopMinutes`, so a red light is not the end of a walk. Heart-rate
+// pieces are built the GGIR way (short gaps as long as at least `boutShare` qualifies), joined first (a
+// strength session is sets with rests) and measured after. Pure: no I/O, no clock, unix seconds.
 public enum ActivityCandidates {
 
     /// Bumped whenever a threshold or rule below changes, so stored suggestions and answers can be told apart.
-    public static let ruleVersion = "activity-v1"
+    public static let ruleVersion = "activity-v2"
 
     public static let minimumMinutes = 15
     public static let boutShare = 0.8
     /// Longest run of non-qualifying minutes inside a span.
     public static let maxGapMinutes = 2
     public static let walkCadence = 80
+    /// A minute the strap still calls walking with at least this many steps keeps a walk going without
+    /// counting as a full walking minute: a walk slowing down, or a minute half spent at a red light.
+    public static let walkSlowSteps = 40
+    /// Longest stretch of standing still inside a walk. A two-minute light touches up to three clock
+    /// minutes, plus the slowing down and getting going around it.
+    public static let walkStopMinutes = 5
     public static let everydayMarginHRR = 0.12
     public static let everydayQuantile = 0.75
     /// Without enough history, the heart-rate track uses this fixed reserve instead of the everyday level.
@@ -37,7 +44,7 @@ public enum ActivityCandidates {
     public static let joinGapMinutes = 10
     /// A heart-rate piece shorter than this does not take part in joining (a flight of stairs).
     public static let minimumPieceMinutes = 3
-    /// Share of a joined heart-rate span that must be above the bar, so joining cannot chain a whole
+    /// Share of a joined span that must be above the bar or fully walked, so joining cannot chain a whole
     /// busy afternoon into one span.
     public static let joinedShare = 0.5
 
@@ -122,8 +129,46 @@ public enum ActivityCandidates {
         return (m.walkSeconds ?? 0) + (m.runSeconds ?? 0) >= 30 && steps >= walkCadence
     }
 
+    static func isSlowWalkMinute(_ m: Minute) -> Bool {
+        guard !m.asleep, let steps = m.steps, let classed = m.classSeconds, classed >= 30 else { return false }
+        return (m.walkSeconds ?? 0) + (m.runSeconds ?? 0) >= 30 && steps >= walkSlowSteps
+    }
+
+    /// Index ranges of walks: from a full walking minute to the last one before more than `walkStopMinutes`
+    /// of standing still, at least `minimumMinutes` long. The share is only held to `joinedShare` from that
+    /// length on, or a light in the first minutes of a walk would cut those minutes off. A hole in the data
+    /// counts as standing still.
+    static func walkSpans(_ minutes: [Minute]) -> [ClosedRange<Int>] {
+        var out: [ClosedRange<Int>] = []
+        var i = 0
+        while i < minutes.count {
+            guard isWalkMinute(minutes[i]) else { i += 1; continue }
+            var last = i, full = 1, stopped = 0, j = i + 1
+            while j < minutes.count {
+                stopped += (minutes[j].ts - minutes[j - 1].ts) / 60 - 1
+                if stopped > walkStopMinutes { break }
+                if isWalkMinute(minutes[j]) {
+                    let length = (minutes[j].ts - minutes[i].ts) / 60 + 1
+                    if length >= minimumMinutes, Double(full + 1) / Double(length) < joinedShare { break }
+                    full += 1
+                    last = j
+                    stopped = 0
+                } else if isSlowWalkMinute(minutes[j]) {
+                    stopped = 0
+                } else {
+                    stopped += 1
+                    if stopped > walkStopMinutes { break }
+                }
+                j += 1
+            }
+            if (minutes[last].ts - minutes[i].ts) / 60 + 1 >= minimumMinutes { out.append(i ... last) }
+            i = last + 1
+        }
+        return out
+    }
+
     public static func walkCandidates(_ minutes: [Minute], hrMax: Int) -> [Candidate] {
-        bouts(minutes, qualifies: isWalkMinute).map { range in
+        walkSpans(minutes).map { range in
             let span = Array(minutes[range])
             let walk = span.reduce(0) { $0 + ($1.walkSeconds ?? 0) }
             let run = span.reduce(0) { $0 + ($1.runSeconds ?? 0) }

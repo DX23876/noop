@@ -75,15 +75,18 @@ extension Repository {
     func undoActivitySuggestion(_ s: ActivitySuggestions.Suggestion) async {
         guard let store = await storeHandle() else { return }
         let track: ActivitySuggestionAnswer.Track = s.track == .walk ? .walk : .heartRate
-        let answers = (try? await store.activitySuggestionAnswers(from: s.start, to: s.end)) ?? []
-        if let key = answers.first(where: { $0.track == track && $0.candidateStartTs == s.start })?.workout,
-           let row = await workoutRows(days: ActivitySuggestions.listDays + 2).first(where: {
-               $0.startTs == key.startTs && $0.sport == key.sport
-                   && WorkoutSource.classify($0.source) == .confirmed
-           }) {
-            await deleteWorkout(row)
+        let stored = (try? await store.activitySuggestionAnswers(from: s.start, to: s.end)) ?? []
+        let rows = await workoutRows(days: ActivitySuggestions.listDays + 2)
+        for answer in ActivitySuggestions.answers(stored, track: track, start: s.start, end: s.end) {
+            if let key = answer.workout,
+               let row = rows.first(where: {
+                   $0.startTs == key.startTs && $0.sport == key.sport
+                       && WorkoutSource.classify($0.source) == .confirmed
+               }) {
+                await deleteWorkout(row)
+            }
+            _ = try? await store.deleteActivitySuggestionAnswer(track: track, candidateStartTs: answer.candidateStartTs)
         }
-        _ = try? await store.deleteActivitySuggestionAnswer(track: track, candidateStartTs: s.start)
         await refresh()
     }
 }

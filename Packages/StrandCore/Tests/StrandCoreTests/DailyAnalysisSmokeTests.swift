@@ -446,7 +446,7 @@ final class DailyAnalysisSmokeTests: XCTestCase {
                                 "got \(stored)")
         XCTAssertEqual((hit.endTs - hit.startTs) / 60, 35, accuracy: 2)
         XCTAssertEqual(hit.ruleVersion, ActivityCandidates.ruleVersion)
-        XCTAssertTrue(host.lines.contains { $0.hasPrefix("activityShadow") && $0.contains("track=heartRate rule=activity-v1") },
+        XCTAssertTrue(host.lines.contains { $0.hasPrefix("activityShadow") && $0.contains("track=heartRate rule=\(ActivityCandidates.ruleVersion)") },
                       "got \(host.lines.filter { $0.hasPrefix("activityShadow") })")
     }
 

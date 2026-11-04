@@ -106,12 +106,18 @@ enum CoreActivity {
         guard let track = (args["track"] as? String).flatMap(ActivitySuggestionAnswer.Track.init(rawValue:)),
               let start = (args["start"] as? NSNumber)?.intValue else { return false }
         let end = (args["end"] as? NSNumber)?.intValue ?? start + 1
-        let answers = (try? await reader.store.activitySuggestionAnswers(from: start, to: end)) ?? []
-        if let key = answers.first(where: { $0.track == track && $0.candidateStartTs == start })?.workout {
-            _ = try? await reader.store.deleteWorkouts(deviceId: key.deviceId, sport: key.sport,
-                                                       from: key.startTs, to: key.startTs)
+        let stored = (try? await reader.store.activitySuggestionAnswers(from: start, to: end)) ?? []
+        var removed = false
+        for answer in ActivitySuggestions.answers(stored, track: track, start: start, end: end) {
+            if let key = answer.workout {
+                _ = try? await reader.store.deleteWorkouts(deviceId: key.deviceId, sport: key.sport,
+                                                           from: key.startTs, to: key.startTs)
+            }
+            let deleted = try? await reader.store.deleteActivitySuggestionAnswer(track: track,
+                                                                                 candidateStartTs: answer.candidateStartTs)
+            removed = removed || deleted == true
         }
-        return (try? await reader.store.deleteActivitySuggestionAnswer(track: track, candidateStartTs: start)) ?? false
+        return removed
     }
 
     static func item(_ s: ActivitySuggestions.Suggestion) -> Item {

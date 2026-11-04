@@ -32,6 +32,22 @@ final class ActivitySuggestionsTests: XCTestCase {
         XCTAssertEqual(answered.shownKind, "strength")
     }
 
+    func testAnAnswerStandsWhenANewRuleMovesTheStartOrJoinsTwoSpans() {
+        // Answered under the old rule as two walks; the new rule reads one walk that starts earlier.
+        let old = [candidate(10_600, minutes: 20, track: "walk", kinds: ["walk"]),
+                   candidate(12_400, minutes: 20, track: "walk", kinds: ["walk"])]
+        let second = S.resolve(candidates: [old[1]], answers: [], workouts: [], settings: .init())[0]
+        let answered = S.answer(second, .everyday, sport: nil, origin: .today, shownAt: nil, now: 20_000, workout: nil)
+        let joined = candidate(10_000, minutes: 60, track: "walk", kinds: ["walk"])
+        XCTAssertEqual(S.resolve(candidates: [joined], answers: [answered], workouts: [], settings: .init()).map(\.state),
+                       [.answered(.everyday)])
+        // The same stretch on the other track, or a later walk, is another question.
+        let other = candidate(10_000, minutes: 60)
+        let later = candidate(20_000, minutes: 60, track: "walk", kinds: ["walk"])
+        XCTAssertEqual(S.resolve(candidates: [other, later], answers: [answered], workouts: [], settings: .init()).map(\.state),
+                       [.open, .open])
+    }
+
     func testALegacyDetectedRowDoesNotCountAsLoggedButAConfirmedOneDoes() {
         let all = S.resolve(candidates: [candidate(10_000), candidate(20_000)], answers: [],
                             workouts: [workout(10_000, 11_800, source: "my-whoop-noop"),

@@ -53,8 +53,6 @@ public enum ActivitySuggestions {
     public static func resolve(candidates: [ActivityCandidateRow], answers: [ActivitySuggestionAnswer],
                                workouts: [WorkoutRow], legacyDismissed: [Range<Int>] = [],
                                settings: Settings) -> [Suggestion] {
-        let answerByKey = Dictionary(answers.map { ("\($0.track.rawValue):\($0.candidateStartTs)", $0) },
-                                     uniquingKeysWith: { a, b in a.answeredAtTs >= b.answeredAtTs ? a : b })
         let logged = workouts.filter { WorkoutSource.classify($0.source) != .detected && $0.endTs > $0.startTs }
         return candidates.compactMap { row in
             guard let track = ActivityCandidates.Track(rawValue: row.track), row.endTs > row.startTs else { return nil }
@@ -65,7 +63,8 @@ public enum ActivitySuggestions {
                 Double(max(0, min(w.endTs, row.endTs) - max(w.startTs, row.startTs))) / length >= loggedCoverage
             }
             let state: State
-            if let a = answerByKey["\(row.track):\(row.startTs)"] {
+            let own = self.answers(answers, track: track == .walk ? .walk : .heartRate, start: row.startTs, end: row.endTs)
+            if let a = own.max(by: { $0.answeredAtTs < $1.answeredAtTs }) {
                 state = .answered(a.answer)
             } else {
                 state = covered ? .logged : .open
@@ -77,6 +76,13 @@ public enum ActivitySuggestions {
                               kinds: row.kinds.compactMap(ActivityDetectionScore.Kind.init(rawValue:)),
                               ruleVersion: row.ruleVersion, state: state, asks: candidate.asks(at: settings.level))
         }
+    }
+
+    /// The answers a span resolves to: those of its track over the same stretch, not only those with its exact
+    /// start. A new rule can move a start or join two spans, and what the wearer said still stands.
+    public static func answers(_ all: [ActivitySuggestionAnswer], track: ActivitySuggestionAnswer.Track,
+                               start: Int, end: Int) -> [ActivitySuggestionAnswer] {
+        all.filter { $0.track == track && $0.candidateStartTs < end && $0.candidateEndTs > start }
     }
 
     /// What the Today prompt and a notification ask about: open suggestions above the level whose heart rate

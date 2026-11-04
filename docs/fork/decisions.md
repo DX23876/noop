@@ -902,3 +902,30 @@ Today), Stone (the former chrome), Slate and Sage. Only Today's own page carries
 and Rest keep their colours in every profile, since those colours mean something. Choosing a profile also
 writes the motif switch; the person's own setting stays after that. The contrast floors are tested per
 profile in `ChromeContrastTests`.
+
+## A red light does not end a detected walk (2026-11-04)
+
+The owner reported that a walk ends and a new one starts after a minute or two at a traffic light. The walk
+track allowed two minutes that were not full walking minutes, and it held the 80 % share from the first
+minute on. Replayed on the 2026-10-25 phone database (October), most minutes in short gaps between walking
+stretches were not standing still at all: 221 of 301 had 40 to 79 steps, a walk slowing down or a minute half spent at a light.
+A stop in the first minutes also cut off what came before it, and two stretches under 15 minutes around a
+stop gave no suggestion at all.
+
+`ActivityCandidates.walkSpans` (rule `activity-v2`) now starts and ends a walk on a full walking minute and
+holds it open: a minute the strap calls walking with at least 40 steps keeps it going, and standing still ends
+it after more than five minutes. Half of a span must be full walking minutes, held only from the 15-minute
+minimum on. Five minutes because a two-minute light touches up to three clock minutes, plus slowing down and
+getting going; longer stops the wearer logs as one walk (up to 14 minutes on this data) are rests, and they
+stay two suggestions. The heart-rate track's pieces keep the old rule.
+
+ActivityBench, owner data 2026-09-01 to 2026-10-24, both tracks at "balanced": walks 33/36 against 30/36,
+0.98 suggestions without an entry a day against 0.80. That is the price, about one more a week. The new ones
+are mostly stretches of 15 to 20 minutes nobody logged; whether each was a real walk has not been checked.
+
+A new rule moves starts and joins spans, and answers were keyed by exact start, so walks already answered
+would have been asked about again. `ActivitySuggestions.answers` now resolves an answer over the same stretch
+of the same track, and Undo on both platforms removes every answer it finds there.
+
+Analysis migration required: no. Suggestions are shown, never scored; the rolling table rebuilds itself on the
+new rule version.
