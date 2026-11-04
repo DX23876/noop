@@ -57,6 +57,8 @@ struct ForgeTodayView: View {
     @State private var whyEntry: ForgeTimeline.Entry?
     /// True once the rings have scrolled out of view; a compact glass bar then keeps the three scores.
     @State private var heroHidden = false
+    @AppStorage(ForgeDesignPrefs.todaySurfaceKey) private var surfacePercent = ForgeDesignPrefs.todaySurfaceDefault
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var editingWidgets = false
     @ObservedObject private var widgetStore = ForgeTodayWidgetStore.shared
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var tilesBelowTimeline = false
@@ -125,13 +127,29 @@ struct ForgeTodayView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 14)
-                    .padding(.bottom, 18)
-                    .background { ForgeTileVeil() }
-                    daySheet
+                    .padding(.bottom, 12)
+                    dayList
                 }
                 .padding(.top, 6)
+                .environment(\.forgeSurfaceOpacity, surfaceOpacity)
             }
             .scrollIndicators(.hidden)
+            // Cards dissolve before they reach the clock and the tab bar, leaving the picture there, with nothing
+            // painted over it.
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(stops: heroHidden
+                                   ? [.init(color: .clear, location: 0.6), .init(color: .black, location: 1)]
+                                   : [.init(color: .black, location: 0), .init(color: .black, location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 112)
+                    Color.black
+                    LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .clear, location: 0.6)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 120)
+                }
+                .ignoresSafeArea()
+            }
             .coordinateSpace(name: "forge-today")
             .onPreferenceChange(ForgeHeroBottomKey.self) { bottom in
                 let hidden = bottom < 40
@@ -139,18 +157,8 @@ struct ForgeTodayView: View {
             }
             .overlay(alignment: .top) {
                 if heroHidden {
-                    ZStack(alignment: .top) {
-                        // Fades the timeline out under the status bar and the bar, so text never runs
-                        // behind the clock unsoftened.
-                        LinearGradient(colors: [ForgeColor.canvas, ForgeColor.canvas.opacity(0.85),
-                                                ForgeColor.canvas.opacity(0)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: 64)
-                            .ignoresSafeArea(edges: .top)
-                            .allowsHitTesting(false)
-                        pinnedBar
-                    }
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    pinnedBar
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .onChange(of: scrollToTopSignal) { _, _ in
@@ -186,6 +194,8 @@ struct ForgeTodayView: View {
     }
 
     private var onPicture: Bool { motifOn || backdropPhoto.isActive }
+    /// How solid every surface on this page is over the picture. The one reading of the setting here.
+    private var surfaceOpacity: Double { reduceTransparency ? 1 : Double(surfacePercent) / 100 }
 
     private func startEditingWidgets() {
         withAnimation(.snappy) { editingWidgets = true }
@@ -339,32 +349,26 @@ struct ForgeTodayView: View {
 
     // MARK: - Timeline
 
-    /// The day on one sheet over the motif: full width, entries set apart by their own time and not by a rail
-    /// beside them. Fills past its end, so a pull at the bottom never shows the motif through.
-    private var daySheet: some View {
-        VStack(alignment: .leading, spacing: 20) {
+    /// The day directly on the picture: only what carries text has a surface, each entry its own.
+    private var dayList: some View {
+        VStack(alignment: .leading, spacing: 14) {
             timeline
             if tilesBelowTimeline && !editingWidgets {
                 ForgeTodayWidgetArea(editing: $editingWidgets)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 22)
-        .padding(.bottom, 110)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 130)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(alignment: .top) {
-            UnevenRoundedRectangle(topLeadingRadius: 30, topTrailingRadius: 30, style: .continuous)
-                .fill(ForgeColor.card)
-                .padding(.bottom, -600)
-        }
     }
 
     private var timeline: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             if snapshot.loaded && snapshot.timeline.isEmpty {
                 Text("Workouts, nights and notes from the coach appear here as the day goes on.")
                     .font(ForgeFont.body)
-                    .foregroundStyle(ForgeColor.secondary)
+                    .foregroundStyle(ForgeColor.secondaryOnPicture)
+                    .forgeCard(radius: 20, padding: 14)
             }
             ForEach(Array(snapshot.timeline.enumerated()), id: \.element.id) { index, day in
                 if index > 0 || !Calendar.current.isDateInToday(day.date) {
@@ -378,16 +382,16 @@ struct ForgeTodayView: View {
     }
 
     private func dayDivider(_ date: Date) -> some View {
-        HStack(spacing: 10) {
-            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
-            (Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundColor(ForgeColor.text)
-             + Text(verbatim: "  ") + Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
-                .font(.system(.subheadline)).foregroundColor(ForgeColor.secondary))
-                .lineLimit(1).fixedSize()
-            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
-        }
-        .padding(.vertical, 4)
-        .accessibilityAddTraits(.isHeader)
+        (Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundColor(ForgeColor.text)
+         + Text(verbatim: "  ") + Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
+            .font(.system(.subheadline)).foregroundColor(ForgeColor.secondaryOnPicture))
+            .lineLimit(1).fixedSize()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(ForgeColor.card.opacity(surfaceOpacity)))
+            .frame(maxWidth: .infinity)
+            .padding(.top, 6)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private func dayTitle(_ date: Date) -> String {
@@ -410,10 +414,11 @@ struct ForgeTodayView: View {
             } else if entry.timed {
                 Text(Self.timeText(entry.date))
                     .font(.system(.footnote, weight: .medium).monospacedDigit())
-                    .foregroundStyle(ForgeColor.secondary)
+                    .foregroundStyle(ForgeColor.secondaryOnPicture)
             }
             entryCard(entry)
         }
+        .forgeCard(radius: 20, padding: 14)
     }
 
     @ViewBuilder private func entryCard(_ entry: ForgeTimeline.Entry) -> some View {
@@ -473,7 +478,7 @@ struct ForgeTodayView: View {
                 let opened = openedNotes.contains(entry.id) || entry.detail.count <= Self.shortNoteLength
                 Text(Self.markdown(entry.detail))
                     .font(ForgeFont.body)
-                    .foregroundStyle(ForgeColor.secondary)
+                    .foregroundStyle(ForgeColor.secondaryOnPicture)
                     .lineLimit(opened ? nil : 4)
                     .fixedSize(horizontal: false, vertical: true)
                 if !opened {
@@ -495,7 +500,6 @@ struct ForgeTodayView: View {
                           action: onCoach)
             }
             .padding(.top, 2)
-            Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.top, 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -517,7 +521,7 @@ struct ForgeTodayView: View {
             VStack(spacing: 6) {
                 ForEach(Array(snapshot.drivers.prefix(3).enumerated()), id: \.offset) { _, driver in
                     HStack(spacing: 8) {
-                        Text(driver.label).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
+                        Text(driver.label).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondaryOnPicture)
                             .lineLimit(1).minimumScaleFactor(0.8)
                         Spacer()
                         Text(ForgeToday.driverValue(driver.valueText)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
@@ -539,7 +543,7 @@ struct ForgeTodayView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(WorkoutSource.localizedDisplaySport(row.sport))
                             .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                        Text(workoutDetail(row)).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
+                        Text(workoutDetail(row)).font(.system(.caption)).foregroundStyle(ForgeColor.secondaryOnPicture)
                     }
                     Spacer()
                     if let strain = row.strain {
@@ -585,7 +589,7 @@ struct ForgeTodayView: View {
                             .lineLimit(1)
                         Text(workoutDetail(row))
                             .font(ForgeFont.caption)
-                            .foregroundStyle(ForgeColor.secondary)
+                            .foregroundStyle(ForgeColor.secondaryOnPicture)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 6)
@@ -596,7 +600,7 @@ struct ForgeTodayView: View {
                                 .foregroundStyle(ForgeColor.text)
                             Text(DomainTheme.effort.productName)
                                 .font(.system(.caption2))
-                                .foregroundStyle(ForgeColor.secondary)
+                                .foregroundStyle(ForgeColor.secondaryOnPicture)
                         }
                     }
                 }
@@ -619,7 +623,7 @@ struct ForgeTodayView: View {
                     Text("Weight logged").font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     if let change = snapshot.weightChange30d {
                         Text("\(UnitFormatter.massFromKilograms(change, system: UnitSystem(rawValue: unitSystemRaw) ?? .metric).replacingOccurrences(of: "-", with: "−")) in 30 days")
-                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondaryOnPicture)
                     }
                 }
                 Spacer(minLength: 6)
@@ -730,14 +734,14 @@ struct ForgeTodayView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
                 if let detail {
-                    Text(detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(2)
+                    Text(detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondaryOnPicture).lineLimit(2)
                 }
             }
             Spacer(minLength: 6)
             if let value {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(value).font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.text)
-                    Text(unit).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
+                    Text(unit).font(.system(.caption2)).foregroundStyle(ForgeColor.secondaryOnPicture)
                 }
             }
         }
@@ -931,27 +935,7 @@ struct ForgeTodayView: View {
         }
     }
 }
-/// Behind the tiles, from just above them to the day's sheet: the page's colour at part strength over the
-/// picture, with no blur, its upper edge melting away. It moves with the page, so it always starts at the
-/// tiles. Its strength is the wearer's, under Appearance; zero turns it off.
-private struct ForgeTileVeil: View {
-    @AppStorage(ForgeDesignPrefs.tileVeilKey) private var percent = ForgeDesignPrefs.tileVeilDefault
-
-    var body: some View {
-        Rectangle()
-            .fill(ForgeColor.canvas.opacity(Double(percent) / 100))
-            .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
-                                         .init(color: .white, location: 0.12)],
-                                 startPoint: .top, endPoint: .bottom))
-            // Reaches above the first tile and under the sheet's rounded corners.
-            .padding(.top, -6)
-            .padding(.bottom, -40)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-    }
-}
-
-/// Log and Start on the same solid surface as the tiles under them, not glass over the motif.
+/// Log and Start on a solid surface, the page's two actions standing out from the see-through tiles under them.
 private struct ForgeTodayActionSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -963,11 +947,9 @@ private struct ForgeTodayActionSurface: ViewModifier {
 }
 
 private extension View {
-    /// An event on the day sheet: a quiet inset, the sheet itself being the card.
+    /// An event in its entry, which carries the surface.
     func forgeEventTile() -> some View {
-        padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(ForgeColor.fill))
+        frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

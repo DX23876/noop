@@ -278,11 +278,12 @@ struct ForgeTodayWidgetView: View {
     let widget: ForgeTodayWidget
     @EnvironmentObject private var repo: Repository
     @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
+    @Environment(\.forgeSurfaceOpacity) private var surfaceOpacity
 
     var body: some View {
         switch widget.kind {
         case .measure: ForgeMeasureWidget(key: widget.key ?? "hrv", source: widget.source)
-        case .trainingLoad: LiquidTrainingLoadSection(surfaceOpacity: Double(opacityPercent) / 100)
+        case .trainingLoad: LiquidTrainingLoadSection(surfaceOpacity: surfaceOpacity ?? Double(opacityPercent) / 100)
         case .goals: GoalsTodaySection(headerOutside: true)
         case .energy: ForgeEnergyWidget()
         case .water: ForgeWaterWidget()
@@ -308,6 +309,7 @@ private struct ForgeTodayTile: View {
     @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
     /// nil until the wearer sets Card transparency: until then close to solid, so figures stay clean.
     @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent: Int?
+    @Environment(\.forgeSurfaceOpacity) private var surfaceOpacity
 
     var body: some View {
         let dense = KeyMetricPrefs.columns(columnsRaw) > 2
@@ -321,7 +323,7 @@ private struct ForgeTodayTile: View {
                         sparkColor: tint,
                         sparklineHeight: dense ? 22 : 28,
                         dense: dense,
-                        surfaceOpacity: opacityPercent.map { Double($0) / 100 } ?? 0.92,
+                        surfaceOpacity: surfaceOpacity ?? opacityPercent.map { Double($0) / 100 } ?? 0.92,
                         tintsSurface: false)
     }
 }

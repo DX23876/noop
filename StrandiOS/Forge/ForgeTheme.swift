@@ -23,6 +23,8 @@ enum ForgeColor {
     static let raised = NoopVisualStyle.inset
     static let text = dyn(0x000000, 0xFFFFFF)
     static let secondary = dyn(0x3C3C43, 0xEBEBF5, light: 0.62, dark: 0.62)
+    /// Secondary text on a see-through surface: the picture behind it takes contrast the plain tone cannot spare.
+    static let secondaryOnPicture = dyn(0x000000, 0xFFFFFF, light: 0.72, dark: 0.78)
     static let tertiary = dyn(0x3C3C43, 0xEBEBF5, light: 0.42, dark: 0.42)
     static let fill = dyn(0x767680, 0x767680, light: 0.13, dark: 0.26)
     static let separator = dyn(0x3C3C43, 0x545458, light: 0.18, dark: 0.55)
@@ -105,6 +107,8 @@ enum ForgeFont {
 extension EnvironmentValues {
     /// The tab a page was pushed from, so a shared screen takes its tab's wash under the new design.
     @Entry var forgeTab: ForgeTab = .today
+    /// Today sets how solid its surfaces are over the picture; nil leaves a card to Card transparency.
+    @Entry var forgeSurfaceOpacity: Double? = nil
 }
 
 /// `ForgeBackground` for shared screens: the tab comes from the environment.
@@ -179,10 +183,11 @@ struct ForgeCardModifier: ViewModifier {
     @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.forgeSurfaceOpacity) private var surfaceOpacity
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let opacity = reduceTransparency ? 1 : max(0.35, Double(opacityPercent) / 100)
+        let opacity = reduceTransparency ? 1 : surfaceOpacity ?? max(0.35, Double(opacityPercent) / 100)
         let light = colorScheme == .light
         content
             .padding(padding)

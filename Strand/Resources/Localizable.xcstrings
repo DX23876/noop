@@ -608186,118 +608186,118 @@
         }
       }
     },
-    "Veil behind the tiles" : {
+    "Transparency on Today" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schleier hinter den Kacheln"
+            "value" : "Transparenz auf Heute"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Velo tras los mosaicos"
+            "value" : "Transparencia en Hoy"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voile derrière les tuiles"
+            "value" : "Transparence sur Aujourd'hui"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Velo dietro i riquadri"
+            "value" : "Trasparenza su Oggi"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welon za kafelkami"
+            "value" : "Przezroczystość na ekranie Dziś"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Véu atrás dos mosaicos"
+            "value" : "Transparência em Hoje"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вуаль за плитками"
+            "value" : "Прозрачность на экране «Сегодня»"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "卡片后的薄纱"
+            "value" : "“今日”页透明度"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "卡片後的薄紗"
+            "value" : "「今日」頁透明度"
           }
         }
       }
     },
-    "How much of the day's picture comes through behind the tiles on Today. Far left turns it off." : {
+    "How much of the day's picture shows through the tiles and notes on Today. Left = solid, right = clear." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wie viel vom Tagesbild hinter den Kacheln auf Heute durchscheint. Ganz links schaltet ihn aus."
+            "value" : "Wie viel vom Tagesbild auf Heute durch Kacheln und Notizen scheint. Links = deckend, rechts = klar."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cuánta imagen del día se ve tras los mosaicos en Hoy. Totalmente a la izquierda lo desactiva."
+            "value" : "Cuánto de la imagen del día se ve a través de los mosaicos y notas en Hoy. Izquierda = opaco, derecha = transparente."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La part de l'image du jour visible derrière les tuiles sur Aujourd'hui. Tout à gauche, il est désactivé."
+            "value" : "Quelle part de l'image du jour transparaît à travers les tuiles et les notes sur Aujourd'hui. Gauche = opaque, droite = transparent."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quanta immagine del giorno traspare dietro i riquadri in Oggi. Tutto a sinistra lo disattiva."
+            "value" : "Quanto dell'immagine del giorno traspare da riquadri e note su Oggi. Sinistra = opaco, destra = trasparente."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ile obrazu dnia prześwituje za kafelkami na ekranie Dziś. Skrajnie w lewo wyłącza."
+            "value" : "Jak bardzo obraz dnia prześwituje przez kafelki i notatki na ekranie Dziś. Lewo = pełne, prawo = przezroczyste."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quanto da imagem do dia se vê atrás dos mosaicos em Hoje. Totalmente à esquerda desliga."
+            "value" : "Quanto da imagem do dia transparece pelos mosaicos e notas em Hoje. Esquerda = opaco, direita = transparente."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Насколько изображение дня просвечивает за плитками на экране «Сегодня». Крайнее левое положение отключает."
+            "value" : "Насколько картинка дня просвечивает сквозь плитки и заметки на экране «Сегодня». Слева — непрозрачно, справа — прозрачно."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日页卡片后透出多少当日图片。拖到最左侧即关闭。"
+            "value" : "“今日”页上当日图片透过卡片和笔记显现的程度。左 = 不透明,右 = 透明。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日頁卡片後透出多少當日圖片。拖到最左側即關閉。"
+            "value" : "「今日」頁上當日圖片透過卡片和筆記顯現的程度。左 = 不透明,右 = 透明。"
           }
         }
       }

@@ -9,8 +9,9 @@ import StrandDesign
 /// Analysis migration required: no. This only selects which user interface is shown.
 enum ForgeDesignPrefs {
     /// How strongly the page's colour covers Today's picture behind the tiles, in percent. 0 turns it off.
-    static let tileVeilKey = "forge.today.tileVeilPercent"
-    static let tileVeilDefault = 20
+    /// How solid Today's tiles and notes are over the day's picture, in percent.
+    static let todaySurfaceKey = "forge.today.surfacePercent"
+    static let todaySurfaceDefault = 75
     static let previewKey = "noop.forgeDesign.preview"
     static let defaultPreview = false
 

@@ -3780,6 +3780,6 @@
   "Wide · your heart rate as a curve": "Largo · o teu pulso como curva",
   "No sleep stages for this night.": "Sem fases de sono para esta noite.",
   "Read more": "Ler mais",
-  "Veil behind the tiles": "Véu atrás dos mosaicos",
-  "How much of the day's picture comes through behind the tiles on Today. Far left turns it off.": "Quanto da imagem do dia se vê atrás dos mosaicos em Hoje. Totalmente à esquerda desliga."
+  "Transparency on Today": "Transparência em Hoje",
+  "How much of the day's picture shows through the tiles and notes on Today. Left = solid, right = clear.": "Quanto da imagem do dia transparece pelos mosaicos e notas em Hoje. Esquerda = opaco, direita = transparente."
 }
