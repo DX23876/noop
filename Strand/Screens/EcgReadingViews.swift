@@ -512,9 +512,9 @@ struct EcgReadingsScreen: View {
     @State private var readingPresented = false
 
     var body: some View {
-        EcgReadingListView(controller: model.ecgReading)
+        EcgReadingListView(controller: model.ecgReading, onNew: ecgEnabled ? { readingPresented = true } : nil)
             .toolbar {
-                if ecgEnabled {
+                if ecgEnabled, NoopVisualStyle.skin != .forge {
                     ToolbarItem(placement: .primaryAction) {
                         Button { readingPresented = true } label: {
                             Label("New reading", systemImage: "plus")
@@ -530,6 +530,8 @@ struct EcgReadingsScreen: View {
 
 struct EcgReadingListView: View {
     @ObservedObject var controller: EcgReadingController
+    /// Starts a reading from the list itself in the new design; nil while the opt-in is off.
+    var onNew: (() -> Void)? = nil
     @EnvironmentObject var repo: Repository
     @State private var readings: [EcgReadingRow] = []
     @State private var loaded = false
@@ -537,6 +539,16 @@ struct EcgReadingListView: View {
 
     var body: some View {
         List {
+            if NoopVisualStyle.skin == .forge, let onNew {
+                Section {
+                    Button(action: onNew) {
+                        Label("Take ECG with the strap", systemImage: "waveform.path.ecg")
+                            .font(StrandFont.headline)
+                            .frame(maxWidth: .infinity, minHeight: 34)
+                    }
+                    .foregroundStyle(StrandPalette.accent)
+                }
+            }
             Section("WHOOP MG") {
                 if loaded && readings.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
@@ -574,7 +586,7 @@ struct EcgReadingListView: View {
         }
         .navigationTitle("Saved ECGs")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(NoopVisualStyle.skin == .forge ? .large : .automatic)
+        .navigationBarTitleDisplayMode(NoopVisualStyle.skin == .forge ? .inline : .automatic)
         #endif
         .scrollContentBackground(NoopVisualStyle.skin == .forge ? .hidden : .automatic)
         .forgeScreenBackground()
@@ -593,11 +605,23 @@ struct EcgReadingListView: View {
 
 struct EcgReadingRowView: View {
     let reading: EcgReadingRow
+    @EnvironmentObject private var repo: Repository
+    @State private var trace: [Double] = []
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "waveform.path.ecg")
-                .foregroundStyle(EcgCategoryText.tint(reading.category))
+            if NoopVisualStyle.skin == .forge {
+                EcgMiniTrace(values: trace, tint: EcgCategoryText.tint(reading.category))
+                    .frame(width: 92, height: 42)
+                    .task(id: reading.id) {
+                        guard trace.isEmpty, let store = await repo.storeHandle(),
+                              let packets = try? await store.ecgReadingPackets(id: reading.id) else { return }
+                        trace = EcgMiniTrace.excerpt(EcgSamples.flatten(packets))
+                    }
+            } else {
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundStyle(EcgCategoryText.tint(reading.category))
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(EcgCategoryText.title(reading.category))
                     .font(StrandFont.body)
@@ -615,6 +639,39 @@ struct EcgReadingRowView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// A few seconds of a reading as a small line, so a list of readings looks like what it holds.
+struct EcgMiniTrace: View {
+    let values: [Double]
+    let tint: Color
+
+    /// Three seconds from the middle of the recording, thinned to what the row can draw.
+    static func excerpt(_ samples: [Int16?]) -> [Double] {
+        let window = EcgPaper.sampleRate * 3
+        guard samples.count > window else { return [] }
+        let start = (samples.count - window) / 2
+        let slice = samples[start..<(start + window)]
+        let step = max(window / 180, 1)
+        return stride(from: slice.startIndex, to: slice.endIndex, by: step).compactMap { i in
+            slice[i].map(Double.init)
+        }
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            guard values.count > 1, let low = values.min(), let high = values.max(), high > low else { return }
+            var path = Path()
+            for (i, value) in values.enumerated() {
+                let point = CGPoint(x: size.width * CGFloat(i) / CGFloat(values.count - 1),
+                                    y: size.height * (1 - CGFloat((value - low) / (high - low))))
+                if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
+            }
+            context.stroke(path, with: .color(tint), style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
+        }
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.opacity(0.08)))
+        .accessibilityHidden(true)
     }
 }
 

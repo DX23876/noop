@@ -95747,13 +95747,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "all deine Daten, nichts in der Cloud"
+            "value" : "All deine Daten, nichts in der Cloud"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "all your data, none of the cloud"
+            "value" : "All your data, none of the cloud"
           }
         },
         "es" : {
@@ -109800,13 +109800,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mittlere Bewertung"
+            "value" : "Durchschnittliche RPE"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Average rating"
+            "value" : "Average RPE"
           }
         },
         "es" : {
@@ -120382,7 +120382,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Blood oxygen (SpO₂ %)"
+            "value" : "Blutsauerstoff"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blood oxygen"
           }
         },
         "es" : {
@@ -240984,7 +240990,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HRV (rMSSD)"
+            "value" : "HRV"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HRV"
           }
         },
         "es" : {
@@ -283502,13 +283514,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mittlere Bewertung"
+            "value" : "Mittleres RPE"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Average rating"
+            "value" : "Mean RPE"
           }
         },
         "es" : {
@@ -323980,7 +323992,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not from the strap. SpO₂ can be filled by importing a WHOOP or Health export."
+            "value" : "Nicht vom Strap. Blutsauerstoff lässt sich über einen Import aus WHOOP oder Apple Health ergänzen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not from the strap. Blood oxygen can be filled by importing a WHOOP or Health export."
           }
         },
         "es" : {
@@ -334137,7 +334155,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On-device estimate, or experimental / firmware-gated"
+            "value" : "Auf diesem iPhone geschätzt oder noch experimentell"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated on this iPhone, or still experimental"
           }
         },
         "es" : {
@@ -347819,7 +347843,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "partly"
+            "value" : "teilweise"
           }
         },
         "es" : {
@@ -367837,7 +367861,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Read live off the strap"
+            "value" : "Direkt vom Strap gelesen"
           }
         },
         "es" : {
@@ -376615,7 +376639,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recovery & strain"
+            "value" : "Energie und Belastung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge and Effort"
           }
         },
         "es" : {
@@ -394824,13 +394854,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewertung"
+            "value" : "RPE"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rating"
+            "value" : "RPE"
           }
         },
         "es" : {
@@ -394889,13 +394919,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewertung %@"
+            "value" : "RPE %@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rating %@"
+            "value" : "RPE %@"
           }
         },
         "es" : {
@@ -395197,13 +395227,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewertung × Minuten"
+            "value" : "RPE × Minuten"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rating × minutes"
+            "value" : "RPE × minutes"
           }
         },
         "es" : {
@@ -395261,13 +395291,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewertete Sätze"
+            "value" : "RPE-Abdeckung"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rated sets"
+            "value" : "RPE coverage"
           }
         },
         "es" : {
@@ -407287,13 +407317,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewertung der Einheit"
+            "value" : "Einheits-RPE"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Session rating"
+            "value" : "Session RPE"
           }
         },
         "es" : {
@@ -407352,13 +407382,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Einheit bewertet mit %@"
+            "value" : "Sitzungs-RPE %@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "session rating %@"
+            "value" : "session RPE %@"
           }
         },
         "es" : {
@@ -444698,7 +444728,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stress (on-device)"
+            "value" : "Stress"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stress"
           }
         },
         "es" : {
@@ -518985,13 +519021,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewertung der ganzen Einheit"
+            "value" : "RPE der gesamten Einheit"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Whole-session rating"
+            "value" : "Whole-session RPE"
           }
         },
         "es" : {
@@ -525054,7 +525090,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Workout detection"
+            "value" : "Workout-Erkennung"
           }
         },
         "es" : {
@@ -527618,7 +527654,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "yes"
+            "value" : "ja"
           }
         },
         "es" : {
@@ -588293,13 +588329,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ø Bewertung"
+            "value" : "Ø RPE"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "avg rating"
+            "value" : "mean RPE"
           }
         },
         "es" : {
@@ -609682,6 +609718,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "繞臀部"
+          }
+        }
+      }
+    },
+    "Take ECG with the strap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EKG mit dem Strap aufnehmen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hacer ECG con la correa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faire un ECG avec le bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fai un ECG con il cinturino"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zrób EKG opaską"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fazer ECG com a pulseira"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Снять ЭКГ браслетом"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用腕带测量心电图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用腕帶測量心電圖"
           }
         }
       }

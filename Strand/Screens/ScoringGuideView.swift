@@ -134,10 +134,12 @@ struct ScoringGuideView: View {
     private var header: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("YOUR DAILY SCORES").font(StrandFont.overline)
-                    .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                Text("How your scores work").font(StrandFont.rounded(26, weight: .bold))
+                if NoopVisualStyle.skin != .forge {
+                    Text("YOUR DAILY SCORES").font(StrandFont.overline)
+                        .tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                Text("How your scores work").font(NoopVisualStyle.skin == .forge ? StrandFont.title1 : StrandFont.rounded(26, weight: .bold))
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text("Charge · Effort · Rest").font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -220,8 +222,10 @@ struct ScoringGuideView: View {
                 }
                 // Header row — the flat sample ring sits beside the accent icon + headline.
                 HStack(alignment: .center, spacing: 14) {
-                    sampleRing(section)
-                        .accessibilityHidden(true)
+                    if NoopVisualStyle.skin != .forge {
+                        sampleRing(section)
+                            .accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             Image(systemName: section.icon)
