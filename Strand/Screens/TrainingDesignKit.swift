@@ -41,16 +41,11 @@ struct TrainingAnalysisHeader: View {
 
     var body: some View {
         if NoopVisualStyle.skin == .forge {
-            // The new design's page head: the title once, no overline, no badge.
-            VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-                Text(title)
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(StrandPalette.textPrimary)
-                Text(subtitle)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            // The new design's page head: the title once, no overline, no badge, no description.
+            Text(title)
+                .font(StrandFont.title1)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .accessibilityAddTraits(.isHeader)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
         } else {

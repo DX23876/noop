@@ -12,7 +12,7 @@ import StrandDesign
 struct SiriShortcutsSettingsView: View {
     var body: some View {
         ScreenScaffold(title: "Siri & Shortcuts",
-                       subtitle: "Run NOOP actions hands-free.") {
+                       subtitle: classicOnlySubtitle("Run NOOP actions hands-free.")) {
             if NoopVisualStyle.skin == .forge {
                 forgeActions
                 forgeExport

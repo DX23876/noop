@@ -595,7 +595,7 @@ struct MetricExplorerView: View {
         // cards), so LazyVStack genuinely builds the off-screen category cards on demand. No
         // `staggeredAppear` here and identical column alignment/spacing (20) + per-child bottom padding,
         // so the layout is byte-identical to the eager VStack.
-        ScreenScaffold(title: NoopVisualStyle.skin == .forge ? "All metrics" : "Explore", subtitle: "Every signal, one tap deep.",
+        ScreenScaffold(title: NoopVisualStyle.skin == .forge ? "All metrics" : "Explore", subtitle: classicOnlySubtitle("Every signal, one tap deep."),
                        onRefresh: { await repo.refresh() }, lazy: true,
                        topBackground: liquidScaffoldSky()) {
             // A quiet, non-blocking hint while the empty-dot probe runs its first pass. The rows below
@@ -1683,11 +1683,22 @@ struct MetricDetailView: View {
                     if !categoryEchoesTitle, NoopVisualStyle.skin != .forge {
                         Text(MetricCatalog.categoryDisplayName(metric.category).uppercased()).strandOverline()
                     }
-                    Text(metric.title)
-                        .font(NoopVisualStyle.skin == .forge ? Font.largeTitle.bold() : StrandFont.title2)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        Text(metric.title)
+                            .font(NoopVisualStyle.skin == .forge ? StrandFont.title1 : StrandFont.title2)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        if metric.key == "hrv", NoopVisualStyle.skin == .forge {
+                            Spacer(minLength: 4)
+                            ExplainerInfoButton(
+                                title: String(localized: "The gaps between heartbeats"),
+                                text: String(localized: "Your heart does not beat like a clock. The gap between two beats keeps changing, and a wider swing usually means a more rested body. NOOP compares yours with your own normal, never with anyone else's.")) {
+                                    ExplainerHeartbeats()
+                                }
+                                .padding(.vertical, -12)
+                        }
+                    }
                 } }
                 // Range control on its own row beneath the title.
                 SegmentedPillControl(ExploreRange.displayCases, selection: selectionBinding,

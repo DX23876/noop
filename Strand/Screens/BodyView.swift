@@ -92,6 +92,9 @@ struct BodyView: View {
             .padding(NoopMetrics.gap)
             DemoScrollBottomAnchor()
         }
+        #if os(iOS)
+        .modifier(StatusBarContentFade())
+        #endif
         .background {
             #if os(iOS)
             if NoopVisualStyle.skin == .forge { ForgeSharedScreenBackground() }
@@ -112,12 +115,9 @@ struct BodyView: View {
 
     @ViewBuilder private var header: some View {
         if NoopVisualStyle.skin == .forge {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Body").font(Font.largeTitle.bold()).foregroundStyle(StrandPalette.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-                Text("Measurements").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-            }
-            .padding(.top, 4)
+            Text("Body").font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.top, 4)
         } else {
             classicHeader
         }
@@ -681,11 +681,14 @@ struct BodyView: View {
         }
         return NavigationStack {
             ScrollView {
-                Text(content.1)
-                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(NoopMetrics.gap)
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    if topic == .navy { ExplainerBodyTape(showsHips: navyEquation != .male) }
+                    Text(content.1)
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(NoopMetrics.gap)
             }
             .navigationTitle(content.0)
         }

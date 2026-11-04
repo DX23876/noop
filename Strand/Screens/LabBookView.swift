@@ -59,7 +59,7 @@ struct LabBookView: View {
     var body: some View {
         ScreenScaffold(
             title: "Health records",
-            subtitle: "Your bloods, BP and body numbers. Kept private, on \(Platform.deviceNounPhrase).",
+            subtitle: classicOnlySubtitle("Your bloods, BP and body numbers. Kept private, on \(Platform.deviceNounPhrase)."),
             onRefresh: { await load() },
             // PERF: the column ends in one `categorySection` per marker category (bloods / BP / body / …),
             // each carrying its own sparkline-bearing cards. The LazyVStack path builds the off-screen

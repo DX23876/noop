@@ -48,7 +48,7 @@ struct HydrationView: View {
 
     var body: some View {
         ScreenScaffold(title: "Hydration",
-                       subtitle: "Your fluid intake today, on \(Platform.deviceNounPhrase) only.",
+                       subtitle: classicOnlySubtitle("Your fluid intake today, on \(Platform.deviceNounPhrase) only."),
                        onRefresh: { await reload() },
                        // Liquid finish: the same full-bleed day-of-sky backdrop Today + the other liquid
                        // tabs carry, so Hydration sits in one atmosphere.

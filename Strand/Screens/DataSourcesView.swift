@@ -62,7 +62,7 @@ struct DataSourcesView: View {
 
     var body: some View {
         ScreenScaffold(title: "Data Sources",
-                       subtitle: "Everything stays on \(Platform.deviceNounPhrase). Bring your history in once, then it's yours.",
+                       subtitle: classicOnlySubtitle("Everything stays on \(Platform.deviceNounPhrase). Bring your history in once, then it's yours."),
                        onRefresh: { await repo.refresh() },
                        // PERF: a nine-card import/source column (WHOOP, Apple Health, Xiaomi, nutrition,
                        // lifting, activity files, wearables, Oura cloud, live strap). The LazyVStack

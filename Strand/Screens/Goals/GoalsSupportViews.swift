@@ -331,7 +331,7 @@ struct GoalsArchiveView: View {
         let today = Repository.localDayKey(Date())
         let endedDaily = actions.actions.filter { $0.hasEnded(today: today) }
             .sorted { ($0.endsOn ?? "") > ($1.endsOn ?? "") }
-        ScreenScaffold(title: "Ended goals", subtitle: "Ended goals keep their history here.",
+        ScreenScaffold(title: "Ended goals", subtitle: classicOnlySubtitle("Ended goals keep their history here."),
                        topBackground: liquidScaffoldSky()) {
             if ended.isEmpty && past.isEmpty && endedDaily.isEmpty {
                 Text("Nothing here yet.").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
@@ -531,7 +531,7 @@ struct GoalsReviewBlock: View {
 
 struct GoalsReviewScreen: View {
     var body: some View {
-        ScreenScaffold(title: "Looking back", subtitle: "How your last week and month went.",
+        ScreenScaffold(title: "Looking back", subtitle: classicOnlySubtitle("How your last week and month went."),
                        topBackground: liquidScaffoldSky()) {
             GoalsReviewBlock(period: .week)
             GoalsReviewBlock(period: .month)

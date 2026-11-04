@@ -293,6 +293,7 @@ struct WeightDetailView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                     HStack(spacing: 6) {
                         Text(entry.takenAt?.formatted(date: .abbreviated, time: .shortened)
+                             ?? WeightSeries.date(forDay: entry.day)?.formatted(date: .abbreviated, time: .omitted)
                              ?? entry.day)
                         Text("·")
                         Text(sourceLabel(entry.source))

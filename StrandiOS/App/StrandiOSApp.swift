@@ -759,6 +759,12 @@ enum DemoScreens {
         switch args[i + 1].lowercased() {
         case "today":    return AnyView(TodayView())
         case "startworkout": return AnyView(DemoStartWorkoutHost())
+        case "explainers": return AnyView(ScrollView { VStack(spacing: 12) {
+            ExplainerScoreInputs.charge; ExplainerScoreInputs.effort; ExplainerScoreInputs.rest
+            ExplainerHeartbeats(); ExplainerStressHearts(); ExplainerLoadBand(tint: StrandPalette.effortColor)
+            ExplainerWeightedSets(); ExplainerNightStages(); ExplainerBodyTape(showsHips: true)
+            ExplainerBreathShapes(); ExplainerEnergyBars(); ExplainerClaspFingers()
+        }.padding(16) })
         case "addworkout": return AnyView(ManualWorkoutSheet(onSave: { _, _ in }))
         case "onboarding": return AnyView(OnboardingWizard(onFinished: {}))
         case "longtermsetup": return AnyView(NavigationStack { LongTermGoalSetupView() })

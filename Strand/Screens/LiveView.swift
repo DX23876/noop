@@ -114,7 +114,7 @@ struct LiveView: View {
 
     var body: some View {
         ScreenScaffold(title: NoopVisualStyle.skin == .forge ? "Live heart rate" : "Live Body Console",
-                       subtitle: "Your current heart rate and workout controls.",
+                       subtitle: classicOnlySubtitle("Your current heart rate and workout controls."),
                        topBackground: liquidScaffoldSky()) {
             if NoopVisualStyle.skin == .forge {
                 forgeBody

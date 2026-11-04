@@ -33,7 +33,7 @@ struct WearableConnectionStateCard: View {
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                NoopButton(actionTitle, systemImage: "arrow.right", kind: .primary,
+                NoopButton(actionTitle, systemImage: "arrow.right", kind: NoopVisualStyle.skin == .forge ? .secondary : .primary,
                            fullWidth: true, action: action)
             }
         }

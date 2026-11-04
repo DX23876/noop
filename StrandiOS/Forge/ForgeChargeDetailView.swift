@@ -153,7 +153,7 @@ struct ForgeChargeDetailView: View {
                                 history: TabRoute.metric(HeroRingMetric.charge))
 
                 ForgeExplainer(title: "How Charge is made",
-                               text: "Charge compares last night's heart rate variability, resting heart rate, breathing and sleep with your own usual values. Everything is calculated on this iPhone.")
+                               text: "Charge compares last night's heart rate variability, resting heart rate, breathing, skin temperature and sleep with your own usual values. Everything is calculated on this iPhone.") { ExplainerScoreInputs.charge }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)

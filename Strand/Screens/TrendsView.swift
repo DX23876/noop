@@ -250,7 +250,7 @@ struct TrendsView: View {
     }
 
     private var scaffold: some View {
-        ScreenScaffold(title: "Trends", subtitle: "The thread of you over time.",
+        ScreenScaffold(title: "Trends", subtitle: classicOnlySubtitle("The thread of you over time."),
                        // PERF (scroll): lazy column — byte-identical layout (LazyVStack == eager VStack
                        // alignment/spacing/header). Cards are direct children of the lazy column.
                        onRefresh: { await repo.refresh() },

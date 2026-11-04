@@ -112,7 +112,7 @@ struct StrengthSessionDetailView: View {
     /// The session's name once, as the page title, with the day and times in the reader's language.
     private var forgeHeader: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(Font.largeTitle.bold()).foregroundStyle(StrandPalette.textPrimary)
+            Text(title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             Text(forgeDateLine).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)

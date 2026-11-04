@@ -120,7 +120,7 @@ struct TrainingHistoryView: View {
         }
         if shows.cardio {
             TrainingHistoryLaneCard(
-                lane: .cardio, title: String(localized: "Cardio"), unit: "TRIMP", range: built.range,
+                lane: .cardio, title: String(localized: "Cardio"), unit: String(localized: "cardio points"), range: built.range,
                 periods: built.cardio, highlight: highlight,
                 format: { $0.formatted(.number.precision(.fractionLength(0))) }) {
                     TrainingHistoryVO2Chart(estimates: built.vo2, apple: built.vo2Apple, range: built.range)

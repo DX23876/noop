@@ -28661,7 +28661,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "e1RM %@"
+            "value" : "%@ geschätztes Maximum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ est. max"
           }
         },
         "es" : {
@@ -30899,7 +30905,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "e1RM %@ kg"
+            "value" : "%@ kg geschätztes Maximum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ kg est. max"
           }
         },
         "es" : {
@@ -54784,13 +54796,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld TRIMP"
+            "value" : "%lld Cardio-Punkte"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld TRIMP"
+            "value" : "%lld cardio points"
           }
         },
         "es" : {
@@ -105674,7 +105686,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "auf Basislinie"
+            "value" : "auf deinem üblichen Wert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "at your usual"
           }
         },
         "es" : {
@@ -106396,7 +106414,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "auf oder unter der Basislinie"
+            "value" : "auf oder unter deinem üblichen Wert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "at or below your usual"
           }
         },
         "es" : {
@@ -108197,13 +108221,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autonome Belastung"
+            "value" : "Belastung deines Körpers"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autonomic load"
+            "value" : "Load on your body"
           }
         },
         "es" : {
@@ -108448,7 +108472,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autonome Belastung im Tagesverlauf"
+            "value" : "Belastung deines Körpers über den Tag"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load on your body through the day"
           }
         },
         "es" : {
@@ -109770,7 +109800,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Durchschnittliche RPE"
+            "value" : "Mittlere Bewertung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average rating"
           }
         },
         "es" : {
@@ -114739,7 +114775,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Basislinie"
+            "value" : "Dein üblicher Wert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your usual"
           }
         },
         "es" : {
@@ -114856,13 +114898,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Basis wächst"
+            "value" : "Dein üblicher Wert entsteht noch"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Baseline growing"
+            "value" : "Still learning your usual"
           }
         },
         "es" : {
@@ -128057,7 +128099,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbrannt"
+            "value" : "Verbraucht"
           }
         },
         "es" : {
@@ -164865,13 +164907,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Täglicher 0-3-Proxy"
+            "value" : "Täglicher Wert von 0 bis 3"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Daily 0-3 proxy"
+            "value" : "Daily score, 0 to 3"
           }
         },
         "es" : {
@@ -179848,7 +179890,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dosis-Wirkung"
+            "value" : "Wie viel es ausmacht"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How much matters"
           }
         },
         "es" : {
@@ -185127,7 +185175,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "e1RM"
+            "value" : "Geschätztes Maximum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Est. max"
           }
         },
         "es" : {
@@ -185185,7 +185239,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "e1RM deiner Übungen (%@)"
+            "value" : "Geschätztes Maximum deiner Übungen (%@)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated maximum of your lifts (%@)"
           }
         },
         "es" : {
@@ -185244,7 +185304,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "e1RM deiner Übungen (kg)"
+            "value" : "Geschätztes Maximum deiner Übungen (kg)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated maximum of your lifts (kg)"
           }
         },
         "es" : {
@@ -283436,13 +283502,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mittleres RPE"
+            "value" : "Mittlere Bewertung"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mean RPE"
+            "value" : "Average rating"
           }
         },
         "es" : {
@@ -307630,7 +307696,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keine Übung mit e1RM in diesem Zeitraum."
+            "value" : "Keine Übung mit geschätztem Maximum in diesem Zeitraum."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No lift with an estimated maximum in this span."
           }
         },
         "es" : {
@@ -351199,13 +351271,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Persönliche Basis"
+            "value" : "Dein üblicher Wert"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personal baseline"
+            "value" : "Your usual"
           }
         },
         "es" : {
@@ -394752,13 +394824,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE"
+            "value" : "Bewertung"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE"
+            "value" : "Rating"
           }
         },
         "es" : {
@@ -394817,13 +394889,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE %@"
+            "value" : "Bewertung %@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE %@"
+            "value" : "Rating %@"
           }
         },
         "es" : {
@@ -395125,7 +395197,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE × Minuten"
+            "value" : "Bewertung × Minuten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rating × minutes"
           }
         },
         "es" : {
@@ -395183,7 +395261,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE-Abdeckung"
+            "value" : "Bewertete Sätze"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rated sets"
           }
         },
         "es" : {
@@ -407203,7 +407287,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Einheits-RPE"
+            "value" : "Bewertung der Einheit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session rating"
           }
         },
         "es" : {
@@ -407262,13 +407352,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sitzungs-RPE %@"
+            "value" : "Einheit bewertet mit %@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "session RPE %@"
+            "value" : "session rating %@"
           }
         },
         "es" : {
@@ -445033,13 +445123,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stress wird aus zwei autonomen Signalen abgeleitet."
+            "value" : "Stress ergibt sich aus zwei Signalen deines Herzens."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stress is derived from two autonomic signals."
+            "value" : "Stress comes from two signals of your heart."
           }
         },
         "es" : {
@@ -501679,7 +501769,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "vs. 30-Tage-Basislinie"
+            "value" : "ggü. deinem 30-Tage-Üblichen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vs your 30-day usual"
           }
         },
         "es" : {
@@ -501795,13 +501891,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ggü. Basiswert"
+            "value" : "ggü. deinem Üblichen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "vs baseline"
+            "value" : "vs your usual"
           }
         },
         "es" : {
@@ -518889,7 +518985,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RPE der gesamten Einheit"
+            "value" : "Bewertung der ganzen Einheit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whole-session rating"
           }
         },
         "es" : {
@@ -588191,7 +588293,13 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ø RPE"
+            "value" : "Ø Bewertung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "avg rating"
           }
         },
         "es" : {
@@ -608298,6 +608406,1282 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "「今日」頁上當日圖片透過卡片和筆記顯現的程度。左 = 不透明,右 = 透明。"
+          }
+        }
+      }
+    },
+    "Tense" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angespannt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tenso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teso"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Napięcie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tenso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Напряжение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紧张"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "緊張"
+          }
+        }
+      }
+    },
+    "Strength rating" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kraftbewertung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valoración de fuerza"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note de force"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valutazione forza"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocena siły"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaliação de força"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценка силовой"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量评分"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "力量評分"
+          }
+        }
+      }
+    },
+    "How long" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie lange"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuánto tiempo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto a lungo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak długo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto tempo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сколько"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多久"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多久"
+          }
+        }
+      }
+    },
+    "How well" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie gut"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo de bien"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto bene"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak dobrze"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que qualidade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько хорошо"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多好"
+          }
+        }
+      }
+    },
+    "How regular" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie regelmäßig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con qué regularidad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Régularité"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quanto regolare"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak regularnie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que regularidade"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Насколько регулярно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多规律"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多規律"
+          }
+        }
+      }
+    },
+    "Deep and REM" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tief und REM"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profundo y REM"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profond et paradoxal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profondo e REM"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Głęboki i REM"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profundo e REM"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Глубокий и REM"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深睡与快速眼动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深睡與快速動眼"
+          }
+        }
+      }
+    },
+    "Many left in the tank" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch viel Reserve"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queda mucha reserva"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beaucoup de réserve"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molta riserva"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duży zapas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muita reserva"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Большой запас"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余力充足"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "餘力充足"
+          }
+        }
+      }
+    },
+    "None left" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Reserve"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin reserva"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus de réserve"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna riserva"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bez zapasu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem reserva"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запаса нет"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有余力"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有餘力"
+          }
+        }
+      }
+    },
+    "In" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspira"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspira"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wdech"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspira"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вдох"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "吸气"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "吸氣"
+          }
+        }
+      }
+    },
+    "Out" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espira"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espira"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wydech"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expira"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выдох"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "呼气"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "呼氣"
+          }
+        }
+      }
+    },
+    "How a night runs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So verläuft eine Nacht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo transcurre una noche"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le déroulement d'une nuit"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come si svolge una notte"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak przebiega noc"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como decorre uma noite"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как проходит ночь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一夜如何度过"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一夜如何度過"
+          }
+        }
+      }
+    },
+    "Sleep moves through cycles of about 90 minutes. Deep sleep comes mostly early in the night, REM mostly towards morning, and short wakings are normal. Your own night can look different." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlaf verläuft in Zyklen von etwa 90 Minuten. Tiefschlaf kommt meist früh in der Nacht, REM meist gegen Morgen, und kurzes Aufwachen ist normal. Deine eigene Nacht kann anders aussehen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El sueño avanza en ciclos de unos 90 minutos. El sueño profundo llega sobre todo al principio de la noche, el REM hacia la mañana, y los despertares breves son normales. Tu noche puede ser distinta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le sommeil suit des cycles d'environ 90 minutes. Le sommeil profond vient surtout en début de nuit, le paradoxal plutôt vers le matin, et les brefs réveils sont normaux. Votre nuit peut être différente."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il sonno procede per cicli di circa 90 minuti. Il sonno profondo arriva soprattutto a inizio notte, il REM verso il mattino, e i brevi risvegli sono normali. La tua notte può essere diversa."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sen przebiega w cyklach trwających około 90 minut. Sen głęboki pojawia się głównie na początku nocy, REM głównie nad ranem, a krótkie wybudzenia są normalne. Twoja noc może wyglądać inaczej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O sono decorre em ciclos de cerca de 90 minutos. O sono profundo surge sobretudo no início da noite, o REM mais perto da manhã, e os despertares breves são normais. A sua noite pode ser diferente."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сон идёт циклами примерно по 90 минут. Глубокий сон бывает в основном в начале ночи, REM ближе к утру, а короткие пробуждения нормальны. Ваша ночь может выглядеть иначе."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠以约 90 分钟为一个周期。深睡多在前半夜,快速眼动多在清晨前,短暂醒来很正常。你的夜晚可能有所不同。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠以約 90 分鐘為一個週期。深睡多在前半夜,快速動眼多在清晨前,短暫醒來很正常。你的夜晚可能有所不同。"
+          }
+        }
+      }
+    },
+    "What stress means here" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was Stress hier bedeutet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué significa aquí el estrés"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce que signifie le stress ici"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa significa qui stress"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co oznacza tu stres"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que significa aqui stress"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что здесь значит стресс"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这里的压力是什么意思"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這裡的壓力是什麼意思"
+          }
+        }
+      }
+    },
+    "The gaps between heartbeats" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Abstände zwischen den Herzschlägen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los intervalos entre latidos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les intervalles entre les battements"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli intervalli tra i battiti"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odstępy między uderzeniami serca"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os intervalos entre batimentos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промежутки между ударами сердца"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心跳之间的间隔"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心跳之間的間隔"
+          }
+        }
+      }
+    },
+    "Your heart does not beat like a clock. The gap between two beats keeps changing, and a wider swing usually means a more rested body. NOOP compares yours with your own normal, never with anyone else's." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Herz schlägt nicht wie ein Uhrwerk. Der Abstand zwischen zwei Schlägen ändert sich ständig, und größere Schwankung bedeutet meist einen erholteren Körper. NOOP vergleicht deinen Wert mit deinem eigenen Normalwert, nie mit dem anderer."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu corazón no late como un reloj. El intervalo entre dos latidos cambia sin parar y una mayor variación suele indicar un cuerpo más descansado. NOOP compara tu valor con tu propia normalidad, nunca con la de otros."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre cœur ne bat pas comme une horloge. L'intervalle entre deux battements change sans cesse, et une plus grande variation signifie souvent un corps plus reposé. NOOP compare votre valeur à votre propre norme, jamais à celle des autres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo cuore non batte come un orologio. L'intervallo tra due battiti cambia di continuo e una variazione più ampia indica di solito un corpo più riposato. NOOP confronta il tuo valore con la tua normalità, mai con quella degli altri."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serce nie bije jak zegar. Odstęp między uderzeniami ciągle się zmienia, a większa zmienność zwykle oznacza bardziej wypoczęte ciało. NOOP porównuje Twój wynik z Twoją normą, nigdy z innymi."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O seu coração não bate como um relógio. O intervalo entre dois batimentos muda sempre, e uma variação maior costuma indicar um corpo mais descansado. O NOOP compara o seu valor com o seu normal, nunca com o de outros."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сердце бьётся не как часы. Промежуток между ударами постоянно меняется, и больший разброс обычно означает более отдохнувшее тело. NOOP сравнивает значение с вашей собственной нормой, а не с чужой."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心脏不像时钟那样跳动。两次心跳之间的间隔不断变化,波动较大通常意味着身体休息得更好。NOOP 只与你自己的常态比较,绝不与他人比较。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心臟不像時鐘那樣跳動。兩次心跳之間的間隔不斷變化,波動較大通常意味著身體休息得更好。NOOP 只與你自己的常態比較,絕不與他人比較。"
+          }
+        }
+      }
+    },
+    "Burned is what your body uses at rest plus what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbraucht ist, was dein Körper in Ruhe braucht, plus das, was Aktivität dazugibt. Gegessen ist, was du eingetragen hast. Die Bilanz liest man am besten über eine Woche, nicht an einem einzelnen Tag."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quemado es lo que tu cuerpo usa en reposo más lo que añade la actividad. Comido es lo que registraste. El balance se lee mejor a lo largo de una semana, no de un solo día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dépensé correspond à ce que le corps utilise au repos plus ce qu'ajoute l'activité. Mangé est ce que vous avez saisi. Le bilan se lit mieux sur une semaine que sur un seul jour."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruciato è ciò che il corpo usa a riposo più ciò che aggiunge l'attività. Mangiato è ciò che hai registrato. Il bilancio si legge meglio su una settimana, non su un solo giorno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spalone to to, co ciało zużywa w spoczynku, plus to, co dodaje aktywność. Zjedzone to to, co zapisano. Bilans najlepiej czytać w skali tygodnia, nie jednego dnia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queimado é o que o corpo usa em repouso mais o que a atividade acrescenta. Comido é o que registou. O balanço lê-se melhor ao longo de uma semana, não num só dia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сожжено: то, что тело тратит в покое, плюс то, что добавляет активность. Съедено: то, что вы записали. Баланс лучше оценивать за неделю, а не за один день."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗是身体静息所需加上活动增加的部分。摄入是你记录的内容。两者的平衡最好按一周来看,而不是单独一天。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗是身體靜息所需加上活動增加的部分。攝入是你記錄的內容。兩者的平衡最好按一週來看,而不是單獨一天。"
+          }
+        }
+      }
+    },
+    "NOOP reads stress from your heart. A higher resting pulse and more even gaps between beats than you usually have push it up, the reverse brings it down. It shows the load on your body, not your mood." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP liest Stress an deinem Herzen ab. Ein höherer Ruhepuls und gleichmäßigere Abstände zwischen den Schlägen als sonst treiben ihn nach oben, das Gegenteil senkt ihn. Das zeigt die Belastung deines Körpers, nicht deine Stimmung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP lee el estrés en tu corazón. Un pulso en reposo más alto y latidos más uniformes de lo habitual lo suben; lo contrario lo baja. Muestra la carga de tu cuerpo, no tu estado de ánimo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP lit le stress sur votre cœur. Un pouls de repos plus élevé et des battements plus réguliers que d'habitude le font monter, l'inverse le fait baisser. Cela montre la charge du corps, pas l'humeur."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP legge lo stress dal cuore. Un battito a riposo più alto e battiti più regolari del solito lo fanno salire, il contrario lo abbassa. Mostra il carico sul corpo, non l'umore."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP odczytuje stres z serca. Wyższe tętno spoczynkowe i równiejsze odstępy między uderzeniami niż zwykle podnoszą go, odwrotnie obniżają. To obciążenie ciała, nie nastrój."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP lê o stress no seu coração. Um pulso em repouso mais alto e batimentos mais regulares do que o habitual aumentam-no, o contrário baixa-o. Mostra a carga no corpo, não o humor."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP считывает стресс по сердцу. Более высокий пульс в покое и более ровные промежутки между ударами, чем обычно, повышают его, обратное снижает. Это нагрузка на тело, а не настроение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 从心脏读取压力。静息心率更高、心跳间隔比平时更均匀会使其上升,反之下降。它显示的是身体负荷,而不是情绪。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 從心臟讀取壓力。靜息心率更高、心跳間隔比平時更均勻會使其上升,反之下降。它顯示的是身體負荷,而不是情緒。"
+          }
+        }
+      }
+    },
+    "cardio points" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio-Punkte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "puntos de cardio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "points cardio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "punti cardio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "punkty cardio"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pontos de cardio"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "кардиобаллы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧分"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有氧分"
+          }
+        }
+      }
+    },
+    "Charge compares last night's heart rate variability, resting heart rate, breathing, skin temperature and sleep with your own usual values. Everything is calculated on this iPhone." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge vergleicht Herzfrequenzvariabilität, Ruheherzfrequenz, Atmung, Hauttemperatur und Schlaf der letzten Nacht mit deinen üblichen Werten. Alles wird auf diesem iPhone berechnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge compara la variabilidad de la frecuencia cardíaca, la frecuencia en reposo, la respiración, la temperatura de la piel y el sueño de anoche con tus valores habituales. Todo se calcula en este iPhone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge compare la variabilité cardiaque, la fréquence au repos, la respiration, la température cutanée et le sommeil de la nuit dernière avec vos valeurs habituelles. Tout est calculé sur cet iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge confronta variabilità cardiaca, frequenza a riposo, respirazione, temperatura cutanea e sonno della notte scorsa con i tuoi valori abituali. Tutto viene calcolato su questo iPhone."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge porównuje zmienność rytmu serca, tętno spoczynkowe, oddech, temperaturę skóry i sen z ostatniej nocy z Twoimi zwykłymi wartościami. Wszystko jest liczone na tym iPhonie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Charge compara a variabilidade cardíaca, a frequência em repouso, a respiração, a temperatura da pele e o sono da última noite com os seus valores habituais. Tudo é calculado neste iPhone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge сравнивает вариабельность пульса, пульс в покое, дыхание, температуру кожи и сон прошлой ночи с вашими обычными значениями. Всё считается на этом iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge 将昨晚的心率变异性、静息心率、呼吸、皮肤温度和睡眠与你的常态比较。所有计算都在这台 iPhone 上完成。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge 將昨晚的心率變異性、靜息心率、呼吸、皮膚溫度和睡眠與你的常態比較。所有計算都在這台 iPhone 上完成。"
+          }
+        }
+      }
+    },
+    "Around the neck" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um den Hals"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alrededor del cuello"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autour du cou"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intorno al collo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wokół szyi"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À volta do pescoço"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вокруг шеи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绕颈部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繞頸部"
+          }
+        }
+      }
+    },
+    "Around the waist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um die Taille"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alrededor de la cintura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autour de la taille"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intorno alla vita"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wokół talii"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À volta da cintura"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вокруг талии"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绕腰部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繞腰部"
+          }
+        }
+      }
+    },
+    "Around the hips" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um die Hüfte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alrededor de las caderas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autour des hanches"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intorno ai fianchi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wokół bioder"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À volta das ancas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вокруг бёдер"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绕臀部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繞臀部"
           }
         }
       }

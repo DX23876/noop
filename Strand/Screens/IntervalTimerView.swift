@@ -98,7 +98,7 @@ struct IntervalTimerView: View {
 
     var body: some View {
         ScreenScaffold(title: "Interval Timer",
-                       subtitle: "Silent haptic HIIT: the strap buzzes the transitions") {
+                       subtitle: classicOnlySubtitle("Silent haptic HIIT: the strap buzzes the transitions")) {
             if NoopVisualStyle.skin == .forge {
                 forgeBody
             } else {

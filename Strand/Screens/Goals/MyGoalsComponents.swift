@@ -811,7 +811,7 @@ struct GoalBadgesView: View {
     @ObservedObject private var tracking = GoalTrackingStore.shared
 
     var body: some View {
-        ScreenScaffold(title: "Achievements", subtitle: "Earned from your own data, on this device.",
+        ScreenScaffold(title: "Achievements", subtitle: classicOnlySubtitle("Earned from your own data, on this device."),
                        topBackground: liquidScaffoldSky()) {
             if let motivation = tracking.motivation {
                 RecordsCard(motivation: motivation)

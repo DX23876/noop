@@ -66,6 +66,10 @@ struct FullDayChartView: View {
     /// The visible window the chart's gestures mutate. nil → full day (the chart falls back to `dayBounds`).
     @State private var zoomDomain: ClosedRange<Date>? = nil
     @State private var loading = true
+    /// The whole day's heart rate for the lane view, independent of the chart's zoom and chosen signal.
+    @State private var dayHeart: [TrendPoint] = []
+    /// Every sleep touching the shown day, the night and any nap, for the lane view.
+    @State private var daySleeps: [OverviewHRChart.SleepSpan] = []
 
     /// The full clamp the zoom window can never escape — the selected calendar day.
     private var dayBounds: ClosedRange<Date> {
@@ -84,11 +88,19 @@ struct FullDayChartView: View {
     private var visibleWindow: ClosedRange<Date> { zoomDomain ?? dayBounds }
 
     var body: some View {
-        ScreenScaffold(title: "Deep Timeline", subtitle: "Every second of your day, zoomable.") {
-            metricPills
-            dayNav
-            sourcePill
-            chartCard
+        ScreenScaffold(title: "Deep Timeline", subtitle: classicOnlySubtitle("Every second of your day, zoomable.")) {
+            if NoopVisualStyle.skin == .forge {
+                dayNav
+                wholeDayCard
+                metricPills
+                sourcePill
+                chartCard
+            } else {
+                metricPills
+                dayNav
+                sourcePill
+                chartCard
+            }
             zoomHint
         }
         .task(id: taskKey) { await reload() }
@@ -210,6 +222,26 @@ struct FullDayChartView: View {
     }()
 
     // MARK: Chart
+
+    /// Sleep, heart and sessions on one time axis, so a day reads at a glance before any one signal.
+    private var wholeDayCard: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("The whole day")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                WholeDayLanes(day: dayBounds, heart: dayHeart, sleeps: daySleeps.map { $0.start...$0.end },
+                              sessions: workoutSpans.map { (start: $0.start, end: $0.end, symbol: $0.symbol) })
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .task(id: annotationKey) {
+            let result = await repo.timelineSeries(metric: .hr, from: Int(dayBounds.lowerBound.timeIntervalSince1970),
+                                                   to: Int(dayBounds.upperBound.timeIntervalSince1970), targetPoints: 144)
+            guard !Task.isCancelled else { return }
+            dayHeart = result.points
+        }
+    }
 
     @ViewBuilder private var chartCard: some View {
         ChartCard(
@@ -409,6 +441,7 @@ struct FullDayChartView: View {
         guard !Task.isCancelled else { return }
         // The pure, headless-tested selection (StrandDesignTests) — window = the shown DAY, not the zoom.
         sleepSpan = OverviewHRChart.mainSleep(sleepCandidates, overlapping: dayBounds)
+        daySleeps = sleepCandidates.filter { $0.start < dayBounds.upperBound && $0.end > dayBounds.lowerBound }
         workoutSpans = OverviewHRChart.workouts(workoutCandidates, overlapping: dayBounds)
     }
 
@@ -547,3 +580,107 @@ private struct ScrollCatcher: NSViewRepresentable {
     }
 }
 #endif
+
+/// A day as lanes on one time axis: when the wearer slept, how the heart ran, when they trained.
+struct WholeDayLanes: View {
+    let day: ClosedRange<Date>
+    let heart: [TrendPoint]
+    let sleeps: [ClosedRange<Date>]
+    let sessions: [(start: Date, end: Date, symbol: String)]
+
+    private let labelWidth: CGFloat = 54
+
+    private func fraction(_ date: Date) -> CGFloat {
+        let span = day.upperBound.timeIntervalSince(day.lowerBound)
+        guard span > 0 else { return 0 }
+        return CGFloat(min(max(date.timeIntervalSince(day.lowerBound) / span, 0), 1))
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            lane("Sleep", height: 22) { width in
+                ForEach(sleeps.indices, id: \.self) { i in
+                    let sleep = sleeps[i]
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(StrandPalette.restColor)
+                        .frame(width: max((fraction(sleep.upperBound) - fraction(sleep.lowerBound)) * width, 4))
+                        .offset(x: fraction(sleep.lowerBound) * width)
+                }
+            }
+            lane("Heart", height: 58) { width in
+                heartLine(width: width)
+            }
+            lane("Workouts", height: 26) { width in
+                ForEach(sessions.indices, id: \.self) { i in
+                    let s = sessions[i]
+                    let span = max((fraction(s.end) - fraction(s.start)) * width, 22)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(StrandPalette.effortColor.opacity(0.85))
+                        .overlay {
+                            Image(systemName: s.symbol)
+                                .font(.system(.caption2, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                        .frame(width: span, height: 24)
+                        .offset(x: min(fraction(s.start) * width, width - span))
+                }
+            }
+            hourAxis
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("The whole day"))
+    }
+
+    private func lane<Content: View>(_ name: LocalizedStringKey, height: CGFloat,
+                                     @ViewBuilder content: @escaping (CGFloat) -> Content) -> some View {
+        HStack(spacing: 8) {
+            Text(name)
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(width: labelWidth, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) { content(geo.size.width) }
+                    .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
+            }
+            .frame(height: height)
+        }
+    }
+
+    private func heartLine(width: CGFloat) -> some View {
+        let values = heart.map(\.value)
+        let low = (values.min() ?? 40) - 3
+        let high = max((values.max() ?? 100) + 3, low + 1)
+        return GeometryReader { geo in
+            Path { path in
+                var last: Date?
+                for point in heart {
+                    let at = CGPoint(x: fraction(point.date) * width,
+                                     y: geo.size.height * (1 - CGFloat((point.value - low) / (high - low))))
+                    // A gap of more than half an hour is the strap off the wrist, not a straight line.
+                    if let last, point.date.timeIntervalSince(last) < 1800 {
+                        path.addLine(to: at)
+                    } else {
+                        path.move(to: at)
+                    }
+                    last = point.date
+                }
+            }
+            .stroke(StrandPalette.metricRose, style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+        }
+    }
+
+    private var hourAxis: some View {
+        HStack(spacing: 8) {
+            Color.clear.frame(width: labelWidth, height: 1)
+            HStack(spacing: 0) {
+                ForEach(["00", "06", "12", "18", "24"], id: \.self) { hour in
+                    Text(verbatim: hour)
+                        .font(Font.caption2.monospacedDigit())
+                        .foregroundStyle(StrandPalette.textTertiary)
+                    if hour != "24" { Spacer(minLength: 0) }
+                }
+            }
+        }
+    }
+}

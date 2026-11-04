@@ -202,7 +202,7 @@ struct WorkoutsView: View {
         let resolved = effectiveRange
         let unscopedRows = sessions(for: resolved)
         let trendRows = recoveryTrendRows(from: unscopedRows)
-        return ScreenScaffold(title: "Workouts", subtitle: "Every session, threaded together.",
+        return ScreenScaffold(title: "Workouts", subtitle: classicOnlySubtitle("Every session, threaded together."),
                        onRefresh: { await repo.refresh() },
                        // PERF: the column ends in the full "All Sessions" log (the breakdown grid, the
                        // zones card, and a row-per-session table). On a large imported history the eager
@@ -239,7 +239,9 @@ struct WorkoutsView: View {
                 scopeBar
                 rangeBar(rows: windowRows, effectiveRange: resolved)
                 if let postLogNote { postLogBanner(postLogNote) }
-                effortHero(rows: windowRows, effectiveRange: resolved, groups: groups)
+                if NoopVisualStyle.skin != .forge {
+                    effortHero(rows: windowRows, effectiveRange: resolved, groups: groups)
+                }
                 summarySection(rows: windowRows, effectiveRange: resolved, groups: groups)
                 analysisRow
                 heatmapSection()

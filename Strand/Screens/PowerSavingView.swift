@@ -22,7 +22,7 @@ struct PowerSavingView: View {
 
     var body: some View {
         ScreenScaffold(title: "Battery & Recording",
-                       subtitle: "Power saving and continuous HRV",
+                       subtitle: classicOnlySubtitle("Power saving and continuous HRV"),
                        topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 ContinuousHrvSettingsCard()

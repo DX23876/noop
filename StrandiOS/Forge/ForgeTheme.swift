@@ -92,7 +92,7 @@ enum ForgeFont {
         .system(size: size, weight: weight, design: .rounded)
     }
     /// Titles in SF Rounded, the face of the ring figures, so the words and the numbers belong together.
-    static let largeTitle = Font.system(.title, design: .rounded, weight: .bold)
+    static let largeTitle = StrandFont.title1
     /// A tab's title in its one-row header: small, the picture and the rings are the page.
     static let headerTitle = Font.system(.title3, design: .rounded, weight: .bold)
     static let section = Font.system(.title2, weight: .bold)

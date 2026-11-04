@@ -52,6 +52,9 @@ struct TrainingHubView: View {
                     }
                     DemoScrollBottomAnchor()
                 }
+        #if os(iOS)
+        .modifier(StatusBarContentFade())
+        #endif
                 .padding(NoopMetrics.screenPadding)
             }
             .forgeScreenBackground()
@@ -201,7 +204,7 @@ struct TrainingHubView: View {
         HStack(alignment: .firstTextBaseline) {
             if NoopVisualStyle.skin == .forge {
                 Text("Training plan")
-                    .font(.largeTitle.bold())
+                    .font(StrandFont.title1)
                     .foregroundStyle(StrandPalette.textPrimary)
             } else {
                 SectionHeader("Training", overline: "Plan and log")

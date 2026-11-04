@@ -44,7 +44,7 @@ struct SmartAlarmView: View {
         // #766: retitled to "Alarms" because it now holds BOTH the strap's silent wake-alarm and the
         // evening wind-down reminder, so naming it "Wind-Down" undersold it. One surface, clearly labelled.
         ScreenScaffold(title: "Alarms",
-                       subtitle: "Your strap wake-alarm and the evening wind-down reminder, in one place.") {
+                       subtitle: classicOnlySubtitle("Your strap wake-alarm and the evening wind-down reminder, in one place.")) {
             // The wake schedule comes first because both features below are read from it: the strap alarm
             // buzzes at it, the reminder is timed back from it. The honesty note closes the screen rather
             // than splitting the two features, and still sits below the alarm it describes.

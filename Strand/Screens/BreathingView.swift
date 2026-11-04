@@ -182,7 +182,7 @@ private struct BreathingContent: View {
 
     var body: some View {
         ScreenScaffold(title: "Breathe",
-                       subtitle: "Haptic-paced breathing · find your pace · calm down",
+                       subtitle: classicOnlySubtitle("Haptic-paced breathing · find your pace · calm down"),
                        // Liquid finish: the same full-bleed day-of-sky backdrop Today + the other liquid
                        // tabs carry, so Breathe sits in one atmosphere.
                        topBackground: liquidScaffoldSky()) {
@@ -509,6 +509,7 @@ private struct BreathingContent: View {
     private var breathEduSheet: some View {
         NavigationStack {
             ScrollView {
+                ExplainerBreathShapes().padding([.horizontal, .top], NoopMetrics.gap)
                 VStack(alignment: .leading, spacing: 14) {
                     if let proto = selectedProtocol {
                         Text(String(localized: String.LocalizationValue(proto.title)))

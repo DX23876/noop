@@ -163,7 +163,7 @@ struct TestCentreView: View {
 
     var body: some View {
         ScreenScaffold(title: "Test Centre",
-                       subtitle: "Turn on a test for the thing that's wrong, wear the strap, then tap Report. All on \(Platform.deviceNounPhrase).") {
+                       subtitle: classicOnlySubtitle("Turn on a test for the thing that's wrong, wear the strap, then tap Report. All on \(Platform.deviceNounPhrase).")) {
             if NoopVisualStyle.skin == .forge {
                 forgeBody
             } else {

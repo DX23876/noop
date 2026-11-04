@@ -307,6 +307,16 @@ struct ForgeTodayView: View {
                 OrganicScoreRing(model: model, tint: tint, score: score, decimals: decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
+                    // A soft shade under the ring on a picture, so a faint glow still parts from a bright sky.
+                    .background {
+                        if onPicture {
+                            Circle()
+                                .fill(RadialGradient(colors: [.black.opacity(0.26), .black.opacity(0.14), .clear],
+                                                     center: .center, startRadius: 0, endRadius: diameter * 0.62))
+                                .frame(width: diameter * 1.24, height: diameter * 1.24)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 Text(label)
                     .font(.system(.subheadline, weight: .semibold))
                     // On the picture a name is white, for it crosses snow and rock; the ring carries the colour.

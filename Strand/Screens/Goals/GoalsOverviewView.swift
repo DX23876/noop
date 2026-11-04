@@ -95,7 +95,7 @@ extension View {
             case .longTermDetail(let id): LongTermGoalPage(goalId: id)
             case .list(let period): PeriodGoalsListView(period: period)
             case .longTerm:
-                ScreenScaffold(title: "Long-term goals", subtitle: "Your targets, your pace, your progress.",
+                ScreenScaffold(title: "Long-term goals", subtitle: classicOnlySubtitle("Your targets, your pace, your progress."),
                                topBackground: liquidScaffoldSky()) {
                     CoachGoalJourneyView()
                 }

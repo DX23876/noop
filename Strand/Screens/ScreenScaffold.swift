@@ -163,14 +163,15 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         // and for the illustrated scene behind the cards at its dark hours.
         let darkScene = showDayCycleBackground && skyBehindCards
             && DayCycleScene.isDark(hour: Calendar.current.component(.hour, from: Date()))
-        let overSky = topBackground != nil && (backgroundStore.isActive || darkScene)
+        // The new design shows its calm page tint here at every hour, so only a custom photo counts.
+        let overSky = topBackground != nil
+            && (backgroundStore.isActive || (darkScene && NoopVisualStyle.skin != .forge))
         let titleColor = overSky ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
         let subtitleColor = overSky ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary
         return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 if let title {
-                    // The new design's pages all open on the same large title.
-                    Text(title).font(NoopVisualStyle.skin == .forge ? Font.largeTitle.bold() : StrandFont.title1).foregroundStyle(titleColor)
+                    Text(title).font(StrandFont.title1).foregroundStyle(titleColor)
                         .accessibilityAddTraits(.isHeader)
                 }
                 if let subtitle {
@@ -181,6 +182,11 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             trailing()
         }
     }
+}
+
+/// A page's descriptive line that the new design leaves out, the title and its content saying enough.
+func classicOnlySubtitle(_ subtitle: LocalizedStringKey) -> LocalizedStringKey? {
+    NoopVisualStyle.skin == .forge ? nil : subtitle
 }
 
 /// Shared, DEBUG-only end marker for full-screen screenshot QA. Screens with their own `ScrollView`

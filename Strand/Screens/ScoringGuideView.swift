@@ -172,9 +172,11 @@ struct ScoringGuideView: View {
     private var introCard: some View {
         NoopCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("THE THREE SCORES").font(StrandFont.overline)
-                    .tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                if NoopVisualStyle.skin != .forge {
+                    Text("THE THREE SCORES").font(StrandFont.overline)
+                        .tracking(StrandFont.overlineTracking)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
                 Text("NOOP gives you three daily scores (Charge, Effort and Rest), each on a 0-100 scale. They're built from your strap's raw signals using published, peer-reviewed sport science, and computed entirely on your device. They are NOT WHOOP's scores: we don't have WHOOP's private algorithms and don't pretend to. They aim at the same three questions using open science, so they'll usually track WHOOP's in direction, but won't match number-for-number. And that's the point.")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
@@ -209,6 +211,13 @@ struct ScoringGuideView: View {
     private func scoreCard(_ section: ScoreSection, headline: String, body: String, vsWhoop: String) -> some View {
         NoopCard(tint: section.accent) {
             VStack(alignment: .leading, spacing: 14) {
+                if NoopVisualStyle.skin == .forge {
+                    switch section {
+                    case .charge: ExplainerScoreInputs.charge
+                    case .effort: ExplainerScoreInputs.effort
+                    case .rest: ExplainerScoreInputs.rest
+                    }
+                }
                 // Header row — the flat sample ring sits beside the accent icon + headline.
                 HStack(alignment: .center, spacing: 14) {
                     sampleRing(section)

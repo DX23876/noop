@@ -82,6 +82,9 @@ struct EnergyDetailView: View {
             // slate hairline. Presentation only; every value and source below is unchanged.
             .environment(\.noopQuietCardRims, true)
         }
+        #if os(iOS)
+        .modifier(StatusBarContentFade())
+        #endif
         .background {
             #if os(iOS)
             ForgeSharedScreenBackground()
@@ -107,9 +110,19 @@ struct EnergyDetailView: View {
     /// The page title, then the day it is about with a step either way.
     private var forgeHead: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-            Text("Energy")
-                .font(.largeTitle.bold())
-                .foregroundStyle(StrandPalette.textPrimary)
+            HStack(spacing: 0) {
+                Text("Energy")
+                    .font(StrandFont.title1)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 4)
+                ExplainerInfoButton(
+                    title: String(localized: "Burned and eaten"),
+                    text: String(localized: "Burned is what your body uses at rest plus what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.")) {
+                        ExplainerEnergyBars()
+                    }
+                    .padding(.vertical, -12)
+            }
             HStack {
                 forgeDayStep(-1, symbol: "chevron.left", label: "Previous day")
                 Spacer()

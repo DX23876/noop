@@ -305,6 +305,7 @@ struct EcgReadingSheet: View {
     // MARK: Setup
 
     @ViewBuilder private var setup: some View {
+        ExplainerClaspFingers()
         VStack(alignment: .leading, spacing: 8) {
             Text("Record an ECG")
                 .font(StrandFont.title2)

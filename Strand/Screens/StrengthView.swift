@@ -143,7 +143,7 @@ struct StrengthView: View {
                 } else {
                     weekControl
                     loadHero
-                    readingGuide
+                    if NoopVisualStyle.skin != .forge { readingGuide }
                     weekFigures
                     // Named for `--demo-scroll-to` screenshot QA (DEBUG only; the id is inert otherwise),
                     // so the weekly set range in the middle of this screen can be captured too.
@@ -164,6 +164,9 @@ struct StrengthView: View {
             .padding(NoopMetrics.screenPadding)
             DemoScrollBottomAnchor()
         }
+        #if os(iOS)
+        .modifier(StatusBarContentFade())
+        #endif
         .navigationTitle("")
         .safeAreaInset(edge: .top) { syncStatusBar }
         .toolbar {
@@ -1244,8 +1247,15 @@ struct StrengthView: View {
     private var explainers: some View {
         ExplainerRows(items: [
             ExplainerItem(id: "load", symbol: "function", title: infoTitle(.strengthLoad),
-                          subtitle: String(localized: "Why hard sets count more than easy sets"),
-                          text: infoBody(.strengthLoad)),
+                          subtitle: String(localized: "Why hard sets count more than easy sets")) {
+                              VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                                  ExplainerWeightedSets()
+                                  Text(infoBody(.strengthLoad))
+                                      .font(StrandFont.body)
+                                      .foregroundStyle(StrandPalette.textSecondary)
+                                      .fixedSize(horizontal: false, vertical: true)
+                              }
+                          },
             ExplainerItem(id: "bodyweight", symbol: "figure.strengthtraining.functional",
                           title: infoTitle(.bodyweight),
                           subtitle: String(localized: "How pull-ups and push-ups are counted"),
@@ -1287,6 +1297,11 @@ struct StrengthView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    switch topic {
+                    case .strengthLoad: ExplainerWeightedSets()
+                    case .muscleBands: ExplainerLoadBand(tint: StrandPalette.effortColor)
+                    default: EmptyView()
+                    }
                     Text(infoTitle(topic))
                         .font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                     Text(infoBody(topic))

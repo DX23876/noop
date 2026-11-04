@@ -60,7 +60,7 @@ struct CardioView: View {
                 } else {
                     weekControl
                     loadHero
-                    readingGuide
+                    if NoopVisualStyle.skin != .forge { readingGuide }
                     weekFigures
                     loadChart
                     TrainingHistoryLink(focus: .cardio) {
@@ -78,6 +78,9 @@ struct CardioView: View {
             .padding(NoopMetrics.screenPadding)
             DemoScrollBottomAnchor()
         }
+        #if os(iOS)
+        .modifier(StatusBarContentFade())
+        #endif
         .forgeScreenBackground()
         .navigationTitle("")
         .toolbar {
@@ -158,7 +161,7 @@ struct CardioView: View {
         TrainingHistoryLink(focus: .cardio) {
             TrainingHistoryRow(subtitle: String(localized: "See how heart-rate load and estimated fitness changed over time"))
         }
-        readingGuide
+        if NoopVisualStyle.skin != .forge { readingGuide }
         explainers
     }
 
@@ -360,7 +363,7 @@ struct CardioView: View {
     }
 
     private var loadChart: some View {
-        LoadHistoryChart(lane: .cardio, title: String(localized: "Cardio load"), unit: "TRIMP",
+        LoadHistoryChart(lane: .cardio, title: String(localized: "Cardio load"), unit: String(localized: "cardio points"),
                          byDay: model.laneSeries?.byDay ?? [:], unknownDays: model.laneSeries?.unknownDays ?? [],
                          readingDay: model.laneReadingDay,
                          usualWeek: model.lane?.relative.personalRange.map { $0.usualLowerBound...$0.usualUpperBound })
@@ -937,8 +940,15 @@ struct CardioView: View {
     private var explainers: some View {
         var items = [
             ExplainerItem(id: "load", symbol: "function", title: String(localized: "Cardio load"),
-                          subtitle: String(localized: "How time and heart-rate intensity become one total"),
-                          text: String(localized: "Cardio load compares the last seven days with your own recent cardio. +18% means the current week was about one fifth higher than usual; it is a comparison, not a score.\n\nThe total uses TRIMP: workout time weighted by heart-rate intensity. This lets an easy hour count differently from an hour near threshold.\n\nRest days count as zero. Higher or lower is not automatically good or bad, so read load beside Charge and your own session ratings. A comparison appears once enough history is available.")),
+                          subtitle: String(localized: "How time and heart-rate intensity become one total")) {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    ExplainerLoadBand(tint: TrainingLane.cardio.color)
+                    Text(String(localized: "Cardio load compares the last seven days with your own recent cardio. +18% means the current week was about one fifth higher than usual; it is a comparison, not a score.\n\nThe total uses TRIMP: workout time weighted by heart-rate intensity. This lets an easy hour count differently from an hour near threshold.\n\nRest days count as zero. Higher or lower is not automatically good or bad, so read load beside Charge and your own session ratings. A comparison appears once enough history is available."))
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            },
             ExplainerItem(id: "bests", symbol: "trophy", title: String(localized: "Your bests"),
                           subtitle: String(localized: "How sessions are compared fairly"),
                           text: String(localized: "Bests include your farthest session, longest session and fastest average pace for similar session lengths.\n\nA short run and a half marathon are kept in separate distance groups because their paces are not directly comparable. These are whole-session averages, not kilometre splits.")),

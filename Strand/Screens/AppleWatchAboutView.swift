@@ -100,7 +100,7 @@ struct AppleWatchAboutView: View {
 
     var body: some View {
         ScreenScaffold(title: "About Apple Watch data",
-                       subtitle: "What your watch is great at, where it's lighter than a chest strap, and how sure NOOP is.",
+                       subtitle: classicOnlySubtitle("What your watch is great at, where it's lighter than a chest strap, and how sure NOOP is."),
                        lazy: true) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 introCard

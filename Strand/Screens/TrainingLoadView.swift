@@ -251,7 +251,7 @@ struct TrainingLoadView: View {
 
     var body: some View {
         ScreenScaffold(title: "Training Load",
-                       subtitle: "Your last seven days, compared with your own training history.",
+                       subtitle: classicOnlySubtitle("Your last seven days, compared with your own training history."),
                        onRefresh: { await model.load(repo: repo) }) {
             if !model.loaded {
                 ProgressView().frame(maxWidth: .infinity)
@@ -713,7 +713,12 @@ struct TrainingLoadView: View {
             ExplainerItem(id: "basis", symbol: "checkmark.seal", title: String(localized: "What it rests on"),
                           subtitle: String(localized: "Data coverage")) { basisRows },
             ExplainerItem(id: "method", symbol: "function", title: String(localized: "What each number means"),
-                          subtitle: String(localized: "Transparent by design")) { methodRows },
+                          subtitle: String(localized: "Transparent by design")) {
+                              VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                                  ExplainerLoadBand(tint: StrandPalette.effortColor)
+                                  methodRows
+                              }
+                          },
         ])
     }
 
@@ -1084,7 +1089,7 @@ struct TrainingLoadView: View {
                     Text("Room today").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                     roomRow(.strength, room: outlook.strengthRoom, settles: outlook.strengthSettles,
                             unit: String(localized: "weighted sets"))
-                    roomRow(.cardio, room: outlook.cardioRoom, settles: outlook.cardioSettles, unit: "TRIMP")
+                    roomRow(.cardio, room: outlook.cardioRoom, settles: outlook.cardioSettles, unit: String(localized: "cardio points"))
                     Text("Where the edges of your usual week lie, in each lane's own unit. Not a target.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
@@ -1665,7 +1670,7 @@ struct TrainingLoadView: View {
             // cards above and have to name them the same way in every language.
             methodRow("Strength load", "Working sets weighted by proximity to failure. Tonnage remains a training statistic, not the load.")
             Divider().overlay(StrandPalette.hairline)
-            methodRow("Cardiovascular load", "Banister TRIMP: every minute counts by how far into your heart-rate reserve it went, rising steeply towards the top, with the resting heart rate of that week and a coefficient for your profile. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
+            methodRow("Cardiovascular load", "Every minute counts by how far into your heart-rate reserve it went, rising steeply towards the top, with the resting heart rate of that week and a coefficient for your profile. NOOP band data wins; workout-associated Health data fills only when the band trace is incomplete.")
             Divider().overlay(StrandPalette.hairline)
             methodRow("Session load", "Your whole-session RPE × duration. Add it from any workout detail; missing ratings are never guessed.")
             Divider().overlay(StrandPalette.hairline)

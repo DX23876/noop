@@ -91,7 +91,7 @@ struct ForgeEffortDetailView: View {
                                 caption: String(localized: "The shaded band is the target your Charge allowed on each day."))
 
                 ForgeExplainer(title: "How Effort is made",
-                               text: "Effort adds up how hard your heart worked through the day against your own resting and maximum heart rate, workouts included. The target comes from this morning's Charge: more Charge, more room. Everything is calculated on this iPhone.")
+                               text: "Effort adds up how hard your heart worked through the day against your own resting and maximum heart rate, workouts included. The target comes from this morning's Charge: more Charge, more room. Everything is calculated on this iPhone.") { ExplainerScoreInputs.effort }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
@@ -201,7 +201,7 @@ struct ForgeRestDetailView: View {
                                 history: TabRoute.metric(HeroRingMetric.rest))
 
                 ForgeExplainer(title: "How Rest is made",
-                               text: "Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got. Everything is calculated on this iPhone.")
+                               text: "Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got. Everything is calculated on this iPhone.") { ExplainerScoreInputs.rest }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
@@ -338,17 +338,21 @@ struct ForgeDailyChart: View {
 }
 
 /// "How X is made": one short paragraph under the page's chart.
-struct ForgeExplainer: View {
+struct ForgeExplainer<Picture: View>: View {
     let title: LocalizedStringKey
     let text: LocalizedStringKey
+    @ViewBuilder var picture: () -> Picture
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
-            Text(text).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 10) {
+            picture()
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                Text(text).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 4)
         }
-        .padding(.horizontal, 4)
     }
 }
 

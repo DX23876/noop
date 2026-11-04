@@ -58,7 +58,16 @@ struct ForgeNightBreakdown: View {
         ]
         let top = max(rows.map { max($0.minutes, $0.typical ?? 0) }.max() ?? 1, 1)
         return VStack(alignment: .leading, spacing: 8) {
-            ForgeSectionTitle(title: "Stages")
+            HStack {
+                ForgeSectionTitle(title: "Stages")
+                Spacer()
+                ExplainerInfoButton(
+                    title: String(localized: "How a night runs"),
+                    text: String(localized: "Sleep moves through cycles of about 90 minutes. Deep sleep comes mostly early in the night, REM mostly towards morning, and short wakings are normal. Your own night can look different.")) {
+                        ExplainerNightStages()
+                    }
+                    .padding(.vertical, -12)
+            }
             VStack(spacing: 10) {
                 ForEach(rows, id: \.name) { r in stageRow(r, top: top) }
                 Text("The mark is your typical night from the last 30.")

@@ -77,7 +77,7 @@ struct StressView: View {
     @State private var modelSignature: StressInputs?
 
     var body: some View {
-        ScreenScaffold(title: "Stress", subtitle: "Autonomic load across your waking day",
+        ScreenScaffold(title: "Stress", subtitle: classicOnlySubtitle("Autonomic load across your waking day"),
                        // PERF (scroll): lazy column — byte-identical layout (LazyVStack == eager VStack
                        // alignment/spacing/header). The content is one inner eager VStack, so the staggered
                        // section reveal is unchanged; this only defers building that stack until it scrolls in.
@@ -88,7 +88,16 @@ struct StressView: View {
                        topBackground: liquidScaffoldSky(),
                        // Card-AI (#P11): "Ask coach" in the header, fed this screen's own read (today's
                        // 0–3 stress, RHR/HRV vs baseline, the intraday peak). Only shows once connected.
-                       trailing: { if let ctx = coachCardContext { CoachCardButton(context: ctx) } }) {
+                       trailing: {
+                           HStack(spacing: 4) {
+                               ExplainerInfoButton(
+                                   title: String(localized: "What stress means here"),
+                                   text: String(localized: "NOOP reads stress from your heart. A higher resting pulse and more even gaps between beats than you usually have push it up, the reverse brings it down. It shows the load on your body, not your mood.")) {
+                                       ExplainerStressHearts()
+                                   }
+                               if let ctx = coachCardContext { CoachCardButton(context: ctx) }
+                           }
+                       }) {
             if let model {
                 content(model)
             } else if !loaded {

@@ -46,7 +46,7 @@ struct HeartRateSharingView: View {
 
     var body: some View {
         ScreenScaffold(title: "Heart rate sharing",
-                       subtitle: "Let a treadmill, bike computer, Zwift or a sports watch read your heart rate.",
+                       subtitle: classicOnlySubtitle("Let a treadmill, bike computer, Zwift or a sports watch read your heart rate."),
                        topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 phoneCard

@@ -36,7 +36,7 @@ struct MomentumView: View {
 
     var body: some View {
         ScreenScaffold(title: "Momentum",
-                       subtitle: "What matters most for you right now") {
+                       subtitle: classicOnlySubtitle("What matters most for you right now")) {
             if !isResolved {
                 unresolvedState
             } else if messages.isEmpty {
