@@ -58,7 +58,7 @@ final class ChargeBreakdownFormatTests: XCTestCase {
                                 verdict: "at baseline")
         XCTAssertEqual(
             ChargeBreakdownFormat.driverAccessibilityLabel(zero),
-            "Respiratory rate: no change. 14.0 br/min, 14.0 br/min baseline. at baseline.")
+            "Respiratory rate: no change. 14.0 br/min, 14.0 br/min baseline. at your usual.")
 
         // singular point reads "point", not "points"
         let one = ChargeDriver(label: "HRV", deltaPoints: 1, valueText: "70 ms",
