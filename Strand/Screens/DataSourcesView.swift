@@ -7,6 +7,9 @@ import StrandCore
 import WhoopStore
 import WhoopProtocol   // #137: Streams / HRSample, to persist an imported activity's per-sample HR
 
+/// A page of many imports has no single main action, so in the new design none of them shouts.
+private var importButtonKind: NoopButtonKind { NoopVisualStyle.skin == .forge ? .secondary : .primary }
+
 struct DataSourcesView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var repo: Repository
@@ -117,7 +120,7 @@ struct DataSourcesView: View {
                     Label(importingWhoop ? "Importing…" : "Choose export…",
                           systemImage: "tray.and.arrow.down")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(model.hasActiveImport || nutritionImporting || liftingImporting || activityFileImporting)
                 if importingWhoop { ProgressView().controlSize(.small) }
             }
@@ -139,7 +142,7 @@ struct DataSourcesView: View {
                 Button { presentImporter(.appleHealth) } label: {
                     Label(importingAppleHealth ? "Working…" : "Choose export.zip…", systemImage: "tray.and.arrow.down")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(model.hasActiveImport || nutritionImporting || liftingImporting || activityFileImporting || appleHealthDeleting)
                 if importingAppleHealth { ProgressView().controlSize(.small) }
             }
@@ -178,7 +181,7 @@ struct DataSourcesView: View {
                 Button { presentImporter(.xiaomi) } label: {
                     Label(importingXiaomi ? "Importing…" : "Choose Mi Fitness export…", systemImage: "tray.and.arrow.down")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(model.hasActiveImport || nutritionImporting || liftingImporting || activityFileImporting)
                 if importingXiaomi { ProgressView().controlSize(.small) }
             }
@@ -197,7 +200,7 @@ struct DataSourcesView: View {
                 Button { presentImporter(.nutrition) } label: {
                     Label(nutritionImporting ? "Importing…" : "Choose .csv…", systemImage: "tray.and.arrow.down")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(model.hasActiveImport || nutritionImporting || liftingImporting || activityFileImporting)
                 if nutritionImporting { ProgressView().controlSize(.small) }
             }
@@ -270,7 +273,7 @@ struct DataSourcesView: View {
                 } label: {
                     Label(hevy.isBusy ? "Connecting…" : "Connect", systemImage: "link")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(hevy.isBusy || hevyKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 if hevy.isBusy { ProgressView().controlSize(.small) }
             }
@@ -290,7 +293,7 @@ struct DataSourcesView: View {
                 } label: {
                     Label(hevy.isBusy ? "Syncing…" : "Sync now", systemImage: "arrow.triangle.2.circlepath")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(hevy.isBusy)
                 Button(String(localized: "Disconnect")) { hevy.disconnect() }
                     .buttonStyle(NoopButtonStyle(.secondary))
@@ -332,7 +335,7 @@ struct DataSourcesView: View {
                 Button { presentImporter(.lifting) } label: {
                     Label(liftingImporting ? "Importing…" : "Choose export…", systemImage: "tray.and.arrow.down")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(model.hasActiveImport || nutritionImporting || liftingImporting || activityFileImporting)
                 if liftingImporting { ProgressView().controlSize(.small) }
             }
@@ -351,7 +354,7 @@ struct DataSourcesView: View {
                 Button { presentImporter(.activityFile) } label: {
                     Label(activityFileImporting ? "Importing…" : "Choose .gpx / .tcx / .fit…", systemImage: "tray.and.arrow.down")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(model.hasActiveImport || nutritionImporting || liftingImporting || activityFileImporting)
                 if activityFileImporting { ProgressView().controlSize(.small) }
             }
@@ -370,7 +373,7 @@ struct DataSourcesView: View {
                 Button { presentImporter(.wearable) } label: {
                     Label(wearableImporting ? "Importing…" : "Choose export…", systemImage: "tray.and.arrow.down")
                 }
-                .buttonStyle(NoopButtonStyle(.primary))
+                .buttonStyle(NoopButtonStyle(importButtonKind))
                 .disabled(model.hasActiveImport || nutritionImporting || liftingImporting || activityFileImporting || wearableImporting)
                 if wearableImporting { ProgressView().controlSize(.small) }
             }
@@ -394,7 +397,7 @@ struct DataSourcesView: View {
                 if oura.isConnected {
                     HStack {
                         Button { oura.connectAndImport(repo: repo) } label: { Label("Import again", systemImage: "arrow.clockwise") }
-                            .buttonStyle(NoopButtonStyle(.primary))
+                            .buttonStyle(NoopButtonStyle(importButtonKind))
                         Button(role: .destructive) { oura.disconnect(repo: repo) } label: { Label("Forget Oura access", systemImage: "xmark.circle") }
                             .buttonStyle(NoopButtonStyle(.destructive))
                     }.disabled(oura.busy)
@@ -403,7 +406,7 @@ struct DataSourcesView: View {
                         Label(oura.busy ? String(localized: "Working…") : String(localized: "Import your Oura history"),
                               systemImage: "square.and.arrow.down")
                     }
-                    .buttonStyle(NoopButtonStyle(.primary))
+                    .buttonStyle(NoopButtonStyle(importButtonKind))
                     .disabled(oura.busy || !oura.isConfigured)
                     if !oura.isConfigured {
                         Text("Add your Oura app credentials to OuraSecrets.xcconfig to enable this.")
