@@ -1006,3 +1006,39 @@ Analysis migration required: yes (AI-34).
   figures carry their colours and one bar of the night's make-up.
 
 Analysis migration required: no.
+
+## A walk grows over its slower edges, a mixed way is asked about, the wait runs on the data (2026-11-05)
+
+The owner's real day of 2026-11-05 tested the rule above: the afternoon came out whole, but the morning (partly
+by tram, six still minutes) and noon (a shop, about six still minutes) gave no walk, and the suggestions started
+late. **Decided**, numbers frozen for the test below:
+
+- The stop limit stays at five minutes. Seven would have caught morning and noon, but it was read off that one
+  day, it merges two separate walks on 2026-09-10, and the strap cannot tell a tram from a shop.
+- A stretch still qualifies by the rule above. Only then it grows over slower walking minutes (`walkEdgeMinutes`,
+  ten, past one non-walking minute at most). Replay 2026-09-01 to 2026-11-05: 75 spans before and after, 34 of 42
+  entries, 0.62 suggestions without an entry a day, start 6.7 instead of 3.2 minutes before the entry (median),
+  end 0.7 instead of 2.1. Apple starts late, so the start error is not a verdict.
+- A heart-rate span the strap called walking more than half the time is a mixed way: same edges, asked without
+  the minimum load at "Detect more" and "Balanced", not at "Only clear", titled "Activity detected" since it may
+  contain a ride. Both tracks at "Balanced", same replay: 36 of 38 walks and 1.35 suggestions without an entry a day,
+  from 35 of 38 and 1.03. Today it gives 06:03 to 06:30, 12:09 to 12:32 and 15:05 to 16:29. Not checked by hand.
+- The wait is 15 minutes of stored data past the end, not 10 on the clock. On 2026-11-04 a notification went out at
+  07:27:50 for a walk that lasted until 07:29. Whether the data or the recomputation lagged cannot be told after
+  the fact; both end the same way. The price is a later notification, not measured yet.
+- Three notifications a day instead of two, since three ways a day are normal here, and the week's pause after
+  five unanswered instead of three, or a single unanswered day would silence a week.
+- `stepMinutes` re-sums a minute second by second when it reads above 300 steps: the strap resets the counter near
+  06:59:32, which read as a minute of about 16,000 steps. Summing every minute that way tripled the read. Nothing
+  else reads that method; daily step counts are computed elsewhere.
+
+**Rejected:** eight full minutes with four in a row as the qualifying rule: nine more spans for one more confirmed
+walk, and both numbers came from the day it had to solve. Suggesting only the longer walking piece of a mixed way:
+1.1 a day without an entry, over the owner's limit, and noon stays missing.
+
+**The test**, on the iPhone for two weeks from install, with no tuning meanwhile: walk track and mixed ways counted
+apart, each at least ten answers, at least 80 % confirmed as a walk (adjusted times still count), no walk split in
+two. Mixed ways failing alone removes only them. Fewer than ten answers extends the test. Known gap: 80 steps a
+minute is fixed; a wearer who walks slower gets no full minutes, and only this wearer's data exists to tune it.
+
+Analysis migration required: no. Suggestions feed no score; `activity-v2` has not shipped, so this stays on it.

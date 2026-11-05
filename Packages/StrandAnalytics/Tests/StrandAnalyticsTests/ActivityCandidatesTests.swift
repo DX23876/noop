@@ -109,6 +109,110 @@ final class ActivityCandidatesTests: XCTestCase {
         XCTAssertEqual(A.walkCandidates(holes, hrMax: 180).map(\.durationMinutes), [44, 20, 20])
     }
 
+    func testAWalkTakesTheSlowerMinutesAroundIt() {
+        let minutes = day { i in
+            switch i {
+            case 100..<103, 104..<107: return self.slowing          // setting off, one minute standing inside
+            case 107..<130: return self.walking()
+            case 130..<133: return self.slowing                     // arriving
+            default: return self.still
+            }
+        }
+        let walks = A.walkCandidates(minutes, hrMax: 180)
+        XCTAssertEqual(walks.first?.start, minutes[100].ts)
+        XCTAssertEqual(walks.first?.end, minutes[133].ts)
+    }
+
+    func testTheEdgesStopAtTwoStillMinutesAtTheirLimitAndAtTheNextWalk() {
+        let gap = day { i in
+            switch i {
+            case 100..<105, 107..<110: return self.slowing
+            case 110..<130: return self.walking()
+            default: return self.still
+            }
+        }
+        XCTAssertEqual(A.walkCandidates(gap, hrMax: 180).first?.start, gap[107].ts, "two still minutes end the edge")
+        let long = day { i in
+            switch i {
+            case 80..<110: return self.slowing
+            case 110..<130: return self.walking()
+            default: return self.still
+            }
+        }
+        XCTAssertEqual(A.walkCandidates(long, hrMax: 180).first?.start, long[100].ts, "ten minutes at most")
+        let neighbours = day { i in
+            switch i {
+            case 100..<120, 130..<150: return self.walking()
+            case 120, 121, 128, 129: return self.slowing
+            default: return self.still
+            }
+        }
+        let two = A.walkCandidates(neighbours, hrMax: 180)
+        XCTAssertEqual(two.map(\.start), [neighbours[100].ts, neighbours[128].ts])
+        XCTAssertEqual(two.first?.end, neighbours[122].ts)
+    }
+
+    func testSlowMinutesAloneDoNotMakeAStretchLongEnough() {
+        // Ten full minutes with eight slower ones around them are pottering about, not a walk.
+        let minutes = day { i in
+            switch i {
+            case 100..<104, 114..<118: return self.slowing
+            case 104..<114: return self.walking()
+            default: return self.still
+            }
+        }
+        XCTAssertTrue(A.walkCandidates(minutes, hrMax: 180).isEmpty)
+    }
+
+    func testAMixedWayIsAskedAboutWithoutTheLoadExceptAtOnlyClear() {
+        // Walking, six minutes in a shop or on a tram, walking: too short for the walk track either side.
+        let minutes = day { i in
+            switch i {
+            case 100..<103: return (90, 60, 40, 0, 60)                       // setting off
+            case 103..<110: return (125, 100, 60, 0, 60)
+            case 110..<116: return (112, 3, 0, 0, 60)
+            case 116..<124: return (130, 100, 60, 0, 60)
+            default: return self.still
+            }
+        }
+        let all = A.candidates(minutes, restingHR: 55, hrMax: 180, everydayHRR: 0.1)
+        XCTAssertEqual(all.map(\.track), [.heartRate])
+        let way = all[0]
+        XCTAssertEqual(way.start, minutes[100].ts, "the slower minutes before the heart rate rose belong to it")
+        XCTAssertEqual(way.end, minutes[124].ts)
+        XCTAssertLessThan(way.load, A.Level.more.minimumLoad)
+        XCTAssertEqual(way.kinds.first, .walk)
+        XCTAssertTrue(way.asks(at: .more))
+        XCTAssertTrue(way.asks(at: .balanced))
+        XCTAssertFalse(way.asks(at: .onlyClear))
+    }
+
+    func testAHeartRateSpanThatWasNotMostlyWalkingKeepsItsSpanAndItsLoadGate() {
+        let minutes = day { i in
+            switch i {
+            case 95..<100: return (70, 55, 40, 0, 60)
+            case 100..<120: return (125, 4, 0, 0, 60)
+            default: return self.still
+            }
+        }
+        let hr = A.heartRateCandidates(minutes, restingHR: 55, hrMax: 180, everydayHRR: 0.1)
+        XCTAssertEqual(hr.first?.start, minutes[100].ts)
+        XCTAssertFalse(hr.first!.asks(at: .balanced))
+    }
+
+    func testAMixedWayDoesNotGrowIntoAWalkBesideIt() {
+        let minutes = day { i in
+            switch i {
+            case 100..<120: return self.walking()
+            case 120..<124: return (125, 60, 40, 0, 60)
+            case 124..<140: return (125, 90, 35, 0, 60)
+            default: return self.still
+            }
+        }
+        let all = A.candidates(minutes, restingHR: 55, hrMax: 180, everydayHRR: 0.1)
+        for pair in zip(all, all.dropFirst()) { XCTAssertLessThanOrEqual(pair.0.end, pair.1.start) }
+    }
+
     func testARunIsNamedARun() {
         let minutes = day { i in (60..<90).contains(i) ? (150, 165, 5, 55, 60) : self.still }
         XCTAssertEqual(A.walkCandidates(minutes, hrMax: 185).first?.kinds, [.run])

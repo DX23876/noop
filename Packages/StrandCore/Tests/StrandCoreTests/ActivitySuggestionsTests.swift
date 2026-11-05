@@ -8,10 +8,11 @@ final class ActivitySuggestionsTests: XCTestCase {
     typealias S = ActivitySuggestions
 
     private func candidate(_ start: Int, minutes: Int = 30, track: String = "heartRate", load: Double = 100,
-                           kinds: [String] = ["strength", "cycle", "other"]) -> ActivityCandidateRow {
+                           kinds: [String] = ["strength", "cycle", "other"],
+                           share: Double? = nil) -> ActivityCandidateRow {
         ActivityCandidateRow(deviceId: "my-whoop", track: track, startTs: start, endTs: start + minutes * 60,
                              ruleVersion: ActivityCandidates.ruleVersion, avgBpm: 128, peakBpm: 150, load: load,
-                             cadence: nil, locomotionShare: nil, kinds: kinds)
+                             cadence: nil, locomotionShare: share, kinds: kinds)
     }
     private func workout(_ start: Int, _ end: Int, source: String = "manual") -> WorkoutRow {
         WorkoutRow(startTs: start, endTs: end, sport: "Strength Training", source: source,
@@ -72,6 +73,50 @@ final class ActivitySuggestionsTests: XCTestCase {
         let now = 40_000 + 30 * 60 + 5 * 60   // the last one ended five minutes ago
         XCTAssertEqual(S.toAsk(all, now: now).map(\.start), [20_000, 10_000])
         XCTAssertEqual(S.toAsk(all, now: now, snoozed: ["heartRate:20000"]).map(\.start), [10_000])
+    }
+
+    /// 2026-11-04: a notification at 07:27:50 for a walk that went on until 07:29, because a span computed
+    /// mid-walk ends where its data ended and the wait ran on the clock.
+    func testTheWaitIsMeasuredOnTheDataNotOnTheClock() {
+        let end = 10_000 + 30 * 60
+        let later = end + 3 * 3_600
+        func resolve(through: Int?) -> [S.Suggestion] {
+            S.resolve(candidates: [candidate(10_000, track: "walk", kinds: ["walk"])], answers: [], workouts: [],
+                      settings: .init(), dataThrough: through)
+        }
+        XCTAssertTrue(S.toAsk(resolve(through: end), now: later).isEmpty, "the data stops where the span stops")
+        XCTAssertTrue(S.inbox(resolve(through: end), now: later).isEmpty)
+        XCTAssertTrue(S.toAsk(resolve(through: end + S.settleSeconds - 60), now: later).isEmpty)
+        XCTAssertEqual(S.toAsk(resolve(through: end + S.settleSeconds), now: later).map(\.start), [10_000])
+        XCTAssertTrue(S.toAsk(resolve(through: end + S.settleSeconds), now: end + 60).isEmpty, "nor ahead of the clock")
+        XCTAssertEqual(S.toAsk(resolve(through: nil), now: later).map(\.start), [10_000], "before the first refresh")
+    }
+
+    func testAMixedWayIsAskedBelowTheLoadExceptAtOnlyClear() {
+        let rows = [candidate(10_000, load: 35, kinds: ["walk", "strength", "other"], share: 0.6),
+                    candidate(20_000, load: 35, share: 0.5), candidate(30_000, load: 35)]
+        func asks(_ level: ActivityCandidates.Level) -> [Bool] {
+            S.resolve(candidates: rows, answers: [], workouts: [], settings: .init(level: level)).map(\.asks)
+        }
+        XCTAssertEqual(asks(.more), [true, false, false], "more than half, and an unknown share is not")
+        XCTAssertEqual(asks(.balanced), [true, false, false])
+        XCTAssertEqual(asks(.onlyClear), [false, false, false])
+    }
+
+    func testARefreshRecordsTheNewestMinuteItSawForThatDevice() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        let store = try await WhoopStore.inMemory()
+        let now = 1_793_900_000
+        let steps = (0..<120).map { StepSample(ts: now - 7_200 + $0, counter: $0, activityClass: 1) }
+        try await store.insert(Streams(steps: steps), deviceId: "my-whoop")
+        try await S.refresh(store: store, deviceId: "my-whoop", computedId: "my-whoop-noop", hrMax: 180, now: now,
+                            calendar: calendar)
+        let expected = ((now - 7_200 + 119) / 60) * 60
+        let seen = await S.dataThrough(store: store, deviceId: "my-whoop")
+        let other = await S.dataThrough(store: store, deviceId: "whoop-b")
+        XCTAssertEqual(seen, expected)
+        XCTAssertNil(other)
     }
 
     func testTheInboxListsOpenFirstThenTheRestAndTheSheetOffersTheDaysOpenOnes() {

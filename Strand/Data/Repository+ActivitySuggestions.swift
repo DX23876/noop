@@ -17,8 +17,10 @@ extension Repository {
         guard !candidates.isEmpty else { return [] }
         let answers = (try? await store.activitySuggestionAnswers(from: from, to: now + 1)) ?? []
         let workouts = await workoutRows(days: ActivitySuggestions.listDays + 2)
+        let dataThrough = await ActivitySuggestions.dataThrough(store: store, deviceId: deviceId)
         return ActivitySuggestions.resolve(candidates: candidates, answers: answers, workouts: workouts,
-                                           legacyDismissed: legacyAutoDetectDismissedWindows, settings: settings)
+                                           legacyDismissed: legacyAutoDetectDismissedWindows, settings: settings,
+                                           dataThrough: dataThrough)
     }
 
     /// One day's suggestions for the logging sheet: the stored ones when there are any, else computed on
