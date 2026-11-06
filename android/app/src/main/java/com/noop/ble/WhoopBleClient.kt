@@ -3195,6 +3195,7 @@ class WhoopBleClient(
     @Suppress("UNUSED_PARAMETER")
     private fun onBackfillChunkCommitted(batch: StreamBatch) {
         decodedChunksThisSession += 1   // invoked once per non-empty decoded chunk (#77 family tally)
+        lastBackfillChunkAtMs.set(android.os.SystemClock.elapsedRealtime())
         schedulePostBackfillAnalysis()
     }
 
@@ -3212,6 +3213,13 @@ class WhoopBleClient(
         ioScope.launch {
             try {
                 delay(POST_BACKFILL_ANALYZE_DELAY_MS) // let trailing chunks of the same session land
+                val waitStartedMs = android.os.SystemClock.elapsedRealtime()
+                while (PostBackfillPacing.keepWaiting(android.os.SystemClock.elapsedRealtime(), waitStartedMs,
+                                                      lastBackfillChunkAtMs.get())) {
+                    delay(PostBackfillPacing.POLL_MS)
+                }
+                // Every chunk that landed during the wait is already in the pass that starts now.
+                analyzeAfterBackfillPending.set(false)
                 val profileStore = ProfileStore.from(context)
                 // #1493: was built longhand here and silently omitted waistCm, so this pass scored VO₂max
                 // with the Uth fallback while the 15-minute pass used the waist-based Nes estimate — the
@@ -3580,6 +3588,7 @@ class WhoopBleClient(
     /** One-shot debounce: a post-backfill scoring pass is already scheduled/running. */
     private val analyzeAfterBackfillScheduled = java.util.concurrent.atomic.AtomicBoolean(false)
     private val analyzeAfterBackfillPending = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val lastBackfillChunkAtMs = java.util.concurrent.atomic.AtomicLong(0L)
 
     /** Guards the once-per-connect initial offload kick (Swift `backfillStarted`). */
     private var backfillStarted = false
