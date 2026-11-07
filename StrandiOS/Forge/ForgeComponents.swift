@@ -124,6 +124,8 @@ struct ForgeMetricTile: View {
     var bars: [Double]? = nil
     /// Small labels under the chart (weekday initials), as in the prototype's tiles.
     var axisLabels: [String]? = nil
+    /// Three to a row the tile carries no badge, so it need not keep the room for one.
+    var minHeight: CGFloat = 132
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -169,7 +171,7 @@ struct ForgeMetricTile: View {
             }
             if let badge { ForgeBadge(text: badge.text, tone: badge.tone) }
         }
-        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
         .forgeCard(radius: ForgeRadius.card, padding: 14)
         .accessibilityElement(children: .combine)
     }

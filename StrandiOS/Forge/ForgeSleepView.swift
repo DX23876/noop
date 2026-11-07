@@ -270,11 +270,26 @@ struct ForgeSleepView: View {
                                   nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
                             .padding(10)
                             .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
+                        let parts: [(String, Double, Color)] = [
+                            (String(localized: "Deep"), night.stages.deep, StrandPalette.sleepStageColor(.deep, palette: palette)),
+                            (String(localized: "REM"), night.stages.rem, StrandPalette.sleepStageColor(.rem, palette: palette)),
+                            (String(localized: "Light"), night.stages.light, StrandPalette.sleepStageColor(.light, palette: palette)),
+                            (String(localized: "Awake"), night.stages.awake, StrandPalette.sleepStageColor(.awake, palette: palette)),
+                        ]
+                        // The night's make-up as one bar, in the chart's own stage colours.
+                        GeometryReader { geo in
+                            HStack(spacing: 2) {
+                                ForEach(parts, id: \.0) { part in
+                                    Rectangle().fill(part.2)
+                                        .frame(width: max(0, (geo.size.width - 6) * part.1 / max(night.stages.total, 1)))
+                                }
+                            }
+                            .clipShape(Capsule())
+                        }
+                        .frame(height: 10)
+                        .accessibilityHidden(true)
                         HStack(spacing: 14) {
-                            stageFact(String(localized: "Deep"), night.stages.deep)
-                            stageFact(String(localized: "REM"), night.stages.rem)
-                            stageFact(String(localized: "Light"), night.stages.light)
-                            stageFact(String(localized: "Awake"), night.stages.awake)
+                            ForEach(parts, id: \.0) { stageFact($0.0, $0.1, color: $0.2) }
                         }
                 }
             } else {
@@ -331,10 +346,13 @@ struct ForgeSleepView: View {
         }
     }
 
-    private func stageFact(_ label: String, _ minutes: Double) -> some View {
+    private func stageFact(_ label: String, _ minutes: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(ForgeTodayView.hoursMinutes(minutes)).font(ForgeFont.rounded(17, .bold)).foregroundStyle(ForgeColor.text)
-            Text(label).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
+            HStack(spacing: 4) {
+                Circle().fill(color).frame(width: 7, height: 7)
+                Text(label).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -404,29 +422,33 @@ struct ForgeSleepView: View {
 
     // MARK: This night
 
+    /// The body through the night, each figure with its last fourteen nights as bars, this night drawn
+    /// full. Efficiency and breathing rate lead "What shaped the night" above, so they are not repeated
+    /// here; breathing stays when that card is absent (a night without stages).
     private func nightFacts(_ m: SleepModel) -> some View {
         let row = nightRow
-        let temp = row?.skinTempDevC.map { String(format: "%+.1f °C", $0) }
-        let facts: [(String?, String)] = [
-            (night.flatMap(ForgeNightBreakdown.efficiency).map { "\(Int($0.rounded()))%" }, String(localized: "Efficiency")),
-            (row?.disturbances.map(String.init), String(localized: "Wake-ups")),
-            (row?.restingHr.map(String.init), String(localized: "Resting HR at night")),
-            (row?.avgHrv.map { "\(Int($0.rounded())) ms" }, String(localized: "HRV")),
-            (row?.respRateBpm.map { String(format: "%.1f", $0) }, String(localized: "Breaths/min")),
-            (temp, String(localized: "Skin temperature")),
+        let key = wakeKey ?? ""
+        let recent = Array(repo.days.filter { $0.day <= key }.suffix(14))
+        func series(_ f: (DailyMetric) -> Double?) -> [Double?] { recent.map(f) }
+        var facts: [NightSignal] = [
+            NightSignal(label: String(localized: "Wake-ups"), value: row?.disturbances.map(String.init), unit: "",
+                        symbol: "eye.fill", series: series { $0.disturbances.map(Double.init) }),
+            NightSignal(label: String(localized: "Resting HR at night"), value: row?.restingHr.map(String.init), unit: "bpm",
+                        symbol: "heart.fill", series: series { $0.restingHr.map(Double.init) }),
+            NightSignal(label: String(localized: "HRV"), value: row?.avgHrv.map { "\(Int($0.rounded()))" }, unit: "ms",
+                        symbol: "waveform.path.ecg", series: series { $0.avgHrv }),
+            NightSignal(label: String(localized: "Skin temperature"), value: row?.skinTempDevC.map { String(format: "%+.1f", $0) },
+                        unit: "°C", symbol: "thermometer.medium", series: series { $0.skinTempDevC }),
         ]
+        if (night?.stages.total ?? 0) <= 0 {
+            facts.insert(NightSignal(label: String(localized: "Breaths/min"), value: row?.respRateBpm.map { String(format: "%.1f", $0) },
+                                     unit: "", symbol: "lungs.fill", series: series { $0.respRateBpm }), at: 3)
+        }
         return VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "This night")
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), alignment: .leading, spacing: 14) {
-                ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(fact.0 ?? "–").font(ForgeFont.rounded(19, .regular)).foregroundStyle(ForgeColor.text)
-                        Text(fact.1).font(.system(.caption)).foregroundStyle(ForgeColor.secondary).lineLimit(2)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(facts) { ForgeNightSignalTile(signal: $0, highlightLast: recent.last?.day == key) }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -511,6 +533,73 @@ struct ForgeSleepView: View {
             // deleted by mistake, so the tab no longer sends anyone to the older page for them.
             SleepMarkCard()
             DeletedSleepNightsSection()
+        }
+    }
+}
+
+/// One body signal of the night for the "This night" grid.
+struct NightSignal: Identifiable {
+    let label: String
+    let value: String?
+    let unit: String
+    let symbol: String
+    /// Oldest first; the last entry is the night on screen.
+    let series: [Double?]
+    var id: String { label }
+}
+
+/// A night's figure large, with the nights before it as small bars: the one on screen drawn full, the
+/// others faint, a missing night a dot on the baseline. The bars rise once when the tile appears.
+struct ForgeNightSignalTile: View {
+    let signal: NightSignal
+    let highlightLast: Bool
+    @State private var grown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let present = signal.series.compactMap { $0 }
+        let lo = present.min() ?? 0, hi = present.max() ?? 1
+        let span = max(hi - lo, 0.0001)
+        VStack(alignment: .leading, spacing: 8) {
+            Label(signal.label, systemImage: signal.symbol)
+                .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                .labelStyle(.titleAndIcon).lineLimit(1).minimumScaleFactor(0.8)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(signal.value ?? "–").font(ForgeFont.rounded(26, .bold)).foregroundStyle(ForgeColor.text)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                if signal.value != nil, !signal.unit.isEmpty {
+                    Text(signal.unit).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary)
+                }
+            }
+            if present.count > 1 {
+                HStack(alignment: .bottom, spacing: 3) {
+                    ForEach(Array(signal.series.enumerated()), id: \.offset) { i, v in
+                        let isLast = highlightLast && i == signal.series.count - 1
+                        if let v {
+                            // Scaled within the fortnight, with a floor so the lowest night still shows.
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(ForgeColor.rest.opacity(isLast ? 1 : 0.35))
+                                .frame(height: (6 + 22 * (v - lo) / span) * (grown ? 1 : 0.15))
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Circle().fill(ForgeColor.separator).frame(width: 3, height: 3).frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .frame(height: 28, alignment: .bottom)
+                .accessibilityHidden(true)
+            } else {
+                Color.clear.frame(height: 28)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(signal.label))
+        .accessibilityValue(Text(verbatim: [signal.value ?? "–", signal.unit].filter { !$0.isEmpty }.joined(separator: " ")))
+        .onAppear {
+            if reduceMotion { grown = true; return }
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.88).delay(0.05)) { grown = true }
         }
     }
 }

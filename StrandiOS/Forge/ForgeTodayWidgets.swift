@@ -624,7 +624,7 @@ struct ForgeMeasureWidget: View {
     }
 
     /// Each measure in the colour the Liquid Today tiles give it.
-    private static func tint(_ key: String) -> Color {
+    static func tint(_ key: String) -> Color {
         switch key {
         case "hrv", "spo2": return StrandPalette.metricCyan
         case "rhr": return StrandPalette.metricRose

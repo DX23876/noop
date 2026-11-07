@@ -4917,5 +4917,11 @@
   "Living": "Żywe",
   "Score rings": "Pierścienie wyników",
   "Living rings move and breathe. Classic rings stand still and use less battery.": "Żywe pierścienie poruszają się i oddychają. Klasyczne stoją w miejscu i zużywają mniej baterii.",
-  "Bedtime counts %@ h, as set in Alarms.": "Pora snu liczy %@ h, jak ustawiono w Alarmach."
+  "Bedtime counts %@ h, as set in Alarms.": "Pora snu liczy %@ h, jak ustawiono w Alarmach.",
+  "Edit Vitals": "Edytuj parametry życiowe",
+  "Tap a tile to swap it, drag to reorder. Up to nine tiles.": "Stuknij kafelek, aby go zamienić, przeciągnij, aby zmienić kolejność. Do dziewięciu kafelków.",
+  "Add a tile": "Dodaj kafelek",
+  "Swap %@": "Zamień: %@",
+  "Remove tile": "Usuń kafelek",
+  "Age %@": "Wiek %@"
 }
