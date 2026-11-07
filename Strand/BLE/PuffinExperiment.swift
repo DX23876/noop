@@ -73,7 +73,11 @@ enum PuffinExperiment {
     /// ON. Mirrors the Android `NoopPrefs.KEY_SPO2_CANDIDATE_DISPLAY`.
     static let spo2CandidateDisplayKey = "noopSpo2CandidateDisplay"
 
-    static var spo2CandidateDisplayEnabled: Bool { UserDefaults.standard.bool(forKey: spo2CandidateDisplayKey) }
+    /// Always on in this fork since 2026-11-07 (owner's decision, docs/fork/decisions.md): the Blood Oxygen
+    /// tile shows the strap's own estimate, labelled as an estimate, instead of staying empty. It still
+    /// never becomes `spo2Pct` and never feeds a score or a gate. The key is kept so older installs that
+    /// stored a choice are simply overruled, not migrated.
+    static var spo2CandidateDisplayEnabled: Bool { true }
 
     /// Opt-in "Personal daytime-stress baseline" (#463): score TODAY's intraday stress timeline against a
     /// PERSONAL cross-day rolling baseline (Oura-style `.baselineRelative`) instead of the day's own calm

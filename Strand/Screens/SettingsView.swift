@@ -126,10 +126,6 @@ private struct SettingsPageContent: View, Equatable {
     /// connected, and a write to bonded hardware is not something a toggle should do unannounced.
     @State private var confirmingDeepDataDisable = false
 
-    /// #103 opt-in: surfaces the WHOOP 5/MG `spo2_candidate_82` nightly mean in the Blood Oxygen tile
-    /// as a "strap estimate (unverified)" fallback when no calibrated `spo2Pct` exists. Display-only —
-    /// writes nothing to the strap. See [PuffinExperiment.spo2CandidateDisplayKey].
-    @AppStorage(PuffinExperiment.spo2CandidateDisplayKey) private var spo2CandidateDisplayEnabled = false
     @AppStorage(AppModel.ouraAllDayLiveHRKey) private var ouraAllDayLiveHREnabled = false   // item 27
 
     /// #463 opt-in: score the intraday stress timeline against a PERSONAL cross-day baseline
@@ -615,7 +611,6 @@ private struct SettingsPageContent: View, Equatable {
             #endif
         case .lab:
             labCard
-            if showFiveMGControls || model.repo.activeDeviceIsOura { spo2CandidateCard }
             if model.repo.activeDeviceIsOura { ouraAllDayLiveHRCard }
         case .labWhoop5:
             if showFiveMGControls { fiveMGCard }
@@ -2615,43 +2610,6 @@ private struct SettingsPageContent: View, Equatable {
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-        }
-    }
-
-    /// SpO2 candidate display (#103/queue-11a) — split out of `fiveMGCard` (2026-08-23): the toggle's
-    /// own copy has covered Oura since `89c8533b` ("Blood Oxygen: strap estimate (WHOOP 5/MG, Oura)"),
-    /// but it stayed nested inside the WHOOP-5/MG-only card, gated by `showFiveMGControls` — so an
-    /// Oura-only install (no WHOOP 5/MG ever connected) could never reach it. `metricSeries` confirmed
-    /// zero `spo2_candidate` rows ever written on such an install despite pass-2 scoring running daily,
-    /// and a full screenshot sweep of Settings confirmed the section never renders. Same split as
-    /// `rawSensorDiagnosticsCard` just below (#22) — this card shows for a 5/MG OR an active Oura
-    /// device, not just a 5/MG.
-    private var spo2CandidateCard: some View {
-        SettingsSection(
-            icon: "lungs.fill",
-            title: "Experimental · Blood Oxygen",
-            blurb: "Surfaces a device-conditional, unverified SpO₂ estimate in the Blood Oxygen tile when no calibrated reading exists."
-        ) {
-            VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
-                Toggle(isOn: $spo2CandidateDisplayEnabled) {
-                    Text("Blood Oxygen: strap estimate (WHOOP 5/MG, Oura)")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
-                .onChangeCompat(of: spo2CandidateDisplayEnabled) { _ in
-                    // Re-score immediately so the candidate is computed and persisted on this
-                    // toggle flip — without this the user waits up to 15 min for the next analyze
-                    // loop, and the Blood Oxygen tile stays blank in the meantime. Same pattern as
-                    // the HRV window toggle above (analyzeRecent → refresh).
-                    Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                }
-                Text("Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second — an 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction, so device/firmware variance is unresolved. An Oura ring's own SpO₂ reading runs high on the wire (over 100% on a fifth to a half of samples on a clean night); this instead surfaces the ring's mean with each sample capped at 100% first, which has matched the Oura app's own displayed value on every full night checked against it so far, though only a few nights. Turning this on surfaces whichever applies to your device as \"strap estimate (unverified)\" in the Blood Oxygen tile when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
