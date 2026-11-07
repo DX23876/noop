@@ -3789,5 +3789,6 @@
   "Take ECG with the strap": "Снять ЭКГ браслетом",
   "Living": "Живые",
   "Score rings": "Кольца оценок",
-  "Living rings move and breathe. Classic rings stand still and use less battery.": "Живые кольца двигаются и дышат. Классические неподвижны и экономят заряд."
+  "Living rings move and breathe. Classic rings stand still and use less battery.": "Живые кольца двигаются и дышат. Классические неподвижны и экономят заряд.",
+  "Bedtime counts %@ h, as set in Alarms.": "Время отхода ко сну рассчитано на %@ ч, как задано в Будильниках."
 }

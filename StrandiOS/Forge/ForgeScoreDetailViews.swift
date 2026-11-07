@@ -197,13 +197,14 @@ struct ForgeRestDetailView: View {
                     }
                 }
 
+                // Dated points, so every mark gets its weekday as on Charge and Effort.
                 ForgeDailyChart(title: String(localized: "Last 14 days"),
-                                points: Array((model?.performance.series ?? []).suffix(14).enumerated()).map {
-                                    (String($0.offset), $0.element)
-                                },
-                                maxValue: 100, tint: ForgeColor.rest, bars: false, indexed: true,
-                                history: TabRoute.metric(HeroRingMetric.rest),
-                                lastLabel: model?.performance.latestDay.flatMap(ForgeDailyChart.weekdayLetter))
+                                points: Array(repo.days.compactMap { d in
+                                    SleepModel.performanceValue(d, importedSleep: repo.importedSleep)
+                                        .flatMap { $0.isFinite ? (d.day, $0) : nil }
+                                }.suffix(14)),
+                                maxValue: 100, tint: ForgeColor.rest, bars: false,
+                                history: TabRoute.metric(HeroRingMetric.rest))
 
                 ForgeExplainer(title: "How Rest is made",
                                text: "Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got. Everything is calculated on this iPhone.") { ExplainerScoreInputs.rest }
@@ -284,9 +285,9 @@ struct ForgeDailyChart: View {
     /// so only its newest point can be named.
     var lastLabel: String? = nil
 
-    /// Grid values on the score's own scale: thirds on 0 to 100, sevens on Effort's 0 to 21.
+    /// Grid values on the score's own scale: halves on 0 to 100, sevens on Effort's 0 to 21.
     static func ticks(_ maxValue: Double) -> [Double] {
-        maxValue <= 21 ? [0, 7, 14, 21] : [0, 33, 66, 100].filter { $0 <= maxValue }
+        maxValue <= 21 ? [0, 7, 14, 21] : [0, 50, 100].filter { $0 <= maxValue }
     }
 
     /// The weekday letter under a mark, read from its day key; nil for a key that is not a date.
@@ -447,6 +448,8 @@ struct ForgeWhyRow: View {
     var usual: String? = nil
     /// Last night and the usual value on a 0 to 100 scale, when the factor has one.
     var track: (value: Double, usual: Double?)? = nil
+    /// The wearer's usual range on the same 0 to 100 track, drawn as a band behind the dot.
+    var band: ClosedRange<Double>? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -465,6 +468,11 @@ struct ForgeWhyRow: View {
                     let dot = delta > 0 ? ForgeColor.chargeInk : delta < 0 ? ForgeColor.effortInk : ForgeColor.secondary
                     ZStack(alignment: .leading) {
                         Capsule().fill(ForgeColor.fill).frame(height: 6)
+                        if let band {
+                            Capsule().fill(ForgeColor.chargeInk.opacity(ForgeOpacity.band))
+                                .frame(width: max(6, w * (band.upperBound - band.lowerBound) / 100), height: 10)
+                                .offset(x: max(0, min(w - 6, w * band.lowerBound / 100)))
+                        }
                         if let usual = track.usual {
                             Capsule().fill(ForgeColor.chargeInk.opacity(0.55)).frame(width: 3, height: 14)
                                 .offset(x: max(0, min(w - 3, w * usual / 100 - 1.5)))

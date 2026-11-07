@@ -411,9 +411,10 @@ extension SleepModel {
     /// sleep): the mean drifts DOWN toward a chronic under-sleeper's own deficit and quietly erases
     /// their debt, whereas the upper-quartile floored at the ~8 h adult target only adjusts UP for
     /// genuine long sleepers. Age isn't plumbed to this screen (age: nil → adult target); wiring it
-    /// would only raise it for under-18s. One need across every debt surface, agreeing with the engine.
-    /// (#242; need-unification from #464 by @vishk23. The descriptive `sleepNeedMin` still drives the
-    /// non-debt "hours vs needed" performance tile.)
+    /// would only raise it for under-18s. One need across every surface that shows one, agreeing with the
+    /// engine: the debt ledger, "hours vs needed", the night's breakdown, the Sleep tab and the weekly
+    /// report all read it, so no two cards name different needs for the same night. (#242;
+    /// need-unification from #464 by @vishk23.)
     static func debtNeedMin(days: [DailyMetric]) -> Double {
         AnalyticsEngine.Rest.personalizedNeedHours(
             nightlyHours: days.compactMap { $0.totalSleepMin.map { $0 / 60.0 } },
@@ -452,11 +453,13 @@ extension SleepModel {
     /// Sleep performance %: the imported WHOOP figure when the export carried one for that day;
     /// else the REAL resolved Rest composite for that day. (#614 follow-up)
     static func performanceSeries(days: [DailyMetric], importedSleep: [String: ImportedSleepFigures]) -> Metric {
-        let imported = importedSleep
-        return metric(days: days) { d in
-            if let p = imported[d.day]?.performancePct { return p }   // export-verbatim
-            return AnalyticsEngine.Rest.composite(daily: d)            // real resolved Rest composite
-        }
+        metric(days: days) { performanceValue($0, importedSleep: importedSleep) }
+    }
+
+    /// One day's Rest, as `performanceSeries` reads it, for a chart that names each day.
+    static func performanceValue(_ d: DailyMetric, importedSleep: [String: ImportedSleepFigures]) -> Double? {
+        if let p = importedSleep[d.day]?.performancePct { return p }   // export-verbatim
+        return AnalyticsEngine.Rest.composite(daily: d)                 // real resolved Rest composite
     }
 
     static func efficiencySeries(days: [DailyMetric]) -> Metric {
@@ -502,7 +505,8 @@ extension SleepModel {
     /// APPROXIMATE personal-mean need.
     static func hoursVsNeededSeries(days: [DailyMetric], importedSleep: [String: ImportedSleepFigures]) -> Metric {
         let imported = importedSleep
-        let fallbackNeed = sleepNeedMin(days: days)
+        // The one need every surface shows: the Rest score's and the debt ledger's, not the mean night.
+        let fallbackNeed = debtNeedMin(days: days)
         return metric(days: days) { d in
             guard let asleep = d.totalSleepMin, asleep > 0 else { return nil }
             let need = imported[d.day]?.needMin ?? fallbackNeed

@@ -3949,6 +3949,12 @@ public final class DailyAnalysis {
         do {
             if !cachedSleepKept.isEmpty {
                 _ = try await store.upsertSleepSessions(cachedSleepKept, deviceId: computedId)
+                // A night detected again with a moved onset lands as a new row; the old one is now stale.
+                let superseded = try await store.deleteSupersededDetectedSleep(deviceId: computedId,
+                                                                             keeping: cachedSleepKept)
+                if superseded > 0 {
+                    host.diagnostic("re-score: removed \(superseded) superseded detected sleep row(s)", domain: nil)
+                }
             }
         } catch {
             host.diagnostic("re-score: sleep persistence failed; history repair remains pending", domain: nil)

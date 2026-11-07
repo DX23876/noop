@@ -223,7 +223,14 @@ public enum AnalysisRecipe {
     // nightContinuationGapMin (gdorgian/noop a73347999), so a short last stretch no longer ends the night early.
     // AI-33 also opens the day cycle on a main night that starts before 20:00 and closes a 40 h gap between two
     // sleeps at local midnight (abhilashvadnala/noop e06c7a29d), so the cycle windows of affected days move.
-    public static let currentVersion = 33
+    // AI-34 (2026-11-07, fork) removes stale detected sleep rows. Sleep rows are keyed by their detected
+    // onset, so a night detected again with a moved onset (an earlier pass saw only part of the night) was
+    // written beside the old row, and the two overlapping blocks read as a nap plus a short main sleep
+    // (MetricsCache.deleteSupersededDetectedSleep, called after each pass's sleep upsert). Its own number
+    // although AI-33 is in no release: the owner's iPhone and the testing builds already ran AI-33
+    // (decisions, 2026-10-28: a testing build counts as shipped). The full rebuild detects every raw-backed
+    // night again, so each one leaves only its current blocks.
+    public static let currentVersion = 34
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).

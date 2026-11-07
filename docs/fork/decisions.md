@@ -952,3 +952,38 @@ chose all ten. What was decided along the way:
   (Garmin Fill, lane colours), so they stay as chosen.
 
 Analysis migration required: no.
+
+## Second design review: one fact, one answer (2026-11-07)
+
+The second review of the new design, on the owner's data, looked for cards that state the same fact differently
+and traced each to its cause in code before anything was changed. Decided with the owner; the second and third
+points below differ from that plan because of what the re-analysis showed, and are reported back to the owner:
+
+- **Stale sleep rows are removed (AI-34).** Sleep rows are keyed by their detected onset, so a night detected
+  again with a moved onset was written beside the old row. Two of them overlapped the night of 3 to 4 November
+  and showed as naps. A pass now deletes the detected, unedited rows its fresh blocks supersede
+  (`MetricsCache.deleteSupersededDetectedSleep`). Re-analysing a copy of the owner's store with the old and the
+  new code gives identical sleep minutes, Charge and Effort on every day; only the two stale blocks go. Its own
+  recipe number although AI-33 has shipped in no release, because the owner's iPhone and the testing builds
+  already ran AI-33.
+- **Overlapping blocks are not merged when read.** The plan was to bridge overlapping blocks into one night. The
+  re-analysis showed the overlaps were only stale rows the detector no longer produces, so removing them is the
+  fix and the reader stays as it is.
+- **Evening blocks before a night: not built yet.** Handing a block that starts after 18:00 to the following night
+  needs the previous day's analysis to see past midnight, which its read window does not. Left for the owner to
+  decide.
+- **One sleep need on every card:** the debt ledger's (`SleepModel.debtNeedMin`), the estimator Rest scores
+  against. The bedtime and the wind-down reminder still count back from the wearer's setting, and the Tonight card
+  says so when the two differ by 15 minutes or more. Which need is right waits for the sleep-need research.
+- **Charge stays green in the classic ring** under the new design, and the band word sits under the ring, not in
+  it. The shipped design keeps its band colours.
+- **Charge reasons show the usual range** (25 % to 75 % of the 30 nights before), as the prototype drew it; under
+  7 nights the row keeps its single usual value.
+- **Effort this week is the week's daily mean**, the figure the weekly report shows.
+- **Under the rings, one line answers the day** with the coach on or off, worked out on the device, and a carried
+  Charge says which night it is from, as `ChargeDisplay` requires.
+- **Smaller:** Stress on Today as a word, ring names on glass over the picture, Rest's chart with weekdays and
+  every score chart on 0, 50, 100, a sport-filtered goal names its sport, What works says how many days stand
+  behind a row, and What correlates leaves out a score's own inputs.
+
+Analysis migration required: yes (AI-34).

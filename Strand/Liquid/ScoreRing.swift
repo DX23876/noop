@@ -31,13 +31,15 @@ struct ScoreRing: View {
     /// The arc sits where the organic contour does, a little inside the ring's square.
     private var classic: some View {
         let ring = diameter * 0.76
-        let isCharge = model.metric == .charge
+        // The shipped design colours Charge by its band and names the band inside. The new design keeps
+        // Charge in its one colour everywhere, as the living ring does, and names the band under the ring.
+        let bandCharge = model.metric == .charge && NoopVisualStyle.skin != .forge
         return Group {
             if let score, let fraction = model.normalizedValue {
                 GlowRing(fraction: fraction, value: score, format: format,
-                         color: isCharge ? StrandPalette.chargeRingColor(score) : tint,
+                         color: bandCharge ? StrandPalette.chargeRingColor(score) : tint,
                          diameter: ring, lineWidth: ring * 0.09,
-                         caption: isCharge && namesBand ? StrandPalette.recoveryState(score) : nil)
+                         caption: bandCharge && namesBand ? StrandPalette.recoveryState(score) : nil)
             } else {
                 GlowRing(fraction: 0, value: 0, format: { _ in "–" }, color: tint,
                          diameter: ring, lineWidth: ring * 0.09)

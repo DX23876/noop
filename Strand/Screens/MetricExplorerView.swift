@@ -2270,11 +2270,25 @@ struct MetricDetailView: View {
     /// Top |r| catalog metrics over a given window (|r| ≥ 0.30, n ≥ 10). Pure — takes
     /// the window so the heavy scan can be driven from `recomputeCorrelations()` into
     /// the `@State` cache instead of running inside `body`.
+    /// The measures each score is worked out from, by catalog key.
+    static let scoreInputs: [String: Set<String>] = [
+        "recovery": ["hrv", "rhr", "resp_rate", "skin_temp", "sleep_performance"],
+        "stress": ["hrv", "rhr"],
+    ]
+
+    /// Whether one of the two keys is a score and the other one of its inputs, in either order.
+    static func isScoreAndInput(_ a: String, _ b: String) -> Bool {
+        (scoreInputs[a]?.contains(b) ?? false) || (scoreInputs[b]?.contains(a) ?? false)
+    }
+
     private func computeCorrelationRows(windowed: [(day: String, value: Double)]) -> [CorrRow] {
         let myDays = Set(windowed.map(\.day))
         guard !myDays.isEmpty else { return [] }
         var rows: [CorrRow] = []
         for entry in others {
+            // A score next to its own ingredients is no finding: Charge is computed from HRV, so the two
+            // moving together says nothing the wearer did not already know.
+            if Self.isScoreAndInput(metric.key, entry.metric.key) { continue }
             let otherWindowed = entry.series.filter { myDays.contains($0.day) }
             let pairs = CorrelationEngine.alignByDay(windowed, otherWindowed)
             guard pairs.count >= 10, let c = CorrelationEngine.pearson(pairs) else { continue }

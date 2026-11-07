@@ -86,12 +86,48 @@ struct ForgeChargeDetailView: View {
                                                isCalibrating: calibrating) ?? displayDay
     }
 
+    /// The night's figure for a driver, read from a day row, by the driver's label.
+    private static func driverFigure(_ label: String, _ d: DailyMetric) -> Double? {
+        switch label {
+        case "Heart rate variability": return d.avgHrv
+        case "Resting heart rate": return d.restingHr.map(Double.init)
+        case "Respiratory rate": return d.respRateBpm
+        case "Skin temperature": return d.skinTempDevC
+        default: return nil
+        }
+    }
+
+    /// A driver's usual range, as the prototype drew it: the middle half (25 % to 75 %) of the 30 nights
+    /// before the shown one, the night's figure placed on a track around it. Nil under 7 nights, where the
+    /// row keeps its single usual value.
+    private func usualRange(_ label: String) -> (text: String, position: Double, band: ClosedRange<Double>)? {
+        guard let row, let value = Self.driverFigure(label, row) else { return nil }
+        let before = repo.days.filter { $0.day < row.day }.suffix(30).compactMap { Self.driverFigure(label, $0) }
+        guard let q = ForgeToday.middleHalf(before) else { return nil }
+        let placed = ForgeToday.place(value, low: q.low, high: q.high)
+        let decimals = label == "Resting heart rate" || label == "Heart rate variability" ? 0 : 1
+        func f(_ x: Double) -> String {
+            x.formatted(.number.precision(.fractionLength(decimals)).locale(AppLanguage.activeLocale))
+        }
+        let unit: String = switch label {
+        case "Heart rate variability": " ms"
+        case "Resting heart rate": " bpm"
+        case "Respiratory rate": " /min"
+        default: " °C"
+        }
+        let span = String(localized: "\(f(q.low)) to \(f(q.high))")
+        return (String(localized: "usually \(span + unit)"), placed.position, placed.band)
+    }
+
     var body: some View {
         let pct = display.pct
         let breakdown = ChargeBreakdownFormat.compute(row: row, baselines: repo.chargeBaselines, restScore: rest)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: nil, title: DomainTheme.charge.productName, scrolledPast: $scrolledPast)
+                // Which night the score is from, in the overline as Effort ("Today") and Rest ("Last night")
+                // name theirs; a carried score names its date there instead of again under the ring.
+                ForgeDetailHeader(overline: display.carriedCaption ?? String(localized: "Last night"),
+                                  title: DomainTheme.charge.productName, scrolledPast: $scrolledPast)
                 VStack(spacing: 10) {
                     OrganicScoreHeroClock(dataReady: true) { frame in
                         ScoreRing(
@@ -102,9 +138,6 @@ struct ForgeChargeDetailView: View {
                     }
                     ForgeScoreCaption(name: DomainTheme.charge.productName, tint: ForgeColor.chargeInk,
                                       detail: pct.map { ChargeBand.of(score: $0).word.lowercased(with: AppLanguage.activeLocale) })
-                    if let caption = display.carriedCaption {
-                        Text(caption).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                    }
                     if let target = ForgeToday.effortTargetStored(charge: pct) {
                         let t = ForgeToday.targetText(target, scale: UnitPrefs.currentEffortScale())
                         Text("Today's Effort target: \(t.low) to \(t.high).")
@@ -128,8 +161,10 @@ struct ForgeChargeDetailView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(breakdown.drivers.enumerated()), id: \.offset) { index, driver in
                             if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
+                            let range = usualRange(driver.label)
                             ForgeWhyRow(label: driver.label, value: ForgeToday.driverValue(driver.valueText), delta: driver.deltaPoints,
-                                        usual: driver.baselineText.isEmpty ? nil : ForgeToday.driverUsual(driver.baselineText))
+                                        usual: range?.text ?? (driver.baselineText.isEmpty ? nil : ForgeToday.driverUsual(driver.baselineText)),
+                                        track: range.map { ($0.position, nil) }, band: range?.band)
                                 .accessibilityElement(children: .ignore)
                                 .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
                         }

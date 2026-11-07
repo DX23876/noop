@@ -343,6 +343,36 @@ extension WhoopStore {
         }
     }
 
+    /// Remove the detected rows a fresh pass has superseded: rows of the computed namespace that the wearer
+    /// never edited, that overlap one of `keeping` in time and that start at a different moment. Sleep rows
+    /// are keyed by their detected onset, so a night detected again with a moved onset (an earlier pass saw
+    /// only part of the night, or the onset drifted with more raw data) was inserted beside the old row
+    /// instead of replacing it, and both were read as separate blocks: one night became a nap plus a short
+    /// main sleep. Detected rows are derived output, so removing one marks no analysis input. Edited rows
+    /// and rows of other namespaces are never touched. Returns the rows removed.
+    @discardableResult
+    public func deleteSupersededDetectedSleep(deviceId: String, keeping: [CachedSleepSession]) async throws -> Int {
+        guard deviceId.hasSuffix("-noop"), !keeping.isEmpty else { return 0 }
+        return try syncWrite { db in
+            let kept = Set(keeping.map(\.startTs))
+            var removed = 0
+            for s in keeping {
+                let rows = try Row.fetchAll(db, sql: """
+                    SELECT startTs FROM sleepSession
+                    WHERE deviceId = ? AND userEdited = 0 AND startTs < ? AND endTs > ?
+                    """, arguments: [deviceId, s.endTs, s.startTs])
+                for row in rows {
+                    let start: Int = row["startTs"]
+                    guard !kept.contains(start) else { continue }
+                    try db.execute(sql: "DELETE FROM sleepSession WHERE deviceId = ? AND startTs = ? AND userEdited = 0",
+                                   arguments: [deviceId, start])
+                    removed += db.changesCount
+                }
+            }
+            return removed
+        }
+    }
+
     /// Hand-correct a sleep session's bed (onset) and/or wake (end) time. Sets `userEdited = 1` so the
     /// next recompute/import `upsertSleepSessions` preserves the corrected bounds instead of overwriting
     /// them with the strap-detected values. Keyed by the stable detected natural key

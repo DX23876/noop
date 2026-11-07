@@ -111,6 +111,7 @@ struct ForgeTodayView: View {
                                 .onGeometryChange(for: Bool.self) { $0.frame(in: .named("forge-today")).maxY < 40 } action: { hidden in
                                     withAnimation(.easeOut(duration: 0.2)) { heroHidden = hidden }
                                 }
+                            dayAnswer
                             actions
                             // A detected walk asks under the rings: how ready you are stays the first answer.
                             ActivitySuggestionPrompt(compact: true)
@@ -248,6 +249,36 @@ struct ForgeTodayView: View {
         .padding(.vertical, 4)
     }
 
+    /// Under the rings, the day's answer in one line, coach or no coach: where Effort stands against today's
+    /// target, worked out on the device. A carried Charge says whose night it is, as `ChargeDisplay` requires
+    /// of every screen that draws a carried score.
+    @ViewBuilder private var dayAnswer: some View {
+        let line: String? = ForgeToday.summary(effortStored: snapshot.effortStored, charge: chargeScore, scale: effortScale)
+            ?? ForgeToday.effortTargetStored(charge: chargeScore).map {
+                let t = ForgeToday.targetText($0, scale: effortScale)
+                return String(localized: "Today's Effort target: \(t.low) to \(t.high).")
+            }
+        let caption = snapshot.loaded ? snapshot.charge.carriedCaption : nil
+        if line != nil || caption != nil {
+            VStack(spacing: 2) {
+                if let line {
+                    Text(line).font(.system(.subheadline, weight: .semibold))
+                }
+                if let caption {
+                    Text(verbatim: "\(DomainTheme.charge.productName) · \(caption)").font(ForgeFont.caption)
+                }
+            }
+            .foregroundStyle(onPicture ? AnyShapeStyle(.white) : AnyShapeStyle(ForgeColor.text))
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background {
+                if onPicture { Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous)) }
+            }
+            .environment(\.colorScheme, onPicture ? .dark : colorScheme)
+        }
+    }
+
     /// The three scores in one glass bar while the rings are scrolled away. Tapping returns to the top.
     private var pinnedBar: some View {
         HStack(spacing: 16) {
@@ -324,10 +355,13 @@ struct ForgeTodayView: View {
                     }
                 Text(face.label)
                     .font(.system(.subheadline, weight: .semibold))
-                    // On the picture a name is white, for it crosses snow and rock; the ring carries the colour.
+                    // On the picture a name sits on a small glass capsule, as the buttons below do: white on
+                    // its own crossed snow and rock and was lost there.
                     .foregroundStyle(onPicture ? AnyShapeStyle(.white) : AnyShapeStyle(Self.labelTint(face.metric)))
                     .lineLimit(1).minimumScaleFactor(0.8)
-                    .shadow(color: .black.opacity(onPicture ? 0.45 : 0), radius: 3, y: 1)
+                    .padding(.horizontal, onPicture ? 10 : 0)
+                    .padding(.vertical, onPicture ? 3 : 0)
+                    .background { if onPicture { Color.clear.forgeGlassCapsule() } }
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())

@@ -114,7 +114,7 @@ struct ForgeNightBreakdown: View {
     private var shaped: some View {
         let stages = night.stages
         let upToNight = repo.days.filter { $0.day <= wakeKey }
-        let need = repo.importedSleep[wakeKey]?.needMin ?? SleepModel.sleepNeedMin(days: repo.days)
+        let need = repo.importedSleep[wakeKey]?.needMin ?? SleepModel.debtNeedMin(days: repo.days)
         let bedtimes = repo.sleeps.filter { $0.endTs <= night.session.endTs }
         let candidates: [(String, Double?, Double?, String, Bool)] = [
             (String(localized: "Hours against need"), need > 0 && stages.asleep > 0 ? stages.asleep / need * 100 : nil,

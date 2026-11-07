@@ -105,7 +105,10 @@ struct InsightsHubView: View {
         let sign = e.delta > 0 ? "+" : e.delta < 0 ? "−" : ""
         let value = e.pctChange.map { "\(sign)\(Int(abs($0).rounded()))%" }
             ?? sign + UnitFormatter.localizedMark(String(format: "%.1f", abs(e.delta)))
-        return ForgeEffectRow(title: r.behavior, note: ForgeEffectWording.lag(r.lag),
+        // How many answered days stand behind the figure, as the prototype said "from 46 journal days":
+        // a large percentage from a handful of days must not read like a firm result.
+        let note = String(localized: "\(ForgeEffectWording.lag(r.lag)) · \(e.nWith + e.nWithout) days together")
+        return ForgeEffectRow(title: r.behavior, note: note,
                               value: value, fraction: max(-1, min(1, e.cohensD / 0.8)), tint: tint) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 Text(ForgeEffectWording.line(delta: e.delta, percent: e.pctChange))

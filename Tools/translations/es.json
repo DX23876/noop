@@ -3812,5 +3812,6 @@
   "Take ECG with the strap": "Hacer ECG con la correa",
   "Living": "Vivos",
   "Score rings": "Anillos de puntuación",
-  "Living rings move and breathe. Classic rings stand still and use less battery.": "Los anillos vivos se mueven y respiran. Los clásicos se quedan quietos y gastan menos batería."
+  "Living rings move and breathe. Classic rings stand still and use less battery.": "Los anillos vivos se mueven y respiran. Los clásicos se quedan quietos y gastan menos batería.",
+  "Bedtime counts %@ h, as set in Alarms.": "La hora de acostarse cuenta con %@ h, como en Alarmas."
 }

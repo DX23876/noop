@@ -588,7 +588,9 @@ struct ForgeMeasureWidget: View {
         let m = metric ?? ForgeWidgetMeasures.descriptor(key, source)
         NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
             ForgeTodayTile(label: Self.shortTitle(key) ?? m?.title ?? key, symbol: m?.icon ?? "chart.xyaxis.line",
-                           value: m.flatMap { ForgeFocusView.format(values.last, $0) },
+                           value: key == "stress"
+                               ? values.last.map { Self.stressWord($0) }
+                               : m.flatMap { ForgeFocusView.format(values.last, $0) },
                            // Steps speak for themselves, and the word would crowd the number in a small tile.
                            unit: key == "steps" ? "" : m.map(ForgeFocusView.unit) ?? "",
                            tint: Self.tint(key),
@@ -596,6 +598,15 @@ struct ForgeMeasureWidget: View {
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) { await load() }
+    }
+
+    /// Stress on its 0 to 3 scale as a word: "2,2" alone said nothing without the scale beside it.
+    static func stressWord(_ score: Double) -> String {
+        switch StressBand(score: score) {
+        case .low: return String(localized: "Low")
+        case .medium: return String(localized: "Medium")
+        case .high: return String(localized: "High")
+        }
     }
 
     /// The short names the Liquid Today tiles use: a catalog title is cut off in a row of three.

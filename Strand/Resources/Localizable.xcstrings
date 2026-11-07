@@ -610649,6 +610649,64 @@
           }
         }
       }
+    },
+    "Bedtime counts %@ h, as set in Alarms." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Bettzeit rechnet mit %@ h, wie unter Wecker eingestellt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La hora de acostarse cuenta con %@ h, como en Alarmas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’heure du coucher compte %@ h, comme réglé dans Alarmes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’ora di andare a letto conta %@ h, come impostato in Sveglie."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pora snu liczy %@ h, jak ustawiono w Alarmach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A hora de deitar conta %@ h, como definido em Alarmes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Время отхода ко сну рассчитано на %@ ч, как задано в Будильниках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就寝时间按“闹钟”中设置的 %@ 小时计算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就寢時間按「鬧鐘」中設定的 %@ 小時計算。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

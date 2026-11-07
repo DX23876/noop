@@ -97,6 +97,9 @@ enum GoalFormat {
     static func shortName(_ goal: PeriodGoal) -> String {
         switch goal.metric {
         case .workouts where !goal.sportFilter.isEmpty: return sports(goal)
+        // A sport-filtered total says which sport it counts: "Distance" alone read as every walk too.
+        case _ where !goal.sportFilter.isEmpty && goal.metric != .habitDays:
+            return "\(goal.metric.label.localizedCatalogValue) · \(sports(goal))"
         case .habitDays: return goal.habitKey.map(JournalLabel.display) ?? goal.metric.label.localizedCatalogValue
         case .stepDays:
             return String(localized: "\(Int((goal.threshold ?? 8_000).rounded()).formatted()) steps")

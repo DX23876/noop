@@ -408,9 +408,10 @@ struct ForgeTrainingView: View {
             ForgeSectionTitle(title: "Key metrics")
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 NavigationLink(value: TabRoute.metric(HeroRingMetric.effort)) {
+                    // The week's daily mean, as the weekly report's Effort ring reads it, not the last day.
                     ForgeMetricTile(label: String(localized: "Effort this week"),
-                                    value: weekEffort.compactMap { $0 }.last.map { ForgeToday.effortText($0, scale: effortScale) },
-                                    unit: "", tint: ForgeColor.effort,
+                                    value: ForgeToday.weekMean(weekEffort).map { ForgeToday.effortText($0, scale: effortScale) },
+                                    unit: String(localized: "avg"), tint: ForgeColor.effort,
                                     bars: weekEffort.map { ($0 ?? 0) })
                 }
                 if let pace = paceTile {

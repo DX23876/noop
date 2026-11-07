@@ -55,8 +55,6 @@ enum ForgeToday {
         }
     }
 
-    /// Rest in one word, with the same thresholds and words the Overview dashboard uses for its Rest tile,
-    /// so the two designs never describe the same night differently.
     /// The hour of the day-cycle scene a light page shows: the night hours map to the nearest bright scene.
     static func lightPageSceneHour(_ hour: Int) -> Int {
         switch hour {
@@ -66,6 +64,36 @@ enum ForgeToday {
         }
     }
 
+    /// The 25 % and 75 % marks of a series (linear between ranks), nil under 7 values.
+    static func middleHalf(_ values: [Double]) -> (low: Double, high: Double)? {
+        let xs = values.filter(\.isFinite).sorted()
+        guard xs.count >= 7 else { return nil }
+        func at(_ p: Double) -> Double {
+            let pos = p * Double(xs.count - 1)
+            let lo = Int(pos), hi = min(lo + 1, xs.count - 1)
+            return xs[lo] + (pos - Double(lo)) * (xs[hi] - xs[lo])
+        }
+        return (at(0.25), at(0.75))
+    }
+
+    /// A value and a range on one 0 to 100 track: the range sits in the middle third, the track widens
+    /// so a value far outside it still lands on the track.
+    static func place(_ value: Double, low: Double, high: Double) -> (position: Double, band: ClosedRange<Double>) {
+        let width = max(high - low, abs(high) * 0.02, 0.1)
+        let start = min(low - width, value - width * 0.25)
+        let end = max(high + width, value + width * 0.25)
+        func p(_ x: Double) -> Double { (x - start) / (end - start) * 100 }
+        return (p(value), p(low)...p(high))
+    }
+
+    /// Mean of the days that have a value, nil when none has (a week's Effort as the weekly report reads it).
+    static func weekMean(_ values: [Double?]) -> Double? {
+        let xs = values.compactMap { $0 }
+        return xs.isEmpty ? nil : xs.reduce(0, +) / Double(xs.count)
+    }
+
+    /// Rest in one word, with the same thresholds and words the Overview dashboard uses for its Rest tile,
+    /// so the two designs never describe the same night differently.
     static func restWord(_ score: Double) -> String {
         score >= 80 ? String(localized: "Good") : score >= 60 ? String(localized: "Fair") : String(localized: "Low")
     }

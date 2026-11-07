@@ -274,7 +274,7 @@ struct ForgeWeeklyReportView: View {
     }
 
     private func sleepBars(_ week: ForgeWeekly.Week) -> some View {
-        let need = Double(WindDownNudge.sleepNeedMinutes) / 60
+        let need = SleepModel.debtNeedMin(days: repo.days) / 60
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Sleep").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
@@ -283,7 +283,7 @@ struct ForgeWeeklyReportView: View {
             }
             Chart {
                 ForEach(0..<7, id: \.self) { i in
-                    BarMark(x: .value("Day", i), y: .value("Hours", (week.values[i].asleepMin ?? 0) / 60), width: .ratio(0.78))
+                    BarMark(x: .value("Day", i), y: .value("Hours", (week.values[i].asleepMin ?? 0) / 60))
                         .foregroundStyle(ForgeColor.rest.opacity(i == week.bestIndex(\.asleepMin) ? 1 : 0.55))
                         .cornerRadius(6)
                 }
