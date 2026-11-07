@@ -276,4 +276,55 @@ final class ForgeTimelineTests: XCTestCase {
             .contains(ForgeCoachNotes.noFiguresClause))
         XCTAssertTrue(ForgeCoachNotes.eveningInstruction().contains(ForgeCoachNotes.noFiguresClause))
     }
+
+    // MARK: Figures in notes
+
+    /// The note of 3 November 2026, against what the tools returned: the true figures stay, "HRV 50" over
+    /// a stored 44, "Charge 30" over 25 and an Effort on the 0 to 21 scale go.
+    func testTheGuardStrikesFiguresTheCoachNeverRead() {
+        let note = "**You got only 1.7 hours recorded, with 3 disturbances.** Your HRV is still at 50 ms and your Charge is stuck at 30.\n\nBed by 22:30 tonight. The walk held a steady **13.2/21 effort**. Charge 25 is low."
+        let tools = ["{\"sleep_min\":104,\"disturbances\":3,\"hrv\":44,\"charge\":25}"]
+        let result = ForgeNoteFigures.filter(note, sources: tools, effortOutOf100: true)
+        XCTAssertEqual(result.struck, 2)
+        XCTAssertEqual(result.text, "**You got only 1.7 hours recorded, with 3 disturbances.**\n\nBed by 22:30 tonight. Charge 25 is low.")
+    }
+
+    func testTheGuardKeepsWordsAndRoundsToTheWrittenPrecision() {
+        XCTAssertEqual(ForgeNoteFigures.filter("A calm day. Rest when you can.", sources: [], effortOutOf100: true).struck, 0)
+        XCTAssertEqual(ForgeNoteFigures.filter("HRV 44 ms.", sources: ["hrv 43.6"], effortOutOf100: true).struck, 0)
+        XCTAssertEqual(ForgeNoteFigures.filter("HRV 43,6 ms.", sources: ["hrv 43.64"], effortOutOf100: true).struck, 0)
+        XCTAssertEqual(ForgeNoteFigures.filter("Half an hour, 0.5 h.", sources: ["30 minutes"], effortOutOf100: true).struck, 0)
+        XCTAssertEqual(ForgeNoteFigures.filter("Effort 13.2/21.", sources: ["13.2"], effortOutOf100: false).struck, 0)
+        XCTAssertEqual(ForgeNoteFigures.filter("Sleep 7.5 h. Fine.", sources: ["asleep 300"], effortOutOf100: true).text, "Fine.")
+        XCTAssertEqual(ForgeNoteFigures.filter("Charge 99.", sources: [], effortOutOf100: true).text, "")
+    }
+
+    // MARK: Journal causes behind a body-signal warning
+
+    func testCausesWrittenByTheAppReadTheSameInEveryLanguage() {
+        let found = JournalCause.present(in: [("Alkohol getrunken", JournalCause.alcohol.key),
+                                              ("Gereist", JournalCause.travel.key)])
+        XCTAssertEqual(found, [.alcohol, .travel])
+    }
+
+    /// The old fragment search read "ill" inside "still" and missed stress and travel altogether.
+    func testImportedQuestionsAreReadByWholeEnglishWords() {
+        XCTAssertEqual(JournalCause.present(in: [("Did you feel ill?", nil)]), [.sick])
+        XCTAssertEqual(JournalCause.present(in: [("Sat still for an hour?", nil)]), [])
+        XCTAssertEqual(JournalCause.present(in: [("Brille getragen?", nil)]), [])
+        XCTAssertEqual(JournalCause.present(in: [("Feeling stressed?", nil)]), [.stress])
+        XCTAssertEqual(JournalCause.present(in: [("Unter Stress gestanden?", nil)]), [.stress])
+        XCTAssertEqual(JournalCause.present(in: [("Have any alcoholic drinks?", nil)]), [.alcohol])
+        XCTAssertEqual(JournalCause.present(in: [("Genug Wasser getrunken?", nil)]), [])
+    }
+
+    func testANoteIsOutdatedOnlyWhenTodaysFiguresMoved() {
+        let then = ForgeNoteBasis.make(day: "2026-11-03", charge: 30, asleepMinutes: 104)
+        XCTAssertFalse(ForgeNoteBasis.isOutdated(stored: then, current: then))
+        XCTAssertTrue(ForgeNoteBasis.isOutdated(stored: then,
+                                                current: ForgeNoteBasis.make(day: "2026-11-03", charge: 25, asleepMinutes: 104)))
+        XCTAssertFalse(ForgeNoteBasis.isOutdated(stored: then,
+                                                 current: ForgeNoteBasis.make(day: "2026-11-04", charge: 53, asleepMinutes: 199)))
+        XCTAssertFalse(ForgeNoteBasis.isOutdated(stored: nil, current: then))
+    }
 }

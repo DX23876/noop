@@ -26,7 +26,7 @@ extension AICoachEngine {
     /// Write whichever redesign note is due right now, at most one per call: the morning note, then a note
     /// after a workout, then the evening recap. Called when Today loads.
     @discardableResult
-    func runForgeNotesIfDue(workouts: [WorkoutRow], now: Date = Date()) async -> Bool {
+    func runForgeNotesIfDue(workouts: [WorkoutRow], now: Date = Date(), includeMorning: Bool = true) async -> Bool {
         // Never before the person has read the coach's first-use note (what it is, what it sends): the
         // notes are the coach speaking unasked, so they wait for the same acknowledgement the chat does.
         guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending,
@@ -47,14 +47,16 @@ extension AICoachEngine {
         // The morning note first: the day's first word, once the night has settled. `startBriefIfNeeded`
         // owns the once-a-day stamp and stays silent while the wake time still needs review. It is not
         // announced: whoever wakes opens the app, and a notification each morning would teach to ignore them.
-        if ForgeCoachNotes.mayPost(.morning, now: now, enabled: ForgeCoachNotes.isEnabled(.morning),
+        if includeMorning, ForgeCoachNotes.mayPost(.morning, now: now, enabled: ForgeCoachNotes.isEnabled(.morning),
                                    initiatedToday: used),
+           !lessOftenHolds(.morning, origin: .brief, now: now),
            CoachBriefStamp.lastBriefDay() != LogicalDay.key(now) {
             return await startBriefIfNeeded()
         }
 
         if ForgeCoachNotes.mayPost(.afterWorkout, now: now, enabled: ForgeCoachNotes.isEnabled(.afterWorkout),
                                    initiatedToday: used),
+           !lessOftenHolds(.afterWorkout, origin: .afterWorkout, now: now),
            let workout = ForgeCoachNotes.workoutDue(
                workouts.filter { row in
                    ForgeCoachNotes.isWorthANote(sport: row.sport, minutes: Self.noteMinutes(row),
@@ -76,8 +78,10 @@ extension AICoachEngine {
             return spoke
         }
 
-        if ForgeCoachNotes.mayPost(.evening, now: now, enabled: ForgeCoachNotes.isEnabled(.evening),
-                                   initiatedToday: used),
+        if !lessOftenHolds(.evening, origin: .evening, now: now),
+           ForgeCoachNotes.mayPost(.evening, now: now, enabled: ForgeCoachNotes.isEnabled(.evening),
+                                   initiatedToday: used,
+                                   eveningStart: ForgeToday.eveningStart(now: now, bedtime: ForgeToday.plannedBedtime(now: now))),
            defaults.string(forKey: ForgeCoachNotes.lastEveningDayKey) != LogicalDay.key(now) {
             let spoke = await runSeededTurnCancellable(
                 instruction: ForgeCoachNotes.eveningInstruction(),
@@ -87,6 +91,28 @@ extension AICoachEngine {
             return spoke
         }
         return false
+    }
+
+    /// Whether a note of this kind was written on the logical day before `now`. A kind the reader asked to
+    /// hear less often skips the day after one.
+    func forgeWroteYesterday(_ origin: ChatMessage.Origin, now: Date = Date()) -> Bool {
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now).map({ LogicalDay.key($0) }) else { return false }
+        return conversations.contains { $0.messages.contains { $0.origin == origin && LogicalDay.key($0.date) == yesterday } }
+    }
+
+    private func lessOftenHolds(_ kind: ForgeCoachNotes.Kind, origin: ChatMessage.Origin, now: Date) -> Bool {
+        ForgeNotices.list(ForgeNotices.lessOftenKey).contains(kind.rawValue) && forgeWroteYesterday(origin, now: now)
+    }
+
+    /// After new strap data lands with the app in the background: the note after a workout and the evening
+    /// recap, but only where they would be announced. A note nobody is told about can wait for Today to open,
+    /// and the morning note is never announced, so it is never written here.
+    func runForgeNotesInBackground(now: Date = Date()) async {
+        guard ForgeDesignPrefs.isEnabled() else { return }
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.authorizationStatus == .authorized else { return }
+        let workouts = await repo.workoutRows(days: 2, reconcileHrCap: 0)
+        _ = await runForgeNotesIfDue(workouts: workouts, now: now, includeMorning: false)
     }
 
     private static func noteMinutes(_ row: WorkoutRow) -> Int {

@@ -111,6 +111,14 @@ enum ForgeToday {
         return wake.addingTimeInterval(TimeInterval(-sleepNeedMinutes * 60))
     }
 
+    /// When the evening report and the coach's evening recap may appear: two hours before tonight's planned
+    /// bedtime, never before 19:00. Without a bedtime that evening, 19:00.
+    static func eveningStart(now: Date, bedtime: Date?, calendar: Calendar = .current) -> Date {
+        let seven = calendar.date(bySettingHour: ForgeCoachNotes.eveningStartHour, minute: 0, second: 0, of: now) ?? now
+        guard let bedtime else { return seven }
+        return max(seven, bedtime.addingTimeInterval(-2 * 3600))
+    }
+
     /// `bedtime` with the planner's stored wake times and sleep need.
     @MainActor static func plannedBedtime(now: Date) -> Date? {
         bedtime(now: now, wakeMinutes: { WindDownNudge.wakeMinutes(forWeekday: $0) },

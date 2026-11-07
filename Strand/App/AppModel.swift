@@ -2882,15 +2882,11 @@ final class AppModel: ObservableObject {
             // engine's hot path , the engine only needs presence flags, not the rows.
             let recentDays = Set(days.suffix(2).map(\.day))
             let journal = await self.repo.journalEntries(days: 7)
-            var ctxAlcohol = false, ctxHardWorkout = false, ctxAlreadyUnwell = false
-            for e in journal where e.answeredYes && recentDays.contains(e.day) {
-                let q = e.question.lowercased()
-                if q.contains("alcohol") || q.contains("drink") { ctxAlcohol = true }
-                if q.contains("workout") || q.contains("train") || q.contains("exercise") { ctxHardWorkout = true }
-                if q.contains("sick") || q.contains("ill") || q.contains("unwell") { ctxAlreadyUnwell = true }
-            }
-            self.applyIllnessSignal(days, alcohol: ctxAlcohol, hardOrLateWorkout: ctxHardWorkout,
-                                    alreadyUnwell: ctxAlreadyUnwell)
+            let causes = JournalCause.present(in: journal.filter { $0.answeredYes && recentDays.contains($0.day) }
+                .map { (question: $0.question, notes: $0.notes) })
+            self.applyIllnessSignal(days, alcohol: causes.contains(.alcohol), stress: causes.contains(.stress),
+                                    hardOrLateWorkout: causes.contains(.hardWorkout), travel: causes.contains(.travel),
+                                    alreadyUnwell: causes.contains(.sick))
         }
     }
 
@@ -2907,8 +2903,8 @@ final class AppModel: ObservableObject {
 
     /// Run the `IllnessSignalEngine` from the day history + the journal-derived confounder context, then
     /// publish the result + the semantic `healthAlert` banner payload.
-    private func applyIllnessSignal(_ days: [DailyMetric], alcohol: Bool,
-                                    hardOrLateWorkout: Bool, alreadyUnwell: Bool) {
+    private func applyIllnessSignal(_ days: [DailyMetric], alcohol: Bool, stress: Bool,
+                                    hardOrLateWorkout: Bool, travel: Bool, alreadyUnwell: Bool) {
         // A newer day can arrive while the journal read is in flight. Never publish the older
         // task's alert over that day's result.
         guard days.last?.day == repo.days.last?.day, days.last?.day == repo.today?.day else { return }
@@ -2968,7 +2964,7 @@ final class AppModel: ObservableObject {
         // baselineTrusted: require the HRV/RHR baselines to be trusted before the engine may raise.
         let trusted = (rhr?.1 ?? false) || (hrv?.1 ?? false)
         let context = IllnessSignalEngine.Context(
-            alcohol: alcohol, hardOrLateWorkout: hardOrLateWorkout,
+            alcohol: alcohol, stress: stress, hardOrLateWorkout: hardOrLateWorkout, travelPhaseJump: travel,
             alreadyUnwell: alreadyUnwell, baselineTrusted: trusted)
 
         // Caller-rendered phrases for the signals that fire (the engine surfaces only the firing ones).

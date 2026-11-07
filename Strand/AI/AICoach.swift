@@ -97,10 +97,13 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     let workoutId: String?
     /// Answers the coach offered with this note, written for it. Empty for nearly every message.
     let replies: [String]
+    /// What Today showed when an unprompted note was written (its Charge and night), so a later re-score
+    /// can be shown as "figures updated since" instead of leaving the words over different numbers.
+    let basis: String?
 
     init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(),
          toolsUsed: [String] = [], localContextUsed: [LocalContextCategory] = [], origin: Origin = .reply,
-         memoryWrites: [UUID] = [], workoutId: String? = nil, replies: [String] = []) {
+         memoryWrites: [UUID] = [], workoutId: String? = nil, replies: [String] = [], basis: String? = nil) {
         self.id = id
         self.role = role
         self.text = text
@@ -111,10 +114,11 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         self.memoryWrites = memoryWrites
         self.workoutId = workoutId
         self.replies = replies
+        self.basis = basis
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, role, text, date, toolsUsed, localContextUsed, origin, memoryWrites, workoutId, replies
+        case id, role, text, date, toolsUsed, localContextUsed, origin, memoryWrites, workoutId, replies, basis
     }
 
     init(from decoder: Decoder) throws {
@@ -129,6 +133,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         memoryWrites = try c.decodeIfPresent([UUID].self, forKey: .memoryWrites) ?? []
         workoutId = try c.decodeIfPresent(String.self, forKey: .workoutId)
         replies = try c.decodeIfPresent([String].self, forKey: .replies) ?? []
+        basis = try c.decodeIfPresent(String.self, forKey: .basis)
     }
 
     /// The same message with different text, every other field carried over.
@@ -141,7 +146,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     func replacingText(_ newText: String) -> ChatMessage {
         ChatMessage(id: id, role: role, text: newText, date: date, toolsUsed: toolsUsed,
                     localContextUsed: localContextUsed, origin: origin, memoryWrites: memoryWrites,
-                    workoutId: workoutId, replies: replies)
+                    workoutId: workoutId, replies: replies, basis: basis)
     }
 
     /// The same message with the evidence chain attached — what a finished turn knows and a streaming
@@ -149,7 +154,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     func attaching(toolsUsed newTools: [String], memoryWrites newWrites: [UUID]) -> ChatMessage {
         ChatMessage(id: id, role: role, text: text, date: date, toolsUsed: newTools,
                     localContextUsed: localContextUsed, origin: origin, memoryWrites: newWrites,
-                    workoutId: workoutId, replies: replies)
+                    workoutId: workoutId, replies: replies, basis: basis)
     }
 
     /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
@@ -1812,6 +1817,9 @@ final class AICoachEngine: ObservableObject {
     /// Fact ids written by the memory tools during the turn currently in flight, drained onto the reply
     /// that caused them (`takeMemoryWrites`). Not `private`: `runCoachTool` lives in CoachTools.swift.
     var memoryWrites: [UUID] = []
+    /// What the tools returned during the turn in flight: the only numbers a timeline note may repeat
+    /// (`ForgeNoteFigures`). Reset with `memoryWrites` at the start of each unprompted turn.
+    var noteSources: [String] = []
 
     /// Cheap-model routing verdicts, keyed by the question text (see `questionRouting(for:)`). Bounded:
     /// a Retry or a Regenerate must not pay for the same classification twice, but a long session must
@@ -2862,6 +2870,7 @@ final class AICoachEngine: ObservableObject {
         guard let key = resolvedKey else { return spoken }
         clearError()
         memoryWrites = []
+        noteSources = []
         sending = true
         defer { sending = false }
 
@@ -2885,10 +2894,20 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
-                let note = shortNote ? ForgeCoachNotes.splitReplies(clean) : (text: clean, replies: [])
+                var note = shortNote ? ForgeCoachNotes.splitReplies(clean) : (text: clean, replies: [])
+                if shortNote {
+                    note.text = ForgeNoteFigures.guarded(note.text, sources: noteSources + [context])
+                }
+                guard !note.text.isEmpty else {
+                    // Every sentence named a figure the coach never read: the device's own morning card
+                    // stands alone today rather than under words about other numbers.
+                    CoachBriefStamp.stamp(day: LogicalDay.key(Date()))
+                    return nil
+                }
                 appendMessage(ChatMessage(role: .assistant, text: String(localized: "Today's brief") + "\n\n" + note.text,
                                           toolsUsed: reply.toolsUsed, origin: .brief,
-                                          memoryWrites: takeMemoryWrites(), replies: note.replies))
+                                          memoryWrites: takeMemoryWrites(), replies: note.replies,
+                                          basis: shortNote ? ForgeNoteBasis.current : nil))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 CoachBriefStamp.stamp(day: LogicalDay.key(Date()))
@@ -3241,6 +3260,7 @@ final class AICoachEngine: ObservableObject {
         guard let key = resolvedKey else { return spoke }
         clearError()
         memoryWrites = []
+        noteSources = []
         sending = true
         defer { sending = false }
 
@@ -3269,13 +3289,25 @@ final class AICoachEngine: ObservableObject {
                 // Decided to stay quiet: answered, so the moment is not asked again, but nothing was said.
                 UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
             } else if !clean.isEmpty {
-                let note = ForgeCoachNotes.splitReplies(clean)
-                appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + note.text,
-                                          toolsUsed: reply.toolsUsed, origin: origin,
-                                          memoryWrites: takeMemoryWrites(), workoutId: workoutId,
-                                          replies: note.replies))
-                UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
-                spoke = true
+                var note = ForgeCoachNotes.splitReplies(clean)
+                // A timeline note repeats no figure the coach did not read this turn. The weekly review
+                // has no device figures under it, so it keeps its own.
+                let timelineNote = ForgeDesignPrefs.isEnabled() && origin != .weeklyReview
+                if timelineNote {
+                    note.text = ForgeNoteFigures.guarded(note.text, sources: noteSources + [context])
+                }
+                if note.text.isEmpty {
+                    // Nothing true was left to say: the moment counts as answered, the timeline shows only
+                    // the device's own entry.
+                    UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
+                } else {
+                    appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + note.text,
+                                              toolsUsed: reply.toolsUsed, origin: origin,
+                                              memoryWrites: takeMemoryWrites(), workoutId: workoutId,
+                                              replies: note.replies, basis: timelineNote ? ForgeNoteBasis.current : nil))
+                    UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
+                    spoke = true
+                }
             }
         } catch let e as AICoachError {
             setError(e)
@@ -4605,7 +4637,9 @@ final class AICoachEngine: ObservableObject {
                 messages: messages,
                 tools: availableTools,
                 runTool: { [weak self] name, input in
-                    await self?.runCoachTool(name, input: input, allowedTools: Set(availableTools)) ?? ""
+                    let output = await self?.runCoachTool(name, input: input, allowedTools: Set(availableTools)) ?? ""
+                    self?.noteSources.append(output)
+                    return output
                 },
                 session: session
             )

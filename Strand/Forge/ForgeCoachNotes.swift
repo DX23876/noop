@@ -49,10 +49,12 @@ enum ForgeCoachNotes {
     /// - Parameters:
     ///   - initiatedToday: coach-initiated messages already written today (any kind except the weekly
     ///     review), the budget's input.
+    ///   - eveningStart: when the evening may begin today (`ForgeToday.eveningStart`); 19:00 when nil.
     static func mayPost(_ kind: Kind, now: Date, enabled: Bool, initiatedToday: Int,
-                        calendar: Calendar = .current) -> Bool {
+                        eveningStart: Date? = nil, calendar: Calendar = .current) -> Bool {
         guard enabled, initiatedToday < dailyBudget, !isQuiet(now, calendar: calendar) else { return false }
         if kind == .evening {
+            if let eveningStart { return now >= eveningStart }
             return calendar.component(.hour, from: now) >= eveningStartHour
         }
         return true
