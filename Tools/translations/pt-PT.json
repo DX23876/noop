@@ -3293,5 +3293,22 @@
   "Beat-to-beat": "Batimento a batimento",
   "Export workout": "Exportar treino",
   "Save this workout with its heart rate as a FIT file you can import into Strava, Garmin Connect, and other apps.": "Guarda este treino com a frequência cardíaca como um ficheiro FIT que podes importar para o Strava, o Garmin Connect e outras apps.",
-  "Route with heart rate and the workout summary": "Percurso com a frequência cardíaca e o resumo do treino"
+  "Route with heart rate and the workout summary": "Percurso com a frequência cardíaca e o resumo do treino",
+  "Your backups are only on %@": "As tuas cópias de segurança só existem aqui (%@)",
+  "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive.": "Apagar a NOOP apaga-as também. Abre Cópia de segurança e sincronização para as mover para o iCloud Drive.",
+  "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive.": "Se o botão Abrir não fizer nada, toca em Guardar antes uma cópia para pôr a cópia mais recente no iCloud Drive.",
+  "That folder is inside NOOP too": "Essa pasta também está dentro da NOOP",
+  "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead.": "Seria apagada juntamente com a NOOP. Escolhe uma pasta no iCloud Drive ou toca em Guardar antes uma cópia.",
+  "Backups moved": "Cópias movidas",
+  "NOOP now backs up to %@. Some earlier backups could not be copied; they are still in NOOP's own folder.": "A NOOP passa a guardar as cópias em %@. Algumas cópias anteriores não foram copiadas; continuam na pasta da NOOP.",
+  "NOOP now backs up to %@. Your earlier backups were copied there.": "A NOOP passa a guardar as cópias em %@. As tuas cópias anteriores foram copiadas para lá.",
+  "NOOP now backs up to %@.": "A NOOP passa a guardar as cópias em %@.",
+  "Copy saved": "Cópia guardada",
+  "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then.": "Esta cópia não se atualiza sozinha. A NOOP continua a guardar na própria pasta, por isso guarda uma cópia nova de vez em quando.",
+  "No backup to copy yet": "Ainda não há cópia para guardar",
+  "Tap Back up now first, then save a copy.": "Toca primeiro em Faça cópia de segurança agora e depois guarda uma cópia.",
+  "Only on %@": "Só aqui (%@)",
+  "Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall.": "Apagar a NOOP apaga também estas cópias. Move-as para o iCloud Drive e sobrevivem a uma reinstalação.",
+  "Move to iCloud Drive": "Mover para o iCloud Drive",
+  "Save a copy instead": "Guardar antes uma cópia"
 }

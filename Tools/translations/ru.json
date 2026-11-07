@@ -3271,5 +3271,22 @@
   "Beat-to-beat": "По ударам",
   "Export workout": "Экспорт тренировки",
   "Save this workout with its heart rate as a FIT file you can import into Strava, Garmin Connect, and other apps.": "Сохрани эту тренировку с пульсом как FIT-файл, который можно импортировать в Strava, Garmin Connect и другие приложения.",
-  "Route with heart rate and the workout summary": "Маршрут с пульсом и сводкой тренировки"
+  "Route with heart rate and the workout summary": "Маршрут с пульсом и сводкой тренировки",
+  "Your backups are only on %@": "Резервные копии есть только здесь (%@)",
+  "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive.": "При удалении NOOP они тоже удалятся. Откройте «Резервное копирование и синхронизация», чтобы перенести их в iCloud Drive.",
+  "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive.": "Если кнопка «Открыть» ничего не делает, нажмите «Лучше сохранить копию», чтобы положить последнюю копию в iCloud Drive.",
+  "That folder is inside NOOP too": "Эта папка тоже внутри NOOP",
+  "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead.": "Она удалится вместе с NOOP. Выберите папку в iCloud Drive или нажмите «Лучше сохранить копию».",
+  "Backups moved": "Копии перенесены",
+  "NOOP now backs up to %@. Some earlier backups could not be copied; they are still in NOOP's own folder.": "Теперь NOOP сохраняет копии в %@. Некоторые старые копии не удалось скопировать; они остались в папке NOOP.",
+  "NOOP now backs up to %@. Your earlier backups were copied there.": "Теперь NOOP сохраняет копии в %@. Старые копии скопированы туда.",
+  "NOOP now backs up to %@.": "Теперь NOOP сохраняет копии в %@.",
+  "Copy saved": "Копия сохранена",
+  "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then.": "Эта копия не обновляется сама. NOOP продолжает сохранять копии в свою папку, поэтому время от времени сохраняйте новую копию.",
+  "No backup to copy yet": "Пока нет копии для сохранения",
+  "Tap Back up now first, then save a copy.": "Сначала нажмите «Создать резервную копию сейчас», затем сохраните копию.",
+  "Only on %@": "Только здесь (%@)",
+  "Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall.": "При удалении NOOP удалятся и эти копии. Перенесите их в iCloud Drive, и они переживут переустановку.",
+  "Move to iCloud Drive": "Перенести в iCloud Drive",
+  "Save a copy instead": "Лучше сохранить копию"
 }

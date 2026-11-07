@@ -3449,5 +3449,22 @@
   "Beat-to-beat": "逐搏",
   "Export workout": "匯出訓練",
   "Save this workout with its heart rate as a FIT file you can import into Strava, Garmin Connect, and other apps.": "將此訓練連同心率儲存為 FIT 檔案，可匯入 Strava、Garmin Connect 及其他應用程式。",
-  "Route with heart rate and the workout summary": "含心率和訓練摘要的路線"
+  "Route with heart rate and the workout summary": "含心率和訓練摘要的路線",
+  "Your backups are only on %@": "你的備份僅在%@上",
+  "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive.": "刪除 NOOP 時它們也會被刪除。打開備份與同步，把它們移到 iCloud Drive。",
+  "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive.": "如果「打開」按鈕沒有反應，請輕點「改為儲存副本」，把最新的備份放到 iCloud Drive。",
+  "That folder is inside NOOP too": "該資料夾也在 NOOP 內",
+  "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead.": "它會隨 NOOP 一起被刪除。請選擇 iCloud Drive 中的資料夾，或輕點「改為儲存副本」。",
+  "Backups moved": "備份已移動",
+  "NOOP now backs up to %@. Some earlier backups could not be copied; they are still in NOOP's own folder.": "NOOP 現在備份到 %@。部分較早的備份無法複製，它們仍在 NOOP 自己的資料夾中。",
+  "NOOP now backs up to %@. Your earlier backups were copied there.": "NOOP 現在備份到 %@。較早的備份已複製到那裡。",
+  "NOOP now backs up to %@.": "NOOP 現在備份到 %@。",
+  "Copy saved": "副本已儲存",
+  "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then.": "此副本不會自動更新。NOOP 仍備份到自己的資料夾，請不時儲存新的副本。",
+  "No backup to copy yet": "還沒有可複製的備份",
+  "Tap Back up now first, then save a copy.": "請先輕點「立即備份」，然後再儲存副本。",
+  "Only on %@": "僅在%@上",
+  "Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall.": "刪除 NOOP 時這些備份也會被刪除。把它們移到 iCloud Drive，重新安裝後仍會保留。",
+  "Move to iCloud Drive": "移到 iCloud Drive",
+  "Save a copy instead": "改為儲存副本"
 }

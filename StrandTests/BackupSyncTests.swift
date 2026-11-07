@@ -171,4 +171,61 @@ final class BackupSyncTests: XCTestCase {
         XCTAssertTrue(FolderBackup.isICloudPath("/Users/x/Library/Mobile Documents/com~apple~CloudDocs/NOOP"))
         XCTAssertFalse(FolderBackup.isICloudPath("/var/mobile/Containers/Data/Application/U/Documents/Backups"))
     }
+
+    // MARK: - Where the backups live
+
+    private let container = "/var/mobile/Containers/Data/Application/0A1B2C3D-0000-4000-8000-000000000001"
+
+    func testInternalFolderIsDeviceOnly() {
+        XCTAssertEqual(BackupSync.placement(useInternalFolder: true, folderPath: nil, appContainerPath: container),
+                       .deviceOnly)
+    }
+
+    func testNoFolderIsNone() {
+        XCTAssertEqual(BackupSync.placement(useInternalFolder: false, folderPath: nil, appContainerPath: container),
+                       .none)
+    }
+
+    func testPickedFolderInsideOwnContainerIsDeviceOnly() {
+        // Files lets the wearer pick On My iPhone › NOOP › Backups, which is the app's own container.
+        XCTAssertEqual(BackupSync.placement(useInternalFolder: false,
+                                            folderPath: "/private" + container + "/Documents/Backups",
+                                            appContainerPath: container + "/"),
+                       .deviceOnly)
+        XCTAssertEqual(BackupSync.placement(useInternalFolder: false, folderPath: container,
+                                            appContainerPath: container),
+                       .deviceOnly)
+    }
+
+    func testFoldersOutsideTheContainerAreElsewhere() {
+        let iCloud = "/private/var/mobile/Library/Mobile Documents/com~apple~CloudDocs/NOOP"
+        XCTAssertEqual(BackupSync.placement(useInternalFolder: false, folderPath: iCloud, appContainerPath: container),
+                       .elsewhere)
+        // A sibling whose name merely starts with the container's must not count as inside it.
+        XCTAssertEqual(BackupSync.placement(useInternalFolder: false, folderPath: container + "-other/Backups",
+                                            appContainerPath: container),
+                       .elsewhere)
+        XCTAssertEqual(BackupSync.placement(useInternalFolder: false, folderPath: iCloud, appContainerPath: nil),
+                       .elsewhere)
+    }
+
+    func testBackupsToCopySkipsPresentAndForeignFilesOldestFirst() {
+        let older = BackupSync.snapshotName(1_782_000_000_000)
+        let newer = BackupSync.snapshotName(1_782_086_400_000)
+        let handNamed = "noop-backup-2026-06-30.noopbak"
+        let copy = BackupSync.backupsToCopy(source: [newer, "notes.txt", older, handNamed, ".DS_Store"],
+                                            destination: [newer])
+        XCTAssertEqual(copy, [handNamed, older])
+        XCTAssertEqual(BackupSync.backupsToCopy(source: [older], destination: [older]), [])
+    }
+
+    func testDeviceOnlyReminderIsWeeklyAndOnlyWhenAtRisk() {
+        let now = 1_782_000_000_000
+        let week = BackupSync.deviceOnlyReminderIntervalMs
+        XCTAssertTrue(BackupSync.shouldRemindDeviceOnly(placement: .deviceOnly, lastNoticeMs: 0, nowMs: now))
+        XCTAssertFalse(BackupSync.shouldRemindDeviceOnly(placement: .deviceOnly, lastNoticeMs: now - week + 1, nowMs: now))
+        XCTAssertTrue(BackupSync.shouldRemindDeviceOnly(placement: .deviceOnly, lastNoticeMs: now - week, nowMs: now))
+        XCTAssertFalse(BackupSync.shouldRemindDeviceOnly(placement: .elsewhere, lastNoticeMs: 0, nowMs: now))
+        XCTAssertFalse(BackupSync.shouldRemindDeviceOnly(placement: .none, lastNoticeMs: 0, nowMs: now))
+    }
 }

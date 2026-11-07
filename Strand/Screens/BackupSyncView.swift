@@ -13,6 +13,7 @@ struct BackupSyncView: View {
     @State private var lastMs = FolderBackup.lastBackupMs
     @State private var keep = FolderBackup.keepCount
     @State private var busy = false
+    @State private var placement = FolderBackup.placement()
 
     // Result alert (backup outcome / restore outcome).
     @State private var alertTitle = ""
@@ -77,6 +78,11 @@ struct BackupSyncView: View {
                      ?? String(localized: "No folder chosen yet. Pick one your cloud app already syncs, or any local folder."))
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                #if os(iOS)
+                if placement == .deviceOnly {
+                    BackupDeviceOnlyNotice(busy: busy, onMove: moveToICloud, onSaveCopy: saveCopy)
+                }
+                #endif
                 Text("Tip: choose a folder in iCloud Drive and your backups sync to all your Apple devices automatically, no account setup needed.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
                     .fixedSize(horizontal: false, vertical: true)
@@ -199,7 +205,7 @@ struct BackupSyncView: View {
 
     private func chooseFolder() {
         #if os(macOS)
-        if FolderBackup.pickFolder() != nil { folderLabel = FolderBackup.folderLabel() }
+        if FolderBackup.pickFolder() != nil { folderLabel = FolderBackup.folderLabel(); placement = FolderBackup.placement() }
         #else
         // #1000a assumed the iOS picker was refusing to ENABLE its Select button, leaving the user with
         // only Cancel. #2356 disproved that for at least one case: a reporter's log shows the delegate
@@ -222,6 +228,7 @@ struct BackupSyncView: View {
             let picked = await FolderBackup.pickFolder()
             if picked != nil {
                 folderLabel = FolderBackup.folderLabel()
+                placement = FolderBackup.placement()
             } else if !FolderBackup.useInternalFolder {
                 // Only nag when there's no working destination. If the internal fallback is already
                 // active, a cancelled picker changed nothing — and the button the message points at is
@@ -240,9 +247,60 @@ struct BackupSyncView: View {
     private func useNoopFolder() {
         FolderBackup.useNoopFolder()
         folderLabel = FolderBackup.folderLabel()
+        placement = FolderBackup.placement()
         alertTitle = String(localized: "Using NOOP's folder")
         alertMessage = String(localized: "Backups will be saved inside NOOP. Open the Files app → On My iPhone → NOOP → Backups to see them, or drag that folder into iCloud Drive to read it on your Mac. To use a different folder later, tap Change folder.")
         showAlert = true
+    }
+
+    /// Moves the backup folder out of NOOP's container and copies the backups already made. The alert
+    /// names the outcome, never a cause: a nil from the picker is a Cancel and a refused grant alike.
+    private func moveToICloud() {
+        busy = true
+        Task {
+            defer { busy = false }
+            let outcome = await FolderBackup.moveToPickedFolder()
+            folderLabel = FolderBackup.folderLabel()
+            placement = FolderBackup.placement()
+            switch outcome {
+            case .cancelled:
+                alertTitle = String(localized: "No folder selected")
+                alertMessage = String(localized: "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive.")
+            case .stillDeviceOnly:
+                alertTitle = String(localized: "That folder is inside NOOP too")
+                alertMessage = String(localized: "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead.")
+            case .moved(let copied, let failed):
+                let label = folderLabel ?? String(localized: "iCloud Drive")
+                alertTitle = String(localized: "Backups moved")
+                if failed > 0 {
+                    alertMessage = String(localized: "NOOP now backs up to \(label). Some earlier backups could not be copied; they are still in NOOP's own folder.")
+                } else if copied > 0 {
+                    alertMessage = String(localized: "NOOP now backs up to \(label). Your earlier backups were copied there.")
+                } else {
+                    alertMessage = String(localized: "NOOP now backs up to \(label).")
+                }
+            }
+            showAlert = true
+        }
+    }
+
+    /// The export sheet fallback for an iPhone whose folder picker will not open a folder (#52).
+    private func saveCopy() {
+        busy = true
+        Task {
+            defer { busy = false }
+            switch await FolderBackup.saveNewestCopy() {
+            case .some(true):
+                alertTitle = String(localized: "Copy saved")
+                alertMessage = String(localized: "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then.")
+            case .some(false):
+                alertTitle = String(localized: "No backup to copy yet")
+                alertMessage = String(localized: "Tap Back up now first, then save a copy.")
+            case .none:
+                return
+            }
+            showAlert = true
+        }
     }
     #endif
 
@@ -392,3 +450,39 @@ private struct RestorePickerSheet: View {
         return f.string(from: Date(timeIntervalSince1970: Double(ms) / 1000.0))
     }
 }
+
+#if os(iOS)
+/// Says that the backups sit in NOOP's own folder, which iOS deletes with the app, and offers the way
+/// out: a folder in iCloud Drive, or a one-off copy where the folder picker will not open (#52).
+/// Shown only while `FolderBackup.placement()` is `.deviceOnly`; the host owns both actions.
+struct BackupDeviceOnlyNotice: View {
+    let busy: Bool
+    let onMove: () -> Void
+    let onSaveCopy: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            Label {
+                Text("Only on \(Platform.deviceNounPhrase)")
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+            }
+            Text("Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            NoopButton("Move to iCloud Drive", systemImage: "icloud.and.arrow.up", kind: .primary, fullWidth: true) {
+                onMove()
+            }
+            .disabled(busy)
+            NoopButton("Save a copy instead", systemImage: "square.and.arrow.up", kind: .tertiary) {
+                onSaveCopy()
+            }
+            .disabled(busy)
+        }
+        .padding(.vertical, NoopMetrics.space1)
+    }
+}
+#endif
