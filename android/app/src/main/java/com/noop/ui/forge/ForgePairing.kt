@@ -34,7 +34,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +52,6 @@ import com.noop.data.SourceKind
 import com.noop.data.WhoopLiveCapabilities
 import com.noop.ui.AppViewModel
 import com.noop.ui.rememberRequestScan
-import kotlinx.coroutines.launch
 
 /**
  * The registry row a picked WHOOP becomes, field for field what the classic Add-a-device wizard writes: id
@@ -83,7 +81,6 @@ fun forgeWhoopRow(strap: WhoopBleClient.DiscoveredWhoop, model: WhoopModel, nowS
 @Composable
 fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: () -> Unit) {
     val colors = Forge.colors
-    val scope = rememberCoroutineScope()
     val live by viewModel.live.collectAsStateWithLifecycle()
     var model by remember { mutableStateOf<WhoopModel?>(null) }
     val startScan = rememberRequestScan { model?.let { viewModel.presentWhoopScan(it) } }
@@ -133,7 +130,7 @@ fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: ()
                         StrapRow(strap) {
                             viewModel.stopWhoopScan()
                             val row = forgeWhoopRow(strap, chosen, System.currentTimeMillis() / 1000)
-                            scope.launch { viewModel.registerDevice(row, makeActive = true) }
+                            viewModel.registerDeviceInBackground(row, makeActive = true)
                             onClose()
                         }
                     }

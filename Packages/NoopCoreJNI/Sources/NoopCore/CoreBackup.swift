@@ -70,6 +70,8 @@ public enum CoreBackup {
         // An Android Room backup (ryanbr's app, or Forge before the core owned the store) is converted into a
         // core store first (`RoomStoreAdoption`); its two tombstone tables become the shared defaults lists.
         var adopted: RoomStoreAdoption.Report?
+        // Read before the swap: afterwards this file holds the backup's registry, not this phone's.
+        let followedStrap = WhoopStore.followedStrap(inStoreAt: dbPath)
         let outcome = BackupArchive.restore(
             from: URL(fileURLWithPath: source), toDatabaseAt: dbPath,
             scratchRoot: URL(fileURLWithPath: scratch, isDirectory: true), allowOversize: allowOversize,
@@ -86,6 +88,7 @@ public enum CoreBackup {
                     guard GoalBackupBundle.apply(bundle, to: image) > 0 else { return previous }
                     return try image.serialized()
                 }
+                try WhoopStore.keepFollowedStrap(followedStrap, inRestoredStoreAt: database.path)
             },
             applySettings: { settings in
                 // The host's own settings go back to the Android app, which applies them after the restart

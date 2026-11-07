@@ -397,6 +397,12 @@ struct TrendsView: View {
                                         liquidRings: weekUsesLiquidRings,
                                         afterScores: AnyView(GoalsReviewBlock(period: .week, anyDay: digest.weekStart)))
                         .padding(.top, NoopMetrics.space1)
+                    // The new design adds the week day by day under its means: which days carried it.
+                    if NoopVisualStyle.skin == .forge {
+                        TrendsWeekByDay(days: repo.days, weekStart: digest.weekStart,
+                                        importedSleep: repo.importedSleep,
+                                        effortScale: UnitPrefs.currentEffortScale())
+                    }
                     // Share this week's recap as an image. Renders the digest card (with its header) to a
                     // PNG off-screen and hands it to the share sheet / Save panel — reuses TrendsReport's
                     // ImageRenderer path. Only offered when the week actually holds data.

@@ -814,4 +814,28 @@ private func sampleTrend(days: Int, base: Double, swing: Double) -> [TrendPoint]
     .preferredColorScheme(.dark)
 }
 #endif
+
+// MARK: - Draw-in
+
+/// A chart's plot drawn in from the left on its first appearance under the new design, the motion every
+/// trend line there shares. Fully drawn at once in the shipped design and under Reduce Motion.
+public struct ChartDrawIn: ViewModifier {
+    @State private var revealed: CGFloat = NoopVisualStyle.skin == .forge ? 0 : 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    public init() {}
+
+    public func body(content: Content) -> some View {
+        content
+            .mask(alignment: .leading) {
+                GeometryReader { geo in Rectangle().frame(width: geo.size.width * revealed) }
+            }
+            .onAppear {
+                guard revealed < 1 else { return }
+                if reduceMotion { revealed = 1 } else {
+                    withAnimation(.easeOut(duration: 0.75)) { revealed = 1 }
+                }
+            }
+    }
+}
 #endif

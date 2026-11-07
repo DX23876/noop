@@ -178,9 +178,10 @@ final class VitalSourceResolutionTests: XCTestCase {
         XCTAssertTrue(spo2?.missingCaption.contains("strap estimate") == true)
     }
 
-    /// When the toggle is OFF, the candidate is never surfaced even if data exists.
-    func testSpo2CandidateNotSurfacedWhenToggleOff() {
+    /// The estimate is always on in this fork (2026-11-07): an older install's stored "off" no longer hides it.
+    func testSpo2CandidateSurfacedEvenWhenStoredChoiceIsOff() {
         UserDefaults.standard.set(false, forKey: PuffinExperiment.spo2CandidateDisplayKey)
+        defer { UserDefaults.standard.removeObject(forKey: PuffinExperiment.spo2CandidateDisplayKey) }
 
         let readings = BodyVitalSigns.readings(
             sourceRows: [
@@ -192,8 +193,8 @@ final class VitalSourceResolutionTests: XCTestCase {
         )
 
         let spo2 = readings.first { $0.key == "spo2" }
-        XCTAssertNil(spo2?.value)
-        XCTAssertNil(spo2?.source)
+        XCTAssertEqual(spo2?.value, 96.0)
+        XCTAssertEqual(spo2?.source, .noopComputed)
     }
 
     /// A calibrated `spo2Pct` always wins over the candidate — the candidate is a fallback, not a

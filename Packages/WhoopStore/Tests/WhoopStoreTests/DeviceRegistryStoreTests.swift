@@ -51,6 +51,62 @@ final class DeviceRegistryStoreTests: XCTestCase {
         XCTAssertEqual(try store.all().filter { $0.status == .active }.count, 1)  // I1
     }
 
+    // MARK: #42, one active device
+
+    private func whoop(_ id: String, address: String?, seen: Int) -> PairedDevice {
+        PairedDevice(id: id, brand: "WHOOP", model: "5.0 MG", peripheralId: address, sourceKind: .liveBLE,
+                     capabilities: [.hr], status: .active, addedAt: 1, lastSeenAt: seen)
+    }
+
+    private func statuses(_ store: DeviceRegistryStore) throws -> [String: DeviceStatus] {
+        Dictionary(uniqueKeysWithValues: try store.all().map { ($0.id, $0.status) })
+    }
+
+    func testARealPairingBesideTheEmptySeedStaysTheOnlyDevice() throws {
+        let dbq = try makeDB()
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        try store.add(whoop("whoop-5AG", address: "BB:02", seen: 5))
+        XCTAssertEqual(try dbq.write { try DeviceRegistryStore.keepOneActive($0) }, "whoop-5AG")
+        XCTAssertEqual(try statuses(store), ["whoop-5AG": .active])
+    }
+
+    func testASeededWhoopHoldingDataIsDemotedNotRemoved() throws {
+        let dbq = try makeDB()
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        try dbq.write { try $0.execute(sql: "INSERT INTO hrSample (deviceId, ts, bpm) VALUES ('my-whoop', 1, 60)") }
+        try store.add(whoop("whoop-5AG", address: "BB:02", seen: 5))
+        try dbq.write { try DeviceRegistryStore.keepOneActive($0) }
+        XCTAssertEqual(try statuses(store), ["whoop-5AG": .active, "my-whoop": .paired])
+    }
+
+    func testTheStrapPreferredOrSeenLastStaysActive() throws {
+        let dbq = try makeDB()
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        try store.add(whoop("whoop-a", address: "AA:01", seen: 9))
+        try store.add(whoop("whoop-b", address: "BB:02", seen: 5))
+        XCTAssertEqual(try dbq.write { try DeviceRegistryStore.keepOneActive($0, preferring: "whoop-b") }, "whoop-b")
+        try dbq.write { try $0.execute(sql: "UPDATE pairedDevice SET status = 'active'") }
+        XCTAssertEqual(try dbq.write { try DeviceRegistryStore.keepOneActive($0) }, "whoop-a")
+        XCTAssertEqual(try store.all().filter { $0.status == .active }.map(\.id), ["whoop-a"])
+    }
+
+    func testALoneSeedOnAFreshStoreIsLeftAlone() throws {
+        let dbq = try makeDB()
+        XCTAssertEqual(try dbq.write { try DeviceRegistryStore.keepOneActive($0) }, "my-whoop")
+        XCTAssertEqual(try statuses(DeviceRegistryStore(dbQueue: dbq)), ["my-whoop": .active])
+    }
+
+    /// An install already holding two active devices is repaired once, by the v85 migration.
+    func testTheMigrationRepairsAStoreWithTwoActiveDevices() throws {
+        let dbq = try DatabaseQueue()
+        try WhoopStore.makeMigrator().migrate(dbq, upTo: "v84-android-only-tables")
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        try store.add(whoop("whoop-5AG", address: "BB:02", seen: 5))
+        XCTAssertEqual(try store.all().filter { $0.status == .active }.count, 2)
+        try WhoopStore.makeMigrator().migrate(dbq)
+        XCTAssertEqual(try statuses(store), ["whoop-5AG": .active])
+    }
+
     func testArchiveKeepsRowAndClearsActive() throws {
         let store = DeviceRegistryStore(dbQueue: try makeDB())
         try store.archive("my-whoop")

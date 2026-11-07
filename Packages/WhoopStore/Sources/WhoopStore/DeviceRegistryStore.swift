@@ -43,6 +43,48 @@ public struct DeviceRegistryStore: Sendable {
         }
     }
 
+    /// Restores the single-active invariant where a store broke it, and returns the id left active.
+    ///
+    /// A new store seeds an active `my-whoop`, and an Android backup converted into one (`RoomStoreAdoption`) then
+    /// brings its own active strap beside it: two active rows, so `activeDeviceIdSQL` picked either, the link banked
+    /// under one strap while screens read the other, and the Devices list showed a WHOOP nobody had paired. The row
+    /// kept is `preferring` when it is active, else a real pairing before the seeded alias, one that has adopted a
+    /// strap before one that has not, then the one seen last. The rest become paired, never removed with their data.
+    /// Only the seeded alias goes, and only while another WHOOP is registered and it never adopted a strap, never
+    /// learned its model and holds no data: it has nothing to show and is not a strap anyone paired.
+    @discardableResult
+    public static func keepOneActive(_ db: Database, preferring: String? = nil) throws -> String? {
+        let active = try String.fetchAll(db, sql: """
+            SELECT id FROM pairedDevice WHERE status = 'active'
+            ORDER BY (id = 'my-whoop'), (COALESCE(peripheralId, '') = ''), lastSeenAt DESC, addedAt DESC, id
+            """)
+        let kept = active.first { $0 == preferring } ?? active.first
+        for id in active where id != kept {
+            try db.execute(sql: "UPDATE pairedDevice SET status = 'paired' WHERE id = ?", arguments: [id])
+        }
+        let emptySeed = try Bool.fetchOne(db, sql: """
+            SELECT 1 FROM pairedDevice
+            WHERE id = 'my-whoop' AND status != 'active' AND COALESCE(peripheralId, '') = '' AND model = 'WHOOP'
+              AND EXISTS (SELECT 1 FROM pairedDevice WHERE id != 'my-whoop' AND brand = 'WHOOP' COLLATE NOCASE)
+            """) ?? false
+        if emptySeed, try !holdsData(db, deviceId: "my-whoop") {
+            try db.execute(sql: "DELETE FROM pairedDevice WHERE id = 'my-whoop'")
+            try db.execute(sql: "DELETE FROM device WHERE id = 'my-whoop'")
+        }
+        return kept
+    }
+
+    /// Whether any device-scoped table has a row under `deviceId` itself; its computed sibling does not count, the
+    /// engine writes that under the canonical id whichever strap is active.
+    static func holdsData(_ db: Database, deviceId: String) throws -> Bool {
+        for table in deviceScopedTables where try db.tableExists(table) {
+            if try Bool.fetchOne(db, sql: "SELECT 1 FROM \(table) WHERE deviceId = ? LIMIT 1", arguments: [deviceId]) ?? false {
+                return true
+            }
+        }
+        return false
+    }
+
     public func add(_ d: PairedDevice) throws {
         try dbQueue.write { db in try Self.upsert(db, d) }
     }

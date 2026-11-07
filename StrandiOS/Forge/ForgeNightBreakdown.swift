@@ -130,10 +130,25 @@ struct ForgeNightBreakdown: View {
         // A figure this night does not have is left out, not drawn as a dash. So is one that has never left
         // zero (tonight 0, usual 0): that is a measure without enough nights yet, not a result.
         let rows = candidates.filter { $0.1 != nil && !($0.1 == 0 && ($0.2 ?? 0) == 0) }
+        // The three shares of the night lead as rings; the rest follow as rows with the usual marked.
+        let ringNames: Set<String> = [String(localized: "Hours against need"), String(localized: "Efficiency"),
+                                      String(localized: "Restorative sleep")]
+        let rings = rows.filter { ringNames.contains($0.0) }
+        let rest = rows.filter { !ringNames.contains($0.0) }
         return VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "What shaped the night")
-            VStack(spacing: 0) {
-                ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
+            VStack(spacing: 12) {
+                if !rings.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        ForEach(Array(rings.enumerated()), id: \.offset) { i, r in
+                            ForgeShareRing(label: r.0, value: r.1 ?? 0, typical: r.2, index: i)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+                if !rings.isEmpty && !rest.isEmpty { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
+                ForEach(Array(rest.enumerated()), id: \.offset) { i, r in
                     if i > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
                     shapedRow(r.0, value: r.1, typical: r.2, unit: r.3, higherIsBetter: r.4)
                 }
@@ -150,17 +165,115 @@ struct ForgeNightBreakdown: View {
             let d = v - t
             return abs(d) < 2 ? 0 : (d > 0 ? 1 : -1)
         }()
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(label).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                if let usual { Text(usual).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary) }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(label).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    if let usual { Text(usual).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary) }
+                }
+                Spacer(minLength: 8)
+                Text(value).font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
+                    .contentTransition(.numericText())
+                if higherIsBetter { ForgeDirection(delta: delta) }
             }
-            Spacer(minLength: 8)
-            Text(value).font(ForgeFont.rounded(17, .semibold)).foregroundStyle(ForgeColor.text)
-            if higherIsBetter { ForgeDirection(delta: delta) }
+            // A share of the night as a bar, with the wearer's usual as a mark across it.
+            if unit == "%", let number {
+                ForgeShareBar(fraction: number / 100, typical: typical.map { $0 / 100 })
+            }
         }
         .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// One share of the night as a ring: tonight's figure in the middle, the usual as a tick on the track.
+/// The ring draws in once, a few hundredths after its neighbour; with Reduce Motion it is simply there.
+struct ForgeShareRing: View {
+    let label: String
+    let value: Double
+    let typical: Double?
+    var index = 0
+    @State private var drawn = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var fraction: Double { min(max(value / 100, 0), 1) }
+
+    static func percent(_ value: Double) -> String {
+        (value / 100).formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale))
+    }
+    private var below: Bool { typical.map { value < $0 - 2 } ?? false }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle().stroke(ForgeColor.rest.opacity(0.16), lineWidth: 9)
+                Circle()
+                    .trim(from: 0, to: drawn ? fraction : 0)
+                    .stroke(AngularGradient(colors: [ForgeColor.rest.opacity(0.65), ForgeColor.rest],
+                                            center: .center, startAngle: .degrees(0), endAngle: .degrees(360 * max(fraction, 0.01))),
+                            style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                if let typical {
+                    // The usual, as a short tick across the track.
+                    Capsule().fill(ForgeColor.text.opacity(0.7))
+                        .frame(width: 2.5, height: 15)
+                        .offset(y: -37)
+                        .rotationEffect(.degrees(360 * min(max(typical / 100, 0), 1)))
+                }
+                VStack(spacing: 0) {
+                    Text("\(Int(value.rounded()))")
+                        .font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.text)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Text(verbatim: "%").font(.system(.caption2, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                }
+            }
+            .frame(width: 74, height: 74)
+            Text(label).font(.system(.caption, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.85)
+                .fixedSize(horizontal: false, vertical: true)
+            if let typical {
+                Text("usual \(Int(typical.rounded()))").font(.system(.caption2))
+                    .foregroundStyle(below ? ForgeColor.effortInk : ForgeColor.secondary)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(label))
+        .accessibilityValue(typical.map { Text(Self.percent(value)) + Text(verbatim: ", ") + Text("usual \(Int($0.rounded()))") }
+                            ?? Text(Self.percent(value)))
+        .onAppear {
+            if reduceMotion { drawn = true; return }
+            withAnimation(.spring(response: 0.9, dampingFraction: 0.9).delay(0.08 * Double(index))) { drawn = true }
+        }
+    }
+}
+
+/// A share as a thin bar with the usual marked across it.
+struct ForgeShareBar: View {
+    let fraction: Double
+    let typical: Double?
+    @State private var drawn = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(ForgeColor.rest.opacity(0.16))
+                Capsule().fill(LinearGradient(colors: [ForgeColor.rest.opacity(0.6), ForgeColor.rest],
+                                              startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(6, geo.size.width * min(max(fraction, 0), 1) * (drawn ? 1 : 0)))
+                if let typical {
+                    RoundedRectangle(cornerRadius: 1).fill(ForgeColor.text.opacity(0.65))
+                        .frame(width: 2, height: 14)
+                        .offset(x: geo.size.width * min(max(typical, 0), 1) - 1)
+                }
+            }
+        }
+        .frame(height: 8)
+        .accessibilityHidden(true)
+        .onAppear {
+            if reduceMotion { drawn = true; return }
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.9)) { drawn = true }
+        }
     }
 }
 #endif

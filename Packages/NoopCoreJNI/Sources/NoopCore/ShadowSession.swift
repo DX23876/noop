@@ -10,7 +10,8 @@ import WhoopStore
 ///
 /// Calls arrive from Android's Bluetooth and IO threads. Each becomes an event on one stream, and a single task
 /// on the main actor (where the Collector and Backfiller live) works through it in arrival order, so a history
-/// chunk's START, records and END reach the Backfiller exactly as the strap sent them.
+/// chunk's START, records and END reach the Backfiller exactly as the strap sent them. The daily pass is the one
+/// exception: it starts in order with the frames and then runs beside them (`AnalysisRuns`).
 public enum ShadowSession {
     public enum Event: Sendable {
         case family(whoop5: Bool)
@@ -53,6 +54,8 @@ public enum ShadowSession {
         /// Every registered WHOOP, archived ones included, in registry order: the union reads cover them all
         /// as Apple's `Repository.registeredWhoopIds` and Android's Room `rawWhoopSourceIds` do.
         var registeredWhoopIds: [String] = []
+        /// Replaces the daily pass in a test that has to hold one open.
+        var analysisPassForTesting: (@MainActor @Sendable () async -> Void)?
     }
     private static let state = State()
 
@@ -85,6 +88,11 @@ public enum ShadowSession {
             await run(stream: stream, store: store, deviceId: deviceId)
         }
         return 0
+    }
+
+    /// Replaces the daily pass of the sessions started from now on; nil restores it.
+    static func setAnalysisPassForTesting(_ pass: (@MainActor @Sendable () async -> Void)?) {
+        state.lock.withLock { state.analysisPassForTesting = pass }
     }
 
     /// Queues one event; dropped when no session runs.
@@ -215,6 +223,13 @@ public enum ShadowSession {
                     state.tally.events += counts.events; state.tally.battery += counts.battery
                 }
             })
+        let passForTesting = state.lock.withLock { state.analysisPassForTesting }
+        let analyses = AnalysisRuns { request in
+            if let passForTesting { await passForTesting(); return }
+            let result = await CoreAnalysis.run(store: store, deviceId: request.deviceId, profile: request.profile,
+                                                settings: request.settings)
+            state.lock.withLock { state.today = result?.line ?? "no computed row for today" }
+        }
         var family = DeviceFamily.whoop4
         var deviceId = deviceId
         for await event in stream {
@@ -242,10 +257,9 @@ public enum ShadowSession {
                 state.lock.withLock { state.tally = Tally() }
             case .analyze(let profile, let settings):
                 await collector.flush()
-                let result = await CoreAnalysis.run(store: store, deviceId: deviceId, profile: profile, settings: settings)
-                state.lock.withLock { state.today = result?.line ?? "no computed row for today" }
+                analyses.request(.init(profile: profile, settings: settings, deviceId: deviceId))
             case .barrier(let completed):
-                completed()
+                analyses.whenSettled(completed)
             case .device(let id):
                 // The live rows buffered so far belong to the previous strap.
                 await collector.flush()
@@ -256,5 +270,6 @@ public enum ShadowSession {
             state.lock.withLock { state.processed += 1 }
         }
         await collector.flush()
+        await analyses.settled()
     }
 }

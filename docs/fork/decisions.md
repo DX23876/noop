@@ -988,6 +988,23 @@ points below differ from that plan because of what the re-analysis showed, and a
 
 Analysis migration required: yes (AI-34).
 
+## 2026-11-07 Vitals the wearer picks, the strap's blood oxygen always shown
+
+- **Vitals on Health are the wearer's tiles.** Held, a tile starts the editor as on Today: remove, drag into
+  order, tap to swap, add from the vitals plus AgeLess, VO₂ max, weight, stress and steps. At most nine tiles,
+  two or three to a row (its own setting, not Today's). Until the wearer edits them the tiles are the night's
+  vitals as before. Each tile reads the resolver its own page reads, so no figure changes.
+- **Blood oxygen: the strap's estimate is always on.** The owner wants the tile filled rather than empty. The
+  candidate (`spo2_candidate`) is shown with an "Estimated" mark, never stored as `spo2Pct` and never fed to a
+  score or gate. The Settings switch is gone and a stored "off" is overruled. The analysis day signature already
+  carries the flag, so days re-score on their own. The new Health tab had also never passed the estimate to its
+  tile; it now reads it as Today does.
+- **Sleep's figures as pictures.** Hours against need, efficiency and restorative sleep lead "What shaped the
+  night" as rings with the usual as a tick; the other shares are bars with the usual marked. "This night" shows
+  each body signal with its last fourteen nights as bars, and no longer repeats efficiency and breathing rate,
+  which the card above carries (breathing stays there when a night has no stages). The night card's stage
+  figures carry their colours and one bar of the night's make-up.
+
 ## Today's timeline: one feed, guarded notes (2026-11-07)
 
 Owner's decisions in a grilling of 37 questions after the timeline report

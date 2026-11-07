@@ -1164,6 +1164,8 @@ private struct OverlayChart: View {
             .accessibilityHidden(true)
         }
         .chartForegroundStyleScale(range: series.map(\.color))
+        // The plot draws in from the left, as every trend line in the new design does.
+        .chartPlotStyle { plot in plot.modifier(ChartDrawIn()) }
         .chartYScale(domain: 0...1)
         .chartYAxis {
             // Normalized axis — label endpoints as low/high rather than raw numbers.

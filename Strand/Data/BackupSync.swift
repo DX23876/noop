@@ -127,6 +127,60 @@ enum BackupSync {
             // identically to Kotlin's `compareByDescending { timeMs }.thenBy { name }`.
             .sorted { $0.timeMs != $1.timeMs ? $0.timeMs > $1.timeMs : $0.name < $1.name }
     }
+
+    // MARK: - Where the backups live
+
+    /// Whether the backups would outlive deleting the app. iOS removes an app's whole container with
+    /// the app, so NOOP's own `Documents/Backups` (the #52 fallback), or any folder picked inside that
+    /// container through Files, goes with it. Anything else (iCloud Drive, another provider, a folder
+    /// the wearer created under On My iPhone) stays.
+    enum Placement: Equatable {
+        /// No folder chosen.
+        case none
+        /// Inside NOOP's own container: deleting NOOP deletes the backups.
+        case deviceOnly
+        /// Outside the container.
+        case elsewhere
+    }
+
+    /// The placement for a configuration. `appContainerPath` is the app's own container root (the
+    /// parent of its Documents folder); `folderPath` the resolved backup folder, nil when none is set.
+    /// Pure and path-only so it is testable without a sandbox; `/private/var` and `/var` name the same
+    /// place on iOS, and a resolved bookmark may use either spelling.
+    static func placement(useInternalFolder: Bool, folderPath: String?, appContainerPath: String?) -> Placement {
+        if useInternalFolder { return .deviceOnly }
+        guard let folderPath else { return .none }
+        guard let appContainerPath else { return .elsewhere }
+        let folder = normalizedPath(folderPath)
+        let container = normalizedPath(appContainerPath)
+        guard !container.isEmpty else { return .elsewhere }
+        return folder == container || folder.hasPrefix(container + "/") ? .deviceOnly : .elsewhere
+    }
+
+    private static func normalizedPath(_ path: String) -> String {
+        var p = path
+        while p.count > 1, p.hasSuffix("/") { p.removeLast() }
+        if p.hasPrefix("/private/var/") { p.removeFirst("/private".count) }
+        return p
+    }
+
+    /// The backups to copy when the folder moves: every `.noopbak` in `source` that `destination` does
+    /// not already hold under the same name, oldest first so the copy order matches the rotation.
+    /// Hand-named files come along too; prune never touches them in either folder.
+    static func backupsToCopy(source: [String], destination: [String]) -> [String] {
+        let present = Set(destination)
+        return source.filter { isBackupFile($0) && !present.contains($0) }
+            .sorted { (snapshotTimeMs($0) ?? 0, $0) < (snapshotTimeMs($1) ?? 0, $1) }
+    }
+
+    /// How long the bell waits before it says again that the backups are on this device only.
+    static let deviceOnlyReminderIntervalMs = 7 * 24 * 60 * 60 * 1000
+
+    /// True when the bell should say the backups are on this device only: they are, and the last such
+    /// notice is at least `deviceOnlyReminderIntervalMs` old (`lastNoticeMs == 0`: never shown).
+    static func shouldRemindDeviceOnly(placement: Placement, lastNoticeMs: Int, nowMs: Int) -> Bool {
+        placement == .deviceOnly && nowMs - lastNoticeMs >= deviceOnlyReminderIntervalMs
+    }
 }
 
 /// The folder destination: a security-scoped bookmark of a user-chosen folder, plus write / list /
@@ -344,6 +398,8 @@ enum FolderBackup {
     /// backup, write one. Gated entirely on the toggle being ON (must-fix #4). The caller MUST invoke
     /// this off the launch-critical path; it does no UI work and is safe to run after the first refresh.
     static func catchUpIfDue(checkpoint: @escaping () async -> Bool) async {
+        // Runs whether or not auto-backup is on: backups in NOOP's own folder are at risk either way.
+        remindIfDeviceOnly()
         guard autoEnabled, hasFolder else { return }
         let nowMs = Int(Date().timeIntervalSince1970 * 1000.0)
         guard nowMs - lastBackupMs >= dayMs else { return }
@@ -440,6 +496,110 @@ enum FolderBackup {
         return DataBackup.restore(from: source)
     }
 
+    // MARK: - Backups that would go with the app
+
+    private static let deviceOnlyNoticeKey = "backupSync.deviceOnlyNoticeMs"
+
+    /// Where the current backups live (see `BackupSync.Placement`). Only iOS deletes an app's container
+    /// with the app; a macOS container stays when the app goes to the Bin, so there the answer is never
+    /// `.deviceOnly`.
+    static func placement() -> BackupSync.Placement {
+        #if os(iOS)
+        let container = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+            .deletingLastPathComponent().resolvingSymlinksInPath().path
+        let folder = useInternalFolder ? nil : resolveFolder()?.resolvingSymlinksInPath().path
+        return BackupSync.placement(useInternalFolder: useInternalFolder, folderPath: folder,
+                                    appContainerPath: container)
+        #else
+        return hasFolder ? .elsewhere : .none
+        #endif
+    }
+
+    /// Posts the bell notice that the backups would be deleted with the app, at most once a week.
+    /// Called from the on-launch catch-up; touches no UI itself.
+    static func remindIfDeviceOnly(now: Date = Date()) {
+        let nowMs = Int(now.timeIntervalSince1970 * 1000.0)
+        let lastMs = UserDefaults.standard.integer(forKey: deviceOnlyNoticeKey)
+        guard BackupSync.shouldRemindDeviceOnly(placement: placement(), lastNoticeMs: lastMs, nowMs: nowMs) else { return }
+        UserDefaults.standard.set(nowMs, forKey: deviceOnlyNoticeKey)
+        AlertInbox.post(.backupDeviceOnly,
+                        title: String(localized: "Your backups are only on \(Platform.deviceNounPhrase)"),
+                        message: String(localized: "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive."),
+                        now: now)
+    }
+
+    /// What moving the backup folder did.
+    enum MoveOutcome: Equatable {
+        /// The picker closed without a folder.
+        case cancelled
+        /// The chosen folder is inside NOOP's container as well, so nothing changed.
+        case stillDeviceOnly
+        /// The new folder is set; `failed` of the earlier backups could not be copied there.
+        case moved(copied: Int, failed: Int)
+    }
+
+    /// Pick a new folder and copy the backups NOOP already has into it. The originals stay where they
+    /// were: a copy that failed halfway must not cost the only backup there is. A folder inside NOOP's
+    /// own container is refused, because it would leave the backups exactly as exposed as before.
+    @MainActor
+    static func moveToPickedFolder() async -> MoveOutcome {
+        let oldFolder = resolveFolder()
+        let wasInternal = useInternalFolder
+        let oldBookmark = UserDefaults.standard.data(forKey: bookmarkKey)
+        #if os(macOS)
+        guard let newFolder = pickFolder() else { return .cancelled }
+        #else
+        // Files decides where to start: the old folder is the one being left.
+        guard let newFolder = await pickFolder(startingAt: nil) else { return .cancelled }
+        #endif
+        guard placement() != .deviceOnly else {
+            // Put the old setting back so the screen keeps describing where the backups really are.
+            useInternalFolder = wasInternal
+            if let oldBookmark { UserDefaults.standard.set(oldBookmark, forKey: bookmarkKey) }
+            else { UserDefaults.standard.removeObject(forKey: bookmarkKey) }
+            return .stillDeviceOnly
+        }
+        guard let oldFolder, oldFolder.standardizedFileURL != newFolder.standardizedFileURL else {
+            return .moved(copied: 0, failed: 0)
+        }
+        return await Task.detached(priority: .userInitiated) {
+            copyBackups(from: oldFolder, to: newFolder)
+        }.value
+    }
+
+    private static func copyBackups(from source: URL, to destination: URL) -> MoveOutcome {
+        let sourceScoped = source.startAccessingSecurityScopedResource()
+        defer { if sourceScoped { source.stopAccessingSecurityScopedResource() } }
+        let destinationScoped = destination.startAccessingSecurityScopedResource()
+        defer { if destinationScoped { destination.stopAccessingSecurityScopedResource() } }
+        let fm = FileManager.default
+        let sourceNames = (try? fm.contentsOfDirectory(atPath: source.path)) ?? []
+        let destinationNames = (try? fm.contentsOfDirectory(atPath: destination.path)) ?? []
+        var copied = 0, failed = 0
+        for name in BackupSync.backupsToCopy(source: sourceNames, destination: destinationNames) {
+            do {
+                try fm.copyItem(at: source.appendingPathComponent(name), to: destination.appendingPathComponent(name))
+                copied += 1
+            } catch {
+                failed += 1
+            }
+        }
+        return .moved(copied: copied, failed: failed)
+    }
+
+    #if os(iOS)
+    /// The fallback where the folder picker's Open does nothing (#52): hand the newest backup to the
+    /// export sheet, which saves a copy anywhere Files reaches, iCloud Drive included. Returns false
+    /// when there is no backup yet; nil when the sheet was dismissed.
+    @MainActor
+    static func saveNewestCopy() async -> Bool? {
+        guard let folder = resolveFolder(), let newest = listSnapshots().first else { return false }
+        let scoped = folder.startAccessingSecurityScopedResource()
+        defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
+        return await DocumentPicker.export(folder.appendingPathComponent(newest.name)) == nil ? nil : true
+    }
+    #endif
+
     // MARK: - Folder picker
 
     #if os(macOS)
@@ -463,7 +623,13 @@ enum FolderBackup {
     /// #2356. See `DocumentPicker.pickFolder`.
     @MainActor
     static func pickFolder() async -> URL? {
-        let url = await DocumentPicker.pickFolder(startingAt: resolveFolder())
+        await pickFolder(startingAt: resolveFolder())
+    }
+
+    /// The same picker with an explicit starting folder; nil lets Files choose its own.
+    @MainActor
+    static func pickFolder(startingAt root: URL?) async -> URL? {
+        let url = await DocumentPicker.pickFolder(startingAt: root)
         if let url { saveFolder(url) }
         return url
     }

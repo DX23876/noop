@@ -202,7 +202,10 @@ struct WorkoutsView: View {
         let resolved = effectiveRange
         let unscopedRows = sessions(for: resolved)
         let trendRows = recoveryTrendRows(from: unscopedRows)
-        return ScreenScaffold(title: "Workouts", subtitle: classicOnlySubtitle("Every session, threaded together."),
+        // The new design opens this page as "Manage sessions" under its own Workouts overview, so it names
+        // what it holds rather than repeating that title.
+        return ScreenScaffold(title: NoopVisualStyle.skin == .forge ? "All sessions" : "Workouts",
+                       subtitle: classicOnlySubtitle("Every session, threaded together."),
                        onRefresh: { await repo.refresh() },
                        // PERF: the column ends in the full "All Sessions" log (the breakdown grid, the
                        // zones card, and a row-per-session table). On a large imported history the eager
@@ -242,7 +245,11 @@ struct WorkoutsView: View {
                 if NoopVisualStyle.skin != .forge {
                     effortHero(rows: windowRows, effectiveRange: resolved, groups: groups)
                 }
-                summarySection(rows: windowRows, effectiveRange: resolved, groups: groups)
+                if NoopVisualStyle.skin == .forge {
+                    forgeSummary(rows: windowRows, effectiveRange: resolved, groups: groups)
+                } else {
+                    summarySection(rows: windowRows, effectiveRange: resolved, groups: groups)
+                }
                 analysisRow
                 heatmapSection()
                 breakdownSection(groups: groups, rows: windowRows)
@@ -1154,6 +1161,64 @@ struct WorkoutsView: View {
                          : nil,
                      accent: StrandPalette.textPrimary)
         }
+    }
+
+    /// The new design's summary: the window's session count as the one large figure, counting up as the window
+    /// changes, then time, energy and distance in one row and the most frequent sport under it. The same
+    /// figures as `summarySection`, read off the same rows, in one card instead of five coloured tiles.
+    private func forgeSummary(rows: [WorkoutRow], effectiveRange: Range, groups: [SportGroup]) -> some View {
+        let totalTimeH = rows.compactMap(\.durationS).reduce(0, +) / 3600.0
+        let totalKcal = rows.compactMap(\.energyKcal).reduce(0, +)
+        let distancesM = rows.compactMap(\.distanceM).filter { $0 > 0 }
+        let totalKmRaw = distancesM.reduce(0, +) / 1000.0
+        let modal = modalSport(from: groups)
+        return NoopCard {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    CountUpText(value: Double(rows.count), format: { "\(Int($0.rounded()))" },
+                                font: StrandFont.rounded(48, weight: .bold), color: StrandPalette.textPrimary)
+                    // The word only for a plural: no language's singular has to be cut out of "1 session".
+                    if rows.count != 1 {
+                        Text(String(localized: "sessions"))
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    Text(effectiveRange.caption)
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                Divider().overlay(StrandPalette.hairline)
+                HStack(alignment: .top, spacing: NoopMetrics.space3) {
+                    forgeFigure(String(localized: "\(oneDecimal(totalTimeH))h"), String(localized: "active"))
+                    forgeFigure(grouped(totalKcal), "kcal")
+                    forgeFigure(distancesM.isEmpty ? "–" : UnitFormatter.distanceFromKilometers(totalKmRaw, system: distanceUnitSystem),
+                                String(localized: "covered"))
+                }
+                if modal.count > 0 {
+                    HStack(spacing: 6) {
+                        Text("Most active").foregroundStyle(StrandPalette.textSecondary)
+                        Text(verbatim: modal.sport).foregroundStyle(StrandPalette.textPrimary).fontWeight(.semibold)
+                        Text(modal.count == 1 ? String(localized: "1 session") : String(localized: "\(modal.count) sessions"))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    .font(StrandFont.subhead)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func forgeFigure(_ value: String, _ caption: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(StrandFont.rounded(22, weight: .semibold))
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .contentTransition(.numericText())
+            Text(caption).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Analysis hand-off

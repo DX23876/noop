@@ -2074,6 +2074,11 @@ extension WhoopStore {
                     provider TEXT NOT NULL, createdAt INTEGER NOT NULL, orderIndex INTEGER NOT NULL, PRIMARY KEY (id));
                 """)
         }
+        // Fork (DX23876), #42: a store holding two active devices (an Android backup converted on top of the seeded
+        // `my-whoop`) keeps one. A registry repair, no derived value changes, so the recipe stays.
+        migrator.registerMigration("v85-single-active-device") { db in
+            try DeviceRegistryStore.keepOneActive(db)
+        }
         return migrator
     }
 }

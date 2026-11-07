@@ -443,7 +443,7 @@ struct ExplainerBreathShapes: View {
                             .padding(9)
                         }
                         .aspectRatio(1, contentMode: .fit)
-                    Text(verbatim: "4 · 4 · 4 · 4 s").font(StrandFont.footnote.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+                    Text(ExplainerRhythm.seconds([4, 4, 4, 4])).font(StrandFont.footnote.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
                 }
                 VStack(spacing: 8) {
                     GeometryReader { geo in
@@ -458,7 +458,7 @@ struct ExplainerBreathShapes: View {
                     }
                     .font(StrandFont.caption.weight(.semibold))
                     .foregroundStyle(StrandPalette.textPrimary)
-                    Text("\(5.5, format: .number) · \(5.5, format: .number) s").font(StrandFont.footnote.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+                    Text(ExplainerRhythm.seconds([5.5, 5.5])).font(StrandFont.footnote.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
                 }
             }
         }
@@ -560,5 +560,13 @@ struct ExplainerClaspFingers: View {
                 }
             }
         }
+    }
+}
+
+/// A breathing rhythm as its phase lengths in seconds ("4 · 4 · 4 · 4 s"), numbers in the reader's locale.
+enum ExplainerRhythm {
+    static func seconds(_ phases: [Double]) -> String {
+        let numbers = phases.map { $0.formatted(.number.locale(AppLanguage.activeLocale)) }
+        return numbers.joined(separator: " · ") + " s"
     }
 }
