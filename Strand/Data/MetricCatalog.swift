@@ -147,7 +147,7 @@ enum MetricCatalog {
           String(localized: "How recovered you are, led by HRV versus your personal baseline.")),
         d("hrv", String(localized: "Heart Rate Variability"), "Charge", "ms", "my-whoop", "waveform.path.ecg", 0, true),
         d("rhr", String(localized: "Resting Heart Rate"), "Charge", "bpm", "my-whoop", "heart", 0, false),
-        d("resp_rate", String(localized: "Respiratory Rate"), "Charge", "rpm", "my-whoop", "lungs", 1, nil),
+        d("resp_rate", String(localized: "Respiratory Rate"), "Charge", "/min", "my-whoop", "lungs", 1, nil),
         d("spo2", String(localized: "Blood Oxygen"), "Charge", "%", "my-whoop", "drop", 0, true),
         d("skin_temp", String(localized: "Skin Temperature"), "Charge", "°C", "my-whoop", "thermometer", 1, nil),
 

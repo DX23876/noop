@@ -428,7 +428,7 @@ public struct TrendChart: View {
                             y: .value("Value", p.value),
                             series: .value("Segment", p.segment)
                         )
-                        .interpolationMethod(.catmullRom)
+                        .interpolationMethod(.monotone)
                         .foregroundStyle(
                             LinearGradient(
                                 colors: [
@@ -448,7 +448,7 @@ public struct TrendChart: View {
                         y: .value("Value", p.value),
                         series: .value("Segment", p.segment)
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                     .foregroundStyle(color(for: p.segment))
                 }
@@ -462,7 +462,7 @@ public struct TrendChart: View {
                         y: .value("Value", p.value),
                         series: .value("Series", "overlay")
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [4, 3]))
                     .foregroundStyle(overlayColor)
                 }
@@ -492,8 +492,9 @@ public struct TrendChart: View {
         // (or below, should a caller ever plot negatives), matching Android's zero-based BarChart. The
         // upper bound (with the caller's headroom) is unchanged, so the line's domain is untouched.
         .chartYScale(domain: plotYDomain)
-        // Clip the plot to its own bounds. catmullRom interpolation overshoots past the data extremes
-        // on sharp turns, and the AreaMark gradient is drawn UNCLIPPED — so on a spiky HR curve the
+        // Clip the plot to its own bounds. The curves are monotone since 2026-11: a catmullRom line rose
+        // above two weigh-ins and fell below the next, drawing a weight nobody had. The clip stays, because
+        // an extreme can still sit on the edge, and it once guarded that overshoot on sharp turns, and the AreaMark gradient is drawn UNCLIPPED — so on a spiky HR curve the
         // rose fill bled down the page behind the cards below the chart. Clipping the plot area bounds
         // every mark (line, area, points, overshoot) to the chart rectangle.
         //

@@ -53,12 +53,19 @@ public struct NoopCardChrome: Sendable, Equatable {
     ///   - quietRims: a screen that wants restrained surfaces (Liquid Today) drops the resting rim on
     ///     opaque cards; the fill separates them. A see-through card keeps its hairline, a `.state`
     ///     card keeps its signal, and Increase Contrast keeps every edge.
+    ///   - forgeSkin: the new design's chrome. Its cards have no rim and no shadow; the fill alone sets a
+    ///     card off the page, as on its own tabs. A `.state` card keeps its signal and Increase Contrast keeps
+    ///     every edge, so only the decorative edges go.
     public static func resolve(kind: NoopCardKind,
                                isLight: Bool,
                                isTransparent: Bool,
                                increasedContrast: Bool,
                                quietEdges: Bool,
-                               quietRims: Bool = false) -> NoopCardChrome {
+                               quietRims: Bool = false,
+                               forgeSkin: Bool = false) -> NoopCardChrome {
+        if forgeSkin, !increasedContrast, kind != .state {
+            return NoopCardChrome(rim: .none, shadow: false)
+        }
         let chrome = resolveEdges(kind: kind, isLight: isLight, isTransparent: isTransparent,
                                   increasedContrast: increasedContrast, quietEdges: quietEdges)
         guard quietRims, !increasedContrast, !isTransparent, kind != .state, chrome.rim == .hairline else {

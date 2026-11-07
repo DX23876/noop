@@ -1,6 +1,702 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ · %lld days together" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %lld gemeinsame Tage"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %lld días en común"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %lld jours en commun"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %lld giorni in comune"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · wspólne dni: %lld"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %lld dias em comum"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · общих дней: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 共同 %lld 天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 共同 %lld 天"
+          }
+        }
+      }
+    },
+    "Waiting for a pulse" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte auf den Puls"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando el pulso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente du pouls"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa del battito"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czekam na tętno"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À espera do pulso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ожидание пульса"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待脉搏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待脈搏"
+          }
+        }
+      }
+    },
+    "Walking pace" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gehtempo"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo al caminar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allure de marche"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passo di camminata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo marszu"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ritmo de caminhada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Темп ходьбы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步行配速"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步行配速"
+          }
+        }
+      }
+    },
+    "Time in each heart-rate zone, from the strap's pulse during this session. Approximate." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeit in jeder Pulszone, aus dem Puls des Straps während dieser Einheit. Ungefähr."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiempo en cada zona de frecuencia cardiaca, según el pulso de la pulsera durante esta sesión. Aproximado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temps dans chaque zone de fréquence cardiaque, d'après le pouls mesuré par le bracelet pendant cette séance. Approximatif."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo in ogni zona di frequenza cardiaca, dal battito rilevato dal bracciale durante questa sessione. Approssimativo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czas w każdej strefie tętna, z pulsu opaski podczas tej sesji. W przybliżeniu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo em cada zona de frequência cardíaca, a partir do pulso da pulseira durante esta sessão. Aproximado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Время в каждой зоне пульса по данным браслета за эту тренировку. Приблизительно."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本次训练中每个心率区间的时间，来自手环测得的脉搏。仅为估算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本次訓練中每個心率區間的時間，來自手環測得的脈搏。僅為估算。"
+          }
+        }
+      }
+    },
+    "few readings, showing %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "wenige Messungen, zeigt %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pocas mediciones, se muestra %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "peu de mesures, affichage : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "poche misurazioni, mostra %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mało pomiarów, pokazano %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "poucas medições, a mostrar %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "мало измерений, показано: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读数较少，显示%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讀數較少，顯示%@"
+          }
+        }
+      }
+    },
+    "1 reading · few, so showing %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Messung · wenige, daher %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 medición · pocas, así que se muestra %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 mesure · peu, donc affichage : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 misurazione · poche, quindi mostra %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 pomiar · mało, więc pokazano %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 medição · poucas, por isso a mostrar %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 измерение · мало, поэтому показано: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 个读数 · 较少，因此显示%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 個讀數 · 較少，因此顯示%@"
+          }
+        }
+      }
+    },
+    "%lld readings · few, so showing %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Messungen · wenige, daher %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld mediciones · pocas, así que se muestra %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld mesures · peu, donc affichage : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld misurazioni · poche, quindi mostra %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld pomiarów · mało, więc pokazano %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld medições · poucas, por isso a mostrar %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измерений: %lld · мало, поэтому показано: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个读数 · 较少，因此显示%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個讀數 · 較少，因此顯示%@"
+          }
+        }
+      }
+    },
+    "Few readings, so showing %@ · %lld readings" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenige Messungen, daher %@ · %lld Messungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pocas mediciones, así que se muestra %@ · %lld mediciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peu de mesures, donc affichage : %@ · %lld mesures"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poche misurazioni, quindi mostra %@ · %lld misurazioni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mało pomiarów, więc pokazano %@ · %lld pomiarów"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poucas medições, por isso a mostrar %@ · %lld medições"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мало измерений, поэтому показано: %@ · измерений: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读数较少，因此显示%@ · %lld 个读数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讀數較少，因此顯示%@ · %lld 個讀數"
+          }
+        }
+      }
+    },
+    "Measures that moved together with this one in the chosen time. Moving together does not mean one causes the other." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Werte, die sich im gewählten Zeitraum zusammen mit diesem bewegt haben. Gemeinsame Bewegung heißt nicht, dass das eine das andere verursacht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medidas que se movieron junto con esta en el periodo elegido. Moverse juntas no significa que una cause la otra."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesures qui ont évolué avec celle-ci sur la période choisie. Évoluer ensemble ne veut pas dire que l'une cause l'autre."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misure che si sono mosse insieme a questa nel periodo scelto. Muoversi insieme non significa che una causi l'altra."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wartości, które zmieniały się razem z tą w wybranym okresie. Wspólna zmiana nie oznacza, że jedna powoduje drugą."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medidas que variaram com esta no período escolhido. Variar em conjunto não significa que uma cause a outra."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показатели, которые менялись вместе с этим за выбранный период. Совместное изменение не означает, что одно вызывает другое."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在所选时间内与此项一同变化的指标。一同变化并不意味着其中一个导致了另一个。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在所選時間內與此項一同變化的指標。一同變化並不代表其中一個導致了另一個。"
+          }
+        }
+      }
+    },
+    "Pair your strap on the Live screen to feel each change on your wrist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopple deinen Strap auf der Live-Seite, um jeden Wechsel am Handgelenk zu spüren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vincula tu pulsera en la pantalla En vivo para notar cada cambio en la muñeca."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Associez votre bracelet sur l'écran En direct pour sentir chaque changement au poignet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbina il bracciale nella schermata Live per sentire ogni cambio al polso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sparuj opaskę na ekranie Na żywo, aby czuć każdą zmianę na nadgarstku."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emparelhe a pulseira no ecrã Em direto para sentir cada mudança no pulso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключите браслет на экране «Сейчас», чтобы чувствовать каждую смену на запястье."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“实时”页面配对手环，即可在手腕上感受到每次切换。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在「即時」頁面配對手環，即可在手腕上感受到每次切換。"
+          }
+        }
+      }
+    },
+    "The strap buzzes at your wake time. This works on many 5.0 and MG straps but is not certain yet, so keep a second alarm for anything you cannot miss." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Strap vibriert zu deiner Weckzeit. Das klappt bei vielen 5.0- und MG-Straps, ist aber noch nicht sicher. Stell dir für alles Wichtige einen zweiten Wecker."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pulsera vibra a tu hora de despertar. Funciona en muchas pulseras 5.0 y MG, pero aún no es seguro, así que pon una segunda alarma para lo que no puedas perderte."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet vibre à votre heure de réveil. Cela fonctionne sur beaucoup de bracelets 5.0 et MG mais n'est pas encore garanti, alors gardez un second réveil pour ce que vous ne pouvez pas manquer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il bracciale vibra all'ora della sveglia. Funziona su molti bracciali 5.0 e MG ma non è ancora certo, quindi tieni una seconda sveglia per ciò che non puoi perdere."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska wibruje o godzinie pobudki. Działa na wielu opaskach 5.0 i MG, ale nie jest to jeszcze pewne, więc ustaw drugi budzik na wszystko, czego nie możesz przegapić."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pulseira vibra à hora de acordar. Funciona em muitas pulseiras 5.0 e MG, mas ainda não é garantido, por isso mantenha um segundo alarme para o que não pode perder."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет вибрирует в момент пробуждения. Это работает на многих браслетах 5.0 и MG, но пока не гарантировано, поэтому заведите второй будильник для всего важного."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环会在你的起床时间振动。这在许多 5.0 和 MG 手环上有效，但尚不确定，因此重要的事情请再设一个闹钟。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環會在你的起床時間震動。這在許多 5.0 和 MG 手環上有效，但尚不確定，因此重要的事情請再設一個鬧鐘。"
+          }
+        }
+      }
+    },
+    "Sleep about %@ more than usual tonight and this debt is gone. Short nights from longer ago count for less than recent ones." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlaf heute etwa %@ länger als sonst, dann ist dieses Defizit weg. Kurze Nächte, die länger zurückliegen, zählen weniger als die letzten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duerme esta noche unos %@ más de lo habitual y esta deuda desaparece. Las noches cortas más antiguas cuentan menos que las recientes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dormez environ %@ de plus que d'habitude cette nuit et cette dette disparaît. Les nuits courtes plus anciennes comptent moins que les récentes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dormi stanotte circa %@ più del solito e questo debito sparisce. Le notti corte più lontane contano meno di quelle recenti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prześpij dziś około %@ dłużej niż zwykle, a ten dług zniknie. Krótkie noce sprzed dłuższego czasu liczą się mniej niż ostatnie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durma esta noite cerca de %@ mais do que o habitual e esta dívida desaparece. As noites curtas mais antigas contam menos do que as recentes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поспите сегодня примерно на %@ дольше обычного, и этот недосып исчезнет. Короткие ночи из прошлого учитываются меньше, чем недавние."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今晚比平时多睡约 %@，这笔睡眠债就清零了。较早的短睡眠夜晚比最近的计入得少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今晚比平時多睡約 %@，這筆睡眠債就清零了。較早的短睡眠夜晚比最近的計入得少。"
+          }
+        }
+      }
+    },
     "raises" : {
       "localizations" : {
         "de" : {

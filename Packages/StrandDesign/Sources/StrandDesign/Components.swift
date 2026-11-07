@@ -584,7 +584,12 @@ public struct SegmentedPillControl<T: Hashable>: View {
                                maxHeight: .infinity)
                         .padding(.horizontal, equalWidth ? NoopMetrics.space1 : 9)
                         .background {
-                            if sel {
+                            if sel, NoopVisualStyle.skin == .forge {
+                                // The new design: a plain raised capsule on a quiet track, as iOS draws it.
+                                Capsule(style: .continuous)
+                                    .fill(NoopVisualStyle.surface)
+                                    .shadow(color: .black.opacity(0.12), radius: 3, x: 0, y: 1)
+                            } else if sel {
                                 let selectedShape = RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 selectedShape
                                     .fill(
@@ -616,26 +621,35 @@ public struct SegmentedPillControl<T: Hashable>: View {
         .padding(3)
         .frame(maxWidth: equalWidth ? .infinity : nil)
         .background {
-            let trackShape = RoundedRectangle(cornerRadius: 13, style: .continuous)
-            trackShape
-                .fill(
+            if NoopVisualStyle.skin == .forge {
+                Capsule(style: .continuous).fill(Color.primary.opacity(0.08))
+            } else {
+                classicTrack
+            }
+        }
+    }
+
+    /// The bevelled track of the shipped design: an inset gradient under a lit hairline.
+    private var classicTrack: some View {
+        let trackShape = RoundedRectangle(cornerRadius: 13, style: .continuous)
+        return trackShape
+            .fill(
+                LinearGradient(
+                    colors: [NoopVisualStyle.inset, NoopVisualStyle.canvas.opacity(0.78)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .overlay(
+                trackShape.strokeBorder(
                     LinearGradient(
-                        colors: [NoopVisualStyle.inset, NoopVisualStyle.canvas.opacity(0.78)],
+                        colors: [NoopVisualStyle.borderHighlight.opacity(0.48), NoopVisualStyle.border],
                         startPoint: .top,
                         endPoint: .bottom
-                    )
+                    ),
+                    lineWidth: 0.8
                 )
-                .overlay(
-                    trackShape.strokeBorder(
-                        LinearGradient(
-                            colors: [NoopVisualStyle.borderHighlight.opacity(0.48), NoopVisualStyle.border],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 0.8
-                    )
-                )
-        }
+            )
     }
 }
 

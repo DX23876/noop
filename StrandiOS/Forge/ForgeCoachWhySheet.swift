@@ -52,7 +52,7 @@ struct ForgeCoachWhySheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 16) {
                     section("Why now", text: trigger)
                     if !readList.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
@@ -62,7 +62,7 @@ struct ForgeCoachWhySheet: View {
                                     Text(item)
                                         .font(.system(.footnote, weight: .medium))
                                         .foregroundStyle(ForgeColor.text)
-                                        .padding(.horizontal, 10).padding(.vertical, 5)
+                                        .padding(.horizontal, 10).padding(.vertical, 4)
                                         .background(Capsule().fill(ForgeColor.fill))
                                 }
                             }
@@ -76,7 +76,7 @@ struct ForgeCoachWhySheet: View {
                                 .font(.system(.callout, weight: .semibold))
                         }
                         .tint(ForgeColor.accent)
-                        .forgeCard(radius: 18, padding: 14)
+                        .forgeCard(radius: ForgeRadius.card, padding: 14)
                     }
                     Button(action: onCoachSettings) {
                         Label("Coach settings, memory and usage", systemImage: "slider.horizontal.3")

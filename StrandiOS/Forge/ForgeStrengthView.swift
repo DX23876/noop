@@ -75,12 +75,12 @@ struct ForgeStrengthView: View {
                 .padding(.top, 10)
                 .accessibilityLabel(Text("Start \(next.routine.title)"))
             }
-            .forgeCard(radius: 24, padding: 16)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         } else if hub.loaded {
             NavigationLink(value: MoreDestination.training) {
                 ForgeRow(systemImage: "calendar.badge.plus", tint: ForgeColor.accent, title: String(localized: "Plan a strength day"),
                          subtitle: String(localized: "Pick routines for the days you train"))
-                    .forgeCard(radius: 22, padding: 0)
+                    .forgeCard(radius: ForgeRadius.card, padding: 0)
             }
             .buttonStyle(.plain)
         }
@@ -138,7 +138,7 @@ struct ForgeStrengthView: View {
                     Text(change).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
     }
 
@@ -218,7 +218,7 @@ struct ForgeMusclesView: View {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Muscles"),
                                   scrolledPast: $scrolledPast)
                 MuscleAnalyticsSurface(history: model.resolvedHistory, compact: false)
-                    .forgeCard(radius: 24, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 14)
                 Link("Body geometry: MuscleMap · MIT License",
                      destination: URL(string: "https://github.com/melihcolpan/MuscleMap")!)
                     .font(ForgeFont.caption)

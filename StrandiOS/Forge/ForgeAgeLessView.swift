@@ -41,7 +41,7 @@ struct ForgeAgeLessView: View {
                     more
                 } else {
                     // No sex in the profile, too few nights, or still loading: the shipped section says which.
-                    HealthspanSection().forgeCard(radius: 24, padding: 14)
+                    HealthspanSection().forgeCard(radius: ForgeRadius.card, padding: 14)
                 }
             }
             .padding(.horizontal, 16)
@@ -85,7 +85,7 @@ struct ForgeAgeLessView: View {
                           : String(localized: "Week of \(Self.weekLabel(week.day)) · based on \(week.coveredDays) of 182 days"))
                 .font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
         }
-        .forgeCard(radius: 24, padding: 16)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
         .accessibilityElement(children: .combine)
     }
 
@@ -112,7 +112,7 @@ struct ForgeAgeLessView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     // MARK: Where the years come from
@@ -155,7 +155,7 @@ struct ForgeAgeLessView: View {
             .padding(.leading, 98).padding(.trailing, 92).padding(.top, 2)
         }
         .padding(.horizontal, 14).padding(.vertical, 4)
-        .forgeCard(radius: 22, padding: 0)
+        .forgeCard(radius: ForgeRadius.card, padding: 0)
     }
 
     private func measures(_ d: HealthspanDomain, week: HealthspanWeek, snapshot: HealthspanSnapshot) -> some View {
@@ -217,7 +217,7 @@ struct ForgeAgeLessView: View {
             Text("Dashed: your actual age. Tap or drag to show another week.")
                 .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     private var more: some View {

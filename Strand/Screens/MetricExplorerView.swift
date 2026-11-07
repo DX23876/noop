@@ -1433,6 +1433,13 @@ struct MetricDetailView: View {
             metricBackdrop
             #endif
         }
+        #if os(iOS)
+        // This screen builds its own ScrollView, so it lacks the scaffold's edge: under the new design the
+        // backdrop's top covers the status bar, as on the tabs, and readings stop short of the clock.
+        .overlay {
+            if NoopVisualStyle.skin == .forge { ForgeSharedStatusBarScrim() }
+        }
+        #endif
         // The new design prints the title once, as the page's large title.
         .navigationTitle(NoopVisualStyle.skin == .forge ? "" : metric.title)
         .task(id: loadTaskID) { await load() }
@@ -1858,15 +1865,15 @@ struct MetricDetailView: View {
         let n = windowed.count
         if isStepsDetail {
             let name = windowFellBack
-                ? String(localized: "sparse, widened to \(effectiveRange.name)")
+                ? String(localized: "few readings, showing \(effectiveRange.name)")
                 : effectiveRange.name
             return MetricDetailSteps.countCaption(
                 count: n, resolution: MetricDetailSteps.resolution(for: effectiveRange), rangeName: name)
         }
         if windowFellBack {
             return n == 1
-                ? String(localized: "1 reading · sparse, widened to \(effectiveRange.name)")
-                : String(localized: "\(n) readings · sparse, widened to \(effectiveRange.name)")
+                ? String(localized: "1 reading · few, so showing \(effectiveRange.name)")
+                : String(localized: "\(n) readings · few, so showing \(effectiveRange.name)")
         }
         return n == 1
             ? String(localized: "1 reading · \(range.name)")
@@ -1892,7 +1899,7 @@ struct MetricDetailView: View {
         let subtitle: String = {
             if isStepsDetail {
                 let name = windowFellBack
-                    ? String(localized: "sparse, widened to \(effectiveRange.name)")
+                    ? String(localized: "few readings, showing \(effectiveRange.name)")
                     : effectiveRange.name
                 return MetricDetailSteps.countCaption(
                     count: windowed.count,
@@ -1900,7 +1907,7 @@ struct MetricDetailView: View {
                     rangeName: name)
             }
             return windowFellBack
-                ? String(localized: "Sparse, widened to \(effectiveRange.name) · \(windowed.count) readings")
+                ? String(localized: "Few readings, so showing \(effectiveRange.name) · \(windowed.count) readings")
                 : String(localized: "\(windowed.count) readings · \(range.name)")
         }()
         let stepsAccessibility = isStepsDetail
@@ -2023,7 +2030,7 @@ struct MetricDetailView: View {
                          accent: StrandPalette.textPrimary)
                 StatTile(label: "Max", value: fmt(s.max),
                          accent: StrandPalette.textPrimary)
-                StatTile(label: "Δ vs prev", value: deltaText ?? "—",
+                StatTile(label: "Change", value: deltaText ?? "—",
                          caption: deltaCaption, accent: StrandPalette.textPrimary,
                          delta: cmp.pctChange.map { "\($0 >= 0 ? "+" : "")\(String(format: "%.1f", $0))%" },
                          deltaColor: deltaColor)
@@ -2051,7 +2058,7 @@ struct MetricDetailView: View {
                      accent: StrandPalette.textPrimary)
             StatTile(label: "Latest", value: latestPoint.map { fmt($0.value) } ?? "—",
                      caption: latestCaption(windowed: windowed, effectiveRange: effectiveRange), accent: accent)
-            StatTile(label: "Δ vs prev", value: deltaText ?? "—",
+            StatTile(label: "Change", value: deltaText ?? "—",
                      caption: deltaCaption, accent: StrandPalette.textPrimary,
                      delta: cmp.pctChange.map { "\($0 >= 0 ? "+" : "")\(String(format: "%.1f", $0))%" },
                      deltaColor: deltaColor)
@@ -2299,7 +2306,7 @@ struct MetricDetailView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("What correlates").strandOverline()
-                    Text("Pearson r over the visible window · |r| ≥ 0.30, n ≥ 10")
+                    Text("Measures that moved together with this one in the chosen time. Moving together does not mean one causes the other.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
@@ -2341,7 +2348,7 @@ struct MetricDetailView: View {
                 Text(row.metric.title)
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("\(MetricCatalog.categoryDisplayName(row.metric.category)) · n = \(row.n)")
+                Text("\(MetricCatalog.categoryDisplayName(row.metric.category)) · \(row.n) days together")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
             }

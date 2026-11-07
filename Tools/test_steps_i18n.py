@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 IOS_KEYS = [
     "3 weeks",
-    "sparse, widened to %@",
+    "few readings, showing %@",
     "30-day step average",
     "Rolling average over the last 30 days",
     "%lld of 30 days",

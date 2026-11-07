@@ -84,7 +84,8 @@ public struct FrostedCardSurface: View {
             isTransparent: !reduceTransparency && cardOpacityPercent < 100,
             increasedContrast: contrast == .increased,
             quietEdges: Self.quietEdges,
-            quietRims: quietRims)
+            quietRims: quietRims,
+            forgeSkin: NoopVisualStyle.skin == .forge)
         shape
             .fill(baseFill)
             .overlay(

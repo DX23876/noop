@@ -236,14 +236,14 @@ struct ForgeFocusTile: View {
                 .font(.system(.title3, weight: .semibold))
                 .foregroundStyle(area.tint)
                 .frame(width: 40, height: 40)
-                .background(Circle().fill(area.tint.opacity(0.16)))
+                .background(Circle().fill(area.tint.opacity(ForgeOpacity.wash)))
             Text(area.title).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
                 .lineLimit(2).multilineTextAlignment(.leading)
             Text(area.subtitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 .lineLimit(2).multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
         .accessibilityElement(children: .combine)
     }
 }

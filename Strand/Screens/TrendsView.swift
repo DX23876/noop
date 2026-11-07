@@ -135,8 +135,8 @@ struct TrendsView: View {
     nonisolated private static func caption(count n: Int, eff: Range, range: Range) -> String {
         if eff != range {
             return n == 1
-                ? String(localized: "1 reading · sparse, widened to \(name(for: eff))")
-                : String(localized: "\(n) readings · sparse, widened to \(name(for: eff))")
+                ? String(localized: "1 reading · few, so showing \(name(for: eff))")
+                : String(localized: "\(n) readings · few, so showing \(name(for: eff))")
         }
         return n == 1
             ? String(localized: "1 reading · \(name(for: range))")

@@ -16,12 +16,15 @@ struct ActivitySuggestionPrompt: View {
     @EnvironmentObject var repo: Repository
     @ObservedObject private var center = ActivitySuggestionCenter.shared
     @State private var showList = false
+    /// The new design's Today puts the prompt under the rings as a short card: what and how long in one line,
+    /// then the answers. The rings stay the first thing on the page.
+    var compact = false
 
     var body: some View {
         let toAsk = center.toAsk
         VStack(spacing: 0) {
             if let s = toAsk.first {
-                ActivitySuggestionCard(suggestion: s, more: toAsk.count - 1, onMore: { showList = true })
+                ActivitySuggestionCard(suggestion: s, more: toAsk.count - 1, onMore: { showList = true }, compact: compact)
                     .id(s.id)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -45,6 +48,8 @@ struct ActivitySuggestionCard: View {
     let suggestion: ActivitySuggestions.Suggestion
     var more: Int = 0
     var onMore: (() -> Void)?
+    /// Title, length and time in two lines instead of the large number and the heart-rate thread.
+    var compact = false
     @State private var curve: [Double] = []
     @State private var busy = false
 
@@ -54,9 +59,18 @@ struct ActivitySuggestionCard: View {
 
     var body: some View {
         NoopCard(padding: 16, tint: tint, kind: .state) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: compact ? 8 : 12) {
                 header
-                hero
+                if compact {
+                    Text(detailLine)
+                        .font(StrandFont.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    hero
+                }
                 answers
                 if more > 0, let onMore {
                     Button(action: onMore) {
@@ -88,6 +102,12 @@ struct ActivitySuggestionCard: View {
             Text(ActivitySuggestionNotifier.title(suggestion))
                 .font(StrandFont.headline)
                 .foregroundStyle(StrandPalette.textPrimary)
+            if compact {
+                Text(String(localized: "\(suggestion.durationMinutes) min"))
+                    .font(StrandFont.headline)
+                    .monospacedDigit()
+                    .foregroundStyle(tint)
+            }
             Spacer(minLength: 0)
             Button {
                 StrandHaptic.selection.play()
@@ -185,12 +205,16 @@ struct ActivitySuggestionCard: View {
                 Text("Other kind…").lineLimit(1)
             }
             .buttonStyle(.bordered)
+            // The side answers in text colour on a neutral fill: Effort's orange on its own pale wash fell
+            // well under readable contrast in light appearance and made them look switched off.
+            .tint(StrandPalette.textSecondary)
             Button {
                 answer(.everyday)
             } label: {
                 Text("Not training").lineLimit(1)
             }
             .buttonStyle(.bordered)
+            .tint(StrandPalette.textSecondary)
             Spacer(minLength: 0)
         }
         .font(StrandFont.subhead.weight(.semibold))

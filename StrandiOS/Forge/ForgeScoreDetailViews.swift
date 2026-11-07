@@ -73,7 +73,7 @@ struct ForgeEffortDetailView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .forgeCard(radius: 22, padding: 14)
+                        .forgeCard(radius: ForgeRadius.card, padding: 14)
                     }
                 }
 
@@ -180,16 +180,20 @@ struct ForgeRestDetailView: View {
                         } ?? "What shaped it")
                             .font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                             .padding(.horizontal, 4)
+                        // A factor that has never left zero (last night 0, usually 0) has no nights behind it
+                        // yet; it is left out rather than shown as a result.
+                        let factors = [(String(localized: "Hours against your need"), m.hoursVsNeeded),
+                                       (String(localized: "Efficiency"), m.efficiency),
+                                       (String(localized: "Consistency"), m.consistency),
+                                       (String(localized: "Restorative sleep"), m.restorative)]
+                            .filter { !(($0.1.latest ?? 0) == 0 && ($0.1.typical ?? 0) == 0) }
                         VStack(spacing: 0) {
-                            factor(String(localized: "Hours against your need"), m.hoursVsNeeded)
-                            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
-                            factor(String(localized: "Efficiency"), m.efficiency)
-                            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
-                            factor(String(localized: "Consistency"), m.consistency)
-                            Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
-                            factor(String(localized: "Restorative sleep"), m.restorative)
+                            ForEach(Array(factors.enumerated()), id: \.offset) { i, f in
+                                if i > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
+                                factor(f.0, f.1)
+                            }
                         }
-                        .forgeCard(radius: 22, padding: 14)
+                        .forgeCard(radius: ForgeRadius.card, padding: 14)
                     }
                 }
 
@@ -198,7 +202,8 @@ struct ForgeRestDetailView: View {
                                     (String($0.offset), $0.element)
                                 },
                                 maxValue: 100, tint: ForgeColor.rest, bars: false, indexed: true,
-                                history: TabRoute.metric(HeroRingMetric.rest))
+                                history: TabRoute.metric(HeroRingMetric.rest),
+                                lastLabel: model?.performance.latestDay.flatMap(ForgeDailyChart.weekdayLetter))
 
                 ForgeExplainer(title: "How Rest is made",
                                text: "Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got. Everything is calculated on this iPhone.") { ExplainerScoreInputs.rest }
@@ -244,7 +249,7 @@ struct ForgeEffortTargetBar: View {
                 let w = geo.size.width
                 ZStack(alignment: .leading) {
                     Capsule().fill(ForgeColor.fill)
-                    Capsule().fill(ForgeColor.effort.opacity(0.25))
+                    Capsule().fill(ForgeColor.effort.opacity(ForgeOpacity.band))
                         .frame(width: w * (target.upperBound - target.lowerBound) / 100)
                         .offset(x: w * target.lowerBound / 100)
                     Circle().fill(ForgeColor.effort).frame(width: 12, height: 12)
@@ -256,7 +261,7 @@ struct ForgeEffortTargetBar: View {
                 .font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
         }
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
+        .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
         .accessibilityElement(children: .combine)
     }
 }
@@ -275,6 +280,29 @@ struct ForgeDailyChart: View {
     /// A band per point (same order as `points`), drawn behind the marks.
     var bands: [ClosedRange<Double>?] = []
     var caption: String? = nil
+    /// The label under the newest mark when the keys are positions (`indexed`): the series has no dates,
+    /// so only its newest point can be named.
+    var lastLabel: String? = nil
+
+    /// Grid values on the score's own scale: thirds on 0 to 100, sevens on Effort's 0 to 21.
+    static func ticks(_ maxValue: Double) -> [Double] {
+        maxValue <= 21 ? [0, 7, 14, 21] : [0, 33, 66, 100].filter { $0 <= maxValue }
+    }
+
+    /// The weekday letter under a mark, read from its day key; nil for a key that is not a date.
+    private func axisLabel(_ index: Int) -> String? {
+        guard points.indices.contains(index) else { return nil }
+        if indexed { return index == points.count - 1 ? lastLabel : nil }
+        return ForgeDailyChart.weekdayLetter(points[index].0)
+    }
+
+    static func weekdayLetter(_ dayKey: String) -> String? {
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: dayKey) else { return nil }
+        return date.formatted(.dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -298,7 +326,7 @@ struct ForgeDailyChart: View {
                                 RectangleMark(x: .value("Day", "\(index)"),
                                               yStart: .value("Low", band.lowerBound), yEnd: .value("High", band.upperBound),
                                               width: .ratio(1))
-                                    .foregroundStyle(tint.opacity(0.14))
+                                    .foregroundStyle(tint.opacity(ForgeOpacity.band))
                             }
                             if bars {
                                 BarMark(x: .value("Day", "\(index)"), y: .value("Value", p.1), width: .ratio(0.62))
@@ -321,9 +349,25 @@ struct ForgeDailyChart: View {
                         }
                     }
                     .chartYScale(domain: 0...maxValue)
-                    .chartXAxis(.hidden)
-                    .chartYAxis(.hidden)
-                    .frame(height: 120)
+                    // Real values on labelled axes: the score on the right, the day under each mark.
+                    .chartYAxis {
+                        AxisMarks(position: .trailing, values: Self.ticks(maxValue)) { _ in
+                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(ForgeColor.separator)
+                            AxisValueLabel().font(.system(.caption2)).foregroundStyle(ForgeColor.tertiary)
+                        }
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: points.indices.map { "\($0)" }) { value in
+                            if let raw = value.as(String.self), let index = Int(raw),
+                               let label = axisLabel(index) {
+                                AxisValueLabel {
+                                    Text(label).font(.system(.caption2))
+                                        .foregroundStyle(index == points.count - 1 ? ForgeColor.text : ForgeColor.tertiary)
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: 150)
                     if let caption {
                         Text(caption).font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -332,7 +376,7 @@ struct ForgeDailyChart: View {
                     Text("Not enough days yet.").font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
     }
 }
@@ -384,14 +428,13 @@ struct ForgeScoreCaption: View {
     let tint: Color
     let detail: String?
 
+    /// The page title already names the score, so under the ring only its verdict is printed ("Low"), in
+    /// the score's colour; the name stands in only while there is no verdict yet.
     var body: some View {
-        VStack(spacing: 1) {
-            Text(name).font(.system(.body, weight: .semibold)).foregroundStyle(tint)
-            if let detail {
-                Text(detail).font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)
-            }
-        }
-        .accessibilityElement(children: .combine)
+        let verdict = detail.map { $0.prefix(1).uppercased(with: AppLanguage.activeLocale) + $0.dropFirst() }
+        Text(verdict ?? name)
+            .font(.system(.title3, design: .rounded, weight: .semibold)).foregroundStyle(tint)
+            .accessibilityLabel(Text(verbatim: verdict.map { "\(name), \($0)" } ?? name))
     }
 }
 
@@ -438,7 +481,7 @@ struct ForgeWhyRow: View {
                 Text(usual).font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)
             }
         }
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
         .accessibilityElement(children: .combine)
     }
 }

@@ -77,7 +77,7 @@ struct ForgeWeekPlanView: View {
                 NavigationLink(value: MoreDestination.training) {
                     ForgeRow(systemImage: "calendar", tint: ForgeColor.accent, title: String(localized: "Schedule and routines"),
                              subtitle: String(localized: "Choose which routine goes on which day"))
-                        .forgeCard(radius: 22, padding: 0)
+                        .forgeCard(radius: ForgeRadius.card, padding: 0)
                 }
                 .buttonStyle(.plain)
                 if coachFeatureEnabled {
@@ -137,7 +137,7 @@ struct ForgeWeekPlanView: View {
                 }
             }
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     // MARK: Day rows

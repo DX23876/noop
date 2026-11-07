@@ -95,7 +95,6 @@ struct ForgeTodayView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HealthAlertBanner()
                             ActiveWorkoutIndicatorSection()
-                            ActivitySuggestionPrompt()
                             MorningSuggestionCard(showPlan: $showPlan)
                             if snapshot.loaded && repo.days.isEmpty {
                                 // First run: nothing recorded or imported yet. The same calm state Health and
@@ -113,6 +112,8 @@ struct ForgeTodayView: View {
                                     withAnimation(.easeOut(duration: 0.2)) { heroHidden = hidden }
                                 }
                             actions
+                            // A detected walk asks under the rings: how ready you are stays the first answer.
+                            ActivitySuggestionPrompt(compact: true)
                         }
                         .padding(.horizontal, 16)
                     }
@@ -249,14 +250,14 @@ struct ForgeTodayView: View {
 
     /// The three scores in one glass bar while the rings are scrolled away. Tapping returns to the top.
     private var pinnedBar: some View {
-        HStack(spacing: 18) {
+        HStack(spacing: 16) {
             pinnedValue(DomainTheme.charge.productName, chargeScore.map { "\(Int($0.rounded()))" }, ForgeColor.charge)
             pinnedValue(DomainTheme.effort.productName,
                         snapshot.effortStored.map { ForgeToday.effortText($0, scale: effortScale) }, ForgeColor.effort)
             pinnedValue(DomainTheme.rest.productName,
                         (snapshot.loaded ? snapshot.rest : nil).map { "\(Int($0.rounded()))" }, ForgeColor.rest)
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .frame(height: 44)
         // Backed, so the timeline scrolling under the bar never reads through its figures.
         .background(Capsule().fill(ForgeColor.card.opacity(0.88)))
@@ -270,7 +271,7 @@ struct ForgeTodayView: View {
     }
 
     private func pinnedValue(_ label: String, _ value: String?, _ tint: Color) -> some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             Circle().fill(tint).frame(width: 8, height: 8)
             Text(value ?? "–").font(ForgeFont.rounded(16, .bold)).foregroundStyle(ForgeColor.text)
             Text(label).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
@@ -372,7 +373,7 @@ struct ForgeTodayView: View {
                 Text("Workouts, nights and notes from the coach appear here as the day goes on.")
                     .font(ForgeFont.body)
                     .foregroundStyle(ForgeColor.secondaryOnPicture)
-                    .forgeCard(radius: 20, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 14)
             }
             ForEach(Array(snapshot.timeline.enumerated()), id: \.element.id) { index, day in
                 if index > 0 || !Calendar.current.isDateInToday(day.date) {
@@ -391,7 +392,7 @@ struct ForgeTodayView: View {
             .font(.system(.subheadline)).foregroundColor(ForgeColor.secondaryOnPicture))
             .lineLimit(1).fixedSize()
             .padding(.horizontal, 14)
-            .padding(.vertical, 7)
+            .padding(.vertical, 8)
             .background(Capsule().fill(ForgeColor.card.opacity(surfaceOpacity)))
             .frame(maxWidth: .infinity)
             .padding(.top, 6)
@@ -422,7 +423,7 @@ struct ForgeTodayView: View {
             }
             entryCard(entry)
         }
-        .forgeCard(radius: 20, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     @ViewBuilder private func entryCard(_ entry: ForgeTimeline.Entry) -> some View {
@@ -536,7 +537,7 @@ struct ForgeTodayView: View {
                 }
             }
             .padding(12)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
+            .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
         } else if let row = entry.workoutId.flatMap({ snapshot.workouts[$0] }) {
             NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                 HStack(spacing: 10) {
@@ -556,7 +557,7 @@ struct ForgeTodayView: View {
                     }
                 }
                 .padding(10)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
+                .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
             }
             .buttonStyle(.plain)
             if let zones = WorkoutZones.percents(row.zonesJSON) {
@@ -572,7 +573,7 @@ struct ForgeTodayView: View {
             Button(action: onSleep) { nightSummary(night) }
                 .buttonStyle(.plain)
                 .padding(12)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.fill))
+                .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
         }
     }
 
@@ -582,7 +583,7 @@ struct ForgeTodayView: View {
             NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                 HStack(spacing: 12) {
                     ZStack {
-                        Circle().fill(tint.opacity(0.18))
+                        Circle().fill(tint.opacity(ForgeOpacity.wash))
                         WorkoutTypeIcon(workoutType: row.sport, size: 17, weight: .semibold, color: tint)
                     }
                     .frame(width: 40, height: 40)
@@ -622,7 +623,7 @@ struct ForgeTodayView: View {
                     .font(.system(.body, weight: .semibold))
                     .foregroundStyle(ForgeColor.rest)
                     .frame(width: 40, height: 40)
-                    .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
+                    .background(Circle().fill(ForgeColor.rest.opacity(ForgeOpacity.wash)))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Weight logged").font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     if let change = snapshot.weightChange30d {
@@ -734,7 +735,7 @@ struct ForgeTodayView: View {
                 .font(.system(.body, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 40, height: 40)
-                .background(Circle().fill(tint.opacity(0.18)))
+                .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
                 if let detail {

@@ -95,6 +95,7 @@ struct ForgeSleepView: View {
             }
         }
         .background(ForgeBackground(tab: .sleep))
+        .overlay { ForgeStatusBarScrim(tab: .sleep) }
         .refreshable { await repo.refresh() }
         .task(id: revision) {
             let key = revision
@@ -183,7 +184,7 @@ struct ForgeSleepView: View {
                         .font(.system(.body, weight: .semibold))
                         .foregroundStyle(ForgeColor.rest)
                         .frame(width: 40, height: 40)
-                        .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
+                        .background(Circle().fill(ForgeColor.rest.opacity(ForgeOpacity.wash)))
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Tonight").font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         Text("for full recovery").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
@@ -202,7 +203,7 @@ struct ForgeSleepView: View {
                 Text("Need **\(ForgeTodayView.hoursMinutes(need)) h** · alarm \(wakeText)")
                     .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
             }
-            .forgeCard(radius: 24, padding: 16)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -256,7 +257,7 @@ struct ForgeSleepView: View {
                         Hypnogram(intervals: night.intervals, height: 170, showsStageAxis: true, showsHover: false,
                                   nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
                             .padding(10)
-                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.card))
+                            .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
                         HStack(spacing: 14) {
                             stageFact(String(localized: "Deep"), night.stages.deep)
                             stageFact(String(localized: "REM"), night.stages.rem)
@@ -271,7 +272,7 @@ struct ForgeSleepView: View {
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
             }
         }
-        .forgeCard(radius: 24, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     // MARK: Naps
@@ -290,7 +291,7 @@ struct ForgeSleepView: View {
                         napRow(nap)
                     }
                 }
-                .forgeCard(radius: 22, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 14)
             }
         }
     }
@@ -372,7 +373,7 @@ struct ForgeSleepView: View {
                                     .font(.system(.callout, weight: .semibold))
                                     .foregroundStyle(ForgeColor.restInk)
                                     .frame(width: 38, height: 38)
-                                    .background(Circle().fill(ForgeColor.rest.opacity(0.18)))
+                                    .background(Circle().fill(ForgeColor.rest.opacity(ForgeOpacity.wash)))
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(item.title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                                     Text(item.detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
@@ -382,12 +383,12 @@ struct ForgeSleepView: View {
                             }
                             Text("\(index + 1) of \(items.count)").font(.system(.caption)).foregroundStyle(ForgeColor.tertiary)
                         }
-                        .padding(.bottom, 18)
+                        .padding(.bottom, 16)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .frame(height: 110)
-                .forgeCard(radius: 22, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 14)
             }
         }
     }
@@ -416,7 +417,7 @@ struct ForgeSleepView: View {
                     .accessibilityElement(children: .combine)
                 }
             }
-            .forgeCard(radius: 22, padding: 16)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -458,7 +459,7 @@ struct ForgeSleepView: View {
                     }
                 }
                 .frame(height: 150)
-                .forgeCard(radius: 22, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 14)
                 .accessibilityLabel(Text("Hours asleep night by night"))
             }
         }

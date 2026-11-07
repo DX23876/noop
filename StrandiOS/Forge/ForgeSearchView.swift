@@ -119,7 +119,7 @@ struct ForgeSearchView: View {
         .font(.system(.body))
         .padding(.horizontal, 12)
         .frame(minHeight: 44)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.fill))
+        .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
     }
 
     // MARK: Results

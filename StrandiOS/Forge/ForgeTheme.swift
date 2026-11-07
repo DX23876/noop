@@ -88,8 +88,19 @@ enum ForgeTab: Int, CaseIterable {
 }
 
 enum ForgeFont {
+    /// SF Rounded at `size`, grown with the reader's text size. Figures under 34 points follow Dynamic Type
+    /// up to half again their size; larger ones sit inside rings of a fixed diameter and keep their size.
     static func rounded(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
-        .system(size: size, weight: weight, design: .rounded)
+        .system(size: scaled(size), weight: weight, design: .rounded)
+    }
+
+    /// The point size for the current text size. Read per body evaluation, so a change of text size reaches
+    /// every figure the next time its view draws.
+    static func scaled(_ size: CGFloat, category: UIContentSizeCategory = UIApplication.shared.preferredContentSizeCategory) -> CGFloat {
+        guard size < 34 else { return size }
+        let traits = UITraitCollection(preferredContentSizeCategory: category)
+        let grown = UIFontMetrics(forTextStyle: .body).scaledValue(for: size, compatibleWith: traits)
+        return min(grown, size * 1.5)
     }
     /// Titles in SF Rounded, the face of the ring figures, so the words and the numbers belong together.
     static let largeTitle = StrandFont.title1
@@ -115,6 +126,12 @@ extension EnvironmentValues {
 struct ForgeSharedScreenBackground: View {
     @Environment(\.forgeTab) private var tab
     var body: some View { ForgeBackground(tab: tab) }
+}
+
+/// `ForgeStatusBarScrim` in the colour of the area a shared screen was opened from.
+struct ForgeSharedStatusBarScrim: View {
+    @Environment(\.forgeTab) private var tab
+    var body: some View { ForgeStatusBarScrim(tab: tab) }
 }
 
 /// The page backdrop. Precedence follows the shipped app: the custom photo, then the day-cycle sky, then
@@ -146,6 +163,39 @@ struct ForgeBackground: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+/// The band under the status bar on a tab's own page: the page's own backdrop again, shown over the status
+/// bar's height and fading out just under it, so cards scrolled up stop under the clock instead of running
+/// through it. Today keeps its own edges (`ForgeTodayEdges`), drawn the same way.
+struct ForgeStatusBarScrim: View {
+    let tab: ForgeTab
+    /// How far below the status bar the backdrop fades out.
+    private static let fade: CGFloat = 10
+
+    var body: some View {
+        // The status bar's height comes from the window: a view that ignores the safe area, as this one must
+        // to reach the top edge, is told an inset of zero.
+        let top = Self.statusBarHeight
+        ForgeBackground(tab: tab)
+            .mask(alignment: .top) {
+                LinearGradient(stops: [.init(color: .black, location: 0),
+                                       .init(color: .black, location: top / max(top + Self.fade, 1)),
+                                       .init(color: .clear, location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: top + Self.fade)
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private static var statusBarHeight: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let window = scenes.flatMap(\.windows).first(where: \.isKeyWindow) ?? scenes.first?.windows.first
+        return window?.safeAreaInsets.top ?? 0
     }
 }
 
@@ -202,8 +252,23 @@ struct ForgeCardModifier: ViewModifier {
     }
 }
 
+/// Corner radii of the redesign: one for every card, one for a filled block inside a card. Small marks (bars,
+/// ticks) keep their own few-point rounding.
+enum ForgeRadius {
+    static let card: CGFloat = 22
+    static let inner: CGFloat = 16
+}
+
+/// Opacities of the redesign, by role, instead of a dozen near-equal literals.
+enum ForgeOpacity {
+    /// A domain colour washed behind an icon or a small figure.
+    static let wash: Double = 0.16
+    /// A band or range drawn behind marks (a target, a zone).
+    static let band: Double = 0.24
+}
+
 extension View {
-    func forgeCard(radius: CGFloat = 26, padding: CGFloat = 16) -> some View {
+    func forgeCard(radius: CGFloat = ForgeRadius.card, padding: CGFloat = 16) -> some View {
         modifier(ForgeCardModifier(radius: radius, padding: padding))
     }
 

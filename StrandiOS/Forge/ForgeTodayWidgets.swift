@@ -313,7 +313,8 @@ private struct ForgeTodayTile: View {
 
     var body: some View {
         let dense = KeyMetricPrefs.columns(columnsRaw) > 2
-        TodayMetricTile(label: Text(verbatim: label.uppercased(with: AppLanguage.activeLocale)),
+        // Sentence case: small tracked capitals over a picture were the hardest words on the page to read.
+        TodayMetricTile(label: Text(verbatim: label),
                         systemImage: symbol,
                         value: value ?? "–",
                         unit: value == nil ? "" : unit,
@@ -401,12 +402,17 @@ struct ForgeLiveHeartWidget: View {
 
     var body: some View {
         NavigationLink(value: MoreDestination.live) {
+            // Without a strap streaming there is no number to give, so the tile says why instead of a dash.
             ForgeTodayTile(label: String(localized: "Live"), symbol: "waveform.path.ecg",
-                           value: bpm.map { "\($0)" }, unit: "bpm", tint: StrandPalette.metricRose)
+                           value: bpm.map { "\($0)" }, unit: "bpm",
+                           caption: bpm == nil ? (live.connected ? String(localized: "Waiting for a pulse") : String(localized: "Strap not connected")) : nil,
+                           tint: StrandPalette.metricRose)
                 .overlay(alignment: .bottomTrailing) {
-                    ForgeBeatingHeart(bpm: bpm)
-                        .padding(12)
-                        .accessibilityHidden(true)
+                    if bpm != nil {
+                        ForgeBeatingHeart(bpm: bpm)
+                            .padding(12)
+                            .accessibilityHidden(true)
+                    }
                 }
         }
         .buttonStyle(LiquidPressStyle())
@@ -424,7 +430,7 @@ struct ForgeLiveHeartWideWidget: View {
         LiquidLiveHR(tint: StrandPalette.metricRose, fallback: banked.map(\.bpm),
                      fallbackTimes: banked.map { Date(timeIntervalSince1970: TimeInterval($0.ts)) },
                      animated: !reduceMotion, headerRoute: .fullDayChart)
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
             .task(id: repo.refreshSeq) {
                 let now = Date()
                 banked = await repo.hrBuckets(from: Int(Calendar.current.startOfDay(for: now).timeIntervalSince1970),
@@ -459,7 +465,7 @@ struct ForgeLastNightWidget: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
@@ -511,7 +517,7 @@ struct ForgeWeekPlanWidget: View {
                 .accessibilityLabel(Text("\(doneDays.count) days with a workout this week"))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
@@ -539,7 +545,7 @@ struct ForgeCoachNoteWidget: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 }
 
@@ -655,7 +661,7 @@ struct ForgeEnergyWidget: View {
                         Text("Loading energy…").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     }
                     .frame(maxWidth: .infinity, minHeight: 60)
-                    .forgeCard(radius: 22, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 14)
                 }
             }
             .buttonStyle(.plain)
@@ -727,7 +733,7 @@ struct ForgeWidgetGallery: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: symbol).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.accent)
-                    .frame(width: 36, height: 36).background(Circle().fill(ForgeColor.accent.opacity(0.14)))
+                    .frame(width: 36, height: 36).background(Circle().fill(ForgeColor.accent.opacity(ForgeOpacity.wash)))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Text(subtitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

@@ -255,7 +255,7 @@ struct IntervalTimerView: View {
                 }
                 .tint(StrandPalette.chargeColor)
                 if !live.bonded {
-                    Label("Bond your strap on the Live screen to feel the transitions hands-free.",
+                    Label("Pair your strap on the Live screen to feel each change on your wrist.",
                           systemImage: "wave.3.right")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
@@ -309,7 +309,7 @@ struct IntervalTimerView: View {
                 controls
 
                 if !live.bonded {
-                    Label("Bond your strap on the Live screen to feel the transitions hands-free.",
+                    Label("Pair your strap on the Live screen to feel each change on your wrist.",
                           systemImage: "wave.3.right")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)

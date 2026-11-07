@@ -160,6 +160,7 @@ struct ForgeHealthView: View {
             }
         }
         .background(ForgeBackground(tab: .health))
+        .overlay { ForgeStatusBarScrim(tab: .health) }
         .refreshable { await repo.refresh() }
         .task(id: repo.days.count) { await load() }
         .task(id: "\(repo.refreshSeq)|\(healthspanEnabled)") {
@@ -185,7 +186,7 @@ struct ForgeHealthView: View {
                     }
                 }
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -215,7 +216,7 @@ struct ForgeHealthView: View {
                           lineWidth: 2, showsArea: true)
                     .frame(height: 90)
                     .padding(12)
-                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ForgeColor.card))
+                    .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
                     .accessibilityHidden(true)
             }
             if coachFeatureEnabled {
@@ -229,7 +230,7 @@ struct ForgeHealthView: View {
                 }
             }
         }
-        .forgeCard(radius: 24, padding: 16)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func badgeTone(_ r: BodyVitalReading) -> ForgeBadge.Tone {
@@ -283,7 +284,7 @@ extension ForgeHealthView {
                     Text("Your health age").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
         .buttonStyle(.plain)
     }

@@ -284,15 +284,15 @@ enum BodyVitalSigns {
             ? String(localized: "Skin Temp")
             : String(localized: "Skin Temp Δ")
         let skinFormat: (Double) -> String = { c in
-            SkinTempDisplay.numberString(c, kind: skinKind, fahrenheit: fahrenheit, decimals: 1)
+            VitalNumber.localized(SkinTempDisplay.numberString(c, kind: skinKind, fahrenheit: fahrenheit, decimals: 1))
         }
         // #1636: the deviation for THE DISPLAYED NIGHT — not the freshest one anywhere. A calibrating
         // night carries an absolute and no deviation, and reaching for the latest deviation there would
         // print a previous night's number under tonight's temperature.
         let skinSecondary: String? = skinAbsRow == nil ? nil
             : skinPoints.last(where: { $0.day == skinRow?.day }).map { dev in
-                let n = SkinTempDisplay.numberString(dev.value, kind: .deviation,
-                                                     fahrenheit: fahrenheit, decimals: 1)
+                let n = VitalNumber.localized(SkinTempDisplay.numberString(dev.value, kind: .deviation,
+                                                     fahrenheit: fahrenheit, decimals: 1))
                 return "\(n) \(SkinTempDisplay.unitSymbol(kind: .deviation, fahrenheit: fahrenheit))"
             }
 
@@ -300,9 +300,9 @@ enum BodyVitalSigns {
             BodyVitalReading(
                 key: "resp",
                 label: String(localized: "Resp Rate"),
-                unit: "rpm",
+                unit: "/min",
                 value: respRow?.value,
-                format: { String(format: "%.1f", $0) },
+                format: { VitalNumber.localized(String(format: "%.1f", $0)) },
                 banding: VitalBands.band(
                     value: respRow?.value,
                     history: history(before: respRow?.day, respPoints),
@@ -516,5 +516,15 @@ private extension DailyMetricSource {
         default:
             return [.whoopImport, .noopComputed, .appleHealth, .localCache]
         }
+    }
+}
+
+/// A vital's figure in the reader's decimal style. The shared formatters print a fixed "34.3" so stored and
+/// logged values stay comparable; a screen shows "34,3" where the language writes a comma, as every other
+/// figure beside it does.
+enum VitalNumber {
+    static func localized(_ figure: String, locale: Locale = AppLanguage.activeLocale) -> String {
+        let separator = locale.decimalSeparator ?? "."
+        return separator == "." ? figure : figure.replacingOccurrences(of: ".", with: separator)
     }
 }

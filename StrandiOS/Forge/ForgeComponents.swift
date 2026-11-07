@@ -13,7 +13,7 @@ struct ForgeGroup<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) { content() }
-            .forgeCard(radius: 22, padding: 0)
+            .forgeCard(radius: ForgeRadius.card, padding: 0)
     }
 }
 
@@ -52,7 +52,7 @@ struct ForgeRow: View {
                         .font(.system(.callout, weight: .semibold))
                         .foregroundStyle(tint)
                         .frame(width: 38, height: 38)
-                        .background(Circle().fill(tint.opacity(0.16)))
+                        .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
                 }
             }
             .accessibilityHidden(true)
@@ -80,7 +80,7 @@ struct ForgeRow: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, compact ? 8 : 11)
+        .padding(.vertical, compact ? 8 : 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -99,15 +99,15 @@ struct ForgeBadge: View {
         case .neutral: ForgeColor.secondary
         }
         let fill: Color = switch tone {
-        case .good: ForgeColor.charge.opacity(0.16)
-        case .attention: ForgeColor.effort.opacity(0.18)
+        case .good: ForgeColor.charge.opacity(ForgeOpacity.wash)
+        case .attention: ForgeColor.effort.opacity(ForgeOpacity.wash)
         case .neutral: ForgeColor.fill
         }
         Text(text)
             .font(.system(.caption, weight: .semibold))
             .foregroundStyle(color)
             .lineLimit(1)
-            .padding(.horizontal, 8).padding(.vertical, 3)
+            .padding(.horizontal, 8).padding(.vertical, 4)
             .background(Capsule().fill(fill))
     }
 }
@@ -128,7 +128,7 @@ struct ForgeMetricTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value ?? "–").font(ForgeFont.rounded(28, .bold)).foregroundStyle(ForgeColor.text)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 if value != nil {
@@ -148,7 +148,8 @@ struct ForgeMetricTile: View {
                 }
                 .frame(height: 30, alignment: .bottom)
                 .accessibilityHidden(true)
-            } else if let trend, trend.count > 1 {
+            } else if value != nil, let trend, trend.count > 1 {
+                // No curve under a missing value: "No data" over a drawn line says two things at once.
                 Sparkline(values: trend, gradient: Gradient(colors: [tint.opacity(0.55), tint]),
                           lineWidth: 1.8, showsArea: true)
                     .frame(height: 30)
@@ -157,7 +158,7 @@ struct ForgeMetricTile: View {
                 // Keeps a tile without a chart level with its neighbour, without growing past it.
                 Color.clear.frame(height: 30)
             }
-            if let axisLabels, (bars != nil || (trend?.count ?? 0) > 1) {
+            if let axisLabels, value != nil, (bars != nil || (trend?.count ?? 0) > 1) {
                 HStack(spacing: 0) {
                     ForEach(Array(axisLabels.enumerated()), id: \.offset) { _, label in
                         Text(label).font(.system(.caption2)).foregroundStyle(ForgeColor.tertiary)
@@ -169,7 +170,7 @@ struct ForgeMetricTile: View {
             if let badge { ForgeBadge(text: badge.text, tone: badge.tone) }
         }
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
         .accessibilityElement(children: .combine)
     }
 }
@@ -205,7 +206,7 @@ struct ForgeDirection: View {
             ? ("arrow.up", String(localized: "raises"), ForgeColor.chargeInk)
             : delta < 0 ? ("arrow.down", String(localized: "lowers"), ForgeColor.effortInk)
                         : ("minus", String(localized: "neutral"), ForgeColor.secondary)
-        HStack(spacing: 3) {
+        HStack(spacing: 4) {
             Image(systemName: icon).font(.system(.caption2, weight: .bold))
             Text(word).font(.system(.footnote, weight: .semibold))
         }
@@ -224,7 +225,7 @@ struct ForgeZoneBar: View {
         let total = max(percents.reduce(0, +), 1)
         VStack(alignment: .leading, spacing: 4) {
             GeometryReader { geo in
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     ForEach(Array(percents.enumerated()), id: \.offset) { i, p in
                         Capsule().fill(StrandPalette.hrZoneColor(i + 1))
                             .frame(width: max(4, (geo.size.width - 12) * p / total))

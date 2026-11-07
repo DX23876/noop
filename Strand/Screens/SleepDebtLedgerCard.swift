@@ -131,7 +131,7 @@ struct SleepDebtLedgerCard: View {
         }
         let mag = durationText(ledger.magnitudeMin)
         if ledger.isDebt {
-            return String(localized: "Add about \(mag) to your base sleep target tonight. Meeting that complete sleep need clears the displayed debt; recent shortfalls carry forward at a reduced weight.")
+            return String(localized: "Sleep about \(mag) more than usual tonight and this debt is gone. Short nights from longer ago count for less than recent ones.")
         }
         return String(localized: "You've effectively met your current sleep need across \(span).")
     }

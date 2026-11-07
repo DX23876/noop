@@ -32,12 +32,12 @@ struct ForgeCycleFertileInfo: View {
                         Text("The wider your rises spread, the wider the window NOOP shows.")
                             .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     }
-                    .forgeCard(radius: 22, padding: 16)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
                 }
                 Button(action: onLog) {
                     ForgeRow(systemImage: "testtube.2", tint: ForgeColor.cycleFertile, title: String(localized: "Log an ovulation test"),
                              subtitle: String(localized: "A positive test narrows the window to about two days"))
-                        .forgeCard(radius: 22, padding: 0)
+                        .forgeCard(radius: ForgeRadius.card, padding: 0)
                 }
                 .buttonStyle(.plain)
                 Text("Shown only after 3 cycles with a clear temperature rise, or once you log a positive test. You can hide fertile days in the cycle settings.")
@@ -60,7 +60,7 @@ struct ForgeCycleFertileInfo: View {
                 .font(ForgeFont.body).foregroundStyle(ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .forgeCard(radius: 22, padding: 16)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private var steps: some View {
@@ -81,7 +81,7 @@ struct ForgeCycleFertileInfo: View {
                  f?.basis == .ovulationTest ? String(localized: "This cycle uses your positive ovulation test.") : nil)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: 22, padding: 16)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func step(_ n: Int, _ text: String, _ detail: String?) -> some View {
@@ -159,7 +159,7 @@ struct ForgeCycleSummaryCard: View {
                 }
             }
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     private func subline(_ snap: ForgeCycleSnapshot) -> String? {

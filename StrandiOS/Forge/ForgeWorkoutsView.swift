@@ -138,9 +138,9 @@ struct ForgeWorkoutsView: View {
                 Spacer()
                 Text("active energy per day").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
-            HStack(spacing: 3) {
+            HStack(spacing: 4) {
                 ForEach(0..<13, id: \.self) { w in
-                    VStack(spacing: 3) {
+                    VStack(spacing: 4) {
                         ForEach(0..<7, id: \.self) { d in
                             let day = cal.date(byAdding: .day, value: w * 7 + d, to: first) ?? first
                             let v = load[day] ?? 0
@@ -156,7 +156,7 @@ struct ForgeWorkoutsView: View {
             .accessibilityLabel(Text("Training days in the last 13 weeks"))
             .accessibilityValue(Text("\(Set(load.keys).count) days with a workout"))
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     // MARK: This week
@@ -171,7 +171,7 @@ struct ForgeWorkoutsView: View {
             stat(ForgeTrainingView.duration(minutes), String(localized: "time"))
             stat(ForgeToday.effortText(effort, scale: effortScale), String(localized: "Effort total"))
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
@@ -212,7 +212,7 @@ struct ForgeWorkoutsView: View {
         return HStack(spacing: 12) {
             WorkoutTypeIcon(workoutType: row.sport, size: 16, weight: .semibold, color: tint)
                 .frame(width: 38, height: 38)
-                .background(Circle().fill(tint.opacity(0.16)))
+                .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 1) {
                 Text(WorkoutSource.localizedDisplaySport(row.sport))
                     .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
@@ -228,7 +228,7 @@ struct ForgeWorkoutsView: View {
             }
             Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
         }
-        .padding(.horizontal, 14).padding(.vertical, 11)
+        .padding(.horizontal, 14).padding(.vertical, 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

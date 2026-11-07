@@ -39,8 +39,19 @@ struct ForgeTrainingView: View {
     }
 
     /// Pace (seconds per km) of the recent runs with a distance, oldest first: each session's own pace.
-    private var runPaces: [Double] {
-        recent.filter { $0.sport.lowercased().contains("run") && ($0.distanceM ?? 0) > 500 }
+    private var runPaces: [Double] { paces(matching: "run") }
+    private var walkPaces: [Double] { paces(matching: "walk") }
+
+    /// The pace tile follows what the wearer actually does: runs when there are any, walks otherwise, so the
+    /// tile carries a figure instead of a dash for someone who walks.
+    private var paceTile: (label: String, paces: [Double])? {
+        if !runPaces.isEmpty { return (String(localized: "Running pace"), runPaces) }
+        if !walkPaces.isEmpty { return (String(localized: "Walking pace"), walkPaces) }
+        return nil
+    }
+
+    private func paces(matching sport: String) -> [Double] {
+        recent.filter { $0.sport.lowercased().contains(sport) && ($0.distanceM ?? 0) > 500 }
             .sorted { $0.startTs < $1.startTs }
             .suffix(8)
             .compactMap { row in
@@ -92,6 +103,7 @@ struct ForgeTrainingView: View {
             }
         }
         .background(ForgeBackground(tab: .training))
+        .overlay { ForgeStatusBarScrim(tab: .training) }
         .refreshable { await repo.refresh() }
         .task(id: "\(repo.refreshSeq)|\(weekStartRaw)") { await load() }
         .sheet(isPresented: $addingWorkout) { ForgeWorkoutEditor() }
@@ -122,10 +134,10 @@ struct ForgeTrainingView: View {
                     let first = workouts.first { cal.isDate(Date(timeIntervalSince1970: TimeInterval($0.startTs)), inSameDayAs: day) }
                     let done = first != nil
                     let isToday = cal.isDateInToday(day)
-                    VStack(spacing: 5) {
+                    VStack(spacing: 4) {
                         // A trained day shows that day's sport, as in the prototype; an open day stays light.
                         Circle()
-                            .fill(done ? ForgeColor.effort.opacity(0.22) : ForgeColor.card.opacity(0.7))
+                            .fill(done ? ForgeColor.effort.opacity(ForgeOpacity.band) : ForgeColor.card.opacity(0.7))
                             .overlay(Circle().strokeBorder(isToday ? ForgeColor.effortInk : ForgeColor.hairline,
                                                            lineWidth: isToday ? 1.5 : 1))
                             .frame(width: 36, height: 36)
@@ -208,7 +220,7 @@ struct ForgeTrainingView: View {
                         .font(.system(.subheadline, weight: .semibold))
                         .foregroundStyle(ForgeColor.effort)
                         .frame(width: 38, height: 38)
-                        .background(Circle().fill(ForgeColor.effort.opacity(0.18)))
+                        .background(Circle().fill(ForgeColor.effort.opacity(ForgeOpacity.wash)))
                     VStack(alignment: .leading, spacing: 1) {
                         Text(routine.title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         Text("\(routine.exercises.count) exercises").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
@@ -224,7 +236,7 @@ struct ForgeTrainingView: View {
                     .buttonStyle(.plain)
                 }
                 .padding(12)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(ForgeColor.card))
+                .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
                 if coachFeatureEnabled {
                     FlowRows(spacing: 8) {
                         ForgeChip(title: String(localized: "Shorter, please")) {
@@ -236,7 +248,7 @@ struct ForgeTrainingView: View {
                     }
                 }
             }
-            .forgeCard(radius: 24, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         } else if coachFeatureEnabled {
             ForgeChip(title: String(localized: "Plan today with the coach"), systemImage: "sparkles", prominent: true) {
                 onAsk(String(localized: "Look at my Charge, this week's training and my routines, and suggest what I should train today."))
@@ -319,7 +331,7 @@ struct ForgeTrainingView: View {
         }
         .padding(14)
         .frame(width: 150, height: 120, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(ForgeColor.effort.opacity(0.14)))
+        .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.effort.opacity(ForgeOpacity.wash)))
     }
 
     // MARK: Recent
@@ -358,7 +370,7 @@ struct ForgeTrainingView: View {
         return HStack(spacing: 12) {
             WorkoutTypeIcon(workoutType: row.sport, size: 16, weight: .semibold, color: tint)
                 .frame(width: 38, height: 38)
-                .background(Circle().fill(tint.opacity(0.16)))
+                .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 1) {
                 Text(WorkoutSource.localizedDisplaySport(row.sport))
                     .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
@@ -375,7 +387,7 @@ struct ForgeTrainingView: View {
             Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold))
                 .foregroundStyle(ForgeColor.tertiary)
         }
-        .padding(.horizontal, 14).padding(.vertical, 11)
+        .padding(.horizontal, 14).padding(.vertical, 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -401,15 +413,18 @@ struct ForgeTrainingView: View {
                                     unit: "", tint: ForgeColor.effort,
                                     bars: weekEffort.map { ($0 ?? 0) })
                 }
-                NavigationLink(value: TabRoute.cardio) {
-                    ForgeMetricTile(label: String(localized: "Running pace"),
-                                    value: runPaces.last.map { UnitFormatter.paceFromSecPerKm($0, system: distanceSystem) },
-                                    unit: "", trend: runPaces.count > 1 ? runPaces.map { -$0 } : nil, tint: ForgeColor.effort)
+                if let pace = paceTile {
+                    NavigationLink(value: TabRoute.cardio) {
+                        ForgeMetricTile(label: pace.label,
+                                        value: pace.paces.last.map { UnitFormatter.paceFromSecPerKm($0, system: distanceSystem) },
+                                        unit: "", trend: pace.paces.count > 1 ? pace.paces.map { -$0 } : nil, tint: ForgeColor.effort)
+                    }
                 }
                 NavigationLink(value: TabRoute.metric("vo2max_est")) {
+                    // The figure alone: the unit is a lab measure, not an everyday one.
                     ForgeMetricTile(label: String(localized: "VO₂max"),
                                     value: vo2max.last.map { String(format: "%.0f", $0) },
-                                    unit: "ml/kg/min", trend: Array(vo2max.suffix(30)), tint: ForgeColor.charge)
+                                    unit: "", trend: Array(vo2max.suffix(30)), tint: ForgeColor.charge)
                 }
                 NavigationLink(value: ForgeRoute.workouts) {
                     ForgeMetricTile(label: String(localized: "Last 30 days"), value: "\(recent.count)",
@@ -430,7 +445,7 @@ struct ForgeTrainingView: View {
                 }
                 ForgeRowDivider()
                 NavigationLink(value: TabRoute.cardio) {
-                    ForgeRow(systemImage: "figure.run", tint: .green, title: String(localized: "Endurance"),
+                    ForgeRow(systemImage: "figure.run", tint: .green, title: String(localized: "Cardio"),
                              subtitle: String(localized: "Runs, rides, swims and rows"))
                 }
                 ForgeRowDivider()

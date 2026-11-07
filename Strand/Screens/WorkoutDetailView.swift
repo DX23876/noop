@@ -858,17 +858,28 @@ extension WorkoutDetailView {
         var id: String { label }
     }
 
+    /// The session's average or peak from the same trace the heart-rate chart draws, for a workout whose
+    /// source stored none (an Apple walk). Without it the stat said "no heart rate" above a full curve.
+    static func heartFigure(_ points: [TrendPoint], peak: Bool) -> Int? {
+        let values = points.map(\.value).filter { $0 > 0 }
+        guard !values.isEmpty else { return nil }
+        let figure = peak ? (values.max() ?? 0) : values.reduce(0, +) / Double(values.count)
+        return Int(figure.rounded())
+    }
+
     private var forgeStatList: [ForgeStat] {
         var out = [ForgeStat(label: String(localized: "time"), value: durationLabel(row.durationS))]
         if let m = row.distanceM, m > 0 {
             out.append(ForgeStat(label: String(localized: "distance"), value: distanceLabel(m)))
             out.append(ForgeStat(label: String(localized: "pace"), value: paceLabel))
         }
-        out.append(ForgeStat(label: String(localized: "avg heart"), value: row.avgHr.map { "\($0)" } ?? "–",
-                             unit: row.avgHr != nil ? "bpm" : nil))
+        let avgHeart = row.avgHr ?? Self.heartFigure(hrPoints, peak: false)
+        out.append(ForgeStat(label: String(localized: "avg heart"), value: avgHeart.map { "\($0)" } ?? "–",
+                             unit: avgHeart != nil ? "bpm" : nil))
         if row.distanceM == nil || row.distanceM == 0 {
-            out.append(ForgeStat(label: String(localized: "peak heart"), value: row.maxHr.map { "\($0)" } ?? "–",
-                                 unit: row.maxHr != nil ? "bpm" : nil))
+            let peakHeart = row.maxHr ?? Self.heartFigure(hrPoints, peak: true)
+            out.append(ForgeStat(label: String(localized: "peak heart"), value: peakHeart.map { "\($0)" } ?? "–",
+                                 unit: peakHeart != nil ? "bpm" : nil))
         }
         if let strain = row.strain {
             let shown = effortScale == .whoop ? UnitFormatter.effortDisplay(strain, scale: effortScale)
@@ -990,23 +1001,25 @@ extension WorkoutDetailView {
             .clipShape(Capsule())
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(String(localized: "Heart-rate zone split: \((1...5).map { String(localized: "zone \($0) \(Int((z[$0 - 1] / total * 100).rounded())) percent") }.joined(separator: ", "))"))
-            HStack(spacing: 10) {
+            // Two columns of whole names: five zones in one row cut every name to three letters.
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)],
+                      alignment: .leading, spacing: 6) {
                 ForEach(shown, id: \.self) { i in
-                    HStack(spacing: 4) {
-                        Circle().fill(StrandPalette.hrZoneColor(i + 1)).frame(width: 7, height: 7)
+                    HStack(spacing: 6) {
+                        Circle().fill(StrandPalette.hrZoneColor(i + 1)).frame(width: 8, height: 8)
                         Text(LiveHeartRateStyle.zoneName(i + 1)).font(StrandFont.caption)
                             .foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+                        Spacer(minLength: 4)
                         Text(durationLabel(z[i] * 60)).font(StrandFont.caption.weight(.semibold))
                             .foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
                     }
-                    .minimumScaleFactor(0.8)
                 }
             }
             Text(!recordings.isEmpty
                  ? "Zones use the settings recorded during this workout. Gaps are not counted."
                  : zonesFromImport
                  ? "WHOOP's imported per-zone split for this session."
-                 : "Time in each %HRmax zone, derived from the strap's heart rate over this window (approximate).")
+                 : "Time in each heart-rate zone, from the strap's pulse during this session. Approximate.")
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }

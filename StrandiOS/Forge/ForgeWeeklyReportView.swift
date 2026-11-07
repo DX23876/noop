@@ -145,7 +145,7 @@ struct ForgeWeeklyReportView: View {
                 }
             }
         }
-        .forgeCard(radius: 24, padding: 16)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     /// One of the week's averages as an organic ring, its name, and the change against last week's average.
@@ -227,7 +227,7 @@ struct ForgeWeeklyReportView: View {
                                detail: String?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(label, systemImage: icon).font(.system(.footnote, weight: .semibold)).foregroundStyle(tint)
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value).font(ForgeFont.rounded(24, .semibold)).foregroundStyle(ForgeColor.text)
                 if let unit { Text(unit).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary) }
             }
@@ -238,7 +238,7 @@ struct ForgeWeeklyReportView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: 20, padding: 12)
+        .forgeCard(radius: ForgeRadius.card, padding: 12)
         .accessibilityElement(children: .combine)
     }
 
@@ -270,7 +270,7 @@ struct ForgeWeeklyReportView: View {
             .frame(height: 150)
             legend([(String(localized: "This week"), ForgeColor.charge, false), (String(localized: "Last week"), ForgeColor.tertiary, true)])
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     private func sleepBars(_ week: ForgeWeekly.Week) -> some View {
@@ -297,7 +297,7 @@ struct ForgeWeeklyReportView: View {
             legend([(String(localized: "Asleep"), ForgeColor.rest, false),
                     (String(localized: "Need \(ForgeTodayView.hoursMinutes(need * 60)) h"), ForgeColor.secondary, true)])
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     private func effortBars(_ week: ForgeWeekly.Week) -> some View {
@@ -315,13 +315,13 @@ struct ForgeWeeklyReportView: View {
             .chartXAxis { weekdayAxis(week) }
             .frame(height: 140)
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     private func legend(_ items: [(String, Color, Bool)]) -> some View {
         HStack(spacing: 14) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     Capsule().fill(item.1).frame(width: 14, height: item.2 ? 2 : 3)
                     Text(item.0).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
                 }

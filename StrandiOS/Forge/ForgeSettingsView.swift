@@ -51,7 +51,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
                     .foregroundStyle(ForgeColor.secondary)
                     .padding(.horizontal, 12)
                     .frame(minHeight: 44)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.fill))
+                    .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
                 }
                 .buttonStyle(.plain)
 

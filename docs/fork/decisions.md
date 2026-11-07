@@ -929,3 +929,26 @@ of the same track, and Undo on both platforms removes every answer it finds ther
 
 Analysis migration required: no. Suggestions are shown, never scored; the rolling table rebuilds itself on the
 new rule version.
+
+## Design review of the new design (2026-11-07)
+
+A review of the four tabs and the older pages they open, on the owner's own data, ranked ten changes; the owner
+chose all ten. What was decided along the way:
+
+- **Rings first on Today.** A detected walk asks under the rings and actions, as a short card (title, length,
+  time, answers). The 2026-10-31 placement above everything else hid the day's first answer.
+- **Charge has one colour in the new design.** Trends coloured the weekly Charge ring by its band (orange at 37)
+  while Today, the Charge page and the weekly report drew it green. Under the new design it is green everywhere;
+  the shipped design keeps its band colours.
+- **Cards rest on their fill.** Under the new design a card has no rim and no shadow, so the older pages lose
+  their outlines too. A warning card keeps its rim and Increase Contrast keeps every edge.
+- **Trend lines are monotone.** A catmullRom line rose above two weigh-ins and fell below the next, drawing a
+  weight nobody had. Monotone curves never pass a point's value between two points.
+- **No value, no curve.** A tile without a value draws no line, and a factor that has never left zero (tonight 0,
+  usually 0) is left out instead of shown as a result.
+- **Plain words on the older pages:** correlation, change, few readings, interval buzz, strap alarm and sleep debt
+  say what they mean instead of naming the method.
+- **Not changed:** the magenta sleep stages and the violet Cardio page come from the owner's own chart settings
+  (Garmin Fill, lane colours), so they stay as chosen.
+
+Analysis migration required: no.

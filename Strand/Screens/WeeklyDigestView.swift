@@ -734,7 +734,10 @@ private struct DigestOrganicRingRow: View {
         let metric: OrganicScoreMetric = summary.metric == .charge ? .charge : (isEffort ? .effort : .rest)
         let tint: Color
         switch metric {
-        case .charge: tint = mean.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.organicMissing
+        // The new design keeps Charge in its one colour wherever it is drawn (Today, the Charge page, the weekly
+        // report), so the same week cannot read green on one page and orange here. The band is a word there.
+        case .charge: tint = mean.map { NoopVisualStyle.skin == .forge ? StrandPalette.chargeColor : StrandPalette.chargeRingColor($0) }
+            ?? StrandPalette.organicMissing
         case .effort: tint = StrandPalette.organicEffort
         default:      tint = StrandPalette.organicRest
         }

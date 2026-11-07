@@ -28,7 +28,7 @@ struct ForgeStrapSettingsView<DeviceRow: View>: View {
                 NavigationLink(value: MoreDestination.devices) {
                     ForgeRow(systemImage: "sensor.tag.radiowaves.forward", tint: .indigo, title: String(localized: "Devices"),
                              subtitle: String(localized: "Pair, find or restart the strap, other devices"), compact: true)
-                        .forgeCard(radius: 22, padding: 0)
+                        .forgeCard(radius: ForgeRadius.card, padding: 0)
                 }
                 .buttonStyle(.plain)
             }

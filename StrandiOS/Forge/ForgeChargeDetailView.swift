@@ -108,7 +108,8 @@ struct ForgeChargeDetailView: View {
                     if let target = ForgeToday.effortTargetStored(charge: pct) {
                         let t = ForgeToday.targetText(target, scale: UnitPrefs.currentEffortScale())
                         Text("Today's Effort target: \(t.low) to \(t.high).")
-                            .font(.system(.body)).foregroundStyle(ForgeColor.text)
+                            .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.effortInk)
+                            .padding(.top, 4)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -133,7 +134,7 @@ struct ForgeChargeDetailView: View {
                                 .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
                         }
                     }
-                    .forgeCard(radius: 22, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 14)
                 } else if case .calibrating(let nights) = display {
                     ForgeTabHero(overline: String(localized: "Calibrating"),
                                  headline: ChargeBreakdownFormat.calibrationCountdown(nightsRemaining: nights))

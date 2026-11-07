@@ -327,7 +327,7 @@ struct SmartAlarmView: View {
                         // 5/MG with Protocol probes ON: the rev-4 command arms the strap. One wake was
                         // captured on an MG (#864) and one reported on a 5.0 without a log (#2464);
                         // neither repeated, so the copy simplifies both to "reported" and promises none.
-                        Text("Armed on the strap with an experimental 5/MG command. Strap-driven wakes have been reported on 5.0 and MG, but are not guaranteed. Keep a backup alarm for anything you cannot miss.")
+                        Text("The strap buzzes at your wake time. This works on many 5.0 and MG straps but is not certain yet, so keep a second alarm for anything you cannot miss.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)

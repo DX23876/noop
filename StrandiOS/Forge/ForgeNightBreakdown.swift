@@ -28,13 +28,13 @@ struct ForgeNightBreakdown: View {
             shaped
             ForgeSectionTitle(title: "Sleep debt")
             SleepDebtLedgerCard(model: model)
-                .forgeCard(radius: 22, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 14)
             if let phase = appModel.circadianPhase, phase.confidence != .unreadable {
                 ForgeSectionTitle(title: "Body clock")
                 BodyClockDialCard(estimate: phase,
                                   actualBedHour: SleepView.localClockHour(night.session.effectiveStartTs),
                                   actualWakeHour: SleepView.localClockHour(night.session.endTs))
-                    .forgeCard(radius: 22, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 14)
             }
         }
     }
@@ -74,7 +74,7 @@ struct ForgeNightBreakdown: View {
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
     }
 
@@ -127,8 +127,9 @@ struct ForgeNightBreakdown: View {
              model.restorative.typical, "%", true),
             (String(localized: "Breathing rate"), row?.respRateBpm, model.respiratory.typical, String(localized: "/min"), false),
         ]
-        // A figure this night does not have is left out, not drawn as a dash.
-        let rows = candidates.filter { $0.1 != nil }
+        // A figure this night does not have is left out, not drawn as a dash. So is one that has never left
+        // zero (tonight 0, usual 0): that is a measure without enough nights yet, not a result.
+        let rows = candidates.filter { $0.1 != nil && !($0.1 == 0 && ($0.2 ?? 0) == 0) }
         return VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "What shaped the night")
             VStack(spacing: 0) {
@@ -137,7 +138,7 @@ struct ForgeNightBreakdown: View {
                     shapedRow(r.0, value: r.1, typical: r.2, unit: r.3, higherIsBetter: r.4)
                 }
             }
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
     }
 

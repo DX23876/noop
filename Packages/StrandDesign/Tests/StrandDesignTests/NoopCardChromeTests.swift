@@ -85,4 +85,22 @@ final class NoopCardChromeTests: XCTestCase {
         XCTAssertEqual(chrome(.state).rim, .tinted, "a state card keeps its signal")
         XCTAssertEqual(chrome(.data, light: true).shadow, true, "light cards keep their lift")
     }
+
+    /// The new design's cards rest on their fill alone, see-through or not; a warning keeps its rim and
+    /// Increase Contrast keeps every edge.
+    func testForgeSkinDropsDecorativeEdges() {
+        for kind in [NoopCardKind.navigation, .data, .hero] {
+            for light in [true, false] {
+                for transparent in [true, false] {
+                    let chrome = NoopCardChrome.resolve(kind: kind, isLight: light, isTransparent: transparent,
+                                                        increasedContrast: false, quietEdges: true, forgeSkin: true)
+                    XCTAssertEqual(chrome, NoopCardChrome(rim: .none, shadow: false), "\(kind) light \(light) transparent \(transparent)")
+                }
+            }
+        }
+        XCTAssertEqual(NoopCardChrome.resolve(kind: .state, isLight: true, isTransparent: false,
+                                              increasedContrast: false, quietEdges: true, forgeSkin: true).rim, .tinted)
+        XCTAssertEqual(NoopCardChrome.resolve(kind: .data, isLight: true, isTransparent: false,
+                                              increasedContrast: true, quietEdges: true, forgeSkin: true).rim, .strong)
+    }
 }

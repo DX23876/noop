@@ -118,7 +118,7 @@ struct ForgeCycleView: View {
             .buttonStyle(.plain)
             footer
         }
-        .forgeCard(radius: 24, padding: 16)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private var footer: some View {
@@ -148,13 +148,13 @@ struct ForgeCycleView: View {
                         Image(systemName: "info.circle").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 8).frame(minHeight: 44)
-                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.cycleFertile.opacity(0.16)))
+                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.cycleFertile.opacity(ForgeOpacity.wash)))
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint(Text("How the fertile days are estimated"))
             }
         }
-        .forgeCard(radius: 26, padding: 16)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
         logRow
         if let phase = snap.phase {
             ForgeSectionTitle(title: "This phase for you")
@@ -180,12 +180,12 @@ struct ForgeCycleView: View {
             temperatureCard(snap)
         }
         ForgeCycleCalendar(snap: snap)
-            .forgeCard(radius: 22, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         if appModel.cyclePhase != nil {
             Button { showingHistory = true } label: {
                 ForgeRow(systemImage: "calendar", tint: ForgeColor.secondary, title: String(localized: "Cycle history"),
                          subtitle: snap.historyLine)
-                    .forgeCard(radius: 22, padding: 0)
+                    .forgeCard(radius: ForgeRadius.card, padding: 0)
             }
             .buttonStyle(.plain)
         }
@@ -227,7 +227,7 @@ struct ForgeCycleView: View {
             }
             .padding(14)
         }
-        .forgeCard(radius: 22, padding: 0)
+        .forgeCard(radius: ForgeRadius.card, padding: 0)
         .onChange(of: learning) { _, on in
             if on { Task { pattern = await learnPattern() } }
         }
@@ -254,12 +254,12 @@ struct ForgeCycleView: View {
         Button { logging = true } label: {
             VStack(spacing: 6) {
                 Image(systemName: symbol).font(.system(.body, weight: .semibold)).foregroundStyle(tint)
-                    .frame(width: 40, height: 40).background(Circle().fill(tint.opacity(0.16)))
+                    .frame(width: 40, height: 40).background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
                 Text(title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     .lineLimit(1).minimumScaleFactor(0.6)
             }
             .frame(maxWidth: .infinity, minHeight: 88)
-            .forgeCard(radius: 20, padding: 8)
+            .forgeCard(radius: ForgeRadius.card, padding: 8)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("Log \(title)"))
@@ -311,7 +311,7 @@ struct ForgeCycleView: View {
                 .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 }
 
@@ -689,7 +689,7 @@ struct ForgeCycleTopicCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Image(systemName: topic.symbol).font(.system(.body, weight: .semibold)).foregroundStyle(phase.color)
-                    .frame(width: 40, height: 40).background(Circle().fill(phase.color.opacity(0.16)))
+                    .frame(width: 40, height: 40).background(Circle().fill(phase.color.opacity(ForgeOpacity.wash)))
                 Text(topic.title).font(.system(.headline)).foregroundStyle(ForgeColor.text)
             }
             if let push {
@@ -710,7 +710,7 @@ struct ForgeCycleTopicCard: View {
         }
         .frame(width: 250, alignment: .topLeading)
         .frame(minHeight: 190, alignment: .topLeading)
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
         .accessibilityElement(children: .combine)
     }
 
@@ -741,7 +741,7 @@ struct ForgeCycleTopicView: View {
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(Capsule().fill(phase.color))
                     Image(systemName: topic.symbol).font(.system(size: 36, weight: .semibold)).foregroundStyle(phase.color)
-                        .frame(width: 84, height: 84).background(Circle().fill(phase.color.opacity(0.16)))
+                        .frame(width: 84, height: 84).background(Circle().fill(phase.color.opacity(ForgeOpacity.wash)))
                         .accessibilityHidden(true)
                     Text(topic.title).font(ForgeFont.largeTitle).foregroundStyle(ForgeColor.text)
                         .accessibilityAddTraits(.isHeader)
@@ -758,7 +758,7 @@ struct ForgeCycleTopicView: View {
                 }
                 .font(.body).foregroundStyle(ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
-                .forgeCard(radius: 22, padding: 16)
+                .forgeCard(radius: ForgeRadius.card, padding: 16)
                 let lines = dataLines
                 if !lines.isEmpty {
                     ForgeSectionTitle(title: "In your data")
@@ -768,14 +768,14 @@ struct ForgeCycleTopicView: View {
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
-                    .forgeCard(radius: 22, padding: 16)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
                 }
                 ForgeSectionTitle(title: "What this is based on")
                 Text(topic.sources(phase))
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .forgeCard(radius: 22, padding: 16)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
                 Text("Awareness only. Not contraception, not a fertility predictor and not a diagnosis.")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
                     .padding(.horizontal, 4)
@@ -894,7 +894,7 @@ struct ForgeCycleCalendar: View {
                 } else if period {
                     Circle().fill(ForgeColor.cyclePeriod)
                 } else if fertile {
-                    Circle().fill(ForgeColor.cycleFertile.opacity(0.22))
+                    Circle().fill(ForgeColor.cycleFertile.opacity(ForgeOpacity.band))
                 } else if likely {
                     Circle().strokeBorder(ForgeColor.cyclePeriod, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5]))
                 }
@@ -922,7 +922,7 @@ struct ForgeCycleLogSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 16) {
                     section(String(localized: "cycle.period", defaultValue: "Period")) {
                         chip(String(localized: "None"), on: draft.flow == nil, tint: ForgeColor.cyclePeriod) { draft.flow = nil }
                         ForEach(CycleLog.Flow.allCases) { f in
@@ -974,7 +974,7 @@ struct ForgeCycleLogSheet: View {
             ForgeFlowLayout(spacing: 8) { chips() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: 22, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 
     private func chip(_ title: String, on: Bool, tint: Color, action: @escaping () -> Void) -> some View {
