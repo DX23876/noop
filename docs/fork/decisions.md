@@ -987,3 +987,38 @@ points below differ from that plan because of what the re-analysis showed, and a
   behind a row, and What correlates leaves out a score's own inputs.
 
 Analysis migration required: yes (AI-34).
+
+## Today's timeline: one feed, guarded notes (2026-11-07)
+
+Owner's decisions in a grilling of 37 questions after the timeline report
+(claude.ai/artifact/9GqJ5GpNwQrxa3mBqtXesX); all recommendations taken.
+
+- **One feed.** Momentum's warning, battery, rest day, sleep catch-up, HRV trend, goals and plan
+  deviation become timeline entries; the Charge read, steps, bedtime, cycle and calibration stay out
+  (said elsewhere). The health banner stays on top while it holds. The morning suggestion card leaves
+  the new Today; its proposal opens from the morning note or report.
+- **A topic speaks once a week** unless its tone got clearly worse; a reached milestone is its own
+  event. "Less often" doubles the week, "off" mutes the topic. The rules live in `TimelineFeed`
+  (StrandAnalytics) so the shared core gives Android the same answers.
+- **One short morning note.** In the new design the brief is a headline and at most two sentences
+  over device figures; the separate check-in is folded into it. No long brief there.
+- **No figures in coach prose.** Every note is told so, and `ForgeNoteFigures` strikes a sentence
+  whose figure matches nothing the coach read this turn (exact after rounding; a 0 to 21 Effort for
+  a 0 to 100 wearer never passes). A note left empty is not posted.
+- **Notes keep what they stood over** and say when the day was re-scored; the morning note is
+  written again only on request.
+- **Morning and evening report without the coach.** The evening begins two hours before the planned
+  bedtime and never before 19:00, for the report and the coach's recap alike. The bedtime appears
+  only while sleep debt grows.
+- **List.** Today and yesterday open, older days one line; a dot for what is new since the last
+  visit; detected and imported walks of a day as one entry; holding an entry hides, explains or
+  turns its kind down; thumbs on notes, and a second thumbs down asks once about "less often".
+- **Causes.** Chips (unwell, alcohol, travel, stress) write journal rows with fixed keys; the warning
+  reads those keys and whole English words of imported questions. A raised resting heart rate alone
+  never raised a warning (two signals are required), so a short night needed no new rule.
+- **Background.** After new data, a workout note or the evening recap is written only where
+  notifications are allowed; the morning note never.
+- **Later, on its own:** assigning an evening block before midnight to the night is an analysis
+  change and gets its own run after a week of the new timeline on the iPhone.
+
+Analysis migration required: no.
