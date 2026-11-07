@@ -825,13 +825,19 @@ struct RootTabView: View {
         ForgeHealthView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
     }
 
+    /// Whether Today can be seen: its tab is open and none of this shell's sheets lies over it. A sheet leaves
+    /// the page in place underneath, so without this the rings go on drawing behind Settings.
+    private var forgeTodayInView: Bool {
+        selectedTab == 0 && !showAllFeatures && !showDevices && quickAction == nil && routedPillar == nil
+    }
+
     @ViewBuilder private var forgeTabView: some View {
         if #available(iOS 18.0, *) {
             TabView(selection: forgeSelection) {
                 Tab(value: 0) {
                     tabStack(forgeTodayRoot, path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true)
                         .environment(\.forgeTab, .today)
-                        .environment(\.dashboardIsActive, selectedTab == 0)
+                        .environment(\.dashboardIsActive, forgeTodayInView)
                 } label: {
                     forgeTabLabel("Today", symbol: "sun.max", selected: selectedTab == 0)
                 }
@@ -866,7 +872,7 @@ struct RootTabView: View {
             }
         } else {
             TabView(selection: nativeTabSelection) {
-                tab(forgeTodayRoot, "Today", "sun.max.fill", path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true).environment(\.dashboardIsActive, selectedTab == 0).tag(0)
+                tab(forgeTodayRoot, "Today", "sun.max.fill", path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true).environment(\.dashboardIsActive, forgeTodayInView).tag(0)
                 tab(forgeTrainingRoot, "Training", "figure.run", path: $tabPaths[2], scrollSignal: scrollTop[2], registersMore: true).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
                 tab(forgeSleepRoot, "Sleep", "moon.fill", path: $tabPaths[3], scrollSignal: scrollTop[3], registersMore: true).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
                 tab(forgeHealthRoot, "Health", "heart.fill", path: $tabPaths[1], scrollSignal: scrollTop[1], registersMore: true).environment(\.dashboardIsActive, selectedTab == 1).tag(1)

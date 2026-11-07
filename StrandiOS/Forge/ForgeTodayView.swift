@@ -64,8 +64,6 @@ struct ForgeTodayView: View {
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var tilesBelowTimeline = false
     /// Bumped by a tap on the pinned bar: back to the rings.
     @State private var backToTop = 0
-    /// Bumped when Today comes back into view, so what was just logged on another page is already there.
-    @State private var returned = 0
     /// Long notes opened in place: figures and a few lines first, the rest on request.
     @State private var openedNotes: Set<String> = []
 
@@ -111,10 +109,9 @@ struct ForgeTodayView: View {
                             hero
                                 // Holding the rings starts the tile editor too, for a page with no tile to hold.
                                 .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in startEditingWidgets() })
-                                .background(GeometryReader { geo in
-                                    Color.clear.preference(key: ForgeHeroBottomKey.self,
-                                                           value: geo.frame(in: .named("forge-today")).maxY)
-                                })
+                                .onGeometryChange(for: Bool.self) { $0.frame(in: .named("forge-today")).maxY < 40 } action: { hidden in
+                                    withAnimation(.easeOut(duration: 0.2)) { heroHidden = hidden }
+                                }
                             actions
                         }
                         .padding(.horizontal, 16)
@@ -135,26 +132,10 @@ struct ForgeTodayView: View {
             }
             .scrollIndicators(.hidden)
             // Cards dissolve before they reach the clock and the tab bar, leaving the picture there, with nothing
-            // painted over it.
-            .mask {
-                VStack(spacing: 0) {
-                    LinearGradient(stops: heroHidden
-                                   ? [.init(color: .clear, location: 0.6), .init(color: .black, location: 1)]
-                                   : [.init(color: .black, location: 0), .init(color: .black, location: 1)],
-                                   startPoint: .top, endPoint: .bottom)
-                        .frame(height: 112)
-                    Color.black
-                    LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .clear, location: 0.6)],
-                                   startPoint: .top, endPoint: .bottom)
-                        .frame(height: 120)
-                }
-                .ignoresSafeArea()
-            }
+            // painted over it. The picture lies over the two edges instead of a mask on the scroll view, which
+            // drew every card and the rings off screen on each frame.
+            .overlay { ForgeTodayEdges(heroHidden: heroHidden) }
             .coordinateSpace(name: "forge-today")
-            .onPreferenceChange(ForgeHeroBottomKey.self) { bottom in
-                let hidden = bottom < 40
-                if hidden != heroHidden { withAnimation(.easeOut(duration: 0.2)) { heroHidden = hidden } }
-            }
             .overlay(alignment: .top) {
                 if heroHidden {
                     pinnedBar
@@ -169,11 +150,18 @@ struct ForgeTodayView: View {
             }
         }
         .background(ForgeBackground(tab: .today, showsMotif: true))
-        .refreshable { await repo.refresh(); await load(force: true) }
-        .task(id: reloadKey) { await load(force: false) }
-        .onAppear { if snapshot.loaded { returned += 1 } }
+        .refreshable { await repo.refresh(); await load() }
+        // `task` also starts over each time Today comes back into view, so what was just logged on another page
+        // is read then. A reload waits for the page's transition and for the rest of a burst of changes.
+        .task(id: reloadKey) {
+            if snapshot.loaded {
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+            }
+            await load()
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await load(force: true) } }
+            if phase == .active { Task { await load() } }
         }
         .coachDashboardPresentations(showCoach: $showCoachSheet, showPlan: $showPlan)
         .sheet(item: $whyEntry) { entry in
@@ -190,7 +178,7 @@ struct ForgeTodayView: View {
     /// Re-read when the day list, today's stored row or the coach transcript moves.
     private var reloadKey: String {
         let lastNote = coach.conversations.last?.messages.last?.id.uuidString ?? ""
-        return "\(repo.days.count)|\(repo.today?.day ?? "")|\(repo.today?.strain ?? -1)|\(repo.today?.recovery ?? -1)|\(lastNote)|\(coachFeatureEnabled)|\(repo.refreshSeq)|\(repo.hydrationSeq)|\(repo.sleepPresentationRevision)|\(repo.workoutAnnotationRevision)|\(returned)"
+        return "\(repo.days.count)|\(repo.today?.day ?? "")|\(repo.today?.strain ?? -1)|\(repo.today?.recovery ?? -1)|\(lastNote)|\(coachFeatureEnabled)|\(repo.refreshSeq)|\(repo.hydrationSeq)|\(repo.sleepPresentationRevision)|\(repo.workoutAnnotationRevision)"
     }
 
     private var onPicture: Bool { motifOn || backdropPhoto.isActive }
@@ -233,21 +221,21 @@ struct ForgeTodayView: View {
     private var hero: some View {
         let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth)
         let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
+        // Worked out here, once per change of the page: the clock's closure runs 60 times a second.
+        let charge = ringFace(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
+                              tint: chargeScore == nil ? StrandPalette.organicMissing : StrandPalette.chargeColor)
+        let effort = ringFace(metric: .effort, label: DomainTheme.effort.productName, score: effortScore,
+                              tint: StrandPalette.organicEffort,
+                              maxValue: effortScale == .whoop ? 21 : 100, decimals: effortScale == .whoop ? 1 : 0)
+        let rest = ringFace(metric: .rest, label: DomainTheme.rest.productName, score: snapshot.loaded ? snapshot.rest : nil,
+                            tint: StrandPalette.organicRest)
+        let effortRoute = ForgeRoute.effort(stored: snapshot.effortStored, charge: chargeScore)
+        let restRoute = ForgeRoute.rest(snapshot.loaded ? snapshot.rest : nil)
         return OrganicScoreHeroClock(dataReady: snapshot.loaded || effortScore != nil) { frame in
             HStack(alignment: .top, spacing: 0) {
-                ringCell(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
-                         tint: chargeScore == nil ? StrandPalette.organicMissing : StrandPalette.chargeColor,
-                         caption: nil, frame: frame, diameter: diameter, hit: hit,
-                         route: ForgeRoute.charge)
-                ringCell(metric: .effort, label: DomainTheme.effort.productName, score: effortScore,
-                         tint: StrandPalette.organicEffort, caption: nil,
-                         frame: frame, diameter: diameter, hit: hit,
-                         maxValue: effortScale == .whoop ? 21 : 100, decimals: effortScale == .whoop ? 1 : 0,
-                         route: ForgeRoute.effort(stored: snapshot.effortStored, charge: chargeScore))
-                ringCell(metric: .rest, label: DomainTheme.rest.productName, score: snapshot.loaded ? snapshot.rest : nil,
-                         tint: StrandPalette.organicRest, caption: nil,
-                         frame: frame, diameter: diameter, hit: hit,
-                         route: ForgeRoute.rest(snapshot.loaded ? snapshot.rest : nil))
+                ringCell(charge, frame: frame, diameter: diameter, hit: hit, route: ForgeRoute.charge)
+                ringCell(effort, frame: frame, diameter: diameter, hit: hit, route: effortRoute)
+                ringCell(rest, frame: frame, diameter: diameter, hit: hit, route: restRoute)
             }
         }
         .frame(maxWidth: .infinity)
@@ -298,13 +286,29 @@ struct ForgeTodayView: View {
         }
     }
 
-    private func ringCell<Route: Hashable>(metric: OrganicScoreMetric, label: String, score: Double?, tint: Color,
-                                           caption: String?, frame: OrganicScoreFrame, diameter: CGFloat, hit: CGFloat,
-                                           maxValue: Double = 100, decimals: Int = 0, route: Route) -> some View {
-        let model = OrganicScoreVisualModel.resolve(metric: metric, value: score, scaleMaximum: maxValue)
-        return NavigationLink(value: route) {
+    /// What one ring shows, apart from the frame it is drawn at.
+    private struct RingFace {
+        let metric: OrganicScoreMetric
+        let label: String
+        let score: Double?
+        let tint: Color
+        let decimals: Int
+        let model: OrganicScoreVisualModel
+        let spokenValue: String
+    }
+
+    private func ringFace(metric: OrganicScoreMetric, label: String, score: Double?, tint: Color,
+                          maxValue: Double = 100, decimals: Int = 0) -> RingFace {
+        RingFace(metric: metric, label: label, score: score, tint: tint, decimals: decimals,
+                 model: OrganicScoreVisualModel.resolve(metric: metric, value: score, scaleMaximum: maxValue),
+                 spokenValue: spoken(score: score, maxValue: maxValue, decimals: decimals))
+    }
+
+    private func ringCell<Route: Hashable>(_ face: RingFace, frame: OrganicScoreFrame, diameter: CGFloat, hit: CGFloat,
+                                           route: Route) -> some View {
+        NavigationLink(value: route) {
             VStack(spacing: 2) {
-                OrganicScoreRing(model: model, tint: tint, score: score, decimals: decimals, frame: frame,
+                OrganicScoreRing(model: face.model, tint: face.tint, score: face.score, decimals: face.decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
                     // A soft shade under the ring on a picture, so a faint glow still parts from a bright sky.
@@ -317,18 +321,12 @@ struct ForgeTodayView: View {
                                 .allowsHitTesting(false)
                         }
                     }
-                Text(label)
+                Text(face.label)
                     .font(.system(.subheadline, weight: .semibold))
                     // On the picture a name is white, for it crosses snow and rock; the ring carries the colour.
-                    .foregroundStyle(onPicture ? AnyShapeStyle(.white) : AnyShapeStyle(Self.labelTint(metric)))
+                    .foregroundStyle(onPicture ? AnyShapeStyle(.white) : AnyShapeStyle(Self.labelTint(face.metric)))
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .shadow(color: .black.opacity(onPicture ? 0.45 : 0), radius: 3, y: 1)
-                if let caption {
-                    Text(caption)
-                        .font(.system(.caption))
-                        .foregroundStyle(ForgeColor.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.75)
-                }
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -338,23 +336,19 @@ struct ForgeTodayView: View {
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(label))
-        .accessibilityValue(Text(spoken(score: score, maxValue: maxValue, decimals: decimals, caption: caption)))
+        .accessibilityLabel(Text(face.label))
+        .accessibilityValue(Text(face.spokenValue))
         .accessibilityHint(Text("Opens the trend and readings"))
         .accessibilityAddTraits(.isButton)
     }
 
-    private func spoken(score: Double?, maxValue: Double, decimals: Int, caption: String?) -> String {
+    private func spoken(score: Double?, maxValue: Double, decimals: Int) -> String {
         guard let score else { return String(localized: "no data yet") }
-        var parts: [String] = []
         if maxValue == 100 {
-            parts.append(String(localized: "\(Int(score.rounded())) percent"))
-        } else {
-            let number = String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, score)
-            parts.append(String(localized: "\(number) out of \(Int(maxValue))"))
+            return String(localized: "\(Int(score.rounded())) percent")
         }
-        if let caption { parts.append(caption) }
-        return parts.joined(separator: ", ")
+        let number = String(format: "%.\(decimals)f", locale: AppLanguage.activeLocale, score)
+        return String(localized: "\(number) out of \(Int(maxValue))")
     }
 
     // MARK: - Timeline
@@ -838,7 +832,7 @@ struct ForgeTodayView: View {
         return logs
     }
 
-    private func load(force: Bool) async {
+    private func load() async {
         let now = Date()
         let allDays = repo.days
         let todayKey = Repository.logicalDayKey(now)
@@ -922,12 +916,13 @@ struct ForgeTodayView: View {
         next.loaded = true
 
         // The heaviest read last, as on the shipped Today: Effort floors at the stored row, so the live
-        // refinement can only raise the ring, never pull it back.
-        snapshot = next
+        // refinement can only raise the ring, never pull it back. A read that changed nothing redraws nothing.
+        guard !Task.isCancelled else { return }
+        if next != snapshot { snapshot = next }
         let live = await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
         let effort = StrainScorer.effectiveEffort(live: live, stored: displayDay?.day == todayKey ? displayDay?.strain : nil)
         guard !Task.isCancelled else { return }
-        snapshot.effortStored = effort
+        if effort != snapshot.effortStored { snapshot.effortStored = effort }
         // This Today feeds the Momentum page and widget, as the shipped ones do.
         DashboardMomentum.publish(
             context: DashboardMomentum.context(
@@ -1010,9 +1005,33 @@ enum ForgeRecentSleep {
     }
 }
 
-/// Where the rings card ends in the Today scroll view, to pin the compact bar once it is gone.
-private struct ForgeHeroBottomKey: PreferenceKey {
-    static var defaultValue: CGFloat = .greatestFiniteMagnitude
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = min(value, nextValue()) }
+/// Today's picture again, over the top and bottom edges of the page, opaque where cards are gone and clear where
+/// they show fully. The top edge joins in once the rings have scrolled away.
+private struct ForgeTodayEdges: View {
+    let heroHidden: Bool
+
+    var body: some View {
+        Color.clear
+            .overlay { ForgeBackground(tab: .today, showsMotif: true) }
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(stops: heroHidden
+                                   ? [.init(color: .black, location: 0.6), .init(color: .clear, location: 1)]
+                                   : [.init(color: .clear, location: 0), .init(color: .clear, location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 112)
+                    Color.clear
+                    LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.6)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 120)
+                }
+            }
+            // One flat image, so scrolling under it only blends it instead of masking it again on each frame.
+            .drawingGroup()
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
 }
+
 #endif

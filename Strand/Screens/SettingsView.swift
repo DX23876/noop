@@ -18,9 +18,40 @@ import WhoopProtocol
 
 /// Settings — profile (powers zones / calories / recovery), strap connection, and about.
 /// Grouped cards on surface.raised with a two-column form feel.
+///
+/// Only this shell watches `AppModel`, which publishes with every heart rate. Nothing on the page reads what
+/// it publishes, so the page is compared by what it is handed and stays as it is. The comparison has to be
+/// spelled out: its `StateObject` holds a closure, which SwiftUI always takes for a change.
 struct SettingsView: View {
-    @EnvironmentObject var model: AppModel
-    @EnvironmentObject var live: LiveState
+    @EnvironmentObject private var model: AppModel
+    private let searchSeed: String
+    private let initialPage: SettingsPage?
+    private let declaresDestinations: Bool
+
+    init(searchSeed: String = "", initialPage: SettingsPage? = nil, declaresDestinations: Bool = true) {
+        self.searchSeed = searchSeed
+        self.initialPage = initialPage
+        self.declaresDestinations = declaresDestinations
+    }
+
+    var body: some View {
+        SettingsPageContent(model: model, searchSeed: searchSeed, initialPage: initialPage,
+                            declaresDestinations: declaresDestinations)
+            .equatable()
+    }
+}
+
+private struct SettingsPageContent: View, Equatable {
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model === rhs.model && lhs.searchSeed == rhs.searchSeed && lhs.initialPage == rhs.initialPage
+            && lhs.declaresDestinations == rhs.declaresDestinations
+    }
+
+    let model: AppModel
+    private let searchSeed: String
+    /// Read, not watched: `liveFacts` runs the body again when something this page prints moves.
+    private var live: LiveState { model.live }
+    @StateObject private var liveFacts: SettingsLiveGate
     @EnvironmentObject var profile: ProfileStore
 
     /// Filter text for the section search. Fifteen cards is more than anyone scans, and half of them
@@ -36,7 +67,10 @@ struct SettingsView: View {
     /// `searchSeed` pre-fills the field, so a Settings hit tapped in the More tab's index search
     /// arrives already filtered to what was typed there instead of dropping the reader back into the
     /// full wall of cards. Empty (the default) is the ordinary "opened Settings" case.
-    init(searchSeed: String = "", initialPage: SettingsPage? = nil, declaresDestinations: Bool = true) {
+    init(model: AppModel, searchSeed: String, initialPage: SettingsPage?, declaresDestinations: Bool) {
+        self.model = model
+        self.searchSeed = searchSeed
+        _liveFacts = StateObject(wrappedValue: SettingsLiveGate(live: model.live))
         _query = State(initialValue: searchSeed)
         self.initialPage = initialPage
         self.declaresDestinations = declaresDestinations

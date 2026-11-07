@@ -2,6 +2,31 @@ import SwiftUI
 
 // MARK: - Hex Color Helper
 
+/// The dynamic colours already built, by their hex pair. The pairs come from the palette's own tables, so
+/// the memo holds a fixed handful and never needs evicting. Locked: a token can be read off the main thread.
+private final class DynamicColorMemo: @unchecked Sendable {
+    struct Pair: Hashable {
+        let light: String
+        let dark: String
+    }
+
+    static let shared = DynamicColorMemo()
+    private let lock = NSLock()
+    private var colors: [Pair: Color] = [:]
+
+    func color(_ pair: Pair) -> Color? {
+        lock.lock()
+        defer { lock.unlock() }
+        return colors[pair]
+    }
+
+    func store(_ color: Color, _ pair: Pair) {
+        lock.lock()
+        defer { lock.unlock() }
+        colors[pair] = color
+    }
+}
+
 public extension Color {
     /// Parse a hex string ("#0B0D12" / "0B0D12" RGB, or "#AARRGGBB"/"RRGGBBAA" RGBA) to sRGB
     /// components in 0...1. Shared by `Color(hex:)` and the dynamic `Color(light:dark:)` provider.
@@ -40,10 +65,15 @@ public extension Color {
         // profiling NOOP at a third to half a CPU core on macOS found `Color.sRGBComponents(hex:)` and
         // `closure #1 in Color.init(light:dark:)` among the hot leaves (#2393).
         //
-        // A cache would also have removed the cost, and a cache is the wrong shape for it: it needs a
-        // key, a lock (a dynamic provider can resolve off the main thread) and an eviction story, to
-        // re-derive per frame a value that cannot change after this line. The tokens are `static let`
-        // (`NoopVisualStyle`, `StrandPalette`), so this runs once per token for the life of the process.
+        // Resolving is one half. Building is the other: many tokens are computed, not `static let`
+        // (`StrandPalette.chargeColor` switches on the chart style), so a screen reading one per frame
+        // lands here per frame. Each pair is built once; a new provider would parse again and compare
+        // unequal to the last one, so SwiftUI would redraw whatever uses it.
+        let pair = DynamicColorMemo.Pair(light: light, dark: dark)
+        if let built = DynamicColorMemo.shared.color(pair) {
+            self = built
+            return
+        }
         // One declaration rather than two `let`s: watchOS resolves straight to the dark hex, so a separate
         // `lightComponents` would be unused on that platform and warn. A pair that is always read as a
         // whole has no such half.
@@ -68,6 +98,7 @@ public extension Color {
         self.init(.sRGB, red: components.dark.r, green: components.dark.g,
                   blue: components.dark.b, opacity: components.dark.a)
         #endif
+        DynamicColorMemo.shared.store(self, pair)
     }
 }
 

@@ -61,6 +61,16 @@ final class DynamicColorParseOnceTests: XCTestCase {
         XCTAssertTrue(body.contains("components.dark"), "the dark branch must read the hoisted pair")
     }
 
+    /// Most tokens are computed (`StrandPalette.chargeColor` switches on the chart style), so a screen
+    /// that reads one per frame asks for it per frame. The same pair must hand back the same colour: a new
+    /// provider each time parses again, and compares unequal, so SwiftUI redraws what uses it.
+    func testTheSamePairIsTheSameColour() {
+        let first = Color(light: "#102030", dark: "#405060")
+        XCTAssertEqual(first, Color(light: "#102030", dark: "#405060"))
+        XCTAssertNotEqual(first, Color(light: "#102030", dark: "#405061"))
+        XCTAssertNotEqual(first, Color(light: "#102031", dark: "#405060"))
+    }
+
     /// The parser itself is untouched by the hoist, so its output stays pinned here.
     func testTheParserStillDecodesRGBAndRGBA() {
         let rgb = Color.sRGBComponents(hex: "#F3F4F6")
