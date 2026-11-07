@@ -55,6 +55,8 @@ extension ChatMessage.Origin {
         case .checkIn:      return "Check-in — the coach got in touch"
         case .nudge:        return "The coach got in touch"
         case .weeklyReview: return "Your weekly review — the coach got in touch"
+        case .afterWorkout: return "After your workout — the coach got in touch"
+        case .evening:      return "Your evening recap — the coach got in touch"
         case .reply:        return nil
         }
     }

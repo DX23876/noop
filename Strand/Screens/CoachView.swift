@@ -973,6 +973,8 @@ struct CoachView: View {
             case .checkIn:      return "hand.wave"
             case .nudge:        return "bell"
             case .weeklyReview: return "calendar"
+            case .afterWorkout: return "figure.run"
+            case .evening:      return "moon"
             case .reply:        return ""
             }
         }()

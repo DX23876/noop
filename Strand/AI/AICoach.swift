@@ -59,6 +59,10 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         case checkIn
         case nudge
         case weeklyReview
+        /// The new design's short note about one finished workout. Stored as a nudge before 2026-11-07.
+        case afterWorkout
+        /// The new design's evening recap. Stored as a nudge before 2026-11-07.
+        case evening
 
         /// Whether this arrived unprompted. `reply` is the only one that didn't.
         var isCoachInitiated: Bool { self != .reply }
@@ -2866,8 +2870,13 @@ final class AICoachEngine: ObservableObject {
         await ensureOpenRouterCapabilities()
 
         let context = toolCallingActive ? toolModeContext : await buildFullContext()
+        // The new design shows the brief as a short note on Today's timeline, with the night and the
+        // Charge drivers drawn under it, so it asks for that note instead of the three-part brief.
+        let shortNote = ForgeDesignPrefs.isEnabled()
         // Empty context (tool path, nothing pending) → the instruction alone, no dangling "---" separator.
-        let instruction = Self.briefInstruction(toolsActive: toolCallingActive)
+        let instruction = shortNote
+            ? ForgeCoachNotes.morningInstruction(toolsActive: toolCallingActive) + "\n\n" + ForgeCoachNotes.repliesClause
+            : Self.briefInstruction(toolsActive: toolCallingActive)
         let briefContent = context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? instruction
             : context + "\n\n---\n\n" + instruction
@@ -2876,9 +2885,10 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
-                appendMessage(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
+                let note = shortNote ? ForgeCoachNotes.splitReplies(clean) : (text: clean, replies: [])
+                appendMessage(ChatMessage(role: .assistant, text: String(localized: "Today's brief") + "\n\n" + note.text,
                                           toolsUsed: reply.toolsUsed, origin: .brief,
-                                          memoryWrites: takeMemoryWrites()))
+                                          memoryWrites: takeMemoryWrites(), replies: note.replies))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 CoachBriefStamp.stamp(day: LogicalDay.key(Date()))
@@ -2903,6 +2913,15 @@ final class AICoachEngine: ObservableObject {
         guard CoachFeaturePrefs.isEnabled else { return }
         let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.lastCheckInDayKey) != today else { return }
+        // The new design has one morning note, and it asks about yesterday itself; a check-in on top of it
+        // would be a second morning message.
+        if ForgeDesignPrefs.isEnabled() {
+            await startBriefIfNeeded()
+            if CoachBriefStamp.lastBriefDay() == today {
+                UserDefaults.standard.set(today, forKey: Self.lastCheckInDayKey)
+            }
+            return
+        }
         await runCheckInCancellable()
     }
 
@@ -3079,7 +3098,7 @@ final class AICoachEngine: ObservableObject {
         // detection already happened locally, and a network failure shouldn't also hide it from the bell.
         coachAppHooks().proactiveSignal(signal, level: proactiveLevel)
         let goodNews = signal.category == .milestone || signal.category == .bodyPositive
-        let prefix = goodNews ? "Nice work" : "A quick nudge"
+        let prefix = goodNews ? String(localized: "Nice work") : String(localized: "A quick nudge")
         let spoke = await runSeededTurnCancellable(
             instruction: Self.proactiveNudgeInstruction(for: signal),
             prefix: prefix, stampKey: Self.lastProactiveDayKey, origin: .nudge)
@@ -3234,7 +3253,12 @@ final class AICoachEngine: ObservableObject {
             .joined(separator: "\n\n")
         // The goal and weekly reviews stand on their own; everything else must not repeat today's notes.
         let saidToday = origin == .weeklyReview ? nil : ForgeCoachNotes.alreadySaidClause(headlinesToday())
-        let task = [instruction, saidToday, ForgeCoachNotes.repliesClause].compactMap { $0 }.joined(separator: "\n\n")
+        // In the new design a nudge is a timeline note like the others: figures come from the device and
+        // it speaks in the same voice. The redesign's own notes carry both clauses in their instruction.
+        let noteVoice = origin == .nudge && ForgeDesignPrefs.isEnabled()
+            ? ForgeCoachNotes.noFiguresClause + "\n\n" + ForgeCoachNotes.voiceClause : nil
+        let task = [instruction, noteVoice, saidToday, ForgeCoachNotes.repliesClause].compactMap { $0 }
+            .joined(separator: "\n\n")
         let trailer = preamble.isEmpty ? task : preamble + "\n\n---\n\n" + task
         let history = Self.wirePairs(from: windowedMessages(), context: "")
         let wire = Self.appendTrailingUserTurn(history, content: trailer)

@@ -241,4 +241,39 @@ final class ForgeTimelineTests: XCTestCase {
         let bed = ForgeToday.bedtime(now: now, calendar: cal, wakeMinutes: { _ in 7 * 60 }, sleepNeedMinutes: 8 * 60)
         XCTAssertEqual(bed, cal.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 23)))
     }
+
+    // MARK: Note kinds and the morning note (2026-11-07)
+
+    func testOlderNudgesKeepTheirKindFromTheirFirstLine() {
+        typealias O = ForgeTimeline.CoachNote.Origin
+        XCTAssertEqual(O.legacy(nudgeText: "After your workout\n\nSteady walk."), .afterWorkout)
+        XCTAssertEqual(O.legacy(nudgeText: "Evening recap\n\nGood day."), .evening)
+        XCTAssertEqual(O.legacy(nudgeText: "A quick nudge\n\nSleep is shorter."), .nudge)
+        XCTAssertEqual(O.legacy(nudgeText: "After your workout was a long day."), .nudge)
+    }
+
+    func testTheNewKindsSurviveTheTranscript() throws {
+        for origin in [ChatMessage.Origin.afterWorkout, .evening] {
+            let message = ChatMessage(role: .assistant, text: "x", origin: origin)
+            let back = try JSONDecoder().decode(ChatMessage.self, from: JSONEncoder().encode(message))
+            XCTAssertEqual(back.origin, origin)
+            XCTAssertTrue(back.origin.isCoachInitiated)
+        }
+    }
+
+    func testTheMorningNoteIsShortCarriesNoFiguresAndProposesOnlyWithTools() {
+        let withTools = ForgeCoachNotes.morningInstruction(toolsActive: true)
+        let without = ForgeCoachNotes.morningInstruction(toolsActive: false)
+        for text in [withTools, without] {
+            XCTAssertTrue(text.contains(ForgeCoachNotes.noFiguresClause))
+            XCTAssertTrue(text.contains(ForgeCoachNotes.voiceClause))
+            XCTAssertTrue(text.contains("under 40 words"))
+        }
+        XCTAssertTrue(withTools.contains("propose_plan"))
+        XCTAssertTrue(withTools.contains("get_plan_adherence"))
+        XCTAssertFalse(without.contains("propose_plan"))
+        XCTAssertTrue(ForgeCoachNotes.workoutInstruction(sport: "Run", minutes: 30, ended: "18:00")
+            .contains(ForgeCoachNotes.noFiguresClause))
+        XCTAssertTrue(ForgeCoachNotes.eveningInstruction().contains(ForgeCoachNotes.noFiguresClause))
+    }
 }

@@ -12,7 +12,7 @@ import Foundation
 enum ForgeCoachNotes {
 
     enum Kind: String, CaseIterable {
-        case afterWorkout, evening
+        case morning, afterWorkout, evening
 
         /// Per-kind switch in UserDefaults. On by default: the coach itself is off by default, and a person
         /// who turned it on asked for it to speak; each kind can be turned off on its own.
@@ -86,6 +86,48 @@ enum ForgeCoachNotes {
     language. Otherwise leave that line out.
     """
 
+    /// Every note sits above figures the device fills in, so the words carry no figures of their own: a
+    /// number the model writes can be wrong, out of date after a re-score, or on another scale than the
+    /// rings (seen in real notes: "HRV 50" over a stored 44, Effort "13.2/21" for a 0 to 100 wearer).
+    static let noFiguresClause = """
+    Do not write any number, percentage, duration or unit in the note: the screen shows the figures \
+    directly under your words. Say what they mean instead ("above your usual", "a short night").
+    """
+
+    /// How every note speaks: what helps rather than what was lost, no praise that was not earned, and no
+    /// verdict on a single night, which can feed the very worry that spoils the next one.
+    static let voiceClause = """
+    Say what helps rather than what was lost. No praise unless it was earned, no alarm, and never judge \
+    a single night; a pattern over several nights is worth naming, one night is not.
+    """
+
+    /// The new design's morning note: the day's one point in a headline and at most two sentences, with
+    /// the night and the Charge drivers drawn under it by the device. It replaces both the long brief and
+    /// the separate check-in there: one note in the morning, which may ask one thing about yesterday.
+    static func morningInstruction(toolsActive: Bool) -> String {
+        let read = toolsActive
+            ? "You have not been given any of my numbers. First call get_readiness and get_biometric_summary; "
+                + "call get_charge_drivers if my Charge is notably high or low, get_sleep_detail if sleep is the "
+                + "story, and get_plan_adherence to see whether yesterday's planned session happened."
+            : "Use the data above."
+        let plan = toolsActive
+            ? "Record exactly one session for today with propose_plan (pass zone and duration_min whenever you "
+                + "name them), the easy or short option or rest when readiness is low. Do not describe it: the "
+                + "screen shows the proposal under your note for me to accept, change or decline. Anything "
+                + "already awaiting my decision or committed is recorded; do not propose it again."
+            : "Name the kind of session that fits today in a few words; you cannot record it."
+        return """
+        \(read) Then write my morning note for the Today screen: one headline sentence with the one thing \
+        that matters today, then at most two short sentences, under 40 words in all. If yesterday's planned \
+        session is still open or was skipped, ask about it once in one of those sentences, reading a skip \
+        as information and never as laziness. \(plan) No greeting, no list, no headings, no dashes.
+
+        \(noFiguresClause)
+
+        \(voiceClause)
+        """
+    }
+
     static func workoutInstruction(sport: String, minutes: Int, ended: String) -> String {
         """
         The user finished a workout: \(sport), about \(minutes) minutes, ended at \(ended). Unprompted, write \
@@ -93,6 +135,10 @@ enum ForgeCoachNotes {
         invent a figure. Say what stood out in the session and what it means for their training. Stay on the \
         session: do not bring up sleep or the scores of the day, other notes cover those. One headline \
         sentence, then at most one short sentence, under 30 words in all. No greeting, no list, no dashes.
+
+        \(noFiguresClause)
+
+        \(voiceClause)
         """
     }
 
@@ -102,6 +148,10 @@ enum ForgeCoachNotes {
         Effort, any workouts and goals progress; never invent a figure. One headline sentence, then at most \
         one short sentence ending with one concrete point for tonight or tomorrow, under 30 words in all. \
         No greeting, no list, no dashes.
+
+        \(noFiguresClause)
+
+        \(voiceClause)
         """
     }
 

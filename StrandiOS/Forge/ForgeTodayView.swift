@@ -61,6 +61,8 @@ struct ForgeTodayView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var editingWidgets = false
     @ObservedObject private var widgetStore = ForgeTodayWidgetStore.shared
+    /// Today's session the morning note proposed, opened from the note itself.
+    @ObservedObject private var planStore = CoachPlanStore.shared
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var tilesBelowTimeline = false
     /// Bumped by a tap on the pinned bar: back to the rings.
     @State private var backToTop = 0
@@ -479,16 +481,16 @@ struct ForgeTodayView: View {
     private static let shortNoteLength = 180
 
     private func coachLabel(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> String {
+        // The label says what kind of note it is, in the app's language, whatever first line the stored
+        // text carries (older notes start with an English label).
         let label: String
-        if let kicker = entry.kicker {
-            label = String(localized: "Coach · \(kicker)")
-        } else {
-            switch origin {
-            case .brief: label = String(localized: "Coach · morning")
-            case .checkIn: label = String(localized: "Coach · check-in")
-            case .nudge: label = String(localized: "Coach")
-            case .weeklyReview: label = String(localized: "Coach · weekly review")
-            }
+        switch origin {
+        case .brief: label = String(localized: "Coach · morning")
+        case .checkIn: label = String(localized: "Coach · check-in")
+        case .nudge: label = String(localized: "Coach")
+        case .weeklyReview: label = String(localized: "Coach · weekly review")
+        case .afterWorkout: label = String(localized: "Coach · after your workout")
+        case .evening: label = String(localized: "Coach · evening")
         }
         return "\(Self.timeText(entry.date)) · \(label)"
     }
@@ -532,6 +534,11 @@ struct ForgeTodayView: View {
                 }
             }
             FlowRows(spacing: 8) {
+                if origin == .brief, Calendar.current.isDateInToday(entry.date),
+                   planStore.pending.contains(where: { $0.day == Repository.localDayKey(Date()) }) {
+                    ForgeChip(title: String(localized: "See the suggestion"), systemImage: "calendar.badge.plus",
+                              prominent: true) { showPlan = true }
+                }
                 if coachFeatureEnabled {
                     // Only what the coach offered with this note: a note that asks nothing offers nothing.
                     ForEach(entry.replies, id: \.self) { reply in
@@ -601,7 +608,7 @@ struct ForgeTodayView: View {
                 ForgeZoneBar(percents: zones,
                              minutes: (row.durationS ?? Double(max(row.endTs - row.startTs, 0))) / 60)
             }
-        } else if entry.kicker == String(localized: "Evening recap"), let effort = snapshot.effortStored,
+        } else if origin == .evening, let effort = snapshot.effortStored,
                   let target = effortTarget, Calendar.current.isDateInToday(entry.date) {
             ForgeEffortTargetBar(effort: effort, target: target, scale: effortScale)
         }
@@ -814,8 +821,8 @@ struct ForgeTodayView: View {
             return cal.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? now
         }
         return [
-            .init(id: "demo-evening", date: at(20, 55), text: String(localized: "Evening recap") + "\n\nStrong day, inside your Effort target. Strength took most of it; bed by 23:00 keeps tomorrow's Charge up.", origin: .nudge),
-            .init(id: "demo-workout", date: at(11, 5), text: String(localized: "After your workout") + "\n\nSteady walk, heart rate stayed easy. Good recovery work after yesterday's strength session.", origin: .nudge),
+            .init(id: "demo-evening", date: at(20, 55), text: String(localized: "Evening recap") + "\n\nStrong day, inside your Effort target. Strength took most of it; an early night keeps tomorrow's Charge up.", origin: .evening),
+            .init(id: "demo-workout", date: at(11, 5), text: String(localized: "After your workout") + "\n\nSteady walk, heart rate stayed easy. Good recovery work after yesterday's strength session.", origin: .afterWorkout),
             .init(id: "demo-brief", date: at(7, 52), text: "Well recovered, push a bit today. HRV is above your usual range and resting heart rate is low. A harder session fits.", origin: .brief),
             .init(id: "demo-weekly", date: at(21, 30, daysAgo: 1), text: String(localized: "Weekly review") + "\n\nFive sessions this week, the plan is on track. Sleep held at about seven and a half hours.", origin: .weeklyReview),
         ].filter { $0.date <= now }
@@ -933,7 +940,9 @@ struct ForgeTodayView: View {
                     switch m.origin {
                     case .brief: origin = .brief
                     case .checkIn: origin = .checkIn
-                    case .nudge: origin = .nudge
+                    case .nudge: origin = ForgeTimeline.CoachNote.Origin.legacy(nudgeText: m.text)
+                    case .afterWorkout: origin = .afterWorkout
+                    case .evening: origin = .evening
                     case .weeklyReview: origin = .weeklyReview
                     case .reply: continue
                     }

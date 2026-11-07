@@ -11,7 +11,17 @@ enum ForgeTimeline {
     // MARK: Inputs (plain values copied from existing reads)
 
     struct CoachNote: Equatable {
-        enum Origin: String { case brief, checkIn, nudge, weeklyReview }
+        enum Origin: String { case brief, checkIn, nudge, weeklyReview, afterWorkout, evening }
+
+        /// The kind of a note stored before kinds were (2026-11-07): the workout note and the evening
+        /// recap were nudges told apart only by their first line, in English or in the app's language.
+        static func legacy(nudgeText text: String) -> Origin {
+            let first = text.split(separator: "\n", maxSplits: 1).first.map(String.init)?
+                .trimmingCharacters(in: .whitespaces) ?? ""
+            if first == "After your workout" || first == String(localized: "After your workout") { return .afterWorkout }
+            if first == "Evening recap" || first == String(localized: "Evening recap") { return .evening }
+            return .nudge
+        }
         let id: String
         let date: Date
         let text: String

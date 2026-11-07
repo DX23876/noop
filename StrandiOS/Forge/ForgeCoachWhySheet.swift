@@ -11,30 +11,43 @@ struct ForgeCoachWhySheet: View {
     let onCoachSettings: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(ForgeCoachNotes.Kind.morning.enabledKey) private var morningNotes = true
     @AppStorage(ForgeCoachNotes.Kind.afterWorkout.enabledKey) private var workoutNotes = true
     @AppStorage(ForgeCoachNotes.Kind.evening.enabledKey) private var eveningNotes = true
 
+    private var origin: ForgeTimeline.CoachNote.Origin? {
+        if case .coach(let origin) = entry.kind { return origin }
+        return nil
+    }
+
+    /// The note kinds the new design writes on its own, each with its switch.
     private var noteKind: ForgeCoachNotes.Kind? {
-        switch entry.kicker {
-        case String(localized: "After your workout"): return .afterWorkout
-        case String(localized: "Evening recap"): return .evening
+        switch origin {
+        case .brief: return .morning
+        case .afterWorkout: return .afterWorkout
+        case .evening: return .evening
         default: return nil
         }
     }
 
-    private var trigger: String {
-        if let kind = noteKind {
-            switch kind {
-            case .afterWorkout: return String(localized: "Written once after a workout ended, at most three coach notes a day and never between 22:00 and 07:00.")
-            case .evening: return String(localized: "The evening recap, once a day after 19:00, at most three coach notes a day and never between 22:00 and 07:00.")
-            }
+    private var noteSwitch: Binding<Bool>? {
+        switch noteKind {
+        case .morning: return $morningNotes
+        case .afterWorkout: return $workoutNotes
+        case .evening: return $eveningNotes
+        case nil: return nil
         }
-        guard case .coach(let origin) = entry.kind else { return "" }
+    }
+
+    private var trigger: String {
         switch origin {
-        case .brief: return String(localized: "Your morning brief, written once a day after the morning sync.")
+        case .brief: return String(localized: "Your morning note, written once a day after the night has synced. It also asks about yesterday when a planned session is still open.")
         case .checkIn: return String(localized: "Your daily check-in at your usual wake time.")
         case .nudge: return String(localized: "The coach found a real signal in your data, such as a streak, a multi-night trend or a goal date. It stays quiet on ordinary days.")
         case .weeklyReview: return String(localized: "The weekly review, at most once every seven days.")
+        case .afterWorkout: return String(localized: "Written once after a workout ended, at most three coach notes a day and never between 22:00 and 07:00.")
+        case .evening: return String(localized: "The evening recap, once a day after 19:00, at most three coach notes a day and never between 22:00 and 07:00.")
+        case nil: return ""
         }
     }
 
@@ -70,10 +83,16 @@ struct ForgeCoachWhySheet: View {
                     }
                     section("Where the figures come from",
                             text: String(localized: "Every number is read on this iPhone. Your coach provider writes the words around them from the data you allowed in Coach settings."))
-                    if let kind = noteKind {
-                        Toggle(isOn: kind == .afterWorkout ? $workoutNotes : $eveningNotes) {
-                            Text(kind == .afterWorkout ? "Notes after workouts" : "Evening recap")
-                                .font(.system(.callout, weight: .semibold))
+                    if let kind = noteKind, let noteSwitch {
+                        Toggle(isOn: noteSwitch) {
+                            Group {
+                                switch kind {
+                                case .morning: Text("Morning note")
+                                case .afterWorkout: Text("Notes after workouts")
+                                case .evening: Text("Evening recap")
+                                }
+                            }
+                            .font(.system(.callout, weight: .semibold))
                         }
                         .tint(ForgeColor.accent)
                         .forgeCard(radius: ForgeRadius.card, padding: 14)

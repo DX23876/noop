@@ -23,8 +23,8 @@ extension AICoachEngine {
         }
     }
 
-    /// Write whichever redesign note is due right now, at most one per call. Called when Today loads, the
-    /// same moment the brief and nudges use, so nothing runs in the background.
+    /// Write whichever redesign note is due right now, at most one per call: the morning note, then a note
+    /// after a workout, then the evening recap. Called when Today loads.
     @discardableResult
     func runForgeNotesIfDue(workouts: [WorkoutRow], now: Date = Date()) async -> Bool {
         // Never before the person has read the coach's first-use note (what it is, what it sends): the
@@ -44,6 +44,15 @@ extension AICoachEngine {
         noteTurn = true
         defer { noteTurn = false }
 
+        // The morning note first: the day's first word, once the night has settled. `startBriefIfNeeded`
+        // owns the once-a-day stamp and stays silent while the wake time still needs review. It is not
+        // announced: whoever wakes opens the app, and a notification each morning would teach to ignore them.
+        if ForgeCoachNotes.mayPost(.morning, now: now, enabled: ForgeCoachNotes.isEnabled(.morning),
+                                   initiatedToday: used),
+           CoachBriefStamp.lastBriefDay() != LogicalDay.key(now) {
+            return await startBriefIfNeeded()
+        }
+
         if ForgeCoachNotes.mayPost(.afterWorkout, now: now, enabled: ForgeCoachNotes.isEnabled(.afterWorkout),
                                    initiatedToday: used),
            let workout = ForgeCoachNotes.workoutDue(
@@ -62,7 +71,7 @@ extension AICoachEngine {
                     minutes: Self.noteMinutes(workout), ended: ended),
                 prefix: String(localized: "After your workout"),
                 stampKey: ForgeCoachNotes.lastWorkoutNoteKey,
-                stampValue: workoutId, workoutId: workoutId, origin: .nudge)
+                stampValue: workoutId, workoutId: workoutId, origin: .afterWorkout)
             if spoke { announceLatestNote(now: now) }
             return spoke
         }
@@ -73,7 +82,7 @@ extension AICoachEngine {
             let spoke = await runSeededTurnCancellable(
                 instruction: ForgeCoachNotes.eveningInstruction(),
                 prefix: String(localized: "Evening recap"),
-                stampKey: ForgeCoachNotes.lastEveningDayKey, origin: .nudge)
+                stampKey: ForgeCoachNotes.lastEveningDayKey, origin: .evening)
             if spoke { announceLatestNote(now: now) }
             return spoke
         }
