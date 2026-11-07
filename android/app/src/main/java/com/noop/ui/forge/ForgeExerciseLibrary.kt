@@ -475,7 +475,7 @@ private fun LibraryFilterSheet(c: CoreTrainingLibrary.Catalog, region: String?, 
                 FilterRow(stringResource(R.string.forge_library_type), mode?.let { measurementName(it) },
                     stringResource(R.string.forge_library_any_type), c.modes.map { it to measurementName(it) }, onMode)
                 FilterDivider()
-                LinkRow(stringResource(R.string.forge_library_available_equipment), null, onAvailableEquipment)
+                LinkRow(stringResource(R.string.forge_library_available_equipment), null, onClick = onAvailableEquipment)
             }
             if (active) TextButton(onClick = { onClear(); onDismiss() }) {
                 Text(stringResource(R.string.forge_library_clear_filters), color = Forge.colors.accent)

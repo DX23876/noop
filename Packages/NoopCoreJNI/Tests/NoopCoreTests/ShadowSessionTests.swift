@@ -1,5 +1,5 @@
 import XCTest
-import NoopCore
+@testable import NoopCore
 import StrandCore
 import WhoopProtocol
 import WhoopStore
@@ -116,4 +116,97 @@ final class ShadowSessionTests: XCTestCase {
         XCTAssertFalse(newGravity.isEmpty, "frames after the switch belong to the new strap")
         XCTAssertTrue(oldGravity.isEmpty)
     }
+
+    /// The 2026-11-05 field log: a daily pass ahead of a history chunk held the chunk past the Kotlin ack's wait, in
+    /// every offload of the day. The chunk must bank while a pass is still running.
+    func testAHistoryChunkIsBankedWhileADailyPassRuns() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("shadow-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let gate = PassGate()
+        ShadowSession.setAnalysisPassForTesting { await gate.hold() }
+        defer { ShadowSession.setAnalysisPassForTesting(nil) }
+        XCTAssertEqual(ShadowSession.start(path: dir.appendingPathComponent("s.sqlite").path, deviceId: "my-whoop"), 0)
+        defer { ShadowSession.stop() }
+
+        ShadowSession.send(.analyze(.init(age: 40, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0),
+                                    .standard))
+        await gate.waitUntilHeld()
+        ShadowSession.send(.family(whoop5: false))
+        ShadowSession.send(.clock(device: 1_700_000_000, wall: 1_700_000_000))
+        ShadowSession.send(.offloadBegin(continuedAfterRows: false))
+        for record in v25Records { ShadowSession.send(.offload(record)) }
+        let endFrame = historyEnd(trim: 80_000)
+        ShadowSession.send(.offload(endFrame))
+        let endData = await MainActor.run { Backfiller.endData(from: endFrame, family: .whoop4) }
+        let end = try XCTUnwrap(endData)
+
+        let banked: Bool = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async { continuation.resume(returning: ShadowSession.awaitBanked(endData: end, timeout: 10)) }
+        }
+        XCTAssertTrue(banked, "the chunk must not wait behind the running pass")
+
+        // A barrier still waits for the pass, so a settings save reads the stored result and nothing earlier.
+        let barrier = BarrierProbe()
+        DispatchQueue.global().async { barrier.finish(ShadowSession.awaitQueuedEvents()) }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertFalse(barrier.isFinished, "the barrier must wait for the pass it follows")
+        await gate.release()
+        for _ in 0..<300 where !barrier.isFinished { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(barrier.isFinished)
+    }
+
+    @MainActor
+    func testWaitingPassesBecomeOneAndKeepAWholeHistoryRequest() async {
+        var ran: [(device: String, history: Bool, age: Int)] = []
+        let gate = PassGate()
+        let runs = AnalysisRuns { request in
+            ran.append((request.deviceId, request.settings.historyRescore, request.profile.age))
+            await gate.hold()
+        }
+        func request(age: Int, device: String = "a", history: Bool = false) -> AnalysisRuns.Request {
+            var settings = CoreAnalysis.Settings.standard
+            settings.historyRescore = history
+            return .init(profile: .init(age: age, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0),
+                         settings: settings, deviceId: device)
+        }
+        runs.request(request(age: 1))
+        await gate.waitUntilHeld()
+        runs.request(request(age: 2, history: true))
+        runs.request(request(age: 3))
+        runs.request(request(age: 4, device: "b"))
+        await gate.release()
+        await runs.settled()
+        XCTAssertEqual(ran.map(\.device), ["a", "a", "b"])
+        XCTAssertEqual(ran.map(\.history), [false, true, false], "an ordinary request must not swallow a history pass")
+        XCTAssertEqual(ran.map(\.age), [1, 3, 4], "the joined pass uses the newest profile")
+    }
+}
+
+/// Holds a test's daily pass open until the test releases it; passes after the release run straight through.
+private actor PassGate {
+    private var isOpen = false, entered = false
+    private var holders: [CheckedContinuation<Void, Never>] = []
+    private var watchers: [CheckedContinuation<Void, Never>] = []
+    func hold() async {
+        entered = true
+        watchers.forEach { $0.resume() }; watchers = []
+        guard !isOpen else { return }
+        await withCheckedContinuation { holders.append($0) }
+    }
+    func waitUntilHeld() async {
+        guard !entered else { return }
+        await withCheckedContinuation { watchers.append($0) }
+    }
+    func release() {
+        isOpen = true
+        holders.forEach { $0.resume() }; holders = []
+    }
+}
+
+private final class BarrierProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var finished = false
+    var isFinished: Bool { lock.withLock { finished } }
+    func finish(_ completed: Bool) { lock.withLock { finished = completed } }
 }

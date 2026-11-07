@@ -3813,5 +3813,22 @@
   "Living": "Vivos",
   "Score rings": "Anillos de puntuación",
   "Living rings move and breathe. Classic rings stand still and use less battery.": "Los anillos vivos se mueven y respiran. Los clásicos se quedan quietos y gastan menos batería.",
-  "Bedtime counts %@ h, as set in Alarms.": "La hora de acostarse cuenta con %@ h, como en Alarmas."
+  "Bedtime counts %@ h, as set in Alarms.": "La hora de acostarse cuenta con %@ h, como en Alarmas.",
+  "Your backups are only on %@": "Tus copias solo están en %@",
+  "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive.": "Si borras NOOP, también se borran. Abre Copia y sincronización para moverlas a iCloud Drive.",
+  "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive.": "Si el botón Abrir no hace nada, toca Mejor guardar una copia para poner tu copia más reciente en iCloud Drive.",
+  "That folder is inside NOOP too": "Esa carpeta también está dentro de NOOP",
+  "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead.": "Se borraría junto con NOOP. Elige una carpeta en iCloud Drive o toca Mejor guardar una copia.",
+  "Backups moved": "Copias movidas",
+  "NOOP now backs up to %@. Some earlier backups could not be copied; they are still in NOOP's own folder.": "NOOP ahora guarda las copias en %@. Algunas copias anteriores no se pudieron copiar; siguen en la carpeta propia de NOOP.",
+  "NOOP now backs up to %@. Your earlier backups were copied there.": "NOOP ahora guarda las copias en %@. Tus copias anteriores se copiaron allí.",
+  "NOOP now backs up to %@.": "NOOP ahora guarda las copias en %@.",
+  "Copy saved": "Copia guardada",
+  "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then.": "Esta copia no se actualiza sola. NOOP sigue guardando en su propia carpeta, así que guarda una copia nueva de vez en cuando.",
+  "No backup to copy yet": "Aún no hay ninguna copia que guardar",
+  "Tap Back up now first, then save a copy.": "Toca primero Hacer copia ahora y luego guarda una copia.",
+  "Only on %@": "Solo en %@",
+  "Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall.": "Si borras NOOP, también se borran estas copias. Muévelas a iCloud Drive y sobrevivirán a una reinstalación.",
+  "Move to iCloud Drive": "Mover a iCloud Drive",
+  "Save a copy instead": "Mejor guardar una copia"
 }

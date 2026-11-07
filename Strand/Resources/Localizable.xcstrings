@@ -112543,7 +112543,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cofnij się teraz"
+            "value" : "Utwórz kopię teraz"
           }
         },
         "pt-PT" : {
@@ -611052,6 +611052,992 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "就寢時間按「鬧鐘」中設定的 %@ 小時計算。"
+          }
+        }
+      }
+    },
+    "Your backups are only on %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Sicherungen liegen nur auf %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus copias solo están en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos sauvegardes sont uniquement sur %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tuoi backup sono solo su %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopie zapasowe są tylko tutaj (%@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As tuas cópias de segurança só existem aqui (%@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Резервные копии есть только здесь (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的备份仅在%@上"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的備份僅在%@上"
+          }
+        }
+      }
+    },
+    "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschst du NOOP, sind sie auch weg. Öffne Sicherung & Sync und verschiebe sie nach iCloud Drive."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si borras NOOP, también se borran. Abre Copia y sincronización para moverlas a iCloud Drive."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer NOOP les supprime aussi. Ouvrez Sauvegarde et synchronisation pour les déplacer vers iCloud Drive."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminando NOOP vengono eliminati anche loro. Apri Backup e sincronizzazione per spostarli su iCloud Drive."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usunięcie NOOP usunie też je. Otwórz Kopia zapasowa i synchronizacja, aby przenieść je na iCloud Drive."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar a NOOP apaga-as também. Abre Cópia de segurança e sincronização para as mover para o iCloud Drive."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "При удалении NOOP они тоже удалятся. Откройте «Резервное копирование и синхронизация», чтобы перенести их в iCloud Drive."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除 NOOP 时它们也会被删除。打开备份与同步，把它们移到 iCloud Drive。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除 NOOP 時它們也會被刪除。打開備份與同步，把它們移到 iCloud Drive。"
+          }
+        }
+      }
+    },
+    "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn Öffnen nichts tut, tippe auf Lieber eine Kopie speichern. Dann landet deine neueste Sicherung in iCloud Drive."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si el botón Abrir no hace nada, toca Mejor guardar una copia para poner tu copia más reciente en iCloud Drive."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si le bouton Ouvrir ne fait rien, touchez Enregistrer plutôt une copie pour placer votre dernière sauvegarde dans iCloud Drive."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se il pulsante Apri non fa nulla, tocca Salva invece una copia per mettere il backup più recente su iCloud Drive."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeśli przycisk Otwórz nic nie robi, stuknij Zamiast tego zapisz kopię, aby umieścić najnowszą kopię na iCloud Drive."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se o botão Abrir não fizer nada, toca em Guardar antes uma cópia para pôr a cópia mais recente no iCloud Drive."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если кнопка «Открыть» ничего не делает, нажмите «Лучше сохранить копию», чтобы положить последнюю копию в iCloud Drive."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果“打开”按钮没有反应，请轻点“改为保存副本”，把最新的备份放到 iCloud Drive。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果「打開」按鈕沒有反應，請輕點「改為儲存副本」，把最新的備份放到 iCloud Drive。"
+          }
+        }
+      }
+    },
+    "That folder is inside NOOP too" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Ordner liegt auch in NOOP"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esa carpeta también está dentro de NOOP"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce dossier se trouve aussi dans NOOP"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anche quella cartella è dentro NOOP"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ten folder też jest wewnątrz NOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Essa pasta também está dentro da NOOP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эта папка тоже внутри NOOP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该文件夹也在 NOOP 内"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該資料夾也在 NOOP 內"
+          }
+        }
+      }
+    },
+    "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er würde mit NOOP gelöscht. Wähle einen Ordner in iCloud Drive oder tippe auf Lieber eine Kopie speichern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se borraría junto con NOOP. Elige una carpeta en iCloud Drive o toca Mejor guardar una copia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il serait supprimé avec NOOP. Choisissez un dossier dans iCloud Drive ou touchez Enregistrer plutôt une copie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrebbe eliminata insieme a NOOP. Scegli una cartella su iCloud Drive oppure tocca Salva invece una copia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zostałby usunięty razem z NOOP. Wybierz folder na iCloud Drive albo stuknij Zamiast tego zapisz kopię."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seria apagada juntamente com a NOOP. Escolhe uma pasta no iCloud Drive ou toca em Guardar antes uma cópia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Она удалится вместе с NOOP. Выберите папку в iCloud Drive или нажмите «Лучше сохранить копию»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它会随 NOOP 一起被删除。请选择 iCloud Drive 中的文件夹，或轻点“改为保存副本”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它會隨 NOOP 一起被刪除。請選擇 iCloud Drive 中的資料夾，或輕點「改為儲存副本」。"
+          }
+        }
+      }
+    },
+    "Backups moved" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sicherungen verschoben"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copias movidas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sauvegardes déplacées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup spostati"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopie przeniesione"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cópias movidas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копии перенесены"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份已移动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "備份已移動"
+          }
+        }
+      }
+    },
+    "NOOP now backs up to %@. Some earlier backups could not be copied; they are still in NOOP's own folder." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP sichert jetzt nach %@. Einige ältere Sicherungen ließen sich nicht kopieren; sie liegen weiter im eigenen Ordner von NOOP."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP ahora guarda las copias en %@. Algunas copias anteriores no se pudieron copiar; siguen en la carpeta propia de NOOP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP sauvegarde désormais dans %@. Certaines sauvegardes plus anciennes n'ont pas pu être copiées ; elles restent dans le dossier de NOOP."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP ora esegue il backup in %@. Alcuni backup precedenti non sono stati copiati; restano nella cartella di NOOP."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP zapisuje teraz kopie w: %@. Niektórych starszych kopii nie udało się skopiować; nadal są w folderze NOOP."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A NOOP passa a guardar as cópias em %@. Algumas cópias anteriores não foram copiadas; continuam na pasta da NOOP."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теперь NOOP сохраняет копии в %@. Некоторые старые копии не удалось скопировать; они остались в папке NOOP."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 现在备份到 %@。部分较早的备份无法复制，它们仍在 NOOP 自己的文件夹中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 現在備份到 %@。部分較早的備份無法複製，它們仍在 NOOP 自己的資料夾中。"
+          }
+        }
+      }
+    },
+    "NOOP now backs up to %@. Your earlier backups were copied there." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP sichert jetzt nach %@. Deine älteren Sicherungen wurden dorthin kopiert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP ahora guarda las copias en %@. Tus copias anteriores se copiaron allí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP sauvegarde désormais dans %@. Vos sauvegardes plus anciennes y ont été copiées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP ora esegue il backup in %@. I backup precedenti sono stati copiati lì."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP zapisuje teraz kopie w: %@. Starsze kopie zostały tam skopiowane."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A NOOP passa a guardar as cópias em %@. As tuas cópias anteriores foram copiadas para lá."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теперь NOOP сохраняет копии в %@. Старые копии скопированы туда."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 现在备份到 %@。较早的备份已复制到那里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 現在備份到 %@。較早的備份已複製到那裡。"
+          }
+        }
+      }
+    },
+    "NOOP now backs up to %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP sichert jetzt nach %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP ahora guarda las copias en %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP sauvegarde désormais dans %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP ora esegue il backup in %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP zapisuje teraz kopie w: %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A NOOP passa a guardar as cópias em %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теперь NOOP сохраняет копии в %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 现在备份到 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 現在備份到 %@。"
+          }
+        }
+      }
+    },
+    "Copy saved" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopie gespeichert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia guardada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copie enregistrée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia salvata"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopia zapisana"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cópia guardada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копия сохранена"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "副本已保存"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "副本已儲存"
+          }
+        }
+      }
+    },
+    "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Kopie aktualisiert sich nicht von selbst. NOOP sichert weiter in den eigenen Ordner, speichere also ab und zu eine neue Kopie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta copia no se actualiza sola. NOOP sigue guardando en su propia carpeta, así que guarda una copia nueva de vez en cuando."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette copie ne se met pas à jour toute seule. NOOP continue de sauvegarder dans son propre dossier : enregistrez une nouvelle copie de temps en temps."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa copia non si aggiorna da sola. NOOP continua a salvare nella propria cartella, quindi salva una nuova copia ogni tanto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta kopia nie aktualizuje się sama. NOOP nadal zapisuje kopie we własnym folderze, więc co jakiś czas zapisz nową kopię."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta cópia não se atualiza sozinha. A NOOP continua a guardar na própria pasta, por isso guarda uma cópia nova de vez em quando."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эта копия не обновляется сама. NOOP продолжает сохранять копии в свою папку, поэтому время от времени сохраняйте новую копию."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此副本不会自动更新。NOOP 仍备份到自己的文件夹，请不时保存新的副本。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此副本不會自動更新。NOOP 仍備份到自己的資料夾，請不時儲存新的副本。"
+          }
+        }
+      }
+    },
+    "No backup to copy yet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Sicherung zum Kopieren"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay ninguna copia que guardar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune sauvegarde à copier pour l'instant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun backup da copiare"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie ma jeszcze kopii do zapisania"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há cópia para guardar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет копии для сохранения"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有可复制的备份"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還沒有可複製的備份"
+          }
+        }
+      }
+    },
+    "Tap Back up now first, then save a copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe zuerst auf Jetzt sichern und speichere dann eine Kopie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca primero Hacer copia ahora y luego guarda una copia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touchez d'abord Sauvegarder maintenant, puis enregistrez une copie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tocca prima Esegui il backup ora, poi salva una copia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najpierw stuknij Utwórz kopię teraz, a potem zapisz kopię."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca primeiro em Faça cópia de segurança agora e depois guarda uma cópia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сначала нажмите «Создать резервную копию сейчас», затем сохраните копию."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先轻点“立即备份”，然后再保存副本。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請先輕點「立即備份」，然後再儲存副本。"
+          }
+        }
+      }
+    },
+    "Only on %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur auf %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uniquement sur %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo su %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko tutaj (%@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Só aqui (%@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Только здесь (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅在%@上"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅在%@上"
+          }
+        }
+      }
+    },
+    "Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschst du NOOP, sind auch diese Sicherungen weg. Verschiebe sie nach iCloud Drive, dann überstehen sie eine Neuinstallation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si borras NOOP, también se borran estas copias. Muévelas a iCloud Drive y sobrevivirán a una reinstalación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer NOOP supprime aussi ces sauvegardes. Déplacez-les vers iCloud Drive pour qu'elles survivent à une réinstallation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminando NOOP vengono eliminati anche questi backup. Spostali su iCloud Drive e resisteranno a una reinstallazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usunięcie NOOP usunie też te kopie. Przenieś je na iCloud Drive, a przetrwają ponowną instalację."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar a NOOP apaga também estas cópias. Move-as para o iCloud Drive e sobrevivem a uma reinstalação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "При удалении NOOP удалятся и эти копии. Перенесите их в iCloud Drive, и они переживут переустановку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除 NOOP 时这些备份也会被删除。把它们移到 iCloud Drive，重新安装后仍会保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除 NOOP 時這些備份也會被刪除。把它們移到 iCloud Drive，重新安裝後仍會保留。"
+          }
+        }
+      }
+    },
+    "Move to iCloud Drive" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach iCloud Drive verschieben"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover a iCloud Drive"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer vers iCloud Drive"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sposta su iCloud Drive"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przenieś na iCloud Drive"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover para o iCloud Drive"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перенести в iCloud Drive"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移到 iCloud Drive"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移到 iCloud Drive"
+          }
+        }
+      }
+    },
+    "Save a copy instead" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lieber eine Kopie speichern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor guardar una copia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer plutôt une copie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salva invece una copia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zamiast tego zapisz kopię"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar antes uma cópia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лучше сохранить копию"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改为保存副本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改為儲存副本"
           }
         }
       }

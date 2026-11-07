@@ -372,6 +372,9 @@ object LogExport {
             }
             context.startActivity(Intent.createChooser(send, "Share strap log"))
         }.onFailure {
+            // A cancelled caller is not a failed share: its message ("The coroutine scope left the composition")
+            // reached testers as the reason the log could not be shared.
+            if (it is kotlinx.coroutines.CancellationException) throw it
             Toast.makeText(context, "Couldn't share the log: ${it.message}", Toast.LENGTH_LONG).show()
         }
     }

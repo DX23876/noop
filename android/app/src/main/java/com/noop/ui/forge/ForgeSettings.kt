@@ -73,6 +73,7 @@ import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -128,7 +129,6 @@ import com.noop.ui.DataSourcesScreen
 import com.noop.ui.HealthConnectWeightSync
 import com.noop.ui.HowNoopWorksScreen
 import com.noop.ui.HrvWindow
-import com.noop.ui.LogExport
 import com.noop.ui.NoopLimitationsScreen
 import com.noop.ui.NotificationsSettingsScreen
 import com.noop.ui.Palette
@@ -136,7 +136,6 @@ import com.noop.ui.PowerSavingScreen
 import com.noop.ui.ScoringGuideScreen
 import com.noop.ui.SettingsScreen
 import com.noop.ui.StepsCalibrationScreen
-import com.noop.ui.StrapLogBuffer
 import com.noop.ui.TemperatureUnit
 import com.noop.ui.TestCentreScreen
 import com.noop.ui.WhatsNewSheet
@@ -416,7 +415,7 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.TodayTrends -> { DashboardStyleSection(::change); TodayCardsSection(::change) }
                 ForgeSettingsPage.Calculations -> CalculationsSection(viewModel, ::change, onOpen)
                 ForgeSettingsPage.DataBackup -> DataBackupSection(viewModel, onOpen)
-                ForgeSettingsPage.Help -> HelpSection(onOpen)
+                ForgeSettingsPage.Help -> HelpSection(viewModel, onOpen)
                 ForgeSettingsPage.Lab -> LabSection(viewModel, onOpen)
                 ForgeSettingsPage.About -> AboutSection(onOpen)
                 else -> Unit
@@ -1176,9 +1175,9 @@ private fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub
         }
     }
     SettingsCard(title = stringResource(R.string.forge_backup_section), blurb = null) {
-        LinkRow(stringResource(R.string.forge_backup_export), stringResource(R.string.forge_backup_export_detail), backup.export)
+        LinkRow(stringResource(R.string.forge_backup_export), stringResource(R.string.forge_backup_export_detail), onClick = backup.export)
         RowDivider()
-        LinkRow(stringResource(R.string.forge_backup_import), stringResource(R.string.forge_backup_import_detail), backup.import)
+        LinkRow(stringResource(R.string.forge_backup_import), stringResource(R.string.forge_backup_import_detail), onClick = backup.import)
         RowDivider()
         LinkRow(stringResource(R.string.l10n_settings_screen_export_csv_6bce63a3), null) {
             csvExport.launch("noop-export-${java.time.LocalDate.now()}.zip")
@@ -1199,9 +1198,9 @@ private fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub
 }
 
 @Composable
-private fun HelpSection(onOpen: (ForgeSettingsSub) -> Unit) {
+private fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val sharing by viewModel.strapLogSharing.collectAsStateWithLifecycle()
     SettingsCard(title = stringResource(R.string.forge_settings_guides), blurb = null) {
         LinkRow(stringResource(R.string.l10n_settings_screen_how_noop_works_3396b27a),
                 stringResource(R.string.l10n_settings_screen_sleep_sorting_scores_recording_and_where_832378b5)) {
@@ -1225,8 +1224,9 @@ private fun HelpSection(onOpen: (ForgeSettingsSub) -> Unit) {
             onOpen(ForgeSettingsSub.TestCentre)
         }
         RowDivider()
-        LinkRow(stringResource(R.string.forge_strap_log_share), stringResource(R.string.forge_strap_log_detail)) {
-            scope.launch { LogExport.shareStrapLog(context, StrapLogBuffer.snapshot()) }
+        LinkRow(stringResource(R.string.forge_strap_log_share), stringResource(R.string.forge_strap_log_detail),
+                busy = sharing) {
+            viewModel.shareStrapLog(context)
         }
     }
 }
@@ -1379,9 +1379,10 @@ internal fun SettingRow(label: String, control: @Composable () -> Unit) {
 
 /** A row that opens something: title over an optional detail line, then a chevron. */
 @Composable
-internal fun LinkRow(title: String, detail: String?, onClick: () -> Unit) {
+internal fun LinkRow(title: String, detail: String?, busy: Boolean = false, onClick: () -> Unit) {
     val colors = Forge.colors
-    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClick = onClick)
+    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+            .clickable(enabled = !busy, role = Role.Button, onClick = onClick)
             .padding(vertical = ForgeMetrics.space2),
         verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1389,7 +1390,11 @@ internal fun LinkRow(title: String, detail: String?, onClick: () -> Unit) {
             if (detail != null) Text(detail, style = Forge.type.caption, color = colors.textSecondary)
         }
         Spacer(Modifier.width(ForgeMetrics.space2))
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+        if (busy) {
+            CircularProgressIndicator(Modifier.size(18.dp), color = colors.textTertiary, strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+        }
     }
 }
 

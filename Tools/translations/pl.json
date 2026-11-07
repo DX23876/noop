@@ -4923,5 +4923,22 @@
   "Add a tile": "Dodaj kafelek",
   "Swap %@": "Zamień: %@",
   "Remove tile": "Usuń kafelek",
-  "Age %@": "Wiek %@"
+  "Age %@": "Wiek %@",
+  "Your backups are only on %@": "Kopie zapasowe są tylko tutaj (%@)",
+  "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive.": "Usunięcie NOOP usunie też je. Otwórz Kopia zapasowa i synchronizacja, aby przenieść je na iCloud Drive.",
+  "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive.": "Jeśli przycisk Otwórz nic nie robi, stuknij Zamiast tego zapisz kopię, aby umieścić najnowszą kopię na iCloud Drive.",
+  "That folder is inside NOOP too": "Ten folder też jest wewnątrz NOOP",
+  "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead.": "Zostałby usunięty razem z NOOP. Wybierz folder na iCloud Drive albo stuknij Zamiast tego zapisz kopię.",
+  "Backups moved": "Kopie przeniesione",
+  "NOOP now backs up to %@. Some earlier backups could not be copied; they are still in NOOP's own folder.": "NOOP zapisuje teraz kopie w: %@. Niektórych starszych kopii nie udało się skopiować; nadal są w folderze NOOP.",
+  "NOOP now backs up to %@. Your earlier backups were copied there.": "NOOP zapisuje teraz kopie w: %@. Starsze kopie zostały tam skopiowane.",
+  "NOOP now backs up to %@.": "NOOP zapisuje teraz kopie w: %@.",
+  "Copy saved": "Kopia zapisana",
+  "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then.": "Ta kopia nie aktualizuje się sama. NOOP nadal zapisuje kopie we własnym folderze, więc co jakiś czas zapisz nową kopię.",
+  "No backup to copy yet": "Nie ma jeszcze kopii do zapisania",
+  "Tap Back up now first, then save a copy.": "Najpierw stuknij Utwórz kopię teraz, a potem zapisz kopię.",
+  "Only on %@": "Tylko tutaj (%@)",
+  "Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall.": "Usunięcie NOOP usunie też te kopie. Przenieś je na iCloud Drive, a przetrwają ponowną instalację.",
+  "Move to iCloud Drive": "Przenieś na iCloud Drive",
+  "Save a copy instead": "Zamiast tego zapisz kopię"
 }

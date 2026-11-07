@@ -55,6 +55,8 @@ final class NavRouter: ObservableObject {
         /// Settings → Lab, the page with the experimental switches. A feature introduction in the bell
         /// links here as `lab.<feature>`, so each introduction stays its own inbox row.
         case lab
+        /// Backup & Sync, from the bell's notice that the backups would be deleted with the app.
+        case backupSync
 
         var id: String { rawValue }
 

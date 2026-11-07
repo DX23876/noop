@@ -186,6 +186,31 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Pairing outlives the page that started it: the page closes as soon as the strap is picked. */
+    fun registerDeviceInBackground(device: com.noop.data.PairedDeviceRow, makeActive: Boolean) {
+        viewModelScope.launch { registerDevice(device, makeActive) }
+    }
+
+    private val _strapLogSharing = MutableStateFlow(false)
+    /** True while the strap log is being written for the share sheet. */
+    val strapLogSharing: StateFlow<Boolean> = _strapLogSharing.asStateFlow()
+
+    /**
+     * Shares the full strap log, header included, as the Test Centre does. On the view model's scope, not a
+     * screen's: writing the header reads the store, which can take seconds during a sync, and a screen that
+     * recomposed away meanwhile cancelled the share (testers saw "The coroutine scope left the composition").
+     */
+    fun shareStrapLog(context: android.content.Context) {
+        if (!_strapLogSharing.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                LogExport.shareStrapLog(context, ble.exportLogText())
+            } finally {
+                _strapLogSharing.value = false
+            }
+        }
+    }
+
     /** The active band's display name (nickname, else collapsed brand+model), surfaced on the Live screen
      *  (MW-6). Null until the first registry read resolves; falls back to "WHOOP" in the UI when null. */
     private val _activeDeviceName = MutableStateFlow<String?>(null)

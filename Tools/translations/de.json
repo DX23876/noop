@@ -3814,5 +3814,22 @@
   "Living": "Lebendig",
   "Score rings": "Ringe",
   "Living rings move and breathe. Classic rings stand still and use less battery.": "Lebendige Ringe bewegen sich und atmen. Klassische Ringe stehen still und sparen Akku.",
-  "Bedtime counts %@ h, as set in Alarms.": "Die Bettzeit rechnet mit %@ h, wie unter Wecker eingestellt."
+  "Bedtime counts %@ h, as set in Alarms.": "Die Bettzeit rechnet mit %@ h, wie unter Wecker eingestellt.",
+  "Your backups are only on %@": "Deine Sicherungen liegen nur auf %@",
+  "Deleting NOOP deletes them too. Open Backup & Sync to move them to iCloud Drive.": "Löschst du NOOP, sind sie auch weg. Öffne Sicherung & Sync und verschiebe sie nach iCloud Drive.",
+  "If the Open button does nothing, tap Save a copy instead to put your newest backup in iCloud Drive.": "Wenn Öffnen nichts tut, tippe auf Lieber eine Kopie speichern. Dann landet deine neueste Sicherung in iCloud Drive.",
+  "That folder is inside NOOP too": "Dieser Ordner liegt auch in NOOP",
+  "It would be deleted along with NOOP. Pick a folder in iCloud Drive, or tap Save a copy instead.": "Er würde mit NOOP gelöscht. Wähle einen Ordner in iCloud Drive oder tippe auf Lieber eine Kopie speichern.",
+  "Backups moved": "Sicherungen verschoben",
+  "NOOP now backs up to %@. Some earlier backups could not be copied; they are still in NOOP's own folder.": "NOOP sichert jetzt nach %@. Einige ältere Sicherungen ließen sich nicht kopieren; sie liegen weiter im eigenen Ordner von NOOP.",
+  "NOOP now backs up to %@. Your earlier backups were copied there.": "NOOP sichert jetzt nach %@. Deine älteren Sicherungen wurden dorthin kopiert.",
+  "NOOP now backs up to %@.": "NOOP sichert jetzt nach %@.",
+  "Copy saved": "Kopie gespeichert",
+  "This copy does not update by itself. NOOP keeps backing up to its own folder, so save a new copy now and then.": "Diese Kopie aktualisiert sich nicht von selbst. NOOP sichert weiter in den eigenen Ordner, speichere also ab und zu eine neue Kopie.",
+  "No backup to copy yet": "Noch keine Sicherung zum Kopieren",
+  "Tap Back up now first, then save a copy.": "Tippe zuerst auf Jetzt sichern und speichere dann eine Kopie.",
+  "Only on %@": "Nur auf %@",
+  "Deleting NOOP deletes these backups too. Move them to iCloud Drive and they survive a reinstall.": "Löschst du NOOP, sind auch diese Sicherungen weg. Verschiebe sie nach iCloud Drive, dann überstehen sie eine Neuinstallation.",
+  "Move to iCloud Drive": "Nach iCloud Drive verschieben",
+  "Save a copy instead": "Lieber eine Kopie speichern"
 }
