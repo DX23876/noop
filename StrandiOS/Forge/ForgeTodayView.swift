@@ -79,6 +79,26 @@ struct ForgeTodayView: View {
     @AppStorage("forge.coach.ratings") private var ratingsRaw = ""
     /// The note under which "less often?" is asked after a second thumbs down for its kind.
     @State private var askLessOften: String?
+    /// An entry the day strip asked to scroll to.
+    @State private var scrollTarget: String?
+    /// Entries whose "explain this" or inline answer is being written.
+    @State private var asking: Set<String> = []
+    @ObservedObject private var goalStore = CoachGoalStore.shared
+
+    /// A driver's night placed on the wearer's usual range (`ForgeChargeDetailView.usualRange`).
+    struct DriverRange: Equatable {
+        let text: String
+        let position: Double
+        let band: ClosedRange<Double>
+    }
+
+    /// One day of the week card.
+    struct WeekBar: Equatable {
+        let day: String
+        let charge: Double?
+        let effort: Double?
+        let sleepMinutes: Double?
+    }
 
     /// One past day folded to a line: its Charge, Effort and night.
     struct DaySummary: Equatable {
@@ -106,6 +126,17 @@ struct ForgeTodayView: View {
         /// What today's notes are measured against (`ForgeNoteBasis`).
         var basis: String?
         var daySummaries: [String: DaySummary] = [:]
+        /// Each driver's night on the usual range, by the driver's label.
+        var driverRanges: [String: DriverRange] = [:]
+        /// The median Effort of a sport over the last four months, stored scale, for sports with 3 sessions.
+        var usualEffort: [String: Double] = [:]
+        var week: [WeekBar] = []
+        /// What the What works analysis found most clearly, for the week card.
+        var weekPattern: String?
+        /// The day of the last weigh-in.
+        var lastWeighDay: String?
+        /// Answers to "explain this", by entry key, written today.
+        var explanations: [String: String] = [:]
     }
 
     var body: some View {
@@ -169,6 +200,11 @@ struct ForgeTodayView: View {
             }
             .onChange(of: backToTop) { _, _ in
                 withAnimation(.smooth) { proxy.scrollTo("forge-today-top", anchor: .top) }
+            }
+            .onChange(of: scrollTarget) { _, target in
+                guard let target else { return }
+                withAnimation(.smooth) { proxy.scrollTo(target, anchor: .center) }
+                scrollTarget = nil
             }
         }
         .background(ForgeBackground(tab: .today, showsMotif: true))
@@ -449,12 +485,26 @@ struct ForgeTodayView: View {
                     if index > 0 || day.id != todayKey {
                         dayDivider(day.date)
                     }
+                    ForgeDayStrip(spans: stripSpans(day), marks: stripMarks(day), dayStart: Self.calendarStart(day.date)) { id in
+                        scrollTarget = id
+                    }
                     if day.id == todayKey {
                         // A detected activity waiting for an answer is today's first entry.
                         ActivitySuggestionPrompt(compact: true)
+                        openCard
+                        if calmSoFar(day) {
+                            Text("A calm day so far: your values are within your range.")
+                                .font(ForgeFont.body)
+                                .foregroundStyle(ForgeColor.secondaryOnPicture)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .forgeCard(radius: ForgeRadius.card, padding: 14)
+                        }
                     }
-                    ForEach(day.entries.filter { !hidden.contains($0.id) }) { entry in
-                        timelineEntry(entry)
+                    ForEach(ForgeTimeline.blocks(day.entries.filter { !hidden.contains($0.id) })) { block in
+                        switch block {
+                        case .card(let entry): timelineEntry(entry).id(entry.id)
+                        case .rows(let entries): rowsCard(entries)
+                        }
                     }
                 }
             }
@@ -516,29 +566,52 @@ struct ForgeTodayView: View {
         date.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))
     }
 
-    /// One entry: its time, then what happened. A figure that only knows its day shows none; a coach note
-    /// carries its time in its own label.
+    /// One of the day's large entries on its own card: the morning, the evening, a coach note, a notice.
+    /// Its time sits in its own top line, as in Mail.
     private func timelineEntry(_ entry: ForgeTimeline.Entry) -> some View {
-        let isNew = seenBefore > 0 && entry.date.timeIntervalSince1970 > seenBefore
-        return VStack(alignment: .leading, spacing: 6) {
-            if case .coach = entry.kind {
-                EmptyView()
-            } else if entry.timed {
-                Text(Self.timeText(entry.date))
-                    .font(.system(.footnote, weight: .medium).monospacedDigit())
-                    .foregroundStyle(ForgeColor.secondaryOnPicture)
+        entryCard(entry)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            // New since the reader last left Today, like an unread mail.
+            .overlay(alignment: .topTrailing) {
+                if isNew(entry) { newDot.padding(5) }
             }
-            entryCard(entry)
-        }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
-        // New since the reader last left Today, like an unread mail.
-        .overlay(alignment: .topTrailing) {
-            if isNew {
-                Circle().fill(ForgeColor.accent).frame(width: 8, height: 8).padding(8)
-                    .accessibilityLabel(Text("New"))
+            .contextMenu { entryMenu(entry) }
+    }
+
+    /// Neighbouring small events (a session, walks, a weigh-in, drinks, an ECG, a nap) as rows of one card,
+    /// divided by a hairline, so a busy day reads as a few blocks rather than a dozen equal cards.
+    private func rowsCard(_ entries: [ForgeTimeline.Entry]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                if index > 0 {
+                    Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 60)
+                }
+                entryCard(entry)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .id(entry.id)
+                    .overlay(alignment: .topLeading) {
+                        if isNew(entry) { newDot.padding(.leading, 8).padding(.top, 10) }
+                    }
+                    .contentShape(Rectangle())
+                    .contextMenu { entryMenu(entry) }
             }
         }
-        .contextMenu { entryMenu(entry) }
+        .forgeCard(radius: ForgeRadius.card, padding: 0)
+    }
+
+    private func isNew(_ entry: ForgeTimeline.Entry) -> Bool {
+        seenBefore > 0 && entry.date.timeIntervalSince1970 > seenBefore
+    }
+
+    private var newDot: some View {
+        Circle().fill(ForgeColor.accent).frame(width: 8, height: 8)
+            .accessibilityLabel(Text("New"))
+    }
+
+    /// The time an entry shows in its top line, nil for a figure that only knows its day.
+    private func time(_ entry: ForgeTimeline.Entry) -> String? {
+        entry.timed ? Self.timeText(entry.date) : nil
     }
 
     /// Holding an entry: hide it, ask why, hear its kind less often or not at all, or correct what it shows.
@@ -618,6 +691,7 @@ struct ForgeTodayView: View {
         case .notice: if let notice = entry.notice { noticeCard(notice) }
         case .dayEnd: if let end = entry.dayEnd { dayEndCard(end) }
         case .walks: walksCard(entry)
+        case .week: weekCard(coachLine: nil)
         }
     }
 
@@ -628,7 +702,8 @@ struct ForgeTodayView: View {
             case .positive: return ForgeColor.charge
             case .neutral: return ForgeColor.accent
             case .caution: return ForgeColor.effort
-            case .critical: return StrandPalette.statusCritical
+            // Red only for the raised body-signal warning; anything else that needs care is amber.
+            case .critical: return notice.key == MomentumKind.healthAlert.rawValue ? StrandPalette.statusCritical : ForgeColor.effort
             }
         }()
         let symbol: String = {
@@ -647,12 +722,20 @@ struct ForgeTodayView: View {
                 Image(systemName: symbol)
                     .font(.system(.body, weight: .semibold))
                     .foregroundStyle(tint)
+                    // A reached goal greets the reader once, the first time it shows.
+                    .symbolEffect(.pulse, options: .repeat(2),
+                                  isActive: notice.tone == .positive && seenBefore > 0 && notice.date.timeIntervalSince1970 > seenBefore)
                     .frame(width: 40, height: 40)
                     .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(notice.headline)
-                        .font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(notice.headline)
+                            .font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 6)
+                        Text(Self.timeText(notice.date)).font(.system(.footnote).monospacedDigit())
+                            .foregroundStyle(ForgeColor.secondaryOnPicture)
+                    }
                     if !notice.detail.isEmpty {
                         Text(notice.detail)
                             .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondaryOnPicture)
@@ -661,8 +744,11 @@ struct ForgeTodayView: View {
                 }
             }
             if notice.topic == TimelineFeed.Topic.bodySignals.rawValue {
+                let body = snapshot.drivers.filter { Self.bodyLabels.contains($0.label) }
+                if !body.isEmpty { rangeRows(body) }
                 causeChips.padding(.leading, 52)
             }
+            explainBlock(key: notice.key, title: notice.headline, figures: notice.detail)
             if let title = notice.actionTitle, notice.action != .none {
                 Group {
                     if notice.action == .charge {
@@ -745,21 +831,6 @@ struct ForgeTodayView: View {
                     .foregroundStyle(ForgeColor.accent)
                     .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer()
-                let rated = entry.sourceId.map(rating) ?? 0
-                Button { rate(entry, origin: origin, 1) } label: {
-                    Image(systemName: rated > 0 ? "hand.thumbsup.fill" : "hand.thumbsup")
-                        .font(.system(.subheadline)).foregroundStyle(rated > 0 ? ForgeColor.accent : ForgeColor.tertiary)
-                        .frame(width: 32, height: 28)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Helpful"))
-                Button { rate(entry, origin: origin, -1) } label: {
-                    Image(systemName: rated < 0 ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                        .font(.system(.subheadline)).foregroundStyle(rated < 0 ? ForgeColor.accent : ForgeColor.tertiary)
-                        .frame(width: 32, height: 28)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Not helpful"))
                 Button { whyEntry = entry } label: {
                     Image(systemName: "info.circle")
                         .font(.system(.subheadline))
@@ -789,6 +860,15 @@ struct ForgeTodayView: View {
             }
             // The figures first, then the words about them.
             noteFigures(entry, origin: origin)
+            if usedMemory(entry) {
+                Button { onCoachSettings() } label: {
+                    Label("From your memory", systemImage: "brain")
+                        .font(.system(.footnote, weight: .medium))
+                        .foregroundStyle(ForgeColor.secondaryOnPicture)
+                }
+                .buttonStyle(.plain)
+                .frame(minHeight: 32)
+            }
             if !entry.detail.isEmpty {
                 let opened = openedNotes.contains(entry.id) || entry.detail.count <= Self.shortNoteLength
                 Text(Self.markdown(entry.detail))
@@ -804,6 +884,7 @@ struct ForgeTodayView: View {
                         .frame(minHeight: 44, alignment: .leading)
                 }
             }
+            followUps(entry)
             FlowRows(spacing: 8) {
                 if origin == .brief, Calendar.current.isDateInToday(entry.date), hasTodaysProposal {
                     ForgeChip(title: String(localized: "See the suggestion"), systemImage: "calendar.badge.plus",
@@ -811,19 +892,29 @@ struct ForgeTodayView: View {
                 }
                 if coachFeatureEnabled {
                     // Only what the coach offered with this note: a note that asks nothing offers nothing.
+                    // The answer comes under the note, not in a chat the reader has to open.
                     ForEach(entry.replies, id: \.self) { reply in
-                        ForgeChip(title: reply) { onAsk(reply) }
+                        ForgeChip(title: reply) { answer(entry, reply) }
                     }
                 }
-                ForgeChip(title: String(localized: "Reply"), systemImage: "square.and.pencil", prominent: true,
-                          action: onCoach)
+                ForgeChip(title: String(localized: "Reply"), systemImage: "square.and.pencil", prominent: true) {
+                    focusNote(entry); onCoach()
+                }
+                thumbs(entry, origin: origin)
             }
             .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .onTapGesture(perform: onCoach)
+        .onTapGesture { focusNote(entry); onCoach() }
         .accessibilityElement(children: .contain)
+    }
+
+    /// A reply to a note goes to the thread the note is in, so the coach reads it with the note in view
+    /// rather than in whatever chat happened to be open.
+    private func focusNote(_ entry: ForgeTimeline.Entry) {
+        guard let id = entry.sourceId.flatMap(UUID.init(uuidString:)) else { return }
+        coach.focusConversation(containing: id)
     }
 
     /// The night or Charge moved after the note was written: the figures under it are current, the words
@@ -843,6 +934,265 @@ struct ForgeTodayView: View {
                 .foregroundStyle(ForgeColor.accent)
                 .buttonStyle(.plain)
                 .frame(minHeight: 44)
+            }
+        }
+    }
+
+    // MARK: Coach under an entry (2026-11-07)
+
+    private func thumbs(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> some View {
+        let rated = entry.sourceId.map(rating) ?? 0
+        return HStack(spacing: 0) {
+            Button { rate(entry, origin: origin, 1) } label: {
+                Image(systemName: rated > 0 ? "hand.thumbsup.fill" : "hand.thumbsup")
+                    .font(.system(.subheadline)).foregroundStyle(rated > 0 ? ForgeColor.accent : ForgeColor.tertiary)
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Helpful"))
+            Button { rate(entry, origin: origin, -1) } label: {
+                Image(systemName: rated < 0 ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+                    .font(.system(.subheadline)).foregroundStyle(rated < 0 ? ForgeColor.accent : ForgeColor.tertiary)
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Not helpful"))
+        }
+    }
+
+    /// A reply chip: answered under the note when the coach can, else in the chat with the note in view.
+    private func answer(_ entry: ForgeTimeline.Entry, _ reply: String) {
+        guard let id = entry.sourceId.flatMap(UUID.init(uuidString:)), coach.isConfigured, coach.dataConsent else {
+            focusNote(entry); onAsk(reply); return
+        }
+        asking.insert(entry.id)
+        Task {
+            await coach.answerInline(to: id, question: reply)
+            asking.remove(entry.id)
+            await load()
+        }
+    }
+
+    /// Questions asked under a note and the coach's answers, two sentences each; the chat has the rest.
+    @ViewBuilder private func followUps(_ entry: ForgeTimeline.Entry) -> some View {
+        if !entry.followUps.isEmpty || asking.contains(entry.id) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(entry.followUps.suffix(2).enumerated()), id: \.offset) { _, item in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.question).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        Text(Self.markdown(Self.firstSentences(item.answer, 2)))
+                            .font(ForgeFont.body).foregroundStyle(ForgeColor.secondaryOnPicture)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if asking.contains(entry.id) {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("More in the chat") { focusNote(entry); onCoach() }
+                        .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+                        .buttonStyle(.plain).frame(minHeight: 36, alignment: .leading)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
+        }
+    }
+
+    /// The first sentences of an answer on one line: the rest is in the chat.
+    static func firstSentences(_ text: String, _ count: Int) -> String {
+        ForgeNoteFigures.sentences(text.split(whereSeparator: \.isNewline).joined(separator: " "))
+            .prefix(count).joined(separator: " ")
+    }
+
+    /// Whether the coach drew on what it remembers about the reader for this note.
+    private func usedMemory(_ entry: ForgeTimeline.Entry) -> Bool {
+        guard let message = entry.sourceId.flatMap({ snapshot.notes[$0] }) else { return false }
+        let memory: Set<ChatMessage.LocalContextCategory> = [.conversationMemory, .semanticMemory, .keywordMemory]
+        return !message.memoryWrites.isEmpty || message.localContextUsed.contains(where: memory.contains)
+            || message.toolsUsed.contains { $0.contains("fact") || $0.contains("memory") }
+    }
+
+    /// "Explain this" on an entry, and the coach's two sentences once written. Nothing without a coach.
+    @ViewBuilder private func explainBlock(key: String, title: String, figures: String) -> some View {
+        if let text = snapshot.explanations[key] {
+            Text(Self.markdown(text))
+                .font(ForgeFont.body).foregroundStyle(ForgeColor.secondaryOnPicture)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
+        } else if coachFeatureEnabled, coach.isConfigured {
+            if asking.contains(key) {
+                ProgressView().controlSize(.small)
+            } else {
+                ForgeChip(title: String(localized: "Explain this"), systemImage: "sparkles") {
+                    asking.insert(key)
+                    Task {
+                        await coach.explainInline(key: key, title: title, figures: figures)
+                        asking.remove(key)
+                        await load()
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Without a coach (2026-11-07)
+
+    /// A session's Effort against the median of that sport's sessions over four months, when there are
+    /// three to compare with; close to usual says so instead of a small number.
+    private func versusUsual(_ row: WorkoutRow) -> String? {
+        guard let strain = row.strain, let usual = snapshot.usualEffort[row.sport] else { return nil }
+        let delta = UnitFormatter.effortValue(strain, scale: effortScale) - UnitFormatter.effortValue(usual, scale: effortScale)
+        let step = effortScale == .whoop ? 0.6 : 3
+        guard abs(delta) >= step else { return String(localized: "as usual") }
+        let amount = effortScale == .whoop
+            ? String(format: "%.1f", locale: AppLanguage.activeLocale, abs(delta)) : String(Int(abs(delta).rounded()))
+        return delta > 0 ? String(localized: "\(amount) above usual") : String(localized: "\(amount) below usual")
+    }
+
+    /// What tomorrow needs most, from the same rules as the rest of the report: a growing sleep debt first,
+    /// then a day above its Effort target. Nothing when neither holds.
+    private func tomorrowHelp(_ end: ForgeTimeline.DayEnd) -> String? {
+        if end.bedtime != nil { return String(localized: "What helps most tomorrow: an early night tonight.") }
+        if let effort = snapshot.effortStored, let target = effortTarget, snapshot.charge.carriedCaption == nil,
+           ForgeToday.position(effortStored: effort, target: target) == .above {
+            return String(localized: "What helps most tomorrow: an easy day after today's load.")
+        }
+        return nil
+    }
+
+    /// What waits for the reader today, in one place: a proposed session and a weigh-in a weight goal misses.
+    @ViewBuilder private var openCard: some View {
+        let proposal = hasTodaysProposal
+        let weighIn = goalStore.activeGoals.contains { $0.kind == .weight }
+            && (snapshot.lastWeighDay.map { $0 < Repository.localDayKey(Date().addingTimeInterval(-7 * 86_400)) } ?? true)
+        if snapshot.loaded, proposal || weighIn {
+            VStack(alignment: .leading, spacing: 0) {
+                Label("Open", systemImage: "tray")
+                    .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+                    .padding(.bottom, 6)
+                if proposal {
+                    Button { showPlan = true } label: {
+                        factRow(symbol: "calendar.badge.plus", tint: ForgeColor.accent,
+                                title: String(localized: "A suggestion waits for your answer"), detail: nil, value: nil, unit: "")
+                    }
+                    .buttonStyle(.plain).padding(.vertical, 6)
+                }
+                if weighIn {
+                    NavigationLink(value: TabRoute.weight) {
+                        factRow(symbol: "figure.stand", tint: ForgeColor.rest,
+                                title: String(localized: "No weigh-in for a week"),
+                                detail: String(localized: "Your weight goal needs one now and then."), value: nil, unit: "")
+                    }
+                    .buttonStyle(.plain).padding(.vertical, 6)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
+        }
+    }
+
+    /// True when today has no notice and every night figure with a range lies inside it.
+    private func calmSoFar(_ day: ForgeTimeline.Day) -> Bool {
+        guard snapshot.loaded, !day.entries.contains(where: { $0.kind == .notice }), !snapshot.driverRanges.isEmpty else {
+            return false
+        }
+        return snapshot.driverRanges.values.allSatisfy { $0.band.contains($0.position) }
+    }
+
+    /// The week in seven bars per score, drawn from the stored days, with one plain line or the coach's.
+    private func weekCard(coachLine: String?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Your week", systemImage: "calendar")
+                .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+            weekBars
+            if let pattern = snapshot.weekPattern {
+                Text(pattern).font(ForgeFont.body).foregroundStyle(ForgeColor.secondaryOnPicture)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var weekBars: some View {
+        let week = snapshot.week
+        let maxSleep = max(week.compactMap(\.sleepMinutes).max() ?? 1, 1)
+        func column(_ title: String, _ tint: Color, _ value: @escaping (WeekBar) -> Double?, _ scale: Double, _ mean: String) -> some View {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(title).font(.system(.caption, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Spacer(minLength: 4)
+                    Text(mean).font(.system(.caption).monospacedDigit()).foregroundStyle(ForgeColor.secondaryOnPicture)
+                }
+                HStack(alignment: .bottom, spacing: 3) {
+                    ForEach(week, id: \.day) { bar in
+                        let v = value(bar).map { min(max($0 / scale, 0.04), 1) }
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(v == nil ? ForgeColor.fill : tint)
+                            .frame(height: 34 * (v ?? 0.08))
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 34, alignment: .bottom)
+            }
+        }
+        func mean(_ xs: [Double?]) -> Double? { ForgeToday.weekMean(xs) }
+        return HStack(alignment: .top, spacing: 14) {
+            column(DomainTheme.charge.productName, ForgeColor.charge, { $0.charge }, 100,
+                   mean(week.map(\.charge)).map { "\(Int($0.rounded()))" } ?? "–")
+            column(DomainTheme.effort.productName, ForgeColor.effort, { $0.effort }, 100,
+                   mean(week.map(\.effort)).map { ForgeToday.effortText($0, scale: effortScale) } ?? "–")
+            column(String(localized: "Sleep"), ForgeColor.rest, { $0.sleepMinutes }, maxSleep,
+                   mean(week.map(\.sleepMinutes)).map(Self.hoursMinutes) ?? "–")
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Day strip (2026-11-07)
+
+    /// The calendar start of a timeline day's date.
+    static func calendarStart(_ date: Date) -> Date { Calendar.current.startOfDay(for: date) }
+
+    /// Sleep and sessions of a day as spans on its strip.
+    private func stripSpans(_ day: ForgeTimeline.Day) -> [ForgeDayStrip.Span] {
+        var out: [ForgeDayStrip.Span] = []
+        for entry in day.entries {
+            switch entry.kind {
+            case .wake:
+                if let night = snapshot.nights[Int(entry.date.timeIntervalSince1970)] {
+                    out.append(.init(start: night.start, end: night.end, tint: ForgeColor.rest, target: entry.id))
+                }
+            case .nap:
+                if let minutes = entry.value {
+                    out.append(.init(start: entry.date.addingTimeInterval(-minutes * 60), end: entry.date,
+                                     tint: ForgeColor.rest, target: entry.id))
+                }
+            case .workout:
+                if let row = entry.sourceId.flatMap({ snapshot.workouts[$0] }) {
+                    out.append(.init(start: Date(timeIntervalSince1970: TimeInterval(row.startTs)),
+                                     end: Date(timeIntervalSince1970: TimeInterval(row.endTs)), tint: ForgeColor.effort, target: entry.id))
+                }
+            case .walks:
+                for row in entry.walkIds.compactMap({ snapshot.workouts[$0] }) {
+                    out.append(.init(start: Date(timeIntervalSince1970: TimeInterval(row.startTs)),
+                                     end: Date(timeIntervalSince1970: TimeInterval(row.endTs)), tint: ForgeColor.effort, target: entry.id))
+                }
+            default:
+                break
+            }
+        }
+        return out
+    }
+
+    /// Notes and notices of a day as marks on its strip.
+    private func stripMarks(_ day: ForgeTimeline.Day) -> [ForgeDayStrip.Mark] {
+        day.entries.compactMap { entry in
+            switch entry.kind {
+            case .coach: return .init(at: entry.date, tint: ForgeColor.accent, target: entry.id)
+            case .notice: return .init(at: entry.date, tint: ForgeColor.text, target: entry.id)
+            default: return nil
             }
         }
     }
@@ -885,6 +1235,8 @@ struct ForgeTodayView: View {
                 ForgeZoneBar(percents: zones,
                              minutes: (row.durationS ?? Double(max(row.endTs - row.startTs, 0))) / 60)
             }
+        } else if origin == .weeklyReview, Calendar.current.isDateInToday(entry.date), !snapshot.week.isEmpty {
+            weekBars
         } else if origin == .evening, let effort = snapshot.effortStored,
                   let target = effortTarget, Calendar.current.isDateInToday(entry.date) {
             ForgeEffortTargetBar(effort: effort, target: target, scale: effortScale)
@@ -898,24 +1250,32 @@ struct ForgeTodayView: View {
         }
     }
 
-    /// Today's three strongest Charge drivers, as the morning note and the morning report show them.
+    /// Today's three strongest Charge drivers, as the morning note and the morning report show them: each
+    /// night placed on the wearer's usual range, read through the Charge page's own function.
     private var driverRows: some View {
-        VStack(spacing: 6) {
-            ForEach(Array(snapshot.drivers.prefix(3).enumerated()), id: \.offset) { _, driver in
-                HStack(spacing: 8) {
-                    Text(driver.label).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondaryOnPicture)
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                    Spacer()
-                    Text(ForgeToday.driverValue(driver.valueText)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    ForgeDirection(delta: driver.deltaPoints)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
+        rangeRows(Array(snapshot.drivers.prefix(3)))
+    }
+
+    /// Driver rows with the usual range behind the night's figure, where there is one.
+    private func rangeRows(_ drivers: [ChargeDriver]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(drivers.enumerated()), id: \.offset) { index, driver in
+                if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
+                let range = snapshot.driverRanges[driver.label]
+                ForgeWhyRow(label: driver.label, value: ForgeToday.driverValue(driver.valueText), delta: driver.deltaPoints,
+                            usual: range?.text ?? (driver.baselineText.isEmpty ? nil : ForgeToday.driverUsual(driver.baselineText)),
+                            track: range.map { ($0.position, nil) }, band: range?.band)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
             }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
         .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
     }
+
+    /// The body signals a warning is about, on the usual range.
+    private static let bodyLabels: Set<String> = ["Heart rate variability", "Resting heart rate", "Respiratory rate", "Skin temperature"]
 
     private var hasTodaysProposal: Bool {
         planStore.pending.contains(where: { $0.day == Repository.localDayKey(Date()) })
@@ -925,35 +1285,12 @@ struct ForgeTodayView: View {
         if let row = entry.sourceId.flatMap({ snapshot.workouts[$0] }) {
             let tint = AppleInspiredColors.role(forSport: row.sport).color
             NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle().fill(tint.opacity(ForgeOpacity.wash))
-                        WorkoutTypeIcon(workoutType: row.sport, size: 17, weight: .semibold, color: tint)
-                    }
-                    .frame(width: 40, height: 40)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(WorkoutSource.localizedDisplaySport(row.sport))
-                            .font(.system(.body, weight: .semibold))
-                            .foregroundStyle(ForgeColor.text)
-                            .lineLimit(1)
-                        Text(workoutDetail(row))
-                            .font(ForgeFont.caption)
-                            .foregroundStyle(ForgeColor.secondaryOnPicture)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 6)
-                    if let strain = row.strain {
-                        VStack(alignment: .trailing, spacing: 0) {
-                            Text(ForgeToday.effortText(strain, scale: effortScale))
-                                .font(ForgeFont.rounded(22, .bold))
-                                .foregroundStyle(ForgeColor.text)
-                            Text(DomainTheme.effort.productName)
-                                .font(.system(.caption2))
-                                .foregroundStyle(ForgeColor.secondaryOnPicture)
-                        }
-                    }
-                }
-                .forgeEventTile()
+                factRow(icon: AnyView(WorkoutTypeIcon(workoutType: row.sport, size: 15, weight: .semibold, color: tint)),
+                        tint: tint, title: WorkoutSource.localizedDisplaySport(row.sport),
+                        detail: [workoutDetail(row), versusUsual(row)].compactMap { $0 }.joined(separator: " · "),
+                        time: time(entry), value: row.strain.map { ForgeToday.effortText($0, scale: effortScale) },
+                        unit: DomainTheme.effort.productName)
+                    .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
         }
@@ -961,27 +1298,14 @@ struct ForgeTodayView: View {
 
     /// A weigh-in with its time (only entries that record one reach the timeline).
     private func weightCard(_ entry: ForgeTimeline.Entry) -> some View {
-        NavigationLink(value: TabRoute.weight) {
-            HStack(spacing: 12) {
-                Image(systemName: "figure.stand")
-                    .font(.system(.body, weight: .semibold))
-                    .foregroundStyle(ForgeColor.rest)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(ForgeColor.rest.opacity(ForgeOpacity.wash)))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Weight logged").font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    if let change = snapshot.weightChange30d {
-                        Text("\(UnitFormatter.massFromKilograms(change, system: UnitSystem(rawValue: unitSystemRaw) ?? .metric).replacingOccurrences(of: "-", with: "−")) in 30 days")
-                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondaryOnPicture)
-                    }
-                }
-                Spacer(minLength: 6)
-                if let kg = entry.value {
-                    Text(UnitFormatter.massFromKilograms(kg, system: UnitSystem(rawValue: unitSystemRaw) ?? .metric))
-                        .font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
-                }
-            }
-            .forgeEventTile()
+        let system = UnitSystem(rawValue: unitSystemRaw) ?? .metric
+        return NavigationLink(value: TabRoute.weight) {
+            factRow(symbol: "figure.stand", tint: ForgeColor.rest, title: String(localized: "Weight logged"),
+                    detail: snapshot.weightChange30d.map {
+                        String(localized: "\(UnitFormatter.massFromKilograms($0, system: system).replacingOccurrences(of: "-", with: "−")) in 30 days")
+                    },
+                    time: time(entry), value: entry.value.map { UnitFormatter.massFromKilograms($0, system: system) }, unit: "")
+                .forgeEventTile()
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -1020,10 +1344,24 @@ struct ForgeTodayView: View {
                 } else if snapshot.charge.carriedCaption == nil, let charge = chargeScore,
                           let line = MomentumBuilder.recoveryActionLine(charge) {
                     Text(line).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    // The line leads somewhere: a calm breath on a low day, a session on a good one.
+                    if [ChargeBand.depleted, .low].contains(ChargeBand.of(score: charge)) {
+                        ForgeChip(title: String(localized: "Breathe for two minutes"), systemImage: "wind", prominent: true) {
+                            router.openBreathe()
+                        }
+                    } else {
+                        ForgeChip(title: String(localized: "Start a session"), systemImage: "figure.run", prominent: true,
+                                  action: onWorkout)
+                    }
                 }
                 if snapshot.charge.carriedCaption == nil, let charge = chargeScore,
                    [ChargeBand.depleted, .low].contains(ChargeBand.of(score: charge)) {
                     causeChips
+                }
+                if let charge = chargeScore {
+                    explainBlock(key: "morning", title: String(localized: "This morning's Charge"),
+                                 figures: (["Charge \(Int(charge.rounded()))"]
+                                           + snapshot.drivers.prefix(3).map { "\($0.label) \($0.valueText)" }).joined(separator: ", "))
                 }
             }
         }
@@ -1039,7 +1377,7 @@ struct ForgeTodayView: View {
                         title: String(localized: "\(rows.count) walks"),
                         detail: rows.compactMap(\.distanceM).reduce(0, +) > 0
                             ? UnitFormatter.distanceFromMeters(rows.compactMap(\.distanceM).reduce(0, +), system: distanceSystem) : nil,
-                        value: entry.value.map(Self.hoursMinutes), unit: String(localized: "h walked"))
+                        time: time(entry), value: entry.value.map(Self.hoursMinutes), unit: String(localized: "h walked"))
             }
             .buttonStyle(.plain)
             .accessibilityHint(Text(open ? "Hides the walks" : "Shows each walk"))
@@ -1069,9 +1407,14 @@ struct ForgeTodayView: View {
     /// only while sleep debt grows.
     private func dayEndCard(_ end: ForgeTimeline.DayEnd) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Your day", systemImage: "moon.stars.fill")
-                .font(.system(.footnote, weight: .semibold))
-                .foregroundStyle(ForgeColor.accent)
+            HStack(alignment: .firstTextBaseline) {
+                Label("Your day", systemImage: "moon.stars.fill")
+                    .font(.system(.footnote, weight: .semibold))
+                    .foregroundStyle(ForgeColor.accent)
+                Spacer(minLength: 6)
+                Text(Self.timeText(end.date)).font(.system(.footnote).monospacedDigit())
+                    .foregroundStyle(ForgeColor.secondaryOnPicture)
+            }
             if let effort = snapshot.effortStored, let target = effortTarget, snapshot.charge.carriedCaption == nil {
                 ForgeEffortTargetBar(effort: effort, target: target, scale: effortScale)
             }
@@ -1082,6 +1425,9 @@ struct ForgeTodayView: View {
                 if let tomorrow = end.tomorrow { Text(tomorrow) }
                 if let bed = end.bedtime {
                     Text("For your sleep need, in bed by \(Self.timeText(bed)).")
+                }
+                if let help = tomorrowHelp(end) {
+                    Text(help).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                 }
             }
             .font(ForgeFont.body)
@@ -1109,7 +1455,7 @@ struct ForgeTodayView: View {
     private func napCard(_ entry: ForgeTimeline.Entry) -> some View {
         Button(action: onSleep) {
             factRow(symbol: "moon.zzz.fill", tint: ForgeColor.rest, title: String(localized: "Nap"), detail: nil,
-                    value: entry.value.map(Self.hoursMinutes), unit: String(localized: "h asleep"))
+                    time: time(entry), value: entry.value.map(Self.hoursMinutes), unit: String(localized: "h asleep"))
                 .forgeEventTile()
         }
         .buttonStyle(LiquidPressStyle())
@@ -1121,21 +1467,21 @@ struct ForgeTodayView: View {
         case .drink:
             NavigationLink(value: TabRoute.hydration) {
                 factRow(symbol: "drop.fill", tint: ForgeColor.accent, title: String(localized: "Drink"), detail: nil,
-                        value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: value))), unit: "L")
+                        time: time(entry), value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: value))), unit: "L")
                     .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
         case .food:
             NavigationLink(value: TabRoute.energy) {
                 factRow(symbol: "fork.knife", tint: ForgeColor.effort, title: String(localized: "Food"), detail: nil,
-                        value: "\(Int(value.rounded()))", unit: "kcal")
+                        time: time(entry), value: "\(Int(value.rounded()))", unit: "kcal")
                     .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
         case .journal:
             NavigationLink(value: MoreDestination.insights) {
                 factRow(symbol: "book.closed.fill", tint: ForgeColor.accent, title: String(localized: "Journal"), detail: nil,
-                        value: "\(Int(value))", unit: String(localized: "entries"))
+                        time: time(entry), value: "\(Int(value))", unit: String(localized: "entries"))
                     .forgeEventTile()
             }
             .buttonStyle(LiquidPressStyle())
@@ -1145,31 +1491,44 @@ struct ForgeTodayView: View {
     private func ecgCard(_ entry: ForgeTimeline.Entry) -> some View {
         NavigationLink(value: MoreDestination.ecg) {
             factRow(symbol: "waveform.path.ecg.rectangle", tint: ForgeColor.accent, title: String(localized: "ECG"), detail: nil,
-                    value: entry.value.map { "\(Int($0))" }, unit: "bpm")
+                    time: time(entry), value: entry.value.map { "\(Int($0))" }, unit: "bpm")
                 .forgeEventTile()
         }
         .buttonStyle(LiquidPressStyle())
     }
 
-    /// The timeline's plain event: a round icon, what happened, its figure.
-    private func factRow(symbol: String, tint: Color, title: String, detail: String?, value: String?, unit: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(.body, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 40, height: 40)
+    /// The timeline's plain event, laid out like a mail: what happened and its time on the first line,
+    /// the detail and its figure on the second, beside a round icon.
+    private func factRow(symbol: String, tint: Color, title: String, detail: String?, time: String? = nil,
+                         value: String?, unit: String) -> some View {
+        factRow(icon: AnyView(Image(systemName: symbol).font(.system(.subheadline, weight: .semibold)).foregroundStyle(tint)),
+                tint: tint, title: title, detail: detail, time: time, value: value, unit: unit)
+    }
+
+    private func factRow(icon: AnyView, tint: Color, title: String, detail: String?, time: String?,
+                         value: String?, unit: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            icon
+                .frame(width: 34, height: 34)
                 .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
-                if let detail {
-                    Text(detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondaryOnPicture).lineLimit(2)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(title).font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
+                    Spacer(minLength: 6)
+                    if let time {
+                        Text(time).font(.system(.footnote).monospacedDigit()).foregroundStyle(ForgeColor.secondaryOnPicture)
+                    }
                 }
-            }
-            Spacer(minLength: 6)
-            if let value {
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(value).font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.text)
-                    Text(unit).font(.system(.caption2)).foregroundStyle(ForgeColor.secondaryOnPicture)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if let detail {
+                        Text(detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondaryOnPicture).lineLimit(2)
+                    }
+                    Spacer(minLength: 6)
+                    if let value {
+                        (Text(value).font(ForgeFont.rounded(19, .bold)).foregroundColor(ForgeColor.text)
+                         + Text(unit.isEmpty ? "" : " " + unit).font(.system(.caption)).foregroundColor(ForgeColor.secondaryOnPicture))
+                            .lineLimit(1)
+                    }
                 }
             }
         }
@@ -1216,6 +1575,14 @@ struct ForgeTodayView: View {
         case .whoop, .apple, .detected, .confirmed, .oura: return true
         case .manual, .lifting, .activityFile, .hevy: return false
         }
+    }
+
+    /// The clearest finding of What works, in the words that page uses: only a solid one, else nothing.
+    @MainActor static func weekPattern(repo: Repository) async -> String? {
+        let hub = InsightsHubViewModel()
+        await hub.load(repo: repo)
+        guard let best = hub.ranked.first(where: { $0.confidence == .solid }) else { return nil }
+        return "\(best.behavior): \(ForgeEffectWording.line(delta: best.effect.delta, percent: best.effect.pctChange)) (\(ForgeEffectWording.lag(best.lag)))"
     }
 
     static func hoursMinutes(_ minutes: Double) -> String {
@@ -1288,12 +1655,21 @@ struct ForgeTodayView: View {
                                                         isCalibrating: calibrating) ?? displayDay
         next.drivers = ChargeBreakdownFormat.compute(row: chargeRow, baselines: repo.chargeBaselines,
                                                      restScore: next.rest)?.drivers ?? []
+        // Each driver's night on the usual range, through the Charge page's own function.
+        if let chargeRow {
+            for label in Set(next.drivers.map(\.label)).union(Self.bodyLabels) {
+                if let r = ForgeChargeDetailView.usualRange(label, row: chargeRow, days: allDays) {
+                    next.driverRanges[label] = DriverRange(text: r.text, position: r.position, band: r.band)
+                }
+            }
+        }
 
         next.restByDay = restByDay
         let workouts = await repo.workoutRows(days: Self.timelineDays + 1, reconcileHrCap: 0)
         var input = ForgeTimeline.Input()
         // Weigh-ins that carry their own time (NOOP's own entries; Apple's daily cells have none).
         for w in await repo.weightEntries(days: Self.timelineDays + 1) {
+            next.lastWeighDay = max(next.lastWeighDay ?? "", w.day)
             if let at = w.takenAt {
                 input.weights.append(.init(date: at, kg: w.value))
             } else if let at = Self.endOfTimelineDay(w.day) {
@@ -1301,6 +1677,22 @@ struct ForgeTodayView: View {
             }
         }
         next.weightChange30d = await repo.weightTrendSummary(days: 91)?.change30dKg
+        if next.lastWeighDay == nil {
+            next.lastWeighDay = await repo.weightEntries(days: 60).map(\.day).max()
+        }
+        // Each sport's usual Effort: the median of its sessions over four months, from three sessions on.
+        let longer = await repo.workoutRows(days: 120, reconcileHrCap: 0)
+        for (sport, rows) in Dictionary(grouping: longer.filter { $0.strain != nil }, by: \.sport) where rows.count >= 3 {
+            let xs = rows.compactMap(\.strain).sorted()
+            next.usualEffort[sport] = xs.count % 2 == 1 ? xs[xs.count / 2] : (xs[xs.count / 2 - 1] + xs[xs.count / 2]) / 2
+        }
+        // The last seven days for the week card.
+        next.week = (0..<7).reversed().compactMap { back -> WeekBar? in
+            guard let date = Calendar.current.date(byAdding: .day, value: -back, to: now) else { return nil }
+            let key = Repository.logicalDayKey(date)
+            let row = allDays.last { $0.day == key }
+            return WeekBar(day: key, charge: row?.recovery, effort: row?.strain, sleepMinutes: row?.totalSleepMin)
+        }
         for w in workouts {
             let id = "\(w.startTs)|\(w.sport)"
             next.workouts[id] = w
@@ -1327,10 +1719,21 @@ struct ForgeTodayView: View {
             input.ecgs = readings.map { .init(id: $0.id, date: Date(timeIntervalSince1970: TimeInterval($0.endTs)), averageHr: $0.averageHr) }
                 .filter { $0.date >= cutoff }
         }
+        // Answers to "explain this" written today, by entry key; they are not follow-ups of a note.
+        let explainPrefix = ForgeCoachNotes.explanationKey("", day: todayKey)
+        var explanationIds = Set<String>()
+        for (key, value) in UserDefaults.standard.dictionaryRepresentation() where key.hasPrefix(explainPrefix) {
+            if let id = value as? String { explanationIds.insert(id); next.explanations[String(key.dropFirst(explainPrefix.count))] = id }
+        }
         if coachFeatureEnabled {
             let cutoff = now.addingTimeInterval(-Double(Self.timelineDays + 1) * 86_400)
             for conversation in coach.conversations {
-                for m in conversation.messages where m.role == .assistant && m.date >= cutoff {
+                for m in conversation.messages where explanationIds.contains(m.id.uuidString) {
+                    if let key = next.explanations.first(where: { $0.value == m.id.uuidString })?.key {
+                        next.explanations[key] = m.text
+                    }
+                }
+                for (index, m) in conversation.messages.enumerated() where m.role == .assistant && m.date >= cutoff {
                     let origin: ForgeTimeline.CoachNote.Origin
                     switch m.origin {
                     case .brief: origin = .brief
@@ -1341,8 +1744,23 @@ struct ForgeTodayView: View {
                     case .weeklyReview: origin = .weeklyReview
                     case .reply: continue
                     }
+                    // What the reader asked after this note and what the coach answered, until the coach
+                    // speaks up on its own again.
+                    var followUps: [ForgeTimeline.FollowUp] = []
+                    var j = index + 1
+                    let thread = conversation.messages
+                    while j < thread.count, !(thread[j].role == .assistant && thread[j].origin.isCoachInitiated) {
+                        if thread[j].role == .user, j + 1 < thread.count, thread[j + 1].role == .assistant,
+                           !explanationIds.contains(thread[j + 1].id.uuidString) {
+                            followUps.append(.init(question: thread[j].text, answer: thread[j + 1].text))
+                            j += 2
+                        } else {
+                            j += 1
+                        }
+                    }
                     input.coach.append(.init(id: m.id.uuidString, date: m.date, text: m.text, origin: origin,
-                                             workoutId: m.workoutId, replies: m.replies, basis: m.basis))
+                                             workoutId: m.workoutId, replies: m.replies, basis: m.basis,
+                                             followUps: followUps))
                     next.notes[m.id.uuidString] = m
                 }
             }
@@ -1354,6 +1772,7 @@ struct ForgeTodayView: View {
             input.coach += Self.demoCoachNotes(now: now)
         }
         #endif
+        next.explanations = next.explanations.filter { !explanationIds.contains($0.value) }
         // The data's own notices: the Momentum signals worth an entry and a night still on the strap, each
         // through the week-long cooldown of its topic.
         let momentumContext = DashboardMomentum.context(
@@ -1378,6 +1797,16 @@ struct ForgeTodayView: View {
             let sessions = workouts.filter { Repository.logicalDayKey(Date(timeIntervalSince1970: TimeInterval($0.endTs))) == todayKey }.count
             input.dayEnd = .init(date: eveningStart, sessions: sessions, tomorrow: tomorrow,
                                  bedtime: momentum.contains { $0.kind == .sleepCatchUp } ? bedtime : nil)
+        }
+        // The week card on Sunday from 18:00, beside the coach's weekly review or in its place.
+        let cal = Calendar.current
+        if cal.component(.weekday, from: now) == 1, let six = cal.date(bySettingHour: 18, minute: 0, second: 0, of: now) {
+            input.week = six
+            if snapshot.weekPattern == nil || snapshot.week.last?.day != todayKey {
+                next.weekPattern = await Self.weekPattern(repo: repo)
+            } else {
+                next.weekPattern = snapshot.weekPattern
+            }
         }
         next.timeline = ForgeTimeline.build(input, now: now, days: Self.timelineDays, dayKey: { Repository.logicalDayKey($0) })
         for day in next.timeline {
@@ -1409,6 +1838,66 @@ struct ForgeTodayView: View {
         }
     }
 }
+/// A day from midnight to midnight on one thin strip: sleep and sessions as spans in their scores' colours,
+/// notes and notices as dots. Tapping a span or a dot scrolls to its entry. One strip above the day, not an
+/// axis beside the entries.
+struct ForgeDayStrip: View {
+    struct Span: Equatable { let start: Date; let end: Date; let tint: Color; let target: String }
+    struct Mark: Equatable { let at: Date; let tint: Color; let target: String }
+
+    let spans: [Span]
+    let marks: [Mark]
+    let dayStart: Date
+    let onSelect: (String) -> Void
+
+    private func x(_ date: Date, _ width: CGFloat) -> CGFloat {
+        CGFloat(min(max(date.timeIntervalSince(dayStart) / 86_400, 0), 1)) * width
+    }
+
+    var body: some View {
+        if spans.isEmpty && marks.isEmpty {
+            EmptyView()
+        } else {
+            VStack(spacing: 3) {
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(ForgeColor.card.opacity(0.55)).frame(height: 8)
+                        ForEach(Array(spans.enumerated()), id: \.offset) { _, span in
+                            let a = x(span.start, w), b = x(span.end, w)
+                            if b > a {
+                                Capsule().fill(span.tint)
+                                    .frame(width: max(b - a, 4), height: 8)
+                                    .offset(x: a)
+                                    .onTapGesture { onSelect(span.target) }
+                            }
+                        }
+                        ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
+                            Circle().fill(mark.tint)
+                                .overlay(Circle().stroke(ForgeColor.card, lineWidth: 1.5))
+                                .frame(width: 10, height: 10)
+                                .offset(x: x(mark.at, w) - 5)
+                                .onTapGesture { onSelect(mark.target) }
+                        }
+                    }
+                    .frame(height: 12)
+                }
+                .frame(height: 12)
+                HStack {
+                    ForEach([0, 6, 12, 18, 24], id: \.self) { hour in
+                        Text(verbatim: "\(hour)")
+                        if hour < 24 { Spacer(minLength: 0) }
+                    }
+                }
+                .font(.system(.caption2).monospacedDigit())
+                .foregroundStyle(ForgeColor.secondaryOnPicture)
+            }
+            .padding(.horizontal, 4)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
 /// Log and Start on a solid surface, the page's two actions standing out from the see-through tiles under them.
 private struct ForgeTodayActionSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme

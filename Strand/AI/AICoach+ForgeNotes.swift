@@ -93,6 +93,54 @@ extension AICoachEngine {
         return false
     }
 
+    /// Open the thread an unprompted note lives in, so a reply to it is read with the note in view. A
+    /// morning note sits in its own day thread, archived once the day is over; replying brings it back.
+    @discardableResult
+    func focusConversation(containing messageId: UUID) -> Bool {
+        guard let thread = conversations.first(where: { $0.messages.contains { $0.id == messageId } }) else {
+            return false
+        }
+        if thread.archived { setArchived(thread.id, false) }
+        switchTo(thread.id)
+        return true
+    }
+
+    /// A question asked from a chip under a timeline note, answered briefly in the note's own thread: the
+    /// question is stored as the reader's turn, the answer as the coach's reply, so both show under the note
+    /// and in the chat. Figures in the answer pass the same guard as the notes.
+    @discardableResult
+    func answerInline(to noteId: UUID, question: String) async -> Bool {
+        guard CoachFeaturePrefs.isEnabled, isConfigured, dataConsent, !sending,
+              focusConversation(containing: noteId) else { return false }
+        appendMessage(ChatMessage(role: .user, text: question))
+        noteTurn = true
+        defer { noteTurn = false }
+        return await runSeededTurnCancellable(instruction: ForgeCoachNotes.inlineAnswerInstruction(question),
+                                              prefix: "", stampKey: ForgeCoachNotes.lastInlineAnswerKey,
+                                              origin: .reply)
+    }
+
+    /// "Explain this" on a notice or a report: two sentences about exactly that entry, from the figures the
+    /// device shows with it. The answer's id is kept for the day, so the entry shows it and nothing is asked
+    /// twice.
+    @discardableResult
+    func explainInline(key: String, title: String, figures: String, now: Date = Date()) async -> Bool {
+        guard CoachFeaturePrefs.isEnabled, isConfigured, dataConsent, !sending else { return false }
+        let storeKey = ForgeCoachNotes.explanationKey(key, day: LogicalDay.key(now))
+        guard UserDefaults.standard.string(forKey: storeKey) == nil else { return false }
+        appendMessage(ChatMessage(role: .user, text: String(localized: "Explain: \(title)")))
+        noteTurn = true
+        defer { noteTurn = false }
+        let spoke = await runSeededTurnCancellable(
+            instruction: ForgeCoachNotes.explainInstruction(title: title, figures: figures),
+            prefix: "", stampKey: ForgeCoachNotes.lastInlineAnswerKey, origin: .reply)
+        if spoke, let answer = conversations.first(where: { $0.id == activeConversationID })?.messages.last,
+           answer.role == .assistant {
+            UserDefaults.standard.set(answer.id.uuidString, forKey: storeKey)
+        }
+        return spoke
+    }
+
     /// Whether a note of this kind was written on the logical day before `now`. A kind the reader asked to
     /// hear less often skips the day after one.
     func forgeWroteYesterday(_ origin: ChatMessage.Origin, now: Date = Date()) -> Bool {

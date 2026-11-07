@@ -3951,5 +3951,20 @@
   "Your wake time and Charge can still change. If you woke at the time shown, say so.": "醒来时间和 Charge 可能还会变化。若你确实在显示的时间醒来，请确认。",
   "h walked": "小时步行",
   "After your workout — the coach got in touch": "训练后：教练联系了你",
-  "Your evening recap — the coach got in touch": "你的晚间回顾：教练联系了你"
+  "Your evening recap — the coach got in touch": "你的晚间回顾：教练联系了你",
+  "%@ above usual": "比平常高 %@",
+  "%@ below usual": "比平常低 %@",
+  "A calm day so far: your values are within your range.": "目前是平静的一天：你的数值都在你的范围内。",
+  "A suggestion waits for your answer": "有一条建议等你回复",
+  "Breathe for two minutes": "呼吸两分钟",
+  "Explain this": "解释一下",
+  "Explain: %@": "请解释：%@",
+  "From your memory": "来自你的记忆",
+  "More in the chat": "在聊天中查看更多",
+  "No weigh-in for a week": "一周没有称重",
+  "This morning's Charge": "今早的 Charge",
+  "What helps most tomorrow: an early night tonight.": "明天最有帮助的是：今晚早点睡。",
+  "What helps most tomorrow: an easy day after today's load.": "明天最有帮助的是：在今天的负荷后轻松一天。",
+  "Your weight goal needs one now and then.": "你的体重目标需要不时称一次。",
+  "as usual": "和平常一样"
 }

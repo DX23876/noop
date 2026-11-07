@@ -3827,5 +3827,20 @@
   "Your wake time and Charge can still change. If you woke at the time shown, say so.": "Время пробуждения и Charge ещё могут измениться. Если ты проснулся в указанное время, подтверди.",
   "h walked": "ч ходьбы",
   "After your workout — the coach got in touch": "После тренировки: коуч написал",
-  "Your evening recap — the coach got in touch": "Вечерний итог: коуч написал"
+  "Your evening recap — the coach got in touch": "Вечерний итог: коуч написал",
+  "%@ above usual": "на %@ выше обычного",
+  "%@ below usual": "на %@ ниже обычного",
+  "A calm day so far: your values are within your range.": "Пока спокойный день: показатели в твоём диапазоне.",
+  "A suggestion waits for your answer": "Предложение ждёт ответа",
+  "Breathe for two minutes": "Подыши две минуты",
+  "Explain this": "Объясни",
+  "Explain: %@": "Объясни: %@",
+  "From your memory": "Из твоей памяти",
+  "More in the chat": "Подробнее в чате",
+  "No weigh-in for a week": "Неделю без взвешивания",
+  "This morning's Charge": "Charge сегодня утром",
+  "What helps most tomorrow: an early night tonight.": "Больше всего завтра поможет ранний сон сегодня.",
+  "What helps most tomorrow: an easy day after today's load.": "Больше всего завтра поможет лёгкий день после сегодняшней нагрузки.",
+  "Your weight goal needs one now and then.": "Цели по весу иногда нужно взвешивание.",
+  "as usual": "как обычно"
 }

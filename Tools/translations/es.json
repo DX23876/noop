@@ -3850,5 +3850,20 @@
   "Your wake time and Charge can still change. If you woke at the time shown, say so.": "Tu hora de despertar y tu Charge aún pueden cambiar. Si te despertaste a la hora indicada, confírmalo.",
   "h walked": "h caminando",
   "After your workout — the coach got in touch": "Tras tu entrenamiento: el coach te escribió",
-  "Your evening recap — the coach got in touch": "Tu resumen de la noche: el coach te escribió"
+  "Your evening recap — the coach got in touch": "Tu resumen de la noche: el coach te escribió",
+  "%@ above usual": "%@ por encima de lo habitual",
+  "%@ below usual": "%@ por debajo de lo habitual",
+  "A calm day so far: your values are within your range.": "Un día tranquilo hasta ahora: tus valores están en tu rango.",
+  "A suggestion waits for your answer": "Una propuesta espera tu respuesta",
+  "Breathe for two minutes": "Respira dos minutos",
+  "Explain this": "Explícamelo",
+  "Explain: %@": "Explícame: %@",
+  "From your memory": "De tu memoria",
+  "More in the chat": "Más en el chat",
+  "No weigh-in for a week": "Sin pesarte desde hace una semana",
+  "This morning's Charge": "La Charge de esta mañana",
+  "What helps most tomorrow: an early night tonight.": "Lo que más ayuda mañana: acostarte pronto esta noche.",
+  "What helps most tomorrow: an easy day after today's load.": "Lo que más ayuda mañana: un día suave tras la carga de hoy.",
+  "Your weight goal needs one now and then.": "Tu objetivo de peso necesita una de vez en cuando.",
+  "as usual": "como siempre"
 }

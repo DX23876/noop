@@ -35,6 +35,14 @@ enum ForgeTimeline {
         var replies: [String] = []
         /// What Today showed when the note was written (`ForgeNoteBasis`).
         var basis: String? = nil
+        /// Questions asked under the note and the coach's answers, in order.
+        var followUps: [FollowUp] = []
+    }
+
+    /// One question asked from a note and the coach's answer, shown under the note.
+    struct FollowUp: Equatable {
+        let question: String
+        let answer: String
     }
 
     struct Workout: Equatable {
@@ -122,6 +130,8 @@ enum ForgeTimeline {
         var notices: [Notice] = []
         /// The day's own close, shown when no evening recap from the coach covers it.
         var dayEnd: DayEnd? = nil
+        /// The week in bars on Sunday evening, when no weekly review from the coach covers it.
+        var week: Date? = nil
     }
 
     // MARK: Output
@@ -138,6 +148,7 @@ enum ForgeTimeline {
             case notice
             case dayEnd
             case walks
+            case week
         }
         let id: String
         let date: Date
@@ -166,6 +177,8 @@ enum ForgeTimeline {
         var dayEnd: DayEnd? = nil
         /// Walks: the bundled walks of the day, earliest first.
         var walkIds: [String] = []
+        /// Coach: questions asked under the note and their answers.
+        var followUps: [FollowUp] = []
     }
 
     struct Day: Identifiable, Equatable {
@@ -202,7 +215,8 @@ enum ForgeTimeline {
             entries.append(Entry(id: "coach-\(note.id)", date: workout?.end ?? note.date, kind: .coach(note.origin),
                                  kicker: split.kicker, title: split.headline, detail: split.body,
                                  value: nil, sourceId: note.id, replies: note.replies,
-                                 workoutId: workout?.id, wake: wake, basis: note.basis))
+                                 workoutId: workout?.id, wake: wake, basis: note.basis,
+                                 followUps: note.followUps))
         }
         // Two or more detected or imported walks on a day are one entry; a walk the wearer started stays.
         let bundled = TimelineFeed.walkBundles(
@@ -246,6 +260,11 @@ enum ForgeTimeline {
                                  detail: end.tomorrow ?? "", value: Double(end.sessions), sourceId: nil,
                                  dayEnd: end))
         }
+        if let week = input.week, week <= now,
+           !input.coach.contains(where: { $0.origin == .weeklyReview && dayKey($0.date) == dayKey(week) && $0.date <= now }) {
+            entries.append(Entry(id: "week-\(dayKey(week))", date: week, kind: .week, title: "", detail: "",
+                                 value: nil, sourceId: nil))
+        }
         for n in input.notices where n.date <= now {
             entries.append(Entry(id: "notice-\(n.key)-\(dayKey(n.date))", date: n.date, kind: .notice,
                                  title: n.headline, detail: n.detail, value: nil, sourceId: n.key, notice: n))
@@ -262,6 +281,49 @@ enum ForgeTimeline {
             }
             return Day(id: key, date: first.date, entries: sorted)
         }
+    }
+
+    // MARK: Blocks (2026-11-07)
+
+    /// How a day's entries are drawn: the morning, the evening, coach notes and notices each on a card of
+    /// their own, and runs of small events (a session, walks, a weigh-in, drinks, an ECG, a nap) as rows
+    /// sharing one card, so a busy day reads as a few blocks rather than a dozen equal cards.
+    enum Block: Identifiable, Equatable {
+        case card(Entry)
+        case rows([Entry])
+
+        var id: String {
+            switch self {
+            case .card(let entry): return entry.id
+            case .rows(let entries): return "rows-" + (entries.first?.id ?? "")
+            }
+        }
+    }
+
+    static func isRow(_ kind: Entry.Kind) -> Bool {
+        switch kind {
+        case .workout, .walks, .weight, .dayLog, .ecg, .nap: return true
+        case .coach, .wake, .notice, .dayEnd, .week: return false
+        }
+    }
+
+    /// `entries` in order, with neighbouring small events joined into one block.
+    static func blocks(_ entries: [Entry]) -> [Block] {
+        var out: [Block] = []
+        var run: [Entry] = []
+        func flush() {
+            if !run.isEmpty { out.append(.rows(run)); run = [] }
+        }
+        for entry in entries {
+            if isRow(entry.kind) {
+                run.append(entry)
+            } else {
+                flush()
+                out.append(.card(entry))
+            }
+        }
+        flush()
+        return out
     }
 
     /// Moves a wake moment past the rollover when working out its day; never far enough to reach the next one.

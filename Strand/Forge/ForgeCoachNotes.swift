@@ -157,6 +157,34 @@ enum ForgeCoachNotes {
         """
     }
 
+    static let lastInlineAnswerKey = "noop.forge.inlineAnswer.last"
+
+    /// Where the answer to "explain this" for one entry on one day is kept.
+    static func explanationKey(_ key: String, day: String) -> String { "noop.forge.explain.\(day).\(key)" }
+
+    /// A reply chip under a note, answered under the note.
+    static func inlineAnswerInstruction(_ question: String) -> String {
+        """
+        The user answered your last note with: "\(question)". Reply to that in at most two short sentences, \
+        under 35 words, in the user's language. Read data with the tools if you need it; never invent a \
+        figure. No greeting, no list, no dashes.
+
+        \(voiceClause)
+        """
+    }
+
+    /// "Explain this" on one timeline entry, with the figures the device shows beside it.
+    static func explainInstruction(title: String, figures: String) -> String {
+        """
+        The user tapped "explain this" on an entry of their Today screen. The entry: "\(title)". What the \
+        screen shows with it: \(figures). Explain in at most two short sentences, under 40 words, what this \
+        means for them today and what helps. Read more with the tools only if needed; never invent a figure. \
+        No greeting, no list, no dashes.
+
+        \(voiceClause)
+        """
+    }
+
     /// Added to every unprompted turn: what the coach has already told the person today. Three notes in a row
     /// about one bad night is the failure this prevents.
     static func alreadySaidClause(_ headlines: [String]) -> String? {

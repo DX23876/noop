@@ -299,6 +299,40 @@ final class ForgeTimelineTests: XCTestCase {
         XCTAssertEqual(ForgeNoteFigures.filter("Charge 99.", sources: [], effortOutOf100: true).text, "")
     }
 
+    // MARK: Blocks
+
+    func testSmallEventsInARowShareOneCardAndLargeEntriesStandAlone() {
+        func e(_ id: String, _ kind: ForgeTimeline.Entry.Kind) -> ForgeTimeline.Entry {
+            ForgeTimeline.Entry(id: id, date: Date(timeIntervalSince1970: 0), kind: kind, title: "", detail: "",
+                                value: nil, sourceId: nil)
+        }
+        let blocks = ForgeTimeline.blocks([e("w1", .workout), e("d1", .dayLog(.drink)), e("n", .coach(.afterWorkout)),
+                                           e("k", .walks), e("m", .wake), e("x", .notice), e("y", .ecg)])
+        XCTAssertEqual(blocks.map(\.id), ["rows-w1", "n", "rows-k", "m", "x", "rows-y"])
+        if case .rows(let first) = blocks[0] { XCTAssertEqual(first.map(\.id), ["w1", "d1"]) } else { XCTFail() }
+    }
+
+    func testTheWeekCardGivesWayToTheCoachsWeeklyReview() {
+        let six = Date(timeIntervalSince1970: 1_793_900_000)
+        let key: (Date) -> String = { _ in "D" }
+        var input = ForgeTimeline.Input()
+        input.week = six
+        XCTAssertEqual(ForgeTimeline.build(input, now: six.addingTimeInterval(60), dayKey: key)
+            .flatMap(\.entries).map(\.kind), [.week])
+        input.coach = [.init(id: "r", date: six.addingTimeInterval(30), text: "Weekly review\n\nA good week.", origin: .weeklyReview)]
+        XCTAssertEqual(ForgeTimeline.build(input, now: six.addingTimeInterval(60), dayKey: key)
+            .flatMap(\.entries).map(\.kind), [.coach(.weeklyReview)])
+    }
+
+    func testFollowUpsTravelWithTheirNote() {
+        let t = Date(timeIntervalSince1970: 1_793_900_000)
+        var input = ForgeTimeline.Input()
+        input.coach = [.init(id: "n", date: t, text: "A calm morning. Keep it easy.", origin: .brief,
+                             followUps: [.init(question: "Why?", answer: "Your night was short.")])]
+        let entry = ForgeTimeline.build(input, now: t.addingTimeInterval(60), dayKey: { _ in "D" }).first?.entries.first
+        XCTAssertEqual(entry?.followUps, [.init(question: "Why?", answer: "Your night was short.")])
+    }
+
     // MARK: Journal causes behind a body-signal warning
 
     func testCausesWrittenByTheAppReadTheSameInEveryLanguage() {

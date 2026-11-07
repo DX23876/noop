@@ -3272,7 +3272,9 @@ final class AICoachEngine: ObservableObject {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
         // The goal and weekly reviews stand on their own; everything else must not repeat today's notes.
-        let saidToday = origin == .weeklyReview ? nil : ForgeCoachNotes.alreadySaidClause(headlinesToday())
+        // The weekly review stands on its own, and an answer to a question must answer it.
+        let saidToday = origin == .weeklyReview || origin == .reply
+            ? nil : ForgeCoachNotes.alreadySaidClause(headlinesToday())
         // In the new design a nudge is a timeline note like the others: figures come from the device and
         // it speaks in the same voice. The redesign's own notes carry both clauses in their instruction.
         let noteVoice = origin == .nudge && ForgeDesignPrefs.isEnabled()
@@ -3301,8 +3303,10 @@ final class AICoachEngine: ObservableObject {
                     // the device's own entry.
                     UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
                 } else {
-                    appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + note.text,
-                                              toolsUsed: reply.toolsUsed, origin: origin,
+                    // The memory block sent with the turn is recorded, so a note can say it drew on memory.
+                    appendMessage(ChatMessage(role: .assistant, text: prefix.isEmpty ? note.text : prefix + "\n\n" + note.text,
+                                              toolsUsed: reply.toolsUsed,
+                                              localContextUsed: relevant.isEmpty ? [] : [.keywordMemory], origin: origin,
                                               memoryWrites: takeMemoryWrites(), workoutId: workoutId,
                                               replies: note.replies, basis: timelineNote ? ForgeNoteBasis.current : nil))
                     UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
