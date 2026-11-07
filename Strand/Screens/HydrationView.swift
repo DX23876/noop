@@ -615,15 +615,23 @@ struct ForgeWaterGlass: View {
                 glass(phase: 0, amplitude: 0)
             }
         }
-        .onChange(of: fraction) { _, _ in
-            stirredAt = Date()
-            swaying = true
-        }
+        // The glass appears in the new design, which is iOS only; the macOS 13 target compiles the
+        // older single-value form.
+        #if os(iOS)
+        .onChange(of: fraction) { _, _ in stir() }
+        #else
+        .onChange(of: fraction) { _ in stir() }
+        #endif
         .task(id: stirredAt) {
             // The surface has settled: drop the clock, so nothing redraws until the next drink.
             try? await Task.sleep(nanoseconds: UInt64(Self.settle * 1_000_000_000))
             swaying = false
         }
+    }
+
+    private func stir() {
+        stirredAt = Date()
+        swaying = true
     }
 
     private func glass(phase: Double, amplitude: Double) -> some View {
