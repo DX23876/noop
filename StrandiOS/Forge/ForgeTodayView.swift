@@ -133,6 +133,8 @@ struct ForgeTodayView: View {
         var week: [WeekBar] = []
         /// What the What works analysis found most clearly, for the week card.
         var weekPattern: String?
+        /// The day `weekPattern` was worked out for, so What works runs once a Sunday, found or not.
+        var weekPatternDay: String?
         /// The day of the last weigh-in.
         var lastWeighDay: String?
         /// Answers to "explain this", by entry key, written today.
@@ -1802,11 +1804,12 @@ struct ForgeTodayView: View {
         let cal = Calendar.current
         if cal.component(.weekday, from: now) == 1, let six = cal.date(bySettingHour: 18, minute: 0, second: 0, of: now) {
             input.week = six
-            if snapshot.weekPattern == nil || snapshot.week.last?.day != todayKey {
+            if snapshot.weekPatternDay != todayKey {
                 next.weekPattern = await Self.weekPattern(repo: repo)
             } else {
                 next.weekPattern = snapshot.weekPattern
             }
+            next.weekPatternDay = todayKey
         }
         next.timeline = ForgeTimeline.build(input, now: now, days: Self.timelineDays, dayKey: { Repository.logicalDayKey($0) })
         for day in next.timeline {
