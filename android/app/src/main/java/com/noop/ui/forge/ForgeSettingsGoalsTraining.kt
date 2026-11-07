@@ -256,7 +256,7 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit) {
             }
         }
         RowDivider()
-        LinkRow(stringResource(R.string.forge_st_manage_media), null, onOpenMedia)
+        LinkRow(stringResource(R.string.forge_st_manage_media), null, onClick = onOpenMedia)
         RowDivider()
         Note(stringResource(R.string.forge_st_units_note))
     }
