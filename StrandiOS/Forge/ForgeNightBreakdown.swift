@@ -197,6 +197,10 @@ struct ForgeShareRing: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var fraction: Double { min(max(value / 100, 0), 1) }
+
+    static func percent(_ value: Double) -> String {
+        (value / 100).formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale))
+    }
     private var below: Bool { typical.map { value < $0 - 2 } ?? false }
 
     var body: some View {
@@ -234,8 +238,8 @@ struct ForgeShareRing: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(label))
-        .accessibilityValue(typical.map { Text(verbatim: "\(Int(value.rounded())) %, ") + Text("usual \(Int($0.rounded()))") }
-                            ?? Text(verbatim: "\(Int(value.rounded())) %"))
+        .accessibilityValue(typical.map { Text(Self.percent(value)) + Text(verbatim: ", ") + Text("usual \(Int($0.rounded()))") }
+                            ?? Text(Self.percent(value)))
         .onAppear {
             if reduceMotion { drawn = true; return }
             withAnimation(.spring(response: 0.9, dampingFraction: 0.9).delay(0.08 * Double(index))) { drawn = true }
