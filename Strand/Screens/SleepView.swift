@@ -69,8 +69,8 @@ struct SleepView: View {
     /// The displayed offset advances only with its fully prepared night snapshot.
     @State private var displayedNightOffset = 0
     @State private var navNight: Night?
-    /// The nap whose delete is waiting for confirmation.
-    @State private var napPendingDelete: CachedSleepSession?
+    /// The night editor, its undo and the nap delete confirmation, shared with the new design's Sleep tab.
+    @StateObject private var editor = SleepNightEditor()
 
     @State private var presentation: SleepPresentation?
     private var habitualMidsleepSec: Int? { presentation?.habitualMidsleepSec }
@@ -85,7 +85,6 @@ struct SleepView: View {
     /// Non-nil while the wake-time editor sheet is open. Carries the night's stable key (`startTs`) and
     /// current wake time so the editor seeds its picker; saving routes through `repo.editSleepWakeTime`,
     /// which marks the session `userEdited` so a later strap sync can't revert the correction. (#318)
-    @State private var wakeEdit: WakeEdit?
 
     /// WHOOP-style stage highlight: tapping a stage row under the timeline lights that stage up on the
     /// chart and recedes the rest (tap again to clear). Display-only selection state. (ryanAtriumAi #988)
@@ -99,24 +98,6 @@ struct SleepView: View {
     private func hrKey(_ night: Night) -> String {
         "\(String(describing: displayedRevision))-\(night.session.startTs)-\(night.session.endTs)"
     }
-
-    /// The transient UNDO banner shown after a suppressing delete (#65). Non-nil for ~7 seconds: carries
-    /// the snapshot needed to restore the deleted night into its ORIGINAL namespace and the window text
-    /// for the message. A user-created/edited delete writes no tombstone but still offers undo (restore).
-    @State private var sleepUndo: SleepUndoBanner?
-    /// The pending auto-dismiss task for `sleepUndo`, cancelled when a new delete replaces the banner or
-    /// the user hits Undo, so a stale timer can't clear a fresh banner.
-    @State private var sleepUndoTask: Task<Void, Never>?
-
-    /// The deleted nights whose deletion marker still stands, newest first, minus the ones hidden from the list
-    /// (`Repository.dismissedSleepManagementWindows`, #515). Read with the sessions on each refresh: the undo
-    /// strip lasts seconds, this list is how a night deleted by mistake comes back afterwards.
-    @State private var deletedSleepWindows: [DeletedSleepWindow] = []
-    /// The window being recomputed, so its button says so and the other rows wait.
-    @State private var recomputingDeletedSleep: DeletedSleepWindow?
-    /// What the last action on the list did, shown for a few seconds (`deletedSleepNoteRevision` re-arms it).
-    @State private var deletedSleepNote: DeletedSleepNote?
-    @State private var deletedSleepNoteRevision = 0
 
     @AppStorage(SleepLayoutPrefs.orderKey) private var sleepSectionOrderRaw = ""
     @AppStorage(SleepLayoutPrefs.hiddenKey) private var sleepHiddenSectionsRaw = ""
@@ -152,8 +133,8 @@ struct SleepView: View {
                     // 30-night trend. Sleep marks / naps are an INPUT, not a read-out, so they sink to the
                     // bottom (they were second from the top).
                     Group {
-                        if let sleepUndo { sleepUndoBanner(sleepUndo) }
-                        deletedSleepSection
+                        SleepUndoStrip(editor: editor)
+                        DeletedSleepNightsSection()
                         SleepFreshnessNote(latestWakeTs: resolved.night.session.endTs)
                         // Bleed past ScreenScaffold's 16/24 gutters so the hero column is edge-to-edge
                         // in the upper band; the night scene itself is the fixed topBackground.
@@ -181,8 +162,8 @@ struct SleepView: View {
                 } else {
                     // Deleting the only night recorded lands here, so the undo strip and the deleted list
                     // are offered here too: otherwise nothing on screen could bring that night back.
-                    if let sleepUndo { sleepUndoBanner(sleepUndo) }
-                    deletedSleepSection
+                    SleepUndoStrip(editor: editor)
+                    DeletedSleepNightsSection()
                     emptyState
                     alarmsEntry
                 }
@@ -207,81 +188,11 @@ struct SleepView: View {
                 navNight = offset == 0 ? nil : night
                 displayedNightOffset = offset
                 displayedRevision = key
-                deletedSleepWindows = loadDeletedSleepWindows()
                 if nightOffset != offset { nightOffset = offset }
                 openRequestedEditor(night: night ?? resolved?.night, offset: offset)
             } catch { /* A superseded load must not replace the currently visible night. */ }
         }
-        .task(id: deletedSleepNoteRevision) {
-            guard deletedSleepNote != nil else { return }
-            do { try await Task.sleep(nanoseconds: 6_000_000_000) }
-            catch { return }
-            withAnimation(.easeOut(duration: 0.2)) { deletedSleepNote = nil }
-        }
-        .confirmationDialog("Delete this nap?", isPresented: Binding(
-            get: { napPendingDelete != nil }, set: { if !$0 { napPendingDelete = nil } }),
-                            titleVisibility: .visible) {
-            Button("Delete nap", role: .destructive) {
-                if let nap = napPendingDelete { Task { await deleteNap(nap) } }
-                napPendingDelete = nil
-            }
-            Button("Cancel", role: .cancel) { napPendingDelete = nil }
-        } message: {
-            Text("It no longer counts toward the day's sleep, and the next analysis leaves it out.")
-        }
-        .sheet(isPresented: $showSleepCustomize) {
-            SleepCustomizationSheet(sectionOrderRaw: $sleepSectionOrderRaw,
-                                    hiddenSectionsRaw: $sleepHiddenSectionsRaw)
-        }
-        .sheet(item: $wakeEdit) { edit in
-            // Validate against the WHOLE bridged night, not just its selector-winning fragment.
-            // On a split night that one row often owns neither visible edge; fragment-scoped seed,
-            // gate and write were why a successful correction appeared to jump straight back.
-            let coverageLo = edit.group.map { min($0.startTs, $0.effectiveStartTs) }.min() ?? edit.bedTs
-            let coverageHi = edit.group.map(\.endTs).max() ?? edit.wakeTs
-            SleepTimeEditor(bedTs: edit.bedTs, wakeTs: edit.wakeTs,
-                            coverage: coverageLo...max(coverageHi, coverageLo + 1),
-                            suppressesReDetection: !edit.userEdited,
-                            onSave: { newBedTs, newWakeTs, relocating in
-                let outcome = await repo.editSleepGroupTimes(edit.group,
-                                                            newStartTs: newBedTs,
-                                                            newEndTs: newWakeTs,
-                                                            allowRelocation: relocating)
-                switch outcome {
-                case .failure(let failure):
-                    return .failure(sleepEditFailureMessage(failure))
-                case .success(let result):
-                    CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: newWakeTs)
-                    if !result.retired.isEmpty {
-                        presentSleepUndo(result.retired, displayStart: newBedTs,
-                                         windowEnd: newWakeTs, fromEdit: true)
-                    }
-                    scheduleBackgroundRescore(wakeDays: result.affectedWakeDays,
-                                              required: result.requiresLocalRescore)
-                    return .success
-                }
-            }, onDelete: {
-                // Delete = the edit path minus the re-insert: drop this session so every metric
-                // recomputes immediately as if the night were never recorded, durably tombstoned so a
-                // re-detect doesn't bring it back, then re-score + refresh exactly like an edit. (#68)
-                // #65: the returned snapshot lets the user UNDO within a few seconds. It restores the
-                // deleted row into its ORIGINAL namespace and lifts the tombstone.
-                guard let snapshot = await repo.deleteSleepSession(
-                    detectedStartTs: edit.detectedStartTs, endTs: edit.wakeTs) else {
-                    return .failure(String(localized: "Deleting this sleep failed. Nothing was changed."))
-                }
-                CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: edit.wakeTs)
-                // `edit.bedTs` is the effective (displayed) onset, so the banner shows the same clock
-                // time the user saw for this night.
-                presentSleepUndo([snapshot], displayStart: edit.bedTs,
-                                 windowEnd: edit.wakeTs, fromEdit: false)
-                scheduleBackgroundRescore(
-                    wakeDays: [snapshot.suppressedWakeDay
-                        ?? Repository.sleepEndDayKey(snapshot.endTs)],
-                    required: snapshot.ownerDeviceId.hasSuffix("-noop"))
-                return .success
-            })
-        }
+        .sleepNightEditing(editor)
     }
 
     /// A direct route to the one alarm screen, available even before a night is recorded.
@@ -313,246 +224,6 @@ struct SleepView: View {
     }
 
     // MARK: - 0. REST HERO — scenic backdrop + sleep-performance gauge (Bevel)
-
-    // MARK: - Delete undo (#65)
-
-    /// Show the transient UNDO banner after a suppressing delete, and arm the 7-second auto-dismiss. A
-    /// second delete replaces the banner (its old auto-dismiss task is cancelled first) so only the most
-    /// recent delete is undoable. Single-level and transient, matching the WorkoutsView postLogNote idiom.
-    private func presentSleepUndo(_ snapshots: [SleepDeletionSnapshot], displayStart: Int,
-                                  windowEnd: Int, fromEdit: Bool) {
-        guard let first = snapshots.first else { return }
-        sleepUndoTask?.cancel()
-        withAnimation(.easeOut(duration: 0.2)) {
-            sleepUndo = SleepUndoBanner(snapshots: snapshots, identityStart: first.session.startTs,
-                                        displayStart: displayStart, windowEnd: windowEnd,
-                                        fromEdit: fromEdit)
-        }
-        let armed = first.session.startTs
-        sleepUndoTask = Task {
-            try? await Task.sleep(nanoseconds: 7_000_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                // Only clear if this is still the banner we armed (a newer delete would have replaced it).
-                if sleepUndo?.identityStart == armed {
-                    withAnimation(.easeOut(duration: 0.2)) { sleepUndo = nil }
-                }
-            }
-        }
-    }
-
-    /// Undo the most recent suppressing delete: restore and publish immediately, then repair any local
-    /// derived score in the same targeted background path as save/delete.
-    private func undoSleepDelete(_ banner: SleepUndoBanner) async {
-        sleepUndoTask?.cancel()
-        await repo.undoDeleteSleepSessions(banner.snapshots)
-        let localSnapshots = banner.snapshots.filter { $0.ownerDeviceId.hasSuffix("-noop") }
-        scheduleBackgroundRescore(
-            wakeDays: Set(localSnapshots.map { Repository.sleepEndDayKey($0.endTs) }),
-            required: !localSnapshots.isEmpty)
-        await MainActor.run { withAnimation(.easeOut(duration: 0.2)) { sleepUndo = nil } }
-    }
-
-    /// A changed revision makes only the affected wake-days miss their persisted fingerprints. The pass
-    /// still spans back to the oldest edited day, but `allowDayReuse` lets every unchanged day return in
-    /// the cheap probe path. It never delays sheet dismissal.
-    private func scheduleBackgroundRescore(wakeDays: Set<String>, required: Bool) {
-        guard required, !wakeDays.isEmpty else { return }
-        let today = Calendar.current.startOfDay(for: Date())
-        let oldestDistance = wakeDays.compactMap(Self.dateFromDayKey).map {
-            max(0, Calendar.current.dateComponents([.day], from: $0, to: today).day ?? 0)
-        }.max() ?? 0
-        let maxDays = max(1, oldestDistance + 2)
-        Task(priority: .utility) {
-            await appModel?.intelligence.analyzeRecent(maxDays: maxDays, force: true,
-                                             allowDayReuse: true, reason: .semanticChange)
-            await repo.refresh()
-        }
-    }
-
-    private static func dateFromDayKey(_ day: String) -> Date? {
-        let parts = day.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
-    }
-
-    /// Locale-formatted clock time (no date) for the banner's window range.
-    private func clockTime(_ ts: Int) -> String {
-        Date(timeIntervalSince1970: TimeInterval(ts))
-            .formatted(Date.FormatStyle(date: .omitted, time: .shortened)
-                .locale(AppClock.formattingLocale))   // #1821
-    }
-
-    /// The transient undo strip: a Rest-tinted frosted banner with the suppressed window and a real Undo
-    /// Button. role-alert-ish for VoiceOver; the Undo button carries its own explicit label.
-    @ViewBuilder
-    private func sleepUndoBanner(_ banner: SleepUndoBanner) -> some View {
-        // Branch the copy on userEdited: a hand-edited/added night writes NO tombstone (it is never
-        // re-detected), so the suppression promise would be false for it. Only a DETECTED delete writes a
-        // tombstone, so only it gets the "won't detect ... again" wording. (#65 banner honesty.)
-        let first = banner.snapshots[0]
-        let message = banner.fromEdit
-            ? String(localized: "Sleep outside the new times was removed.")
-            : (first.session.userEdited
-                ? String(localized: "Sleep deleted.")
-                : String(localized: "Sleep deleted. NOOP won't detect sleep between \(clockTime(banner.displayStart)) and \(clockTime(banner.windowEnd)) again."))
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: "moon.zzz")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(StrandPalette.restColor)
-                .accessibilityHidden(true)
-            Text(message)
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
-            Button {
-                Task { await undoSleepDelete(banner) }
-            } label: {
-                Text("Undo").font(StrandFont.footnote.weight(.semibold))
-            }
-            .buttonStyle(LiquidPressStyle())
-            .foregroundStyle(StrandPalette.restColor)
-            .accessibilityLabel("Undo sleep deletion")
-        }
-        .padding(NoopMetrics.space3)
-        .background(StrandPalette.restColor.opacity(0.10),
-                    in: RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
-            .strokeBorder(StrandPalette.restColor.opacity(0.22), lineWidth: 1))
-        .transition(.opacity)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(message)
-    }
-
-    /// One honest sentence per `SleepEditFailure`, so a correction that did not reach the database says
-    /// so instead of closing the sheet as if it had worked.
-    private func sleepEditFailureMessage(_ failure: SleepEditFailure) -> String {
-        switch failure {
-        case .storeUnavailable:
-            return String(localized: "Couldn't open the database, so the sleep times weren't changed.")
-        case .invalidWindow:
-            return String(localized: "Those times aren't a valid sleep window, so nothing was changed.")
-        case .noOverlap:
-            return String(localized: "Those times don't overlap this night's recorded data, so nothing was changed.")
-        case .ownerUnresolved:
-            return String(localized: "This night's stored record couldn't be found, so the times weren't changed.")
-        case .writeFailed:
-            return String(localized: "Saving the new sleep times failed. Nothing was changed.")
-        }
-    }
-
-    // MARK: - Deleted sleep windows (#515)
-
-    /// The deleted-night list and what its last action did. The note sits outside the card, so it still shows
-    /// when hiding the last row takes the card away.
-    @ViewBuilder
-    private var deletedSleepSection: some View {
-        if let deletedSleepNote {
-            // On the card surface, not a bare tint: this sits over the night scene, where a faint wash left the
-            // line unreadable.
-            NoopCard(padding: NoopMetrics.space3, tint: StrandPalette.restColor) {
-                Text(deletedSleepNote.message)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .transition(.opacity)
-        }
-        if !deletedSleepWindows.isEmpty { deletedSleepWindowsCard }
-    }
-
-    /// Each night the user deleted, with "Recompute this night" (lift its marker and detect it again from the raw
-    /// data) and "Hide" (take the row away, keep the marker). Android's card, with its strings (#515).
-    private var deletedSleepWindowsCard: some View {
-        NoopCard(tint: StrandPalette.restColor) {
-            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
-                    Text("Deleted sleep windows")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text("Recompute clears the deletion marker and scans the most recent 21 days.")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                ForEach(deletedSleepWindows) { window in deletedSleepRow(window) }
-                Text("If this sleep came only from an import and no raw samples are stored, it may not reappear.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    /// One deleted night: its window on a line of its own (two dates and times do not fit beside two buttons on
-    /// a phone), its actions under it. Both wait while any night is being recomputed.
-    private func deletedSleepRow(_ window: DeletedSleepWindow) -> some View {
-        let idle = recomputingDeletedSleep == nil
-        return VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-            Text(verbatim: "\(deletedSleepStamp(window.start)) – \(deletedSleepStamp(window.end))")
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textSecondary)
-            HStack(spacing: NoopMetrics.space4) {
-                Spacer(minLength: 0)
-                Button { hideDeletedSleep(window) } label: {
-                    Text("Hide").font(StrandFont.subhead)
-                }
-                .buttonStyle(LiquidPressStyle())
-                .foregroundStyle(idle ? StrandPalette.textSecondary : StrandPalette.textTertiary)
-                .disabled(!idle)
-                .accessibilityLabel("Hide this deleted sleep window")
-                Button { Task { await recomputeDeletedSleep(window) } } label: {
-                    // Two Texts, not one over a ternary: a ternary of literals is a String, which Text shows
-                    // untranslated.
-                    Group {
-                        if recomputingDeletedSleep == window { Text("Recomputing…") } else { Text("Recompute this night") }
-                    }
-                    .font(StrandFont.subhead.weight(.semibold))
-                }
-                .buttonStyle(LiquidPressStyle())
-                .foregroundStyle(idle ? StrandPalette.restColor : StrandPalette.textTertiary)
-                .disabled(!idle)
-                .accessibilityLabel("Recompute this deleted sleep night")
-            }
-        }
-    }
-
-    /// "3 Oct, 23:10" in the app's language: a deleted window can span midnight, so each end carries its date.
-    private func deletedSleepStamp(_ ts: Int) -> String {
-        Date(timeIntervalSince1970: TimeInterval(ts))
-            .formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(AppClock.formattingLocale))
-    }
-
-    private func loadDeletedSleepWindows() -> [DeletedSleepWindow] {
-        repo.dismissedSleepManagementWindows().map { DeletedSleepWindow(start: $0.start, end: $0.end) }
-    }
-
-    /// Lift the night's marker, then run the normal recent scan. An older night is outside that 21-day window;
-    /// the success note reports only the marker change, not whether detection processed or restored this night.
-    private func recomputeDeletedSleep(_ window: DeletedSleepWindow) async {
-        recomputingDeletedSleep = window
-        await repo.allowSleepReDetection(startTs: window.start, endTs: window.end)
-        // Without day reuse: lifting a marker changes no raw input, so a fingerprint-reused day would keep
-        // the night suppressed. The fork reaches the engine through the dashboard app model here.
-        await appModel?.intelligence.analyzeRecent(force: true, allowDayReuse: false, reason: .semanticChange)
-        await repo.refresh()
-        deletedSleepWindows = loadDeletedSleepWindows()
-        recomputingDeletedSleep = nil
-        showDeletedSleepNote(.recomputed)
-    }
-
-    /// Take the row off the list; the marker stays, so the night stays deleted.
-    private func hideDeletedSleep(_ window: DeletedSleepWindow) {
-        repo.hideDeletedSleepWindow(startTs: window.start, endTs: window.end)
-        withAnimation(.easeOut(duration: 0.2)) { deletedSleepWindows = loadDeletedSleepWindows() }
-        showDeletedSleepNote(.hidden)
-    }
-
-    private func showDeletedSleepNote(_ note: DeletedSleepNote) {
-        withAnimation(.easeOut(duration: 0.2)) { deletedSleepNote = note }
-        deletedSleepNoteRevision += 1
-    }
 
     /// A short night-relative label ("Last night" / "1 night ago" / "N nights ago") for the
     /// ◀/▶-navigated night. Shared by the Rest hero overline and the hypnogram nav header so both
@@ -941,7 +612,7 @@ struct SleepView: View {
             }
             Spacer(minLength: 8)
             Menu {
-                Button(role: .destructive) { napPendingDelete = nap } label: {
+                Button(role: .destructive) { editor.napPendingDelete = nap } label: {
                     Label("Delete nap", systemImage: "trash")
                 }
             } label: {
@@ -954,16 +625,6 @@ struct SleepView: View {
             .accessibilityLabel(Text("Nap actions"))
         }
         .accessibilityElement(children: .contain)
-    }
-
-    /// Deletes a wrongly detected nap: tombstoned so the next analysis does not bring it back, without
-    /// hiding the day's main night, with the same few-second undo as a deleted night.
-    private func deleteNap(_ nap: CachedSleepSession) async {
-        guard let snapshot = await repo.deleteSleepSession(detectedStartTs: nap.startTs, endTs: nap.endTs,
-                                                           suppressesWakeDay: false) else { return }
-        presentSleepUndo([snapshot], displayStart: nap.effectiveStartTs, windowEnd: nap.endTs, fromEdit: false)
-        scheduleBackgroundRescore(wakeDays: [Repository.sleepEndDayKey(nap.endTs)],
-                                  required: snapshot.ownerDeviceId.hasSuffix("-noop"))
     }
 
     /// "HH:mm–HH:mm" clock window for a nap row (device 12-/24-h setting via the shared Night formatter).
@@ -1414,16 +1075,10 @@ struct SleepView: View {
         SleepEditRequest.pending = nil
         switch request.action {
         case .editNight:
-            if let night { wakeEdit = wakeEdit(for: night) }
+            if let night { editor.edit(night) }
         case .deleteNap(let nap):
-            napPendingDelete = nap
+            editor.napPendingDelete = nap
         }
-    }
-
-    private func wakeEdit(for night: Night) -> WakeEdit? {
-        guard let target = night.editTarget, let window = SleepGroupEdit.groupWindow(night.editGroup) else { return nil }
-        return WakeEdit(group: night.editGroup, detectedStartTs: target.startTs, bedTs: window.start,
-                        wakeTs: window.end, userEdited: night.editGroup.contains(where: \.userEdited))
     }
 
     /// Pencil affordance that opens the wake-time editor for `night`. Auto-detection misreads the wake
@@ -1439,10 +1094,10 @@ struct SleepView: View {
         // Resolve the real stored block by identity (the night's main block), never by re-scanning
         // `allSessions` for a wake-time match — that guess could pick the wrong source/night and, when
         // it missed, fall back to the synthetic effective onset (not a real key) so the edit no-oped.
-        if let edit = wakeEdit(for: night) {
+        if let edit = SleepNightEditor.wakeEdit(for: night) {
             let isEdited = edit.userEdited
             Button {
-                wakeEdit = edit
+                editor.wakeEdit = edit
             } label: {
                 Image(systemName: isEdited ? "pencil.circle.fill" : "pencil.circle")
                     .font(StrandFont.headline)
@@ -2615,50 +2270,7 @@ enum SleepEditRequest {
     static var pending: (offset: Int, action: Action)?
 }
 
-/// Identifies the night being edited for `.sheet(item:)`. A night's `startTs` is its stable natural
-/// key (wake-time edits never move it), so it doubles as the sheet identity.
-/// The transient UNDO banner state after a suppressing delete (#65). `identityStart` is the immutable
-/// detected key so a stale auto-dismiss task can tell whether it still owns the current banner;
-/// `displayStart` is the effective (shown) onset for the message clock.
-private struct SleepUndoBanner {
-    let snapshots: [SleepDeletionSnapshot]
-    let identityStart: Int
-    let displayStart: Int
-    let windowEnd: Int
-    let fromEdit: Bool
-}
 
-/// One night on the Sleep screen's deleted list: the window its deletion marker covers.
-private struct DeletedSleepWindow: Identifiable, Equatable {
-    let start: Int
-    let end: Int
-    var id: String { DismissedSleepSpans.token(startTs: start, endTs: end) }
-}
-
-/// What the last action on the deleted list changed (#515). Recompute reports only that its marker was lifted.
-private enum DeletedSleepNote {
-    case recomputed, hidden
-
-    var message: LocalizedStringKey {
-        switch self {
-        case .recomputed: return "Deletion marker cleared."
-        case .hidden: return "Deleted sleep window hidden. It will stay deleted."
-        }
-    }
-}
-
-private struct WakeEdit: Identifiable {
-    /// The exact bridged fragments represented by the editor's visible window. A nap is a one-row group.
-    let group: [CachedSleepSession]
-    let detectedStartTs: Int   // immutable detected key the edit writes against
-    let bedTs: Int             // current effective onset (seeds the bed picker)
-    let wakeTs: Int            // current wake (seeds the wake picker)
-    /// True for a hand-edited / manually-added (nap) night. Such a delete writes NO tombstone (it is
-    /// never re-detected), so the editor's delete-confirm copy must NOT promise re-detection suppression
-    /// for it. Mirrors the undo-banner branch (#65 banner/confirm honesty).
-    let userEdited: Bool
-    var id: Int { detectedStartTs }
-}
 
 /// A small sheet to hand-correct a night's bed (onset) and wake (end) instants. Seeds both pickers with
 /// the current values, including each calendar date. Hands the chosen unix-second (bed, wake) back via
@@ -2678,7 +2290,7 @@ enum SleepEditorActionOutcome: Equatable {
     }
 }
 
-private struct SleepTimeEditor: View {
+struct SleepTimeEditor: View {
     /// `(bedTs, wakeTs, relocating)`. `relocating` is the user's explicit "Move anyway" consent for a
     /// window that touches none of the night's recorded data — without it the repository refuses such a
     /// window, which is why confirming the move used to do nothing at all.

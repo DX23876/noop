@@ -47,6 +47,8 @@ struct ForgeSleepView: View {
     private var nightRow: DailyMetric? { wakeKey.flatMap { key in repo.days.last(where: { $0.day == key }) } }
     /// The need every sleep card names: the one the Rest score and the debt ledger use.
     private var need: Double { SleepModel.debtNeedMin(days: repo.days) }
+    /// The night editor, its undo and the nap delete confirmation, shared with the full Sleep screen.
+    @StateObject private var editor = SleepNightEditor()
     /// The bedtime planner still counts back from the wearer's own setting in Alarms.
     private var plannedNeed: Double { Double(WindDownNudge.sleepNeedMinutes) }
 
@@ -76,6 +78,7 @@ struct ForgeSleepView: View {
                                          headline: String(localized: "No night recorded yet"))
                         }
                         tonightCard
+                        SleepUndoStrip(editor: editor)
                         if let model, let night {
                             nightCard(night)
                             naps(night)
@@ -100,6 +103,7 @@ struct ForgeSleepView: View {
         .background(ForgeBackground(tab: .sleep))
         .overlay { ForgeStatusBarScrim(tab: .sleep) }
         .refreshable { await repo.refresh() }
+        .sleepNightEditing(editor)
         .task(id: revision) {
             let key = revision
             if let p = try? await sleepStore.presentation(repo: repo, revision: key), key == revision {
@@ -165,7 +169,7 @@ struct ForgeSleepView: View {
                                 },
                                 axisLabels: weekdayLabels(7))
             }
-            NavigationLink(value: TabRoute.sleep) {
+            NavigationLink(value: TabRoute.metric("sleep_total_min")) {
                 ForgeMetricTile(label: String(localized: "Sleep duration"),
                                 value: ForgeTodayView.hoursMinutes(night.stages.asleep), unit: "h",
                                 trend: asleepWeek.count > 1 ? asleepWeek : nil, tint: ForgeColor.rest,
@@ -247,21 +251,21 @@ struct ForgeSleepView: View {
                 Spacer()
                 Text("\(night.onsetText) to \(night.wakeText)")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                // The same editor the full Sleep screen opens, for this night.
-                NavigationLink(value: TabRoute.sleep) {
+                // The same editor the full Sleep screen opens, here in place.
+                Button { editor.edit(night) } label: {
                     Image(systemName: edited ? "pencil.circle.fill" : "pencil.circle")
                         .font(.title3)
                         .foregroundStyle(ForgeColor.restInk)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
-                .simultaneousGesture(TapGesture().onEnded { SleepEditRequest.pending = (nightOffset, .editNight) })
                 .accessibilityLabel(Text("Edit sleep times"))
             }
             if night.stages.total > 0 {
-                NavigationLink(value: TabRoute.sleep) {
-                    VStack(alignment: .leading, spacing: 10) {
+                // The breakdown below reads the night in full, so the chart opens nothing else.
+                VStack(alignment: .leading, spacing: 10) {
                         Hypnogram(intervals: night.intervals, height: 170, showsStageAxis: true, showsHover: false,
                                   nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
                             .padding(10)
@@ -272,9 +276,7 @@ struct ForgeSleepView: View {
                             stageFact(String(localized: "Light"), night.stages.light)
                             stageFact(String(localized: "Awake"), night.stages.awake)
                         }
-                    }
                 }
-                .buttonStyle(LiquidPressStyle())
             } else {
                 Text("No sleep stages for this night.")
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
@@ -286,7 +288,7 @@ struct ForgeSleepView: View {
     // MARK: Naps
 
     /// The day's blocks outside the main night, each removable when it was detected wrongly. The delete, its
-    /// confirmation and its undo are the full Sleep screen's.
+    /// confirmation and its undo are the shared night editor's, as on the full Sleep screen.
     @ViewBuilder private func naps(_ night: Night) -> some View {
         let main = Set(SleepView.mainNightGroup(night.sourceBlocks, habitualMidsleepSec: presentation?.habitualMidsleepSec).map(\.startTs))
         let blocks = night.sourceBlocks.filter { !main.contains($0.startTs) }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
@@ -317,7 +319,7 @@ struct ForgeSleepView: View {
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
             Spacer(minLength: 8)
-            NavigationLink(value: TabRoute.sleep) {
+            Button { editor.napPendingDelete = nap } label: {
                 Image(systemName: "trash")
                     .font(.system(.body))
                     .foregroundStyle(ForgeColor.secondary)
@@ -325,7 +327,6 @@ struct ForgeSleepView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .simultaneousGesture(TapGesture().onEnded { SleepEditRequest.pending = (nightOffset, .deleteNap(nap)) })
             .accessibilityLabel(Text("Delete nap"))
         }
     }
@@ -493,7 +494,7 @@ struct ForgeSleepView: View {
 
     private var more: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForgeSectionTitle(title: "Alarm and naps")
+            ForgeSectionTitle(title: "Alarms")
             ForgeGroup {
                 NavigationLink(value: MoreDestination.alarms) {
                     ForgeRow(systemImage: "alarm.fill", tint: ForgeColor.rest, title: String(localized: "Smart alarm"),
@@ -504,13 +505,12 @@ struct ForgeSleepView: View {
                     ForgeRow(systemImage: "moon.fill", tint: ForgeColor.rest, title: String(localized: "Bedtime"),
                              subtitle: reminderText)
                 }
-                ForgeRowDivider()
-                NavigationLink(value: TabRoute.sleep) {
-                    ForgeRow(systemImage: "bed.double.fill", tint: ForgeColor.rest, title: String(localized: "Naps and every night"),
-                             subtitle: String(localized: "Edit times, log a nap, marks"))
-                }
             }
             .buttonStyle(.plain)
+            // What the full Sleep screen kept beyond the night itself: marks for the night and the nights
+            // deleted by mistake, so the tab no longer sends anyone to the older page for them.
+            SleepMarkCard()
+            DeletedSleepNightsSection()
         }
     }
 }

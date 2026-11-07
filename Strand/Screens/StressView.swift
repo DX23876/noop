@@ -326,19 +326,12 @@ struct StressView: View {
         return NoopCard {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .center, spacing: 14) {
-                    ZStack {
-                        Circle().fill(RadialGradient(colors: [tint.opacity(0.45), tint.opacity(0)],
-                                                     center: .center, startRadius: 4, endRadius: 70))
-                            .frame(width: 140, height: 140)
-                            .accessibilityHidden(true)
-                        VStack(spacing: 0) {
-                            Text(Self.forgeLevel(model.score))
-                                .font(StrandFont.rounded(56, weight: .bold))
-                                .foregroundStyle(StrandPalette.textPrimary)
-                            Text("of 3").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                        }
-                    }
-                    .frame(width: 112, height: 112)
+                    // A ring like the score rings on Today, filled to the day's share of 3 in its band colour and
+                    // drawn in on appear, instead of the soft glow that read as a loose orb on a card.
+                    GlowRing(fraction: min(max(model.score, 0), 3) / 3, value: model.score,
+                             format: { Self.forgeLevel($0) }, color: tint,
+                             diameter: 112, lineWidth: 10, caption: String(localized: "of 3"))
+                        .frame(width: 112, height: 112)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(word).font(Font.title2.weight(.bold)).foregroundStyle(tint)
                         Text(model.explanation).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
