@@ -295,12 +295,17 @@ private struct BreathingContent: View {
                         Button { pace = item } label: {
                             Text(item.label)
                                 .font(StrandFont.subhead.weight(.semibold))
-                                .foregroundStyle(on ? StrandPalette.forgeOnAccent : StrandPalette.textPrimary)
+                                .foregroundStyle(on ? StrandPalette.forgeAccent : StrandPalette.textPrimary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                                 .padding(.horizontal, NoopMetrics.space2)
                                 .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(on ? StrandPalette.forgeAccent : StrandPalette.surfaceInset, in: Capsule())
+                                // Chosen reads as the tinted capsule the main buttons use, plus a ring, not a
+                                // solid block of accent.
+                                .background(on ? StrandPalette.forgeAccent.opacity(NoopButtonMetrics.forgeTintOpacity)
+                                               : StrandPalette.surfaceInset, in: Capsule())
+                                .overlay { if on { Capsule().strokeBorder(StrandPalette.forgeAccent.opacity(0.5), lineWidth: 1.5) } }
+                                .animation(.easeOut(duration: 0.2), value: on)
                         }
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(on ? .isSelected : [])
@@ -580,8 +585,26 @@ private struct BreathingContent: View {
                 // cued by water rising and falling rather than a swelling disc. Rest-tinted to match the
                 // world; under Reduce Motion `orbProgress` parks at a steady mid-level (no pulsing), and
                 // the phase word + haptics still carry the pace.
-                LiquidVessel(value: orbProgress, tint: StrandPalette.restColor, animated: running)
+                if NoopVisualStyle.skin == .forge {
+                    // The new design's pacer: a soft disc that widens on the inhale and narrows on the exhale,
+                    // with a crisp rim, the way a breath is drawn rather than water poured. Same `orbProgress`,
+                    // so Reduce Motion parks it at the same steady size.
+                    let scale = 0.52 + 0.48 * orbProgress
+                    ZStack {
+                        Circle()
+                            .fill(RadialGradient(colors: [StrandPalette.restColor.opacity(0.34),
+                                                          StrandPalette.restColor.opacity(0.10)],
+                                                 center: .center, startRadius: 0, endRadius: maxDiameter / 2))
+                        Circle()
+                            .strokeBorder(StrandPalette.restColor.opacity(0.7), lineWidth: 2)
+                    }
                     .frame(width: maxDiameter, height: maxDiameter)
+                    .scaleEffect(scale)
+                    .accessibilityHidden(true)
+                } else {
+                    LiquidVessel(value: orbProgress, tint: StrandPalette.restColor, animated: running)
+                        .frame(width: maxDiameter, height: maxDiameter)
+                }
 
                 VStack(spacing: 2) {
                     if let bpm = model.bpm {
@@ -599,7 +622,7 @@ private struct BreathingContent: View {
                         .tracking(0.8)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
-                .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
+                .shadow(color: NoopVisualStyle.skin == .forge ? .clear : .black.opacity(0.5), radius: 6, y: 1)
                 .allowsHitTesting(false)   // taps fall through to the vessel → splash
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -683,7 +706,8 @@ private struct BreathingContent: View {
                         accent: StrandPalette.metricRose,
                         caption: live.worn ? String(localized: "Live") : String(localized: "Strap not worn"))
 
-            readoutTile(label: String(localized: "HRV (RMSSD)"),
+            // The new design names the measure as every other screen does, without the method.
+            readoutTile(label: NoopVisualStyle.skin == .forge ? "HRV" : String(localized: "HRV (RMSSD)"),
                         value: rmssd.map { String(format: "%.0f", $0) } ?? "—",
                         unit: "ms",
                         accent: StrandPalette.metricPurple,

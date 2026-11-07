@@ -189,10 +189,15 @@ struct ForgeFilterChip: View {
                     Image(systemName: "xmark").font(StrandFont.caption.weight(.bold)).accessibilityHidden(true)
                 }
             }
-            .foregroundStyle(isSelected ? StrandPalette.forgeOnAccent : StrandPalette.textPrimary)
+            .foregroundStyle(isSelected ? StrandPalette.forgeAccent : StrandPalette.textPrimary)
             .padding(.horizontal, NoopMetrics.space3)
             .frame(minHeight: 36)
-            .background(isSelected ? AnyShapeStyle(StrandPalette.forgeAccent) : AnyShapeStyle(StrandPalette.surfaceInset), in: Capsule())
+            // Selected is the tinted capsule with a ring the main buttons and the Breathe rhythms use, so a
+            // row of chosen chips no longer reads as a row of solid buttons.
+            .background(isSelected ? AnyShapeStyle(StrandPalette.forgeAccent.opacity(NoopButtonMetrics.forgeTintOpacity))
+                                   : AnyShapeStyle(StrandPalette.surfaceInset), in: Capsule())
+            .overlay { if isSelected { Capsule().strokeBorder(StrandPalette.forgeAccent.opacity(0.5), lineWidth: 1.5) } }
+            .animation(.easeOut(duration: 0.2), value: isSelected)
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }

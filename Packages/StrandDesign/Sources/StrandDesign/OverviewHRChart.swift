@@ -430,7 +430,8 @@ public struct OverviewHRChart: View {
         .chartYScale(domain: valueRange)
         // catmullRom overshoots past the data on sharp turns and the area gradient draws
         // unclipped — clip the plot so a spiky HR curve doesn't bleed past the chart (see TrendChart).
-        .chartPlotStyle { plotArea in plotArea.clipped() }
+        // The plot draws in from the left under the new design, as every trend line there does.
+        .chartPlotStyle { plotArea in plotArea.clipped().modifier(ChartDrawIn()) }
         .chartXAxis {
             // Manual ticks chosen by visible span (6h down to 1min), matching Android chartTimeTicks.
             // Swift Charts' .automatic(desiredCount:) doesn't guarantee per-minute ticks at deep zoom.
