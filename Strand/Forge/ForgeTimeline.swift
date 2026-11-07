@@ -130,8 +130,6 @@ enum ForgeTimeline {
         var notices: [Notice] = []
         /// The day's own close, shown when no evening recap from the coach covers it.
         var dayEnd: DayEnd? = nil
-        /// The week in bars on Sunday evening, when no weekly review from the coach covers it.
-        var week: Date? = nil
     }
 
     // MARK: Output
@@ -148,7 +146,6 @@ enum ForgeTimeline {
             case notice
             case dayEnd
             case walks
-            case week
         }
         let id: String
         let date: Date
@@ -260,11 +257,6 @@ enum ForgeTimeline {
                                  detail: end.tomorrow ?? "", value: Double(end.sessions), sourceId: nil,
                                  dayEnd: end))
         }
-        if let week = input.week, week <= now,
-           !input.coach.contains(where: { $0.origin == .weeklyReview && dayKey($0.date) == dayKey(week) && $0.date <= now }) {
-            entries.append(Entry(id: "week-\(dayKey(week))", date: week, kind: .week, title: "", detail: "",
-                                 value: nil, sourceId: nil))
-        }
         for n in input.notices where n.date <= now {
             entries.append(Entry(id: "notice-\(n.key)-\(dayKey(n.date))", date: n.date, kind: .notice,
                                  title: n.headline, detail: n.detail, value: nil, sourceId: n.key, notice: n))
@@ -303,7 +295,7 @@ enum ForgeTimeline {
     static func isRow(_ kind: Entry.Kind) -> Bool {
         switch kind {
         case .workout, .walks, .weight, .dayLog, .ecg, .nap: return true
-        case .coach, .wake, .notice, .dayEnd, .week: return false
+        case .coach, .wake, .notice, .dayEnd: return false
         }
     }
 

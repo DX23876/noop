@@ -312,18 +312,6 @@ final class ForgeTimelineTests: XCTestCase {
         if case .rows(let first) = blocks[0] { XCTAssertEqual(first.map(\.id), ["w1", "d1"]) } else { XCTFail() }
     }
 
-    func testTheWeekCardGivesWayToTheCoachsWeeklyReview() {
-        let six = Date(timeIntervalSince1970: 1_793_900_000)
-        let key: (Date) -> String = { _ in "D" }
-        var input = ForgeTimeline.Input()
-        input.week = six
-        XCTAssertEqual(ForgeTimeline.build(input, now: six.addingTimeInterval(60), dayKey: key)
-            .flatMap(\.entries).map(\.kind), [.week])
-        input.coach = [.init(id: "r", date: six.addingTimeInterval(30), text: "Weekly review\n\nA good week.", origin: .weeklyReview)]
-        XCTAssertEqual(ForgeTimeline.build(input, now: six.addingTimeInterval(60), dayKey: key)
-            .flatMap(\.entries).map(\.kind), [.coach(.weeklyReview)])
-    }
-
     func testFollowUpsTravelWithTheirNote() {
         let t = Date(timeIntervalSince1970: 1_793_900_000)
         var input = ForgeTimeline.Input()

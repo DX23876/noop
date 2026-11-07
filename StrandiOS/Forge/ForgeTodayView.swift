@@ -92,14 +92,6 @@ struct ForgeTodayView: View {
         let band: ClosedRange<Double>
     }
 
-    /// One day of the week card.
-    struct WeekBar: Equatable {
-        let day: String
-        let charge: Double?
-        let effort: Double?
-        let sleepMinutes: Double?
-    }
-
     /// One past day folded to a line: its Charge, Effort and night.
     struct DaySummary: Equatable {
         var charge: Double?
@@ -130,11 +122,6 @@ struct ForgeTodayView: View {
         var driverRanges: [String: DriverRange] = [:]
         /// The median Effort of a sport over the last four months, stored scale, for sports with 3 sessions.
         var usualEffort: [String: Double] = [:]
-        var week: [WeekBar] = []
-        /// What the What works analysis found most clearly, for the week card.
-        var weekPattern: String?
-        /// The day `weekPattern` was worked out for, so What works runs once a Sunday, found or not.
-        var weekPatternDay: String?
         /// The day of the last weigh-in.
         var lastWeighDay: String?
         /// Answers to "explain this", by entry key, written today.
@@ -520,16 +507,21 @@ struct ForgeTodayView: View {
         return Button {
             withAnimation(.snappy) { _ = openedDays.insert(day.id) }
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                // The short weekday and the date on one line; the three figures carry their rings' colours
+                // instead of their names, which do not fit beside them on a phone.
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(dayTitle(day.date)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Text(day.date, format: .dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale))
+                        .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Text(day.date, format: .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
                         .font(.system(.caption)).foregroundStyle(ForgeColor.secondaryOnPicture)
                 }
-                Spacer(minLength: 6)
-                pinnedValue(DomainTheme.charge.productName, summary.charge.map { "\(Int($0.rounded()))" }, ForgeColor.charge)
-                pinnedValue(DomainTheme.effort.productName, summary.effort.map { ForgeToday.effortText($0, scale: effortScale) }, ForgeColor.effort)
-                pinnedValue(String(localized: "Sleep"), summary.asleepMinutes.map(Self.hoursMinutes), ForgeColor.rest)
+                .lineLimit(1)
+                .frame(minWidth: 56, alignment: .leading)
+                Spacer(minLength: 4)
+                foldedValue(summary.charge.map { "\(Int($0.rounded()))" }, ForgeColor.charge, width: 40)
+                foldedValue(summary.effort.map { ForgeToday.effortText($0, scale: effortScale) }, ForgeColor.effort, width: 54)
+                foldedValue(summary.asleepMinutes.map(Self.hoursMinutes), ForgeColor.rest, width: 54)
                 Text("\(day.entries.count)")
                     .font(.system(.caption, weight: .semibold).monospacedDigit())
                     .foregroundStyle(ForgeColor.secondaryOnPicture)
@@ -538,15 +530,43 @@ struct ForgeTodayView: View {
                     .accessibilityLabel(Text("\(day.entries.count) entries"))
             }
             .frame(maxWidth: .infinity, minHeight: 44)
+            // The whole line opens the day, the space between the date and the figures included.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .forgeCard(radius: ForgeRadius.card, padding: 12)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(Self.foldedLabel(day.date, summary, effortScale: effortScale, entries: day.entries.count)))
+        .accessibilityAddTraits(.isButton)
         .accessibilityHint(Text("Shows the day's entries"))
+    }
+
+    /// One figure of a folded day: its ring's colour, then the value, never wrapped, in a column of fixed
+    /// width so the days line up under each other.
+    private func foldedValue(_ value: String?, _ tint: Color, width: CGFloat) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(tint).frame(width: 7, height: 7)
+            Text(value ?? "–").font(ForgeFont.rounded(15, .bold).monospacedDigit()).foregroundStyle(ForgeColor.text)
+                .lineLimit(1).fixedSize()
+        }
+        .frame(minWidth: width, alignment: .leading)
+    }
+
+    /// The folded day read aloud with the names the line leaves out.
+    private static func foldedLabel(_ date: Date, _ summary: DaySummary, effortScale: EffortScale, entries: Int) -> String {
+        var parts = [date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale))]
+        if let c = summary.charge { parts.append("\(DomainTheme.charge.productName) \(Int(c.rounded()))") }
+        if let e = summary.effort { parts.append("\(DomainTheme.effort.productName) \(ForgeToday.effortText(e, scale: effortScale))") }
+        if let s = summary.asleepMinutes { parts.append(String(localized: "Sleep") + " " + hoursMinutes(s)) }
+        parts.append(String(localized: "\(entries) entries"))
+        return parts.joined(separator: ", ")
     }
 
     private func dayDivider(_ date: Date) -> some View {
         (Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundColor(ForgeColor.text)
-         + Text(verbatim: "  ") + Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale))
+         + Text(verbatim: "  ") + Text(date, format: Self.isNamedDay(date)
+            ? .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)
+            : .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
             .font(.system(.subheadline)).foregroundColor(ForgeColor.secondaryOnPicture))
             .lineLimit(1).fixedSize()
             .padding(.horizontal, 14)
@@ -555,6 +575,12 @@ struct ForgeTodayView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 6)
             .accessibilityAddTraits(.isHeader)
+    }
+
+    /// Today and yesterday are named by word, so their divider adds the weekday; any other day's title is
+    /// the weekday already.
+    private static func isNamedDay(_ date: Date) -> Bool {
+        Calendar.current.isDateInToday(date) || Calendar.current.isDateInYesterday(date)
     }
 
     private func dayTitle(_ date: Date) -> String {
@@ -693,7 +719,6 @@ struct ForgeTodayView: View {
         case .notice: if let notice = entry.notice { noticeCard(notice) }
         case .dayEnd: if let end = entry.dayEnd { dayEndCard(end) }
         case .walks: walksCard(entry)
-        case .week: weekCard(coachLine: nil)
         }
     }
 
@@ -1104,54 +1129,6 @@ struct ForgeTodayView: View {
         return snapshot.driverRanges.values.allSatisfy { $0.band.contains($0.position) }
     }
 
-    /// The week in seven bars per score, drawn from the stored days, with one plain line or the coach's.
-    private func weekCard(coachLine: String?) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Your week", systemImage: "calendar")
-                .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.accent)
-            weekBars
-            if let pattern = snapshot.weekPattern {
-                Text(pattern).font(ForgeFont.body).foregroundStyle(ForgeColor.secondaryOnPicture)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var weekBars: some View {
-        let week = snapshot.week
-        let maxSleep = max(week.compactMap(\.sleepMinutes).max() ?? 1, 1)
-        func column(_ title: String, _ tint: Color, _ value: @escaping (WeekBar) -> Double?, _ scale: Double, _ mean: String) -> some View {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(title).font(.system(.caption, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    Spacer(minLength: 4)
-                    Text(mean).font(.system(.caption).monospacedDigit()).foregroundStyle(ForgeColor.secondaryOnPicture)
-                }
-                HStack(alignment: .bottom, spacing: 3) {
-                    ForEach(week, id: \.day) { bar in
-                        let v = value(bar).map { min(max($0 / scale, 0.04), 1) }
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(v == nil ? ForgeColor.fill : tint)
-                            .frame(height: 34 * (v ?? 0.08))
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .frame(height: 34, alignment: .bottom)
-            }
-        }
-        func mean(_ xs: [Double?]) -> Double? { ForgeToday.weekMean(xs) }
-        return HStack(alignment: .top, spacing: 14) {
-            column(DomainTheme.charge.productName, ForgeColor.charge, { $0.charge }, 100,
-                   mean(week.map(\.charge)).map { "\(Int($0.rounded()))" } ?? "–")
-            column(DomainTheme.effort.productName, ForgeColor.effort, { $0.effort }, 100,
-                   mean(week.map(\.effort)).map { ForgeToday.effortText($0, scale: effortScale) } ?? "–")
-            column(String(localized: "Sleep"), ForgeColor.rest, { $0.sleepMinutes }, maxSleep,
-                   mean(week.map(\.sleepMinutes)).map(Self.hoursMinutes) ?? "–")
-        }
-        .accessibilityElement(children: .combine)
-    }
-
     // MARK: Day strip (2026-11-07)
 
     /// The calendar start of a timeline day's date.
@@ -1237,8 +1214,6 @@ struct ForgeTodayView: View {
                 ForgeZoneBar(percents: zones,
                              minutes: (row.durationS ?? Double(max(row.endTs - row.startTs, 0))) / 60)
             }
-        } else if origin == .weeklyReview, Calendar.current.isDateInToday(entry.date), !snapshot.week.isEmpty {
-            weekBars
         } else if origin == .evening, let effort = snapshot.effortStored,
                   let target = effortTarget, Calendar.current.isDateInToday(entry.date) {
             ForgeEffortTargetBar(effort: effort, target: target, scale: effortScale)
@@ -1579,14 +1554,6 @@ struct ForgeTodayView: View {
         }
     }
 
-    /// The clearest finding of What works, in the words that page uses: only a solid one, else nothing.
-    @MainActor static func weekPattern(repo: Repository) async -> String? {
-        let hub = InsightsHubViewModel()
-        await hub.load(repo: repo)
-        guard let best = hub.ranked.first(where: { $0.confidence == .solid }) else { return nil }
-        return "\(best.behavior): \(ForgeEffectWording.line(delta: best.effect.delta, percent: best.effect.pctChange)) (\(ForgeEffectWording.lag(best.lag)))"
-    }
-
     static func hoursMinutes(_ minutes: Double) -> String {
         let total = Int(minutes.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
@@ -1687,13 +1654,6 @@ struct ForgeTodayView: View {
         for (sport, rows) in Dictionary(grouping: longer.filter { $0.strain != nil }, by: \.sport) where rows.count >= 3 {
             let xs = rows.compactMap(\.strain).sorted()
             next.usualEffort[sport] = xs.count % 2 == 1 ? xs[xs.count / 2] : (xs[xs.count / 2 - 1] + xs[xs.count / 2]) / 2
-        }
-        // The last seven days for the week card.
-        next.week = (0..<7).reversed().compactMap { back -> WeekBar? in
-            guard let date = Calendar.current.date(byAdding: .day, value: -back, to: now) else { return nil }
-            let key = Repository.logicalDayKey(date)
-            let row = allDays.last { $0.day == key }
-            return WeekBar(day: key, charge: row?.recovery, effort: row?.strain, sleepMinutes: row?.totalSleepMin)
         }
         for w in workouts {
             let id = "\(w.startTs)|\(w.sport)"
@@ -1800,17 +1760,6 @@ struct ForgeTodayView: View {
             input.dayEnd = .init(date: eveningStart, sessions: sessions, tomorrow: tomorrow,
                                  bedtime: momentum.contains { $0.kind == .sleepCatchUp } ? bedtime : nil)
         }
-        // The week card on Sunday from 18:00, beside the coach's weekly review or in its place.
-        let cal = Calendar.current
-        if cal.component(.weekday, from: now) == 1, let six = cal.date(bySettingHour: 18, minute: 0, second: 0, of: now) {
-            input.week = six
-            if snapshot.weekPatternDay != todayKey {
-                next.weekPattern = await Self.weekPattern(repo: repo)
-            } else {
-                next.weekPattern = snapshot.weekPattern
-            }
-            next.weekPatternDay = todayKey
-        }
         next.timeline = ForgeTimeline.build(input, now: now, days: Self.timelineDays, dayKey: { Repository.logicalDayKey($0) })
         for day in next.timeline {
             let row = allDays.last { $0.day == day.id }
@@ -1865,7 +1814,7 @@ struct ForgeDayStrip: View {
                 GeometryReader { geo in
                     let w = geo.size.width
                     ZStack(alignment: .leading) {
-                        Capsule().fill(ForgeColor.card.opacity(0.55)).frame(height: 8)
+                        Capsule().fill(ForgeColor.fill).frame(height: 8)
                         ForEach(Array(spans.enumerated()), id: \.offset) { _, span in
                             let a = x(span.start, w), b = x(span.end, w)
                             if b > a {
@@ -1895,7 +1844,9 @@ struct ForgeDayStrip: View {
                 .font(.system(.caption2).monospacedDigit())
                 .foregroundStyle(ForgeColor.secondaryOnPicture)
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card.opacity(0.75)))
             .accessibilityHidden(true)
         }
     }

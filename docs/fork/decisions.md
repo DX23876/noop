@@ -1020,5 +1020,8 @@ Owner's decisions in a grilling of 37 questions after the timeline report
   notifications are allowed; the morning note never.
 - **Later, on its own:** assigning an evening block before midnight to the night is an analysis
   change and gets its own run after a week of the new timeline on the iPhone.
+- **No week card on Today** (owner, same evening, after round three was built): seven bars of Charge,
+  Effort and sleep repeat what Trends already shows. The coach's weekly review stays a note without
+  bars; older days stay one line each.
 
 Analysis migration required: no.
