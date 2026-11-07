@@ -62,6 +62,7 @@ struct OrganicScoreHeroClock<Content: View>: View {
     @ObservedObject private var motion = NoopMotionState.shared
     @AppStorage(OrganicScoreMotionPrefs.reactsToMovementKey)
     private var reactsToMovement = OrganicScoreMotionPrefs.reactsToMovementDefault
+    @AppStorage(ScoreRingStyle.storageKey) private var ringStyleRaw = ScoreRingStyle.defaultStyle.rawValue
     @State private var isVisible = true
     @State private var holdsSensor = false
     @State private var governor = OrganicScoreFrameGovernor()
@@ -82,7 +83,8 @@ struct OrganicScoreHeroClock<Content: View>: View {
             tabActive: dashboardIsActive,
             heroVisible: isVisible,
             reactsToDeviceMovement: reactsToMovement,
-            platformHasMotionSensor: hasSensor
+            platformHasMotionSensor: hasSensor,
+            classicRings: ScoreRingStyle.resolve(ringStyleRaw) == .classic
         )
     }
 

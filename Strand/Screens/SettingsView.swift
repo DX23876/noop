@@ -307,6 +307,7 @@ private struct SettingsPageContent: View, Equatable {
     @AppStorage(QuietMotionPrefs.enabledKey) private var quietMotion = false
     @AppStorage(OrganicScoreMotionPrefs.reactsToMovementKey)
     private var heroReactsToMovement = OrganicScoreMotionPrefs.reactsToMovementDefault
+    @AppStorage(ScoreRingStyle.storageKey) private var scoreRingStyleRaw = ScoreRingStyle.defaultStyle.rawValue
     // Hydration tracker (opt-in, MVP). Default OFF — when off the hydration dashboard card + detail are
     // hidden. Mirrors the Android pref so the toggle reads the same on both platforms.
     @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
@@ -1802,6 +1803,25 @@ private struct SettingsPageContent: View, Equatable {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                rowDivider
+                // MARK: Score rings — living organic rings or still classic arcs, for Today, the score pages,
+                // Sleep and the weekly report alike.
+                FormRow(label: "Score rings") {
+                    Picker("Score rings", selection: $scoreRingStyleRaw) {
+                        Text("Living").tag(ScoreRingStyle.organic.rawValue)
+                        Text("Classic").tag(ScoreRingStyle.classic.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .appleInspiredTint("settings.controls")
+                    .accessibilityLabel("Score rings")
+                }
+                Text("Living rings move and breathe. Classic rings stand still and use less battery.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                 #if os(iOS)
                 rowDivider
                 // MARK: Hero device movement — display only. Off keeps the Today rings breathing on their
@@ -1813,7 +1833,7 @@ private struct SettingsPageContent: View, Equatable {
                 }
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
-                .disabled(quietMotion)
+                .disabled(quietMotion || ScoreRingStyle.resolve(scoreRingStyleRaw) == .classic)
                 Text("The Today rings lean and ripple as you move your phone. Off, they keep their own slow movement.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)

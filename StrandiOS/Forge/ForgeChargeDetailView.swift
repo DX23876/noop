@@ -94,10 +94,10 @@ struct ForgeChargeDetailView: View {
                 ForgeDetailHeader(overline: nil, title: DomainTheme.charge.productName, scrolledPast: $scrolledPast)
                 VStack(spacing: 10) {
                     OrganicScoreHeroClock(dataReady: true) { frame in
-                        OrganicScoreRing(
+                        ScoreRing(
                             model: OrganicScoreVisualModel.resolve(metric: .charge, value: pct, scaleMaximum: 100),
                             tint: pct.map { _ in StrandPalette.chargeColor } ?? StrandPalette.organicMissing,
-                            score: pct, decimals: 0, frame: frame, diameter: 170, hitDiameter: 170)
+                            score: pct, decimals: 0, frame: frame, diameter: 170, hitDiameter: 170, namesBand: false)
                             .frame(width: 170, height: 170)
                     }
                     ForgeScoreCaption(name: DomainTheme.charge.productName, tint: ForgeColor.chargeInk,

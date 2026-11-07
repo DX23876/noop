@@ -308,7 +308,7 @@ struct ForgeTodayView: View {
                                            route: Route) -> some View {
         NavigationLink(value: route) {
             VStack(spacing: 2) {
-                OrganicScoreRing(model: face.model, tint: face.tint, score: face.score, decimals: face.decimals, frame: frame,
+                ScoreRing(model: face.model, tint: face.tint, score: face.score, decimals: face.decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
                     // A soft shade under the ring on a picture, so a faint glow still parts from a bright sky.

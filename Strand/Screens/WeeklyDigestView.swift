@@ -746,7 +746,7 @@ private struct DigestOrganicRingRow: View {
                 .foregroundStyle(NoopVisualStyle.skin == .forge ? StrandPalette.textPrimary : item.domain.color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            OrganicScoreRing(
+            ScoreRing(
                 model: OrganicScoreVisualModel.resolve(metric: metric, value: score, scaleMaximum: maxValue),
                 tint: tint,
                 score: score,

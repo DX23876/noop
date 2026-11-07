@@ -575,10 +575,12 @@ public struct OrganicScoreAnimationGate: Equatable, Sendable {
     public var heroVisible: Bool
     public var reactsToDeviceMovement: Bool
     public var platformHasMotionSensor: Bool
+    /// The wearer chose the still, classic rings: nothing moves, so no clock runs.
+    public var classicRings: Bool
 
     public init(dataReady: Bool, reduceMotion: Bool, quietMotion: Bool, lowPower: Bool,
                 windowObscured: Bool, sceneActive: Bool, tabActive: Bool, heroVisible: Bool,
-                reactsToDeviceMovement: Bool, platformHasMotionSensor: Bool) {
+                reactsToDeviceMovement: Bool, platformHasMotionSensor: Bool, classicRings: Bool = false) {
         self.dataReady = dataReady
         self.reduceMotion = reduceMotion
         self.quietMotion = quietMotion
@@ -589,12 +591,13 @@ public struct OrganicScoreAnimationGate: Equatable, Sendable {
         self.heroVisible = heroVisible
         self.reactsToDeviceMovement = reactsToDeviceMovement
         self.platformHasMotionSensor = platformHasMotionSensor
+        self.classicRings = classicRings
     }
 
     /// The autonomous breathing clock. The movement preference does not enter: it only removes the
     /// phone's influence, never the rings' own life.
     public var runsFrameClock: Bool {
-        dataReady && !reduceMotion && !quietMotion && !lowPower && !windowObscured
+        dataReady && !classicRings && !reduceMotion && !quietMotion && !lowPower && !windowObscured
             && sceneActive && tabActive && heroVisible
     }
 
@@ -608,4 +611,19 @@ public struct OrganicScoreAnimationGate: Equatable, Sendable {
 public enum OrganicScoreMotionPrefs {
     public static let reactsToMovementKey = "noop.liquidHeroReactsToMovement"
     public static let reactsToMovementDefault = true
+}
+
+/// How the Charge, Effort and Rest score rings are drawn everywhere in the app: the living organic rings
+/// or still, classic arcs. Display only.
+public enum ScoreRingStyle: String, CaseIterable, Sendable {
+    case organic
+    case classic
+
+    public static let storageKey = "noop.scoreRingStyle"
+    public static let defaultStyle = ScoreRingStyle.organic
+
+    /// An unknown or missing value keeps the living rings.
+    public static func resolve(_ raw: String?) -> ScoreRingStyle {
+        raw.flatMap(ScoreRingStyle.init(rawValue:)) ?? defaultStyle
+    }
 }

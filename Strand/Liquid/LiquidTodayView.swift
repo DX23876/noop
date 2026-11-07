@@ -3645,7 +3645,7 @@ private struct HeroScoreCell: View {
 
     @ViewBuilder
     private var gaugeView: some View {
-        let ring = OrganicScoreRing(
+        let ring = ScoreRing(
             model: model,
             tint: tint,
             score: score,

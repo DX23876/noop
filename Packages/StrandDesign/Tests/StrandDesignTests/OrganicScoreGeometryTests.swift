@@ -198,6 +198,7 @@ final class OrganicScoreGeometryTests: XCTestCase {
         let stoppers: [WritableKeyPath<OrganicScoreAnimationGate, Bool>: Bool] = [
             \.dataReady: false, \.reduceMotion: true, \.quietMotion: true, \.lowPower: true,
             \.windowObscured: true, \.sceneActive: false, \.tabActive: false, \.heroVisible: false,
+            \.classicRings: true,
         ]
         for (path, value) in stoppers {
             var gate = live
@@ -221,5 +222,11 @@ final class OrganicScoreGeometryTests: XCTestCase {
         XCTAssertTrue(gate.runsFrameClock)
         XCTAssertFalse(gate.readsMotionSensor)
         XCTAssertTrue(OrganicScoreMotionPrefs.reactsToMovementDefault)
+    }
+
+    func testRingStyleKeepsTheLivingRingsUnlessClassicWasChosen() {
+        XCTAssertEqual(ScoreRingStyle.resolve(nil), .organic)
+        XCTAssertEqual(ScoreRingStyle.resolve("something else"), .organic)
+        XCTAssertEqual(ScoreRingStyle.resolve("classic"), .classic)
     }
 }

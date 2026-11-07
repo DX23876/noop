@@ -33,7 +33,7 @@ struct ForgeEffortDetailView: View {
                                   scrolledPast: $scrolledPast)
                 VStack(spacing: 10) {
                     OrganicScoreHeroClock(dataReady: true) { frame in
-                        OrganicScoreRing(
+                        ScoreRing(
                             model: OrganicScoreVisualModel.resolve(metric: .effort, value: shown,
                                                                    scaleMaximum: effortScale == .whoop ? 21 : 100),
                             tint: StrandPalette.organicEffort, score: shown,
@@ -156,7 +156,7 @@ struct ForgeRestDetailView: View {
                                   scrolledPast: $scrolledPast)
                 VStack(spacing: 10) {
                     OrganicScoreHeroClock(dataReady: true) { frame in
-                        OrganicScoreRing(
+                        ScoreRing(
                             model: OrganicScoreVisualModel.resolve(metric: .rest, value: rest, scaleMaximum: 100),
                             tint: StrandPalette.organicRest, score: rest, decimals: 0, frame: frame,
                             diameter: 170, hitDiameter: 170)

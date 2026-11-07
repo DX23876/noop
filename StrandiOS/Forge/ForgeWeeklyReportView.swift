@@ -153,7 +153,7 @@ struct ForgeWeeklyReportView: View {
                           tint: Color, ink: Color, scaleMaximum: Double, decimals: Int, frame: OrganicScoreFrame,
                           format: (Double) -> String) -> some View {
         VStack(spacing: 4) {
-            OrganicScoreRing(model: OrganicScoreVisualModel.resolve(metric: metric, value: value, scaleMaximum: scaleMaximum),
+            ScoreRing(model: OrganicScoreVisualModel.resolve(metric: metric, value: value, scaleMaximum: scaleMaximum),
                              tint: value == nil ? StrandPalette.organicMissing : tint, score: value, decimals: decimals,
                              frame: frame, diameter: 84, hitDiameter: 108)
                 .frame(width: 108, height: 96)

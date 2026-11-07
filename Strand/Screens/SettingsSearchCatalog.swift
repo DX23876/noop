@@ -328,7 +328,8 @@ enum SettingsSearchCatalog {
         SettingsSearchEntry(
             id: .motion,
             title: "Motion",
-            keywords: ["reduce motion", "animation", "motion effect", "coach animation", "tilt"]
+            keywords: ["reduce motion", "animation", "motion effect", "coach animation", "tilt",
+                       "rings", "classic rings", "living rings"]
         ),
         SettingsSearchEntry(
             id: .calculation,

@@ -3036,7 +3036,7 @@ struct SleepOrganicRestRing: View {
     var body: some View {
         let diameter = Self.diameter(width: width)
         OrganicScoreHeroClock(dataReady: true) { frame in
-            OrganicScoreRing(
+            ScoreRing(
                 model: OrganicScoreVisualModel.resolve(metric: .rest, value: score, scaleMaximum: 100),
                 tint: StrandPalette.organicRest,
                 score: score,
