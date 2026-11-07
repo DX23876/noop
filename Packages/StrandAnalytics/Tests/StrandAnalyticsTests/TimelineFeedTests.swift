@@ -55,10 +55,9 @@ final class TimelineFeedTests: XCTestCase {
         XCTAssertEqual(bundles["D1"]?.reduce(0) { $0 + $1.minutes }, 50)
     }
 
-    func testTodayAndYesterdayStayOpen() {
-        XCTAssertFalse(TimelineFeed.isFolded(day: "T", today: "T", yesterday: "Y", opened: []))
-        XCTAssertFalse(TimelineFeed.isFolded(day: "Y", today: "T", yesterday: "Y", opened: []))
-        XCTAssertTrue(TimelineFeed.isFolded(day: "W", today: "T", yesterday: "Y", opened: []))
-        XCTAssertFalse(TimelineFeed.isFolded(day: "W", today: "T", yesterday: "Y", opened: ["W"]))
+    func testOnlyTodayAndYesterdayAreShown() {
+        XCTAssertTrue(TimelineFeed.isShown(day: "T", today: "T", yesterday: "Y"))
+        XCTAssertTrue(TimelineFeed.isShown(day: "Y", today: "T", yesterday: "Y"))
+        XCTAssertFalse(TimelineFeed.isShown(day: "W", today: "T", yesterday: "Y"))
     }
 }

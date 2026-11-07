@@ -68,8 +68,6 @@ struct ForgeTodayView: View {
     @State private var backToTop = 0
     /// Long notes opened in place: figures and a few lines first, the rest on request.
     @State private var openedNotes: Set<String> = []
-    /// Older days the reader opened from their one-line summary.
-    @State private var openedDays: Set<String> = []
     /// When the reader last left Today; entries after it carry a dot until they leave again.
     @AppStorage("forge.timeline.seenAt") private var seenAt: Double = 0
     @State private var seenBefore: Double = 0
@@ -92,13 +90,6 @@ struct ForgeTodayView: View {
         let band: ClosedRange<Double>
     }
 
-    /// One past day folded to a line: its Charge, Effort and night.
-    struct DaySummary: Equatable {
-        var charge: Double?
-        var effort: Double?
-        var asleepMinutes: Double?
-    }
-
     struct Snapshot: Equatable {
         var loaded = false
         var charge: ChargeDisplay = .noData
@@ -117,7 +108,6 @@ struct ForgeTodayView: View {
         var weightChange30d: Double?
         /// What today's notes are measured against (`ForgeNoteBasis`).
         var basis: String?
-        var daySummaries: [String: DaySummary] = [:]
         /// Each driver's night on the usual range, by the driver's label.
         var driverRanges: [String: DriverRange] = [:]
         /// The median Effort of a sport over the last four months, stored scale, for sports with 3 sessions.
@@ -467,99 +457,34 @@ struct ForgeTodayView: View {
             let todayKey = Repository.logicalDayKey(Date())
             let yesterdayKey = Repository.logicalDayKey(Date().addingTimeInterval(-86_400))
             let hidden = Set(hiddenRaw.split(separator: "\n").map(String.init))
-            ForEach(Array(snapshot.timeline.enumerated()), id: \.element.id) { index, day in
-                if TimelineFeed.isFolded(day: day.id, today: todayKey, yesterday: yesterdayKey, opened: openedDays) {
-                    foldedDay(day)
-                } else {
-                    if index > 0 || day.id != todayKey {
-                        dayDivider(day.date)
+            let shown = snapshot.timeline.filter { TimelineFeed.isShown(day: $0.id, today: todayKey, yesterday: yesterdayKey) }
+            ForEach(Array(shown.enumerated()), id: \.element.id) { index, day in
+                if index > 0 || day.id != todayKey {
+                    dayDivider(day.date)
+                }
+                ForgeDayStrip(spans: stripSpans(day), marks: stripMarks(day), dayStart: Self.calendarStart(day.date)) { id in
+                    scrollTarget = id
+                }
+                if day.id == todayKey {
+                    // A detected activity waiting for an answer is today's first entry.
+                    ActivitySuggestionPrompt(compact: true)
+                    openCard
+                    if calmSoFar(day) {
+                        Text("A calm day so far: your values are within your range.")
+                            .font(ForgeFont.body)
+                            .foregroundStyle(ForgeColor.secondaryOnPicture)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .forgeCard(radius: ForgeRadius.card, padding: 14)
                     }
-                    ForgeDayStrip(spans: stripSpans(day), marks: stripMarks(day), dayStart: Self.calendarStart(day.date)) { id in
-                        scrollTarget = id
-                    }
-                    if day.id == todayKey {
-                        // A detected activity waiting for an answer is today's first entry.
-                        ActivitySuggestionPrompt(compact: true)
-                        openCard
-                        if calmSoFar(day) {
-                            Text("A calm day so far: your values are within your range.")
-                                .font(ForgeFont.body)
-                                .foregroundStyle(ForgeColor.secondaryOnPicture)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .forgeCard(radius: ForgeRadius.card, padding: 14)
-                        }
-                    }
-                    ForEach(ForgeTimeline.blocks(day.entries.filter { !hidden.contains($0.id) })) { block in
-                        switch block {
-                        case .card(let entry): timelineEntry(entry).id(entry.id)
-                        case .rows(let entries): rowsCard(entries)
-                        }
+                }
+                ForEach(ForgeTimeline.blocks(day.entries.filter { !hidden.contains($0.id) })) { block in
+                    switch block {
+                    case .card(let entry): timelineEntry(entry).id(entry.id)
+                    case .rows(let entries): rowsCard(entries)
                     }
                 }
             }
         }
-    }
-
-    /// An older day in one line: Charge, Effort and the night, in the rings' colours, and how many entries
-    /// open behind it.
-    private func foldedDay(_ day: ForgeTimeline.Day) -> some View {
-        let summary = snapshot.daySummaries[day.id] ?? DaySummary()
-        return Button {
-            withAnimation(.snappy) { _ = openedDays.insert(day.id) }
-        } label: {
-            HStack(spacing: 10) {
-                // The short weekday and the date on one line; the three figures carry their rings' colours
-                // instead of their names, which do not fit beside them on a phone.
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(day.date, format: .dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale))
-                        .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    Text(day.date, format: .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
-                        .font(.system(.caption)).foregroundStyle(ForgeColor.secondaryOnPicture)
-                }
-                .lineLimit(1)
-                .frame(minWidth: 56, alignment: .leading)
-                Spacer(minLength: 4)
-                foldedValue(summary.charge.map { "\(Int($0.rounded()))" }, ForgeColor.charge, width: 40)
-                foldedValue(summary.effort.map { ForgeToday.effortText($0, scale: effortScale) }, ForgeColor.effort, width: 54)
-                foldedValue(summary.asleepMinutes.map(Self.hoursMinutes), ForgeColor.rest, width: 54)
-                Text("\(day.entries.count)")
-                    .font(.system(.caption, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(ForgeColor.secondaryOnPicture)
-                    .padding(.horizontal, 7).padding(.vertical, 2)
-                    .background(Capsule().fill(ForgeColor.fill))
-                    .accessibilityLabel(Text("\(day.entries.count) entries"))
-            }
-            .frame(maxWidth: .infinity, minHeight: 44)
-            // The whole line opens the day, the space between the date and the figures included.
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .forgeCard(radius: ForgeRadius.card, padding: 12)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(Self.foldedLabel(day.date, summary, effortScale: effortScale, entries: day.entries.count)))
-        .accessibilityAddTraits(.isButton)
-        .accessibilityHint(Text("Shows the day's entries"))
-    }
-
-    /// One figure of a folded day: its ring's colour, then the value, never wrapped, in a column of fixed
-    /// width so the days line up under each other.
-    private func foldedValue(_ value: String?, _ tint: Color, width: CGFloat) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(tint).frame(width: 7, height: 7)
-            Text(value ?? "–").font(ForgeFont.rounded(15, .bold).monospacedDigit()).foregroundStyle(ForgeColor.text)
-                .lineLimit(1).fixedSize()
-        }
-        .frame(minWidth: width, alignment: .leading)
-    }
-
-    /// The folded day read aloud with the names the line leaves out.
-    private static func foldedLabel(_ date: Date, _ summary: DaySummary, effortScale: EffortScale, entries: Int) -> String {
-        var parts = [date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.activeLocale))]
-        if let c = summary.charge { parts.append("\(DomainTheme.charge.productName) \(Int(c.rounded()))") }
-        if let e = summary.effort { parts.append("\(DomainTheme.effort.productName) \(ForgeToday.effortText(e, scale: effortScale))") }
-        if let s = summary.asleepMinutes { parts.append(String(localized: "Sleep") + " " + hoursMinutes(s)) }
-        parts.append(String(localized: "\(entries) entries"))
-        return parts.joined(separator: ", ")
     }
 
     private func dayDivider(_ date: Date) -> some View {
@@ -1561,8 +1486,8 @@ struct ForgeTodayView: View {
 
     // MARK: - Load
 
-    /// How far back the timeline reaches.
-    private static let timelineDays = 7
+    /// How far back the timeline reaches: today and yesterday (`TimelineFeed.isShown`).
+    private static let timelineDays = 2
 
     /// Where a figure that only knows its day sits: the start of that logical day, below what has a time.
     private static func endOfTimelineDay(_ day: String) -> Date? {
@@ -1761,12 +1686,6 @@ struct ForgeTodayView: View {
                                  bedtime: momentum.contains { $0.kind == .sleepCatchUp } ? bedtime : nil)
         }
         next.timeline = ForgeTimeline.build(input, now: now, days: Self.timelineDays, dayKey: { Repository.logicalDayKey($0) })
-        for day in next.timeline {
-            let row = allDays.last { $0.day == day.id }
-            let night = recent.nights.filter { Repository.logicalDayKey($0.end.addingTimeInterval(4 * 3600)) == day.id }
-                .max { $0.end < $1.end }
-            next.daySummaries[day.id] = DaySummary(charge: row?.recovery, effort: row?.strain, asleepMinutes: night?.asleepMinutes)
-        }
         next.loaded = true
 
         // The heaviest read last, as on the shipped Today: Effort floors at the stored row, so the live

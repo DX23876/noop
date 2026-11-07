@@ -1010,7 +1010,8 @@ Owner's decisions in a grilling of 37 questions after the timeline report
 - **Morning and evening report without the coach.** The evening begins two hours before the planned
   bedtime and never before 19:00, for the report and the coach's recap alike. The bedtime appears
   only while sleep debt grows.
-- **List.** Today and yesterday open, older days one line; a dot for what is new since the last
+- **List.** Today and yesterday only (older days first folded to one line each, then dropped the
+  same evening: Trends, Sleep and Training already show them); a dot for what is new since the last
   visit; detected and imported walks of a day as one entry; holding an entry hides, explains or
   turns its kind down; thumbs on notes, and a second thumbs down asks once about "less often".
 - **Causes.** Chips (unwell, alcohol, travel, stress) write journal rows with fixed keys; the warning
@@ -1022,6 +1023,6 @@ Owner's decisions in a grilling of 37 questions after the timeline report
   change and gets its own run after a week of the new timeline on the iPhone.
 - **No week card on Today** (owner, same evening, after round three was built): seven bars of Charge,
   Effort and sleep repeat what Trends already shows. The coach's weekly review stays a note without
-  bars; older days stay one line each.
+  bars.
 
 Analysis migration required: no.

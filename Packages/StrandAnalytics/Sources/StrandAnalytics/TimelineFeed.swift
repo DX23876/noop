@@ -119,11 +119,11 @@ public enum TimelineFeed {
             .mapValues { $0.sorted { $0.end < $1.end } }
     }
 
-    // MARK: Folded days
+    // MARK: Days shown
 
-    /// Whether a day of the timeline shows as one line. Today and yesterday stay open; older days fold
-    /// unless the reader opened them.
-    public static func isFolded(day: String, today: String, yesterday: String, opened: Set<String>) -> Bool {
-        day != today && day != yesterday && !opened.contains(day)
+    /// Whether a day appears on the timeline at all: today and yesterday only. Older days live in Trends,
+    /// Sleep and Training; a line per older day repeated what those pages show (owner, 2026-11-07).
+    public static func isShown(day: String, today: String, yesterday: String) -> Bool {
+        day == today || day == yesterday
     }
 }
