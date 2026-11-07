@@ -595,37 +595,47 @@ private struct HydrationAmountSheet: View {
 struct ForgeWaterGlass: View {
     let fraction: Double
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
     /// When the level last changed; the sway fades out over `settle` seconds from here.
     @State private var stirredAt = Date()
     @State private var swaying = true
     private static let settle: TimeInterval = 3.2
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || !swaying)) { timeline in
-            let elapsed = timeline.date.timeIntervalSince(stirredAt)
-            let fade = reduceMotion ? 0 : max(0, 1 - elapsed / Self.settle)
-            ZStack {
-                GlassShape().fill(StrandPalette.surfaceInset)
-                WaterShape(level: min(1, max(0, fraction)),
-                           phase: elapsed * 2.4,
-                           amplitude: fraction > 0.001 ? 3.5 * fade * fade : 0)
-                    .fill(LinearGradient(colors: [StrandPalette.metricCyan.opacity(0.7), StrandPalette.metricCyan],
-                                         startPoint: .top, endPoint: .bottom))
-                    .clipShape(GlassShape())
-                GlassShape().stroke(StrandPalette.hairlineStrong, lineWidth: 1.5)
+        Group {
+            // The clock exists only while the surface sways. At rest, or under the quiet-motion gate (Reduce
+            // Motion, Low Power, a covered window), the still glass is drawn with no timeline behind it.
+            if swaying, !motion.poseStill(reduceMotion) {
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+                    let elapsed = timeline.date.timeIntervalSince(stirredAt)
+                    let fade = max(0, 1 - elapsed / Self.settle)
+                    glass(phase: elapsed * 2.4, amplitude: 3.5 * fade * fade)
+                }
+            } else {
+                glass(phase: 0, amplitude: 0)
             }
         }
-        .onChange(of: fraction) { _, _ in stir() }
+        .onChange(of: fraction) { _, _ in
+            stirredAt = Date()
+            swaying = true
+        }
         .task(id: stirredAt) {
-            // Stop the timeline once the surface has settled: nothing moves, nothing redraws.
+            // The surface has settled: drop the clock, so nothing redraws until the next drink.
             try? await Task.sleep(nanoseconds: UInt64(Self.settle * 1_000_000_000))
             swaying = false
         }
     }
 
-    private func stir() {
-        stirredAt = Date()
-        swaying = true
+    private func glass(phase: Double, amplitude: Double) -> some View {
+        ZStack {
+            GlassShape().fill(StrandPalette.surfaceInset)
+            WaterShape(level: min(1, max(0, fraction)), phase: phase,
+                       amplitude: fraction > 0.001 ? amplitude : 0)
+                .fill(LinearGradient(colors: [StrandPalette.metricCyan.opacity(0.7), StrandPalette.metricCyan],
+                                     startPoint: .top, endPoint: .bottom))
+                .clipShape(GlassShape())
+            GlassShape().stroke(StrandPalette.hairlineStrong, lineWidth: 1.5)
+        }
     }
 }
 
