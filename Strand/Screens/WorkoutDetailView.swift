@@ -48,6 +48,8 @@ struct WorkoutDetailView: View {
 
     /// Loaded HR curve over the session window (5-min-ish bucket means). Empty until loaded.
     @State private var hrPoints: [TrendPoint] = []
+    /// The session's own readings, for an average and peak the source did not store (an Apple walk).
+    @State private var rawHeartBpm: [Double] = []
     /// Per-zone MINUTES for the zones bar: imported zones (duration-weighted) when present, else the
     /// window's raw HR samples binned into age-derived %HRmax zones. nil = no zone split to show.
     @State private var zoneMinutes: [Double]? = nil
@@ -202,6 +204,11 @@ struct WorkoutDetailView: View {
         // still reads as a curve, not a handful of points.
         let buckets = await repo.workoutHrBuckets(from: row.startTs, to: row.endTs, source: row.source)
         let points = buckets.map { TrendPoint(date: Date(timeIntervalSince1970: TimeInterval($0.ts)), value: $0.bpm) }
+        // The chart's buckets are means, so a peak read from them falls short of the real one. A source
+        // without its own average or peak gets both from the readings themselves.
+        let rawBpm: [Double] = (row.avgHr == nil || row.maxHr == nil)
+            ? await repo.workoutHrSamples(from: row.startTs, to: row.endTs, source: row.source).map { Double($0.bpm) }
+            : []
 
         // Zones: prefer the imported per-workout percentages (a WHOOP-computed split), and only fall
         // back to deriving zone-minutes from the strap's own raw HR when the row has none — so we
@@ -230,6 +237,7 @@ struct WorkoutDetailView: View {
 
         await MainActor.run {
             self.hrPoints = points
+            self.rawHeartBpm = rawBpm
             self.zoneMinutes = minutes
             self.zonesFromImport = fromImport
             self.heartRateRecovery = hrr
@@ -858,10 +866,10 @@ extension WorkoutDetailView {
         var id: String { label }
     }
 
-    /// The session's average or peak from the same trace the heart-rate chart draws, for a workout whose
-    /// source stored none (an Apple walk). Without it the stat said "no heart rate" above a full curve.
-    static func heartFigure(_ points: [TrendPoint], peak: Bool) -> Int? {
-        let values = points.map(\.value).filter { $0 > 0 }
+    /// The session's average or peak from its own heart-rate readings, for a workout whose source stored
+    /// none (an Apple walk). Without it the stat said "no heart rate" above a full curve.
+    static func heartFigure(_ readings: [Double], peak: Bool) -> Int? {
+        let values = readings.filter { $0 > 0 }
         guard !values.isEmpty else { return nil }
         let figure = peak ? (values.max() ?? 0) : values.reduce(0, +) / Double(values.count)
         return Int(figure.rounded())
@@ -873,11 +881,11 @@ extension WorkoutDetailView {
             out.append(ForgeStat(label: String(localized: "distance"), value: distanceLabel(m)))
             out.append(ForgeStat(label: String(localized: "pace"), value: paceLabel))
         }
-        let avgHeart = row.avgHr ?? Self.heartFigure(hrPoints, peak: false)
+        let avgHeart = row.avgHr ?? Self.heartFigure(rawHeartBpm, peak: false)
         out.append(ForgeStat(label: String(localized: "avg heart"), value: avgHeart.map { "\($0)" } ?? "–",
                              unit: avgHeart != nil ? "bpm" : nil))
         if row.distanceM == nil || row.distanceM == 0 {
-            let peakHeart = row.maxHr ?? Self.heartFigure(hrPoints, peak: true)
+            let peakHeart = row.maxHr ?? Self.heartFigure(rawHeartBpm, peak: true)
             out.append(ForgeStat(label: String(localized: "peak heart"), value: peakHeart.map { "\($0)" } ?? "–",
                                  unit: peakHeart != nil ? "bpm" : nil))
         }

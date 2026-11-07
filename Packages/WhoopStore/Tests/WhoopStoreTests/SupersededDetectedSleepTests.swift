@@ -10,9 +10,9 @@ final class SupersededDetectedSleepTests: XCTestCase {
     private let computed = "my-whoop-noop"
     private let imported = "my-whoop"
 
-    private func session(_ start: Int, _ end: Int, edited: Bool = false) -> CachedSleepSession {
+    private func session(_ start: Int, _ end: Int, edited: Bool = false, stages: String = "[]") -> CachedSleepSession {
         CachedSleepSession(startTs: start, endTs: end, efficiency: 0.9, restingHr: 50, avgHrv: 60,
-                           stagesJSON: "[]", userEdited: edited)
+                           stagesJSON: stages, userEdited: edited)
     }
 
     private func starts(_ store: WhoopStore, _ deviceId: String) async throws -> [Int] {
@@ -64,5 +64,20 @@ final class SupersededDetectedSleepTests: XCTestCase {
         let leftImported = try await starts(store, imported)
         XCTAssertEqual(leftComputed, [1_000, 2_000])
         XCTAssertEqual(leftImported, [1_500])
+    }
+
+    /// The upsert's rule holds here too: a less completely staged block never replaces a stored night.
+    func testARicherStoredNightIsKeptBesideAPoorerBlock() async throws {
+        let store = try await WhoopStore.inMemory()
+        let staged = "[{\"start\":1000,\"end\":4000,\"stage\":\"light\"}]"
+        try await store.upsertSleepSessions([session(1_000, 4_000, stages: staged)], deviceId: computed)
+        let current = [session(1_500, 4_500)]
+        try await store.upsertSleepSessions(current, deviceId: computed)
+
+        let removed = try await store.deleteSupersededDetectedSleep(deviceId: computed, keeping: current)
+
+        XCTAssertEqual(removed, 0)
+        let left = try await starts(store, computed)
+        XCTAssertEqual(left, [1_000, 1_500])
     }
 }

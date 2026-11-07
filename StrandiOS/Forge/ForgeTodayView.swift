@@ -253,12 +253,15 @@ struct ForgeTodayView: View {
     /// target, worked out on the device. A carried Charge says whose night it is, as `ChargeDisplay` requires
     /// of every screen that draws a carried score.
     @ViewBuilder private var dayAnswer: some View {
-        let line: String? = ForgeToday.summary(effortStored: snapshot.effortStored, charge: chargeScore, scale: effortScale)
+        let caption = snapshot.loaded ? snapshot.charge.carriedCaption : nil
+        // A carried Charge belongs to an earlier night, so it sets no target for today: the line stays away
+        // rather than call that night's target today's.
+        let line: String? = caption != nil ? nil
+            : ForgeToday.summary(effortStored: snapshot.effortStored, charge: chargeScore, scale: effortScale)
             ?? ForgeToday.effortTargetStored(charge: chargeScore).map {
                 let t = ForgeToday.targetText($0, scale: effortScale)
                 return String(localized: "Today's Effort target: \(t.low) to \(t.high).")
             }
-        let caption = snapshot.loaded ? snapshot.charge.carriedCaption : nil
         if line != nil || caption != nil {
             VStack(spacing: 2) {
                 if let line {

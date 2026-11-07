@@ -138,7 +138,8 @@ struct ForgeChargeDetailView: View {
                     }
                     ForgeScoreCaption(name: DomainTheme.charge.productName, tint: ForgeColor.chargeInk,
                                       detail: pct.map { ChargeBand.of(score: $0).word.lowercased(with: AppLanguage.activeLocale) })
-                    if let target = ForgeToday.effortTargetStored(charge: pct) {
+                    // Only today's own Charge sets today's target; a carried one names its night in the overline.
+                    if display.carriedCaption == nil, let target = ForgeToday.effortTargetStored(charge: pct) {
                         let t = ForgeToday.targetText(target, scale: UnitPrefs.currentEffortScale())
                         Text("Today's Effort target: \(t.low) to \(t.high).")
                             .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.effortInk)

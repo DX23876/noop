@@ -349,7 +349,9 @@ extension WhoopStore {
     /// only part of the night, or the onset drifted with more raw data) was inserted beside the old row
     /// instead of replacing it, and both were read as separate blocks: one night became a nap plus a short
     /// main sleep. Detected rows are derived output, so removing one marks no analysis input. Edited rows
-    /// and rows of other namespaces are never touched. Returns the rows removed.
+    /// and rows of other namespaces are never touched, and neither is a row more completely staged than the
+    /// block that overlaps it: the same rule `upsertSleepSessions` keeps, that a less complete re-serve never
+    /// replaces a stored night. Returns the rows removed.
     @discardableResult
     public func deleteSupersededDetectedSleep(deviceId: String, keeping: [CachedSleepSession]) async throws -> Int {
         guard deviceId.hasSuffix("-noop"), !keeping.isEmpty else { return 0 }
@@ -358,12 +360,16 @@ extension WhoopStore {
             var removed = 0
             for s in keeping {
                 let rows = try Row.fetchAll(db, sql: """
-                    SELECT startTs FROM sleepSession
+                    SELECT startTs, endTs, stagesJSON, startTsAdjusted FROM sleepSession
                     WHERE deviceId = ? AND userEdited = 0 AND startTs < ? AND endTs > ?
                     """, arguments: [deviceId, s.endTs, s.startTs])
                 for row in rows {
                     let start: Int = row["startTs"]
                     guard !kept.contains(start) else { continue }
+                    let stored = CachedSleepSession(startTs: start, endTs: row["endTs"], efficiency: nil,
+                                                    restingHr: nil, avgHrv: nil, stagesJSON: row["stagesJSON"],
+                                                    startTsAdjusted: row["startTsAdjusted"])
+                    guard SleepMerge.richness(stored) <= SleepMerge.richness(s) else { continue }
                     try db.execute(sql: "DELETE FROM sleepSession WHERE deviceId = ? AND startTs = ? AND userEdited = 0",
                                    arguments: [deviceId, start])
                     removed += db.changesCount

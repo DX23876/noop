@@ -56,4 +56,12 @@ final class ForgeReviewRoundTwoTests: XCTestCase {
         goal.sportFilter = []
         XCTAssertEqual(GoalFormat.shortName(goal), PeriodMetric.distance.label.localizedCatalogValue)
     }
+
+    // MARK: Workout heart rate without a stored figure
+
+    func testWorkoutHeartFigureReadsTheReadingsAndSkipsGaps() {
+        XCTAssertEqual(WorkoutDetailView.heartFigure([100, 158, 0, 112], peak: true), 158)
+        XCTAssertEqual(WorkoutDetailView.heartFigure([100, 158, 0, 112], peak: false), 123)
+        XCTAssertNil(WorkoutDetailView.heartFigure([0, 0], peak: true))
+    }
 }

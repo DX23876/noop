@@ -639,60 +639,60 @@
         }
       }
     },
-    "Sleep about %@ more than usual tonight and this debt is gone. Short nights from longer ago count for less than recent ones." : {
+    "Sleep about %@ more than your need tonight and this debt is gone. Short nights from longer ago count for less than recent ones." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schlaf heute etwa %@ länger als sonst, dann ist dieses Defizit weg. Kurze Nächte, die länger zurückliegen, zählen weniger als die letzten."
+            "value" : "Schlaf heute etwa %@ länger als dein Bedarf, dann ist dieses Defizit weg. Kurze Nächte, die länger zurückliegen, zählen weniger als die letzten."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Duerme esta noche unos %@ más de lo habitual y esta deuda desaparece. Las noches cortas más antiguas cuentan menos que las recientes."
+            "value" : "Duerme esta noche unos %@ más de lo que necesitas y esta deuda desaparece. Las noches cortas más antiguas cuentan menos que las recientes."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dormez environ %@ de plus que d'habitude cette nuit et cette dette disparaît. Les nuits courtes plus anciennes comptent moins que les récentes."
+            "value" : "Dormez environ %@ de plus que votre besoin cette nuit et cette dette disparaît. Les nuits courtes plus anciennes comptent moins que les récentes."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dormi stanotte circa %@ più del solito e questo debito sparisce. Le notti corte più lontane contano meno di quelle recenti."
+            "value" : "Dormi stanotte circa %@ più del tuo fabbisogno e questo debito sparisce. Le notti corte più lontane contano meno di quelle recenti."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prześpij dziś około %@ dłużej niż zwykle, a ten dług zniknie. Krótkie noce sprzed dłuższego czasu liczą się mniej niż ostatnie."
+            "value" : "Prześpij dziś około %@ dłużej niż wynosi twoja potrzeba, a ten dług zniknie. Krótkie noce sprzed dłuższego czasu liczą się mniej niż ostatnie."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Durma esta noite cerca de %@ mais do que o habitual e esta dívida desaparece. As noites curtas mais antigas contam menos do que as recentes."
+            "value" : "Durma esta noite cerca de %@ mais do que precisa e esta dívida desaparece. As noites curtas mais antigas contam menos do que as recentes."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Поспите сегодня примерно на %@ дольше обычного, и этот недосып исчезнет. Короткие ночи из прошлого учитываются меньше, чем недавние."
+            "value" : "Поспите сегодня примерно на %@ дольше своей нормы, и этот недосып исчезнет. Короткие ночи из прошлого учитываются меньше, чем недавние."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今晚比平时多睡约 %@，这笔睡眠债就清零了。较早的短睡眠夜晚比最近的计入得少。"
+            "value" : "今晚比你需要的多睡约 %@，这笔睡眠债就清零了。较早的短睡眠夜晚比最近的计入得少。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今晚比平時多睡約 %@，這筆睡眠債就清零了。較早的短睡眠夜晚比最近的計入得少。"
+            "value" : "今晚比你需要的多睡約 %@，這筆睡眠債就清零了。較早的短睡眠夜晚比最近的計入得少。"
           }
         }
       }

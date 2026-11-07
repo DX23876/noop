@@ -66,7 +66,7 @@ enum CoreSleepDebt {
             read = String(localized: "You've effectively met your current sleep need across \(span).")
         } else {
             let mag = duration(ledger.magnitudeMin)
-            read = String(localized: "Sleep about \(mag) more than usual tonight and this debt is gone. Short nights from longer ago count for less than recent ones.")
+            read = String(localized: "Sleep about \(mag) more than your need tonight and this debt is gone. Short nights from longer ago count for less than recent ones.")
         }
         let tone = onTarget || !ledger.isDebt ? "positive" : (ledger.magnitudeMin < 180 ? "warning" : "critical")
         return Output(nightCount: nights, balanceMin: ledger.balanceMin, needMin: ledger.needMin,
