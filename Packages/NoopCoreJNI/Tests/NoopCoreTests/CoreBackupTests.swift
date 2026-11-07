@@ -112,4 +112,25 @@ final class CoreBackupTests: XCTestCase {
         XCTAssertEqual(rows.first { $0.id == "whoop-a" }?.peripheralId, oldStrap)
         XCTAssertEqual(rows.first { $0.id == "whoop-b" }?.peripheralId, wornStrap)
     }
+
+    /// #42: an Android backup lands beside the seeded `my-whoop`, both active. The worn strap's row stays the one
+    /// active device and the empty seed, which no strap ever used, leaves the Devices list.
+    func testAnEmptySeededWhoopBesideTheWornStrapLeavesTheRegistry() async throws {
+        let rows = try await restored(
+            backupRows: [whoop("my-whoop", model: "WHOOP", address: nil, status: .active),
+                         whoop("whoop-5AG", model: "5.0 MG", address: wornStrap, status: .active)],
+            phoneRows: [whoop("whoop-5AG", model: "5.0 MG", address: wornStrap, status: .active)])
+        XCTAssertEqual(rows.filter { $0.status == .active }.map(\.id), ["whoop-5AG"])
+        XCTAssertNil(rows.first { $0.id == "my-whoop" })
+    }
+
+    func testTwoActiveRestoredDevicesBecomeOneOnAPhoneFollowingNoStrap() async throws {
+        let rows = try await restored(
+            backupRows: [whoop("my-whoop", model: "WHOOP", address: nil, status: .active),
+                         whoop("whoop-a", model: "WHOOP 5.0", address: oldStrap, status: .active)],
+            phoneRows: [whoop("my-whoop", model: "WHOOP", address: nil, status: .active)])
+        XCTAssertEqual(rows.map(\.id), ["whoop-a"])
+        XCTAssertEqual(rows.first?.status, .active)
+        XCTAssertNil(rows.first?.peripheralId, "the one WHOOP left adopts the next strap it meets")
+    }
 }

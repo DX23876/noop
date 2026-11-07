@@ -36,11 +36,15 @@ extension WhoopStore {
     /// With a strap in use on this phone, that strap stays: its own restored row becomes active, or else the restored
     /// active WHOOP takes over its identity and model, which keeps the history and the new strap under one row. On a
     /// phone following no strap, a lone restored WHOOP forgets its old identity and adopts the first strap it meets.
-    /// Several restored WHOOPs keep theirs: only the wearer can say which one is on the wrist.
+    /// Several restored WHOOPs keep theirs: only the wearer can say which one is on the wrist. Either way exactly one
+    /// device is active afterwards (`DeviceRegistryStore.keepOneActive`), the strap this phone follows when it has one.
     public static func keepFollowedStrap(_ followed: FollowedStrap?, inRestoredStoreAt path: String) throws {
         let database = try DatabaseQueue(path: path)
         try database.write { db in
+            // An Android backup lands on a store that seeded an active `my-whoop`, so the restored rows can hold two
+            // active devices; one is settled first, and the identity below goes to that one.
             guard let followed else {
+                try DeviceRegistryStore.keepOneActive(db)
                 let ids = try String.fetchAll(db, sql: """
                     SELECT id FROM pairedDevice WHERE status != 'archived' AND \(whoopRow)
                     """)
@@ -53,11 +57,15 @@ extension WhoopStore {
                 """, arguments: [followed.peripheralId]) {
                 try db.execute(sql: "UPDATE pairedDevice SET status = 'paired' WHERE status = 'active'")
                 try db.execute(sql: "UPDATE pairedDevice SET status = 'active' WHERE id = ?", arguments: [known])
+                try DeviceRegistryStore.keepOneActive(db, preferring: known)
                 return
             }
-            guard let active = try String.fetchOne(db, sql: """
-                SELECT id FROM pairedDevice WHERE status = 'active' AND \(whoopRow) LIMIT 1
-                """) else { return }
+            let preferred = try String.fetchOne(db, sql: """
+                SELECT id FROM pairedDevice WHERE status = 'active' AND \(whoopRow)
+                ORDER BY (id = 'my-whoop'), (COALESCE(peripheralId, '') = ''), lastSeenAt DESC LIMIT 1
+                """)
+            guard let active = try DeviceRegistryStore.keepOneActive(db, preferring: preferred),
+                  active == preferred else { return }
             try db.execute(sql: "UPDATE pairedDevice SET peripheralId = ?, model = ? WHERE id = ?",
                            arguments: [followed.peripheralId, followed.model, active])
         }
