@@ -139,6 +139,10 @@ public struct TrendChart: View {
     public var showsBarValues: Bool
     public var largeSelection: Bool
     @State private var selectedPoint: TrendPoint?
+    /// How much of the plot is drawn, left to right. The new design draws a chart in on its first appearance
+    /// instead of showing it at once; everything else starts fully drawn.
+    @State private var revealed: CGFloat = NoopVisualStyle.skin == .forge ? 0 : 1
+    @Environment(\.accessibilityReduceMotion) private var chartReduceMotion
     @State private var holdingBar = false
 
     /// Optional personal-baseline reference, drawn as a dashed rule UNDER the series.
@@ -503,6 +507,18 @@ public struct TrendChart: View {
         // that shows bar values there, froze the app at full CPU. `plotYDomain` makes the room instead.
         .chartPlotStyle { plotArea in
             plotArea.clipped()
+                // Drawn in from the left on first appearance (new design): the line reads as time passing.
+                .mask(alignment: .leading) {
+                    GeometryReader { geo in
+                        Rectangle().frame(width: geo.size.width * revealed)
+                    }
+                }
+        }
+        .onAppear {
+            guard revealed < 1 else { return }
+            if chartReduceMotion { revealed = 1 } else {
+                withAnimation(.easeOut(duration: 0.75)) { revealed = 1 }
+            }
         }
         // Marks are pinned to WHOLE DAYS, not asked for by count (#2431-style label smear on Trends).
         //

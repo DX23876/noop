@@ -2172,7 +2172,8 @@ final class Repository: ObservableObject {
             // #803: the .hrv series is a TRAILING-WINDOW rMSSD moving across the session (HRVAnalyzer
             // .rollingRmssd), not one opaque "HRV" figure and not raw R-R ms. Label it honestly so the
             // pill names what the chart actually plots.
-            case .hrv: return String(localized: "Windowed rMSSD")
+            // The new design names the measure as every other screen does; the method stays in the shipped one.
+            case .hrv: return NoopVisualStyle.skin == .forge ? "HRV" : String(localized: "Windowed rMSSD")
             case .spo2: return "SpO₂"
             case .skinTemp: return String(localized: "Skin Temp")
             case .respiration: return String(localized: "Respiration")

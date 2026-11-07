@@ -588,26 +588,51 @@ private struct HydrationAmountSheet: View {
     }
 }
 
-/// A drinking glass filling with water, the new design's picture of the day's fluid.
+/// A drinking glass filling with water, the new design's picture of the day's fluid. The level rises with the
+/// figure under it (the caller animates `fraction`), and the surface sways for a few seconds after each change
+/// before it settles, so the glass moves when something happened and is still otherwise. Reduce Motion keeps
+/// the surface flat; the level still follows the figure.
 struct ForgeWaterGlass: View {
     let fraction: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// When the level last changed; the sway fades out over `settle` seconds from here.
+    @State private var stirredAt = Date()
+    @State private var swaying = true
+    private static let settle: TimeInterval = 3.2
 
     var body: some View {
-        Canvas { context, size in
-            let glass = Self.glassPath(in: size)
-            context.fill(glass, with: .color(StrandPalette.surfaceInset))
-            var water = context
-            water.clip(to: glass)
-            let level = size.height * (1 - min(1, max(0, fraction)))
-            let rect = CGRect(x: 0, y: level, width: size.width, height: size.height - level)
-            water.fill(Path(rect), with: .linearGradient(
-                Gradient(colors: [StrandPalette.metricCyan.opacity(0.75), StrandPalette.metricCyan]),
-                startPoint: CGPoint(x: 0, y: level), endPoint: CGPoint(x: 0, y: size.height)))
-            context.stroke(glass, with: .color(StrandPalette.hairlineStrong), lineWidth: 1.5)
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || !swaying)) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(stirredAt)
+            let fade = reduceMotion ? 0 : max(0, 1 - elapsed / Self.settle)
+            ZStack {
+                GlassShape().fill(StrandPalette.surfaceInset)
+                WaterShape(level: min(1, max(0, fraction)),
+                           phase: elapsed * 2.4,
+                           amplitude: fraction > 0.001 ? 3.5 * fade * fade : 0)
+                    .fill(LinearGradient(colors: [StrandPalette.metricCyan.opacity(0.7), StrandPalette.metricCyan],
+                                         startPoint: .top, endPoint: .bottom))
+                    .clipShape(GlassShape())
+                GlassShape().stroke(StrandPalette.hairlineStrong, lineWidth: 1.5)
+            }
+        }
+        .onChange(of: fraction) { _, _ in stir() }
+        .task(id: stirredAt) {
+            // Stop the timeline once the surface has settled: nothing moves, nothing redraws.
+            try? await Task.sleep(nanoseconds: UInt64(Self.settle * 1_000_000_000))
+            swaying = false
         }
     }
 
-    private static func glassPath(in size: CGSize) -> Path {
+    private func stir() {
+        stirredAt = Date()
+        swaying = true
+    }
+}
+
+/// The glass: wide at the rim, narrowing to a rounded foot.
+private struct GlassShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let size = rect.size
         let inset = size.width * 0.12
         var path = Path()
         path.move(to: CGPoint(x: 0, y: 0))
@@ -617,6 +642,35 @@ struct ForgeWaterGlass: View {
                           control: CGPoint(x: size.width - inset, y: size.height))
         path.addLine(to: CGPoint(x: inset + 8, y: size.height))
         path.addQuadCurve(to: CGPoint(x: inset, y: size.height - 8), control: CGPoint(x: inset, y: size.height))
+        path.closeSubpath()
+        return path.offsetBy(dx: rect.minX, dy: rect.minY)
+    }
+}
+
+/// The water in the glass up to `level` (0 to 1 of its height), its surface a sine wave of `amplitude` points.
+/// The level is animatable, so a level change rises smoothly instead of jumping.
+private struct WaterShape: Shape {
+    var level: Double
+    var phase: Double
+    var amplitude: Double
+
+    var animatableData: Double {
+        get { level }
+        set { level = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        guard level > 0 else { return Path() }
+        let surface = rect.height * (1 - level)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        let steps = 24
+        for step in 0...steps {
+            let x = rect.width * Double(step) / Double(steps)
+            let y = surface + amplitude * sin(phase + x / rect.width * .pi * 2.2)
+            path.addLine(to: CGPoint(x: rect.minX + x, y: rect.minY + y))
+        }
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.closeSubpath()
         return path
     }

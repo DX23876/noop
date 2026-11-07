@@ -589,6 +589,10 @@ struct WholeDayLanes: View {
     let sessions: [(start: Date, end: Date, symbol: String)]
 
     private let labelWidth: CGFloat = 54
+    /// How far the day is drawn, 0 to 1: the heart line traces itself and the bars grow in when a day's
+    /// figures arrive, so moving between days reads as a new day drawing in rather than a cut.
+    @State private var drawn: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private func fraction(_ date: Date) -> CGFloat {
         let span = day.upperBound.timeIntervalSince(day.lowerBound)
@@ -604,6 +608,7 @@ struct WholeDayLanes: View {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(StrandPalette.restColor)
                         .frame(width: max((fraction(sleep.upperBound) - fraction(sleep.lowerBound)) * width, 4))
+                        .scaleEffect(x: max(drawn, 0.001), anchor: .leading)
                         .offset(x: fraction(sleep.lowerBound) * width)
                 }
             }
@@ -622,6 +627,8 @@ struct WholeDayLanes: View {
                                 .foregroundStyle(.white)
                         }
                         .frame(width: span, height: 24)
+                        .scaleEffect(max(drawn, 0.001))
+                        .opacity(Double(drawn))
                         .offset(x: min(fraction(s.start) * width, width - span))
                 }
             }
@@ -629,6 +636,11 @@ struct WholeDayLanes: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("The whole day"))
+        .task(id: heart.count + sleeps.count * 1_000 + sessions.count * 100_000) {
+            guard !reduceMotion else { drawn = 1; return }
+            drawn = 0
+            withAnimation(.easeOut(duration: 0.9)) { drawn = 1 }
+        }
     }
 
     private func lane<Content: View>(_ name: LocalizedStringKey, height: CGFloat,
@@ -666,6 +678,7 @@ struct WholeDayLanes: View {
                     last = point.date
                 }
             }
+            .trim(from: 0, to: drawn)
             .stroke(StrandPalette.metricRose, style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
         }
     }
