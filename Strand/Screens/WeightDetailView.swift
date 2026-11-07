@@ -225,7 +225,7 @@ struct WeightDetailView: View {
                 .font(StrandFont.headline)
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.noopProminent)
         .tint(StrandPalette.accent)
     }
 

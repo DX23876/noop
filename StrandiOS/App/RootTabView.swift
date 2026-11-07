@@ -156,6 +156,14 @@ struct RootTabView: View {
                 _tabPaths = State(initialValue: paths)
                 _showAllFeatures = State(initialValue: true)
             case "log": _quickAction = State(initialValue: .forgeLog)
+            case let key where key.hasPrefix("page-"):
+                // A Settings page by its name ("page-notifications"), opened over the settings hub.
+                var paths = Array(repeating: NavigationPath(), count: 5)
+                if let page = SettingsPage.allCases.first(where: { "page-" + $0.rawValue.lowercased() == key }) {
+                    paths[4].append(MoreDestination.settingsPage(page))
+                }
+                _tabPaths = State(initialValue: paths)
+                _showAllFeatures = State(initialValue: true)
             case let key:
                 // Shared screens pushed from the redesign's tabs, by the tab they hang off.
                 let shared: [String: (Int, (inout NavigationPath) -> Void)] = [

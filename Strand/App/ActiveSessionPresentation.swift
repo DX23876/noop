@@ -266,7 +266,7 @@ private struct StrengthMiniBarContent: View {
 
                 if runningRest(now: now) != nil {
                     Button("Skip") { model.skipRest() }
-                        .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                        .buttonStyle(.noopProminent).tint(StrandPalette.accent)
                 }
             }
             .padding(.horizontal, NoopMetrics.space3)

@@ -180,7 +180,7 @@ struct ActivitySuggestionCard: View {
                 Label(ActivitySuggestionCenter.kindName(likely), systemImage: "checkmark")
                     .lineLimit(1)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.noopProminent)
             .accessibilityLabel(ActivitySuggestionNotifier.saveTitle(likely))
             Menu {
                 ForEach(others, id: \.self) { kind in

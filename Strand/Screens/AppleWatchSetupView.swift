@@ -101,7 +101,7 @@ struct AppleWatchSetupView: View {
                 } label: {
                     Text("Continue").frame(minWidth: 120).padding(.vertical, 4)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .appleInspiredTint("health")
                 .keyboardShortcut(.defaultAction)
                 .accessibilityHint("Goes to the Apple Health permission step")
@@ -122,7 +122,7 @@ struct AppleWatchSetupView: View {
                     } label: {
                         Text("Done").frame(minWidth: 120).padding(.vertical, 4)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     .appleInspiredTint("health")
                     .keyboardShortcut(.defaultAction)
                 } else {

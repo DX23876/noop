@@ -157,7 +157,7 @@ private struct DevicesContent: View {
             }
             HStack(spacing: NoopMetrics.space2) {
                 Button("Merge") { mergeConfirmText = ""; showMergeConfirm = true }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     .appleInspiredTint("deviceSetup")
                 Button("Keep separate") { model.declineWhoopFold() }
                     .buttonStyle(.bordered)
@@ -210,7 +210,7 @@ private struct DevicesContent: View {
                     showMergeConfirm = false
                     Task { await model.foldWhoopEntries() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .appleInspiredTint("deviceSetup")
                 .disabled(!mergeConfirmMatches)
             }

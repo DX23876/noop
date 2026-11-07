@@ -693,7 +693,7 @@ struct LongTermGoalSetupView: View {
                 Button { attemptCreate() } label: {
                     Text("Set goal").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .controlSize(.large)
             }
         }
@@ -737,7 +737,7 @@ struct LongTermGoalSetupView: View {
                 Button("Next") {
                     if let next = Step(rawValue: step.rawValue + 1) { step = next }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .disabled(target <= 0 || (template?.id == .journalHabit && habitKey == nil))
             }
         }
@@ -806,7 +806,7 @@ private struct GoalDateField: View {
                     .datePickerStyle(.graphical)
                     .labelsHidden()
                 Button { open = false } label: { Text("Done").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     .controlSize(.large)
             }
             .padding(20)
@@ -849,7 +849,7 @@ private struct ReplaceGoalSheet: View {
             VStack(spacing: 10) {
                 if canKeepBoth {
                     Button(action: onKeepBoth) { Text("Keep both").frame(maxWidth: .infinity) }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.noopProminent)
                 }
                 Button(action: onReplace) { Text("Replace it").frame(maxWidth: .infinity) }
                     .buttonStyle(.bordered)

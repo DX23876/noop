@@ -205,7 +205,7 @@ struct LongTermGoalPage: View {
                         goals.markAchieved(goalId)
                         refresh()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     Button("Aim higher") {
                         raisedTarget = snapshot.goal.target ?? 0
                         showRaise = true

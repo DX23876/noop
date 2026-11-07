@@ -427,7 +427,7 @@ struct JournalLogCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
                     Button("Merge") { applyMerge(candidate, target: kept) }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.noopProminent)
                     Button("Not the same") { dismiss(candidate) }
                         .buttonStyle(.bordered)
                 }
@@ -684,7 +684,7 @@ struct JournalLogCard: View {
                     catalog.rename(item.canonical, to: renameDraft)
                     renaming = nil
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
             }
         }
         .padding(NoopMetrics.space4)

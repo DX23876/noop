@@ -48,7 +48,7 @@ struct GoalsIntroSheet: View {
                 } label: {
                     Text(page < pages - 1 ? "Next" : "Let's go").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .controlSize(.large)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 12)

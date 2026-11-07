@@ -548,7 +548,7 @@ struct PeriodGoalDetailView: View {
                         refresh()
                     }
                     .font(StrandFont.footnote.weight(.semibold))
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     Text("Applies from this \(GoalFormat.periodWord(goal.period)) on; earlier ones keep their target.")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }

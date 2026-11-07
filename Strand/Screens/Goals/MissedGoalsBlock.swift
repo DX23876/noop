@@ -69,7 +69,7 @@ struct MissedGoalsBlock: View {
             }
             HStack(spacing: 10) {
                 Button { answer(occurrence, yes: true) } label: { Text("Yes").frame(minWidth: 44) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                 Button { answer(occurrence, yes: false) } label: { Text("No").frame(minWidth: 44) }
                     .buttonStyle(.bordered)
                 if case .workout = occurrence.action.requirement {

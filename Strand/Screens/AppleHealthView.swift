@@ -453,7 +453,7 @@ struct AppleHealthView: View {
                     } label: {
                         Label("Enable Apple Health", systemImage: "heart.fill")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     .tint(StrandPalette.metricCyan)
                     if health.auth == .denied {
                         Text("If you don't see the prompt, enable NOOP under Settings › Health › Data Access & Devices.")

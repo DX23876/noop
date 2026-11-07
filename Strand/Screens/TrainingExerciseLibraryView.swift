@@ -455,7 +455,7 @@ private struct TrainingExerciseDetailView: View {
                     Label(actionTitle, systemImage: "plus.circle.fill")
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
                 }
-                .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                .buttonStyle(.noopProminent).tint(StrandPalette.accent)
                 .padding(NoopMetrics.screenPadding)
                 .background(.ultraThinMaterial)
             }

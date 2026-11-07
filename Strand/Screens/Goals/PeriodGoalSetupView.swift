@@ -634,12 +634,12 @@ struct GuidedPeriodGoalSetup: View {
                 EmptyView()
             case .metric:
                 if draft.metric == .habitDays {
-                    Button("Next") { advance() }.buttonStyle(.borderedProminent).disabled(draft.habitKey == nil)
+                    Button("Next") { advance() }.buttonStyle(.noopProminent).disabled(draft.habitKey == nil)
                 }
             case .amount, .fineTune:
-                Button("Next") { advance() }.buttonStyle(.borderedProminent)
+                Button("Next") { advance() }.buttonStyle(.noopProminent)
             case .preview:
-                Button("Create goal", action: create).buttonStyle(.borderedProminent)
+                Button("Create goal", action: create).buttonStyle(.noopProminent)
             }
         }
         .font(StrandFont.subhead)

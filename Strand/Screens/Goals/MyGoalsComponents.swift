@@ -198,7 +198,7 @@ struct GoalNotifyOffer: View {
                     Button { GoalEventNotifier.answer(true); answered = true } label: {
                         Text("Yes, please").font(StrandFont.footnote.weight(.semibold))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     Button { GoalEventNotifier.answer(false); answered = true } label: {
                         Text("No thanks").font(StrandFont.footnote)
                     }
@@ -291,7 +291,7 @@ struct DailyGoalStarter: View {
                     Button(action: create) {
                         Text("Set these goals").font(StrandFont.footnote.weight(.semibold))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     .disabled(deselected.count == suggestions.count)
                     Button {
                         UserDefaults.standard.set(true, forKey: Self.doneKey)

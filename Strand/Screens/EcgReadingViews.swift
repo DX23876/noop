@@ -129,7 +129,7 @@ private struct EcgReadingIntro: View {
                 Button(action: onAccept) {
                     Text("I understand, continue").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .controlSize(.large)
                 Button("Not now", action: onDismiss)
                     .buttonStyle(.borderless)
@@ -415,7 +415,7 @@ struct EcgReadingSheet: View {
         Button(action: action) {
             Text(title).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.noopProminent)
         .controlSize(.large)
     }
 

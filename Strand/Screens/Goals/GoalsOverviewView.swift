@@ -250,7 +250,7 @@ struct GoalsOverviewView: View {
                     Button { sheet = .slot(.steps) } label: {
                         Text("Set a step goal").font(StrandFont.footnote.weight(.semibold))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                 }
             }
         }

@@ -257,7 +257,7 @@ struct HRVSnapshotView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.noopProminent)
             .tint(phase == .capturing ? StrandPalette.statusCritical : StrandPalette.accent)
             .disabled(!bonded && phase != .capturing)
             .help(bonded

@@ -537,7 +537,7 @@ struct AddDeviceWizard: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .appleInspiredTint("deviceSetup")
                 .accessibilityLabel("Scan for \(typeTitle(type))")
             }
@@ -695,7 +695,7 @@ struct AddDeviceWizard: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.noopProminent)
         .appleInspiredTint("deviceSetup")
         .disabled(!ouraConsented)
         .accessibilityHint("Continue to get your ring ready")
@@ -776,7 +776,7 @@ struct AddDeviceWizard: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.noopProminent)
         .appleInspiredTint("deviceSetup")
         .accessibilityLabel("Scan for your Oura ring")
     }
@@ -834,7 +834,7 @@ struct AddDeviceWizard: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.noopProminent)
         .appleInspiredTint("deviceSetup")
         .disabled(ouraKeyBytes == nil)
         .accessibilityLabel("Scan for your Oura ring")
@@ -933,7 +933,7 @@ struct AddDeviceWizard: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .appleInspiredTint("deviceSetup")
                 .accessibilityLabel("Connect to this ring")
                 Text("Both NOOP and the Oura app can use a ring you own by key, but only one can hold the Bluetooth link at a time.")
@@ -1007,7 +1007,7 @@ struct AddDeviceWizard: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .appleInspiredTint("deviceSetup")
                 .accessibilityLabel("Try again")
 
@@ -1231,7 +1231,7 @@ struct AddDeviceWizard: View {
             }
 
             Button("Add") { askMakeActive = true }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.noopProminent)
                 .appleInspiredTint("deviceSetup")
                 .frame(maxWidth: .infinity)
                 .disabled(nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -1725,7 +1725,7 @@ private struct OuraPickList: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Button("Use file import") { onUseImport() }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.noopProminent)
                         .appleInspiredTint("deviceSetup")
                         .accessibilityLabel("Use file import for Oura")
                 }

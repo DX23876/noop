@@ -47,7 +47,7 @@ struct UpdatesMarkHint: View {
                     Button("Close", action: close)
                         .buttonStyle(.bordered)
                     Button("Open updates", action: openInbox)
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.noopProminent)
                 }
                 .controlSize(.large)
             }

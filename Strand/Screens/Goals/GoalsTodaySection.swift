@@ -346,7 +346,7 @@ struct GoalsInviteCard: View {
                         Text("\(GoalFormat.number(s.goal.target, .workouts)) workouts a week")
                             .font(StrandFont.footnote.weight(.semibold))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.noopProminent)
                     NavigationLink(value: TabRoute.goals) {
                         Text("Other goals").font(StrandFont.footnote)
                     }

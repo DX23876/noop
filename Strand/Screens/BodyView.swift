@@ -129,7 +129,7 @@ struct BodyView: View {
                 .font(StrandFont.headline)
                 .frame(maxWidth: .infinity, minHeight: 34)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.noopProminent)
         .tint(StrandPalette.accent)
     }
 

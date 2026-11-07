@@ -1014,7 +1014,7 @@ struct CoachSettingsView: View {
                         Button("Continue indexing") {
                             Task { await coach.startManualSemanticIndexing() }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.noopProminent)
                         .disabled(semanticMemory.status.pendingDocuments == 0)
                     }
                     Button("Rebuild index") {

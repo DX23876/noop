@@ -500,7 +500,7 @@ struct WorkoutRestDock: View {
                     Button(timer.kind == .timedSet ? "Finish" : "Skip") {
                         if timer.kind == .timedSet { model.finishTimedSet() } else { model.skipRest() }
                     }
-                    .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                    .buttonStyle(.noopProminent).tint(StrandPalette.accent)
                 }
                 .font(StrandFont.subhead.weight(.semibold))
                 ProgressView(value: Double(total - remaining), total: Double(total))

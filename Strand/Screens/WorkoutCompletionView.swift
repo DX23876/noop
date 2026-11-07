@@ -60,7 +60,7 @@ struct WorkoutCompletionView: View {
                 Text("Your recording is kept on this device. Try saving again.")
                     .foregroundStyle(StrandPalette.textSecondary)
                 Button("Try saving again") { app.retryWorkoutCompletion() }
-                    .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                    .buttonStyle(.noopProminent).tint(StrandPalette.accent)
             }
             .font(StrandFont.footnote)
         }

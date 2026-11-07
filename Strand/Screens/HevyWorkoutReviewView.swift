@@ -40,7 +40,7 @@ struct HevyWorkoutReviewView: View {
                                 Task { await send(proposal) }
                             }
                             .disabled(sending)
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.noopProminent)
                         }
                     }
                     .padding(NoopMetrics.screenPadding)

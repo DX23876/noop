@@ -269,7 +269,7 @@ struct JourneyView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 10) {
                         Button("Mark as achieved") { goalStore.markAchieved(goal.id) }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.noopProminent)
                             .tint(StrandPalette.accent)
                         Button("Keep working") { dismissedReachedCandidate = true }
                             .buttonStyle(.plain)

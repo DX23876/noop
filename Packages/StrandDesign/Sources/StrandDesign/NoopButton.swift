@@ -51,6 +51,10 @@ public enum NoopButtonMetrics {
     public static let pressedOpacity: Double = 0.82
     /// Disabled dim, shared so call sites don't invent their own.
     public static let disabledOpacity: Double = 0.4
+    /// The new design's filled buttons are tinted, not solid: the accent washed behind accent text, as iOS
+    /// draws a tinted capsule. A solid accent bar under every page's main action was the loudest thing left
+    /// on the older pages.
+    public static let forgeTintOpacity: Double = 0.16
 }
 
 /// Resolves a `NoopButtonKind` to its concrete fill / label / border tokens. Internal
@@ -60,6 +64,10 @@ struct NoopButtonAppearance {
     let label: Color
     let border: Color?        // nil = no hairline edge
     let usesPanelSurface: Bool
+
+    init(fill: Color?, label: Color, border: Color?, usesPanelSurface: Bool) {
+        self.fill = fill; self.label = label; self.border = border; self.usesPanelSurface = usesPanelSurface
+    }
 
     init(_ kind: NoopButtonKind, accent: Color = StrandPalette.accent) {
         switch kind {
@@ -83,6 +91,23 @@ struct NoopButtonAppearance {
             label = StrandPalette.goldDeepText   // crisp white on the critical fill
             border = nil
             usesPanelSurface = false
+        }
+    }
+}
+
+extension NoopButtonAppearance {
+    /// The new design's kinds: primary and destructive as tinted capsules (their colour washed behind the
+    /// label in that colour), secondary and tertiary as before.
+    init(forgeTinted kind: NoopButtonKind, accent: Color) {
+        switch kind {
+        case .primary:
+            self.init(fill: accent.opacity(NoopButtonMetrics.forgeTintOpacity), label: accent,
+                      border: nil, usesPanelSurface: false)
+        case .destructive:
+            self.init(fill: StrandPalette.statusCritical.opacity(NoopButtonMetrics.forgeTintOpacity),
+                      label: StrandPalette.statusCritical, border: nil, usesPanelSurface: false)
+        case .secondary, .tertiary:
+            self.init(kind, accent: accent)
         }
     }
 }
@@ -130,7 +155,10 @@ public struct NoopButtonStyle: ButtonStyle {
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        let appearance = NoopButtonAppearance(kind, accent: interfaceColor ?? StrandPalette.accent)
+        let forge = NoopVisualStyle.skin == .forge
+        let appearance = forge
+            ? NoopButtonAppearance(forgeTinted: kind, accent: interfaceColor ?? StrandPalette.accent)
+            : NoopButtonAppearance(kind, accent: interfaceColor ?? StrandPalette.accent)
         let pressed = configuration.isPressed
         // Reduce Motion: no scale, dim only. Otherwise subtle scale + dim.
         let scale: CGFloat = (pressed && !reduceMotion) ? NoopButtonMetrics.pressedScale : 1
@@ -151,7 +179,9 @@ public struct NoopButtonStyle: ButtonStyle {
             .frame(minHeight: multiline ? 56 : NoopButtonMetrics.minHitTarget)
             .contentShape(Rectangle())
             .background(NoopButtonBackground(appearance: appearance))
-            .clipShape(RoundedRectangle(cornerRadius: NoopButtonMetrics.cornerRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: forge && !multiline ? NoopButtonMetrics.height / 2
+                                                                         : NoopButtonMetrics.cornerRadius,
+                                        style: .continuous))
             .opacity(isEnabled ? opacity : NoopButtonMetrics.disabledOpacity)
             .scaleEffect(scale)
             .animation(reduceMotion ? nil : StrandMotion.interactive, value: pressed)
@@ -239,3 +269,29 @@ public struct NoopButton: View {
     .preferredColorScheme(.dark)
 }
 #endif
+
+// MARK: - Prominent system buttons
+
+/// A screen's main system button. The shipped design keeps the solid `.borderedProminent`; the new design
+/// draws it as a tinted capsule, the same quiet main action `NoopButtonStyle` gives there, so a page built on
+/// system buttons does not end in a solid bar the rest of the design no longer has.
+public struct NoopProminentButtonStyle: PrimitiveButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        #if os(iOS)
+        if NoopVisualStyle.skin == .forge {
+            Button(configuration).buttonStyle(.bordered).buttonBorderShape(.capsule)
+        } else {
+            Button(configuration).buttonStyle(.borderedProminent)
+        }
+        #else
+        Button(configuration).buttonStyle(.borderedProminent)
+        #endif
+    }
+}
+
+public extension PrimitiveButtonStyle where Self == NoopProminentButtonStyle {
+    /// `.borderedProminent` in the shipped design, a tinted capsule in the new one.
+    static var noopProminent: NoopProminentButtonStyle { NoopProminentButtonStyle() }
+}

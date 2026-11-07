@@ -231,7 +231,7 @@ struct TrainingHubView: View {
                         Label("Resume workout", systemImage: "play.fill")
                             .frame(maxWidth: .infinity).padding(.vertical, NoopMetrics.space3)
                     }
-                    .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                    .buttonStyle(.noopProminent).tint(StrandPalette.accent)
                 }
             }
         } else {
@@ -329,7 +329,7 @@ struct TrainingHubView: View {
                             Spacer()
                             Button { start([routine]) } label: {
                                 Image(systemName: "play.fill")
-                            }.buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                            }.buttonStyle(.noopProminent).tint(StrandPalette.accent)
                             .accessibilityLabel(Text("Start \(routine.title)"))
                             Button { routineActionsFor = routine } label: {
                                 Image(systemName: "ellipsis.circle")
@@ -3742,7 +3742,7 @@ private struct TrainingRoutinePreviewView: View {
                 Label("Start workout", systemImage: "play.fill")
                     .frame(maxWidth: .infinity).padding(.vertical, 11)
             }
-            .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+            .buttonStyle(.noopProminent).tint(StrandPalette.accent)
             .padding(NoopMetrics.screenPadding)
             .background(.ultraThinMaterial)
         }

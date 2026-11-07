@@ -154,7 +154,7 @@ struct HowNoopWorksView: View {
             Button(action: onClose) {
                 Text("Got it").frame(minWidth: 120).padding(.vertical, 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.noopProminent)
             .appleInspiredTint("intelligence")
             .keyboardShortcut(.defaultAction)
         }

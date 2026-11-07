@@ -310,7 +310,7 @@ struct TrainingLoadView: View {
                         }.buttonStyle(.bordered)
                         Button("Merge") {
                             Task { await model.resolve(candidates, merge: true, repo: repo) }
-                        }.buttonStyle(.borderedProminent)
+                        }.buttonStyle(.noopProminent)
                     }
                 }
             }
