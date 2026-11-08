@@ -48,6 +48,10 @@ STYLED_CASE = re.compile(r'^\s+case\s+(?:\.[a-z]+\s*,\s*)*\.' + DEFAULT_STYLE + 
 # The same case naming another colour instead of a literal (`case .health: return hSleepDeep`, `return restColor`,
 # `return .systemIndigo`): resolved once every literal is read, from the same scope first.
 STYLED_REF = re.compile(r'^\s+case\s+(?:\.[a-z]+\s*,\s*)*\.' + DEFAULT_STYLE + r':\s*return\s+(?:Color)?\.?([A-Za-z_][A-Za-z0-9_.]*)\s*$')
+# A text style that differs by design (`static var footnote: Font { NoopVisualStyle.skin == .forge ? Font.footnote
+# : Font.caption2 }`): the token is the new design's style, the only design Android draws.
+FORGE_STYLE_FONT = re.compile(r"^\s+(?:public\s+)?static\s+var\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Font\s*\{\s*"
+                              r"NoopVisualStyle\.skin\s*==\s*\.forge\s*\?\s*Font\.([A-Za-z0-9]+)\s*:")
 WEIGHTS = {"ultraLight": 100, "thin": 200, "light": 300, "regular": 400, "medium": 500, "semibold": 600,
            "bold": 700, "heavy": 800, "black": 900}
 
@@ -117,6 +121,10 @@ def extract() -> dict:
             elif m := FONT.match(line):
                 fonts[f"{scope}.{m.group(1)}"] = {"size": float(m.group(2)), "weight": WEIGHTS.get(m.group(3), 400),
                                                  "rounded": m.group(4) == "rounded"}
+            elif (m := FORGE_STYLE_FONT.match(line)) and m.group(2) in TEXT_STYLES:
+                style = m.group(2)
+                fonts[f"{scope}.{m.group(1)}"] = {"size": float(TEXT_STYLES[style]),
+                                                 "weight": 600 if style == "headline" else 400, "rounded": False}
             elif (m := STYLE_FONT.match(line)) and (m.group(2) or m.group(4)) in TEXT_STYLES:
                 style = m.group(2) or m.group(4)
                 default = 600 if style == "headline" else 400

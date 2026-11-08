@@ -133,7 +133,7 @@ object ForgeTokens {
         val bodyNumber = ForgeFont(size = 15f, weight = 500, rounded = false)
         val caption = ForgeFont(size = 12f, weight = 400, rounded = false)
         val captionNumber = ForgeFont(size = 12f, weight = 500, rounded = false)
-        val footnote = ForgeFont(size = 11f, weight = 400, rounded = false)
+        val footnote = ForgeFont(size = 13f, weight = 400, rounded = false)
         val headline = ForgeFont(size = 17f, weight = 600, rounded = false)
         val heroNumber = ForgeFont(size = 34f, weight = 700, rounded = true)
         val mono = ForgeFont(size = 13f, weight = 400, rounded = false)
