@@ -53,7 +53,7 @@ struct ForgeLogSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if coachFeatureEnabled {
-                    Text("Log with the coach").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                    Text("Log with the coach").font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                     HStack(spacing: 0) {
                         coachButton(.coachWrite, "Write", "bubble.left.fill")
                         coachButton(.coachSpeak, "Speak", "mic.fill")
@@ -67,7 +67,7 @@ struct ForgeLogSheet: View {
                     }
                     Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.vertical, 2)
                 }
-                Text("Log yourself").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                Text("Log yourself").font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                 FlowRows(spacing: 8) {
                     ForEach(direct) { item in
                         Button { onPick(item.choice) } label: {

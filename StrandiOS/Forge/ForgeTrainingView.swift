@@ -268,7 +268,7 @@ struct ForgeTrainingView: View {
 
     private func sectionHeader<R: Hashable>(_ title: LocalizedStringKey, link: LocalizedStringKey, route: R) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+            Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
             Spacer()
             NavigationLink(value: route) {
                 Text(link).font(.system(.subheadline)).foregroundStyle(ForgeColor.trainingAccent)
@@ -283,7 +283,7 @@ struct ForgeTrainingView: View {
         if hub.loaded, !hub.plan.routines.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Routines").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                    Text("Routines").font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                     Spacer()
                     NavigationLink(value: MoreDestination.training) {
                         Text("All").font(.system(.subheadline)).foregroundStyle(ForgeColor.trainingAccent)
@@ -343,7 +343,7 @@ struct ForgeTrainingView: View {
         let rows = Array(recent.prefix(5))
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Recent activities").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                Text("Recent activities").font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                 Spacer()
                 NavigationLink(value: ForgeRoute.workouts) {
                     Text("All").font(.system(.subheadline)).foregroundStyle(ForgeColor.trainingAccent)

@@ -115,6 +115,7 @@ struct TrendsChangeSummary: View {
                 .labelsHidden()
             }
             .padding(.horizontal, 4)
+            .legibleOnPhoto()
             NoopCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Compared with the \(window) days before")

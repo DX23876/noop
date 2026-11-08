@@ -46,9 +46,6 @@ struct ForgeTodayView: View {
     @AppStorage(DashboardMomentum.Keys.snoozed) private var momentumSnoozedRaw = ""
     @AppStorage(DashboardMomentum.Keys.stepGoal) private var momentumStepGoal = 0
 
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var motifOn = ForgeDesignPrefs.skyDefaultInNewDesign
-    @ObservedObject private var backdropPhoto = BackgroundImageStore.shared
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var snapshot = Snapshot()
     @State private var showPlan = false
@@ -139,13 +136,18 @@ struct ForgeTodayView: View {
                                     actionTitle: "Connect a device",
                                     action: { router.openDevices() })
                             }
-                            hero
-                                // Holding the rings starts the tile editor too, for a page with no tile to hold.
-                                .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in startEditingWidgets() })
-                                .onGeometryChange(for: Bool.self) { $0.frame(in: .named("forge-today")).maxY < 40 } action: { hidden in
-                                    withAnimation(.easeOut(duration: 0.2)) { heroHidden = hidden }
-                                }
-                            dayAnswer
+                            // The rings and the day's answer share one card, as on Android and in the prototype:
+                            // a frame holds them together and parts them from a photo behind.
+                            VStack(spacing: 8) {
+                                hero
+                                    // Holding the rings starts the tile editor too, for a page with no tile to hold.
+                                    .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in startEditingWidgets() })
+                                    .onGeometryChange(for: Bool.self) { $0.frame(in: .named("forge-today")).maxY < 40 } action: { hidden in
+                                        withAnimation(.easeOut(duration: 0.2)) { heroHidden = hidden }
+                                    }
+                                dayAnswer
+                            }
+                            .forgeCard(radius: ForgeRadius.card, padding: 12)
                         }
                         .padding(.horizontal, 16)
                     }
@@ -231,7 +233,6 @@ struct ForgeTodayView: View {
         return "\(repo.days.count)|\(repo.today?.day ?? "")|\(repo.today?.strain ?? -1)|\(repo.today?.recovery ?? -1)|\(lastNote)|\(coachFeatureEnabled)|\(repo.refreshSeq)|\(repo.hydrationSeq)|\(repo.sleepPresentationRevision)|\(repo.workoutAnnotationRevision)"
     }
 
-    private var onPicture: Bool { motifOn || backdropPhoto.isActive }
     /// How solid every surface on this page is over the picture. The one reading of the setting here.
     private var surfaceOpacity: Double { reduceTransparency ? 1 : Double(surfacePercent) / 100 }
 
@@ -273,7 +274,7 @@ struct ForgeTodayView: View {
     private var effortScore: Double? { snapshot.effortStored.map { UnitFormatter.effortValue($0, scale: effortScale) } }
     private var effortTarget: ClosedRange<Double>? { ForgeToday.effortTargetStored(charge: chargeScore) }
 
-    /// The rings on their own: three equal rings with their names, no card and no sentence.
+    /// The three equal rings with their names; the card around them and the sentence are the caller's.
     private var hero: some View {
         let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth)
         let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
@@ -325,14 +326,10 @@ struct ForgeTodayView: View {
                     Text(verbatim: "\(DomainTheme.charge.productName) · \(caption)").font(ForgeFont.caption)
                 }
             }
-            .foregroundStyle(onPicture ? AnyShapeStyle(.white) : AnyShapeStyle(ForgeColor.text))
+            .foregroundStyle(ForgeColor.text)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background {
-                if onPicture { Color.clear.liquidGlass(in: RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous)) }
-            }
-            .environment(\.colorScheme, onPicture ? .dark : colorScheme)
+            .padding(.horizontal, 8).padding(.bottom, 4)
         }
     }
 
@@ -400,31 +397,14 @@ struct ForgeTodayView: View {
                 ScoreRing(model: face.model, tint: face.tint, score: face.score, decimals: face.decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
-                    // A soft shade under the ring on a picture, so a faint glow still parts from a bright sky.
-                    .background {
-                        if onPicture {
-                            Circle()
-                                .fill(RadialGradient(colors: [.black.opacity(0.26), .black.opacity(0.14), .clear],
-                                                     center: .center, startRadius: 0, endRadius: diameter * 0.62))
-                                .frame(width: diameter * 1.24, height: diameter * 1.24)
-                                .allowsHitTesting(false)
-                        }
-                    }
                 Text(face.label)
                     .font(.system(.subheadline, weight: .semibold))
-                    // On the picture a name sits on a small glass capsule, as the buttons below do: white on
-                    // its own crossed snow and rock and was lost there.
-                    .foregroundStyle(onPicture ? AnyShapeStyle(.white) : AnyShapeStyle(Self.labelTint(face.metric)))
+                    // The rings sit on their own card now, so the name keeps its domain colour on a photo too.
+                    .foregroundStyle(Self.labelTint(face.metric))
                     .lineLimit(1).minimumScaleFactor(0.8)
-                    .padding(.horizontal, onPicture ? 10 : 0)
-                    .padding(.vertical, onPicture ? 3 : 0)
-                    .background { if onPicture { Color.clear.forgeGlassCapsule() } }
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
-            // A ring and its name on a picture take the dark drawing: the light one turns the glow to a blur
-            // with black figures, and dark ink is lost on the mountains.
-            .environment(\.colorScheme, onPicture ? .dark : colorScheme)
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityElement(children: .ignore)

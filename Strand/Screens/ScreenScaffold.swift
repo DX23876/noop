@@ -166,8 +166,10 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         let darkScene = showDayCycleBackground && skyBehindCards
             && DayCycleScene.isDark(hour: Calendar.current.component(.hour, from: Date()))
         // The new design shows its calm page tint here at every hour, so only a custom photo counts.
-        let overSky = topBackground != nil
-            && (backgroundStore.isActive || (darkScene && NoopVisualStyle.skin != .forge))
+        // The new design keeps the appearance's own title colour over a photo and lifts it with a halo
+        // (`legibleOnPhoto`): white titles vanished into a bright sky in light appearance.
+        let overSky = topBackground != nil && NoopVisualStyle.skin != .forge
+            && (backgroundStore.isActive || darkScene)
         let titleColor = overSky ? StrandPalette.onDarkPrimary : StrandPalette.textPrimary
         let subtitleColor = overSky ? StrandPalette.onDarkSecondary : StrandPalette.textSecondary
         return HStack(alignment: .center, spacing: 12) {
@@ -180,6 +182,7 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
                     Text(subtitle).font(StrandFont.subhead).foregroundStyle(subtitleColor)
                 }
             }
+            .legibleOnPhoto()
             Spacer(minLength: 0)
             trailing()
             #if os(iOS)
@@ -606,6 +609,32 @@ extension View {
     }
 }
 
+/// Text that stands on the page itself, not on a card, stays readable over a background photo: a soft halo
+/// in the page's own canvas colour (white behind dark text in light appearance, black behind light text in
+/// dark). Without a photo it does nothing, so the plain grey or black page keeps clean edges.
+struct PhotoLegible: ViewModifier {
+    @ObservedObject private var store = BackgroundImageStore.shared
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        if store.isActive {
+            // Light text needs the stronger shade: a bright sky sits behind it far more often than a dark one.
+            let halo = scheme == .dark ? Color.black.opacity(0.8) : Color.white.opacity(0.85)
+            content
+                .shadow(color: halo, radius: 1)
+                .shadow(color: halo, radius: 4)
+                .shadow(color: halo.opacity(0.7), radius: 12)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    /// Keeps free-standing text readable over a background photo (`PhotoLegible`).
+    func legibleOnPhoto() -> some View { modifier(PhotoLegible()) }
+}
+
 /// A section title in the new design: a sentence-case heading on the page, an optional note at its end.
 struct ForgeSectionHeading: View {
     let title: LocalizedStringKey
@@ -639,6 +668,7 @@ struct ForgeSectionHeading: View {
             }
         }
         .padding(.top, 8)
+        .legibleOnPhoto()
     }
 }
 

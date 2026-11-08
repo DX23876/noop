@@ -58,7 +58,7 @@ struct ForgeEffortDetailView: View {
                         let figure = ForgeToday.effortText(value, scale: effortScale)
                         return "Why \(figure)?"
                     } ?? "What added to it today")
-                        .font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                        .font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                         .padding(.horizontal, 4)
                     if todayWorkouts.isEmpty {
                         Text("No workout yet today. Effort also counts everyday movement and heart rate through the day.")
@@ -178,7 +178,7 @@ struct ForgeRestDetailView: View {
                             let figure = "\(Int(value.rounded())) %"
                             return "Why \(figure)?"
                         } ?? "What shaped it")
-                            .font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                            .font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                             .padding(.horizontal, 4)
                         // A factor that has never left zero (last night 0, usually 0) has no nights behind it
                         // yet; it is left out rather than shown as a result.
@@ -308,7 +308,7 @@ struct ForgeDailyChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 if let history {
@@ -392,7 +392,7 @@ struct ForgeExplainer<Picture: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             picture()
             VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                 Text(text).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -421,6 +421,7 @@ struct ForgeDetailHeader: View {
                     Text(overline).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
                 }
             }
+            .legibleOnPhoto()
             Spacer(minLength: 0)
             if let picture {
                 CoachPicture(main: picture.symbol, accentA: picture.accent, accentB: "sparkle", tint: picture.tint)
@@ -445,6 +446,7 @@ struct ForgeScoreCaption: View {
         let verdict = detail.map { $0.prefix(1).uppercased(with: AppLanguage.activeLocale) + $0.dropFirst() }
         Text(verdict ?? name)
             .font(.system(.title3, design: .rounded, weight: .semibold)).foregroundStyle(tint)
+            .legibleOnPhoto()
             .accessibilityLabel(Text(verbatim: verdict.map { "\(name), \($0)" } ?? name))
     }
 }

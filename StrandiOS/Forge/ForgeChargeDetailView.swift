@@ -151,6 +151,7 @@ struct ForgeChargeDetailView: View {
                         let t = ForgeToday.targetText(target, scale: UnitPrefs.currentEffortScale())
                         Text("Today's Effort target: \(t.low) to \(t.high).")
                             .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.effortInk)
+                            .legibleOnPhoto()
                             .padding(.top, 4)
                     }
                 }
@@ -162,7 +163,7 @@ struct ForgeChargeDetailView: View {
                             let figure = "\(Int(value.rounded())) %"
                             return "Why \(figure)?"
                         } ?? "What shaped it")
-                            .font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+                            .font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                         Spacer()
                         ForgeBadge(text: Self.confidenceWord(breakdown.confidence), tone: .neutral)
                     }

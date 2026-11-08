@@ -316,6 +316,7 @@ struct ForgeLargeHeader<Trailing: View>: View {
                 }
                 titleText
             }
+            .legibleOnPhoto()
             Spacer(minLength: 8)
             // The ring already shows the level; the figure stays for VoiceOver and on the battery page.
             DashboardBatteryButton(size: 34, showsPercent: false)
@@ -355,7 +356,7 @@ struct ForgeSectionTitle: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
+            Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text).legibleOnPhoto()
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             if let action {
@@ -367,6 +368,7 @@ struct ForgeSectionTitle: View {
         }
         .padding(.horizontal, 4)
         .padding(.top, 12)
+        .legibleOnPhoto()
     }
 }
 
