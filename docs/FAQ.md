@@ -1,8 +1,13 @@
 # FAQ
 
-Answers to the questions that come up most often in issues. If your question isn't here,
-[ANALYTICS.md](ANALYTICS.md) documents how every score is computed and
-[PRIVACY_SECURITY.md](PRIVACY_SECURITY.md) covers what stays on your device.
+Answers to the questions that come up most often in issues and on Discord. If your question isn't
+here, [ANALYTICS.md](ANALYTICS.md) documents how every score is computed,
+[PRIVACY_SECURITY.md](PRIVACY_SECURITY.md) covers what stays on your device, and the wiki has
+[Troubleshooting](https://github.com/DX23876/noop/wiki/Troubleshooting) (pairing, sync, "no data") and
+the [WHOOP 5.0 / MG status](https://github.com/DX23876/noop/wiki/WHOOP-5.0-and-MG-Status) page.
+
+Something broken, or want to help? Jump to
+[Help, bug reports and support](#help-bug-reports-and-support).
 
 ---
 
@@ -67,8 +72,8 @@ Both are user-initiated. See [docs/PRIVACY_SECURITY.md](PRIVACY_SECURITY.md).
 `UpstreamStoreUpgradeTests` open stores from upstream 11.5 and 11.7 with their history intact.
 
 **From NOOP Forge back to RyanBR's NOOP: not guaranteed.** Forge's database carries many more
-migrations than upstream's (v77 against upstream's v47 at 12.1.0), and some upstream migrations were
-renumbered when they were merged. GRDB ignores unknown later migrations, and
+migrations than upstream's (v85 in Forge 13.0.0; upstream was at v47 when they were last compared,
+at 12.1.0), and some upstream migrations were renumbered when they were merged. GRDB ignores unknown later migrations, and
 `testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins that for an older reader, but no test opens a
 current Forge backup in a current upstream build.
 
@@ -100,3 +105,72 @@ banked. If you're sitting at "Calibrating" and tap it again, you reset your own 
 
 No. It is not a medical device and makes no diagnostic claim. Values are raw readings or
 locally-computed estimates, for personal and informational use only.
+
+---
+
+# Help, bug reports and support
+
+NOOP Forge is a free project built in spare time. There is no company behind it and no paid support,
+so the questions below are about getting help quickly and about how to help back.
+
+## Where do I ask a question, and where do I report a bug?
+
+- **Questions, setup help, "is this normal?":** Discord, or
+  [GitHub Discussions](https://github.com/DX23876/noop/discussions). Please read this FAQ and the
+  [Troubleshooting](https://github.com/DX23876/noop/wiki/Troubleshooting) page first; most questions
+  are already answered there.
+- **Ideas and feature requests:** [GitHub Discussions](https://github.com/DX23876/noop/discussions).
+- **A confirmed bug:** a [GitHub issue](https://github.com/DX23876/noop/issues/new/choose), using the
+  bug template.
+
+Bugs reported only in Discord tend to get lost: nobody can read the whole chat in their free time to
+collect them. An issue is tracked until it is fixed.
+
+Before opening an issue, search the
+[existing issues](https://github.com/DX23876/noop/issues?q=is%3Aissue). If yours is already there, add
+a 👍 or add **new** information (another device, another strap, a log). A comment that only says "same
+here" changes nothing.
+
+## What makes a bug report useful?
+
+NOOP runs entirely on your device. There is no server to look at, so everything a fix needs has to be
+in the report. "X doesn't work" on its own cannot be investigated. Please include:
+
+- the NOOP version (Settings → About) and the platform with its OS version
+- the strap model (WHOOP 4.0, 5.0 or MG) and where the data comes from (live strap, import)
+- what you did, what you expected, and what happened instead
+- when it happened, so the right part of the log can be found
+- **the strap log**, which is the single most helpful thing you can attach:
+  - iPhone, iPad and Mac: Settings → **Connection diagnostics** → *Strap log* → **Save…** (or
+    **Copy**)
+  - Android: Settings → **Help & Diagnostics** → **Share strap log**
+
+Save the log soon after the problem happens, while the relevant part is still in it. It is your data,
+so have a quick look before you post it publicly.
+
+## Why is some text still in English?
+
+The interface is being rebuilt screen by screen into a clearer layout. Translations are completed on
+the new screens instead of being patched into old ones that are about to be replaced, so an older
+screen can still show English text for a while.
+
+If a **new** screen shows untranslated text, that is worth reporting; say which screen and which
+language. Translation help is welcome too, and is easiest once a screen has been rebuilt.
+
+## How can I help?
+
+You do not need to be able to code. Any of these helps:
+
+- **Test:** try new releases and report what breaks, and also what works ("works on iOS 18 with a 4.0"
+  is useful information).
+- **Report well:** a complete bug report with a log, as described above, often saves days of
+  back-and-forth.
+- **Give concrete feedback:** say what is confusing or hard to find and, ideally, suggest something
+  better. That matters most right now, while the interface is being rebuilt.
+- **Help others:** answer questions on Discord or point people to the right FAQ entry.
+- **Translate:** help with a language you speak once a rebuilt screen lands.
+- **Contribute code:** pull requests are welcome. Read [AGENTS.md](../AGENTS.md) and
+  [CONTRIBUTING.md](CONTRIBUTING.md) first, keep one topic per pull request, and test on your own
+  device before you submit. Untested patches have broken the app before.
+- **Donate:** if you have neither time nor the skills, you can support NOOP Forge on
+  [Ko-fi](https://ko-fi.com/dx23876). It is optional; the app is the same either way.
