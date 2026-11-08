@@ -25,6 +25,7 @@ struct PowerSavingView: View {
                        subtitle: classicOnlySubtitle("Power saving and continuous HRV"),
                        topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                if NoopVisualStyle.skin == .forge { SettingsPageBanner(page: .batteryRecording) }
                 ContinuousHrvSettingsCard()
                 SettingsSection(
                     icon: "battery.25",

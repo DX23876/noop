@@ -394,7 +394,8 @@ private struct SettingsPageContent: View, Equatable {
 
     var body: some View {
         ScreenScaffold(title: settingsScreenTitle,
-                       subtitle: settingsScreenSubtitle,
+                       // A page in the new design says it in its picture header instead.
+                       subtitle: initialPage == nil ? settingsScreenSubtitle : classicOnlySubtitle(settingsScreenSubtitle),
                        // The day-of-sky liquid backdrop, matching Today / Health / Sleep / Trends / Devices:
                        // a fixed, full-bleed time-of-day sky behind the scroll content (it does not scroll).
                        // Settings' own frosted cards sit on the dark canvas below the sky band, unchanged.
@@ -402,6 +403,7 @@ private struct SettingsPageContent: View, Equatable {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 #if os(iOS)
                 if let initialPage {
+                    if NoopVisualStyle.skin == .forge { SettingsPageBanner(page: initialPage) }
                     settingsPageContent(initialPage)
                 } else {
                     SettingsHubView(query: $query)

@@ -61,14 +61,25 @@ struct AutomationsView: View {
     @AppStorage(HapticPrefs.liveSession) private var liveSessionHaptic = true
     @AppStorage(HapticPrefs.workout) private var workoutHaptic = true
 
+    /// The Settings page this scope stands for, for the new design's picture header.
+    private var bannerPage: SettingsPage? {
+        switch scope {
+        case .strapActions: return .strapActions
+        case .notifications: return .notifications
+        default: return nil
+        }
+    }
+
     var body: some View {
         ScreenScaffold(title: screenTitle,
-                       subtitle: screenSubtitle,
+                       // The new design says it in the picture header instead.
+                       subtitle: bannerPage == nil ? screenSubtitle : classicOnlySubtitle(screenSubtitle),
                        // PERF: the cards are direct children of the scaffold column, so the LazyVStack
                        // path (byte-identical layout) genuinely builds the off-screen cards on demand
                        // instead of constructing all eight/nine + their toggle subtrees up-front.
                        lazy: true,
                        topBackground: liquidScaffoldSky()) {
+            if NoopVisualStyle.skin == .forge, let page = bannerPage { SettingsPageBanner(page: page) }
             if scope != .strapActions {
                 #if os(iOS)
                 LiveNotificationSettingsCard()

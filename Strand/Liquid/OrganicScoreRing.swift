@@ -269,8 +269,9 @@ enum OrganicScoreShownMemo {
 }
 
 private enum OrganicScoreRingRenderer {
-    /// Canvas size relative to the ring's layout square.
-    static let overscan: CGFloat = 1.3
+    /// Canvas size relative to the ring's layout square. At 1.3 a high score's blurred bloom reached the
+    /// canvas edge and was cut there, drawing a faint square around the ring on a dark card (Rest at 96).
+    static let overscan: CGFloat = 1.7
 
     static func draw(
         context: inout GraphicsContext,
