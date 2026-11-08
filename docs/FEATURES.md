@@ -9,7 +9,10 @@ and computes its own daily scores locally — **Charge** (recovery), **Effort** 
 These are honest approximations from published methods, **not WHOOP's scores**. macOS and iOS/iPadOS
 ship from this fork and share the same store and analysis implementations; iOS is distributed as an
 unsigned AltStore/SideStore IPA or built with Xcode. The optional Watch companion is part of the Full
-IPA. Android is maintained in [RyanBR's upstream project](https://github.com/ryanbr/noop), not here.
+IPA. This guide describes the Apple apps. An Android app built on the same shared Swift core
+(`Packages/`, reached through `Packages/NoopCoreJNI`) is in testing and not yet a release download;
+what it already covers is tracked in [`fork/android/STATUS.md`](fork/android/STATUS.md), and testers
+start at [`fork/android/TESTING.md`](fork/android/TESTING.md).
 
 > **Not affiliated with WHOOP.** NOOP is independent interoperability software for *your own*
 > device and *your own* data. "WHOOP" is used only to identify the hardware NOOP talks to.
@@ -132,6 +135,24 @@ equipment actually allows, an exercise can be ended early or annotated, and its 
 one tap away. The summary afterwards names new records, what moved against your last session, every
 logged set and your notes. Optional exercise media, if you choose to download it, plays as an
 animation or a video and holds still when Reduce Motion is on.
+
+The logger (12.2.0) takes weight and repetitions on the number pad, shows the matching set of the last
+session beside each row (a tap copies it), has an **Add set** button on every exercise and removes a
+set with a swipe. On iPhone the workout Live Activity names the next set, logs it with one tap when it
+already has its numbers and offers −15 / +15 / Skip during a rest; the logger, Lock Screen, Watch and
+strap double-tap pick the same next set. **Training › Add** imports routines from a connected Hevy
+account (**Import Hevy routines**, Hevy Pro API key) or an OpenGym plan file (**Import OpenGym plan**),
+both with a preview; importing the same routine again updates the earlier copy, and your own routines
+are never changed.
+
+The media pack is downloaded only when you ask for it, directly from its disclosed upstream source,
+after the source, size and rights holder are shown (see
+[`fork/EXERCISE_CONTENT_AND_MEDIA.md`](fork/EXERCISE_CONTENT_AND_MEDIA.md)). A download that finishes
+while NOOP is closed is installed at the next launch; **Settings › Training › Manage offline exercise
+media** can delete the pack and download it again. The exercise library can also read exercise
+definitions from a personal **ExerciseDB source** (an endpoint and optional key you enter, stored in the
+Keychain): NOOP reads one page, previews it and saves only the definitions you select, and sends no
+workout or health data.
 
 Strength also summarises the selected range: sessions, weekly frequency, working sets, duration,
 volume, RPE coverage and average RPE, active weeks, the longest weekly streak and recent personal
@@ -486,6 +507,12 @@ for any day NOOP holds raw streams for, not just days WHOOP itself scored.
 - **How this works** — a plain explanation of the Charge weighting (HRV ~55%, resting HR ~20%, rest
   quality ~15%, respiration ~5%, skin-temperature deviation ~5%), Effort as a 0–21 (or rescaled)
   cardiovascular load from HR-zone time, and Rest staged from motion + heart rate.
+- **Effort curve** (from 13.0.0 (testing), recipe AI-32; `StrainScorer`) — Effort no longer sums
+  Edwards' zones on a log scale. Each minute weighs more the closer it sits to your maximum (heart-rate
+  reserve against the maximum in Settings), and the day's load maps onto the scale with a soft cap near
+  the top; the constants are fitted on WHOOP Strain for 3,760 shared workouts. Outside a recorded,
+  imported or detected workout, heart rate below 50 % of the reserve adds nothing. Stored and live
+  Effort read the same workout list. The update rescores the whole history once.
 - **By Day** — a lazily-rendered list of every recomputed day in the selected window, so an 800+
   day imported history stays responsive.
 
@@ -683,6 +710,9 @@ just the most recent (step through earlier nights to compare):
 - **Stages vs typical** — Deep / REM / Light as horizontal bars, last-night minutes with a marker
   at your personal mean, so highs and lows pop.
 - **Asleep duration** — a trailing-30-night hours trend with avg / min / max.
+- **Delete a nap** (from 13.0.0 (testing)) — each nap row has a menu with **Delete nap** for one that
+  was detected wrongly, confirmed first and with the same short undo as a night; the main night keeps
+  its numbers.
 - **SleepStager V3 (default)** — short leading rest bouts separated by movement do not extend a later
   sleep run that already clears the normal session-duration floor. Interruptions within an established
   night and the rescue for a night made entirely of short fragments remain available. This can omit a
@@ -749,6 +779,13 @@ With no live HR and no imported day, NOOP prompts you to connect or import.
   biggest levers (each one can be set as a goal), shows every measure on a ticked bar with a 30-day trend arrow and a line saying what it
   stands on (flagged when the data is thin), and an **About AgeLess**
   sheet links each study. Method, sources and limits: [`AGELESS.md`](AGELESS.md).
+  From 13.0.0 (testing) its steps come from the app's one step resolver (strap count, then Apple
+  Health, then the motion estimate), so a WHOOP 4.0 wearer gets an age too, and a week without an age
+  names what is missing.
+- **Daily rhythm** (fork, 12.1.0, Settings → Lab, default off, WHOOP 5.0 and MG) — a rhythm age from
+  how your day moves, after the CosinorAge study, on the same gauge as AgeLess: the last seven days as 24
+  hourly bars against the study's typical day, your busiest hours and where movement is missing. It is
+  scored once a day on the device and needs three days worn day and night.
 
 ---
 
@@ -854,6 +891,9 @@ source, read locally on this Mac:
 
 Sparse weekly series (weight, body fat) auto-widen to all history so a short window is never empty;
 a single reading is shown as a "Latest reading" value rather than an empty chart.
+
+From 13.0.0 (testing), body fat and lean mass that a scale writes to Apple Health also reach AgeLess,
+the Katch-McArdle basal rate, the Energy plan, the Body page, body goals and the coach.
 
 On iPhone, the same page also controls the live two-way HealthKit bridge. NOOP writes the strap's
 24/7 heart rate as one measured minute mean per sample, associates those saved samples with matching
@@ -1061,7 +1101,8 @@ reminder, after user reports conflated the two when they lived apart (#766).
 - **Honesty card** — states up front that this is a **silent wrist buzz, not a sound**: a sideloaded
   build has no critical-alert entitlement, so it can't guarantee a loud wake — Focus or silent mode
   can still mute the backup notification NOOP also schedules. Keep your phone's own Clock alarm as a
-  real backup; phone-based smart wake with light-sleep detection is an Android-only capability.
+  real backup; phone-based smart wake with light-sleep detection is an Android-only capability
+  (the Android app is in testing).
 - **Strap-rejected warning** — appears only if the strap keeps reporting back a different alarm time
   than NOOP sent (usually a strap whose clock/alarm register has reset), with a concrete fix (reset
   in the official WHOOP app, or fully charge and reconnect).
@@ -1126,7 +1167,7 @@ reorganisation). Every control has exactly one page; other screens link to it in
 On macOS the card pages run as one scrolling column and the six screen pages stay sidebar items.
 
 - **You** — **Profile** (photo, date of birth, sex, weight, height, waist, body measurements, max heart
-  rate with the measured-maximum offer, VO₂max, activity level, heart-rate zones) and **Goals** (number
+  rate with where the value in use comes from, VO₂max, activity level, heart-rate zones) and **Goals** (number
   of goals, rest days, goal notifications, motivation and streak, the daily step goal Momentum counts
   down to).
 - **Strap & Devices** — **Strap** (connection, rename on a 4.0, keep screen on while syncing, step
@@ -1140,20 +1181,28 @@ On macOS the card pages run as one scrolling column and the six screen pages sta
   awareness), **AI Coach** and **Siri & Shortcuts** (iOS).
 - **Display** — **Language & Units** (language, clock, week start, body, distance and temperature
   units, Effort scale) and **Appearance** (design, background, charts, motion).
-- **Data** — **Calculations** ("How NOOP calculates": day start, Effort model, HRV window, sleep stage
-  method, wake check; every switch here can recompute past days; and "If scores look wrong": refresh
+- **Data** — **Calculations** ("How NOOP calculates": day start, HRV window, sleep stage method, wake
+  check; every switch here can recompute past days; and "If scores look wrong": refresh
   today, recalculate 21 days, reset the Charge baseline) and **Data & Backup** (backup and restore,
   folder backup, Apple Health, Data Sources, Shortcuts export, storage).
 - **Help** — **Help & Diagnostics** (guides, what each strap can do, Test Centre, raw sensor export,
-  device details), **Lab** (personal stress baseline, training-based VO₂max, AgeLess, daily
-  rhythm, blood oxygen estimate, Oura all-day heart rate, and the WHOOP 5/MG developer probes) and
+  device details), **Lab** (personal stress baseline, training-based VO₂max, Strength in Effort,
+  AgeLess, daily rhythm, blood oxygen estimate, Oura all-day heart rate, and the WHOOP 5/MG developer probes) and
   **About** (version, what's new, updates, source, acknowledgements, medical disclaimer).
 
 Details:
 
-- **Max heart rate** — when your workouts have held a higher heart rate for 30 seconds on two days of the
-  last six months, five beats above the value in use, the max heart rate row offers it ("Use 196 bpm" / "Not now"); taking
-  it sets the override from then on and leaves Effort already scored as it is.
+- **Max heart rate** (from 13.0.0 (testing); `MaxHeartRate` in StrandAnalytics) — a value you enter
+  always wins. Otherwise NOOP uses the level you held for five consecutive seconds in workouts on two days
+  of the last 90, when it lies above the Gellish estimate from age (192 − 0.007 × age²); a peak more than
+  25 bpm above the estimate counts as an artefact. Without such a level it uses the estimate. The row
+  says where the value comes from ("Measured in your workouts, confirmed …", "Estimated from your age",
+  "Manual override"). Effort, live Effort, heart-rate zones, AgeLess, energy and the coach read the same
+  number. 12.x instead offered a 30-second peak as a suggestion; that offer is gone.
+- **Strength in Effort** (from 13.0.0 (testing), Settings → Lab, off by default) — a strength session
+  you rate after training adds to that day's Effort beyond its heart rate, more for a harder rating and a
+  longer session; unrated sessions add nothing. Turning it on or off rescores the history, reusing
+  unchanged days.
 - **Heart-rate zones** — set where each of your five zones starts, instead of accepting the standard
   50/60/70/80/90 % of maximum. Two ways to say it: **% of max**, which moves with your maximum when
   it is re-estimated, or **beats**, the absolute heart rates a threshold or lactate test gives you,

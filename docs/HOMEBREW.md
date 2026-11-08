@@ -4,8 +4,9 @@
 > `noopapp/noop` tap referenced by older releases is gone — the upstream `noopapp` GitHub org (and its
 > `homebrew-noop` repo) no longer exists (#1069), so `brew tap noopapp/noop` fails outright.
 >
-> **Install NOOP on macOS by downloading `NOOP-macos-v12.0.1-dx.zip` from the
-> [12.0.1 release](https://github.com/DX23876/noop/releases/tag/v12.0.1-dx)**. It is universal for
+> **Install NOOP on macOS by downloading `NOOP-macos-v12.2.1-dx.zip` from the
+> [12.2.1 release](https://github.com/DX23876/noop/releases/tag/v12.2.1-dx)** (or the newest build on the
+> [latest release](https://github.com/DX23876/noop/releases/latest) page). It is universal for
 > Apple Silicon and Intel; unzip it and drag the app to Applications.
 > See **Mac** under [Install](../README.md#install) in the README for the one-time first-launch step
 > (NOOP ships anonymously and isn't notarized, so macOS blocks a plain double-click the first time;
@@ -26,13 +27,16 @@ brew upgrade --cask noop   # later updates
 ```
 
 To bring that back, a public `homebrew-noop` tap repo must be created under this fork's org (e.g.
-`ryanbr/homebrew-noop`), holding `Casks/noop.rb` pointing at the macOS `.zip` attached to each release.
+`DX23876/homebrew-noop`), holding `Casks/noop.rb` pointing at the macOS `.zip` attached to each release.
 `Tools/update-homebrew-cask.sh` still automates the cask refresh, but it defaults to the dead `NoopApp`
 tap — point it at the new repo via the `FORGE_ORG` / `FORGE_REPO` environment variables:
 
 ```bash
-FORGE_ORG=ryanbr Tools/update-homebrew-cask.sh <version>   # e.g. … 1.95
+FORGE_ORG=DX23876 Tools/update-homebrew-cask.sh <version> <zip>   # e.g. … 12.2.1 ~/Downloads/NOOP-macos-v12.2.1-dx.zip
 ```
+
+Pass the zip path explicitly: the script's default (`~/Downloads/NOOP-v<version>-macos.zip`) predates this
+fork's `NOOP-macos-v<version>-dx.zip` asset name.
 
 That script computes the release zip's SHA256, regenerates `Casks/noop.rb`, and pushes it to the tap.
 There is **no GitHub Actions workflow / repo secret** — releases are cut by hand, so the cask update
