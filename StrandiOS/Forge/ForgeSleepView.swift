@@ -200,7 +200,7 @@ struct ForgeSleepView: View {
                     if let bed {
                         VStack(alignment: .trailing, spacing: 0) {
                             Text(bed, format: .dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                                .font(.system(size: 32, weight: .regular, design: .rounded))
+                                .font(ForgeFont.figure(26))
                                 .foregroundStyle(ForgeColor.restInk)
                             Text("bedtime").font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
                         }

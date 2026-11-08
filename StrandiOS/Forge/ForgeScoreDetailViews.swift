@@ -313,7 +313,7 @@ struct ForgeDailyChart: View {
                 Spacer()
                 if let history {
                     NavigationLink(value: history) {
-                        Text("History").font(.system(.body)).foregroundStyle(ForgeColor.accent)
+                        Text("History").font(.system(.subheadline)).foregroundStyle(ForgeColor.accent)
                     }
                 }
             }

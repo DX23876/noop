@@ -271,10 +271,10 @@ struct ForgeTrainingView: View {
             Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
             Spacer()
             NavigationLink(value: route) {
-                Text(link).font(.system(.body)).foregroundStyle(ForgeColor.trainingAccent)
+                Text(link).font(.system(.subheadline)).foregroundStyle(ForgeColor.trainingAccent)
             }
         }
-        .padding(.horizontal, 4).padding(.top, 14)
+        .padding(.horizontal, 4).padding(.top, 12)
     }
 
     // MARK: Routines
@@ -286,10 +286,10 @@ struct ForgeTrainingView: View {
                     Text("Routines").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                     Spacer()
                     NavigationLink(value: MoreDestination.training) {
-                        Text("All").font(.system(.body)).foregroundStyle(ForgeColor.trainingAccent)
+                        Text("All").font(.system(.subheadline)).foregroundStyle(ForgeColor.trainingAccent)
                     }
                 }
-                .padding(.horizontal, 4).padding(.top, 14)
+                .padding(.horizontal, 4).padding(.top, 12)
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
                         ForEach(hub.plan.routines) { routine in
@@ -346,10 +346,10 @@ struct ForgeTrainingView: View {
                 Text("Recent activities").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                 Spacer()
                 NavigationLink(value: ForgeRoute.workouts) {
-                    Text("All").font(.system(.body)).foregroundStyle(ForgeColor.trainingAccent)
+                    Text("All").font(.system(.subheadline)).foregroundStyle(ForgeColor.trainingAccent)
                 }
             }
-            .padding(.horizontal, 4).padding(.top, 14)
+            .padding(.horizontal, 4).padding(.top, 12)
             if rows.isEmpty, recentLoaded {
                 Text("Workouts you record or import appear here.")
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary).padding(.horizontal, 4)

@@ -360,7 +360,7 @@ struct ForgeSectionTitle: View {
             Spacer()
             if let action {
                 Button(action: action.run) {
-                    Text(action.label).font(.system(.body)).foregroundStyle(ForgeColor.accent)
+                    Text(action.label).font(.system(.subheadline)).foregroundStyle(ForgeColor.accent)
                 }
                 .buttonStyle(.plain)
             }
