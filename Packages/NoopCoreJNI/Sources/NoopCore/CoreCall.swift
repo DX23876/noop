@@ -190,6 +190,7 @@ public enum CoreCall {
             }
         }
         if op.hasPrefix("ecg.") { return await CoreEcg.run(op, args: args, store: store) }
+        if op.hasPrefix("food.plan") { return await CoreDietPlan.run(op, args: args, store: store, reader: reader) }
         if op.hasPrefix("food.") { return await CoreFood.run(op, args: args, store: store) }
         switch op {
         case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))

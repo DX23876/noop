@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.pointer.pointerInput
 import com.noop.R
+import com.noop.core.CoreDietPlan
 import com.noop.core.CoreEnergyPlan
 import com.noop.core.CoreFood
 import com.noop.core.CoreRead
@@ -102,7 +103,18 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var day by remember { mutableStateOf(LocalDate.now()) }
     var summary by remember { mutableStateOf<CoreFood.Day?>(null) }
-    var goals by remember { mutableStateOf<CoreFood.Goals?>(null) }
+    var baseGoals by remember { mutableStateOf<CoreFood.Goals?>(null) }
+    // The diet plan (decision 2026-11-09) outranks the base goals; its figures come from the core.
+    var dietPlan by remember { mutableStateOf(CoreDietPlan.load(context)) }
+    var planResolved by remember { mutableStateOf<CoreDietPlan.Resolved?>(null) }
+    var planWeek by remember { mutableStateOf<CoreDietPlan.Outcome?>(null) }
+    var planWeekApplied by remember { mutableStateOf(false) }
+    var planInputs by remember { mutableStateOf<Pair<Double?, Double?>>(null to null) }
+    var planning by remember { mutableStateOf(false) }
+    var showPlan by remember { mutableStateOf(false) }
+    val goals = planResolved?.let { r ->
+        CoreFood.Goals(r.dayKcal, "plan", r.burnKcal, r.averageKcal - r.burnKcal, r.dayProteinG, r.dayCarbsG, r.dayFatG)
+    } ?: baseGoals
     val goal = goals?.kcal
     var dayNutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }
     var pinned by remember { mutableStateOf(foodPinned(context)) }
@@ -125,8 +137,26 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             CoreFood.prepare()
             FoodHealthConnect.importDays(context)
             val plan = CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))
-            goals = loadFoodGoals(context, plan)
+            baseGoals = loadFoodGoals(context, plan)
             burnedByDay = plan?.burnedByDay ?: emptyMap()
+            planInputs = planInputs(plan)
+            // Once a day: the weekly look at the plan. Simple mode with Forge steering applies the change (with undo).
+            CoreDietPlan.load(context)?.let { current ->
+                val today = LocalDate.now().toString()
+                if (current.lastAdjustedDay != today) {
+                    val outcome = CoreDietPlan.weekly(current, dietPerson(context), planInputs.first, planInputs.second)
+                    planWeek = outcome
+                    if (outcome != null && outcome.hold == null && current.mode == "simple" && current.steering == "coached") {
+                        val next = current.copy(adjustmentKcal = current.adjustmentKcal + outcome.changeKcal, lastAdjustedDay = today)
+                        CoreDietPlan.save(context, next); dietPlan = next; planWeekApplied = true
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(day, dietPlan, planInputs) {
+        planResolved = dietPlan?.let { p ->
+            withContext(Dispatchers.IO) { CoreDietPlan.resolve(p, dietPerson(context), planInputs.first, planInputs.second, day.toString()) }
         }
     }
     LaunchedEffect(day, revision, goal) {
@@ -164,6 +194,27 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
         ForgeFoodScorePage(score, male = com.noop.ui.ProfileStore.from(context).sex.lowercase() == "male", onBack = { showScore = false })
         return
     }
+    if (planning) {
+        BackHandler { planning = false }
+        ForgeDietPlanner(dietPlan, planInputs.first, planInputs.second, onClose = { planning = false }) { saved ->
+            dietPlan = saved; planWeek = null; planning = false
+        }
+        return
+    }
+    val currentPlan = dietPlan
+    if (showPlan && currentPlan != null) {
+        ForgeDietPlanPage(currentPlan, planResolved, planWeek, planWeekApplied, onBack = { showPlan = false }, onEdit = { planning = true },
+            onEnd = { CoreDietPlan.save(context, null); dietPlan = null; planResolved = null; showPlan = false },
+            onPlanChange = { CoreDietPlan.save(context, it); dietPlan = it },
+            onWeekAccept = { planWeek?.let { w ->
+                val next = currentPlan.copy(adjustmentKcal = currentPlan.adjustmentKcal + w.changeKcal, lastAdjustedDay = LocalDate.now().toString())
+                CoreDietPlan.save(context, next); dietPlan = next; planWeekApplied = true } },
+            onWeekDecline = { planWeek?.let { w ->
+                val back = if (planWeekApplied) currentPlan.adjustmentKcal - w.changeKcal else currentPlan.adjustmentKcal
+                val next = currentPlan.copy(adjustmentKcal = back, lastAdjustedDay = LocalDate.now().toString())
+                CoreDietPlan.save(context, next); dietPlan = next; planWeek = null; planWeekApplied = false } })
+        return
+    }
     if (showNutrients && nutrients != null && dayNutrients != null) {
         BackHandler { showNutrients = false }
         ForgeFoodNutrientsPage(nutrients!!, dayNutrients!!, pinned, onPin = { key -> pinned = toggleFoodPin(context, key) },
@@ -174,7 +225,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
         BackHandler { settings = false; revision++ }
         ForgeFoodDataPage(onBack = {
             settings = false
-            scope.launch { goals = withContext(Dispatchers.IO) { loadFoodGoals(context, CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))) } }
+            scope.launch { baseGoals = withContext(Dispatchers.IO) { loadFoodGoals(context, CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))) } }
             revision++
         })
         return
@@ -227,6 +278,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
                 }
             }
             Text(dayTitle(day).uppercase(Locale.getDefault()), style = Forge.type.overline, color = Forge.sceneInk.secondary)
+            DietPlanLine(dietPlan, planResolved) { if (dietPlan == null) planning = true else showPlan = true }
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
             if (sentence.isNotEmpty()) FoodSentence(sentence)
             week?.let { w ->
@@ -423,6 +475,7 @@ private fun FoodHero(day: LocalDate, totals: Map<String, Double>, goals: CoreFoo
     if (showReason && goals != null) {
         val usual = stringResource(if (goals.basis == "measured") R.string.food_goal_usual else R.string.food_goal_formula, kcalText(goals.burnKcal))
         val text = when {
+            goals.basis == "plan" -> stringResource(R.string.diet_goal_from_plan)
             goals.basis == "fixed" -> stringResource(R.string.food_goal_fixed)
             goals.planDeltaKcal < 0 -> usual + " " + stringResource(R.string.food_goal_plan_off, kcalText(-goals.planDeltaKcal))
             goals.planDeltaKcal > 0 -> usual + " " + stringResource(R.string.food_goal_plan_adds, kcalText(goals.planDeltaKcal))
