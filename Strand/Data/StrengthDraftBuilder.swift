@@ -87,27 +87,16 @@ enum StrengthDraftBuilder {
                     efforts: work.compactMap(\.effort))
             }
             let currentWork = draft.exercises[index].sets.filter { $0.phase == .work }
+            let reference = ProgressionReference(workingSets: currentWork)
             let next = TrainingProgressionEngine.next(
                 configuration: configuration, history: history, mode: definition.mode,
-                currentWeightKg: currentWork.compactMap(\.weightKg).max(),
-                currentReps: currentWork.compactMap(completedReps).min(),
+                currentWeightKg: reference.weightKg,
+                currentReps: reference.reps,
                 currentSets: currentWork.count,
-                currentDurationS: currentWork.compactMap(\.durationS).max())
+                currentDurationS: reference.durationS)
             draft.exercises[index].progressionReason = next.reason
-            for setIndex in draft.exercises[index].sets.indices
-                where draft.exercises[index].sets[setIndex].phase == .work {
-                if let weight = next.weightKg { draft.exercises[index].sets[setIndex].weightKg = weight }
-                if let reps = next.reps {
-                    if definition.isUnilateral {
-                        draft.exercises[index].sets[setIndex].leftReps = reps
-                        draft.exercises[index].sets[setIndex].rightReps = reps
-                        draft.exercises[index].sets[setIndex].reps = nil
-                    } else {
-                        draft.exercises[index].sets[setIndex].reps = reps
-                    }
-                }
-                if let duration = next.durationS { draft.exercises[index].sets[setIndex].durationS = duration }
-            }
+            TrainingProgressionEngine.apply(next, reference: reference, to: &draft.exercises[index].sets,
+                                            unilateral: definition.isUnilateral)
             if let count = next.setCount, count > currentWork.count {
                 let template = draft.exercises[index].sets.last(where: { $0.phase == .work })
                     ?? NativeWorkoutSet(index: draft.exercises[index].sets.count)
@@ -137,11 +126,5 @@ enum StrengthDraftBuilder {
                 draft.exercises[exerciseIndex].sets[setIndex].reps = nil
             }
         }
-    }
-
-    private static func completedReps(_ set: NativeWorkoutSet) -> Int? {
-        if let reps = set.reps { return reps }
-        if let left = set.leftReps, let right = set.rightReps { return min(left, right) }
-        return set.leftReps ?? set.rightReps
     }
 }
