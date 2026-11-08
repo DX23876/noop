@@ -15,10 +15,11 @@ There is no NOOP cloud or account. Optional, explicit network paths are document
 
 ## Repository layout
 
-The codebase is split into reusable Swift packages plus Apple app targets. The **macOS app is the
-reference implementation**; iOS/iPadOS ships as an unsigned IPA and as the `NOOPiOS` Xcode target;
-the optional Watch companion ships inside the Full IPA. This fork does not contain or release
-Android — use [RyanBR's upstream repository](https://github.com/ryanbr/noop) for that platform.
+The codebase is split into reusable Swift packages plus Apple app targets and an Android app. The
+**macOS app is the reference implementation**; iOS/iPadOS ships as an unsigned IPA and as the `NOOPiOS`
+Xcode target; the optional Watch companion ships inside the Full IPA. The Android app under `android/`
+is a Kotlin shell (Bluetooth, Android services, Compose screens) around the same Swift core, compiled
+for Android from `Packages/NoopCoreJNI`; it is in testing (see [Android](#android) below).
 
 ```
 Strand/
@@ -35,16 +36,21 @@ Strand/
 │   └── Resources/              # Info.plist, Strand.entitlements, Assets.xcassets (AppIcon)
 ├── StrandTests/                # macOS app unit tests
 ├── StrandiOS/                  # iOS shell, HealthKit, widgets, Live Activity and Watch sources
+├── android/                    # Android app (Gradle); swift-core/ builds the shared core for it
 ├── Packages/
 │   ├── WhoopProtocol/          # BLE frame parsing, CRC, command/event/packet decode
 │   ├── WhoopStore/             # GRDB/SQLite persistence (migrations, streams, caches)
 │   ├── StrandAnalytics/        # HRV / recovery / strain / sleep / correlation math
 │   ├── StrandImport/           # WHOOP CSV + Apple Health importers
+│   ├── StrandCore/             # shared app core: daily analysis, AnalysisRecipe, backup, energy, Hevy, media
+│   ├── StrandTraining/         # training models, exercise catalogue, routine import
+│   ├── MuscleMap/              # body-map drawing for training views
 │   ├── StrandDesign/           # SwiftUI design system (palette, components, charts)
 │   ├── OuraProtocol/           # Oura BLE protocol/decode
 │   ├── PolarProtocol/          # Polar protocol/decode
 │   ├── SemanticMemory/         # local Coach memory index
-│   └── NoopLocalAccess/        # optional read-only macOS local-access CLI
+│   ├── NoopLocalAccess/        # optional read-only macOS local-access CLI
+│   └── NoopCoreJNI/            # JNI bridge that exposes the shared core to Android (libNoopCore.so)
 ├── Tools/
 │   └── Backfill/               # `swift run backfill` — re-runs importers into the on-device DB
 └── Fixtures/                   # Sample data for tests
@@ -68,6 +74,10 @@ target support from this summary alone.
 | `PolarProtocol`  | macOS 13+, iOS 16+       | none                                      | Polar protocol primitives and PPI decode |
 | `SemanticMemory` | macOS 13+, iOS 17+       | `GRDB.swift`                              | local semantic Coach index |
 | `NoopLocalAccess`| macOS 13+                 | `GRDB.swift`                              | optional read-only local-access CLI/core |
+| `StrandCore`     | macOS 13+, iOS 16+ (also built for Android) | `WhoopStore`, `StrandAnalytics`, `StrandTraining`, `StrandImport`, `GRDB.swift`, `ZIPFoundation`, `swift-crypto` | shared app core: daily analysis and `AnalysisRecipe`, backup archive, energy, Hevy sync, exercise media |
+| `StrandTraining` | iOS 16+, macOS 13+       | none                                      | training models, exercise catalogue, routine import |
+| `MuscleMap`      | iOS 17+, macOS 13+       | none                                      | body-map rendering for training views |
+| `NoopCoreJNI`    | macOS 13+ for its tests; Android arm64 | `StrandCore` and the packages above | `NoopCore` dynamic library and JNI bridge for Android; also compiles linked app sources under `Sources/NoopCore/Shared` |
 
 All third-party dependencies are resolved through **Swift Package Manager**; nothing is vendored
 as a binary.
@@ -334,9 +344,44 @@ provisioning profile, or personal developer name.
 
 ## Android
 
-This fork no longer carries or releases the Android tree. For Android development and builds, use
-[RyanBR's upstream NOOP repository](https://github.com/ryanbr/noop). The Swift packages and Apple
-release gates documented here cover iOS and macOS only.
+The Android app (`android/`, applicationId `io.github.dx23876.noop`, Android 8.0+ / minSdk 26) is in
+testing (see [`fork/android/TESTING.md`](fork/android/TESTING.md) and
+[`fork/android/STATUS.md`](fork/android/STATUS.md)). Its store and its scoring are the shared Swift
+core's; Kotlin keeps Bluetooth, Android services and the screens. Every build compiles the shared Swift core from `Packages/NoopCoreJNI` into `libNoopCore.so` (arm64) and packs
+it with the Swift runtime into the APK. The `versionName` is read from `MARKETING_VERSION` in
+`project.yml`.
+
+Prerequisites, as pinned in `.github/workflows/android.yml` and `android/swift-core/build-swift-core.sh`:
+
+| Tool | Version | Notes |
+|---|---|---|
+| JDK | 17 | `jvmTarget` in `android/app/build.gradle.kts` |
+| Gradle | 8.7 | provisioned by `android/gradlew`; no system Gradle needed |
+| Android SDK | `compileSdk` 35 | via `$ANDROID_HOME` or `android/local.properties` (`sdk.dir=…`) |
+| Android NDK | r30 (`30.0.16248370`) | `$ANDROID_NDK_HOME`, or `$ANDROID_HOME/ndk/30.0.16248370` |
+| Swift toolchain | 6.4.1 (swift.org) | must match the Swift SDK; on macOS the script looks under `~/Library/Developer/Toolchains`, `NOOP_SWIFT` overrides it |
+| Swift SDK for Android | `swift-6.4.1-RELEASE_android` | `swift sdk install <artifactbundle>`, then its `setup-android-sdk.sh` |
+
+The Gradle task `buildSwiftCore` runs `android/swift-core/build-swift-core.sh` before every build. The
+script downloads and checks the same snapshot-enabled SQLite amalgamation as the Linux package build
+above, patches GRDB and ZIPFoundation for Android (`patch_dependencies.py`) and copies every shared
+library `libNoopCore.so` needs into the APK.
+
+```bash
+cd android
+./gradlew assembleFullDebug assembleDemoDebug assembleFullDebugAndroidTest
+python3 swift-core/check-apk-resources.py app/build/outputs/apk/full/debug/*.apk app/build/outputs/apk/demo/debug/*.apk
+./gradlew testFullDebugUnitTest
+```
+
+These are the commands `android.yml` and `Tools/local-tests.sh` run (the latter for any change under
+`android/`, `Packages/`, `project.yml` or `Tools/parity_cases/`). The unit tests include the parity
+oracles in `android/app/src/test/resources/core_parity/`. `Full` is the real app; `Demo` installs beside it with a
+DEMO badge so every screen can be explored without a strap.
+
+A release APK is built and signed only by `.github/workflows/android-release.yml` (release key from
+repository secrets), which the Apple release workflow calls after it has created the release; it
+attaches `NOOP-Forge-android-<VERSION>-testing.apk`. No published release carries one yet.
 
 ---
 
@@ -353,6 +398,14 @@ cd Packages/OuraProtocol && swift test
 cd Packages/PolarProtocol && swift test
 cd Packages/SemanticMemory && swift test
 cd Packages/NoopLocalAccess && swift test
+cd Packages/StrandCore && swift test
+cd Packages/StrandTraining && swift test
+cd Packages/MuscleMap && swift test
+cd Packages/NoopCoreJNI && swift test
+
+# On macOS, on a committed tree: the app, package and Android legs that the changes since origin/main
+# need, recorded for .githooks/pre-push (a full run takes about 45 minutes):
+Tools/local-tests.sh
 
 # macOS app + integration tests via Xcode:
 xcodegen generate

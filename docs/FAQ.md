@@ -53,11 +53,13 @@ into something diagnosable.
 ## Does my data ever leave my device?
 
 NOOP has no server, account, telemetry, or cloud sync. Raw sensor streams and the local database stay
-on your device unless you explicitly export/share them. Three user-controlled paths can use the
+on your device unless you explicitly export/share them. A few user-controlled paths can use the
 network: the optional Coach sends your question and an approved compact text summary to the provider
-you configure; a source-built Oura lane pulls your own Oura history in; and the update checker reads
-public release metadata from GitHub when you tap it or, when enabled, at most once per day. It never
-installs anything and can be disabled under Settings → About.
+you configure; a source-built Oura lane pulls your own Oura history in; an optional Hevy connection
+reads your own Hevy workouts and routines with your key; the optional exercise media pack and a
+personal ExerciseDB source are downloaded only when you ask; and the update checker reads public
+release metadata from GitHub when you tap it or, when enabled, at most once per day. The update check
+never installs anything and can be disabled under Settings → About.
 
 Two exports can carry your data off-device **when you choose where to send them**:
 
@@ -72,14 +74,24 @@ Both are user-initiated. See [docs/PRIVACY_SECURITY.md](PRIVACY_SECURITY.md).
 `UpstreamStoreUpgradeTests` open stores from upstream 11.5 and 11.7 with their history intact.
 
 **From NOOP Forge back to RyanBR's NOOP: not guaranteed.** Forge's database carries many more
-migrations than upstream's (v85 in Forge 13.0.0; upstream was at v47 when they were last compared,
-at 12.1.0), and some upstream migrations were renumbered when they were merged. GRDB ignores unknown later migrations, and
+migrations than upstream's (v85 on the current main tree, the 13.0.0 testing build; upstream was at
+v47 at the last recorded comparison, the upstream sync of 2026-10-01), and some upstream migrations were
+renumbered when they were merged. GRDB ignores unknown later migrations, and
 `testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins that for an older reader, but no test opens a
 current Forge backup in a current upstream build.
 
 The retired Android parity contract means byte-for-byte Swift/Room agreement is no longer a release
 gate, not that the backup was deliberately made incompatible. Keep an untouched backup before
 switching between forks, and restore with the same or a newer build of the same app when possible.
+
+## Is there an Android version?
+
+Yes, in testing. The Android app runs on the same shared Swift core as the iPhone and Mac apps
+(scores, analysis, imports and backup are computed by the same code), with Android's own Bluetooth
+layer and screens. It needs Android 8.0 or later and is not yet published as a release download.
+How to install a testing APK and what testers are asked to confirm:
+[docs/fork/android/TESTING.md](fork/android/TESTING.md). What already works and what is still open:
+[docs/fork/android/STATUS.md](fork/android/STATUS.md).
 
 ## Which numbers are measured, and which are NOOP's own estimates?
 
