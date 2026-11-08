@@ -7,12 +7,13 @@
 <p align="center">
   <b>Your strap. Your numbers. Your coach.</b><br>
   A complete recovery, sleep and training app for your WHOOP strap.<br>
-  It runs entirely on your iPhone and Mac. No subscription, no account, no cloud.
+  It runs entirely on your iPhone, iPad and Mac, with Android in testing. No subscription, no account, no cloud.
 </p>
 
 <p align="center">
-  <a href="https://github.com/DX23876/noop/releases/tag/v12.0.1-dx"><img alt="Release 12.0.1" src="https://img.shields.io/badge/release-12.0.1-C8902F?style=for-the-badge"></a>
-  <img alt="iOS 17+ and macOS 13+" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=for-the-badge">
+  <a href="https://github.com/DX23876/noop/releases/tag/v12.2.1-dx"><img alt="Release 12.2.1" src="https://img.shields.io/badge/release-12.2.1-C8902F?style=for-the-badge"></a>
+  <a href="docs/fork/TESTING-13.0.0.md"><img alt="Testing build 13.0.0" src="https://img.shields.io/badge/testing-13.0.0-8A6A2F?style=for-the-badge"></a>
+  <img alt="iOS 17+, macOS 13+, Android 8+ in testing" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B%20%C2%B7%20Android%208%2B%20(testing)-234F9E?style=for-the-badge">
   <img alt="WHOOP 4.0, 5.0 and MG" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%20%C2%B7%20MG-234F9E?style=for-the-badge">
   <img alt="No account, no cloud" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-3E8E5E?style=for-the-badge">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20NC-6B737B?style=for-the-badge"></a>
@@ -30,7 +31,7 @@
 <p align="center">
   <img src="docs/assets/screenshots/v12.0.1/hero.webp" width="940" alt="Four Liquid Today screens: key metric tiles with 14-day trends for HRV, resting heart rate, blood oxygen, breathing rate, skin temperature, weight, Rest and calories; Today with glowing Charge 58, Effort 56 and Rest 94 rings in light and in dark mode; and three tiles per row in dark mode">
 </p>
-<p align="center"><sub>The screenshots come from the app's built-in demo mode with a made-up person and made-up numbers. Only the two coach screens show a real phone.</sub></p>
+<p align="center"><sub>The screenshots were taken with 12.0.1 in the app's built-in demo mode, with a made-up person and made-up numbers. Only the two coach screens show a real phone. Later releases look the same in most places.</sub></p>
 
 ---
 
@@ -76,6 +77,7 @@ coach, all in one place.
 
 - A **WHOOP 4.0, 5.0 or MG** strap. You do not need an active WHOOP membership.
 - An **iPhone or iPad** with iOS 17 or later, or a **Mac** with macOS 13 or later.
+- Or, for testers, an **Android phone** with Android 8 or later (see [Android](#-android-testing)).
 - About five minutes to install it with AltStore or SideStore (see [Install](#install)).
 
 ### How it works in three steps
@@ -86,13 +88,21 @@ coach, all in one place.
 3. **Open the app in the morning.** Three scores tell you how your body is doing and what kind of day
    it is ready for.
 
-Already have years of data? Bring them along from a WHOOP export, Apple Health, Strong, Hevy or
-FitNotes.
+Already have years of data? Bring them along from a WHOOP export, Apple Health, Strong, Hevy,
+FitNotes or Liftosaur, or from an Oura, Fitbit, Garmin or Mi Fitness export.
 
 > [!NOTE]
-> **New in 12.0.1:** ECG readings on the WHOOP MG · weekly and monthly goals with their own page,
-> widget and badges · one start screen for every workout and a new live workout view.
-> [Read the release notes](docs/fork/releases/v12.0.1.md).
+> **New in the 12.1 and 12.2 releases:** elevation and grade on GPS workouts · start a recent activity
+> in one tap · Settings sorted by task · a faster gym logger with last session's set beside every row ·
+> the next set and its rest timer on the Lock Screen · routines imported from Hevy or an OpenGym plan.
+> Release notes: [12.1.0](docs/fork/releases/v12.1.0.md) · [12.2.0](docs/fork/releases/v12.2.0.md) ·
+> [12.2.1](docs/fork/releases/v12.2.1.md).
+
+> [!TIP]
+> **Coming in 13.0 (testing build now):** Effort recalibrated on 3,760 real workouts · your own maximum
+> heart rate, learned from your workouts · your whole history scored again once, by the same method ·
+> iPhone, Mac and Android on one shared core. [What to test](docs/fork/TESTING-13.0.0.md) ·
+> [draft release notes](docs/fork/releases/v13.0.0.md).
 
 ---
 
@@ -167,7 +177,9 @@ which of these pushed your score up or down, and by how many points.
 
 **Effort (0 to 100): how hard was your day?**
 Grows through the day as your heart works above its resting level. A hard workout fills it quickly,
-a walk slowly. It is scaled to you, so a hard day reads as hard *for you*.
+a walk slowly. It is scaled to you, so a hard day reads as hard *for you*. From 13.0 Effort follows one
+curve fitted on 3,760 real workouts and uses the maximum heart rate you actually reach in workouts (a
+value you enter in Settings always wins).
 
 **Rest (0 to 100): how good was your sleep?**
 Compares the sleep you got with the sleep you needed, and looks at how deep and how steady it was.
@@ -255,9 +267,14 @@ train and see your weekly training goals at the top.
 session, one of your routines, or a cardio activity like running or cycling.
 
 During a strength workout you see each exercise with **what you lifted last time** and a hint for
-today ("stalled, load goes down to rebuild"). Tick off a set and the rest timer starts on its own.
-Everything works offline, even in a basement gym without signal. If the app closes, your workout is
-still there when you come back.
+today ("stalled, load goes down to rebuild"). Weight and reps go in on a number pad, last session's set
+sits beside each row and a tap copies it. Add a set with one button, swipe one away to remove it. Tick
+off a set and the rest timer starts on its own; the **Lock Screen** shows the next set and counts down
+your rest, and logs the set with one tap. Everything works offline, even in a basement gym without
+signal. If the app closes, your workout is still there when you come back.
+
+Your recent activities start in **one tap** from the Training tab, with the route and zone choice they
+had last time. Routines from **Hevy** or an **OpenGym** plan file come in under Training › Add.
 
 Extras for those who want them: supersets, one-arm and one-leg exercises, how hard a set felt (RPE or
 reps in reserve), warm-up sets, a plate calculator and 1,324 exercises with descriptions. The strap or
@@ -293,7 +310,8 @@ like a treadmill run never ask for your location. Your heart rate comes from the
 Watch.
 
 **While you run** the screen shows the time in large numbers, then heart rate, Effort, distance, your
-current pace (from the last 30 seconds) and your average pace. Swipe to two more pages: the **heart
+current pace (from the last 30 seconds) and your average pace. The iPhone's barometer counts your
+climbs, so you also get an elevation profile, the grade and a grade-adjusted pace. Swipe to two more pages: the **heart
 rate zones** you have spent time in, and your **laps and kilometre splits**. The workout keeps running
 with the phone in your pocket and shows on the Lock Screen and in the Dynamic Island, where you can also
 pause and end it.
@@ -488,7 +506,8 @@ trust any single number.
 well-known study from Norway. "8 years younger than your age" means you are fitter than the average
 person your age. **Vitality** turns your habits (steps, sleep, training) into a score from 0 to 100.
 Both are estimates for motivation, not medical measurements, and the app says so right next to the
-number.
+number. Two more ages are in beta under Settings › Lab: **AgeLess** compares your habits and **Daily
+rhythm** your day's movement with large studies.
 
 ### Find out what affects you
 
@@ -580,6 +599,7 @@ calculated by the app from your own heart rate zones, not invented by the AI.
   others) works for live heart rate. Oura rings are supported experimentally.
 - **Make it yours:** ten languages, light or dark mode, chart colours, the app icon colour and which
   optional features you want (hydration tracking, automatic workout detection, journal reminders).
+  Settings is sorted by task: seventeen pages in six groups, and every control has one home.
 - **Backups:** one file holds everything. Save it to a folder of your choice (for example iCloud Drive)
   automatically every day, and restore it on a new phone.
 
@@ -591,8 +611,9 @@ calculated by the app from your own heart rate zones, not invented by the AI.
 | **Live Activities** | A running workout or a strap sync on the Lock Screen and in the Dynamic Island |
 | **Illness early warning** | Optional. Tells you when several body signals change at the same time, as often happens before a cold. Not a diagnosis |
 | **Strap automations** | Double-tap the strap to mark a moment, a buzz when your heart rate goes too high during a workout |
-| **Imports** | WHOOP export, Apple Health, Strong, Hevy, FitNotes, GPX, TCX and FIT routes |
+| **Imports** | WHOOP export, Apple Health, Strong, Hevy, FitNotes, Liftosaur, Oura, Fitbit, Garmin and Mi Fitness exports, GPX, TCX and FIT routes |
 | **Mac app** | The full app on your Mac, plus your heart rate in the menu bar |
+| **Android (testing)** | The same shared core on Android: pairing, sync, scores, Body, Energy, goals and the coach. See [Android](#-android-testing) |
 
 ---
 
@@ -608,7 +629,8 @@ Both are free, both keep your data on your device, and both need no WHOOP subscr
 
 | If you… | Choose |
 |---|---|
-| use an **Android** phone | **ryanbr/noop.** Forge is for Apple devices only |
+| use an **Android** phone and want a finished app today | **ryanbr/noop.** Forge for Android is still in testing |
+| use an **Android** phone and want to help test | **NOOP Forge**, see [Android](#-android-testing) |
 | want the **official** project with a community (Discord, Reddit, issue tracker) | **ryanbr/noop** |
 | want a **workout log, goals, body tracking and muscle analysis** in the same app | **NOOP Forge** |
 | want an **AI coach** that can look up your real data and suggest plans | **NOOP Forge** |
@@ -617,12 +639,13 @@ Both are free, both keep your data on your device, and both need no WHOOP subscr
 
 ### Side by side
 
-Status 10 October 2026: NOOP Forge 12.0.1, ryanbr/noop 12.1.0. Forge contains every change ryanbr/noop
-has published up to that date.
+Status 8 November 2026: NOOP Forge 12.2.1 is the current release, 13.0.0 is in testing. Forge regularly
+merges ryanbr/noop; the 13.0.0 testing build contains its changes up to early November 2026 (commit
+`2a1de7609`).
 
 | | ryanbr/noop | NOOP Forge |
 |---|---|---|
-| **Platforms** | Android, iPhone, iPad, Mac, Apple Watch | iPhone, iPad, Mac, Apple Watch |
+| **Platforms** | Android, iPhone, iPad, Mac, Apple Watch | iPhone, iPad, Mac, Apple Watch; Android in testing |
 | **Who makes it** | The original project and its community | One anonymous developer, building on the original |
 | **Charge, Effort, Rest, sleep, HRV, stress** | ✅ | ✅ Same foundation |
 | **Today screen** | Rings or liquid vessels | Three layouts, landscapes that follow the day, a Momentum feed |
@@ -641,20 +664,20 @@ has published up to that date.
 | **Widgets** | Main, heart rate, stress, coach | The same plus score rings, energy and goals |
 | **Languages** | 10 | The same 10 |
 | **Install on iPhone** | AltStore, SideStore or direct IPA | The same, with its own source |
-| **Release names** | `v12.1.0` | `v12.0.1-dx`, so the two never collide |
+| **Release names** | `vX.Y.Z` | `vX.Y.Z-dx` (for example `v12.2.1-dx`), so the two never collide |
 
 <details>
 <summary><b>The technical differences in detail</b></summary>
 
 | | ryanbr/noop | NOOP Forge |
 |---|---|---|
-| Code base | Swift and Kotlin, kept byte-identical by rule | Swift only. The Android parity rule was retired on 23 July 2026 and the Android tree removed on 14 August 2026 |
-| Swift packages | 8 | 11: adds `StrandTraining`, `MuscleMap` and `SemanticMemory` |
+| Code base | Swift for Apple, an independent Kotlin reimplementation for Android, kept byte-identical by rule | One shared Swift core for every platform. Android is a Kotlin shell (Bluetooth, Android services, Compose screens) that calls the core through JNI and stores in the same SQLite database. The parity rule was retired on 23 July 2026; Android came back on the shared core on 25 October 2026, and Room left the app on 1 November 2026 |
+| Swift packages | 8 | 13: adds `StrandCore` (the shared app core), `NoopCoreJNI` (the Android bridge), `StrandTraining`, `MuscleMap` and `SemanticMemory` |
 | Coach | 2 source files plus 4 provider adapters | About 60 source files, 38 tools, nine permission purposes, an on-device embedding model for memory |
 | Coach memory | Stored chat messages | Up to 120 facts with confirmation for health facts, expiry and ranking; on-device semantic search |
 | Calorie model | Heart-rate formula | Version 9: walks priced by pace, other sessions by a VO₂max that fits the body, opt-in Apple Watch calibration |
 | Benchmarks | Sleep staging, PSG | Adds energy and memory retrieval benches |
-| CI | Android, parity, packages, app build, hygiene | Packages, release builds, attribution and translation gates |
+| CI | Android, parity, packages, app build, hygiene | Packages, app build, Android build with the shared core, release builds, attribution and translation gates, plus a local test gate before every push to `main` |
 
 Shared by both: the Bluetooth decoders and safety checks, WHOOP 4.0 and 5.0/MG support, experimental
 Oura and Polar paths, the storage layer, the core scoring, Breathe, Intervals, Stress, Mind, the lab
@@ -676,6 +699,7 @@ The app only goes online in these cases, and only if you allow it:
 | **AI coach** | Only if you turn it on, only to the AI provider you picked, never raw heart data |
 | **Update check** | When you tap it, or at most once a day if you allow it |
 | **Hevy sync** | Only if you connect your Hevy account |
+| **Exercise media** | Only when you tap download in the training settings. The pack comes straight from its source; no workout or health data is sent |
 | **Oura cloud import** | Only in a build you compile yourself with your own Oura developer key. Pairing a ring over Bluetooth needs no internet |
 
 - No ads, no tracking, no analytics, no crash reports sent anywhere.
@@ -712,9 +736,13 @@ With a free Apple ID the app has to be refreshed every seven days. AltStore and 
 you in the background.
 
 You can also download the file directly from the
-[release page](https://github.com/DX23876/noop/releases/tag/v12.0.1-dx):
-`NOOP-ios-unsigned-v12.0.1-dx.ipa` includes the widgets, and
-`NOOP-ios-full-unsigned-v12.0.1-dx.ipa` also contains the Apple Watch app. More in the
+[release page](https://github.com/DX23876/noop/releases/tag/v12.2.1-dx):
+`NOOP-ios-unsigned-v12.2.1-dx.ipa` includes the widgets, and
+`NOOP-ios-full-unsigned-v12.2.1-dx.ipa` also contains the Apple Watch app.
+
+Want to try 13.0 early? The [testing build](https://github.com/DX23876/noop/releases/tag/testing-latest)
+installs over Forge and keeps your data. Make a backup first; the
+[testing guide](docs/fork/TESTING-13.0.0.md) says what to look at. More in the
 [iOS guide](docs/IOS.md).
 
 </td>
@@ -722,8 +750,8 @@ You can also download the file directly from the
 
 ### 💻 Mac
 
-1. Download `NOOP-macos-v12.0.1-dx.zip` from the
-   [release page](https://github.com/DX23876/noop/releases/tag/v12.0.1-dx).
+1. Download `NOOP-macos-v12.2.1-dx.zip` from the
+   [release page](https://github.com/DX23876/noop/releases/tag/v12.2.1-dx).
 2. Unzip it and move **NOOP** to your Applications folder.
 3. The first time, **right-click → Open** (a normal double-click is blocked because the app is not
    from the App Store).
@@ -731,9 +759,32 @@ You can also download the file directly from the
 
 Works on Apple Silicon and Intel Macs.
 
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🤖 Android (testing)
+
+NOOP Forge for Android runs on the same shared core as the iPhone app, so it shows the same numbers for
+the same data. It is still a **testing build**: it stays labelled that way until testers on different
+phones have confirmed pairing, live heart rate, the overnight sync and reconnecting, each with a strap
+log.
+
+1. Download `NOOP-Forge-android-<version>-testing.apk` from the newest
+   [release](https://github.com/DX23876/noop/releases) that has one.
+2. Open it on the phone and allow installing from this source.
+3. Accept the terms and go through the setup; it pairs your strap on the way.
+
+Android 8 or later. What to check and how to report it: [Android testing](docs/fork/android/TESTING.md).
+Want a finished Android app today? Use [ryanbr/noop](https://github.com/ryanbr/noop).
+
+</td>
+<td width="50%" valign="top">
+
 ### 🛠️ Build it yourself
 
-For developers: you need Xcode 26 or later and
+For developers. **Apple:** Xcode 26 or later and
 [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
@@ -742,7 +793,12 @@ cd noop && xcodegen generate
 open Strand.xcodeproj
 ```
 
-Choose **NOOPiOS** for iPhone or **Strand** for Mac. See the [build guide](docs/BUILD.md).
+Choose **NOOPiOS** for iPhone or **Strand** for Mac.
+
+**Android:** JDK 17, the Android SDK, a Swift 6.4.1 toolchain with the Swift SDK for Android and NDK
+r30. The Gradle build compiles the shared Swift core first (`android/swift-core/build-swift-core.sh`).
+
+See the [build guide](docs/BUILD.md).
 
 </td>
 </tr>
@@ -758,7 +814,7 @@ gh attestation verify NOOP-ios-unsigned-v13.0.0-dx.ipa --repo DX23876/noop
 ```
 
 **Updating keeps your data.** **Moving to a new phone:** export a backup under Data & Backup and import it
-on the new device.
+on the new device. Backups from ryanbr/noop can be imported too.
 
 ---
 
@@ -784,17 +840,21 @@ down:
 <summary><b>How the code is built</b></summary>
 
 All logic lives in Swift packages that run without the app, without a strap and without Bluetooth, so
-they can be tested on their own. The apps for iPhone, Mac and Watch are thin layers on top.
+they can be tested on their own. The apps for iPhone, Mac and Watch are thin layers on top, and so is
+the Android app: its Kotlin code handles Bluetooth, Android services and the screens, and asks the same
+Swift core for every number.
 
 ```
- Apps        iPhone · Mac · widgets · Apple Watch
+ Apps        iPhone · Mac · widgets · Apple Watch     Android (Kotlin, Compose)
  Coach       chat, AI providers, tools, goals, permissions
  ─────────────────────────────────────────────────────────────
- Design      StrandDesign          colours, components, charts
+ Bridge      NoopCoreJNI           the shared core for Android
+ Core        StrandCore            daily analysis, rebuilds, backups, energy, sync
+ Design      StrandDesign          colours, components, charts (Apple only)
  Training    StrandTraining        routines, exercises, set maths
              MuscleMap             muscles and body maps
  Memory      SemanticMemory        on-device search for the coach
- Import      StrandImport          WHOOP, Apple Health, Strong, Hevy
+ Import      StrandImport          WHOOP, Apple Health, Strong, Hevy, Oura, Garmin…
  Analytics   StrandAnalytics       HRV, recovery, strain, sleep, load
  Storage     WhoopStore            SQLite database and migrations
  Protocol    WhoopProtocol         reading the strap's Bluetooth data
@@ -803,7 +863,9 @@ they can be tested on their own. The apps for iPhone, Mac and Watch are thin lay
 
 - The app never sends commands that could change or erase anything on the strap, and checks every
   message from it for transmission errors.
-- When a scoring formula changes, old days are recalculated in a controlled step, never silently.
+- When a scoring formula changes, old days are recalculated in a controlled step, never silently. From
+  13.0 that step scores the whole history once, resumes where it stopped and never touches raw data or
+  anything you entered.
 - A new way of reading a body signal is only trusted after it follows real changes across many nights.
   Until then it stays an experiment you have to switch on.
 
@@ -830,7 +892,7 @@ The Bluetooth work builds on community research, with thanks to
 
 NOOP Forge is free. If it saves you a subscription or simply makes your strap more useful, you can buy
 me a coffee on [Ko-fi](https://ko-fi.com/dx23876). It goes into the time and tools behind new features,
-the next iOS releases and a future Android version.
+the next iOS releases and the Android version.
 
 Donating is optional. The app works exactly the same either way and never nags you about it.
 

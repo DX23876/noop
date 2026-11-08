@@ -85,7 +85,8 @@ databases forward (`UpstreamStoreUpgradeTests` open upstream 11.5 and 11.7 store
 `MigrationTests.testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins the older backwards-reader case.
 Going back from a current Forge backup (v77) to current upstream (v47) is not tested, because some
 upstream migrations were renumbered when merged. What was retired is the promise that every future
-fork change must remain byte-identical to the removed Android/Room implementation.
+fork change must remain byte-identical to a Kotlin/Room implementation; the fork's Android app now reads
+and writes the same GRDB store as Apple.
 
 History (superseded by the return above): the tree was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
 and the Android jobs in both release workflows. Nobody here develops it, and a tree nobody builds
@@ -247,7 +248,7 @@ Grouped, read the specific file when your change touches it:
 - **Device support:** `DEVICE_SUPPORT_ROADMAP.md`, `DEVICE_DRIVER_ARCHITECTURE.md`
 - **Ops/trust:** `PRIVACY_SECURITY.md`, `SAFEGUARDS.md`, `HOMEBREW.md`
 - **Reference:** `LIBRARY.md`
-- **Predates the 2026-07-23 retirement decisions:** `CROSS_PLATFORM.md`, `ANDROID.md`
+- **Platforms:** `IOS.md`, `ANDROID.md` (the shared-core Android app in testing), `CROSS_PLATFORM.md`
 
 Fork-only docs, under [`fork/`](fork/):
 
@@ -270,6 +271,9 @@ Fork-only docs, under [`fork/`](fork/):
 | [`fork/research/sideload-folder-picker.md`](fork/research/sideload-folder-picker.md) | Why re-signed iOS builds can fail to grant an external backup folder, and the staged fix strategy |
 | [`fork/research/openstrap-ecg-adaptation.md`](fork/research/openstrap-ecg-adaptation.md) | OpenStrap's released MG ECG implementation, NOOP's remaining integration gaps, and a source-backed adaptation plan |
 | [`fork/research/ecg-ppg-reference.md`](fork/research/ecg-ppg-reference.md) | Actual RR/HRV sources, offline ECG/optical timing validation and proposed durable raw-reference capture |
+| [`fork/android/`](fork/android/) | Android on the shared core: `PLAN.md`, `PARITY-PLAN.md`, `CORE-ONLY-PLAN.md`, `STATUS.md` (running state), `INVENTORY.md`, `TESTING.md` |
+| [`fork/TESTING-13.0.0.md`](fork/TESTING-13.0.0.md) | What testers check in the 13.0.0 testing build |
+| [`fork/AGENT_RULES.md`](fork/AGENT_RULES.md) | Fork rules that override `AGENTS.md` |
 | [`fork/releases/`](fork/releases/) | Release notes — `publish-ios-release.yml` reads `fork/releases/v<VERSION>.md` and refuses to publish without it. NOT tag-named: `Tools/appchangelog-gen.py` derives the in-app "What's New" version from the filename |
 
 When you add a doc, file it into the matching group in the same change — this map stays current

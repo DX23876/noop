@@ -21,8 +21,9 @@ approved product decisions here unless the user explicitly changes them.
 
 The work changes UI, motion, navigation, and display preferences. It does not change scoring,
 stored metric meaning, source precedence, aggregation windows, or
-`IntelligenceEngine.currentAnalysisRecipeVersion`. The checkout is Apple-only; no Android twin is
-required.
+`IntelligenceEngine.currentAnalysisRecipeVersion`. When this plan was written the checkout was
+Apple-only, so no Android twin was required; Android's Forge screens now follow iOS feature by feature
+(see [`android/STATUS.md`](android/STATUS.md)).
 
 ## Outcome
 

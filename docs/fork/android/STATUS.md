@@ -1,6 +1,13 @@
 # Android on a shared Swift core: status
 
-Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLAN.md) · last updated 2026-10-29
+Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLAN.md) · core-only step:
+[`CORE-ONLY-PLAN.md`](CORE-ONLY-PLAN.md) · last updated 2026-11-08
+
+> **Since 2026-11-01 Room is out of the app** ([`CORE-ONLY-PLAN.md`](CORE-ONLY-PLAN.md), its own "Status"
+> section is the current record for that step). Rows below dated before it that mention Room as a fallback, a
+> Lab switch for shared-core reads or Room-to-core mirroring describe the path as it was then: the core is now
+> the only store, the history acknowledgement always waits for the core, and an old Room file or backup is
+> adopted by the core.
 
 ## In progress
 
