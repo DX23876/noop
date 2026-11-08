@@ -52,7 +52,8 @@ class DesignTokensTests(unittest.TestCase):
 
     def test_dimensions_and_the_iphone_type_scale(self):
         self.assertEqual(22.0, self.tokens["dimensions"]["NoopMetrics.cardRadius"])
-        self.assertEqual({"size": 28.0, "weight": 700, "rounded": True}, self.tokens["fonts"]["StrandFont.title1"])
+        # The new design, the only one Android draws, sets headings in SF Pro rather than rounded.
+        self.assertEqual({"size": 28.0, "weight": 700, "rounded": False}, self.tokens["fonts"]["StrandFont.title1"])
         # The iPhone branch maps body to subheadline (15 pt); the macOS branch's 17 pt must not win.
         self.assertEqual(15.0, self.tokens["fonts"]["StrandFont.body"]["size"])
 
