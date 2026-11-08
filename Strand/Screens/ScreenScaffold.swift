@@ -301,10 +301,41 @@ struct ComingSoon: View {
     }
 
     var body: some View {
-        switch presentation {
-        case .inline:   inlineBody
-        case .spacious: spaciousBody
+        if NoopVisualStyle.skin == .forge && !loading {
+            forgeBody
+        } else {
+            switch presentation {
+            case .inline:   inlineBody
+            case .spacious: spaciousBody
+            }
         }
+    }
+
+    /// The new design's empty state: the screen's symbol as a picture, the sentence under it centred and
+    /// the way out as a filled button, so an empty page still looks finished rather than broken.
+    private var forgeBody: some View {
+        VStack(spacing: 14) {
+            CoachPicture(main: symbol == "sparkles" ? "tray.fill" : symbol, accentA: "sparkle", accentB: "star.fill",
+                         tint: StrandPalette.accent)
+                .frame(width: 104, height: 104)
+                .padding(.top, 4)
+            if !hidesPlaceholderTitle {
+                Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                    .multilineTextAlignment(.center)
+            }
+            Text(what)
+                .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            if let action {
+                Button(action.label, action: action.run)
+                    .buttonStyle(NoopButtonStyle(.primary))
+                    .padding(.top, 4)
+            }
+        }
+        .padding(.vertical, 24).padding(.horizontal, 20)
+        .frame(maxWidth: .infinity)
+        .frostedCardSurface()
     }
 
     @ViewBuilder

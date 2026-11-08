@@ -935,13 +935,12 @@ private struct DeviceCard: View {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
                 HStack(alignment: NoopVisualStyle.skin == .forge ? .center : .top, spacing: NoopMetrics.space3) {
                     if NoopVisualStyle.skin == .forge {
-                        Image(systemName: icon)
-                            .font(StrandFont.subhead.weight(.semibold))
-                            .foregroundStyle(StrandPalette.forgeOnAccent)
-                            .frame(width: 40, height: 40)
-                            .background(isActive ? StrandPalette.chargeColor : StrandPalette.textTertiary,
-                                        in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                            .accessibilityHidden(true)
+                        // The device pictured in its own colour, as the coach cards picture a measure; a
+                        // device that is not the active one keeps its colour but sits quieter.
+                        CoachPicture(main: icon, accentA: "antenna.radiowaves.left.and.right", accentB: "sparkle",
+                                     tint: deviceTint)
+                            .frame(width: 64, height: 64)
+                            .opacity(isActive ? 1 : 0.7)
                     } else {
                     Image(systemName: icon)
                         .font(StrandFont.title2)
@@ -954,9 +953,12 @@ private struct DeviceCard: View {
                         Text(device.displayName)
                             .font(StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
-                        Text(profile.displayModel)
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textSecondary)
+                        // "WHOOP" under "WHOOP" says nothing; the model line shows only when it adds to the name.
+                        if NoopVisualStyle.skin != .forge || profile.displayModel != device.displayName {
+                            Text(profile.displayModel)
+                                .font(StrandFont.subhead)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
                     }
                     Spacer()
                     // Locally-adopted Oura is Beta: a non-dot Beta chip sits beside the usual state pill.
@@ -1263,6 +1265,17 @@ private struct DeviceCard: View {
 
     /// SF Symbol for the device: WHOOP keeps the band glyph; an FTMS machine reads as gym equipment;
     /// an Apple Watch reads as a watch; generic straps read as a heart-rate strap.
+    /// The device's colour in the new design: the strap green, a ring purple, a chest strap rose, a gym
+    /// machine orange, a band amber, so a list of devices reads as different things at a glance.
+    private var deviceTint: Color {
+        switch device.sourceKind {
+        case .oura: return StrandPalette.metricPurple
+        case .ftms: return StrandPalette.effortColor
+        case .huami: return StrandPalette.metricAmber
+        default: return SourceCoordinator.isWhoop(device) ? StrandPalette.chargeColor : StrandPalette.metricRose
+        }
+    }
+
     private var icon: String {
         if device.sourceKind == .ftms { return "figure.run.treadmill" }
         if device.sourceKind == .huami { return "waveform.path.ecg.rectangle" }

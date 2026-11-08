@@ -15,6 +15,31 @@ struct WearableConnectionStateCard: View {
     let action: () -> Void
 
     var body: some View {
+        if NoopVisualStyle.skin == .forge { forgeBody } else { shippedBody }
+    }
+
+    /// The new design: the strap pictured waiting for its link, the step to take as a filled button.
+    private var forgeBody: some View {
+        VStack(spacing: 14) {
+            CoachPicture(main: "sensor.tag.radiowaves.forward.fill", accentA: "antenna.radiowaves.left.and.right",
+                         accentB: "sparkle", tint: StrandPalette.metricCyan)
+                .frame(width: 104, height: 104)
+            Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+            StatePill("Offline", tone: .neutral, showsDot: false)
+            Text(detail)
+                .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            NoopButton(actionTitle, systemImage: "arrow.right", kind: .primary, fullWidth: true, action: action)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(LinearGradient(colors: [StrandPalette.metricCyan.opacity(0.16), StrandPalette.metricCyan.opacity(0.04)],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing)))
+    }
+
+    private var shippedBody: some View {
         NoopCard(tint: StrandPalette.metricCyan) {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 HStack(spacing: NoopMetrics.space3) {
@@ -33,8 +58,7 @@ struct WearableConnectionStateCard: View {
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                NoopButton(actionTitle, systemImage: "arrow.right", kind: NoopVisualStyle.skin == .forge ? .secondary : .primary,
-                           fullWidth: true, action: action)
+                NoopButton(actionTitle, systemImage: "arrow.right", kind: .primary, fullWidth: true, action: action)
             }
         }
     }

@@ -264,12 +264,22 @@ struct LoadHeroCard: View {
         VStack(alignment: .leading, spacing: compact ? NoopMetrics.space2 : NoopMetrics.space3) {
             header
             if NoopVisualStyle.skin == .forge, !compact, let figure {
-                // The measured amount is the page's answer; the comparison reads under it.
-                Text(figure)
-                    .font(StrandFont.rounded(40, weight: .bold).monospacedDigit())
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                // The measured amount is the page's answer; the comparison reads under it. A figure of two
+                // parts ("0 working sets · 0.0 weighted sets") shows the first large and the second under it:
+                // both at 40 pt ran off the card.
+                let parts = figure.components(separatedBy: " · ")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(parts[0])
+                        .font(StrandFont.rounded(40, weight: .bold).monospacedDigit())
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    if parts.count > 1 {
+                        Text(parts.dropFirst().joined(separator: " · "))
+                            .font(StrandFont.subhead.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
             }
             HStack(alignment: .bottom, spacing: NoopMetrics.space3) {
                 VStack(alignment: .leading, spacing: 2) {
