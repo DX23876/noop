@@ -147,14 +147,15 @@ enum CoreFood {
         case "food.onlineSearch":
             // Only when the wearer chose online search; Kotlin passes the countries it chose.
             do {
-                return CoreRead.json(["items": try await FoodOnline.search(string("query"),
-                    countries: args["countries"] as? [String] ?? [], language: string("language").isEmpty ? "de" : string("language"))])
+                let found = try await FoodOnline.search(string("query"), countries: args["countries"] as? [String] ?? [],
+                                                        language: string("language").isEmpty ? "de" : string("language"))
+                return CoreRead.json(["items": await FoodLibrary.preferKept(store: store, found)])
             } catch { return #"{"error":"offline"}"# }
         case "food.onlineBarcode":
             do {
                 guard let found = try await FoodOnline.product(barcode: string("code"),
                     language: string("language").isEmpty ? "de" : string("language")) else { return "null" }
-                return CoreRead.json(found)
+                return CoreRead.json(await FoodLibrary.preferKept(store: store, [found]).first ?? found)
             } catch { return #"{"error":"offline"}"# }
         case "food.importHealth":
             // Health Connect's daily nutrition per app, as Apple's import resolves it: one app per day, the

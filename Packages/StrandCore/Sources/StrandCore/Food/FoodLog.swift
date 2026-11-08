@@ -223,11 +223,28 @@ public enum FoodLibrary {
 
     public static func item(store: WhoopStore, catalog: FoodCatalog = .shared, id: String) async -> FoodItem? {
         if id.hasPrefix("own:"), let food = try? await store.customFood(id: id) { return item(for: food) }
+        // A catalogue product the wearer kept (with its filled nutrients) opens as the kept one, wherever the id
+        // comes from: a favourite, an old entry, the coach.
+        if let kept = await keptVersion(store: store, of: id) { return kept }
         if id.hasPrefix("recipe:") {
             let recipeId = String(id.dropFirst("recipe:".count))
             return ((try? await store.foodRecipes()) ?? []).first { $0.id == recipeId }.flatMap(FoodLog.item(for:))
         }
         return await catalog.item(id: id)
+    }
+
+    /// The wearer's own food saved from catalogue or online row `id`, newest first.
+    public static func keptVersion(store: WhoopStore, of id: String) async -> FoodItem? {
+        ((try? await store.customFoods()) ?? []).filter { $0.sourceId == id }.max { $0.updatedAt < $1.updatedAt }
+            .map(item(for:))
+    }
+
+    /// Online results with every product the wearer already keeps swapped for the kept version.
+    public static func preferKept(store: WhoopStore, _ items: [FoodItem]) async -> [FoodItem] {
+        let own = (try? await store.customFoods()) ?? []
+        var bySource: [String: CustomFood] = [:]
+        for food in own { if let source = food.sourceId, (bySource[source]?.updatedAt ?? -1) < food.updatedAt { bySource[source] = food } }
+        return items.map { bySource[$0.id].map(item(for:)) ?? $0 }
     }
 
     /// A scanned barcode: the wearer's own scanned foods first, then the installed packs.

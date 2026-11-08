@@ -285,8 +285,10 @@ struct ForgeFoodAddSheet: View {
                 let found = try await FoodOnline.search(value, countries: FoodProductDataPrefs.countries,
                                                         language: FoodProductDataPrefs.language)
                 guard !Task.isCancelled else { return }
+                // A product already kept (with its filled nutrients) shows as the kept one, and only once.
+                let kept = await FoodLibrary.preferKept(store: store, found)
                 let localIds = Set(local.map(\.id))
-                onlineResults = found.filter { !localIds.contains($0.id) }
+                onlineResults = kept.filter { !localIds.contains($0.id) }
             } catch {
                 if !Task.isCancelled { onlineFailed = true }
             }

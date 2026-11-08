@@ -25,8 +25,33 @@ public enum FoodEstimate {
         return missing(item).count * 2 > candidates.count
     }
 
+    /// How different two foods are in make-up, in grams per 100 g over protein, carbohydrate, sugar and fat, with
+    /// protein counted twice because it carries most of what dairy, meat and legumes bring. Nil when either lacks a
+    /// macronutrient.
+    public static func distance(_ a: FoodItem, _ b: FoodItem) -> Double? {
+        var total = 0.0
+        for (nutrient, weight) in [(FoodNutrient.proteinG, 2.0), (.carbsG, 1.0), (.fatG, 1.0)] {
+            guard let x = a.per100g[nutrient], let y = b.per100g[nutrient] else { return nil }
+            total += weight * abs(x - y)
+        }
+        if let x = a.per100g[.sugarG], let y = b.per100g[.sugarG] { total += abs(x - y) }
+        return total
+    }
+
+    /// The largest make-up difference a borrowed value may come from. A product further from every candidate keeps
+    /// only its label: an estimate from an unlike food is worse than none.
+    public static let maximumDistance = 20.0
+
+    /// Whether `reference` is close enough to lend values; protein must also be within 40 % or 3 g.
+    public static func closeEnough(_ item: FoodItem, _ reference: FoodItem) -> Bool {
+        guard let d = distance(item, reference), d <= maximumDistance,
+              let p = item.per100g[.proteinG], let q = reference.per100g[.proteinG] else { return false }
+        return abs(p - q) <= max(3, 0.4 * max(p, q))
+    }
+
     /// `item` with its gaps taken from `reference`, per 100 g, and marked.
     public static func filled(_ item: FoodItem, from reference: FoodItem) -> FoodItem {
+        guard closeEnough(item, reference) else { return item }
         var next = item
         var borrowed: [String] = []
         for nutrient in missing(item) {

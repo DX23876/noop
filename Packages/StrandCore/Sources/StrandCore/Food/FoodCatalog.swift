@@ -66,6 +66,8 @@ public actor FoodCatalog {
 
     private let directoryOverride: URL?
     private var queues: [String: DatabaseQueue] = [:]
+    /// The BLS rows held for composition matching; 7,140 foods, read once.
+    private var blsRows: [FoodItem]?
 
     public init(directory: URL? = nil) {
         self.directoryOverride = directory
@@ -217,6 +219,17 @@ public actor FoodCatalog {
         }
         return scored.sorted { $0.score != $1.score ? $0.score > $1.score : $0.item.name < $1.item.name }
             .prefix(limit).map(\.item)
+    }
+
+    /// BLS foods with the most similar make-up per 100 g (`FoodEstimate.distance`), for borrowing missing values by
+    /// composition rather than by name: a protein pudding resembles low-fat quark more than vanilla pudding.
+    public func nearestBLS(to item: FoodItem, limit: Int = 8) -> [FoodItem] {
+        guard let queue = try? queue(for: "bls") else { return [] }
+        if blsRows == nil {
+            blsRows = (try? queue.read { db in try Row.fetchAll(db, sql: "SELECT * FROM food").compactMap(Self.item) }) ?? []
+        }
+        return (blsRows ?? []).compactMap { candidate in FoodEstimate.distance(item, candidate).map { (candidate, $0) } }
+            .sorted { $0.1 < $1.1 }.prefix(limit).map(\.0)
     }
 
     public func item(id: String) -> FoodItem? {

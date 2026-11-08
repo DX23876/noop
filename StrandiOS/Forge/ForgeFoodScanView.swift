@@ -90,7 +90,7 @@ struct ForgeFoodScanView: View {
             return
         }
         if canLookOnline, let online = try? await FoodOnline.product(barcode: digits, language: FoodProductDataPrefs.language) {
-            onFound(online)
+            onFound(await FoodLibrary.preferKept(store: store, [online]).first ?? online)
             return
         }
         reading = nil

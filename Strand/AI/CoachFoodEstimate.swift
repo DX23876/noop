@@ -7,22 +7,29 @@ import WhoopStore
 /// (`FoodEstimate.filled`). Only with the coach on and the wearer's switch on. Shared with Android (`Shared/`).
 enum CoachFoodEstimate {
     static let system = """
-        You match a packaged food to the most similar generic food in the German Nutrient Database (BLS), so its \
-        missing vitamins and minerals can be borrowed. Judge by what the product is made of (main ingredients, \
-        processing, cooked or raw), not by its brand. Reply with JSON only: {"pick": 2} with the index of the best \
-        entry, or {"pick": -1} when none is close enough to borrow from.
+        You match a packaged food to the generic food in the German Nutrient Database (BLS) whose vitamins and \
+        minerals it most likely shares, so its missing values can be borrowed. Judge by what it is made of: main \
+        ingredients, processing, and the protein, carbohydrate, sugar and fat per 100 g. A high-protein, light, sugar-free \
+        or fortified version is usually NOT like the ordinary product with the same name: a protein pudding made from \
+        milk protein is closer to low-fat quark or skyr than to vanilla pudding. Products with no real counterpart \
+        (protein bars, energy drinks, supplements, meal replacements) get -1. Reply with JSON only: {"pick": 2} with \
+        the index of the best entry, or {"pick": -1} when none is close enough.
         """
 
     static func prompt(_ item: FoodItem, candidates: [FoodItem]) -> String {
         var text = "Product: \(item.name)"
         if let brand = item.brand { text += " (\(brand))" }
         if let group = item.group { text += "\nCategory: \(group)" }
-        let stated = FoodNutrient.macros.compactMap { n in item.per100g[n].map { "\(n.rawValue) \(Int($0.rounded()))" } }
+        let stated = [("protein", FoodNutrient.proteinG), ("carbs", .carbsG), ("sugar", .sugarG), ("fat", .fatG)]
+            .compactMap { label, n in item.per100g[n].map { "\(label) \(String(format: "%.1f", $0)) g" } }
         if !stated.isEmpty { text += "\nPer 100 g: " + stated.joined(separator: ", ") }
         text += "\nCandidates:\n"
+        func macros(_ food: FoodItem) -> String {
+            [("protein", FoodNutrient.proteinG), ("carbs", .carbsG), ("sugar", .sugarG), ("fat", .fatG)]
+                .compactMap { label, n in food.per100g[n].map { "\(label) \(String(format: "%.1f", $0)) g" } }.joined(separator: ", ")
+        }
         for (index, candidate) in candidates.enumerated() {
-            let kcal = candidate.per100g[.energyKcal].map { " (\(Int($0.rounded())) kcal/100 g)" } ?? ""
-            text += "\(index): \(candidate.name)\(kcal)\n"
+            text += "\(index): \(candidate.name) (\(macros(candidate)))\n"
         }
         return text
     }
@@ -33,15 +40,17 @@ enum CoachFoodEstimate {
         return pick
     }
 
-    /// BLS candidates for a product: its name, then its name without the brand's words, then its first two words.
+    /// BLS candidates for a product: the foods closest in make-up first, then matches by name, all within the
+    /// make-up limit, since a name match with an unlike profile cannot lend values anyway.
     static func candidates(for item: FoodItem, catalog: FoodCatalog) async -> [FoodItem] {
+        var out = await catalog.nearestBLS(to: item, limit: 8).filter { FoodEstimate.closeEnough(item, $0) }
         var queries = [item.name]
         let words = item.name.split(separator: " ").map(String.init)
         if words.count > 2 { queries.append(words.prefix(2).joined(separator: " ")) }
         if let last = words.last, last.count > 3 { queries.append(last) }
-        var out: [FoodItem] = []
         for query in queries {
-            for found in await catalog.search(query, limit: 40) where found.source == .bls && !out.contains(where: { $0.id == found.id }) {
+            for found in await catalog.search(query, limit: 40)
+                where found.source == .bls && FoodEstimate.closeEnough(item, found) && !out.contains(where: { $0.id == found.id }) {
                 out.append(found)
             }
             if out.count >= 12 { break }

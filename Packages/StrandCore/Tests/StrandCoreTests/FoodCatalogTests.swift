@@ -249,10 +249,10 @@ final class FoodNutrientReportTests: XCTestCase {
 final class FoodEstimateTests: XCTestCase {
     private let muesli = FoodItem(id: "off:4000000000017", source: .off, name: "Knusper Müsli",
                                   per100g: NutrientAmounts([.energyKcal: 430, .proteinG: 9, .carbsG: 62, .fatG: 15, .sugarG: 18,
-                                                            .ironMg: 7]))
+                                                            .ironMg: 7]), barcode: "4000000000017")
     private let bls = FoodItem(id: "bls:C990000", source: .bls, name: "Müsli mit Trockenobst",
-                               per100g: NutrientAmounts([.energyKcal: 370, .proteinG: 10, .ironMg: 3.1, .magnesiumMg: 120,
-                                                         .vitaminEMg: 2, .sugarG: 20]))
+                               per100g: NutrientAmounts([.energyKcal: 370, .proteinG: 10, .carbsG: 60, .fatG: 12,
+                                                         .ironMg: 3.1, .magnesiumMg: 120, .vitaminEMg: 2, .sugarG: 20]))
 
     func testOnlyGapsAreBorrowedAndMarked() {
         XCTAssertTrue(FoodEstimate.needsFilling(muesli))
@@ -284,5 +284,37 @@ final class FoodEstimateTests: XCTestCase {
         let kept = await FoodLibrary.saveOwn(store: store, filled, origin: .online)
         XCTAssertEqual(kept?.estimatedFrom, "bls:C990000")
         XCTAssertEqual(kept?.estimatedKeys, ["magnesium_mg", "vitamin_e_mg"])
+
+        // The next time, from anywhere, the product comes back with its micronutrients.
+        let byId = await FoodLibrary.item(store: store, id: "off:4000000000017")
+        XCTAssertEqual(byId?.per100g[.magnesiumMg], 120)
+        let byBarcode = await FoodLibrary.item(store: store, barcode: "4000000000017")
+        XCTAssertEqual(byBarcode?.per100g[.magnesiumMg], 120)
+        let online = await FoodLibrary.preferKept(store: store, [muesli])
+        XCTAssertEqual(online.first?.per100g[.magnesiumMg], 120)
+        XCTAssertFalse(FoodEstimate.needsFilling(try XCTUnwrap(byId)), "no second model call")
+    }
+}
+
+final class FoodCompositionMatchTests: XCTestCase {
+    func testAProteinPuddingBorrowsFromQuarkNotFromVanillaPudding() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("food-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let catalog = FoodCatalog(directory: directory)
+        try await catalog.prepareBundled()
+        let pudding = FoodItem(id: "off:1", source: .off, name: "High Protein Pudding Vanille",
+                               per100g: NutrientAmounts([.energyKcal: 76, .proteinG: 10, .carbsG: 5.6, .sugarG: 4.5, .fatG: 1.5]))
+        let near = await catalog.nearestBLS(to: pudding, limit: 8)
+        XCTAssertFalse(near.isEmpty)
+        XCTAssertTrue(near.contains { $0.name.contains("quark") || $0.name.contains("Quark") || $0.name.contains("Skyr") },
+                      "\(near.map(\.name))")
+        let vanillaItem = await catalog.item(id: "bls:Y861653")
+        let vanilla = try XCTUnwrap(vanillaItem)
+        XCTAssertFalse(FoodEstimate.closeEnough(pudding, vanilla), "an ordinary pudding is too unlike to lend values")
+        XCTAssertNil(FoodEstimate.filled(pudding, from: vanilla).estimatedFrom)
+        let quarkItem = await catalog.item(id: "bls:M713100")
+        let quark = try XCTUnwrap(quarkItem)
+        XCTAssertTrue(FoodEstimate.closeEnough(pudding, quark))
+        XCTAssertNotNil(FoodEstimate.filled(pudding, from: quark).estimatedFrom)
     }
 }
