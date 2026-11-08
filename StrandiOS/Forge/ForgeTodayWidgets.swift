@@ -521,26 +521,31 @@ struct ForgeLastNightWidget: View {
     private var asleep: Int? { night.map { Int($0.asleepMinutes) } }
 
     var body: some View {
-        NavigationLink(value: ForgeRoute.rest(nil)) {
-            ForgePictureTile(symbol: "moon.zzz.fill", accent: "star.fill", tint: ForgeColor.rest) {
-                Text("Last night").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                if let night, let asleep {
+        ForgeWidgetCard(title: String(localized: "Last night"), route: ForgeRoute.rest(nil)) {
+            if let night, let asleep {
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
                     // The figures large, their units small beside them, as Apple writes a duration.
-                    (Text(verbatim: "\(asleep / 60)").font(ForgeFont.figure(26))
+                    (Text(verbatim: "\(asleep / 60)").font(ForgeFont.figure(28))
                      + Text(verbatim: " ") + Text("h").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary)
-                     + Text(verbatim: " ") + Text(verbatim: String(asleep % 60)).font(ForgeFont.figure(26))
+                     + Text(verbatim: " ") + Text(verbatim: String(asleep % 60)).font(ForgeFont.figure(28))
                      + Text(verbatim: " ")
                      + Text("min").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary))
                         .foregroundStyle(ForgeColor.text)
+                    Spacer(minLength: 8)
                     Text(verbatim: "\(Self.time(night.start)) – \(Self.time(night.end))")
-                        .font(ForgeFont.caption)
-                        .foregroundStyle(ForgeColor.secondary)
-                } else {
-                    Text("No night yet.").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
+                ForgeStageStrip(deep: night.deep, rem: night.rem, light: night.light, awake: night.awake)
+                HStack(spacing: 16) {
+                    stage(String(localized: "Deep"), night.deep, StrandPalette.sleepStageColor(.deep))
+                    stage(String(localized: "Light"), night.light, StrandPalette.sleepStageColor(.light))
+                    stage(String(localized: "REM"), night.rem, StrandPalette.sleepStageColor(.rem))
+                    Spacer(minLength: 0)
+                }
+            } else {
+                Text("No night yet.").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
         }
-        .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
             night = await ForgeRecentSleep.load(repo: repo, days: 3).nights.max { $0.end < $1.end }
         }
@@ -548,6 +553,14 @@ struct ForgeLastNightWidget: View {
 
     private static func time(_ date: Date) -> String {
         date.formatted(date: .omitted, time: .shortened)
+    }
+
+    private func stage(_ name: String, _ minutes: Double, _ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(verbatim: "\(name) \(ForgeTodayView.hoursMinutes(minutes))")
+                .font(ForgeFont.caption.monospacedDigit()).foregroundStyle(ForgeColor.secondary)
+        }
     }
 }
 
@@ -566,9 +579,8 @@ struct ForgeWeekPlanWidget: View {
     }
 
     var body: some View {
-        NavigationLink(value: ForgeRoute.weekPlan) {
+        ForgeWidgetCard(title: String(localized: "This week's plan"), route: ForgeRoute.weekPlan) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("This week's plan").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 HStack(spacing: 0) {
                     ForEach(days, id: \.self) { day in
                         let key = Repository.localDayKey(day)
@@ -588,11 +600,10 @@ struct ForgeWeekPlanWidget: View {
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("\(doneDays.count) days with a workout this week"))
+                Text("Workouts on \(doneDays.count) of 7 days").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
-        .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
             let rows = await repo.workoutRows(days: 7, reconcileHrCap: 0)
             doneDays = Set(rows.map { Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) })
@@ -627,23 +638,31 @@ struct ForgeMomentumWidget: View {
     var body: some View {
         // Momentum's own colour; a neutral message's grey tone made the picture look switched off.
         let tint = StrandPalette.metricAmber
-        NavigationLink(value: MoreDestination.momentum) {
-            ForgePictureTile(symbol: "bolt.horizontal.fill", accent: "arrow.up.right", tint: tint) {
-                Text("Momentum").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                if let first = store.messages.first {
-                    Text(first.headline)
-                        .font(.system(.headline))
-                        .foregroundStyle(ForgeColor.text)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text("Nothing stands out today.")
-                        .font(.system(.subheadline))
-                        .foregroundStyle(ForgeColor.secondary)
+        ForgeWidgetCard(title: String(localized: "Momentum"), route: MoreDestination.momentum) {
+            if let first = store.messages.first {
+                HStack(alignment: .top, spacing: 12) {
+                    TrendsChangeSummary.categoryMark("bolt.horizontal.fill", tint: tint, size: 40)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(first.headline).font(.system(.headline)).foregroundStyle(ForgeColor.text)
+                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                        if !first.detail.isEmpty {
+                            Text(first.detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Spacer(minLength: 0)
                 }
+                // A goal-type message carries its progress: draw it.
+                if let progress = first.progress {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ProgressView(value: min(1, max(0, progress.fraction))).tint(tint)
+                        Text(verbatim: progress.label).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                }
+            } else {
+                Text("Nothing stands out today.").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
         }
-        .buttonStyle(LiquidPressStyle())
     }
 }
 
@@ -791,12 +810,15 @@ struct ForgeLastWorkoutWidget: View {
     var body: some View {
         Group {
             if let row {
-                NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) { card(row) }
+                ForgeWidgetCard(title: String(localized: "Latest workout"),
+                                route: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) { card(row) }
             } else {
-                NavigationLink(value: ForgeRoute.workouts) { empty }
+                ForgeWidgetCard(title: String(localized: "Latest workout"), route: ForgeRoute.workouts) {
+                    Text("Workouts you record or import appear here.")
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                }
             }
         }
-        .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
             row = await repo.workoutRows(days: 60, reconcileHrCap: 0).max { $0.endTs < $1.endTs }
             loaded = true
@@ -806,48 +828,37 @@ struct ForgeLastWorkoutWidget: View {
     private func card(_ row: WorkoutRow) -> some View {
         let tint = AppleInspiredColors.role(forSport: row.sport).color
         let start = Date(timeIntervalSince1970: TimeInterval(row.startTs))
-        let minutes = Int((row.durationS ?? Double(max(row.endTs - row.startTs, 0))) / 60)
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Latest workout").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+        let minutes = (row.durationS ?? Double(max(row.endTs - row.startTs, 0))) / 60
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                WorkoutTypeIcon(workoutType: row.sport, size: 22, weight: .semibold, color: .white)
-                    .frame(width: 52, height: 52)
-                    .background(Circle().fill(tint))
-                    .shadow(color: tint.opacity(0.4), radius: 6, y: 3)
+                WorkoutTypeIcon(workoutType: row.sport, size: 18, weight: .semibold, color: .white)
+                    .frame(width: 40, height: 40)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(tint))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(WorkoutSource.localizedDisplaySport(row.sport))
-                        .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
+                        .font(.system(.headline)).foregroundStyle(ForgeColor.text).lineLimit(1)
                     Text(verbatim: LiquidTodayView.workoutDayText(start) + " "
                          + start.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))
-                         + " · " + String(localized: "\(minutes) min"))
+                         + " · " + String(localized: "\(Int(minutes)) min"))
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 if let strain = row.strain {
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(ForgeToday.effortText(strain, scale: UnitPrefs.resolveEffortScale(effortScaleRaw)))
-                            .font(ForgeFont.figure(22)).foregroundStyle(ForgeColor.effortInk)
+                            .font(ForgeFont.figure(24)).foregroundStyle(ForgeColor.text)
                         Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                     }
                 }
             }
+            // Where the effort went: the heart-rate zones of the session, when it stored them.
+            if let zones = WorkoutZones.percents(row.zonesJSON) {
+                ForgeZoneBar(percents: zones, minutes: minutes)
+            }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card))
         .accessibilityElement(children: .combine)
     }
 
-    private var empty: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Latest workout").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-            Text("Workouts you record or import appear here.")
-                .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
-                .opacity(loaded ? 1 : 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 16)
-    }
 }
 
 /// Today's energy as the Energy page opens: the same ring, burned against a usual day, with resting, active

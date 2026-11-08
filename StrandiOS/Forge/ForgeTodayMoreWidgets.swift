@@ -27,25 +27,36 @@ struct ForgeCycleWidget: View {
 
 /// A wide widget's frame, as Energy and Training load draw it: the name and a chevron on top, the graphic
 /// and its figures under it, on a card. The whole card opens the page.
-private struct ForgeWidgetCard<Route: Hashable, Content: View>: View {
+struct ForgeWidgetCard<Route: Hashable, Content: View>: View {
     let title: String
     let route: Route
+    /// False when the body holds its own taps (rows, a start button): then only the header opens the page.
+    var bodyOpens = true
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        NavigationLink(value: route) {
+        if bodyOpens {
+            NavigationLink(value: route) {
+                VStack(alignment: .leading, spacing: 12) { header; content() }
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
+            }
+            .buttonStyle(LiquidPressStyle())
+        } else {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(verbatim: title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold))
-                        .foregroundStyle(ForgeColor.tertiary)
-                }
+                NavigationLink(value: route) { header.contentShape(Rectangle()) }.buttonStyle(.plain)
                 content()
             }
             .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
-        .buttonStyle(LiquidPressStyle())
+    }
+
+    private var header: some View {
+        HStack {
+            Text(verbatim: title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+            Spacer()
+            Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold))
+                .foregroundStyle(ForgeColor.tertiary)
+        }
     }
 }
 
@@ -75,7 +86,8 @@ struct ForgeTonightWidget: View {
                 }
                 .accessibilityHidden(true)
                 HStack {
-                    Text("Bedtime for a full night").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    Text(verbatim: Self.countdown(to: bed)).font(ForgeFont.caption.weight(.semibold))
+                        .foregroundStyle(ForgeColor.restInk)
                     Spacer(minLength: 8)
                     Text("Alarm \(wakeText)")
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
@@ -84,6 +96,17 @@ struct ForgeTonightWidget: View {
                 Text("Set a wake time to plan the night.").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
         }
+    }
+
+    /// How long until bedtime, in the evening; past it, that it is time; earlier in the day, what the
+    /// time is for.
+    private static func countdown(to bed: Date, now: Date = Date()) -> String {
+        let minutes = Int(bed.timeIntervalSince(now) / 60)
+        if minutes <= 0 { return String(localized: "Time for bed") }
+        if minutes > 4 * 60 { return String(localized: "Bedtime for a full night") }
+        if minutes < 60 { return String(localized: "In \(minutes) min") }
+        let left = ForgeTodayView.hoursMinutes(Double(minutes))
+        return String(localized: "In \(left) h")
     }
 
     /// Tomorrow's wake time from the planner the bedtime counts back from.
@@ -113,6 +136,7 @@ struct ForgeNextSessionWidget: View {
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var session: ActiveSessionController
     @State private var week: [(day: Date, routine: TrainingRoutine?)] = []
+    @State private var names: [String: String] = [:]
     @State private var loaded = false
 
     private var next: (day: Date, routine: TrainingRoutine)? {
@@ -121,7 +145,7 @@ struct ForgeNextSessionWidget: View {
 
     var body: some View {
         let title = next.map { String(localized: "Next up · \(Self.dayText($0.day))") } ?? String(localized: "Next session")
-        ForgeWidgetCard(title: title, route: ForgeRoute.strength) {
+        ForgeWidgetCard(title: title, route: ForgeRoute.strength, bodyOpens: false) {
             if let next {
                 HStack(spacing: 12) {
                     TrendsChangeSummary.categoryMark("dumbbell.fill", tint: ForgeColor.trainingData, size: 40)
@@ -141,8 +165,29 @@ struct ForgeNextSessionWidget: View {
                         .buttonStyle(.plain)
                     }
                 }
-            } else {
-                Text(loaded ? "Nothing planned this week" : " ").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                // The first exercises by name, so the day reads as a workout and not as a title.
+                let titles = next.routine.exercises.compactMap { names[$0.exerciseId] }
+                if !titles.isEmpty {
+                    FlowRows(spacing: 6) {
+                        ForEach(Array(titles.prefix(3).enumerated()), id: \.offset) { _, name in
+                            Text(verbatim: name).font(.system(.caption, weight: .medium)).foregroundStyle(ForgeColor.text)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Capsule().fill(ForgeColor.fill))
+                        }
+                        if titles.count > 3 {
+                            Text(verbatim: "+" + String(titles.count - 3)).font(.system(.caption, weight: .medium))
+                                .foregroundStyle(ForgeColor.secondary)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Capsule().fill(ForgeColor.fill))
+                        }
+                    }
+                }
+            } else if loaded {
+                NavigationLink(value: ForgeRoute.weekPlan) {
+                    Label("Plan this week", systemImage: "calendar.badge.plus")
+                        .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.trainingAccent)
+                }
+                .buttonStyle(.plain)
             }
             // The coming seven days: a filled dot where a routine is planned.
             if !week.isEmpty {
@@ -163,6 +208,7 @@ struct ForgeNextSessionWidget: View {
         }
         .task(id: repo.refreshSeq) {
             let plan = await repo.nativeTrainingPlan()
+            names = Dictionary((await repo.nativeTrainingExercises()).map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
             let cal = Calendar.current
             let today = cal.startOfDay(for: Date())
             week = (0..<7).compactMap { offset in
@@ -190,7 +236,7 @@ struct ForgeChangesWidget: View {
         let better = rows.filter { $0.verdict == .better }.count
         let worse = rows.filter { $0.verdict == .worse }.count
         let steady = rows.count - better - worse
-        ForgeWidgetCard(title: String(localized: "What changed"), route: TabRoute.trends) {
+        ForgeWidgetCard(title: String(localized: "What changed"), route: TabRoute.trends, bodyOpens: false) {
             if rows.isEmpty {
                 Text(loaded ? "Not enough days yet" : " ").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             } else {
@@ -216,12 +262,41 @@ struct ForgeChangesWidget: View {
                     legend(steady, String(localized: "steady"), ForgeColor.tertiary)
                     Spacer(minLength: 0)
                 }
+                // The measures that moved, each opening its own page.
+                let moved = rows.filter { $0.verdict == .better || $0.verdict == .worse }.prefix(3)
+                VStack(spacing: 0) {
+                    ForEach(Array(moved.enumerated()), id: \.element.id) { index, row in
+                        if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 40) }
+                        NavigationLink(value: TabRoute.metricSourced(key: row.key, source: row.source)) { moverRow(row) }
+                            .buttonStyle(.plain)
+                    }
+                }
             }
         }
         .task(id: repo.refreshSeq) {
             rows = await TrendsChangeSummary.rows(repo: repo, span: 7)
             loaded = true
         }
+    }
+
+    private func moverRow(_ row: TrendsChangeSummary.Row) -> some View {
+        let verdict = row.verdict == .better ? StrandPalette.chargeColor : StrandPalette.effortColor
+        return HStack(spacing: 12) {
+            TrendsChangeSummary.categoryMark(TrendIllustration.symbol(row.key, up: row.change > 0),
+                                             tint: TrendIllustration.color(row.key), size: 28)
+            // The name over its change, so a long name ("Resting Heart Rate") and two values both fit.
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: row.title).font(.system(.subheadline, weight: .medium)).foregroundStyle(ForgeColor.text).lineLimit(1)
+                Text(verbatim: "\(row.before) → \(row.now)").font(ForgeFont.caption.monospacedDigit())
+                    .foregroundStyle(ForgeColor.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: row.change > 0 ? "arrow.up" : "arrow.down").font(.system(size: 11, weight: .bold))
+                .foregroundStyle(verdict)
+            Image(systemName: "chevron.right").font(.system(.caption2, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
     }
 
     private func legend(_ count: Int, _ word: String, _ color: Color) -> some View {
@@ -232,41 +307,55 @@ struct ForgeChangesWidget: View {
     }
 }
 
-/// The habit that moved Charge the most: its mark, the change as the figure, and the reading. Opens What works.
+/// The three habits that moved Charge the most, each on a bar out from the middle: right raised it, left
+/// lowered it, in the colours of better and worse. Opens What works.
 struct ForgeWhatWorksWidget: View {
     @EnvironmentObject private var repo: Repository
     @StateObject private var model = InsightsHubViewModel()
 
     var body: some View {
-        ForgeWidgetCard(title: String(localized: "What works"), route: MoreDestination.insightsHub) {
-            if let top = model.ranked.first {
-                let look = BehaviourLook.of(top.behavior)
-                let e = top.effect
-                HStack(alignment: .top, spacing: 12) {
-                    TrendsChangeSummary.categoryMark(look.symbol, tint: look.tint, size: 40)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: top.behavior).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                        if e.delta != 0 {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Image(systemName: e.delta > 0 ? "arrow.up" : "arrow.down").font(.system(size: 15, weight: .bold))
-                                Text(verbatim: e.pctChange.map { "\(Int(abs($0).rounded())) %" } ?? String(format: "%.1f", abs(e.delta)))
-                                    .font(ForgeFont.figure(24))
-                                Text("Charge").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
-                            }
-                            .foregroundStyle(ForgeColor.text)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                }
-                Text(verbatim: ForgeEffectWording.line(delta: e.delta, percent: e.pctChange))
-                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(2)
-            } else {
+        ForgeWidgetCard(title: String(localized: "What works for your Charge"), route: MoreDestination.insightsHub) {
+            let top = Array(model.ranked.prefix(3))
+            if top.isEmpty {
                 Text(model.loaded ? "Answer the journal for a few weeks to see what moves your Charge." : " ")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+            } else {
+                let widest = max(1, top.map { abs($0.effect.pctChange ?? 0) }.max() ?? 1)
+                VStack(spacing: 12) {
+                    ForEach(Array(top.enumerated()), id: \.offset) { _, r in row(r, widest: widest) }
+                }
             }
         }
         .task(id: repo.refreshSeq) { await model.load(repo: repo) }
+    }
+
+    private func row(_ r: RankedEffect, widest: Double) -> some View {
+        let look = BehaviourLook.of(r.behavior)
+        let pct = r.effect.pctChange ?? 0
+        // Charge: higher is better, so a raise is the good side.
+        let tint = pct >= 0 ? StrandPalette.chargeColor : StrandPalette.effortColor
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                TrendsChangeSummary.categoryMark(look.symbol, tint: look.tint, size: 24)
+                Text(verbatim: r.behavior).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.text)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text(verbatim: (pct >= 0 ? "+" : "−") + "\(Int(abs(pct).rounded())) %")
+                    .font(.system(.footnote, weight: .semibold).monospacedDigit()).foregroundStyle(ForgeColor.text)
+            }
+            GeometryReader { geo in
+                let half = geo.size.width / 2
+                let width = max(4, half * CGFloat(abs(pct) / widest))
+                ZStack(alignment: .leading) {
+                    Capsule().fill(ForgeColor.fill)
+                    Rectangle().fill(ForgeColor.separator).frame(width: 1).offset(x: half)
+                    Capsule().fill(tint).frame(width: width).offset(x: pct >= 0 ? half : half - width)
+                }
+            }
+            .frame(height: 6)
+            .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

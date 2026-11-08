@@ -1,4 +1,10 @@
 {
+  "Workouts on %lld of 7 days": "Treningi w %lld z 7 dni",
+  "In %@ h": "Za %@ h",
+  "In %lld min": "Za %lld min",
+  "Plan this week": "Zaplanuj ten tydzień",
+  "Time for bed": "Czas spać",
+  "What works for your Charge": "Co pomaga Twojemu Charge",
   "Alarm %@": "Budzik %@",
   "Bedtime for a full night": "Pora snu na pełną noc",
   "Small · battery and last sync": "Mały · bateria i ostatnia synchronizacja",

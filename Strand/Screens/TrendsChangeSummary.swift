@@ -35,6 +35,8 @@ struct TrendsChangeSummary: View {
         let verdict: Verdict
         /// What the move means for the wearer, in a coach's words.
         let meaning: String
+        /// The source it was read from, so a tap opens the same series.
+        var source: String = ""
     }
 
     enum Verdict { case better, worse, steady, neutral }
@@ -333,7 +335,7 @@ struct TrendsChangeSummary: View {
         return Row(id: metric.id, key: measure.key, title: metric.title, icon: metric.icon, values: ordered.map(\.value), split: split,
                    beforeMean: before, nowMean: now, before: format(before, metric),
                    now: format(now, metric), change: change, verdict: verdict,
-                   meaning: meaning(key: measure.key, verdict: verdict, up: change > 0))
+                   meaning: meaning(key: measure.key, verdict: verdict, up: change > 0), source: measure.source)
     }
 
     /// Minutes as hours and minutes, everything else with the catalog's precision and unit.
