@@ -2079,6 +2079,12 @@ extension WhoopStore {
         migrator.registerMigration("v85-single-active-device") { db in
             try DeviceRegistryStore.keepOneActive(db)
         }
+        // Fork (DX23876), decision 2026-11-08: the food log, the wearer's own foods, recipes and favourites.
+        // Wearer input, so it travels in the `.noopbak` copy. Additive; the day totals it banks are a new
+        // source the energy plan reads at read time, so no stored score goes stale.
+        migrator.registerMigration("v86-food-log") { db in
+            try WhoopStore.createFoodLogTables(db)
+        }
         return migrator
     }
 }

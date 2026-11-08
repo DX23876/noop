@@ -210,6 +210,7 @@ if (forkSwiftCore) {
     // `CoreShadow.installResources` unpacks them for the core, which has no SwiftPM resource bundle on Android.
     android.sourceSets.getByName("main").assets.srcDir(rootProject.file("../Packages/StrandTraining/Sources/StrandTraining/Resources"))
     android.sourceSets.getByName("main").assets.srcDir(rootProject.file("../Packages/WhoopProtocol/Sources/WhoopProtocol/Resources"))
+    android.sourceSets.getByName("main").assets.srcDir(rootProject.file("../Packages/StrandCore/Sources/StrandCore/Resources"))
     android.androidResources.noCompress += "json"
     // Compressed in the APK and extracted at install: the download is about a third of the size (D24 measured
     // 31 MB), which matters for an app that is only ever sideloaded.

@@ -29,6 +29,8 @@ let package = Package(
                            .product(name: "GRDB", package: "GRDB.swift"),
                            .product(name: "ZIPFoundation", package: "ZIPFoundation"),
                            .product(name: "Crypto", package: "swift-crypto")],
+            // The bundled BLS food table (`Tools/build_food_catalog.py`). Android ships the same files as assets.
+            resources: [.copy("Resources/food-bls.tsv"), .copy("Resources/food-bls.json")],
             // Optimised even in Debug, like StrandAnalytics and WhoopStore: Xcode compiles package
             // targets from the configuration name, so project.yml's Debug `-O` never reaches them.
             swiftSettings: [.unsafeFlags(["-O"])]),
