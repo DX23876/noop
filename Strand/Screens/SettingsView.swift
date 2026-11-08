@@ -851,7 +851,7 @@ private struct SettingsPageContent: View, Equatable {
             .accessibilityLabel(profile.hasAvatar ? "Change photo" : "Choose photo")
             Text(verbatim: [String(localized: "\(profile.age) years"),
                             "\(Int(profile.heightCm.rounded())) cm",
-                            profile.weightKg.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale)) + " kg"]
+                            UnitFormatter.massFromKilograms(profile.weightKg, system: .metric)]
                 .joined(separator: " · "))
                 .font(StrandFont.subhead.weight(.semibold))
                 .foregroundStyle(StrandPalette.textSecondary)
