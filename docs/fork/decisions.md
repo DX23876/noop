@@ -1023,7 +1023,12 @@ Analysis migration required: yes (AI-34).
   and no "Estimated" pill: every calorie figure is an estimate, so the marks said nothing (owner, 2026-11-08). The
   parts (basal, daily movement, training) as one card of rows with share bars, the day's curve with each session
   marked by its sport's icon instead of overlapping captions (two close sessions stack), the last 30 days as bars
-  (burned split into resting and active, eaten, balance) where a tap opens the day. Every
+  (burned split into resting and active, eaten, balance) where a tap opens the day.
+- **Energy in fire colours** (owner's free choice, 2026-11-08): an amber wash instead of Health's green (calm
+  profiles keep the Health wash), resting burn ember red-orange, active burn amber, daily movement gold, training
+  deep orange, eaten in Charge green. Clear, saturated tones, since gold and coral read brown in Light when the
+  Liquid design tried them (2026-10-02); the Liquid design keeps its green. Today's Energy tile and the burn-rate
+  curve take the same colours. Every
   figure is the shipped engine's and loads as the shipped page does; the Liquid design keeps its page. Today's
   Energy tile draws the same ring and reads the usual day through the same function.
 

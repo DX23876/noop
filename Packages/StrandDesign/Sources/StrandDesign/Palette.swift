@@ -651,6 +651,16 @@ public enum StrandPalette {
     /// deliberate kind (a deeper workout green), distinct from each other and from resting cyan.
     public static let energyMovement = Color(light: "#D9A300", dark: "#FFD60A")
     public static let energyTraining = Color(light: "#2F7A00", dark: "#7ED400")
+    /// The new design's Energy page (2026-11-08, owner's free choice): fire rather than the Liquid design's
+    /// green on a green Health wash. Clear, saturated tones, since gold and coral read brown in Light once
+    /// before: resting burn as an ember red-orange, active burn amber, and its two halves gold (daily movement)
+    /// and a deep orange (training). The Liquid design keeps the colours above.
+    public static let forgeEnergyResting = Color(light: "#E5533D", dark: "#FF6B4A")
+    public static let forgeEnergyActive = Color(light: "#F29100", dark: "#FFB020")
+    public static let forgeEnergyMovement = Color(light: "#E0A800", dark: "#FFD84A")
+    public static let forgeEnergyTraining = Color(light: "#EB6A00", dark: "#FF9433")
+    /// The empty part of the Energy ring in the new design.
+    public static var forgeEnergyTrack: Color { forgeEnergyActive.opacity(0.16) }
     /// The dotted "what a normal day looks like" curve. A warm grey (2026-10-02, was a cool blue): it
     /// stays apart from today's line by being muted and dotted, without pulling the chart cold.
     public static let energyReference = Color(light: "#9A8A7C", dark: "#BFB2A6")

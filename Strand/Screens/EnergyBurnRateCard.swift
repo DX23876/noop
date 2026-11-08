@@ -118,7 +118,7 @@ struct EnergyBurnRateCard: View {
             ForEach(bands) { band in
                 RectangleMark(xStart: .value("Session start", band.start),
                               xEnd: .value("Session end", band.end))
-                    .foregroundStyle(StrandPalette.energyTraining.opacity(0.16))
+                    .foregroundStyle(sessionTint.opacity(0.16))
                     .annotation(position: .top, alignment: .center,
                                 spacing: raisedBands.contains(band.id) ? 28 : 2) {
                         bandLabel(band)
@@ -141,13 +141,13 @@ struct EnergyBurnRateCard: View {
                              y: .value("kcal/min", point.kcalPerMinute),
                              series: .value("Series", "today-\(index)"))
                         .foregroundStyle(LinearGradient(
-                            colors: [StrandPalette.energyHighlight.opacity(0.42),
-                                     StrandPalette.energyHighlight.opacity(0.04)],
+                            colors: [lineTint.opacity(0.42),
+                                     lineTint.opacity(0.04)],
                             startPoint: .top, endPoint: .bottom))
                     LineMark(x: .value("Time", date(point)),
                              y: .value("kcal/min", point.kcalPerMinute),
                              series: .value("Series", "today-\(index)"))
-                        .foregroundStyle(StrandPalette.energyHighlight)
+                        .foregroundStyle(lineTint)
                         .lineStyle(.init(lineWidth: 3, lineCap: .round, lineJoin: .round))
                 }
             }
@@ -173,6 +173,14 @@ struct EnergyBurnRateCard: View {
         // comparison selector. The padding is the space they are drawn in, not decoration.
         .padding(.top, raisedBands.isEmpty ? 26 : 52)
         .accessibilityLabel(Text("Burn rate through the day, in kilocalories per minute"))
+    }
+
+    /// The day's line and the session bands: the Liquid design's green, the new design's fire.
+    private var lineTint: Color {
+        NoopVisualStyle.skin == .forge ? StrandPalette.forgeEnergyActive : StrandPalette.energyHighlight
+    }
+    private var sessionTint: Color {
+        NoopVisualStyle.skin == .forge ? StrandPalette.forgeEnergyTraining : StrandPalette.energyTraining
     }
 
     /// New design: a session's icon one row higher when it starts within two hours of the one before,
@@ -227,7 +235,7 @@ struct EnergyBurnRateCard: View {
 
     private var legend: some View {
         HStack(spacing: 14) {
-            legendItem(color: StrandPalette.energyHighlight, dashed: false,
+            legendItem(color: lineTint, dashed: false,
                        text: isToday ? "Today" : "This day")
             if !comparisonPoints.isEmpty {
                 legendItem(color: StrandPalette.energyReference, dashed: true,

@@ -101,7 +101,7 @@ struct ForgeEnergyView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
-        .background(ForgeBackground(tab: .health))
+        .background(ForgeBackground(tab: .health, wash: ForgeColor.energyWash))
         .forgeDetailBar(title: String(localized: "Energy"), showsTitle: scrolledPast)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -259,10 +259,10 @@ struct ForgeEnergyView: View {
     /// Resting, active and (when logged) eaten side by side, each in its colour, as the prototype's three figures.
     private func figures(_ s: DailyEnergySummary) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            figure(StrandPalette.energyResting, String(localized: "Resting"), s.basalBurnedSoFar)
-            figure(StrandPalette.energyActive, String(localized: "Active"), s.activeBurnedSoFar)
+            figure(StrandPalette.forgeEnergyResting, String(localized: "Resting"), s.basalBurnedSoFar)
+            figure(StrandPalette.forgeEnergyActive, String(localized: "Active"), s.activeBurnedSoFar)
             // Eaten only on a day with logged meals: a dash every day reads as a missing figure.
-            if let eaten { figure(StrandPalette.chargeColor, String(localized: "Eaten"), eaten) }
+            if let eaten { figure(ForgeColor.charge, String(localized: "Eaten"), eaten) }
         }
     }
 
@@ -289,13 +289,13 @@ struct ForgeEnergyView: View {
         if let breakdown, let total = s.totalBurnedSoFar, total > 0 {
             ForgeSectionTitle(title: "Where it comes from")
             VStack(spacing: 0) {
-                partRow(symbol: "bed.double.fill", tint: StrandPalette.energyResting, title: String(localized: "Basal burn"),
+                partRow(symbol: "bed.double.fill", tint: StrandPalette.forgeEnergyResting, title: String(localized: "Basal burn"),
                         value: s.basalBurnedSoFar ?? s.estimatedBMR24h, share: s.basalBurnedSoFar.map { $0 / total })
                 ForgeRowDivider()
-                partRow(symbol: "figure.walk", tint: StrandPalette.energyMovement, title: String(localized: "Daily movement"),
+                partRow(symbol: "figure.walk", tint: StrandPalette.forgeEnergyMovement, title: String(localized: "Daily movement"),
                         value: breakdown.movementKcal, share: breakdown.movementKcal / total)
                 ForgeRowDivider()
-                partRow(symbol: "dumbbell.fill", tint: StrandPalette.energyTraining, title: String(localized: "Training"),
+                partRow(symbol: "dumbbell.fill", tint: StrandPalette.forgeEnergyTraining, title: String(localized: "Training"),
                         value: breakdown.trainingKcal, share: breakdown.trainingKcal / total)
             }
             .forgeCard(radius: ForgeRadius.card, padding: 0)
@@ -376,21 +376,21 @@ struct ForgeEnergyView: View {
             case .burned:
                 guard let total = s.totalBurnedSoFar, total > 0 else { continue }
                 if let rest = s.basalBurnedSoFar, let active = s.activeBurnedSoFar, rest + active > 0 {
-                    out.append(.init(id: s.day + "r", date: date, part: "resting", value: rest, color: StrandPalette.energyResting))
-                    out.append(.init(id: s.day + "a", date: date, part: "active", value: active, color: StrandPalette.energyActive))
+                    out.append(.init(id: s.day + "r", date: date, part: "resting", value: rest, color: StrandPalette.forgeEnergyResting))
+                    out.append(.init(id: s.day + "a", date: date, part: "active", value: active, color: StrandPalette.forgeEnergyActive))
                 } else {
                     // A summary without the split is one block rather than an invented share.
-                    out.append(.init(id: s.day, date: date, part: "resting", value: total, color: StrandPalette.energyResting))
+                    out.append(.init(id: s.day, date: date, part: "resting", value: total, color: StrandPalette.forgeEnergyResting))
                 }
             case .eaten:
                 if let e = intake[s.day] {
-                    out.append(.init(id: s.day, date: date, part: "eaten", value: e, color: StrandPalette.chargeColor))
+                    out.append(.init(id: s.day, date: date, part: "eaten", value: e, color: ForgeColor.charge))
                 }
             case .balance:
                 if let e = intake[s.day], let total = s.totalBurnedSoFar {
                     let b = e - total
                     out.append(.init(id: s.day, date: date, part: "balance", value: b,
-                                     color: b > 0 ? ForgeColor.effort : StrandPalette.chargeColor))
+                                     color: b > 0 ? ForgeColor.effort : ForgeColor.charge))
                 }
             }
         }
@@ -502,8 +502,8 @@ struct ForgeEnergyView: View {
 
     private var emptyCard: some View {
         HStack(spacing: 14) {
-            Image(systemName: "flame.fill").font(.title2).foregroundStyle(StrandPalette.energyHighlight)
-                .frame(width: 48, height: 48).background(Circle().fill(StrandPalette.energyHighlight.opacity(ForgeOpacity.wash)))
+            Image(systemName: "flame.fill").font(.title2).foregroundStyle(StrandPalette.forgeEnergyActive)
+                .frame(width: 48, height: 48).background(Circle().fill(StrandPalette.forgeEnergyActive.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 3) {
                 Text(isToday ? "Nothing recorded yet today." : "Nothing was recorded on this day.")
                     .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
@@ -598,17 +598,17 @@ struct ForgeEnergyRing: View {
 
     var body: some View {
         ZStack {
-            Circle().stroke(StrandPalette.energyTrack, lineWidth: line)
+            Circle().stroke(StrandPalette.forgeEnergyTrack, lineWidth: line)
             // A soft glow under the arcs, as the score rings carry one.
             Group {
-                arc(from: 0, to: restFraction, color: StrandPalette.energyResting)
-                arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.energyActive)
+                arc(from: 0, to: restFraction, color: StrandPalette.forgeEnergyResting)
+                arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.forgeEnergyActive)
             }
             .blur(radius: compact ? 5 : 9)
             .opacity(colorScheme == .dark ? 0.6 : 0.35)
             .accessibilityHidden(true)
-            arc(from: 0, to: restFraction, color: StrandPalette.energyResting)
-            arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.energyActive)
+            arc(from: 0, to: restFraction, color: StrandPalette.forgeEnergyResting)
+            arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.forgeEnergyActive)
             VStack(spacing: 0) {
                 Text(verbatim: totalText)
                     .font(ForgeFont.rounded(compact ? 21 : 36, .bold)).foregroundStyle(ForgeColor.text)
@@ -652,7 +652,7 @@ struct ForgeEnergyBalance: View {
 
     var body: some View {
         let magnitude = min(abs(balance) / max(burned, 1), 1)
-        let tint = balance > 0 ? ForgeColor.effort : StrandPalette.chargeColor
+        let tint = balance > 0 ? ForgeColor.effort : ForgeColor.charge
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(isToday ? "Balance so far" : "Balance").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

@@ -69,6 +69,11 @@ enum ForgeColor {
         return dyn(colors.0, colors.1)
     }
 
+    /// The Energy page's wash: a warm amber glow in Colorful, the Health wash in the calm profiles.
+    static var energyWash: Color {
+        NoopVisualStyle.forgeProfile == .colorful ? dyn(0xFFE4C2, 0x4A2509) : wash(.health)
+    }
+
     /// The tab bar's colour for the open tab. Colorful gives each area its own, as Apple's apps do.
     static func tabTint(_ tab: ForgeTab?) -> Color {
         guard NoopVisualStyle.forgeProfile == .colorful else { return accent }
@@ -139,6 +144,8 @@ struct ForgeSharedStatusBarScrim: View {
 /// defaults it off here (see `ForgeDesignPrefs.skyDefaultInNewDesign`).
 struct ForgeBackground: View {
     let tab: ForgeTab
+    /// A page's own wash in place of its tab's (Energy's amber).
+    var wash: Color? = nil
     /// Only Today's own page carries the motif; everything pushed from it takes the area's colour.
     var showsMotif = false
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var sky = ForgeDesignPrefs.skyDefaultInNewDesign
@@ -153,9 +160,10 @@ struct ForgeBackground: View {
                 ForgeTodayMotif()
             } else {
                 // A soft per-tab tint that has gone by the middle of the screen.
-                LinearGradient(stops: [.init(color: ForgeColor.wash(tab).opacity(0.85), location: 0),
-                                       .init(color: ForgeColor.wash(tab).opacity(0.35), location: 0.5),
-                                       .init(color: ForgeColor.wash(tab).opacity(0), location: 1)],
+                let tint = wash ?? ForgeColor.wash(tab)
+                LinearGradient(stops: [.init(color: tint.opacity(0.85), location: 0),
+                                       .init(color: tint.opacity(0.35), location: 0.5),
+                                       .init(color: tint.opacity(0), location: 1)],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: 560)
             }
