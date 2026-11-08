@@ -1,4 +1,7 @@
 {
+  "About a usual day": "Mniej więcej typowy dzień",
+  "%@ kcal short of a usual day": "%@ kcal mniej niż w typowy dzień",
+  "%@ kcal past a usual day": "%@ kcal więcej niż w typowy dzień",
   "Back to workout": "Wróć do treningu",
   "Show the timeline": "Pokaż oś czasu",
   "Latest workout": "Ostatni trening",

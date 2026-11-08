@@ -6,7 +6,7 @@ import StrandAnalytics
 import StrandCore
 
 /// The redesign's Energy page (2026-11). One question first, "how much have I burned, against a usual day?",
-/// answered by one ring: resting and active energy as two arcs, a usual day as the full circle and a tick.
+/// answered by one ring: resting and active energy as two arcs, a usual day as the full circle.
 /// Under it what was eaten and the balance, the day's curve against other days, the last 30 days as bars a
 /// tap selects, and where the figures come from.
 ///
@@ -74,7 +74,7 @@ struct ForgeEnergyView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: nil, title: String(localized: "Energy"), scrolledPast: $scrolledPast)
+                ForgeDetailHeader(overline: String(localized: "Health"), title: String(localized: "Energy"), scrolledPast: $scrolledPast)
                 dayStepper
                 if !loaded {
                     HStack(spacing: 10) {
@@ -200,35 +200,24 @@ struct ForgeEnergyView: View {
         Int(value.rounded()).formatted(.number.locale(AppLanguage.activeLocale))
     }
 
+    /// As the score pages open: the ring alone and centred, one sentence under it, then the day's three
+    /// figures in a row (the prototype's "Energy today").
     private func hero(_ s: DailyEnergySummary) -> some View {
         let card = EnergyHeroCard(summary: s, breakdown: breakdown, eatenKcal: eaten)
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(isToday ? "Burned so far" : "Burned").font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(ForgeColor.text)
-                Spacer()
-                HStack(spacing: 5) {
-                    Circle().fill(EnergyProvenance.confidenceColor(s.confidence)).frame(width: 6, height: 6)
-                    Text(card.confidenceLabel)
+        return VStack(spacing: 16) {
+            ForgeEnergyRing(resting: s.basalBurnedSoFar, active: s.activeBurnedSoFar, total: s.totalBurnedSoFar,
+                            usual: usualTotal, totalText: Self.plainTotal(s), selectedDay: selectedDay)
+                .frame(width: 200, height: 200)
+                .padding(.top, 4)
+            VStack(spacing: 4) {
+                Text(isToday ? "Burned so far" : "Burned")
+                    .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                if let line = usualLine(s) {
+                    Text(verbatim: line).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                .font(.system(.caption, weight: .medium)).foregroundStyle(ForgeColor.secondary)
-                .padding(.horizontal, 10).padding(.vertical, 4)
-                .background(Capsule().fill(ForgeColor.canvas))
             }
-            HStack(alignment: .center, spacing: 18) {
-                ForgeEnergyRing(resting: s.basalBurnedSoFar, active: s.activeBurnedSoFar, total: s.totalBurnedSoFar,
-                                usual: usualTotal, totalText: EnergyDisplay.totalText(s), selectedDay: selectedDay)
-                    .frame(width: 168, height: 168)
-                VStack(alignment: .leading, spacing: 10) {
-                    legendRow(StrandPalette.energyResting, String(localized: "Resting"), s.basalBurnedSoFar)
-                    legendRow(StrandPalette.energyActive, String(localized: "Active"), s.activeBurnedSoFar)
-                    if let eaten { legendRow(StrandPalette.chargeColor, String(localized: "Eaten"), eaten) }
-                    if let usualTotal {
-                        Text("Usual day \(kcal(usualTotal)) kcal").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            figures(s)
             if let eaten, let total = s.totalBurnedSoFar {
                 ForgeEnergyBalance(eaten: eaten, burned: total, isToday: isToday)
             }
@@ -237,66 +226,106 @@ struct ForgeEnergyView: View {
                     Text("By tonight about \(kcal(range.lowerBound)) to \(kcal(range.upperBound)) kcal")
                 } icon: { Image(systemName: "moon.stars") }
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             if let note = card.qualityNote {
                 Label(note, systemImage: "info.circle")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
-    private func legendRow(_ color: Color, _ title: String, _ value: Double?) -> some View {
-        HStack(spacing: 8) {
-            Capsule().fill(color).frame(width: 4, height: 30)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(value.map(kcal) ?? "–").font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
-                        .monospacedDigit()
-                    if value != nil { Text(verbatim: "kcal").font(.system(.caption2, weight: .medium)).foregroundStyle(ForgeColor.secondary) }
-                }
+    /// The day against a usual one, in words: how far short of it or past it.
+    /// The day's total without the "~" the shipped card adds: every calorie figure is an estimate, so the
+    /// mark says nothing here.
+    static func plainTotal(_ s: DailyEnergySummary) -> String {
+        guard let total = s.totalBurnedSoFar, total.isFinite, total >= 0 else { return "–" }
+        return Int(total.rounded()).formatted(.number.locale(AppLanguage.activeLocale))
+    }
+
+    private func usualLine(_ s: DailyEnergySummary) -> String? {
+        guard let usualTotal, let total = s.totalBurnedSoFar, total > 0 else { return nil }
+        let gap = total - usualTotal
+        if abs(gap) < 50 { return String(localized: "About a usual day") }
+        return gap < 0
+            ? String(localized: "\(kcal(-gap)) kcal short of a usual day")
+            : String(localized: "\(kcal(gap)) kcal past a usual day")
+    }
+
+    /// Resting, active and (when logged) eaten side by side, each in its colour, as the prototype's three figures.
+    private func figures(_ s: DailyEnergySummary) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            figure(StrandPalette.energyResting, String(localized: "Resting"), s.basalBurnedSoFar)
+            figure(StrandPalette.energyActive, String(localized: "Active"), s.activeBurnedSoFar)
+            // Eaten only on a day with logged meals: a dash every day reads as a missing figure.
+            if let eaten { figure(StrandPalette.chargeColor, String(localized: "Eaten"), eaten) }
+        }
+    }
+
+    private func figure(_ color: Color, _ title: String, _ value: Double?) -> some View {
+        VStack(spacing: 4) {
+            Text(value.map(kcal) ?? "–").font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.text)
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+                .contentTransition(.numericText())
+            HStack(spacing: 4) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                Text(title).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.canvas))
         .accessibilityElement(children: .combine)
     }
 
     // MARK: - Parts
 
-    /// Where the active energy went, as tiles with their share of the day.
+    /// Where the day's energy went, as the score pages' "Why" card: one row per part with its share as a bar.
     @ViewBuilder private func parts(_ s: DailyEnergySummary) -> some View {
         if let breakdown, let total = s.totalBurnedSoFar, total > 0 {
             ForgeSectionTitle(title: "Where it comes from")
-            HStack(spacing: 8) {
-                partTile(symbol: "bed.double.fill", tint: StrandPalette.energyResting, title: String(localized: "Basal burn"),
-                         value: s.basalBurnedSoFar ?? s.estimatedBMR24h, share: s.basalBurnedSoFar.map { $0 / total })
-                partTile(symbol: "figure.walk", tint: StrandPalette.energyMovement, title: String(localized: "Daily movement"),
-                         value: breakdown.movementKcal, share: breakdown.movementKcal / total)
-                partTile(symbol: "dumbbell.fill", tint: StrandPalette.energyTraining, title: String(localized: "Training"),
-                         value: breakdown.trainingKcal, share: breakdown.trainingKcal / total)
+            VStack(spacing: 0) {
+                partRow(symbol: "bed.double.fill", tint: StrandPalette.energyResting, title: String(localized: "Basal burn"),
+                        value: s.basalBurnedSoFar ?? s.estimatedBMR24h, share: s.basalBurnedSoFar.map { $0 / total })
+                ForgeRowDivider()
+                partRow(symbol: "figure.walk", tint: StrandPalette.energyMovement, title: String(localized: "Daily movement"),
+                        value: breakdown.movementKcal, share: breakdown.movementKcal / total)
+                ForgeRowDivider()
+                partRow(symbol: "dumbbell.fill", tint: StrandPalette.energyTraining, title: String(localized: "Training"),
+                        value: breakdown.trainingKcal, share: breakdown.trainingKcal / total)
             }
+            .forgeCard(radius: ForgeRadius.card, padding: 0)
         }
     }
 
-    private func partTile(symbol: String, tint: Color, title: String, value: Double?, share: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private func partRow(symbol: String, tint: Color, title: String, value: Double?, share: Double?) -> some View {
+        HStack(spacing: 12) {
             Image(systemName: symbol).font(.system(.footnote, weight: .semibold)).foregroundStyle(tint)
-                .frame(width: 30, height: 30).background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
-            Text(title).font(.system(.caption, weight: .medium)).foregroundStyle(ForgeColor.secondary)
-                .lineLimit(2).minimumScaleFactor(0.85).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            Text(value.map(kcal) ?? "–").font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
-                .lineLimit(1).minimumScaleFactor(0.7).monospacedDigit()
-            if let share {
-                ForgeShareBar(fraction: min(max(share, 0), 1), typical: nil, tint: tint)
-                Text(verbatim: share.formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale)))
-                    .font(.system(.caption2, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                .frame(width: 32, height: 32).background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Spacer(minLength: 8)
+                    Text(value.map(kcal) ?? "–").font(ForgeFont.rounded(17, .bold)).foregroundStyle(ForgeColor.text)
+                        .monospacedDigit()
+                    Text(verbatim: "kcal").font(.system(.caption2, weight: .medium)).foregroundStyle(ForgeColor.secondary)
+                }
+                if let share {
+                    HStack(spacing: 8) {
+                        ForgeShareBar(fraction: min(max(share, 0), 1), typical: nil, tint: tint)
+                        Text(verbatim: share.formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale)))
+                            .font(.system(.caption2, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                            .monospacedDigit()
+                            .frame(width: 36, alignment: .trailing)
+                    }
+                }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
-        .forgeCard(radius: ForgeRadius.card, padding: 12)
+        .padding(.horizontal, 16).padding(.vertical, 12)
         .accessibilityElement(children: .combine)
     }
 
@@ -304,7 +333,7 @@ struct ForgeEnergyView: View {
 
     @ViewBuilder private func curve(_ s: DailyEnergySummary) -> some View {
         if let dayRate, dayRate.hasBuckets, let start = WeightSeries.date(forDay: selectedDay).map({ Calendar.current.startOfDay(for: $0) }) {
-            ForgeSectionTitle(title: "Through the day")
+            // The card carries its own "Burn rate" title, so no section title above it.
             EnergyBurnRateCard(dayStart: start, isToday: isToday, points: dayRate.points, bands: dayRate.bands,
                                comparison: $comparison, comparisonPoints: comparisonPoints,
                                comparisonCaption: comparisonCaption, comparisonUnavailable: comparisonUnavailable)
@@ -539,7 +568,7 @@ struct ForgeEnergyView: View {
 }
 
 /// The day's burn as one ring: resting, then active, on a circle that a usual day fills. A day past its
-/// usual fills the ring and the usual stays as a tick. Draws in when it comes into view and again per day.
+/// usual fills the ring; the page says the gap in words under it. Draws in when it comes into view and again per day.
 struct ForgeEnergyRing: View {
     let resting: Double?
     let active: Double?
@@ -551,6 +580,7 @@ struct ForgeEnergyRing: View {
     var compact = false
     @State private var drawn = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     private var line: CGFloat { compact ? 11 : 16 }
 
@@ -569,29 +599,22 @@ struct ForgeEnergyRing: View {
     var body: some View {
         ZStack {
             Circle().stroke(StrandPalette.energyTrack, lineWidth: line)
+            // A soft glow under the arcs, as the score rings carry one.
+            Group {
+                arc(from: 0, to: restFraction, color: StrandPalette.energyResting)
+                arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.energyActive)
+            }
+            .blur(radius: compact ? 5 : 9)
+            .opacity(colorScheme == .dark ? 0.6 : 0.35)
+            .accessibilityHidden(true)
             arc(from: 0, to: restFraction, color: StrandPalette.energyResting)
             arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.energyActive)
-            if let usual, usual > 0 {
-                // The usual, as a short tick across the track.
-                GeometryReader { geo in
-                    Capsule().fill(ForgeColor.text.opacity(0.75))
-                        .frame(width: 3, height: line + 8)
-                        .position(x: geo.size.width / 2, y: 0)
-                        .rotationEffect(.degrees(360 * min(usual / scale, 1)))
-                }
-                .accessibilityHidden(true)
-            }
             VStack(spacing: 0) {
                 Text(verbatim: totalText)
-                    .font(ForgeFont.rounded(compact ? 21 : 32, .bold)).foregroundStyle(ForgeColor.text)
+                    .font(ForgeFont.rounded(compact ? 21 : 36, .bold)).foregroundStyle(ForgeColor.text)
                     .lineLimit(1).minimumScaleFactor(0.6).monospacedDigit()
                     .contentTransition(.numericText())
                 Text(verbatim: "kcal").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
-                if !compact, let usual, let total, usual > 0 {
-                    Text(verbatim: (total / usual).formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale)))
-                        .font(.system(.caption, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
-                        .padding(.top, 2)
-                }
             }
             .padding(.horizontal, line + 6)
         }

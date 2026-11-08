@@ -2,6 +2,7 @@ import SwiftUI
 import Charts
 import StrandAnalytics
 import StrandDesign
+import StrandCore
 
 // EnergyBurnRateCard.swift — the chart that says WHEN, next to the figure that says how much.
 //
@@ -118,7 +119,8 @@ struct EnergyBurnRateCard: View {
                 RectangleMark(xStart: .value("Session start", band.start),
                               xEnd: .value("Session end", band.end))
                     .foregroundStyle(StrandPalette.energyTraining.opacity(0.16))
-                    .annotation(position: .top, alignment: .center, spacing: 2) {
+                    .annotation(position: .top, alignment: .center,
+                                spacing: raisedBands.contains(band.id) ? 28 : 2) {
                         bandLabel(band)
                     }
             }
@@ -169,12 +171,40 @@ struct EnergyBurnRateCard: View {
         // Session captions are annotated at the TOP of a full-height band, which Charts places
         // ABOVE the plot area — into whatever is there. Without reserved space they landed on the
         // comparison selector. The padding is the space they are drawn in, not decoration.
-        .padding(.top, 26)
+        .padding(.top, raisedBands.isEmpty ? 26 : 52)
         .accessibilityLabel(Text("Burn rate through the day, in kilocalories per minute"))
     }
 
+    /// New design: a session's icon one row higher when it starts within two hours of the one before,
+    /// where the two icons (about two hours wide on a day's axis) would otherwise overlap.
+    private var raisedBands: Set<Int> {
+        guard NoopVisualStyle.skin == .forge else { return [] }
+        var raised: Set<Int> = []
+        var lastLow: Int?
+        for band in bands.sorted(by: { $0.startTs < $1.startTs }) {
+            let centre = (band.startTs + band.endTs) / 2
+            if let last = lastLow, centre - last < 2 * 3_600 {
+                raised.insert(band.id)
+            } else {
+                lastLow = centre
+            }
+        }
+        return raised
+    }
+
     @ViewBuilder private func bandLabel(_ band: EnergyTrainingBand) -> some View {
-        if labelledBands.contains(band) {
+        if NoopVisualStyle.skin == .forge {
+            // The new design marks each session with its sport's icon: two captions side by side
+            // overlapped, an icon fits over every band. The words stay for VoiceOver.
+            let tint = AppleInspiredColors.role(forSport: band.sport).color
+            WorkoutTypeIcon(workoutType: band.sport, size: 12, weight: .semibold, color: tint)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(StrandPalette.surfaceInset))
+                .overlay(Circle().strokeBorder(tint.opacity(0.55), lineWidth: 1))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(verbatim: WorkoutSource.localizedDisplaySport(band.sport) + ", "
+                                         + [time(band.start), time(band.end)].joined(separator: "–")))
+        } else if labelledBands.contains(band) {
             let timeRange = [time(band.start), time(band.end)].joined(separator: "–")
             VStack(spacing: 0) {
                 Text(band.sport)

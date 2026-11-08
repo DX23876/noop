@@ -1016,11 +1016,14 @@ Analysis migration required: yes (AI-34).
 - **More tiles, all optional:** AgeLess small (age and calendar age) or wide (the AgeLess card from Health, now
   one shared view), the latest workout with its Effort, and fitness age as a measure. AgeLess is offered and shown
   only while AgeLess is on. Each tile reads what its page reads.
-- **Energy rebuilt for the new design.** One ring: resting then active energy on a circle a usual day fills (the
-  median total of the last 30 finished days, from five), the usual as a tick, the share of a usual day in the
-  middle. Beside it resting, active and eaten; under it the balance either side of zero, tonight's forecast and
-  the quality note. Basal, daily movement and training as tiles with their share, the day's curve as before, the
-  last 30 days as bars (burned split into resting and active, eaten, balance) where a tap opens the day. Every
+- **Energy rebuilt for the new design**, laid out like the prototype's score pages. One glowing ring, centred:
+  resting then active energy on a circle a usual day fills (the median total of the last 30 finished days, from
+  five), the gap to a usual day in words under it, then resting, active and eaten (only with logged meals) as
+  three figures, the balance either side of zero, tonight's forecast and the quality note. No "~" before the total
+  and no "Estimated" pill: every calorie figure is an estimate, so the marks said nothing (owner, 2026-11-08). The
+  parts (basal, daily movement, training) as one card of rows with share bars, the day's curve with each session
+  marked by its sport's icon instead of overlapping captions (two close sessions stack), the last 30 days as bars
+  (burned split into resting and active, eaten, balance) where a tap opens the day. Every
   figure is the shipped engine's and loads as the shipped page does; the Liquid design keeps its page. Today's
   Energy tile draws the same ring and reads the usual day through the same function.
 

@@ -807,7 +807,7 @@ struct ForgeEnergyWidget: View {
                     HStack(spacing: 16) {
                         ForgeEnergyRing(resting: summary.basalBurnedSoFar, active: summary.activeBurnedSoFar,
                                         total: summary.totalBurnedSoFar, usual: usual,
-                                        totalText: EnergyDisplay.totalText(summary), selectedDay: summary.day, compact: true)
+                                        totalText: ForgeEnergyView.plainTotal(summary), selectedDay: summary.day, compact: true)
                             .frame(width: 104, height: 104)
                         VStack(alignment: .leading, spacing: 6) {
                             figure(StrandPalette.energyResting, String(localized: "Resting"), summary.basalBurnedSoFar)
