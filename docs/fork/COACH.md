@@ -342,7 +342,7 @@ commitments no reminder can fire for. "Accept without a time" remains the escape
 `target_effort` used to be a free number the model wrote down. It offered a user "a 15-effort,
 20-minute Zone 2 cycle" — not merely optimistic but arithmetically unreachable, since on that profile
 the session is worth about 30. The model had no way to know: NOOP's display zones are %HRmax while
-Effort uses Edwards' %HRR with its own fixed thresholds (see `docs/ANALYTICS.md`, "Two zone models"),
+Effort weighs heart rate on %HRR with its own fixed curve (Edwards-style zones until AI-32; see `docs/ANALYTICS.md`, "Two zone models"),
 and nothing bridged them.
 
 Now, whenever `propose_plan` receives `zone` **and** `duration_min`, `EffortFeasibility` evaluates the

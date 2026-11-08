@@ -12,7 +12,7 @@ NOOP gives you **three daily scores, each on a 0–100 scale**:
 | **Effort** | How hard did your heart work? | `StrainScorer` | `strain` | Strain (0–21) |
 | **Rest** | How restorative was your sleep? | Rest composite (`AnalyticsEngine`) | `sleep_performance` | Sleep Performance |
 
-Each score is built from your strap's raw signals using **published, peer-reviewed sport science** (Task Force 1996 HRV, Karvonen %HRR, Edwards/Banister TRIMP, Tanaka HRmax — all cited in full below) and computed **entirely on your device**.
+Each score is built from your strap's raw signals using **published, peer-reviewed sport science** (Task Force 1996 HRV, Karvonen %HRR, Banister TRIMP for the Training Load cardio lane, Gellish HRmax — all cited in full below), plus an Effort curve fitted on shared WHOOP exports (#2438) and computed **entirely on your device**.
 
 They are **NOT WHOOP's scores.** We don't have WHOOP's private algorithms and don't pretend to. NOOP's scores aim at the same three questions using open science, so they'll usually track WHOOP's *in direction*, but won't match number-for-number — and that's the point.
 
@@ -242,28 +242,45 @@ HRV is the dominant driver, and NOOP needs a few nights to learn your personal b
 
 ---
 
-## `StrainScorer` — the **Effort** score (0–100 logarithmic cardiovascular load)
+## `StrainScorer` — the **Effort** score (0–100 cardiovascular load on a fitted curve)
 
-Source: `StrainScorer.swift`. Produces **Effort** — *"how hard did your heart work?"* Your day's cardiovascular load: an **independent** implementation of published exercise-physiology methods (WHOOP-*like*, not a reproduction). NOOP turns every second of heart rate into a training-impulse using heart-rate-reserve zones (Karvonen), weights time in harder zones more heavily (Edwards / Banister), and places it on a logarithmic 0–100 scale — so easy days sit low and an all-out day approaches 100, which stays genuinely rare.
+Source: `StrainScorer.swift`. Produces **Effort** — *"how hard did your heart work?"* Your day's cardiovascular load: an **independent** implementation (WHOOP-*like*, not a reproduction). Every minute of heart rate weighs more the closer it sits to your maximum, measured on the heart-rate reserve (Karvonen), and the day's load lands on a 0–100 curve with a soft cap, so easy days sit low and 100 stays out of reach.
 
-> **Scale change (0–21 → 0–100).** Effort is the same cardiovascular-load idea as WHOOP's Day Strain (0–21). We rescaled the **top of the ladder** from 21 to 100 (`maxStrain 21.0 → 100.0`) so all three NOOP scores share one 0–100 scale. The denominator `D = 7201` is **unchanged**, so the log curve and its saturation point are preserved — the rungs didn't move, a 100 is as rare as a 21.0 was.
+> **Analysis recipe AI-32 (13.0.0, #2438).** Until then Effort summed Edwards-*style* zone weights (or, behind a setting, Banister's exponential TRIMP) and compressed them as `100 · ln(TRIMP + 1) / ln(7201)`. Both are gone from Effort, and so is the Banister setting: one curve, fitted on WHOOP's own Strain for **3,760 workouts in 15 exports** people shared in #2438, replaces them, and the recipe bump scores the whole history again with it. The Training Load cardio lane keeps its Banister load (see below). `trimpToStrain`, `strainDenominator` and `fitStrainDenominator` remain in the source for that lane's legacy readers and their tests; they no longer produce Effort.
+
+> **Scale (0–21 → 0–100).** Effort is the same cardiovascular-load idea as WHOOP's Day Strain (0–21). The curve is fitted and evaluated on the 0–21 axis (`effortScore21`) and its top is rescaled to 100 (`maxStrain 100.0`, `effortValue(fromWhoopStrain:)` for imported values) so all three NOOP scores share one scale.
 
 ### Pipeline
 
-1. **Heart-Rate Reserve (Karvonen 1957):** `HRR = HRmax − RHR`.
-2. **Per-sample intensity** as `%HRR = (HR − RHR) / HRR × 100`, clamped `[0, 100]`.
-3. **TRIMP accumulation** over the window, by one of two methods:
-   - **Edwards-*style* 5-zone summation (default):** each sample contributes its zone weight (`1…5` at the `50 / 60 / 70 / 80 / 90 %HRR` cut-offs) × duration.
-     - ***Style*, not Edwards.** Edwards (1993) defines its five zones on **%HRmax**; these cut-offs are read off **%HRR** (#2835). With HRmax 190 and RHR 50, 133 bpm is 70 %HRmax and so zone 3 by the source, against 59 %HRR and zone 1 here. The %HRR reading is deliberate — it is the quantity the whole pipeline is built on — and re-cutting the zones on %HRmax would move every Effort number, so it stays. What was wrong was calling it Edwards without the qualifier.
-   - **Banister (1991) exponential:** each sample contributes `duration × x × a × e^(b·x)`, where `x = %HRR/100` and the coefficient pair is `a = 0.64, b = 1.92` (men) / `a = 0.86, b = 1.67` (women).
-     - **Both halves are sex-selected together (#2835).** This read `0.64` for everyone until then, so a woman was scored with the women's exponent and the men's multiplier, which is neither published pair. The two now travel as one value, `BanisterCoefficients`, so selecting half of a pair cannot be expressed. Effort moves by at most **+1.6 points** for women on this method, largest in the light-activity middle and zero at both ends of the axis; Edwards, the default, is untouched.
-4. **Logarithmic compression** onto `[0, 100]`:
+1. **Heart-Rate Reserve (Karvonen 1957):** `HRR = HRmax − RHR`, with HRmax from the resolver below.
+2. **Per-sample intensity** as `x = %HRR = (HR − RHR) / HRR × 100`, clamped `[0, 100]` (`pctHRR`).
+3. **Weight of one minute** (`effortWeight`):
 
-```
-Effort = 100 · ln(TRIMP + 1) / ln(D),    D = strainDenominator = 7201
-```
+   ```
+   w(x) = e^(β · (x − 55) / 10) / (1 + e^(−(x − 20) / 3)),    β = 0.5646
+   ```
 
-`D = 7201` is calibrated so the Edwards daily ceiling — top zone weight 5 sustained for 24 h = `5 × 1440 = 7200` — maps to exactly the maximum (`ln(7201)/ln(7201) = 1`, so `Effort = 100`). The old 0–21 scale used the identical denominator and curve; only the `maxStrain` multiplier changed from `21.0` to `100.0`.
+   A minute at 55 %HRR (the middle of the old zone 1) weighs 1; each 10 %HRR more multiplies the weight by
+   about 1.76; below 20 %HRR the logistic step fades it out.
+4. **Light activity counts inside workouts only.** A reading below **50 %HRR** (`effortOutsideWorkoutFloor`,
+   where the old zone 1 began) adds to the load only inside a recorded, imported or detected workout
+   (`LowIntensity.countedIn`). Hours of standing and walking around no longer add up to a moderate day.
+   Dismissed detected workouts do not count. Each reading is credited with at most 2 minutes, so a gap
+   cannot invent load.
+5. **Load → score** (`effortScore21`, `effortValue(load:)`):
+
+   ```
+   b      = a · ln(1 + load / k),                a = 5.4591, k = 12.2245
+   score₂₁ = 21 · b / (b^p + 21^p)^(1/p),        p = 8   (soft cap: 21 is never reached)
+   Effort = score₂₁ / 21 × 100, two decimals, at most 99.99
+   ```
+
+   `a`, `k` and `β` are fitted; the floor, the cap and the outside-workout threshold are set. On the fit, a
+   brisk 30-minute walk lands around 32, an hour in zone 4 around 83 and a 3:30 marathon around 97.
+6. **Lab: Strength in Effort** (off by default). A rated strength session adds `0.11 × session RPE ×
+   minutes` to the load before the curve, on the day it starts (`strengthLoad`,
+   `effortValue(_:addingStrengthLoad:)`). 0.11 is the median load WHOOP gave 419 strength sessions of nine
+   contributors beyond heart rate, assuming RPE 7. No rating, no share.
 
 ### Two zone models — and why they disagree
 
@@ -273,41 +290,54 @@ are worth stating plainly:
 | | Display zones (`HRZones`) | Effort zones (`StrainScorer`) |
 |---|---|---|
 | Measured against | **% of HRmax** | **% of heart-rate RESERVE** (`(HR − RHR) / (HRmax − RHR)`) |
-| Boundaries | 50/60/70/80/90 by default, **user-definable** | 50/60/70/80/90 %HRR, **fixed** — they are part of the Edwards method |
+| Boundaries | 50/60/70/80/90 by default, **user-definable** | none: a continuous weight `w(x)` over %HRR, with the fixed 50 %HRR floor outside workouts |
 | Drives | the live readout, in-workout card, Health hero, workout time-in-zone, haptic coaching, what the coach prescribes | the Effort score, and nothing else |
 
 They are not interchangeable, and the gap is large. With HRmax 190 and a resting HR of 50, the floor of
-**display** Zone 2 (60 % HRmax = 114 bpm) is only 46 %HRR — *below* Edwards' 50 % cut-off, so it earns
-weight 0 — while its top (70 % HRmax = 133 bpm) is 59 %HRR and earns weight 1.
+**display** Zone 2 (60 % HRmax = 114 bpm) is only 46 %HRR — *below* the 50 %HRR floor, so outside a
+workout it earns nothing — while its top (70 % HRmax = 133 bpm) is 59 %HRR and weighs about 1.25.
 
 Consequences that follow from this, both deliberate:
 
 - **User-set bands never reach Effort.** They change what is displayed and what is prescribed; no stored
   score moves when a band is edited, so history stays comparable and the ported method stays faithful.
 - **A session prescribed in display zones needs translating** before anyone can state what it is worth.
-  `EffortFeasibility` does that translation — Edwards weight × minutes through the same
-  `trimpToStrain` — which is what stops the coach offering "20 min in Zone 2, effort 15" for a session
-  worth about 30. It reports a `typical` figure from the MEAN weight across the band rather than the
-  weight at its midpoint, because a band that straddles a threshold otherwise reads as worth nothing.
+  `EffortFeasibility` does that translation — `effortWeight` × minutes through the same
+  `effortValue(load:)` that scores the day — which is what stops the coach offering "20 min in Zone 2,
+  effort 15" for a session worth something else. It reports a `typical` figure from the MEAN weight
+  across the band rather than the weight at its midpoint, so a band that straddles the floor is not read
+  as worth nothing.
 
-### Steps / active-energy floor
+### 5/MG continuity
 
-A long walk with little cardio still counts: when cardio TRIMP is low but step / active-kcal load is high, Effort is raised to a movement-derived floor so non-cardio activity still registers. (5/MG continuity: Effort already reads `COALESCE(measured HR, ppg_hr)` via hrBuckets, so 5-series users get Effort from live + PPG HR.)
+Effort reads `COALESCE(measured HR, ppg_hr)` via hrBuckets, so 5-series users get Effort from live + PPG
+HR. The former steps / active-energy floor is gone with AI-32: Effort comes from heart rate alone.
 
-### HRmax estimation (`estimateHRmax`)
+### Maximum heart rate (`MaxHeartRate.swift`)
 
-- With ≥ `hrmaxMinSamples = 600` HR samples, use the observed `99.5th` percentile (`"observed"`), unless a Tanaka estimate is higher.
-- **Tanaka (2001):** `HRmax = 208 − 0.7 × age` (gender-independent), used as the floor / fallback (`"tanaka"`).
-- No data and no age → `(0, "unknown")`.
+Live Effort, the stored day, heart-rate zones, AgeLess, energy and the coach read one resolved value:
+
+1. **The wearer's own setting**, exactly as entered, always wins.
+2. **The measured level:** the level held for five consecutive seconds in workouts, reached on **two
+   different days** of the **last 90**. A day reads only the peaks of the days before it, so its own
+   workouts cannot move its value. A peak more than **25 bpm** above the formula counts as an artefact,
+   and after a quiet stretch the level falls slowly, with a slope set by age.
+3. **Gellish et al. (2007):** `192 − 0.007 × age²`, rounded to a whole bpm, until a level is confirmed.
+4. With neither a setting, a level nor an age: `StrainScorer.defaultMaxHR()` (220 − default age).
+
+Settings shows which of these is in force. `StrainScorer.estimateHRmax` (observed 99.5th percentile with a
+Tanaka floor) remains only for the workout-type classifier.
 
 ### Guards & gates
 
 - Returns `nil` with fewer than `minReadings = 600` samples (≈ 10 min at 1 Hz) or when `HRmax ≤ RHR` (invalid HRR).
 - Per-sample duration is inferred from the first two timestamps, falling back to `1 s`.
 
-### Denominator calibration (`fitStrainDenominator`)
+### Denominator calibration (`fitStrainDenominator`, legacy)
 
-Given `(TRIMP, reference_strain)` pairs, fits `D` via a through-origin least-squares line in log-space: `ln(D) = maxStrain · Σx² / Σ(x·strain)`, `x = ln(TRIMP+1)`, where `maxStrain` is the full-scale value (now `100`, formerly `21`). Throws on fewer than 2 usable pairs.
+Fits the old log map's `D` from `(TRIMP, reference_strain)` pairs: `ln(D) = maxStrain · Σx² / Σ(x·strain)`,
+`x = ln(TRIMP+1)`. It belongs to the pre-AI-32 curve and no longer calibrates Effort; the fitted curve's
+constants were derived offline from the #2438 exports.
 
 ---
 
@@ -1028,7 +1058,7 @@ Both branches now resolve to a **speed in km/h** and look it up in one shared, c
 
 The production assembler now supplies real sleep, off-wrist, workout, movement-coverage and workout-kind inputs; v3 declared these fields but built buckets from HR alone, leaving most branches unreachable. Workout trust is deliberately independent of the calorie equation: imported/manual workouts qualify, as do NOOP workouts produced by the existing detector only after **both** sustained HR and sustained motion passed. Since v7 the workout context is read through `Repository.rawWorkoutRows` (then `WorkoutSource.dedupCrossSource`) — the same union the Workouts list and the burn-rate bands read — so native logger sessions, FitNotes/Strong history imports, Hevy API sessions and every retained strap's rows count, and a dismissed detector bout does not. The sport label maps to endurance / resistance / other through `EnergyWorkoutKind.forSport`. Oura cloud workouts (`oura-api`) are part of that union; their stored `source` holds Oura's own origin enum and their sport Oura's activity token, so `Repository.rawWorkoutRows` rewrites both on read (`WorkoutSource.normalizedOuraRow`). Endurance and resistance use different continuous coefficients, removing the old discontinuity at 50% HR reserve.
 
-`restingHR` is causal: each day uses the median of up to 14 prior daily resting-HR values, never the current day's eventual answer. User-supplied max HR wins over Tanaka. Quiet elevated HR is exposed as `unresolvedElevatedHR` time in the Energy detail screen instead of being silently called activity, and contributes zero active kcal.
+`restingHR` is causal: each day uses the median of up to 14 prior daily resting-HR values, never the current day's eventual answer. The maximum heart rate is the resolved value described under [Effort](#maximum-heart-rate-maxheartrateswift) (your setting, then the measured level, then Gellish). Quiet elevated HR is exposed as `unresolvedElevatedHR` time in the Energy detail screen instead of being silently called activity, and contributes zero active kcal.
 
 Bucket movement is assembled in `Repository.stepMovementByBucket` (`Strand/Data/EnergySeries.swift`), which reuses three existing rules rather than re-deriving them: **one device id, never merged** (`@57` is cumulative — interleaving two straps fabricates huge deltas), the shared **`StepsCounter`** wrap-aware kernel, and the **`stepTicksPerStep`** tick→step calibration (#139). It reads one day at a time, because `stepSample` is a ~1 Hz stream. The bucketing itself is the pure `Repository.bucketStepMovement`, split out (like `latestActivityClass`) so its delta and gap rules are unit-testable without a store.
 
@@ -1146,7 +1176,7 @@ Source: `AnalyticsEngine.swift`. A pure function that ties the recompute engines
 3. Daily resting HR = lowest per-session resting HR; daily avg HRV = in-bed-weighted mean of per-session HRV.
 4. **Rest** — the four-component sleep composite (duration vs need / efficiency / restorative share / consistency), stored under `sleep_performance`.
 5. **Charge** — `RecoveryScorer.recovery(...)` with the personal HRV/RHR/resp/skin-temp baselines and the Rest score as the sleep input, stored under `recovery`.
-6. **Effort** — `StrainScorer.strain(...)` over the full day's HR window (Tanaka HRmax from age unless overridden), on the 0–100 scale, stored under `strain`.
+6. **Effort** — `StrainScorer.strain(...)` over the full day's HR window (HRmax from the resolver: your setting, the measured level, then Gellish), on the 0–100 scale, stored under `strain`.
 7. `WorkoutDetector.detect(...)`.
 
 Each score is also tagged with its **confidence tier** (`ScoreConfidence`: Solid / Building / Calibrating — see below). It assembles a `DailyMetric` (the `WhoopStore` cache shape) plus rich `SleepSession`s and `CachedSleepSession` cache rows. Every derived value is **approximate** by construction.
