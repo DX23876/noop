@@ -9,7 +9,7 @@ import StrandAnalytics
 /// "Schmiede" world (stone, copper), dark is "Nacht" (slate, gold). Charge, Effort and Rest keep their
 /// meaning (green, orange, violet) in both.
 enum ForgeColor {
-    private static func dyn(_ light: UInt32, _ dark: UInt32, light la: CGFloat = 1, dark da: CGFloat = 1) -> Color {
+    static func dyn(_ light: UInt32, _ dark: UInt32, light la: CGFloat = 1, dark da: CGFloat = 1) -> Color {
         Color(UIColor { trait in
             let hex = trait.userInterfaceStyle == .dark ? dark : light
             let alpha = trait.userInterfaceStyle == .dark ? da : la

@@ -947,29 +947,39 @@ public enum StrandPalette {
 
     /// Strength lane identity: electric teal in every style.
     public static var strengthDeep: Color {
+        if forgeCardio { return Color(light: "#08667A", dark: "#1B9DB8") }
         let hex = LaneColorTable.style(chartStyle).strengthDeep
         return Color(light: hex.light, dark: hex.dark)
     }
     public static var strengthColor: Color {
+        if forgeCardio { return Color(light: "#0E8AA3", dark: "#40C8E0") }
         let hex = LaneColorTable.style(chartStyle).strengthColor
         return Color(light: hex.light, dark: hex.dark)
     }
     public static var strengthBright: Color {
+        if forgeCardio { return Color(light: "#2BB3CF", dark: "#7ADDF0") }
         let hex = LaneColorTable.style(chartStyle).strengthBright
         return Color(light: hex.light, dark: hex.dark)
     }
     public static var strengthGradient: Gradient { Gradient(colors: [strengthDeep, strengthBright]) }
 
     /// Cardio lane identity: electric violet-indigo in every style.
+    /// The new design's cardio lane: OpenGym's heart pink, apart from strength's teal, the green controls
+    /// and energy's orange around it. The shipped design keeps the chart style's own cardio colour.
+    private static var forgeCardio: Bool { NoopVisualStyle.skin == .forge }
+
     public static var cardioDeep: Color {
+        if forgeCardio { return Color(light: "#A80C3A", dark: "#D92B55") }
         let hex = LaneColorTable.style(chartStyle).cardioDeep
         return Color(light: hex.light, dark: hex.dark)
     }
     public static var cardioColor: Color {
+        if forgeCardio { return Color(light: "#D70F4A", dark: "#FF375F") }
         let hex = LaneColorTable.style(chartStyle).cardioColor
         return Color(light: hex.light, dark: hex.dark)
     }
     public static var cardioBright: Color {
+        if forgeCardio { return Color(light: "#F2486F", dark: "#FF6B88") }
         let hex = LaneColorTable.style(chartStyle).cardioBright
         return Color(light: hex.light, dark: hex.dark)
     }

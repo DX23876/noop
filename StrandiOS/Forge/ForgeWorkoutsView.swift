@@ -146,7 +146,7 @@ struct ForgeWorkoutsView: View {
                             let v = load[day] ?? 0
                             RoundedRectangle(cornerRadius: 4, style: .continuous)
                                 .fill(day > today ? Color.clear
-                                      : v > 0 ? StrandPalette.forgeEnergyActive.opacity(0.25 + 0.75 * min(1, v / top)) : ForgeColor.fill)
+                                      : v > 0 ? Self.heat(v / top) : ForgeColor.fill)
                                 .aspectRatio(1, contentMode: .fit)
                         }
                     }
@@ -316,6 +316,20 @@ struct ForgeWorkoutDetailHost: View {
             }
             looked = true
         }
+    }
+}
+#endif
+
+
+#if os(iOS)
+extension ForgeWorkoutsView {
+    /// Four fire steps for a day's active energy. A transparent orange turns brown on a dark card, so each
+    /// step is its own colour: deep ember to bright flame in the dark, pale to full orange in the light.
+    static func heat(_ share: Double) -> Color {
+        let step = min(3, Int((min(1, max(0, share)) * 4).rounded(.down)))
+        let light: [UInt32] = [0xFFD8BF, 0xFFB07A, 0xF5803A, 0xD4560F]
+        let dark: [UInt32] = [0x6E2412, 0xA83A16, 0xE0601E, 0xFF9447]
+        return ForgeColor.dyn(light[step], dark[step])
     }
 }
 #endif
