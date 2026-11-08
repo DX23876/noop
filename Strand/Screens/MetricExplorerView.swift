@@ -766,6 +766,9 @@ struct MetricExplorerView: View {
                         availabilityRaw = (availability == .withData ? MetricExplorerAvailability.all : .withData).rawValue
                     }
                 }
+                // Room for the selected chip's ring: the scroll view clipped it at the leading edge.
+                .padding(.horizontal, 2)
+                .padding(.vertical, 2)
             }
             .scrollIndicators(.hidden)
         }
@@ -1455,7 +1458,7 @@ struct MetricDetailView: View {
                 StrandPalette.surfaceBase
                 // Custom background image (#custom-background) OVERRIDES the sky, full-bleed.
                 if backgroundStore.isActive {
-                    BackgroundImageBackdrop()
+                    BackgroundImageBackdrop(veil: true)
                 } else if showDayCycleBackground {
                     LiquidSkyStatic(hour: nil, settleStrength: skyBehindCards ? 0.78 : 1)
                         .frame(maxWidth: .infinity)

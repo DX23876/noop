@@ -167,7 +167,8 @@ struct ForgeBackground: View {
         ZStack(alignment: .top) {
             ForgeColor.canvas
             if photo.isActive {
-                BackgroundImageBackdrop()
+                // Today's own page keeps the photo clear; every other page veils it for its text.
+                BackgroundImageBackdrop(veil: !showsMotif)
             } else if sky && showsMotif {
                 ForgeTodayMotif()
             }

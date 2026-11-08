@@ -362,7 +362,7 @@ private struct UpdatesInboxBackdrop: View {
         ZStack(alignment: .top) {
             StrandPalette.surfaceBase
             if backgroundStore.isActive {
-                BackgroundImageBackdrop()
+                BackgroundImageBackdrop(veil: true)
             } else if showDayCycleBackground {
                 SceneScreenBackground(height: skyBehindCards ? 1100 : 600)
             }

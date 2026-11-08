@@ -209,6 +209,9 @@ final class BackgroundImageStore: ObservableObject {
 // `surfaceBase`. Non-interactive + accessibility-hidden (pure decoration). Mirrors the Compose twin.
 
 struct BackgroundImageBackdrop: View {
+    /// A light veil of the page canvas over the photo, for pages whose headings, footnotes and controls stand
+    /// on the page itself. Today keeps the photo clear; a settings list or a chart page read poorly on it.
+    var veil = false
     @ObservedObject private var store = BackgroundImageStore.shared
 
     var body: some View {
@@ -216,6 +219,9 @@ struct BackgroundImageBackdrop: View {
             scaled(image)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                .overlay {
+                    if veil, NoopVisualStyle.skin == .forge { StrandPalette.surfaceBase.opacity(0.45) }
+                }
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }

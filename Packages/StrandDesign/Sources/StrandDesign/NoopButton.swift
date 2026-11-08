@@ -104,12 +104,14 @@ extension NoopButtonAppearance {
         case .secondary:
             self.init(fill: StrandPalette.textPrimary.opacity(0.07), label: StrandPalette.textPrimary,
                       border: nil, usesPanelSurface: false)
+        // The label darkens in light appearance until it reads on its own wash (`legibleText`): a bright
+        // accent (pink, orange) on a pale wash of itself fell below a readable contrast.
         case .primary:
-            self.init(fill: accent.opacity(NoopButtonMetrics.forgeTintOpacity), label: accent,
+            self.init(fill: accent.opacity(NoopButtonMetrics.forgeTintOpacity), label: accent.legibleText,
                       border: nil, usesPanelSurface: false)
         case .destructive:
             self.init(fill: StrandPalette.statusCritical.opacity(NoopButtonMetrics.forgeTintOpacity),
-                      label: StrandPalette.statusCritical, border: nil, usesPanelSurface: false)
+                      label: StrandPalette.statusCritical.legibleText, border: nil, usesPanelSurface: false)
         case .tertiary:
             self.init(kind, accent: accent)
         }

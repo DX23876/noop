@@ -244,7 +244,7 @@ struct LiquidScaffoldSky: View {
 
     var body: some View {
         if backgroundStore.isActive {
-            BackgroundImageBackdrop()
+            BackgroundImageBackdrop(veil: true)
         } else if showDayCycleBackground && skyBehindCards {
             // Behind the cards every screen shows the same illustrated scene as Today: the procedural sky
             // is a pale blue-gray in Light mode, so Card transparency revealed almost nothing through it.
