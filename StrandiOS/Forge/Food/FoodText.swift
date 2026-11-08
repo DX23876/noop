@@ -29,6 +29,10 @@ enum FoodText {
     }
 
     static func amount(_ value: Double, _ n: FoodNutrient) -> String {
+        // Omega-3 from fish is stored in grams but read in milligrams ("80 mg of 250 mg", not "0.08 g").
+        if n == .epaG || n == .dhaG {
+            return Int((value * 1_000).rounded()).formatted(.number.locale(AppLanguage.activeLocale)) + " mg"
+        }
         let unit = switch n.unit { case .kcal: "kcal"; case .g: "g"; case .mg: "mg"; case .ug: "µg" }
         let digits = value < 1 ? 2 : value < 10 ? 1 : 0
         return value.formatted(.number.precision(.fractionLength(0...digits)).locale(AppLanguage.activeLocale)) + " " + unit
@@ -62,7 +66,7 @@ enum FoodText {
         case .monoFatG: String(localized: "Monounsaturated fat")
         case .polyFatG: String(localized: "Polyunsaturated fat")
         case .omega3G: String(localized: "Omega-3, total")
-        case .epaG: String(localized: "Omega-3 from fish")
+        case .epaG: String(localized: "Omega-3")
         case .dhaG: String(localized: "DHA")
         case .alcoholG: String(localized: "Alcohol")
         case .waterG: String(localized: "Water")
@@ -131,7 +135,7 @@ enum FoodText {
         case .sugaryDrinks: String(localized: "Sweet drinks and juice")
         case .nutsLegumes: String(localized: "Nuts and pulses")
         case .redMeat: String(localized: "Red and processed meat")
-        case .fishOmega3: String(localized: "Omega-3 from fish")
+        case .fishOmega3: String(localized: "Omega-3")
         case .polyFats: String(localized: "Fats from plant oils and nuts")
         case .sodium: String(localized: "Salt")
         case .alcohol: String(localized: "Alcohol")

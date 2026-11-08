@@ -287,7 +287,7 @@ internal fun loadFoodGoals(context: android.content.Context, plan: CoreEnergyPla
 /** The nutrients pinned to the Food page, the same key and default as iOS (`FoodTargets.Keys.pinned`). */
 internal fun foodPinned(context: android.content.Context): List<String> =
     (com.noop.ui.NoopPrefs.of(context).getString("food.pinnedNutrients", "") ?: "").split(',').filter { it.isNotBlank() }
-        .ifEmpty { listOf("fiber_g", "sugar_g", "sat_fat_g", "salt_g") }.take(4)
+        .ifEmpty { listOf("fiber_g", "epa_g", "sat_fat_g", "salt_g") }.take(4)
 
 internal fun toggleFoodPin(context: android.content.Context, key: String): List<String> {
     val list = foodPinned(context).toMutableList()

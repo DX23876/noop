@@ -49,7 +49,7 @@ extension FoodTargets {
     /// Default split: inside the acceptable ranges of the Institute of Medicine (protein 10 to 35, carbohydrate
     /// 45 to 65, fat 20 to 35 % of energy), with protein in the upper half of its range for people who train.
     public static let defaultSplit = (protein: 25.0, carbs: 45.0, fat: 30.0)
-    public static let defaultPinned: [FoodNutrient] = [.fiberG, .sugarG, .satFatG, .saltG]
+    public static let defaultPinned: [FoodNutrient] = [.fiberG, .epaG, .satFatG, .saltG]
 
     public struct Macros: Equatable, Sendable, Codable {
         public var proteinG: Double, carbsG: Double, fatG: Double

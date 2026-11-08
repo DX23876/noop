@@ -5162,7 +5162,7 @@
     <string name="food_n_mono_fat_g">Monounsaturated fat</string>
     <string name="food_n_poly_fat_g">Polyunsaturated fat</string>
     <string name="food_n_omega3_g">Omega-3, total</string>
-    <string name="food_n_epa_g">Omega-3 from fish</string>
+    <string name="food_n_epa_g">Omega-3</string>
     <string name="food_n_cholesterol_mg">Cholesterol</string>
     <string name="food_n_salt_g">Salt</string>
     <string name="food_n_sodium_mg">Sodium</string>
@@ -5282,7 +5282,7 @@
     <string name="food_part_sweet_drinks">Sweet drinks and juice</string>
     <string name="food_part_nuts">Nuts and pulses</string>
     <string name="food_part_red_meat">Red and processed meat</string>
-    <string name="food_part_fish">Omega-3 from fish</string>
+    <string name="food_part_fish">Omega-3</string>
     <string name="food_part_fats">Fats from plant oils and nuts</string>
     <string name="food_part_salt">Salt</string>
     <string name="food_part_alcohol">Alcohol</string>

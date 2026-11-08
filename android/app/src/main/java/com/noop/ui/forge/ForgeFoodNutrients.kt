@@ -107,6 +107,8 @@ private fun nutrientNameRes(key: String): Int? = when (key) {
 }
 
 internal fun nutrientAmount(value: Double, key: String): String {
+    // Omega-3 from fish is stored in grams but read in milligrams, as on iOS.
+    if (key == "epa_g" || key == "dha_g") return "${NumberFormat.getIntegerInstance(Locale.getDefault()).format((value * 1000).roundToInt())} mg"
     val unit = when (key.substringAfterLast('_')) { "mg" -> "mg"; "ug" -> "µg"; "kcal" -> "kcal"; else -> "g" }
     val f = NumberFormat.getNumberInstance(Locale.getDefault())
     f.maximumFractionDigits = if (value < 1) 2 else if (value < 10) 1 else 0
