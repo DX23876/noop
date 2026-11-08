@@ -70,8 +70,14 @@ final class ForgeFoodModel: ObservableObject {
 
     @discardableResult
     func log(_ lines: [FoodCartLine], at: Date, meal: FoodLog.MealKind?, origin: FoodLogEntry.Origin,
-             repo: Repository) async -> Bool {
+             repo: Repository, coach: AICoachEngine? = nil) async -> Bool {
         guard let store = await repo.storeHandle(), !lines.isEmpty else { return false }
+        var lines = lines
+        // Missing vitamins and minerals, borrowed from the closest BLS food, only when the wearer chose it.
+        if let coach, CoachFeaturePrefs.isEnabled, UserDefaults.standard.bool(forKey: FoodEstimate.enabledKey) {
+            let filled = await coach.fillingMissingNutrients(lines.map(\.item), store: store)
+            for index in lines.indices { lines[index].item = filled[index] }
+        }
         let entries = lines.map {
             FoodLog.entry(for: $0.item, grams: $0.grams, at: at, origin: origin, portionLabel: $0.portionLabel, meal: meal)
         }

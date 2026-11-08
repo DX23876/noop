@@ -141,7 +141,8 @@ internal fun ForgeFoodNutrientsPage(report: CoreFood.NutrientReport, onBack: () 
                                 row.status == "incomplete" -> stringResource(R.string.food_nutrients_incomplete, (row.coverage * 100).roundToInt())
                                 row.atMost -> stringResource(R.string.food_nutrients_limit, nutrientAmount(ref, row.nutrient), row.source ?: "")
                                 else -> stringResource(R.string.food_nutrients_reference, nutrientAmount(ref, row.nutrient), row.source ?: "")
-                            }, style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                            } + if (row.status != "incomplete" && row.estimatedShare >= 0.05)
+                                " · " + stringResource(R.string.food_nutrients_estimated, (row.estimatedShare * 100).roundToInt()) else "", style = Forge.type.footnote, color = Forge.colors.textSecondary)
                         }
                         if (open == row.nutrient && row.topFoods.isNotEmpty()) {
                             Text(stringResource(R.string.food_nutrients_from), style = Forge.type.caption, color = Forge.colors.textSecondary)

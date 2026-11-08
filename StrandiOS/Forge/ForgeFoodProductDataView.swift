@@ -12,6 +12,8 @@ struct ForgeFoodProductDataView: View {
     @AppStorage(FoodProductDataPrefs.countriesKey) private var countriesRaw = ""
     @AppStorage(FoodProductDataPrefs.unknownBarcodesOnlineKey) private var unknownBarcodesOnline = false
     @AppStorage(FoodHealthSync.enabledKey) private var writeHealth = true
+    @AppStorage(FoodEstimate.enabledKey) private var estimateMissing = false
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var manifest: FoodPackManifest?
     @State private var manifestFailed = false
     @State private var installed: [InstalledFoodPack] = []
@@ -94,6 +96,18 @@ struct ForgeFoodProductDataView: View {
                 }
                 if let failure {
                     Section { Text(failure).foregroundStyle(ForgeColor.effortInk) }
+                }
+                if coachFeatureEnabled {
+                    Section {
+                        Toggle(isOn: $estimateMissing) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Fill in missing nutrients")
+                                Text("Recommended").font(.caption.weight(.semibold)).foregroundStyle(ForgeColor.accent)
+                            }
+                        }
+                    } footer: {
+                        Text("When a product leaves out vitamins and minerals, your coach picks the most similar food in the German Nutrient Database and Forge takes the missing values from it. Everything on the label stays. Borrowed values are marked as estimates. The product's name and stated values go to your coach's provider, once per product.")
+                    }
                 }
                 Section {
                     Toggle("Write meals to Apple Health", isOn: $writeHealth)

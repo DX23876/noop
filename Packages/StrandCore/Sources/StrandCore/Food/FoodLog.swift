@@ -86,7 +86,7 @@ public enum FoodLog {
             foodId: item.id, name: item.name, brand: item.brand, grams: grams, portionLabel: portionLabel,
             per100g: item.per100g.stored, totals: item.per100g.scaled(toGrams: grams).stored, origin: origin,
             recipeId: item.source == .recipe ? String(item.id.dropFirst("recipe:".count)) : nil,
-            createdAt: stamp, updatedAt: stamp)
+            createdAt: stamp, updatedAt: stamp, estimatedKeys: item.estimatedKeys ?? [])
     }
 
     /// A calorie figure without a food ("about 600 kcal at the canteen").
@@ -195,7 +195,9 @@ public enum FoodLibrary {
         }
         let own = ((try? await store.customFoods()) ?? []).map(item(for:)).filter { matches($0.name + " " + ($0.brand ?? "")) }
         let recipes = ((try? await store.foodRecipes()) ?? []).compactMap(FoodLog.item(for:)).filter { matches($0.name) }
-        let catalogue = await catalog.search(query, limit: limit)
+        // A product kept as the wearer's own (often with its gaps filled) replaces its catalogue row.
+        let kept = Set(((try? await store.customFoods()) ?? []).compactMap(\.sourceId))
+        let catalogue = await catalog.search(query, limit: limit).filter { !kept.contains($0.id) }
         var seen = Set<String>()
         return (recipes + own + catalogue).filter { seen.insert($0.id).inserted }.prefix(limit).map { $0 }
     }
@@ -244,7 +246,8 @@ public enum FoodLibrary {
         let custom = CustomFood(id: id, name: food.name, brand: food.brand, barcode: food.barcode, group: food.group,
                                 nova: food.nova, servingG: food.servingG, servingLabel: food.servingLabel,
                                 per100g: food.per100g.stored, origin: origin,
-                                sourceId: food.source == .own ? nil : food.id, createdAt: stamp, updatedAt: stamp)
+                                sourceId: food.source == .own ? nil : food.id, createdAt: stamp, updatedAt: stamp,
+                                estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [])
         guard (try? await store.saveCustomFood(custom)) == true else { return nil }
         return item(for: custom)
     }
@@ -252,7 +255,8 @@ public enum FoodLibrary {
     public static func item(for food: CustomFood) -> FoodItem {
         FoodItem(id: food.id, source: .own, name: food.name, brand: food.brand, group: food.group, nova: food.nova,
                  servingG: food.servingG, servingLabel: food.servingLabel,
-                 per100g: NutrientAmounts(stored: food.per100g), barcode: food.barcode)
+                 per100g: NutrientAmounts(stored: food.per100g), barcode: food.barcode,
+                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys)
     }
 }
 

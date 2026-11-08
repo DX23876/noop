@@ -5188,4 +5188,10 @@
     <string name="food_n_vitamin_c_mg">Vitamin C</string>
     <string name="food_n_pantothenic_mg">Pantothenic acid</string>
     <string name="food_n_biotin_ug">Biotin</string>
+    <string name="food_estimate_title">Missing nutrients</string>
+    <string name="food_estimate_toggle">Fill in missing nutrients</string>
+    <string name="food_recommended">Recommended</string>
+    <string name="food_estimate_note">When a product leaves out vitamins and minerals, your coach picks the most similar food in the German Nutrient Database and Forge takes the missing values from it. Everything on the label stays. Borrowed values are marked as estimates. The product\'s name and stated values go to your coach\'s provider, once per product.</string>
+    <string name="food_estimated_note">%1$d vitamins and minerals are estimated from a similar food in the German Nutrient Database (%2$s).</string>
+    <string name="food_nutrients_estimated">%1$d %% estimated</string>
 </resources>

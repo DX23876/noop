@@ -188,9 +188,11 @@ struct ForgeFoodNutrientsView: View {
         case .incomplete:
             return String(localized: "Not enough data: only \(Int((row.coverage * 100).rounded())) % of what you logged states it.")
         default:
-            return reference.kind == .atLeast
+            let base = reference.kind == .atLeast
                 ? String(localized: "Reference \(ref) a day (\(reference.source))")
                 : String(localized: "Limit \(ref) a day (\(reference.source))")
+            guard row.estimatedShare >= 0.05 else { return base }
+            return base + " · " + String(localized: "\(Int((row.estimatedShare * 100).rounded())) % estimated")
         }
     }
 }

@@ -20,10 +20,14 @@ public struct FoodItem: Equatable, Sendable, Identifiable, Codable {
     public var per100g: NutrientAmounts
     /// The product barcode, for packs, online results and the wearer's scanned foods.
     public var barcode: String?
+    /// The BLS food whose values filled this one's gaps, and which nutrients they are (`FoodEstimate`).
+    public var estimatedFrom: String?
+    public var estimatedKeys: [String]?
 
     public init(id: String, source: Source, name: String, nameEn: String? = nil, brand: String? = nil,
                 group: String? = nil, nova: Int? = nil, servingG: Double? = nil, servingLabel: String? = nil,
-                per100g: NutrientAmounts, barcode: String? = nil) {
+                per100g: NutrientAmounts, barcode: String? = nil, estimatedFrom: String? = nil, estimatedKeys: [String]? = nil) {
+        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys
         self.id = id; self.source = source; self.name = name; self.nameEn = nameEn; self.brand = brand
         self.group = group; self.nova = nova; self.servingG = servingG; self.servingLabel = servingLabel
         self.per100g = per100g; self.barcode = barcode

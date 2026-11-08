@@ -46,11 +46,14 @@ public struct FoodLogEntry: Equatable, Sendable {
     public var healthId: String?
     public var createdAt: Int
     public var updatedAt: Int
+    /// Nutrients in this entry that were estimated (borrowed from a similar BLS food), not stated by the source.
+    public var estimatedKeys: [String]
 
     public init(id: String, loggedAt: Int, day: String, meal: String? = nil, foodId: String?, name: String,
                 brand: String? = nil, grams: Double?, portionLabel: String? = nil, per100g: FoodNutrientValues?,
                 totals: FoodNutrientValues, origin: Origin, recipeId: String? = nil, healthId: String? = nil,
-                createdAt: Int, updatedAt: Int) {
+                createdAt: Int, updatedAt: Int, estimatedKeys: [String] = []) {
+        self.estimatedKeys = estimatedKeys
         self.id = id; self.loggedAt = loggedAt; self.day = day; self.meal = meal; self.foodId = foodId
         self.name = name; self.brand = brand; self.grams = grams; self.portionLabel = portionLabel
         self.per100g = per100g; self.totals = totals; self.origin = origin; self.recipeId = recipeId
@@ -78,10 +81,15 @@ public struct CustomFood: Equatable, Sendable {
     public var sourceId: String?
     public var createdAt: Int
     public var updatedAt: Int
+    /// The BLS food missing nutrients were borrowed from, and which ones, when the wearer let the coach fill gaps.
+    public var estimatedFrom: String?
+    public var estimatedKeys: [String]
 
     public init(id: String, name: String, brand: String? = nil, barcode: String? = nil, group: String? = nil,
                 nova: Int? = nil, servingG: Double? = nil, servingLabel: String? = nil, per100g: FoodNutrientValues,
-                origin: Origin, sourceId: String? = nil, createdAt: Int, updatedAt: Int) {
+                origin: Origin, sourceId: String? = nil, createdAt: Int, updatedAt: Int,
+                estimatedFrom: String? = nil, estimatedKeys: [String] = []) {
+        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys
         self.id = id; self.name = name; self.brand = brand; self.barcode = barcode; self.group = group
         self.nova = nova; self.servingG = servingG; self.servingLabel = servingLabel; self.per100g = per100g
         self.origin = origin; self.sourceId = sourceId; self.createdAt = createdAt; self.updatedAt = updatedAt
@@ -162,6 +170,8 @@ extension WhoopStore {
             t.column("sourceId", .text)
             t.column("createdAt", .integer).notNull()
             t.column("updatedAt", .integer).notNull()
+            t.column("estimatedFrom", .text)
+            t.column("estimatedKeys", .text)
         }
         try db.create(index: "idx_foodCustom_barcode", on: "foodCustom", columns: ["barcode"])
         try db.create(table: "foodLogEntry") { t in
@@ -181,6 +191,7 @@ extension WhoopStore {
             t.column("healthId", .text)
             t.column("createdAt", .integer).notNull()
             t.column("updatedAt", .integer).notNull()
+            t.column("estimatedKeys", .text)
         }
         try db.create(index: "idx_foodLogEntry_day", on: "foodLogEntry", columns: ["day", "loggedAt"])
         try db.create(index: "idx_foodLogEntry_foodId", on: "foodLogEntry", columns: ["foodId", "loggedAt"])
@@ -225,13 +236,13 @@ extension WhoopStore {
                 try db.execute(sql: """
                     INSERT OR REPLACE INTO foodLogEntry
                       (id, loggedAt, day, meal, foodId, name, brand, grams, portionLabel, per100g, totals, origin,
-                       recipeId, healthId, createdAt, updatedAt)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       recipeId, healthId, createdAt, updatedAt, estimatedKeys)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, arguments: [
                         entry.id, entry.loggedAt, entry.day, entry.meal, entry.foodId, entry.name, entry.brand,
                         entry.grams, entry.portionLabel, entry.per100g.map(Self.encodeNutrients),
                         Self.encodeNutrients(entry.totals), entry.origin.rawValue, entry.recipeId, entry.healthId,
-                        entry.createdAt, entry.updatedAt])
+                        entry.createdAt, entry.updatedAt, Self.encodeKeys(entry.estimatedKeys)])
             }
             for day in days { try Self.rebankFoodLogDay(day, in: db) }
         }
@@ -343,7 +354,8 @@ extension WhoopStore {
             id: row["id"], loggedAt: row["loggedAt"], day: row["day"], meal: row["meal"], foodId: row["foodId"],
             name: row["name"], brand: row["brand"], grams: row["grams"], portionLabel: row["portionLabel"],
             per100g: (row["per100g"] as String?).flatMap(decodeNutrients), totals: totals, origin: origin,
-            recipeId: row["recipeId"], healthId: row["healthId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"])
+            recipeId: row["recipeId"], healthId: row["healthId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"],
+            estimatedKeys: decodeKeys(row["estimatedKeys"]))
     }
 
     // MARK: - Custom foods
@@ -357,12 +369,12 @@ extension WhoopStore {
             try db.execute(sql: """
                 INSERT OR REPLACE INTO foodCustom
                   (id, name, brand, barcode, foodGroup, nova, servingG, servingLabel, per100g, origin, sourceId,
-                   createdAt, updatedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   createdAt, updatedAt, estimatedFrom, estimatedKeys)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, arguments: [
                     food.id, food.name, food.brand, food.barcode, food.group, food.nova, food.servingG,
                     food.servingLabel, Self.encodeNutrients(food.per100g), food.origin.rawValue, food.sourceId,
-                    food.createdAt, food.updatedAt])
+                    food.createdAt, food.updatedAt, food.estimatedFrom, Self.encodeKeys(food.estimatedKeys)])
         }
         return true
     }
@@ -402,7 +414,8 @@ extension WhoopStore {
         return CustomFood(id: row["id"], name: row["name"], brand: row["brand"], barcode: row["barcode"],
                           group: row["foodGroup"], nova: row["nova"], servingG: row["servingG"],
                           servingLabel: row["servingLabel"], per100g: per100g, origin: origin,
-                          sourceId: row["sourceId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"])
+                          sourceId: row["sourceId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"],
+                          estimatedFrom: row["estimatedFrom"], estimatedKeys: decodeKeys(row["estimatedKeys"]))
     }
 
     // MARK: - Recipes
@@ -482,6 +495,17 @@ extension WhoopStore {
         let finite = values.filter { $0.value.isFinite }
         let data = (try? JSONSerialization.data(withJSONObject: finite, options: [.sortedKeys])) ?? Data("{}".utf8)
         return String(decoding: data, as: UTF8.self)
+    }
+
+    /// Nil for an empty list, so entries without estimates store nothing.
+    static func encodeKeys(_ keys: [String]) -> String? {
+        guard !keys.isEmpty, let data = try? JSONSerialization.data(withJSONObject: keys.sorted()) else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    static func decodeKeys(_ json: String?) -> [String] {
+        guard let json, let list = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String] else { return [] }
+        return list
     }
 
     static func decodeNutrients(_ json: String?) -> FoodNutrientValues? {

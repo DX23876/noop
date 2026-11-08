@@ -4475,6 +4475,16 @@ final class AICoachEngine: ObservableObject {
         } catch { return nil }
     }
 
+    /// A one-off completion with the CHAT model (the strong one), for choices whose mistakes last, such as which
+    /// BLS food a product's missing nutrients are borrowed from. Nil on any failure.
+    func strongComplete(system: String, user: String) async -> String? {
+        guard let key = resolvedKey else { return nil }
+        do {
+            return try await provider.client.send(key: key, model: model(for: .chat), systemPrompt: system,
+                                                  messages: [(role: .user, content: user)], session: session)
+        } catch { return nil }
+    }
+
     /// Whether the chosen provider sends a picture to the cheap model (food photos).
     var readsFoodPhotos: Bool { CoachFeaturePrefs.isEnabled && resolvedKey != nil && provider.client.readsImages }
 

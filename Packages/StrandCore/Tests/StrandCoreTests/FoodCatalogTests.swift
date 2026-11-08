@@ -245,3 +245,44 @@ final class FoodNutrientReportTests: XCTestCase {
         XCTAssertEqual(references[.saltG]?.kind, .atMost)
     }
 }
+
+final class FoodEstimateTests: XCTestCase {
+    private let muesli = FoodItem(id: "off:4000000000017", source: .off, name: "Knusper Müsli",
+                                  per100g: NutrientAmounts([.energyKcal: 430, .proteinG: 9, .carbsG: 62, .fatG: 15, .sugarG: 18,
+                                                            .ironMg: 7]))
+    private let bls = FoodItem(id: "bls:C990000", source: .bls, name: "Müsli mit Trockenobst",
+                               per100g: NutrientAmounts([.energyKcal: 370, .proteinG: 10, .ironMg: 3.1, .magnesiumMg: 120,
+                                                         .vitaminEMg: 2, .sugarG: 20]))
+
+    func testOnlyGapsAreBorrowedAndMarked() {
+        XCTAssertTrue(FoodEstimate.needsFilling(muesli))
+        let filled = FoodEstimate.filled(muesli, from: bls)
+        XCTAssertEqual(filled.per100g[.energyKcal], 430, "label values stay")
+        XCTAssertEqual(filled.per100g[.sugarG], 18)
+        XCTAssertEqual(filled.per100g[.ironMg], 7, "a stated micronutrient stays")
+        XCTAssertEqual(filled.per100g[.magnesiumMg], 120)
+        XCTAssertEqual(filled.estimatedFrom, "bls:C990000")
+        XCTAssertEqual(filled.estimatedKeys, ["magnesium_mg", "vitamin_e_mg"])
+        XCTAssertFalse(FoodEstimate.needsFilling(filled), "a filled product is not matched again")
+        XCTAssertFalse(FoodEstimate.needsFilling(bls), "BLS foods are complete")
+    }
+
+    func testEntriesCarryTheMarksIntoTheReport() async throws {
+        let filled = FoodEstimate.filled(muesli, from: bls)
+        let entry = FoodLog.entry(for: filled, grams: 100, at: Date(), origin: .search)
+        XCTAssertEqual(entry.estimatedKeys, ["magnesium_mg", "vitamin_e_mg"])
+        let store = try await WhoopStore.inMemory()
+        try await store.saveFoodLogEntries([entry])
+        let stored = try await store.foodLogEntry(id: entry.id)
+        XCTAssertEqual(stored?.estimatedKeys, entry.estimatedKeys)
+        let report = FoodNutrientReport.report(entries: [entry], from: entry.day, to: entry.day,
+                                               references: FoodReference.values(profileSex: "male", age: 40, weightKg: 80,
+                                                                                heightCm: 180, energyKcal: 2_500))
+        XCTAssertEqual(report.rows.first { $0.nutrient == .magnesiumMg }?.estimatedShare, 1)
+        XCTAssertEqual(report.rows.first { $0.nutrient == .ironMg }?.estimatedShare, 0)
+
+        let kept = await FoodLibrary.saveOwn(store: store, filled, origin: .online)
+        XCTAssertEqual(kept?.estimatedFrom, "bls:C990000")
+        XCTAssertEqual(kept?.estimatedKeys, ["magnesium_mg", "vitamin_e_mg"])
+    }
+}

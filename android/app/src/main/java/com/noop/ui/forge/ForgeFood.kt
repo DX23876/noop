@@ -493,7 +493,11 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
                     scope.launch {
                         withContext(Dispatchers.IO) {
                             // An online result is kept as the wearer's own food, so it is there offline next time.
-                            val lines = cart.map { line -> if (line.item.source == "online") CoreFood.saveOwn(line.item, "online")?.let { line.copy(item = it) } ?: line else line }
+                            var lines = cart.map { line -> if (line.item.source == "online") CoreFood.saveOwn(line.item, "online")?.let { line.copy(item = it) } ?: line else line }
+                            // Missing vitamins and minerals from the closest BLS food, only when the wearer chose it.
+                            if (prefs.estimateMissing && com.noop.ui.NoopPrefs.coachEnabled(context)) {
+                                CoreFood.coachEnrich(lines.map { it.item })?.let { filled -> lines = lines.zip(filled) { l, i -> l.copy(item = i) } }
+                            }
                             FoodHealthConnect.wrote(context, CoreFood.logCart(lines, atEpoch, meal))
                         }
                         onBack()
@@ -558,6 +562,8 @@ private fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismiss
             val totals = item.scaled(grams)
             Text("${kcalText(totals["energy_kcal"])} kcal · ${gramsText(totals["protein_g"])} g ${stringResource(R.string.food_protein)}",
                  style = Forge.type.body, color = Forge.colors.textSecondary)
+            if (item.estimatedFrom != null) Text(stringResource(R.string.food_estimated_note, item.estimatedCount, item.estimatedFrom),
+                                                 style = Forge.type.caption, color = Forge.colors.textSecondary)
             Text(stringResource(if (item.source == "bls") R.string.food_source_bls else R.string.food_source_off),
                  style = Forge.type.caption, color = Forge.colors.textTertiary)
         }
@@ -669,6 +675,9 @@ internal class FoodDataPrefs(context: android.content.Context) {
     var unknownBarcodesOnline: Boolean
         get() = prefs.getBoolean("food.productData.unknownBarcodesOnline", false)
         set(value) { prefs.edit().putBoolean("food.productData.unknownBarcodesOnline", value).apply() }
+    var estimateMissing: Boolean
+        get() = prefs.getBoolean("food.estimateMissing", false)
+        set(value) { prefs.edit().putBoolean("food.estimateMissing", value).apply() }
     var writeHealth: Boolean
         get() = prefs.getBoolean(FoodHealthConnect.PREF_WRITE, true)
         set(value) { prefs.edit().putBoolean(FoodHealthConnect.PREF_WRITE, value).apply() }
@@ -709,6 +718,7 @@ private fun ForgeFoodDataPage(onBack: () -> Unit) {
     var countries by remember { mutableStateOf(prefs.countries) }
     var unknownOnline by remember { mutableStateOf(prefs.unknownBarcodesOnline) }
     var writeHealth by remember { mutableStateOf(prefs.writeHealth) }
+    var estimateMissing by remember { mutableStateOf(prefs.estimateMissing) }
     val permissions = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) { }
     val failedText = stringResource(R.string.food_download_failed)
@@ -792,6 +802,17 @@ private fun ForgeFoodDataPage(onBack: () -> Unit) {
             }
         }
         failure?.let { Text(it, style = Forge.type.body, color = Forge.colors.effort) }
+        if (com.noop.ui.NoopPrefs.coachEnabled(context)) {
+            SettingsCard(stringResource(R.string.food_estimate_title), stringResource(R.string.food_estimate_note)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.food_estimate_toggle), style = Forge.type.body, color = Forge.colors.text)
+                        Text(stringResource(R.string.food_recommended), style = Forge.type.caption, color = Forge.colors.accent)
+                    }
+                    Switch(estimateMissing, { estimateMissing = it; prefs.estimateMissing = it })
+                }
+            }
+        }
         SettingsCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.food_write_health), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))

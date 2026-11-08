@@ -31,6 +31,7 @@ struct ForgeFoodAddSheet: View {
     enum Tab: String, CaseIterable { case recent, favourites, mine }
 
     @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var coach: AICoachEngine
     @Environment(\.dismiss) private var dismiss
     @AppStorage(FoodProductDataPrefs.modeKey) private var modeRaw = FoodProductDataMode.none.rawValue
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
@@ -240,7 +241,7 @@ struct ForgeFoodAddSheet: View {
                             }
                         }
                         let origin: FoodLogEntry.Origin = lines.contains { $0.item.source == .recipe } ? .recipe : .search
-                        if await model.log(lines, at: time, meal: meal, origin: origin, repo: repo) { dismiss() }
+                        if await model.log(lines, at: time, meal: meal, origin: origin, repo: repo, coach: coach) { dismiss() }
                     }
                 } label: {
                     Text("Add \(cart.count) · \(ForgeFoodModel.kcal(kcal)) kcal")
@@ -337,6 +338,12 @@ struct ForgeFoodPortionSheet: View {
                     row(String(localized: "Fibre"), totals[.fiberG], "g")
                     row(String(localized: "Sugar"), totals[.sugarG], "g")
                     row(String(localized: "Salt"), totals[.saltG], "g")
+                }
+                if let from = item.estimatedFrom, let count = item.estimatedKeys?.count {
+                    Section {
+                        Text("\(count) vitamins and minerals are estimated from a similar food in the German Nutrient Database (\(from)).")
+                            .font(.footnote).foregroundStyle(ForgeColor.secondary)
+                    }
                 }
                 if item.source == .bls {
                     Section { Text("Source: German Nutrient Database (BLS 4.0), Max Rubner-Institut, CC BY 4.0.").font(.footnote).foregroundStyle(ForgeColor.secondary) }

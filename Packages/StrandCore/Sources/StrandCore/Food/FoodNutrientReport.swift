@@ -94,6 +94,8 @@ public enum FoodNutrientReport {
         public var reference: FoodReference.Value?
         /// Share of the window's logged energy that came from entries knowing this nutrient (0 to 1).
         public var coverage: Double
+        /// Share of this nutrient's amount that was estimated from a similar BLS food (0 to 1).
+        public var estimatedShare: Double
         /// The foods that gave the most of it, largest first, with their amount over the window.
         public var topFoods: [Source]
         public var status: Status
@@ -143,7 +145,7 @@ public enum FoodNutrientReport {
         let energy = entries.reduce(0) { $0 + ($1.totals["energy_kcal"] ?? 0) }
         let shown = FoodNutrient.allCases.filter { ![.energyKcal, .waterG, .alcoholG, .dhaG].contains($0) }
         let rows: [Row] = shown.map { nutrient in
-            var total = 0.0, today = 0.0, knownEnergy = 0.0
+            var total = 0.0, today = 0.0, knownEnergy = 0.0, estimated = 0.0
             var byFood: [String: Double] = [:]
             for entry in entries {
                 // EPA's row is EPA plus DHA together: that sum is what the reference is about.
@@ -152,6 +154,7 @@ public enum FoodNutrientReport {
                     : entry.totals[nutrient.rawValue]
                 guard let value = raw else { continue }
                 total += value
+                if entry.estimatedKeys.contains(nutrient.rawValue) { estimated += value }
                 knownEnergy += entry.totals["energy_kcal"] ?? 0
                 if entry.day == to { today += value }
                 byFood[entry.name, default: 0] += value
@@ -175,7 +178,7 @@ public enum FoodNutrientReport {
             let top = byFood.sorted { $0.value > $1.value }.prefix(5).filter { $0.value > 0 }
                 .map { Row.Source(name: $0.key, amount: $0.value) }
             return Row(nutrient: nutrient, average: average, today: today, reference: reference, coverage: coverage,
-                       topFoods: top, status: status)
+                       estimatedShare: total > 0 ? estimated / total : 0, topFoods: top, status: status)
         }
         return Report(from: from, to: to, loggedDays: days.count, rows: rows)
     }

@@ -13,6 +13,7 @@ object CoreFood {
     data class Item(
         val json: JSONObject, val id: String, val source: String, val name: String, val brand: String?,
         val servingG: Double?, val servingLabel: String?, val per100g: Map<String, Double>, val barcode: String?,
+        val estimatedFrom: String? = null, val estimatedCount: Int = 0,
     ) {
         fun scaled(grams: Double): Map<String, Double> = per100g.mapValues { it.value * grams / 100.0 }
     }
@@ -47,6 +48,7 @@ object CoreFood {
     fun item(json: JSONObject) = Item(
         json, json.optString("id"), json.optString("source"), json.optString("name"), json.text("brand"),
         json.number("servingG"), json.text("servingLabel"), numbers(json.optJSONObject("per100g")), json.text("barcode"),
+        json.text("estimatedFrom"), json.optJSONArray("estimatedKeys")?.length() ?: 0,
     )
 
     private fun entry(json: JSONObject) = Entry(
@@ -158,7 +160,7 @@ object CoreFood {
     }
 
     data class NutrientRow(val nutrient: String, val average: Double, val today: Double, val reference: Double?,
-                           val atMost: Boolean, val source: String?, val coverage: Double, val status: String,
+                           val atMost: Boolean, val source: String?, val coverage: Double, val estimatedShare: Double, val status: String,
                            val topFoods: List<Pair<String, Double>>)
     data class NutrientReport(val loggedDays: Int, val rows: List<NutrientRow>) {
         val fine get() = rows.count { it.status == "fine" }
@@ -177,7 +179,7 @@ object CoreFood {
             val top = r.optJSONArray("topFoods") ?: JSONArray()
             NutrientRow(r.optString("nutrient"), r.optDouble("average"), r.optDouble("today"),
                 ref?.optDouble("amount"), ref?.optString("kind") == "atMost", ref?.optString("source"),
-                r.optDouble("coverage"), r.optString("status"),
+                r.optDouble("coverage"), r.optDouble("estimatedShare", 0.0), r.optString("status"),
                 (0 until top.length()).mapNotNull { j -> top.optJSONObject(j)?.let { it.optString("name") to it.optDouble("amount") } })
         })
     }
@@ -194,6 +196,13 @@ object CoreFood {
 
     fun onlineBarcode(code: String, language: String): Item? =
         call("food.onlineBarcode", JSONObject().put("code", code).put("language", language))?.let(::item)
+
+    /** The cart's products with missing nutrients borrowed from the closest BLS food; unchanged ones as they were. */
+    fun coachEnrich(items: List<Item>): List<Item>? {
+        val array = JSONArray(); items.forEach { array.put(it.json) }
+        val json = call("coach.foodEnrich", JSONObject().put("items", array)) ?: return null
+        return items(json).takeIf { it.size == items.size }
+    }
 
     fun coachReadsPhotos(): Boolean = call("coach.foodPhotos")?.optBoolean("reads") == true
 

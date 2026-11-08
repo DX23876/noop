@@ -5499,6 +5499,18 @@
      "affinity": "INTEGER",
      "notNull": true,
      "default": null
+    },
+    {
+     "name": "estimatedFrom",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "estimatedKeys",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
     }
    ],
    "primaryKey": [
@@ -5612,6 +5624,12 @@
      "name": "updatedAt",
      "affinity": "INTEGER",
      "notNull": true,
+     "default": null
+    },
+    {
+     "name": "estimatedKeys",
+     "affinity": "TEXT",
+     "notNull": false,
      "default": null
     }
    ],
