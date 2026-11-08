@@ -13,6 +13,8 @@ struct FoodDataSettingsView: View {
     @AppStorage(FoodHealthSync.enabledKey) private var writeHealth = true
     @AppStorage(FoodEstimate.enabledKey) private var estimateMissing = false
     @AppStorage(FoodScore.enabledKey) private var showScore = false
+    /// With a diet plan the goals live in the plan, one place for them (decision 2026-11-09).
+    @AppStorage(DietPlan.storageKey) private var planRaw = ""
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var packs = FoodPacksModel()
     @AppStorage(FoodTargets.Keys.calories) private var fixedKcal = 0.0
@@ -25,7 +27,14 @@ struct FoodDataSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                FoodGoalsSection(fixedKcal: $fixedKcal, protein: $proteinPercent, carbs: $carbsPercent, fat: $fatPercent)
+                if DietPlan.decode(planRaw) == nil {
+                    FoodGoalsSection(fixedKcal: $fixedKcal, protein: $proteinPercent, carbs: $carbsPercent, fat: $fatPercent)
+                } else {
+                    Section("Goals") {
+                        Text("Your calories and macros come from your diet plan. Change them on the plan page at the top of Nutrition.")
+                            .foregroundStyle(ForgeColor.secondary)
+                    }
+                }
                 Section {
                     Picker("Branded products", selection: $modeRaw) {
                         Text("Off").tag(FoodProductDataMode.none.rawValue)

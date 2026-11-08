@@ -1,4 +1,5 @@
 import Foundation
+import WhoopStore
 
 /// The evening's one sentence under the plate: at most two plain observations about the day, read against the same
 /// goals the plate and the nutrient card show, so the sentence and the figures can never disagree. Rule-based; it
@@ -34,5 +35,21 @@ public enum FoodDaySentence {
             if value > ref.amount { watch.append(Point(nutrient: nutrient, plenty: true, watch: true)) }
         }
         return Array((good.prefix(1) + watch.prefix(1)).prefix(2))
+    }
+
+    /// The food group the plan keeps rare (or leaves out) that brought at least a quarter of the day's calories,
+    /// the largest such; nil when the day suits the plan.
+    public static func offPlan(entries: [FoodLogEntry], groups: [String: String], form: DietForm, addon: DietAddon?) -> FoodGroupMotif? {
+        var kcal: [FoodGroupMotif: Double] = [:]
+        var total = 0.0
+        for e in entries {
+            let k = e.totals["energy_kcal"] ?? 0
+            total += k
+            guard let motif = FoodGroupMotif.forFoodId(e.foodId) ?? FoodGroupMotif.forGroup(e.foodId.flatMap { groups[$0] }),
+                  form.fit(motif, addon: addon) < 0 else { continue }
+            kcal[motif, default: 0] += k
+        }
+        guard total >= 600, let top = kcal.max(by: { $0.value < $1.value }), top.value / total >= 0.25 else { return nil }
+        return top.key
     }
 }

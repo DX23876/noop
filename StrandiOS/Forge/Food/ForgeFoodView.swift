@@ -20,7 +20,8 @@ struct ForgeFoodView: View {
     /// SwiftUI open the wrong page (a tap on the score opened the nutrients).
     @State private var subpage: Subpage?
 
-    enum Subpage: Hashable { case nutrients, score }
+    enum Subpage: Hashable { case nutrients, score, plan }
+    @State private var planning = false
     @State private var editing: FoodLogEntry?
     @State private var copying: FoodEntryBatch?
     @State private var recipeFrom: FoodEntryBatch?
@@ -28,8 +29,9 @@ struct ForgeFoodView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Food"),
+                ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Nutrition"),
                                   scrolledPast: $scrolledPast)
+                DietPlanLine(model: model, open: openPlan)
                 hero
                 if let other = model.otherIntake {
                     FoodOtherIntakeNote(kcal: other.kcal, source: other.source)
@@ -84,7 +86,7 @@ struct ForgeFoodView: View {
             .background(alignment: .top) { FoodHeroPicture().padding(.top, -120) }
         }
         .background(ForgeBackground(tab: .today))
-        .forgeDetailBar(title: String(localized: "Food"), showsTitle: scrolledPast)
+        .forgeDetailBar(title: String(localized: "Nutrition"), showsTitle: scrolledPast)
         .toolbar {
             // Adding sits in the bar, always in reach, instead of a button floating over the meals.
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -96,6 +98,7 @@ struct ForgeFoodView: View {
         .sensoryFeedback(.selection, trigger: model.day)
         .task { await model.load(repo: repo, profile: Repository.analyticsProfile(profile)) }
         .onChange(of: model.day) { Task { await model.reload(repo: repo) } }
+        .sheet(isPresented: $planning) { DietPlannerView(model: model).environmentObject(repo) }
         .sheet(isPresented: $showAdd) { FoodAddSheet(model: model).environmentObject(repo) }
         .sheet(isPresented: $showSettings, onDismiss: reloadGoals) { FoodDataSettingsView() }
         .sheet(item: $editing) { FoodEntrySheet(entry: $0, model: model).environmentObject(repo) }
@@ -105,6 +108,8 @@ struct ForgeFoodView: View {
             switch page {
             case .score:
                 if let score = model.score { FoodScoreView(score: score, male: model.male == true) }
+            case .plan:
+                DietPlanView(model: model)
             case .nutrients:
                 if let week = model.nutrients, let day = model.dayNutrients { FoodNutrientsView(week: week, day: day, model: model) }
             }
@@ -132,9 +137,10 @@ struct ForgeFoodView: View {
             .gesture(DragGesture(minimumDistance: 30).onEnded(swipeDay))
             FoodPlateLegend(macros: plate.macros)
             FoodDayFigures(eaten: model.eatenKcal, calories: model.calories, burned: model.burned, isToday: model.isToday)
-            let sentence = model.sentence()
+            let sentence = [FoodText.sentence(model.sentence()), model.offPlanSentence() ?? ""]
+                .filter { !$0.isEmpty }.joined(separator: " ")
             if !sentence.isEmpty {
-                Text(FoodText.sentence(sentence))
+                Text(sentence)
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.text)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -158,6 +164,8 @@ struct ForgeFoodView: View {
     private func openSettings() { showSettings = true }
     private func openNutrients() { subpage = .nutrients }
     private func openScore() { subpage = .score }
+    /// The plan page when there is a plan, else straight into the planner.
+    private func openPlan() { if model.plan == nil { planning = true } else { subpage = .plan } }
     private func showDay(_ day: String) { model.day = day }
     private func delete(_ entries: [FoodLogEntry]) { Task { await model.delete(entries, repo: repo) } }
 }

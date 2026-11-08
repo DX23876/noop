@@ -107,6 +107,26 @@ enum FoodText {
         return String(localized: "\(count) vitamins and minerals are taken from a similar food in the German Nutrient Database.")
     }
 
+    /// A food group's everyday name, under its picture.
+    static func motif(_ m: FoodGroupMotif) -> String {
+        switch m {
+        case .bread: String(localized: "Bread")
+        case .grains: String(localized: "Grains")
+        case .fruit: String(localized: "Fruit")
+        case .vegetables: String(localized: "Vegetables")
+        case .legumes: String(localized: "Pulses and nuts")
+        case .dairy: String(localized: "Dairy")
+        case .eggs: String(localized: "Eggs")
+        case .fish: String(localized: "Fish")
+        case .meat: String(localized: "Red meat")
+        case .poultry: String(localized: "Poultry")
+        case .sweets: String(localized: "Sweets")
+        case .drinks: String(localized: "Sweet drinks")
+        case .fats: String(localized: "Oils and fats")
+        case .dishes: String(localized: "Ready meals")
+        }
+    }
+
     // MARK: Evening sentence and score
 
     /// One short sentence per observation, the good one first ("Plenty of protein. Salt on the high side.").

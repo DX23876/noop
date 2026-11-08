@@ -39,6 +39,7 @@ struct FoodDayFigures: View {
     private func explainGoal() { showsGoalReason = true }
 
     private func reason(_ calories: FoodTargets.Calories) -> String {
+        if calories.basis == .plan { return String(localized: "Set by your diet plan. Tap the plan at the top to change it.") }
         if calories.basis == .fixed { return String(localized: "Your own fixed goal. You can change it in Food data.") }
         let burn = FoodText.kcal(calories.burnKcal)
         let usual = calories.basis == .measured

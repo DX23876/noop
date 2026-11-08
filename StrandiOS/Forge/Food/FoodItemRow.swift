@@ -8,12 +8,20 @@ struct FoodItemRow: View {
     let lastGrams: Double?
     let onPick: (FoodItem) -> Void
     let onFavourite: (FoodItem, Bool) -> Void
+    /// The diet plan, so a food that suits it carries a small leaf. Nothing is hidden or forbidden.
+    @AppStorage(DietPlan.storageKey) private var planRaw = ""
 
     var body: some View {
         Button(action: pick) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name).font(.callout).bold().foregroundStyle(ForgeColor.text).lineLimit(2)
+                    HStack(spacing: 6) {
+                        Text(item.name).font(.callout).bold().foregroundStyle(ForgeColor.text).lineLimit(2)
+                        if fitsPlan {
+                            Image(systemName: "leaf.fill").font(.caption).foregroundStyle(ForgeColor.nutrientLeaf)
+                                .accessibilityLabel(Text("Suits your plan"))
+                        }
+                    }
                     Text(detail).font(.footnote).foregroundStyle(ForgeColor.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
@@ -25,6 +33,12 @@ struct FoodItemRow: View {
             Button("Add to favourites", systemImage: "star", action: star)
             Button("Remove from favourites", systemImage: "star.slash", action: unstar)
         }
+    }
+
+    private var fitsPlan: Bool {
+        guard let plan = DietPlan.decode(planRaw),
+              let motif = FoodGroupMotif.forFoodId(item.id) ?? FoodGroupMotif.forGroup(item.group) else { return false }
+        return plan.form.fit(motif, addon: plan.addon) > 0
     }
 
     private var detail: String {
