@@ -34,7 +34,7 @@ struct WearableConnectionStateCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(LinearGradient(colors: [StrandPalette.metricCyan.opacity(0.16), StrandPalette.metricCyan.opacity(0.04)],
                                  startPoint: .topLeading, endPoint: .bottomTrailing)))
     }

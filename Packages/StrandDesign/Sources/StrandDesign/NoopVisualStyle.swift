@@ -210,7 +210,8 @@ public struct NoopPanelSurface: View {
         kind: NoopCardKind? = nil
     ) {
         self.tint = tint
-        self.cornerRadius = cornerRadius
+        // The new design's panels take Apple's tighter corner where a caller kept the shipped default.
+        self.cornerRadius = NoopVisualStyle.skin == .forge && cornerRadius == NoopVisualStyle.cardRadius ? 14 : cornerRadius
         self.elevated = elevated
         self.surfaceOpacity = surfaceOpacity
         self.kind = kind

@@ -167,15 +167,9 @@ struct ForgeBackground: View {
                 BackgroundImageBackdrop()
             } else if sky && showsMotif {
                 ForgeTodayMotif()
-            } else {
-                // A soft per-tab tint that has gone by the middle of the screen.
-                let tint = wash ?? ForgeColor.wash(tab)
-                LinearGradient(stops: [.init(color: tint.opacity(0.85), location: 0),
-                                       .init(color: tint.opacity(0.35), location: 0.5),
-                                       .init(color: tint.opacity(0), location: 1)],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 560)
             }
+            // Otherwise the plain system canvas, Apple's grouped grey or black: the colour belongs to the
+            // content, not to a wash behind every page. A photo or the sky is the opt-in backdrop.
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
@@ -272,8 +266,9 @@ struct ForgeCardModifier: ViewModifier {
 /// Corner radii of the redesign: one for every card, one for a filled block inside a card. Small marks (bars,
 /// ticks) keep their own few-point rounding.
 enum ForgeRadius {
-    static let card: CGFloat = 22
-    static let inner: CGFloat = 16
+    // Apple's grouped cards are tight: 14 and 10, where 22 and 16 read as soft and bubbly.
+    static let card: CGFloat = 14
+    static let inner: CGFloat = 10
 }
 
 /// Opacities of the redesign, by role, instead of a dozen near-equal literals.

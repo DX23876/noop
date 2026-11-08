@@ -139,8 +139,8 @@ object ForgeTokens {
         val mono = ForgeFont(size = 13f, weight = 400, rounded = false)
         val overline = ForgeFont(size = 11f, weight = 600, rounded = false)
         val subhead = ForgeFont(size = 13f, weight = 400, rounded = false)
-        val title1 = ForgeFont(size = 28f, weight = 700, rounded = true)
-        val title2 = ForgeFont(size = 22f, weight = 600, rounded = true)
+        val title1 = ForgeFont(size = 28f, weight = 700, rounded = false)
+        val title2 = ForgeFont(size = 22f, weight = 700, rounded = false)
     }
     object StrandPalette {
         val agelessOld = ForgeColor(light = 0xFFD9435A, dark = 0xFFFF6B80)

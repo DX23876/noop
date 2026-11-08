@@ -163,7 +163,9 @@ public struct NoopCard<Content: View>: View {
     public init(padding: CGFloat = NoopMetrics.cardPadding, tint: Color? = nil,
                 cornerRadius: CGFloat = NoopMetrics.cardRadius, kind: NoopCardKind? = nil,
                 @ViewBuilder content: @escaping () -> Content) {
-        self.padding = padding; self.tint = tint; self.cornerRadius = cornerRadius
+        // The new design's cards take Apple's tighter corner where a caller kept the shipped default.
+        self.padding = padding; self.tint = tint
+        self.cornerRadius = NoopVisualStyle.skin == .forge && cornerRadius == NoopMetrics.cardRadius ? 14 : cornerRadius
         self.kind = kind; self.content = content
     }
     public var body: some View {

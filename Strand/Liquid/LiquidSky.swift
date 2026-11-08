@@ -249,7 +249,8 @@ struct LiquidScaffoldSky: View {
             // Behind the cards every screen shows the same illustrated scene as Today: the procedural sky
             // is a pale blue-gray in Light mode, so Card transparency revealed almost nothing through it.
             SceneScreenBackground(hour: Calendar.current.component(.hour, from: Date()), height: 1100)
-        } else if showDayCycleBackground {
+        } else if showDayCycleBackground && NoopVisualStyle.skin != .forge {
+            // The new design keeps the plain canvas unless the sky is set to show behind the cards.
             LiquidSkyStatic(hour: nil, settleStrength: 1)
                 .frame(maxWidth: .infinity)
                 .frame(height: height, alignment: .top)

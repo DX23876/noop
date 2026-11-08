@@ -43,7 +43,8 @@ public enum StrandFont {
     }
 
     /// Native rounded title. Scales through the complete Dynamic Type curve.
-    public static let title1 = Font.system(.title, design: .rounded).weight(.bold)
+    /// The new design writes headings in SF Pro, as Apple's apps do; the rounded face stays for figures.
+    public static var title1: Font { NoopVisualStyle.skin == .forge ? Font.title.weight(.bold) : Font.system(.title, design: .rounded).weight(.bold) }
 
     /// The one figure a detail screen exists for. A step above `title1` and monospaced, for the
     /// single number a screen is opened to read — not for headings, which `title1` still owns.
@@ -51,7 +52,7 @@ public enum StrandFont {
         .weight(.bold).monospacedDigit()
 
     /// Native rounded secondary title.
-    public static let title2 = Font.system(.title2, design: .rounded).weight(.semibold)
+    public static var title2: Font { NoopVisualStyle.skin == .forge ? Font.title2.weight(.bold) : Font.system(.title2, design: .rounded).weight(.semibold) }
 
     /// Native UI headline.
     public static let headline = Font.headline.weight(.semibold)

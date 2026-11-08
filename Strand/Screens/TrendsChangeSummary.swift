@@ -167,7 +167,7 @@ struct TrendsChangeSummary: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tint.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(tint.opacity(0.08)))
         .accessibilityElement(children: .combine)
     }
 
@@ -248,7 +248,7 @@ struct TrendsChangeSummary: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(LinearGradient(colors: [identity.opacity(0.16), identity.opacity(0.04)],
                                  startPoint: .topLeading, endPoint: .bottomTrailing)))
         .accessibilityElement(children: .combine)
@@ -277,7 +277,7 @@ struct TrendsChangeSummary: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(StrandPalette.textPrimary.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(StrandPalette.textPrimary.opacity(0.04)))
     }
 
     private func color(_ verdict: Verdict) -> Color {
@@ -409,7 +409,8 @@ struct CoachPicture: View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
             ZStack {
-                Circle().fill(tint.opacity(0.35)).blur(radius: side * 0.16).scaleEffect(0.95)
+                // A faint halo, not a glow: Apple's symbols sit on colour, they do not shine.
+                Circle().fill(tint.opacity(0.14)).blur(radius: side * 0.12).scaleEffect(0.95)
                 Circle()
                     .fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .topLeading, endPoint: .bottomTrailing))
                     .overlay(
@@ -417,7 +418,7 @@ struct CoachPicture: View {
                                                      startRadius: 0, endRadius: side * 0.6))
                     )
                     .frame(width: side * 0.78, height: side * 0.78)
-                    .shadow(color: tint.opacity(0.45), radius: side * 0.08, y: side * 0.04)
+                    .shadow(color: tint.opacity(0.22), radius: side * 0.05, y: side * 0.03)
                 Image(systemName: main)
                     .font(.system(size: side * 0.34, weight: .semibold))
                     .foregroundStyle(.white)
@@ -432,11 +433,6 @@ struct CoachPicture: View {
                     .background(Circle().fill(StrandPalette.surfaceBase))
                     .shadow(color: tint.opacity(0.3), radius: 4, y: 2)
                     .offset(x: side * 0.33, y: -side * 0.30)
-                Image(systemName: accentB)
-                    .font(.system(size: side * 0.12, weight: .bold))
-                    .foregroundStyle(tint.opacity(0.9))
-                    .offset(x: -side * 0.38, y: side * 0.30)
-                    .opacity(lift ? 1 : 0.55)
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }

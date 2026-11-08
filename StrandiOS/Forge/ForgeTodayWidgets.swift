@@ -195,7 +195,7 @@ struct ForgeTodayWidgetArea: View {
                         layoutChoices
                     }
                     .padding(14)
-                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.card))
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.card))
                 }
                 ForEach(rows, id: \.first!.id) { row in
                     HStack(alignment: .top, spacing: 12) {
@@ -213,7 +213,7 @@ struct ForgeTodayWidgetArea: View {
                         Label("Add a widget", systemImage: "plus.circle.fill")
                             .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.accent)
                             .frame(maxWidth: .infinity, minHeight: 52)
-                            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.card))
+                            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.card))
                     }
                     .buttonStyle(.plain)
                 }
