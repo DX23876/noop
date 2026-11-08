@@ -294,10 +294,13 @@ extension StrengthView {
     /// invisible to the compiler's string extraction, so the catalog would never gain an entry and the
     /// word would stay English in every language. `StrengthBalance.Axis` deliberately returns
     /// locale-STABLE keys — grouping keys, not display text — and this is where they become words.
+    ///
+    /// Push and Pull read through the muscle-group keys, never the bare "Push": that key is Today's
+    /// readiness verdict ("push harder today") and is translated as such (加大强度, "Mocniej").
     static func sideLabel(_ key: String) -> String {
         switch key {
-        case "Push":              return String(localized: "Push")
-        case "Pull":              return String(localized: "Pull")
+        case "Push":              return String(localized: "Push muscles")
+        case "Pull":              return String(localized: "Pull muscles")
         case "Upper body":        return String(localized: "Upper body")
         case "Lower body":        return String(localized: "Lower body")
         case "Quads":             return String(localized: "Quads")
