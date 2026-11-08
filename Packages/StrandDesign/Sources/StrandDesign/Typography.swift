@@ -76,8 +76,9 @@ public enum StrandFont {
     public static let caption = Font.caption
 
     #if os(iOS)
-    /// Compact iPhone footnote (11pt at the default content-size category).
-    public static let footnote = Font.caption2
+    /// Compact iPhone footnote (11pt at the default content-size category). The new design reads it at
+    /// 13 pt: 11 pt explanations under every setting sat below the readable minimum on a phone.
+    public static var footnote: Font { NoopVisualStyle.skin == .forge ? Font.footnote : Font.caption2 }
     #else
     /// Native platform footnote.
     public static let footnote = Font.footnote

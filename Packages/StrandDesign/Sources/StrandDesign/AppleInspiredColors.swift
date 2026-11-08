@@ -169,7 +169,9 @@ private struct AppleInspiredTintModifier: ViewModifier {
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var enabled = AppleInspiredColorsPrefs.defaultEnabled
 
     func body(content: Content) -> some View {
-        let color = AppleInspiredColors.color(for: id, enabled: enabled)
+        // The new design gives controls one colour, the app's accent: a page's own hue stays in its icon
+        // and picture, so switches and buttons no longer change colour from page to page.
+        let color = NoopVisualStyle.skin == .forge ? StrandPalette.accent : AppleInspiredColors.color(for: id, enabled: enabled)
         content
             .tint(color)
             .environment(\.appleInspiredControlColor, color)
