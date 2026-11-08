@@ -69,8 +69,9 @@ enum CoreActivity {
                                                                      to: now + 1)) ?? []
         let answers = (try? await reader.store.activitySuggestionAnswers(from: from, to: now + 1)) ?? []
         let workouts = await reader.rawWorkoutRows(from: from - 86_400, to: now + 86_400, dismissedDetectedSpans: [])
+        let dataThrough = await ActivitySuggestions.dataThrough(store: reader.store, deviceId: reader.activeDeviceId)
         return ActivitySuggestions.resolve(candidates: candidates, answers: answers, workouts: workouts,
-                                           legacyDismissed: legacy, settings: settings)
+                                           legacyDismissed: legacy, settings: settings, dataThrough: dataThrough)
     }
 
     /// "answer" is everyday or housework (an answer row only), or sport/walk with `sport`, `start` and `end`

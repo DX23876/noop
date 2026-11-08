@@ -27,10 +27,10 @@ import java.util.Calendar
 object ActivitySuggestionNotifier {
     private const val CHANNEL_ID = "noop_activity_detection"
     private const val STATE_KEY = "noop.activityDetection.notifyState"
-    private const val MAX_PER_DAY = 2
+    private const val MAX_PER_DAY = 3
     private const val QUIET_FROM = 22
     private const val QUIET_UNTIL = 7
-    private const val PAUSE_AFTER = 3
+    private const val PAUSE_AFTER = 5
     private const val PAUSE_DAYS = 7
     internal const val ACTION_SAVE = "com.noop.activity.SAVE"
     internal const val ACTION_NOT_TRAINING = "com.noop.activity.NOT_TRAINING"

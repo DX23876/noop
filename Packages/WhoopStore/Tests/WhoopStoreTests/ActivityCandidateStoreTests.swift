@@ -48,4 +48,23 @@ final class ActivityCandidateStoreTests: XCTestCase {
             StepMinute(ts: 660, steps: 59, walkSeconds: 0, runSeconds: 0, classSeconds: 0),
         ])
     }
+
+    /// The strap resets its counter once a day, near 06:59:32 on the wearer's MG. That minute holds what was
+    /// really walked, not the whole day's count.
+    func testADailyCounterResetIsNotAMinuteOfThousandsOfSteps() async throws {
+        let store = try await WhoopStore.inMemory()
+        let samples = (0..<60).map { i in
+            StepSample(ts: 600 + i, counter: i < 30 ? 15_000 + i : i - 30, activityClass: 1)
+        }
+        try await store.insert(Streams(steps: samples), deviceId: "my-whoop")
+        let minutes = try await store.stepMinutes(deviceId: "my-whoop", from: 0, to: 10_000)
+        XCTAssertEqual(minutes, [StepMinute(ts: 600, steps: 58, walkSeconds: 60, runSeconds: 0, classSeconds: 60)])
+    }
+
+    func testAMinuteWithASingleSampleHasNoSteps() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.insert(Streams(steps: [StepSample(ts: 600, counter: 900, activityClass: 0)]), deviceId: "my-whoop")
+        let minutes = try await store.stepMinutes(deviceId: "my-whoop", from: 0, to: 10_000)
+        XCTAssertEqual(minutes, [StepMinute(ts: 600, steps: 0, walkSeconds: 0, runSeconds: 0, classSeconds: 1)])
+    }
 }
