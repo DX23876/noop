@@ -2406,8 +2406,8 @@
     <string name="scoring_guide_charge_body">能量主要依据 HRV 与个人基线的对比，同时考虑静息心率、昨晚的休息、呼吸和皮肤温度。HRV 越高，能量越高。NOOP 需要几个夜晚学习基线；在此之前会显示“校准中”。</string>
     <string name="scoring_guide_charge_vs_whoop">理念与 WHOOP 的 Recovery % 相似，但权重和基线计算由我们独立设计并公开说明。</string>
     <string name="scoring_guide_effort_headline">负荷：你的心脏工作得有多辛苦？</string>
-    <string name="scoring_guide_effort_body">负荷衡量心血管压力。心率通过心率储备区间转化为训练冲量，高强度区间权重更大，再映射到 0–100 的对数刻度。步数和活动能量会让长时间低心肺负荷活动也计入。</string>
-    <string name="scoring_guide_effort_vs_whoop">理念与 WHOOP 的 Day Strain（0–21）相似，并换算为 0–100。100 分与过去的 21.0 一样罕见。</string>
+    <string name="scoring_guide_effort_body">你的心血管负荷。每一分钟的心率越接近你的最大心率，计入就越多：按你的心率储备（Karvonen）计算，最大心率取自 NOOP 从你的训练中学到的值（或你自己输入的值）。一天的负荷落在一条根据 3,760 次训练拟合、顶部有柔性上限的 0–100 曲线上，因此轻松的日子分数较低，100 始终无法达到。训练之外，低于心率储备一半的心率不计入，所以长时间站立和走动不会累积成艰苦的一天。</string>
+    <string name="scoring_guide_effort_vs_whoop">与 WHOOP 的 Day Strain（0–21）是同一种心血管负荷思路。曲线根据大家分享的 3,760 次训练中 WHOOP 自己的 Strain 拟合，顶部从 21 重新缩放到 100，使三个分数共用一个刻度。</string>
     <string name="scoring_guide_rest_headline">休息：你的睡眠恢复效果如何？</string>
     <string name="scoring_guide_rest_body">休息综合睡眠时长与个人需求、睡眠效率、恢复性深睡和 REM，以及入睡和起床时间的规律性。</string>
     <string name="scoring_guide_rest_vs_whoop">理念与 WHOOP 的 Sleep Performance % 相似，但计算方法由我们独立设计。</string>
