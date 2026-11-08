@@ -209,15 +209,24 @@ internal fun ForgeFoodScorePage(score: CoreFood.Score, male: Boolean, onBack: ()
     val colors = Forge.colors
     SettingsColumn {
         PageTitle(stringResource(R.string.food_score_title), onBack)
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(score.score.roundToInt().toString(), style = Forge.type.heroNumber, color = colors.text)
-            Text(scoreWord(score.score), style = Forge.type.headline, color = colors.textSecondary)
-            Text(stringResource(R.string.food_score_from_days, score.loggedDays), style = Forge.type.footnote, color = colors.textSecondary)
+        // A still life of a balanced week behind the number, as iOS `FoodScoreView`; the photo is dark in both themes.
+        Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(ForgeMetrics.space4)), contentAlignment = Alignment.CenterStart) {
+            Image(painterResource(R.drawable.food_score_hero), contentDescription = null, contentScale = ContentScale.Crop,
+                  alignment = Alignment.CenterEnd, modifier = Modifier.matchParentSize())
+            Column(Modifier.padding(start = ForgeMetrics.space5)) {
+                Text(score.score.roundToInt().toString(), style = Forge.type.heroNumber, color = Color.White)
+                Text(scoreWord(score.score), style = Forge.type.headline, color = Color.White)
+                Text(stringResource(R.string.food_score_from_days, score.loggedDays), style = Forge.type.footnote, color = Color.White.copy(alpha = 0.78f))
+            }
         }
         Text(stringResource(R.string.food_score_about), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
         ForgeCard(Modifier.fillMaxWidth()) {
             score.parts.sortedByDescending { it.points }.forEach { part ->
-                Column(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+              Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.Top) {
+                Image(painterResource(partPicture(part.component)), contentDescription = null, contentScale = ContentScale.Crop,
+                      modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)))
+                Spacer(Modifier.width(ForgeMetrics.space3))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row {
                         Text(componentName(part.component), style = Forge.type.body, color = colors.text, modifier = Modifier.weight(1f))
                         Text("${gramsText(part.points)} / 10", style = Forge.type.bodyNumber, color = colors.text)
@@ -227,6 +236,7 @@ internal fun ForgeFoodScorePage(score: CoreFood.Score, male: Boolean, onBack: ()
                                             modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape))
                     Text(componentAmount(part) + " · " + componentGoal(part.component, male), style = Forge.type.footnote, color = colors.textSecondary)
                 }
+              }
             }
         }
         score.processedShare?.let { share ->
@@ -235,6 +245,20 @@ internal fun ForgeFoodScorePage(score: CoreFood.Score, male: Boolean, onBack: ()
             }
         }
     }
+}
+
+@DrawableRes
+private fun partPicture(c: String): Int = when (c) {
+    "vegetables" -> R.drawable.food_motif_vegetables
+    "fruit" -> R.drawable.food_motif_fruit
+    "wholeGrains" -> R.drawable.food_motif_grains
+    "sugaryDrinks" -> R.drawable.food_motif_drinks
+    "nutsLegumes" -> R.drawable.food_motif_legumes
+    "redMeat" -> R.drawable.food_motif_meat
+    "fishOmega3" -> R.drawable.food_motif_fish
+    "polyFats" -> R.drawable.food_motif_fats
+    "sodium" -> R.drawable.food_motif_salt
+    else -> R.drawable.food_motif_alcohol
 }
 
 @Composable

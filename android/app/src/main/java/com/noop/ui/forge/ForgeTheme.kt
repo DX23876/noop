@@ -81,8 +81,8 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
 
 /** The food log's hues (iOS `ForgeTheme.swift`, decision 2026-11-08); hand-set there too, not design-system tokens. */
 private object FoodInk {
-    val food = ForgeColor(light = 0xFFD9381E, dark = 0xFFFF5A36)
-    val protein = ForgeColor(light = 0xFFC21A7A, dark = 0xFFFF3EA5)
+    val food = ForgeColor(light = 0xFFD42A1C, dark = 0xFFFF4B33)
+    val protein = ForgeColor(light = 0xFF7C3AED, dark = 0xFFB173FF)
     val carbs = ForgeColor(light = 0xFF0A6FD1, dark = 0xFF3DB8FF)
     val fat = ForgeColor(light = 0xFFB58900, dark = 0xFFFFD60A)
     // Nutrient marks (iOS `ForgeColor.nutrient…`): each nutrient its own hue by what it is found in or known for.

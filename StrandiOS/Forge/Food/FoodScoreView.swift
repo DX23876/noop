@@ -11,15 +11,25 @@ struct FoodScoreView: View {
     var body: some View {
         List {
             Section {
-                VStack(spacing: 4) {
-                    Text(FoodText.kcal(score.score)).font(ForgeFont.rounded(56, .bold)).foregroundStyle(ForgeColor.text)
-                        .monospacedDigit()
-                    Text(FoodText.scoreWord(score.score)).font(.headline).foregroundStyle(ForgeColor.secondary)
-                    Text("From \(score.loggedDays) logged days of the last 7").font(.footnote).foregroundStyle(ForgeColor.secondary)
+                // A still life of a balanced week behind the number; the food sits right, the number on the calm left.
+                ZStack(alignment: .leading) {
+                    Image("foodScoreHero").resizable().scaledToFill()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .frame(height: 200)
+                        .clipped()
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(FoodText.kcal(score.score)).font(ForgeFont.rounded(56, .bold)).foregroundStyle(ForgeColor.onDarkPhoto)
+                            .monospacedDigit()
+                        Text(FoodText.scoreWord(score.score)).font(.headline).foregroundStyle(ForgeColor.onDarkPhoto)
+                        Text("From \(score.loggedDays) logged days of the last 7").font(.footnote).foregroundStyle(ForgeColor.onDarkPhotoSecondary)
+                    }
+                    // The calm left part of the photo only, so the words never run over the food.
+                    .frame(maxWidth: 150, alignment: .leading)
+                    .padding(.leading, 20)
+                    .accessibilityElement(children: .combine)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .accessibilityElement(children: .combine)
+                .listRowInsets(EdgeInsets())
             } footer: {
                 Text("The score follows a healthy eating index from long studies of large groups. It reads what you usually eat, so it looks at a week, not a day.")
             }
@@ -41,6 +51,34 @@ struct FoodScoreView: View {
     }
 
     private func row(_ part: FoodScore.Part) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(Self.thumbnail(part.component)).resizable().scaledToFill()
+                .frame(width: 44, height: 44)
+                .clipShape(.rect(cornerRadius: 10))
+                .accessibilityHidden(true)
+            details(part)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// A small still life for each part, from the meal pictures where one fits.
+    static func thumbnail(_ c: FoodScore.Component) -> String {
+        switch c {
+        case .vegetables: "foodMotif_vegetables"
+        case .fruit: "foodMotif_fruit"
+        case .wholeGrains: "foodMotif_grains"
+        case .sugaryDrinks: "foodMotif_drinks"
+        case .nutsLegumes: "foodMotif_legumes"
+        case .redMeat: "foodMotif_meat"
+        case .fishOmega3: "foodMotif_fish"
+        case .polyFats: "foodMotif_fats"
+        case .sodium: "foodMotif_salt"
+        case .alcohol: "foodMotif_alcohol"
+        }
+    }
+
+    private func details(_ part: FoodScore.Part) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(FoodText.component(part.component)).font(.body).foregroundStyle(ForgeColor.text)
@@ -59,8 +97,6 @@ struct FoodScoreView: View {
             Text("\(FoodText.componentAmount(part)) · \(FoodText.componentGoal(part.component, male: male))")
                 .font(.footnote).foregroundStyle(ForgeColor.secondary)
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
     }
 
     private func tint(_ points: Double) -> Color {

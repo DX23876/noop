@@ -358,6 +358,7 @@ final class FoodDemoSeedTests: XCTestCase {
         let all = try await store.foodLogEntries(from: "0000-00-00", to: "9999-99-99")
         let byIds = try await store.foodLogEntries(ids: [try XCTUnwrap(all.first?.id)])
         XCTAssertEqual(byIds.count, 1)
+        XCTAssertTrue(all.contains { $0.name == "Oat flakes" }, "the demo shows the BLS's English names")
     }
 }
 

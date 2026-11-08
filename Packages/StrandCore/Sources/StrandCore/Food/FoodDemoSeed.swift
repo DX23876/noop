@@ -4,7 +4,8 @@ import WhoopStore
 /// A week of meals for the demo stores (`--demo-seed` on Apple, the demo flavour on Android), so the Food page,
 /// its nutrient report and the energy balance show what a logged week looks like. Every food is a BLS food by
 /// its code; a protein pudding shows a product whose missing nutrients were taken from a similar BLS food. Seeds
-/// only into a food log that is still empty.
+/// only into a food log that is still empty. Names are English by default, as the demo is shown to people who
+/// read English; `english: false` keeps the BLS's German names.
 public enum FoodDemoSeed {
     /// A BLS food by its code (`bls:…`), fixed so a search ranking can never swap milk for milk powder.
     struct Dish { let query: String; let grams: Double }
@@ -32,14 +33,14 @@ public enum FoodDemoSeed {
     ]
 
     /// The branded product with borrowed nutrients, as a wearer would have scanned it.
-    static let proteinPudding = FoodItem(
-        id: "off:4000000099999", source: .online, name: "High Protein Pudding Vanille", brand: "Demo",
-        group: "dairy-desserts", servingG: 200, servingLabel: "1 Becher (200 g)",
+    static func proteinPudding(english: Bool) -> FoodItem { FoodItem(
+        id: "off:4000000099999", source: .online, name: english ? "High Protein Pudding Vanilla" : "High Protein Pudding Vanille",
+        brand: "Demo", group: "dairy-desserts", servingG: 200, servingLabel: english ? "1 cup (200 g)" : "1 Becher (200 g)",
         per100g: NutrientAmounts([.energyKcal: 76, .proteinG: 10, .carbsG: 5.6, .sugarG: 4.5, .fatG: 1.5, .saltG: 0.2]),
-        barcode: "4000000099999")
+        barcode: "4000000099999") }
 
     @discardableResult
-    public static func seedIfEmpty(store: WhoopStore, catalog: FoodCatalog = .shared, days: Int = 7,
+    public static func seedIfEmpty(store: WhoopStore, catalog: FoodCatalog = .shared, days: Int = 7, english: Bool = true,
                                    now: Date = Date(), calendar: Calendar = .current) async -> Int {
         let today = StoreReader.localDayKey(now)
         guard let start = calendar.date(byAdding: .day, value: -(days - 1), to: calendar.startOfDay(for: now)),
@@ -49,7 +50,8 @@ public enum FoodDemoSeed {
         var found: [String: FoodItem] = [:]
         func item(_ query: String) async -> FoodItem? {
             if let cached = found[query] { return cached }
-            let hit = await catalog.item(id: query)
+            var hit = await catalog.item(id: query)
+            if english, let name = hit?.nameEn, !name.isEmpty { hit?.name = name }
             found[query] = hit
             return hit
         }
@@ -57,7 +59,7 @@ public enum FoodDemoSeed {
         // The pudding's missing vitamins and minerals from low-fat quark, as the estimate would take them.
         var pudding: FoodItem?
         if let quark = await item("bls:M713100") {
-            pudding = await FoodLibrary.saveOwn(store: store, FoodEstimate.filled(proteinPudding, from: quark), origin: .online)
+            pudding = await FoodLibrary.saveOwn(store: store, FoodEstimate.filled(proteinPudding(english: english), from: quark), origin: .online)
         }
 
         var entries: [FoodLogEntry] = []
@@ -85,7 +87,7 @@ public enum FoodDemoSeed {
         guard !entries.isEmpty, await FoodLog.save(store: store, entries) else { return 0 }
 
         // A recipe and two favourites, so "My foods" and "Favourites" are not empty.
-        if let recipe = FoodLog.recipe(name: "Porridge mit Beeren", from: entries.filter { $0.day == StoreReader.localDayKey(start) && $0.loggedAt == entries[0].loggedAt },
+        if let recipe = FoodLog.recipe(name: english ? "Porridge with berries" : "Porridge mit Beeren", from: entries.filter { $0.day == StoreReader.localDayKey(start) && $0.loggedAt == entries[0].loggedAt },
                                        servings: 1) {
             _ = try? await store.saveFoodRecipe(recipe)
         }

@@ -5303,9 +5303,9 @@
     <string name="food_amount_drinks">%1$s drinks a day</string>
     <string name="food_as_usual">As usual · %1$s</string>
     <string name="food_not_today">Not today</string>
-    <string name="food_sentence_protein_plenty">Plenty of protein today.</string>
+    <string name="food_sentence_protein_plenty">Plenty of protein.</string>
     <string name="food_sentence_protein_low">Protein on the low side.</string>
-    <string name="food_sentence_fibre_plenty">Plenty of fibre today.</string>
+    <string name="food_sentence_fibre_plenty">Plenty of fibre.</string>
     <string name="food_sentence_fibre_low">Fibre on the low side.</string>
     <string name="food_sentence_satfat">Quite a lot of saturated fat.</string>
     <string name="food_sentence_sugar">Quite a lot of sugar.</string>

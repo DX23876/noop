@@ -5281,9 +5281,9 @@
     <string name="food_amount_drinks">%1$s Getränke am Tag</string>
     <string name="food_as_usual">Wie gewohnt · %1$s</string>
     <string name="food_not_today">Heute nicht</string>
-    <string name="food_sentence_protein_plenty">Heute viel Eiweiß.</string>
+    <string name="food_sentence_protein_plenty">Viel Eiweiß.</string>
     <string name="food_sentence_protein_low">Eiweiß eher knapp.</string>
-    <string name="food_sentence_fibre_plenty">Heute viele Ballaststoffe.</string>
+    <string name="food_sentence_fibre_plenty">Viele Ballaststoffe.</string>
     <string name="food_sentence_fibre_low">Ballaststoffe eher knapp.</string>
     <string name="food_sentence_satfat">Recht viele gesättigte Fette.</string>
     <string name="food_sentence_sugar">Recht viel Zucker.</string>

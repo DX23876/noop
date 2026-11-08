@@ -25,6 +25,9 @@ enum ForgeColor {
     static let secondary = dyn(0x3C3C43, 0xEBEBF5, light: 0.62, dark: 0.62)
     /// Secondary text on a see-through surface: the picture behind it takes contrast the plain tone cannot spare.
     static let secondaryOnPicture = dyn(0x000000, 0xFFFFFF, light: 0.72, dark: 0.78)
+    /// Text over a photo that is dark in both appearances (the Food score's still life).
+    static let onDarkPhoto = Color.white
+    static let onDarkPhotoSecondary = Color.white.opacity(0.78)
     static let tertiary = dyn(0x3C3C43, 0xEBEBF5, light: 0.42, dark: 0.42)
     static let fill = dyn(0x767680, 0x767680, light: 0.13, dark: 0.26)
     static let separator = dyn(0x3C3C43, 0x545458, light: 0.18, dark: 0.55)
@@ -48,8 +51,8 @@ enum ForgeColor {
 
     /// Food: calories in ember red, the three macronutrients in their own luminous hues (magenta, azure, yellow), so
     /// the four rings of the Food page never blur into each other and a ring is never mistaken for a score. Android's `ForgePalette` carries the same values.
-    static let food = dyn(0xD9381E, 0xFF5A36)
-    static let protein = dyn(0xC21A7A, 0xFF3EA5)
+    static let food = dyn(0xD42A1C, 0xFF4B33)
+    static let protein = dyn(0x7C3AED, 0xB173FF)
     static let carbs = dyn(0x0A6FD1, 0x3DB8FF)
     static let fat = dyn(0xB58900, 0xFFD60A)
 

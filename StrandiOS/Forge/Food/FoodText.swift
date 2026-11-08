@@ -112,9 +112,9 @@ enum FoodText {
 
     private static func phrase(_ p: FoodDaySentence.Point) -> String {
         switch (p.nutrient, p.plenty) {
-        case (.proteinG, true): String(localized: "Plenty of protein today.")
+        case (.proteinG, true): String(localized: "Plenty of protein.")
         case (.proteinG, false): String(localized: "Protein on the low side.")
-        case (.fiberG, true): String(localized: "Plenty of fibre today.")
+        case (.fiberG, true): String(localized: "Plenty of fibre.")
         case (.fiberG, false): String(localized: "Fibre on the low side.")
         case (.satFatG, _): String(localized: "Quite a lot of saturated fat.")
         case (.sugarG, _): String(localized: "Quite a lot of sugar.")
