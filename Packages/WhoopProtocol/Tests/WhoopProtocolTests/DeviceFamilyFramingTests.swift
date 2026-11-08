@@ -337,6 +337,12 @@ final class DeviceFamilyFramingTests: XCTestCase {
             XCTAssertEqual(body.count, 12)
             XCTAssertEqual(Array(body[0..<11]), [0x01, 47, 152, 0, 0, 0, 0, 0, 0, 0, 0])
         }
+        // The incoming-call buzz (ryanbr/noop#2812) swaps only the first waveform slot for the softer
+        // effect 48; the pause slot and the loop byte are unchanged, and the default stays 47.
+        XCTAssertEqual(MaverickHaptics.notificationBuzz(loops: 2, effect: MaverickHaptics.softerBuzzEffect),
+                       [0x01, 48, 152, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+        XCTAssertEqual(MaverickHaptics.notificationBuzz(loops: 2, effect: MaverickHaptics.fullBuzzEffect),
+                       MaverickHaptics.notificationBuzz(loops: 2))
     }
 
     func testPuffinAlarmFramesMatchKotlinParityGoldens() {
