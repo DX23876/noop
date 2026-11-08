@@ -146,7 +146,7 @@ struct ForgeWorkoutsView: View {
                             let v = load[day] ?? 0
                             RoundedRectangle(cornerRadius: 4, style: .continuous)
                                 .fill(day > today ? Color.clear
-                                      : v > 0 ? ForgeColor.effort.opacity(0.25 + 0.75 * min(1, v / top)) : ForgeColor.fill)
+                                      : v > 0 ? ForgeColor.trainingAccent.opacity(0.25 + 0.75 * min(1, v / top)) : ForgeColor.fill)
                                 .aspectRatio(1, contentMode: .fit)
                         }
                     }

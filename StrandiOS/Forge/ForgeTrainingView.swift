@@ -421,7 +421,7 @@ struct ForgeTrainingView: View {
                     NavigationLink(value: TabRoute.cardio) {
                         ForgeMetricTile(label: pace.label,
                                         value: pace.paces.last.map { UnitFormatter.paceFromSecPerKm($0, system: distanceSystem) },
-                                        unit: "", trend: pace.paces.count > 1 ? pace.paces.map { -$0 } : nil, tint: ForgeColor.effort)
+                                        unit: "", trend: pace.paces.count > 1 ? pace.paces.map { -$0 } : nil, tint: ForgeColor.trainingAccent)
                     }
                 }
                 NavigationLink(value: TabRoute.metric("vo2max_est")) {
@@ -434,7 +434,7 @@ struct ForgeTrainingView: View {
                 NavigationLink(value: ForgeRoute.workouts) {
                     ForgeMetricTile(label: String(localized: "Last 30 days"), value: recentLoaded ? "\(recent.count)" : nil,
                                     unit: String(localized: "workouts"),
-                                    trend: nil, tint: ForgeColor.effort,
+                                    trend: nil, tint: ForgeColor.trainingAccent,
                                     bars: recentLoaded ? workoutsPerWeek : nil)
                 }
             }
