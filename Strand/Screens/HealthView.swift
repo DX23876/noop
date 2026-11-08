@@ -23,7 +23,7 @@ struct WearableConnectionStateCard: View {
         VStack(spacing: 14) {
             CoachPicture(main: "sensor.tag.radiowaves.forward.fill", accentA: "antenna.radiowaves.left.and.right",
                          accentB: "sparkle", tint: StrandPalette.metricCyan)
-                .frame(width: 104, height: 104)
+                .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
             Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
             StatePill("Offline", tone: .neutral, showsDot: false)
             Text(detail)

@@ -111,7 +111,7 @@ struct InsightsHubView: View {
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 14) {
                 CoachPicture(main: look.symbol, accentA: look.accent, accentB: "sparkle", tint: look.tint)
-                    .frame(width: 84, height: 84)
+                    .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(verbatim: r.behavior).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)

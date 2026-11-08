@@ -423,7 +423,7 @@ struct ForgeDetailHeader: View {
             Spacer(minLength: 0)
             if let picture {
                 CoachPicture(main: picture.symbol, accentA: picture.accent, accentB: "sparkle", tint: picture.tint)
-                    .frame(width: 68, height: 68)
+                    .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

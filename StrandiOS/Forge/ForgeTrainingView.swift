@@ -322,7 +322,7 @@ struct ForgeTrainingView: View {
         VStack(alignment: .leading, spacing: 4) {
             // The routine's picture: its symbol on a glowing disc in the tab's Effort colour.
             CoachPicture(main: systemImage, accentA: "flame.fill", accentB: "sparkle", tint: ForgeColor.trainingData)
-                .frame(width: 52, height: 52)
+                .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
                 .padding(.leading, -4)
             Spacer(minLength: 6)
             Text(title)

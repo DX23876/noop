@@ -10,7 +10,7 @@ struct SettingsPageBanner: View {
         let tint = AppleInspiredColors.color(for: page.colorKey)
         HStack(spacing: 16) {
             CoachPicture(main: page.icon, accentA: "sparkle", accentB: "star.fill", tint: tint)
-                .frame(width: 84, height: 84)
+                .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
             Text(page.subtitle)
                 .font(StrandFont.body.weight(.medium))
                 .foregroundStyle(StrandPalette.textPrimary)

@@ -223,7 +223,7 @@ struct TrendsChangeSummary: View {
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 14) {
                 TrendIllustration(key: row.key, up: row.change > 0)
-                    .frame(width: 92, height: 92)
+                    .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(verbatim: row.title).font(StrandFont.title2)
                         .foregroundStyle(StrandPalette.textPrimary).lineLimit(2).minimumScaleFactor(0.8)
@@ -424,6 +424,8 @@ struct CoachPicture: View {
                     .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
                     .offset(y: lift ? -2 : 1)
                 Image(systemName: accentA)
+                    // One icon style per level: every badge glyph filled, never a mix of outline and filled.
+                    .symbolVariant(.fill)
                     .font(.system(size: side * 0.15, weight: .bold))
                     .foregroundStyle(tint)
                     .padding(side * 0.06)
@@ -444,4 +446,14 @@ struct CoachPicture: View {
             withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { lift = true }
         }
     }
+}
+
+/// The three sizes a coach picture comes in, so the same picture never appears at a dozen near-equal sizes.
+enum CoachPictureSize {
+    /// Tiles, routines, devices.
+    static let small: CGFloat = 56
+    /// Page heads and banners.
+    static let medium: CGFloat = 72
+    /// Coach cards and empty states.
+    static let large: CGFloat = 96
 }

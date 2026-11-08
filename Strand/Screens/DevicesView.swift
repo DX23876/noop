@@ -940,7 +940,7 @@ private struct DeviceCard: View {
                         // device that is not the active one keeps its colour but sits quieter.
                         CoachPicture(main: icon, accentA: "antenna.radiowaves.left.and.right", accentB: "sparkle",
                                      tint: deviceTint)
-                            .frame(width: 64, height: 64)
+                            .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
                             .opacity(isActive ? 1 : 0.7)
                     } else {
                     Image(systemName: icon)

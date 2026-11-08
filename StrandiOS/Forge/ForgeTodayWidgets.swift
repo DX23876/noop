@@ -944,7 +944,7 @@ struct ForgePictureTile<Content: View>: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             CoachPicture(main: symbol, accentA: accent, accentB: "sparkle", tint: tint)
-                .frame(width: 58, height: 58)
+                .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
             VStack(alignment: .leading, spacing: 3) { content() }
             Spacer(minLength: 0)
         }

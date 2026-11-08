@@ -186,7 +186,7 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             if NoopVisualStyle.skin == .forge, let pagePicture {
                 CoachPicture(main: pagePicture.symbol, accentA: pagePicture.accent, accentB: "sparkle",
                              tint: pagePicture.tint)
-                    .frame(width: 68, height: 68)
+                    .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
             }
             #endif
         }
@@ -352,7 +352,7 @@ struct ComingSoon: View {
         VStack(spacing: 14) {
             CoachPicture(main: symbol == "sparkles" ? "tray.fill" : symbol, accentA: "sparkle", accentB: "star.fill",
                          tint: StrandPalette.accent)
-                .frame(width: 104, height: 104)
+                .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
                 .padding(.top, 4)
             if !hidesPlaceholderTitle {
                 Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)

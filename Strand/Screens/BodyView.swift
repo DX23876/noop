@@ -121,7 +121,7 @@ struct BodyView: View {
                 Spacer(minLength: 8)
                 // The page's picture: a figure with a tape, in the body measurements' colour.
                 CoachPicture(main: "figure.stand", accentA: "ruler.fill", accentB: "sparkle", tint: .pink)
-                    .frame(width: 72, height: 72)
+                    .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
             }
             .padding(.top, 4)
         } else {
