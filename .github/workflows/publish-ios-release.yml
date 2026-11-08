@@ -10,6 +10,11 @@ on:
 
 permissions:
   contents: write
+  # Build provenance: each attached file gets a signed GitHub attestation (actions/attest-build-provenance)
+  # that ties it to this repository, commit and workflow run. Verify with
+  # `gh attestation verify <file> --repo DX23876/noop`.
+  id-token: write
+  attestations: write
 
 concurrency:
   group: publish-ios-release
@@ -164,6 +169,21 @@ jobs:
             ${{ env.FULL_IPA }}
           retention-days: 30
 
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          SUMS="NOOP-ios-v${VERSION}-dx.sha256"
+          shasum -a 256 "$IPA" "$FULL_IPA" > "$SUMS"
+          cat "$SUMS"
+          echo "IOS_SUMS=$SUMS" >> "$GITHUB_ENV"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: |
+            ${{ env.IPA }}
+            ${{ env.FULL_IPA }}
+
       - name: Create or refresh prerelease
         env:
           GH_TOKEN: ${{ github.token }}
@@ -176,7 +196,7 @@ jobs:
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --prerelease --title "NOOP Forge $VERSION" --notes-file "$BODY"
           fi
-          gh release upload "$TAG" "$IPA" "$FULL_IPA" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" "$IPA" "$FULL_IPA" "$IOS_SUMS" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Publish to the AltStore and SideStore source
         env:
@@ -374,8 +394,17 @@ jobs:
           codesign --force --deep --sign - "$APP"
           ZIP="NOOP-macos-v${VER}-dx.zip"
           ditto -c -k --keepParent "$APP" "$ZIP"
-          gh release upload "$TAG" "$ZIP" --repo "$GITHUB_REPOSITORY" --clobber
+          SUMS="NOOP-macos-v${VER}-dx.sha256"
+          shasum -a 256 "$ZIP" > "$SUMS"
+          cat "$SUMS"
+          gh release upload "$TAG" "$ZIP" "$SUMS" --repo "$GITHUB_REPOSITORY" --clobber
           echo "Attached $ZIP ($(du -h "$ZIP" | cut -f1))"
+          echo "MAC_ZIP=$ZIP" >> "$GITHUB_ENV"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: ${{ env.MAC_ZIP }}
 
   # `publish` creates the release as a PRERELEASE so a half-uploaded release is never the newest thing
   # users see. GitHub's releases/latest EXCLUDES prereleases, and the in-app update check reads exactly
