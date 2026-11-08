@@ -54,6 +54,9 @@ struct ForgeTodayView: View {
     @State private var whyEntry: ForgeTimeline.Entry?
     /// True once the rings have scrolled out of view; a compact glass bar then keeps the three scores.
     @State private var heroHidden = false
+    /// The rings card has reached the clock: the top edge fades in from then on, not only once the card is
+    /// gone, so the card never runs through the status bar on its way out.
+    @State private var cardUnderClock = false
     @AppStorage(ForgeDesignPrefs.todaySurfaceKey) private var surfacePercent = ForgeDesignPrefs.todaySurfaceDefault
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @State private var editingWidgets = false
@@ -146,6 +149,9 @@ struct ForgeTodayView: View {
                                 dayAnswer
                             }
                             .forgeCard(radius: ForgeRadius.card, padding: 12)
+                            .onGeometryChange(for: Bool.self) { $0.frame(in: .named("forge-today")).minY < 8 } action: { under in
+                                withAnimation(.easeOut(duration: 0.15)) { cardUnderClock = under }
+                            }
                             // Room between the rings and what follows, so the card reads as the page's head.
                             .padding(.bottom, 12)
                         }
@@ -174,7 +180,7 @@ struct ForgeTodayView: View {
             // Cards dissolve before they reach the clock and the tab bar, leaving the picture there, with nothing
             // painted over it. The picture lies over the two edges instead of a mask on the scroll view, which
             // drew every card and the rings off screen on each frame.
-            .overlay { ForgeTodayEdges(heroHidden: heroHidden) }
+            .overlay { ForgeTodayEdges(heroHidden: heroHidden || cardUnderClock) }
             .coordinateSpace(name: "forge-today")
             .overlay(alignment: .top) {
                 if heroHidden {
@@ -271,7 +277,8 @@ struct ForgeTodayView: View {
 
     /// The three equal rings with their names; the card around them and the sentence are the caller's.
     private var hero: some View {
-        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth)
+        // A tenth smaller than the shared layout: the rings sit on their own card now and need room inside it.
+        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth) * 0.9
         let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
         // Worked out here, once per change of the page: the clock's closure runs 60 times a second.
         let charge = ringFace(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
@@ -449,7 +456,7 @@ struct ForgeTodayView: View {
                 ForEach(ForgeTimeline.blocks(day.entries.filter { !hidden.contains($0.id) })) { block in
                     switch block {
                     case .card(let entry):
-                        railed(time: entry.timed ? Self.timeText(entry.date) : nil, tint: railTint(entry.kind)) {
+                        railed(time: entry.timed ? Self.railTimeText(entry.date) : nil, tint: railTint(entry.kind)) {
                             timelineEntry(entry)
                         }
                         .id(entry.id)
@@ -485,8 +492,8 @@ struct ForgeTodayView: View {
 
     // MARK: Rail
 
-    /// The column the times stand in, wide enough for "23:59" and "11:59 PM" at the default text size.
-    private static let railTimeWidth: CGFloat = 52
+    /// The column the times stand in, wide enough for "23:59" and "11:59 p" at the default text size.
+    private static let railTimeWidth: CGFloat = 44
     /// The column the line and its dots run in.
     private static let railLineWidth: CGFloat = 20
 
@@ -533,7 +540,7 @@ struct ForgeTodayView: View {
     /// Where the reader stands in the day: the time now on a small capsule, at the top of today.
     private var nowMark: some View {
         HStack(alignment: .center, spacing: 0) {
-            Text(Self.timeText(Date()))
+            Text(Self.railTimeText(Date()))
                 .font(.system(.footnote, weight: .semibold).monospacedDigit())
                 .foregroundStyle(ForgeColor.effortInk)
                 .lineLimit(1).minimumScaleFactor(0.7)
@@ -568,6 +575,12 @@ struct ForgeTodayView: View {
 
     private static func timeText(_ date: Date) -> String {
         date.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))
+    }
+
+    /// The rail's own short time: "9:00 PM" becomes "9:00 p" where the clock has twelve hours, so the
+    /// column stays narrow and the cards beside it keep their width. A 24-hour clock is unchanged.
+    private static func railTimeText(_ date: Date) -> String {
+        date.formatted(.dateTime.hour(.defaultDigits(amPM: .narrow)).minute().locale(AppLanguage.activeLocale))
     }
 
     /// One of the day's large entries on its own card: the morning, the evening, a coach note, a notice.
@@ -745,9 +758,9 @@ struct ForgeTodayView: View {
                     }
                 }
             }
+            // The signals themselves stand on the morning entry and the Charge page; here only the question
+            // that can calm the warning, so one fact is not drawn twice on the same page.
             if notice.topic == TimelineFeed.Topic.bodySignals.rawValue {
-                let body = snapshot.drivers.filter { Self.bodyLabels.contains($0.label) }
-                if !body.isEmpty { rangeRows(body) }
                 causeChips.padding(.leading, 52)
             }
             explainBlock(key: notice.key, title: notice.headline, figures: notice.detail)
@@ -1072,8 +1085,10 @@ struct ForgeTodayView: View {
             && (snapshot.lastWeighDay.map { $0 < Repository.localDayKey(Date().addingTimeInterval(-7 * 86_400)) } ?? true)
         if snapshot.loaded, proposal || weighIn {
             VStack(alignment: .leading, spacing: 0) {
+                // A kicker names the card; it is not something to tap, so it stays grey and the accent is
+                // left to what can be tapped.
                 Label("Open", systemImage: "tray")
-                    .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.accent)
+                    .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
                     .padding(.bottom, 6)
                 if proposal {
                     Button { showPlan = true } label: {
@@ -1155,10 +1170,24 @@ struct ForgeTodayView: View {
         }
     }
 
-    /// Today's three strongest Charge drivers, as the morning note and the morning report show them: each
-    /// night placed on the wearer's usual range, read through the Charge page's own function.
+    /// Today's two strongest Charge drivers, each night placed on the wearer's usual range, read through the
+    /// Charge page's own function; the rest wait on the Charge page, one tap away. Three rows with tracks
+    /// made the morning entry nearly a screen tall.
     private var driverRows: some View {
-        rangeRows(Array(snapshot.drivers.prefix(3)))
+        VStack(alignment: .leading, spacing: 8) {
+            rangeRows(Array(snapshot.drivers.prefix(2)))
+            if snapshot.drivers.count > 2 {
+                NavigationLink(value: ForgeRoute.charge) {
+                    HStack(spacing: 4) {
+                        Text("All factors")
+                        Image(systemName: "chevron.right").font(.system(.caption, weight: .semibold))
+                    }
+                    .font(.system(.subheadline, weight: .medium))
+                    .foregroundStyle(ForgeColor.accent)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     /// Driver rows with the usual range behind the night's figure, where there is one.
@@ -1178,9 +1207,6 @@ struct ForgeTodayView: View {
         .padding(.vertical, 4)
         .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.fill))
     }
-
-    /// The body signals a warning is about, on the usual range.
-    private static let bodyLabels: Set<String> = ["Heart rate variability", "Resting heart rate", "Respiratory rate", "Skin temperature"]
 
     private var hasTodaysProposal: Bool {
         planStore.pending.contains(where: { $0.day == Repository.localDayKey(Date()) })
@@ -1315,7 +1341,7 @@ struct ForgeTodayView: View {
             HStack(alignment: .firstTextBaseline) {
                 Label("Your day", systemImage: "moon.stars.fill")
                     .font(.system(.footnote, weight: .semibold))
-                    .foregroundStyle(ForgeColor.accent)
+                    .foregroundStyle(ForgeColor.secondary)
                 Spacer(minLength: 6)
             }
             if let effort = snapshot.effortStored, let target = effortTarget, snapshot.charge.carriedCaption == nil {
@@ -1552,7 +1578,7 @@ struct ForgeTodayView: View {
                                                      restScore: next.rest)?.drivers ?? []
         // Each driver's night on the usual range, through the Charge page's own function.
         if let chargeRow {
-            for label in Set(next.drivers.map(\.label)).union(Self.bodyLabels) {
+            for label in Set(next.drivers.map(\.label)) {
                 if let r = ForgeChargeDetailView.usualRange(label, row: chargeRow, days: allDays) {
                     next.driverRanges[label] = DriverRange(text: r.text, position: r.position, band: r.band)
                 }

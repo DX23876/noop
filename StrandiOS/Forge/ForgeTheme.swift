@@ -318,8 +318,8 @@ struct ForgeLargeHeader<Trailing: View>: View {
             }
             .legibleOnPhoto()
             Spacer(minLength: 8)
-            // The ring already shows the level; the figure stays for VoiceOver and on the battery page.
-            DashboardBatteryButton(size: 34, showsPercent: false)
+            // The level as a figure beside the ring, as the prototype shows it: a ring alone had to be read.
+            DashboardBatteryButton(size: 34, showsPercent: true)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
             trailing()

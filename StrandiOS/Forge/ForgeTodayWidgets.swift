@@ -349,11 +349,12 @@ private struct ForgeTodayTile: View {
         // Matches the area's columns: two at the accessibility text sizes, so not dense there.
         let dense = KeyMetricPrefs.columns(columnsRaw) > 2 && !dynamicTypeSize.isAccessibilitySize
         // Sentence case: small tracked capitals over a picture were the hardest words on the page to read.
+        // An empty tile says so in a quiet line instead of a lone dash in the large figure's place.
         TodayMetricTile(label: Text(verbatim: label),
                         systemImage: symbol,
-                        value: value ?? "–",
+                        value: value ?? "",
                         unit: value == nil ? "" : unit,
-                        caption: caption,
+                        caption: value == nil ? String(localized: "No data yet") : caption,
                         tint: tint,
                         sparkline: trend,
                         sparkColor: tint,
@@ -623,8 +624,9 @@ struct ForgeMeasureWidget: View {
                            value: key == "stress"
                                ? values.last.map { Self.stressWord($0) }
                                : m.flatMap { ForgeFocusView.format(values.last, $0) },
-                           // Steps speak for themselves, and the word would crowd the number in a small tile.
-                           unit: key == "steps" ? "" : m.map(ForgeFocusView.unit) ?? "",
+                           // Steps speak for themselves, and the word would crowd the number in a small tile; stress
+                           // reads as a word ("Medium"), and "/3" beside a word said nothing.
+                           unit: key == "steps" || key == "stress" ? "" : m.map(ForgeFocusView.unit) ?? "",
                            tint: Self.tint(key),
                            trend: values.count > 1 ? Array(values.suffix(30)) : nil)
         }
