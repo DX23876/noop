@@ -219,4 +219,13 @@ final class DietPlanTests: XCTestCase {
         let m = FoodTargets.macros(plan: p, result: r, day: "2026-11-03")
         XCTAssertEqual(m.proteinG * 4 + m.carbsG * 4 + m.fatG * 9, tuesday.kcal, accuracy: 1)
     }
+
+    /// The JSON Android's `CoreDietPlan.Plan.json()` writes (optional fields left out), so both apps read one plan.
+    func testAKotlinPlanDecodes() throws {
+        let kotlin = #"{"goal":"lose","mode":"advanced","pacePercent":0.75,"form":"fasting52","addon":"pescatarian","strength":true,"goalWeightKg":180,"steering":"coached","keep":["breadAndPasta"],"startDay":"2026-11-09","startWeightKg":200,"adjustmentKcal":0,"hideNumbers":false,"pregnantOrNursing":false}"#
+        let plan = try XCTUnwrap(DietPlan.decode(kotlin))
+        XCTAssertEqual(plan.form, .fasting52)
+        XCTAssertEqual(plan.addon, .pescatarian)
+        XCTAssertNil(plan.fixedKcal)
+    }
 }
