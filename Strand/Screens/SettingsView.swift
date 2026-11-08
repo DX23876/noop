@@ -726,19 +726,24 @@ private struct SettingsPageContent: View, Equatable {
                 // upgrades it to the more accurate Nes waist-based estimate. It does NOT sharpen the Fitness
                 // Age itself (the body term cancels in the Nes model), so the note says it makes VO₂max more
                 // accurate rather than implying it tunes the age.
-                FormRow(label: "Waist (optional)") {
-                    // Imperial mode steps in whole inches and stores the cm equivalent; metric steps in cm.
-                    if unitSystem == .imperial {
-                        waistInchesField(waistCm: $profile.waistCm)
-                    } else {
-                        waistCentimetresField(waistCm: $profile.waistCm)
+                // The new design leaves the waist to the Body page: since the body scalars moved into dated
+                // readings the estimate reads the waist from there, so this field set nothing and showed
+                // "Not set" beside a measured waist on the Body page.
+                if NoopVisualStyle.skin != .forge {
+                    FormRow(label: "Waist (optional)") {
+                        // Imperial mode steps in whole inches and stores the cm equivalent; metric steps in cm.
+                        if unitSystem == .imperial {
+                            waistInchesField(waistCm: $profile.waistCm)
+                        } else {
+                            waistCentimetresField(waistCm: $profile.waistCm)
+                        }
                     }
+                    Text("Optional: VO₂max builds from about 4 nights of heart rate; a waist makes it more accurate. The Fitness Age itself doesn't need it. Measure around your middle, at the navel.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    rowDivider
                 }
-                Text("Optional: VO₂max builds from about 4 nights of heart rate; a waist makes it more accurate. The Fitness Age itself doesn't need it. Measure around your middle, at the navel.")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                rowDivider
                 // The way in to the Body page. The fields above stay editable on purpose: they are a
                 // standing value the whole app reads, while the Body page holds DATED measurements with
                 // their own history. Removing these rows outright would lose everyone who knows where
