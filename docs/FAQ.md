@@ -101,6 +101,56 @@ before it can tell a high night from a low one, so it shows a countdown instead 
 Tapping **Recalibrate baseline** restarts that countdown from zero — it discards the nights already
 banked. If you're sitting at "Calibrating" and tap it again, you reset your own progress.
 
+## Why are my steps missing, marked "est." or wrong?
+
+It depends on the strap:
+
+- **WHOOP 4.0** does not send a step count over Bluetooth. NOOP estimates your steps from the strap's
+  motion and marks them "est.". The estimate calibrates itself against your phone's step count (Apple
+  Health or Health Connect), and on a day where the phone has a real count, the phone's count wins.
+  You can see the fit and set it by hand under Settings → **Strap** → *Steps* → **Step estimate**.
+- **WHOOP 5.0 and MG** count steps themselves. If the total is off by a fixed factor (for example
+  10,000 steps after a counted 1,000-step walk), adjust **Step correction** in the same place. Leave
+  it at 1.0 when the count looks right.
+
+Two differences from other apps are expected. NOOP's day follows your sleep, not midnight, so a late
+night does not split one day's walking across two dates and a daily total can differ from the Health
+app's. And when an iPhone and an Apple Watch both counted the same walk, NOOP keeps the higher of the
+two instead of adding them together.
+
+## How do I bring in my WHOOP history or other data?
+
+Everything is imported on your device; nothing is uploaded. Imports live under Settings → **Data &
+Backup** (on the Mac, also in the **Data Sources** sidebar entry):
+
+- **WHOOP history:** request a data export at app.whoop.com → *Data Management*, then import the
+  `.zip` (or the unzipped folder) under **Data Sources**. It covers recovery, strain, sleep and
+  workouts for 4.0, 5.0 and MG.
+- **Apple Health:** on iPhone, NOOP can read Apple Health directly (**Apple Health** in the same
+  section). For your full history, import the export from the Health app (profile picture → *Export
+  All Health Data*). Large exports take a minute or two.
+- **Others:** Strong, Hevy, FitNotes, nutrition CSVs from Cronometer or MacroFactor, Mi Band (Mi
+  Fitness export) and GPX, TCX and FIT routes.
+- **A backup from RyanBR's NOOP:** restore the `.noopbak` under Data & Backup; see the backup question
+  above.
+
+## How do I update, and do I keep my data?
+
+Updating keeps your data. A backup before a big update costs nothing, though (Settings → **Data &
+Backup**).
+
+- **iPhone and iPad:** if you added the NOOP Forge source to AltStore or SideStore, updates appear
+  there. With a free Apple ID the app must be refreshed every seven days, which the sideloader does
+  in the background. Details are in the [iOS guide](IOS.md).
+- **Mac:** download the newest build from the
+  [latest release](https://github.com/DX23876/noop/releases/latest) and replace the app in your
+  Applications folder.
+
+Settings → **About** → **Check for updates** tells you whether a newer release exists, and **Check
+automatically** does that at most once a day. It only reads the public release information from
+GitHub; it never downloads or installs anything. What changed is in the release notes on the
+[releases page](https://github.com/DX23876/noop/releases).
+
 ## Is NOOP a medical device?
 
 No. It is not a medical device and makes no diagnostic claim. Values are raw readings or
@@ -115,7 +165,7 @@ so the questions below are about getting help quickly and about how to help back
 
 ## Where do I ask a question, and where do I report a bug?
 
-- **Questions, setup help, "is this normal?":** Discord, or
+- **Questions, setup help, "is this normal?":** [Discord](https://discord.com/invite/wKgyqVdjrP), or
   [GitHub Discussions](https://github.com/DX23876/noop/discussions). Please read this FAQ and the
   [Troubleshooting](https://github.com/DX23876/noop/wiki/Troubleshooting) page first; most questions
   are already answered there.
@@ -143,10 +193,11 @@ in the report. "X doesn't work" on its own cannot be investigated. Please includ
 - **the strap log**, which is the single most helpful thing you can attach:
   - iPhone, iPad and Mac: Settings → **Connection diagnostics** → *Strap log* → **Save…** (or
     **Copy**)
-  - Android: Settings → **Help & Diagnostics** → **Share strap log**
+  - Android test builds: Settings → **Help & Diagnostics** → **Share strap log**
 
-Save the log soon after the problem happens, while the relevant part is still in it. It is your data,
-so have a quick look before you post it publicly.
+Save the log soon after the problem happens, while the relevant part is still in it. The strap's
+serial number and Bluetooth addresses are masked automatically, but it is still your data, so have a
+quick look before you post it publicly.
 
 ## Why is some text still in English?
 
