@@ -448,7 +448,7 @@ struct ForgeSleepView: View {
         }
         return VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "This night")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 ForEach(facts) { ForgeNightSignalTile(signal: $0, highlightLast: recent.last?.day == key) }
             }
         }

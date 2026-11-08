@@ -118,7 +118,7 @@ struct ForgeHealthView: View {
                         ForgeCycleSummaryCard()
 
                         ForgeSectionTitle(title: "Focus areas")
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                             ForEach(ForgeFocusArea.allCases) { area in
                                 NavigationLink(value: ForgeRoute.focus(area)) { ForgeFocusTile(area: area) }
                                     .buttonStyle(LiquidPressStyle())

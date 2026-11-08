@@ -173,7 +173,7 @@ struct ForgeTodayWidgetArea: View {
 
     var body: some View {
         if editing || !shown.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
                 if editing {
                     // On a card of its own: the picture behind it changes with the hour.
                     VStack(alignment: .leading, spacing: 12) {
@@ -193,7 +193,7 @@ struct ForgeTodayWidgetArea: View {
                     .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.card))
                 }
                 ForEach(rows, id: \.first!.id) { row in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: 12) {
                         ForEach(row) { w in cell(w) }
                         if !row[0].isWide {
                             ForEach(row.count..<columns, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
@@ -763,16 +763,9 @@ struct ForgeLastWorkoutWidget: View {
                 }
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card)
-                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous)
-                    .fill(LinearGradient(colors: [tint.opacity(0.16), tint.opacity(0.03)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-            }
-        }
+        .background(RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card))
         .accessibilityElement(children: .combine)
     }
 
@@ -955,16 +948,10 @@ struct ForgePictureTile<Content: View>: View {
             VStack(alignment: .leading, spacing: 3) { content() }
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            // The card surface first, the colour washed over it, both behind the words.
-            ZStack {
-                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card)
-                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous)
-                    .fill(LinearGradient(colors: [tint.opacity(0.16), tint.opacity(0.03)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-            }
-        }
+        // The colour stays in the picture: Today holds many tiles side by side, and a wash on each
+        // card in its own colour turned the board into a rainbow.
+        .background(RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card))
     }
 }

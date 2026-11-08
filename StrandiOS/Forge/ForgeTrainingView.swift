@@ -408,7 +408,7 @@ struct ForgeTrainingView: View {
     private var analysis: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "Key metrics")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 NavigationLink(value: TabRoute.metric(HeroRingMetric.effort)) {
                     // The week's daily mean, as the weekly report's Effort ring reads it, not the last day.
                     ForgeMetricTile(label: String(localized: "Effort this week"),

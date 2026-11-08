@@ -99,7 +99,7 @@ struct TrendsChangeSummary: View {
 
     var body: some View {
         NoopCard {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("What changed").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                     Spacer(minLength: 8)
@@ -120,7 +120,7 @@ struct TrendsChangeSummary: View {
                 if rows.isEmpty, loaded {
                     Text("No data yet").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 } else {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 16) {
                         // Every measure that moved gets its own card with the meaning written out; the ones
                         // that held still share one quiet block at the end.
                         ForEach(rows.filter { $0.verdict != .steady }) { row in insightCard(row) }

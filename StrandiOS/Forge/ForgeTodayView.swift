@@ -149,7 +149,7 @@ struct ForgeTodayView: View {
                         }
                         .padding(.horizontal, 16)
                     }
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 16) {
                         if !showsTimeline {
                             // Without the timeline, what waits for an answer still has a place.
                             ActivitySuggestionPrompt(compact: true)
@@ -161,8 +161,8 @@ struct ForgeTodayView: View {
                         ForgeCycleSummaryCard(showsLogButtons: false)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 12)
+                    .padding(.top, 20)
+                    .padding(.bottom, 16)
                     dayList
                 }
                 .padding(.top, 6)

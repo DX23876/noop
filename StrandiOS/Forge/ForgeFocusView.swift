@@ -116,7 +116,7 @@ struct ForgeFocusView: View {
                 ForgeDetailHeader(overline: nil, title: area.title, scrolledPast: $scrolledPast)
                 let tiles = self.tiles
                 if !tiles.isEmpty || !energyTotals.isEmpty {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                         ForEach(tiles) { t in
                             NavigationLink(value: TabRoute.metricSourced(key: t.metric.key, source: t.metric.source)) {
                                 ForgeMetricTile(label: t.metric.title, value: Self.format(t.values.last, t.metric),

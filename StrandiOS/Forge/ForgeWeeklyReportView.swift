@@ -184,7 +184,7 @@ struct ForgeWeeklyReportView: View {
         let week = w.this
         return VStack(alignment: .leading, spacing: 8) {
             ForgeSectionTitle(title: "Highlights")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 if let i = week.bestIndex(\.charge), let day = Self.parse(week.days[i]),
                    let value = week.values[i].charge {
                     highlightTile(String(localized: "Best day"), "sun.max.fill", ForgeColor.chargeInk,
