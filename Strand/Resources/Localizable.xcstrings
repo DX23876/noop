@@ -615365,6 +615365,122 @@
           }
         }
       }
+    },
+    "People whose work NOOP Forge adopted" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menschen, deren Arbeit NOOP Forge übernommen hat"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personas cuyo trabajo ha adoptado NOOP Forge"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les personnes dont NOOP Forge a repris le travail"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persone di cui NOOP Forge ha adottato il lavoro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osoby, których pracę przejął NOOP Forge"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pessoas cujo trabalho o NOOP Forge adotou"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Люди, чью работу перенял NOOP Forge"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge 采用了其成果的贡献者"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge 採用了其成果的貢獻者"
+          }
+        }
+      }
+    },
+    "NOOP Forge builds on NOOP by ryanbr and its contributors. These people's fixes and features were taken into NOOP Forge directly, from their own forks or their pull requests. ATTRIBUTION.md lists the sources." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge baut auf NOOP von ryanbr und dessen Mitwirkenden auf. Die Fehlerbehebungen und Funktionen dieser Menschen hat NOOP Forge direkt übernommen, aus ihren eigenen Forks oder ihren Pull Requests. Die Quellen stehen in ATTRIBUTION.md."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge se basa en NOOP de ryanbr y sus colaboradores. Las correcciones y funciones de estas personas se incorporaron directamente a NOOP Forge, desde sus propios forks o sus pull requests. ATTRIBUTION.md indica las fuentes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge s'appuie sur NOOP de ryanbr et ses contributeurs. Les correctifs et fonctions de ces personnes ont été repris directement dans NOOP Forge, depuis leurs propres forks ou leurs pull requests. ATTRIBUTION.md indique les sources."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge si basa su NOOP di ryanbr e sui suoi contributori. Le correzioni e le funzioni di queste persone sono state integrate direttamente in NOOP Forge, dai loro fork o dalle loro pull request. ATTRIBUTION.md elenca le fonti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge opiera się na NOOP autorstwa ryanbr i jego współtwórców. Poprawki i funkcje tych osób trafiły do NOOP Forge bezpośrednio, z ich własnych forków lub pull requestów. Źródła są wymienione w ATTRIBUTION.md."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP Forge baseia-se no NOOP de ryanbr e nos seus contribuidores. As correções e funções destas pessoas foram integradas diretamente no NOOP Forge, a partir dos seus próprios forks ou pull requests. O ATTRIBUTION.md indica as fontes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge основан на NOOP от ryanbr и его участников. Исправления и функции этих людей перенесены в NOOP Forge напрямую — из их собственных форков или пул-реквестов. Источники перечислены в ATTRIBUTION.md."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge 基于 ryanbr 的 NOOP 及其贡献者的成果。以下贡献者的修复和功能是直接从他们自己的分支或拉取请求中采用到 NOOP Forge 的。来源列在 ATTRIBUTION.md 中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Forge 建立在 ryanbr 的 NOOP 及其貢獻者的成果之上。以下貢獻者的修正和功能是直接從他們自己的分支或拉取請求採用到 NOOP Forge 的。來源列在 ATTRIBUTION.md 中。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
