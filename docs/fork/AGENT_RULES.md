@@ -15,6 +15,27 @@ verbatim. Where the two disagree, this file wins. Everything else that is true h
   twin, no byte-identical Room/GRDB or `.noopbak` gate. Offline, no server, no account and anonymity still
   bind.
 
+## Android is a shell around the shared core
+
+`AGENTS.md` describes Android as an independent Kotlin, Compose and Room reimplementation. That is not
+true here. Since 2026-11-01 ([`android/CORE-ONLY-PLAN.md`](android/CORE-ONLY-PLAN.md)):
+
+- **Room is gone from the app.** Android stores only in the core's GRDB database, through the generated
+  `CoreWhoopDao` (`Tools/gen_core_dao.py`). Room stays only as a transitive WorkManager dependency. Never add
+  a Room entity, DAO or migration; a schema change is a `WhoopStore` migration that both platforms run.
+- **Logic lives in the core, never in Kotlin.** Scoring, analytics, import, backup and any computation go
+  into `Packages/` (`StrandCore`, `StrandAnalytics`, `WhoopStore`, `StrandImport`, `StrandTraining`) and
+  reach Android through `NoopCoreJNI`. Kotlin keeps Bluetooth transport, Android services, UI and
+  presentation helpers only. A missing Android feature is answered by moving its logic into the core, not
+  by writing a Kotlin version.
+- **A change to the core changes both platforms.** `Tools/local-tests.sh` builds and tests Android for any
+  change under `Packages/**` or `project.yml`; the parity oracles in
+  `android/app/src/test/resources/core_parity/` must still pass.
+- **Android UI is the Forge Compose screens** (`com.noop.ui.forge`), following iOS feature by feature:
+  inventory every iOS screen, setting and action before porting one.
+- Running state and open steps: [`android/STATUS.md`](android/STATUS.md). Unverified until a real strap:
+  acknowledging strap history only after the core stored it.
+
 ## Analysis changes and upstream updates
 
 Every RyanBR upstream commit/PR and every local feature must explicitly record:
@@ -47,9 +68,20 @@ for diagnostics and does not advance the recipe version.
 
 ## Before pushing app or package code
 
-Run `Tools/local-tests.sh` on the committed tree. No CI runs StrandTests or the package tests on a push,
-and `.githooks/pre-push` refuses a push to `main` that changes app code, a package or `project.yml` without
-a passing run for exactly that tree.
+Run `Tools/local-tests.sh` on the committed tree. No CI runs StrandTests, the package tests or (for a
+package change) the Android build on a push, and `.githooks/pre-push` refuses a push to `main` that
+changes app code, a package or `project.yml` without a passing run for exactly that tree.
+
+- A full run takes about 45 minutes (macOS StrandTests, iOS build, Android builds). For work in several
+  steps, commit each step, test it narrowly (`swift test` in the touched package, the `Tools/` Python
+  tests), and run the full script once on the final tree before the one push.
+- Finished fork work goes straight to `origin/main`; no pull request. Contributions to `ryanbr/noop` are
+  separate branches based on `upstream/main` and go through a pull request there.
+- **Do not assume a push ran CI.** No GitHub Actions run has started on `DX23876/noop` since 2026-11-02,
+  not even the schedules (account limit suspected, unresolved). Before calling a push green, check that
+  `gh run list -R DX23876/noop --commit <sha>` shows runs at all; when it shows none, say so and rely on
+  the local run, the `Tools/` Python tests (`cd Tools && python3 -m unittest discover -p 'test_*.py'`) and
+  `python3 Tools/i18n_audit.py --ci origin/main`.
 
 ## Readout and CI invariants
 

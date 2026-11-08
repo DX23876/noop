@@ -43,9 +43,10 @@ commit authored as `DX23876` is audited exactly as before.
 The subject matter is not the target — only authorship. "Anthropic" is a real AI provider this app
 integrates (`Strand/AI/AIProvider.swift`), so a message may freely say "add Anthropic streaming".
 
-**Versioning.** `MARKETING_VERSION` in `project.yml` is the single source of truth (it was kept in
-step with `android/app/build.gradle.kts` until the Android tree was removed — the release workflow
-and the in-app update check both read `project.yml` now); build numbers are independent counters. The fork's
+**Versioning.** `MARKETING_VERSION` in `project.yml` is the single source of truth: the release
+workflow, the in-app update check and Android's `versionName` (`forkMarketingVersion` in
+`android/app/build.gradle.kts`, Android plan D-2) all read it, so `AGENTS.md`'s "bump both together" is
+one edit here; build numbers are independent counters. The fork's
 release identity is plain `X.Y.Z` — the numeric version stays numeric everywhere Apple reads it
 (`CFBundleShortVersionString`), and the tag and asset filenames carry a `-dx` marker (`vX.Y.Z-dx`,
 `NOOP-ios-unsigned-vX.Y.Z-dx.ipa`).
@@ -66,8 +67,13 @@ prereleases, and the in-app update check reads exactly that endpoint).
 ### The cross-platform parity contract is RETIRED (2026-07-23); Android is back on a shared core (2026-10-25)
 
 Android returns on a shared Swift core ([`fork/android/PLAN.md`](fork/android/PLAN.md)). Phase D restored
-`android/` from the upstream merge base on 2026-10-25; until the deep-core wiring (D-5) lands it is
-ryanbr's Kotlin app under the fork's identity, built and tested by `android.yml`.
+`android/` from the upstream merge base on 2026-10-25 and wired the core into every build (D-5). Since
+2026-11-01 Room is gone from the app ([`fork/android/CORE-ONLY-PLAN.md`](fork/android/CORE-ONLY-PLAN.md)):
+Android stores only in the core's GRDB database through the generated `CoreWhoopDao`, adopts an old Room
+file once on first start, restores every Room backup, and keeps Kotlin for Bluetooth transport, Android
+services and the Forge Compose UI. The binding rules are in
+[`fork/AGENT_RULES.md`](fork/AGENT_RULES.md) ("Android is a shell around the shared core"); the running
+state is [`fork/android/STATUS.md`](fork/android/STATUS.md).
 
 Upstream's `AGENTS.md` calls parity the #1 rule. **It does not bind here**: there is no Kotlin twin to keep
 byte-identical, because the shared core is one Swift codebase. Byte-identical analytics, platform-neutral
@@ -81,7 +87,7 @@ Going back from a current Forge backup (v77) to current upstream (v47) is not te
 upstream migrations were renumbered when merged. What was retired is the promise that every future
 fork change must remain byte-identical to the removed Android/Room implementation.
 
-History: the tree was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
+History (superseded by the return above): the tree was removed on 2026-08-14: `android/` (899 files), `.github/workflows/android.yml`,
 and the Android jobs in both release workflows. Nobody here develops it, and a tree nobody builds
 only rots — it was still absorbing upstream churn on every sync while never being compiled.
 
@@ -125,20 +131,29 @@ surface: [`fork/COACH.md`](fork/COACH.md).
 
 ### CI actually runs here
 
-Upstream's own guide describes `app-build.yml` as disabled. **In this fork every workflow is active**,
-which changes what validates a change:
+The fork runs the macOS workflows only around a release, which changes what validates a change:
 
 | Workflow | Covers | Trigger |
 |---|---|---|
 | `swift-packages.yml` | `swift test` for `Packages/**` (incl. the fork-only `SemanticMemory`) | dispatch; called by `publish-ios-release.yml` before it publishes. **Not on PR or push** (since 2026-10-10): run the package tests locally before pushing a change under `Packages/**` or an upstream merge |
 | `app-build.yml` | Compile of `Strand` (macOS) + `NOOPiOS` (iOS), **plus `StrandTests` on the macOS leg only** | PR touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, `project.yml`; dispatch; called by `fork-release.yml` before it publishes. **Not on push to `main`** (since 2026-09-30) |
-| `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
+| `tools-python.yml` | The `Tools/` suites (they read product source) + the `Tools/linux-capture` suite with a test-count floor | every PR and push to `main`, no path filter |
+| `tools-python-windows.yml` | The `Tools/linux-capture` tests again under Windows console encodings | PR + push touching `Tools/linux-capture/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
 | `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
 | `android.yml` | Gradle debug builds of the full and demo flavours with the shared Swift core (toolchain, Swift SDK for Android and NDK r30 installed first) + the JVM unit tests | PR + push touching `android/**`, `project.yml` (the version name), `Packages/**` (the core) or `Tools/parity_cases/**` (Android plan D-5, D-7) |
+| `android-release.yml` | Signed, minified release APK | dispatch; called by `publish-ios-release.yml` |
 | `android-signing-check.yml` | Opens the Android release keystore with its password secret, prints the public fingerprint | dispatch only |
-| `publish-ios-release.yml` | Cuts a release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
+| `fork-testing-build.yml` | Testing build (`testing-latest`) for testers | dispatch only |
+| `fork-release.yml` | Older release path: bumps the version in source, gates on `app-build.yml`, publishes `v<VERSION>` | dispatch only |
+| `publish-ios-release.yml` | Cuts a release: unsigned IPA + universal macOS zip + the Android APK, updates the AltStore source, marks it latest | `workflow_dispatch` |
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
+| `prune-stale-branches.yml` | Deletes branches whose PR merged or closed | weekly cron + dispatch |
+
+**Since 2026-11-02 no workflow has started on this repository at all**, not on push and not on its
+schedule, although Actions is enabled (an account limit is suspected; unresolved as of 2026-11-08). Until
+runs appear again, a push to `main` is checked only by `Tools/local-tests.sh`, the `Tools/` Python tests
+and the local i18n audit; check `gh run list -R DX23876/noop --commit <sha>` before calling anything green.
 
 **`StrandTests` runs in exactly one place in CI** — `app-build.yml`'s macOS leg. Since a push to `main` no longer triggers it, a change to app-target Swift is built for macOS and iOS and its `StrandTests` run **locally before the push**; a release runs the workflow as its gate. `Test Strand` is a later
 step in the same job, so a red *build* step silently **skips** the tests rather than failing them. A
