@@ -19,6 +19,8 @@ struct TrendsChangeSummary: View {
 
     struct Row: Identifiable, Equatable {
         let id: String
+        /// The catalog key, for the measure's picture and colour.
+        let key: String
         let title: String
         let icon: String
         /// The daily values of both spans, oldest first; `split` is the first index of the recent span.
@@ -213,40 +215,42 @@ struct TrendsChangeSummary: View {
 
     /// One measure that moved: its name and change large, its two spans as a wide line, and what the move
     /// means for the wearer as a short paragraph, always visible.
+    /// One measure that moved: its own picture in its own colour, its name and change large, and what the
+    /// move means for the wearer as a short paragraph, always visible. The verdict rides on the badge.
     private func insightCard(_ row: Row) -> some View {
-        let tint = color(row.verdict)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
-                Image(systemName: row.icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(tint.opacity(0.16)))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: row.title).font(Font.system(.title3, design: .rounded).weight(.bold))
-                        .foregroundStyle(StrandPalette.textPrimary).lineLimit(1).minimumScaleFactor(0.75)
+        let identity = TrendIllustration.color(row.key)
+        let verdict = color(row.verdict)
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
+                TrendIllustration(key: row.key, up: row.change > 0)
+                    .frame(width: 92, height: 92)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(verbatim: row.title).font(StrandFont.title2)
+                        .foregroundStyle(StrandPalette.textPrimary).lineLimit(2).minimumScaleFactor(0.8)
                     Text(verbatim: "\(row.before) → \(row.now)").font(StrandFont.subhead.monospacedDigit())
                         .foregroundStyle(StrandPalette.textSecondary).lineLimit(1).minimumScaleFactor(0.8)
+                    HStack(spacing: 4) {
+                        Image(systemName: row.change > 0 ? "arrow.up" : "arrow.down").font(.system(size: 12, weight: .heavy))
+                        Text(verbatim: "\(abs(Int((row.change * 100).rounded()))) %").font(StrandFont.headline.monospacedDigit())
+                        if row.verdict == .better { Text("better").font(StrandFont.caption.weight(.semibold)) }
+                        if row.verdict == .worse { Text("worse").font(StrandFont.caption.weight(.semibold)) }
+                    }
+                    .foregroundStyle(row.verdict == .neutral ? identity : verdict)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Capsule().fill((row.verdict == .neutral ? identity : verdict).opacity(0.14)))
+                    .fixedSize()
                 }
-                Spacer(minLength: 8)
-                HStack(spacing: 3) {
-                    Image(systemName: row.change > 0 ? "arrow.up" : "arrow.down").font(.system(size: 15, weight: .heavy))
-                    Text(verbatim: "\(abs(Int((row.change * 100).rounded()))) %").font(StrandFont.rounded(26, weight: .bold).monospacedDigit())
-                }
-                .foregroundStyle(tint)
-                .fixedSize()
+                Spacer(minLength: 0)
             }
-            ChangeSpark(values: row.values, split: row.split, beforeMean: row.beforeMean,
-                        nowMean: row.nowMean, tint: tint)
-                .frame(height: 56)
-                .accessibilityHidden(true)
             Text(verbatim: row.meaning).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(tint.opacity(0.07)))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(tint.opacity(0.16), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(LinearGradient(colors: [identity.opacity(0.16), identity.opacity(0.04)],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing)))
         .accessibilityElement(children: .combine)
     }
 
@@ -328,7 +332,7 @@ struct TrendsChangeSummary: View {
         if abs(change) < deadband { verdict = .steady }
         else if let up = measure.higherIsBetter { verdict = (change > 0) == up ? .better : .worse }
         else { verdict = .neutral }
-        return Row(id: metric.id, title: metric.title, icon: metric.icon, values: ordered.map(\.value), split: split,
+        return Row(id: metric.id, key: measure.key, title: metric.title, icon: metric.icon, values: ordered.map(\.value), split: split,
                    beforeMean: before, nowMean: now, before: format(before, metric),
                    now: format(now, metric), change: change, verdict: verdict,
                    meaning: meaning(key: measure.key, verdict: verdict, up: change > 0))
@@ -349,49 +353,83 @@ struct TrendsChangeSummary: View {
     }
 }
 
-/// One measure's two spans as a small line: the earlier span quiet, the recent span in the verdict colour,
-/// each with its mean as a short dashed level, so the step between them is what the eye lands on.
-private struct ChangeSpark: View {
-    let values: [Double]
-    let split: Int
-    let beforeMean: Double
-    let nowMean: Double
-    let tint: Color
+/// Each measure's picture: its symbol large on a glowing disc in the measure's own colour, with two small
+/// motifs around it that say what the measure is about. Drawn, not a file, so it follows light and dark.
+struct TrendIllustration: View {
+    let key: String
+    let up: Bool
+    @State private var lift = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The measure's identity colour across Trends, so a tab carries more than two hues.
+    static func color(_ key: String) -> Color {
+        switch key {
+        case "recovery": return StrandPalette.chargeColor
+        case "hrv": return StrandPalette.metricPurple
+        case "rhr": return StrandPalette.metricRose
+        case "sleep_total_min": return StrandPalette.restColor
+        case "sleep_consistency": return .indigo
+        case "stress": return StrandPalette.metricCyan
+        case "steps": return StrandPalette.metricAmber
+        case "strain": return StrandPalette.effortColor
+        case "resp_rate": return .teal
+        default: return .pink
+        }
+    }
+
+    private var motif: (main: String, a: String, b: String) {
+        switch key {
+        case "recovery": return ("bolt.heart.fill", "sparkle", "sun.max.fill")
+        case "hrv": return ("waveform.path.ecg", "heart.fill", "sparkle")
+        case "rhr": return ("heart.fill", "waveform.path.ecg", "sparkle")
+        case "sleep_total_min": return ("moon.zzz.fill", "star.fill", "sparkle")
+        case "sleep_consistency": return ("bed.double.fill", "alarm.fill", "star.fill")
+        case "stress": return (up ? "cloud.bolt.fill" : "leaf.fill", "wind", "sparkle")
+        case "steps": return ("figure.walk", "shoeprints.fill", "sun.max.fill")
+        case "strain": return ("flame.fill", "bolt.fill", "sparkle")
+        case "resp_rate": return ("lungs.fill", "wind", "sparkle")
+        default: return ("scalemass.fill", "leaf.fill", "sparkle")
+        }
+    }
 
     var body: some View {
-        Canvas { context, size in
-            guard values.count > 1 else { return }
-            let lo = min(values.min() ?? 0, beforeMean, nowMean)
-            let hi = max(values.max() ?? 1, beforeMean, nowMean)
-            let spread = max(hi - lo, abs(hi) * 0.02, 0.0001)
-            let step = size.width / CGFloat(values.count - 1)
-            func point(_ i: Int, _ v: Double) -> CGPoint {
-                CGPoint(x: CGFloat(i) * step, y: size.height - 3 - CGFloat((v - lo) / spread) * (size.height - 6))
+        let tint = Self.color(key)
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            ZStack {
+                Circle().fill(tint.opacity(0.35)).blur(radius: side * 0.16).scaleEffect(0.95)
+                Circle()
+                    .fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .overlay(
+                        Circle().fill(RadialGradient(colors: [.white.opacity(0.45), .clear], center: .topLeading,
+                                                     startRadius: 0, endRadius: side * 0.6))
+                    )
+                    .frame(width: side * 0.78, height: side * 0.78)
+                    .shadow(color: tint.opacity(0.45), radius: side * 0.08, y: side * 0.04)
+                Image(systemName: motif.main)
+                    .font(.system(size: side * 0.34, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                    .offset(y: lift ? -2 : 1)
+                Image(systemName: motif.a)
+                    .font(.system(size: side * 0.15, weight: .bold))
+                    .foregroundStyle(tint)
+                    .padding(side * 0.06)
+                    .background(Circle().fill(StrandPalette.surfaceBase))
+                    .shadow(color: tint.opacity(0.3), radius: 4, y: 2)
+                    .offset(x: side * 0.33, y: -side * 0.30)
+                Image(systemName: motif.b)
+                    .font(.system(size: side * 0.12, weight: .bold))
+                    .foregroundStyle(tint.opacity(0.9))
+                    .offset(x: -side * 0.38, y: side * 0.30)
+                    .opacity(lift ? 1 : 0.55)
             }
-            let cut = max(1, min(split, values.count - 1))
-            var earlier = Path(), recent = Path()
-            for i in 0...cut { i == 0 ? earlier.move(to: point(i, values[i])) : earlier.addLine(to: point(i, values[i])) }
-            for i in cut..<values.count { i == cut ? recent.move(to: point(i, values[i])) : recent.addLine(to: point(i, values[i])) }
-            var fill = recent
-            fill.addLine(to: CGPoint(x: size.width, y: size.height))
-            fill.addLine(to: CGPoint(x: CGFloat(cut) * step, y: size.height))
-            fill.closeSubpath()
-            context.fill(fill, with: .linearGradient(Gradient(colors: [tint.opacity(0.28), tint.opacity(0)]),
-                                                     startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
-            let quiet = StrandPalette.textTertiary.opacity(0.6)
-            context.stroke(earlier, with: .color(quiet), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-            context.stroke(recent, with: .color(tint), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-            let dash = StrokeStyle(lineWidth: 1, dash: [2, 2])
-            var beforeLevel = Path()
-            beforeLevel.move(to: CGPoint(x: 0, y: point(0, beforeMean).y))
-            beforeLevel.addLine(to: CGPoint(x: CGFloat(cut) * step, y: point(0, beforeMean).y))
-            context.stroke(beforeLevel, with: .color(quiet), style: dash)
-            var nowLevel = Path()
-            nowLevel.move(to: CGPoint(x: CGFloat(cut) * step, y: point(0, nowMean).y))
-            nowLevel.addLine(to: CGPoint(x: size.width, y: point(0, nowMean).y))
-            context.stroke(nowLevel, with: .color(tint.opacity(0.7)), style: dash)
-            let last = point(values.count - 1, values[values.count - 1])
-            context.fill(Path(ellipseIn: CGRect(x: last.x - 2.5, y: last.y - 2.5, width: 5, height: 5)), with: .color(tint))
+            .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .accessibilityHidden(true)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { lift = true }
         }
     }
 }
