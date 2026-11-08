@@ -382,16 +382,18 @@ private struct StaggeredAppear: ViewModifier {
         content
             .opacity(isVisible ? (shown ? 1 : 0) : 1)
             .offset(y: (isVisible && !shown) ? NoopMotion.riseOffset : 0)
-            .onAppear {
+            // A task, not `onAppear`: a delayed animation started inside `onAppear` on a pushed page's
+            // first layout pass was dropped, so the cards stayed at opacity 0 until a scroll redrew them
+            // (Devices and Trends opened blank). The task runs after that pass and always lands.
+            .task {
                 guard isVisible, !hasAppeared else { return }
                 if poseStill {
                     hasAppeared = true                  // no animation, no delay
-                } else {
-                    let delay = Double(max(0, index)) * NoopMotion.stagger
-                    withAnimation(NoopMotion.card.delay(delay)) {
-                        hasAppeared = true
-                    }
+                    return
                 }
+                let delay = Double(max(0, index)) * NoopMotion.stagger
+                if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+                withAnimation(NoopMotion.card) { hasAppeared = true }
             }
             .onChangeCompat(of: poseStill) { if $0 { hasAppeared = true } }
     }

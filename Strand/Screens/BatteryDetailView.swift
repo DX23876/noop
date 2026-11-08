@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 import StrandDesign
 
 /// One truth table for every header battery control. A percentage that outlived its Bluetooth link is
@@ -198,7 +199,7 @@ struct BatteryDetailView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 NoopCard(tint: tint) {
                     VStack(spacing: 18) {
-                        batteryGauge
+                        if NoopVisualStyle.skin == .forge { StrapBatteryGlyph(state: state, tint: tint) } else { batteryGauge }
                         Text(statusText)
                             .font(StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
@@ -212,6 +213,9 @@ struct BatteryDetailView: View {
                     .frame(maxWidth: .infinity)
                 }
 
+                if NoopVisualStyle.skin == .forge, live.connected, live.batterySamples.count > 1 {
+                    BatteryHistoryCard(samples: live.batterySamples, tint: tint)
+                }
                 NoopCard {
                     VStack(spacing: NoopMetrics.rowSpacing) {
                         detailRow("Connection", value: live.connected ? String(localized: "Connected") : String(localized: "Not connected"))
@@ -299,5 +303,99 @@ struct BatteryDetailView: View {
     private func detailRow(_ label: LocalizedStringKey, value: String) -> some View {
         HStack { Text(label).foregroundStyle(StrandPalette.textSecondary); Spacer(); Text(value).foregroundStyle(StrandPalette.textPrimary) }
             .font(StrandFont.subhead)
+    }
+}
+
+/// The new design's battery: a battery drawn as one, filled to the charge in its level colour, with the
+/// figure under it. Offline it is an empty dashed outline, never a stale level.
+private struct StrapBatteryGlyph: View {
+    let state: StrapBatteryDisplayState
+    let tint: Color
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var fraction: Double {
+        if case .charge(let pct, _, _) = state { return pct / 100 }
+        return 0
+    }
+    private var charging: Bool {
+        switch state {
+        case .charge(_, let c, _), .pending(let c): return c
+        default: return false
+        }
+    }
+    private var isCharge: Bool { if case .charge = state { return true }; return false }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 4) {
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(isCharge ? tint.opacity(0.55) : StrandPalette.textTertiary.opacity(0.6),
+                                      style: StrokeStyle(lineWidth: 3, dash: isCharge ? [] : [6, 5]))
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: max(0, (geo.size.width) * (shown ? fraction : 0)))
+                            .shadow(color: tint.opacity(0.45), radius: 8)
+                    }
+                    .padding(7)
+                    if charging {
+                        Image(systemName: "bolt.fill").font(.system(size: 30, weight: .bold))
+                            .foregroundStyle(.white).shadow(color: .black.opacity(0.25), radius: 2)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(width: 168, height: 76)
+                Capsule().fill(isCharge ? tint.opacity(0.55) : StrandPalette.textTertiary.opacity(0.6))
+                    .frame(width: 7, height: 26)
+            }
+            if case .charge(let pct, _, _) = state {
+                Text(verbatim: "\(Int(pct.rounded())) %")
+                    .font(StrandFont.rounded(40, weight: .bold)).monospacedDigit()
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .contentTransition(.numericText())
+            }
+        }
+        .padding(.top, 8)
+        .accessibilityHidden(true)
+        .onAppear {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.9, dampingFraction: 0.85).delay(0.15)) { shown = true }
+        }
+    }
+}
+
+/// The charge over the readings this link has banked, as an area in the level colour: whether it is
+/// draining steadily is what the runtime estimate above rests on.
+private struct BatteryHistoryCard: View {
+    let samples: [(ts: Int, soc: Double)]
+    let tint: Color
+
+    var body: some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Battery history").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                Chart {
+                    ForEach(Array(samples.enumerated()), id: \.offset) { _, s in
+                        AreaMark(x: .value("Time", Date(timeIntervalSince1970: TimeInterval(s.ts))), y: .value("Charge", s.soc))
+                            .foregroundStyle(LinearGradient(colors: [tint.opacity(0.35), tint.opacity(0.02)],
+                                                            startPoint: .top, endPoint: .bottom))
+                            .interpolationMethod(.monotone)
+                        LineMark(x: .value("Time", Date(timeIntervalSince1970: TimeInterval(s.ts))), y: .value("Charge", s.soc))
+                            .foregroundStyle(tint)
+                            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                            .interpolationMethod(.monotone)
+                    }
+                }
+                .chartYScale(domain: 0...100)
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: [0, 50, 100]) { value in
+                        AxisGridLine().foregroundStyle(StrandPalette.hairline)
+                        AxisValueLabel { if let v = value.as(Int.self) { Text(verbatim: "\(v) %") } }
+                    }
+                }
+                .frame(height: 140)
+            }
+        }
     }
 }

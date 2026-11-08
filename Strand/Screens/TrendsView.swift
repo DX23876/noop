@@ -276,8 +276,13 @@ struct TrendsView: View {
                     Group {
                         // Week-in-review digest (#208) with prev/next week browsing (#710) — self-hides
                         // only when NO week in history has data. Past weeks render in the same format.
+                        // The new design opens with what moved overall, before any single measure.
+                        if NoopVisualStyle.skin == .forge {
+                            TrendsChangeSummary()
+                                .staggeredAppear(index: 0)
+                        }
                         weeklyDigestNav
-                            .staggeredAppear(index: 0)
+                            .staggeredAppear(index: 1)
                         rangeBar(recovery: recovery)
                             .staggeredAppear(index: 2)
                         if NoopVisualStyle.skin == .forge {

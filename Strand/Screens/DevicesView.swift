@@ -697,20 +697,29 @@ private struct DevicesContent: View {
         HStack(spacing: 6) {
             ForEach(activeDevices, id: \.id) { device in
                 let isActive = device.status == .active
+                let forge = NoopVisualStyle.skin == .forge
                 Button { if !isActive { switchTarget = device } } label: {
-                    Text(device.displayName)
-                        .font(StrandFont.caption)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background(isActive ? StrandPalette.accent.opacity(0.18) : Color.clear,
-                                    in: Capsule(style: .continuous))
-                        .overlay(Capsule(style: .continuous).strokeBorder(
-                            isActive ? StrandPalette.accent.opacity(0.45) : StrandPalette.hairline, lineWidth: 1))
-                        .foregroundStyle(isActive ? StrandPalette.accent : StrandPalette.textSecondary)
+                    HStack(spacing: 5) {
+                        // The new design marks the active strap with a check on a filled capsule: the
+                        // disabled tint the active one carried read as the strap that could NOT be used.
+                        if forge && isActive { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)) }
+                        Text(device.displayName).lineLimit(1)
+                    }
+                    .font(forge ? StrandFont.subhead.weight(.semibold) : StrandFont.caption)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, forge ? 10 : 7)
+                    .background(isActive ? (forge ? StrandPalette.accent : StrandPalette.accent.opacity(0.18))
+                                         : (forge ? StrandPalette.textPrimary.opacity(0.06) : Color.clear),
+                                in: Capsule(style: .continuous))
+                    .overlay(Capsule(style: .continuous).strokeBorder(
+                        isActive ? StrandPalette.accent.opacity(forge ? 0 : 0.45)
+                                 : (forge ? Color.clear : StrandPalette.hairline), lineWidth: 1))
+                    .foregroundStyle(isActive ? (forge ? StrandPalette.goldDeepText : StrandPalette.accent)
+                                              : (forge ? StrandPalette.textPrimary : StrandPalette.textSecondary))
                 }
                 .buttonStyle(.plain)
-                .disabled(isActive)
+                .disabled(isActive && !forge)
+                .accessibilityAddTraits(isActive ? .isSelected : [])
             }
         }
         .padding(.horizontal, 2)

@@ -1,6 +1,1688 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Battery history" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akkuverlauf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historial de batería"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique de la batterie"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cronologia batteria"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historia baterii"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Histórico da bateria"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "История заряда"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电量历史"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電量歷史"
+          }
+        }
+      }
+    },
+    "Strong stretch" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starke Phase"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buena racha"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belle période"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buon periodo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dobra passa"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boa fase"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сильный период"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "状态很好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "狀態很好"
+          }
+        }
+      }
+    },
+    "Tougher stretch" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anstrengendere Phase"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha más dura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Période plus difficile"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Periodo più duro"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trudniejszy okres"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fase mais difícil"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более тяжёлый период"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "状态稍差"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "狀態稍差"
+          }
+        }
+      }
+    },
+    "Mixed picture" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemischtes Bild"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panorama mixto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tableau contrasté"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quadro misto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mieszany obraz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quadro misto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Смешанная картина"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有好有坏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有好有壞"
+          }
+        }
+      }
+    },
+    "%@ improved the most." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ hat sich am stärksten verbessert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ es lo que más mejoró."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ s'est le plus amélioré."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ è migliorato di più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ poprawiło się najbardziej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ foi o que mais melhorou."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ улучшилось больше всего."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 进步最大。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 進步最大。"
+          }
+        }
+      }
+    },
+    "%@ needs the most attention." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ braucht gerade die meiste Aufmerksamkeit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ es lo que más atención necesita."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ demande le plus d'attention."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ richiede più attenzione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ wymaga teraz najwięcej uwagi."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ é o que mais precisa de atenção."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ требует больше всего внимания."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 最需要关注。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 最需要關注。"
+          }
+        }
+      }
+    },
+    "%@ moved the most." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ hat sich am stärksten verändert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ es lo que más cambió."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ a le plus bougé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ è cambiato di più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ zmieniło się najbardziej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ foi o que mais mudou."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ изменилось сильнее всего."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 变化最大。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 變化最大。"
+          }
+        }
+      }
+    },
+    "No real change. Steady is good when the level is where you want it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine echte Veränderung. Gleichbleibend ist gut, wenn der Wert dort liegt, wo du ihn haben willst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin cambios reales. Estable está bien si el nivel es el que quieres."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de vrai changement. La stabilité est une bonne chose si le niveau vous convient."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun vero cambiamento. Stabile va bene se il livello è quello che vuoi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak realnej zmiany. Stabilnie jest dobrze, jeśli poziom jest taki, jak chcesz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem mudança real. Estável é bom quando o nível é o que queres."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Существенных изменений нет. Стабильность хороша, если уровень вас устраивает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有明显变化。如果水平正合你意，保持稳定就很好。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有明顯變化。如果水準正合你意，保持穩定就很好。"
+          }
+        }
+      }
+    },
+    "Your body bounced back better on most mornings. Keep the habits that got you here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Körper hat sich an den meisten Morgen besser erholt. Bleib bei den Gewohnheiten, die dich hierher gebracht haben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu cuerpo se recuperó mejor la mayoría de las mañanas. Mantén los hábitos que te trajeron aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre corps a mieux récupéré la plupart des matins. Gardez les habitudes qui vous ont mené ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo corpo si è ripreso meglio quasi ogni mattina. Mantieni le abitudini che ti hanno portato qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje ciało lepiej się regenerowało w większość poranków. Trzymaj się nawyków, które cię tu doprowadziły."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu corpo recuperou melhor na maioria das manhãs. Mantém os hábitos que te trouxeram até aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Большинство утр организм восстанавливался лучше. Сохраняйте привычки, которые к этому привели."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大多数早晨你的身体恢复得更好。保持让你走到这一步的习惯。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大多數早晨你的身體恢復得更好。保持讓你走到這一步的習慣。"
+          }
+        }
+      }
+    },
+    "Your body recovered less on most mornings. An easier day or an earlier night helps it catch up." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Körper hat sich an den meisten Morgen weniger erholt. Ein leichterer Tag oder eine frühere Nacht hilft ihm aufzuholen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu cuerpo se recuperó menos la mayoría de las mañanas. Un día más suave o acostarte antes le ayuda a ponerse al día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre corps a moins récupéré la plupart des matins. Une journée plus légère ou une nuit plus tôt l'aide à rattraper."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo corpo si è ripreso meno quasi ogni mattina. Una giornata più leggera o andare a letto prima lo aiuta a recuperare."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje ciało słabiej się regenerowało w większość poranków. Lżejszy dzień lub wcześniejsza noc pomogą nadrobić."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu corpo recuperou menos na maioria das manhãs. Um dia mais leve ou deitar mais cedo ajuda-o a recuperar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Большинство утр организм восстанавливался хуже. Более лёгкий день или ранний отбой помогут наверстать."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大多数早晨你的身体恢复得较差。轻松一点的一天或早点睡能帮它追上来。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大多數早晨你的身體恢復得較差。輕鬆一點的一天或早點睡能幫它追上來。"
+          }
+        }
+      }
+    },
+    "Higher variability usually means your nervous system is relaxed and recovering well." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine höhere Variabilität bedeutet meist, dass dein Nervensystem entspannt ist und sich gut erholt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una mayor variabilidad suele indicar que tu sistema nervioso está relajado y se recupera bien."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une variabilité plus élevée signifie en général que votre système nerveux est détendu et récupère bien."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una variabilità più alta di solito indica un sistema nervoso rilassato che recupera bene."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyższa zmienność zwykle oznacza, że układ nerwowy jest zrelaksowany i dobrze się regeneruje."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maior variabilidade costuma significar que o teu sistema nervoso está relaxado e a recuperar bem."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более высокая вариабельность обычно означает, что нервная система расслаблена и хорошо восстанавливается."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "变异性升高通常意味着你的神经系统放松、恢复良好。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "變異性升高通常意味著你的神經系統放鬆、恢復良好。"
+          }
+        }
+      }
+    },
+    "Lower variability often follows hard training, short sleep, stress or a cold coming on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine niedrigere Variabilität folgt oft auf hartes Training, kurzen Schlaf, Stress oder eine aufkommende Erkältung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una menor variabilidad suele seguir a entrenamientos duros, poco sueño, estrés o un resfriado incipiente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une variabilité plus basse suit souvent un entraînement dur, un sommeil court, du stress ou un rhume qui arrive."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una variabilità più bassa segue spesso allenamenti duri, poco sonno, stress o un raffreddore in arrivo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niższa zmienność często pojawia się po ciężkim treningu, krótkim śnie, stresie lub nadchodzącym przeziębieniu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menor variabilidade surge muitas vezes após treino duro, pouco sono, stress ou uma constipação a chegar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Снижение вариабельности часто бывает после тяжёлых тренировок, недосыпа, стресса или начинающейся простуды."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "变异性下降常出现在高强度训练、睡眠不足、压力或感冒前兆之后。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "變異性下降常出現在高強度訓練、睡眠不足、壓力或感冒前兆之後。"
+          }
+        }
+      }
+    },
+    "A lower resting pulse is a classic sign of growing fitness and good recovery." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein niedrigerer Ruhepuls ist ein klassisches Zeichen wachsender Fitness und guter Erholung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un pulso en reposo más bajo es una señal clásica de mejor forma física y buena recuperación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un pouls au repos plus bas est un signe classique de meilleure forme et de bonne récupération."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un battito a riposo più basso è un classico segno di forma in crescita e buon recupero."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niższe tętno spoczynkowe to klasyczny znak rosnącej kondycji i dobrej regeneracji."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um pulso em repouso mais baixo é um sinal clássico de melhor forma e boa recuperação."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более низкий пульс в покое — классический признак растущей формы и хорошего восстановления."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "静息心率下降是体能提升和恢复良好的典型信号。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "靜息心率下降是體能提升和恢復良好的典型信號。"
+          }
+        }
+      }
+    },
+    "A rising resting pulse can mean fatigue, stress, alcohol or a cold. Worth an easier day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein steigender Ruhepuls kann Müdigkeit, Stress, Alkohol oder eine Erkältung bedeuten. Ein leichterer Tag lohnt sich."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un pulso en reposo al alza puede indicar cansancio, estrés, alcohol o un resfriado. Vale la pena un día más suave."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un pouls au repos qui monte peut signaler fatigue, stress, alcool ou un rhume. Une journée plus légère vaut le coup."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un battito a riposo in aumento può indicare stanchezza, stress, alcol o un raffreddore. Vale una giornata più leggera."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rosnące tętno spoczynkowe może oznaczać zmęczenie, stres, alkohol lub przeziębienie. Warto zrobić lżejszy dzień."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um pulso em repouso a subir pode indicar cansaço, stress, álcool ou uma constipação. Vale um dia mais leve."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Растущий пульс в покое может означать усталость, стресс, алкоголь или простуду. Стоит устроить лёгкий день."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "静息心率上升可能意味着疲劳、压力、饮酒或感冒。值得安排轻松的一天。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "靜息心率上升可能意味著疲勞、壓力、飲酒或感冒。值得安排輕鬆的一天。"
+          }
+        }
+      }
+    },
+    "More sleep gives your body more time to repair. It shows up in your scores." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr Schlaf gibt deinem Körper mehr Zeit zur Reparatur. Das zeigt sich in deinen Werten."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dormir más da a tu cuerpo más tiempo para repararse. Se nota en tus puntuaciones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus de sommeil donne à votre corps plus de temps pour se réparer. Cela se voit dans vos scores."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dormire di più dà al corpo più tempo per ripararsi. Si vede nei tuoi punteggi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Więcej snu daje ciału więcej czasu na regenerację. Widać to w twoich wynikach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais sono dá ao teu corpo mais tempo para se reparar. Nota-se nas tuas pontuações."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Больше сна — больше времени на восстановление. Это видно по вашим показателям."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多睡眠让身体有更多时间修复，这会体现在你的分数上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多睡眠讓身體有更多時間修復，這會體現在你的分數上。"
+          }
+        }
+      }
+    },
+    "Shorter nights add up. Even 30 minutes earlier to bed makes a difference." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kürzere Nächte summieren sich. Schon 30 Minuten früher ins Bett machen einen Unterschied."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las noches cortas se acumulan. Incluso acostarte 30 minutos antes marca la diferencia."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les nuits courtes s'accumulent. Se coucher même 30 minutes plus tôt fait une différence."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le notti corte si sommano. Anche 30 minuti prima a letto fanno la differenza."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krótsze noce się sumują. Nawet 30 minut wcześniej do łóżka robi różnicę."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noites curtas somam-se. Até 30 minutos mais cedo na cama fazem diferença."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткие ночи накапливаются. Даже на 30 минут раньше в кровать — уже разница."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠不足会累积。哪怕早睡 30 分钟也会有所不同。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠不足會累積。哪怕早睡 30 分鐘也會有所不同。"
+          }
+        }
+      }
+    },
+    "Regular bed and wake times keep your body clock steady and your sleep deeper." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regelmäßige Schlafens- und Aufstehzeiten halten deine innere Uhr stabil und deinen Schlaf tiefer."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Horarios regulares de dormir y despertar mantienen estable tu reloj interno y tu sueño más profundo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des heures de coucher et de lever régulières stabilisent votre horloge interne et approfondissent le sommeil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orari regolari di sonno e risveglio tengono stabile l'orologio interno e il sonno più profondo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regularne pory snu i pobudki stabilizują zegar biologiczny i pogłębiają sen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Horários regulares de deitar e acordar mantêm o relógio interno estável e o sono mais profundo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Регулярное время отхода ко сну и подъёма держит внутренние часы стабильными, а сон — глубоким."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "规律的作息让生物钟稳定、睡眠更深。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "規律的作息讓生理時鐘穩定、睡眠更深。"
+          }
+        }
+      }
+    },
+    "Your sleep times drifted. A fixed wake time is the easiest anchor." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Schlafzeiten sind verrutscht. Eine feste Aufstehzeit ist der einfachste Anker."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus horarios de sueño se desplazaron. Una hora fija para despertar es el ancla más fácil."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos horaires de sommeil ont dérivé. Une heure de lever fixe est l'ancrage le plus simple."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I tuoi orari di sonno si sono spostati. Un orario fisso di risveglio è l'ancora più semplice."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje pory snu się rozjechały. Stała pora pobudki to najprostsza kotwica."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os teus horários de sono desviaram-se. Uma hora fixa para acordar é a âncora mais fácil."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш режим сна сместился. Фиксированное время подъёма — самый простой якорь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的作息时间漂移了。固定起床时间是最简单的锚点。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的作息時間漂移了。固定起床時間是最簡單的錨點。"
+          }
+        }
+      }
+    },
+    "Calmer days: your heart spent less time under strain outside of training." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruhigere Tage: Dein Herz stand außerhalb des Trainings weniger unter Anspannung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Días más tranquilos: tu corazón pasó menos tiempo bajo tensión fuera del entrenamiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des journées plus calmes : votre cœur a passé moins de temps sous tension hors entraînement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giornate più calme: il tuo cuore è stato meno sotto sforzo fuori dall'allenamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spokojniejsze dni: poza treningiem twoje serce rzadziej było pod obciążeniem."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dias mais calmos: o teu coração passou menos tempo sob tensão fora do treino."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Более спокойные дни: вне тренировок сердце реже было в напряжении."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更平静的日子：训练之外，你的心脏承受压力的时间更少了。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更平靜的日子：訓練之外，你的心臟承受壓力的時間更少了。"
+          }
+        }
+      }
+    },
+    "More strain in daily life. Short breaks and slow breathing help your body settle." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr Anspannung im Alltag. Kurze Pausen und langsames Atmen helfen deinem Körper, zur Ruhe zu kommen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más tensión en el día a día. Pausas cortas y respirar despacio ayudan a tu cuerpo a calmarse."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus de tension au quotidien. De courtes pauses et une respiration lente aident votre corps à se poser."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più tensione nella vita quotidiana. Brevi pause e respiro lento aiutano il corpo a calmarsi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Więcej napięcia w codziennym życiu. Krótkie przerwy i wolny oddech pomagają ciału się uspokoić."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais tensão no dia a dia. Pausas curtas e respiração lenta ajudam o corpo a acalmar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Больше напряжения в повседневной жизни. Короткие паузы и медленное дыхание помогают телу успокоиться."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日常压力更大了。短暂休息和缓慢呼吸能帮身体平静下来。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日常壓力更大了。短暫休息和緩慢呼吸能幫身體平靜下來。"
+          }
+        }
+      }
+    },
+    "More everyday movement is one of the strongest levers for long-term health." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr Bewegung im Alltag ist einer der stärksten Hebel für langfristige Gesundheit."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moverte más a diario es una de las palancas más fuertes para la salud a largo plazo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bouger davantage au quotidien est l'un des leviers les plus puissants pour la santé à long terme."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muoversi di più ogni giorno è una delle leve più forti per la salute a lungo termine."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Więcej ruchu na co dzień to jedna z najsilniejszych dźwigni długoterminowego zdrowia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais movimento no dia a dia é uma das alavancas mais fortes para a saúde a longo prazo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Больше движения в течение дня — один из самых сильных рычагов долгосрочного здоровья."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日常多活动是长期健康最有力的杠杆之一。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日常多活動是長期健康最有力的槓桿之一。"
+          }
+        }
+      }
+    },
+    "Fewer steps than before. A short walk after meals is an easy way back." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weniger Schritte als zuvor. Ein kurzer Spaziergang nach dem Essen ist ein leichter Weg zurück."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menos pasos que antes. Un paseo corto después de comer es una forma fácil de volver."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moins de pas qu'avant. Une courte marche après les repas est un moyen simple de s'y remettre."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meno passi di prima. Una breve passeggiata dopo i pasti è un modo facile per ripartire."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mniej kroków niż wcześniej. Krótki spacer po posiłku to łatwy sposób na powrót."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menos passos do que antes. Uma caminhada curta depois das refeições é uma forma fácil de voltar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Шагов меньше, чем раньше. Короткая прогулка после еды — простой способ вернуться."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步数比之前少。饭后短暂散步是轻松的回归方式。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "步數比之前少。飯後短暫散步是輕鬆的回歸方式。"
+          }
+        }
+      }
+    },
+    "You trained more than before. Make sure your recovery keeps pace." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du hast mehr trainiert als zuvor. Achte darauf, dass deine Erholung Schritt hält."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenaste más que antes. Asegúrate de que tu recuperación siga el ritmo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous vous êtes plus entraîné qu'avant. Veillez à ce que la récupération suive."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ti sei allenato più di prima. Assicurati che il recupero tenga il passo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trenowałeś więcej niż wcześniej. Zadbaj, by regeneracja nadążała."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Treinaste mais do que antes. Garante que a recuperação acompanha."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы тренировались больше, чем раньше. Следите, чтобы восстановление поспевало."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你比之前训练得更多。确保恢复跟得上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你比之前訓練得更多。確保恢復跟得上。"
+          }
+        }
+      }
+    },
+    "You trained less than before. Fine for a rest week, otherwise a nudge to move." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du hast weniger trainiert als zuvor. Für eine Erholungswoche in Ordnung, sonst ein Anstoß zur Bewegung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrenaste menos que antes. Bien para una semana de descanso; si no, un empujón para moverte."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous vous êtes moins entraîné qu'avant. Très bien pour une semaine de repos, sinon un petit coup de pouce."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ti sei allenato meno di prima. Va bene per una settimana di riposo, altrimenti una spinta a muoverti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trenowałeś mniej niż wcześniej. W porządku na tydzień odpoczynku, w innym razie zachęta do ruchu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Treinaste menos do que antes. Ótimo para uma semana de descanso; caso contrário, um empurrão para te mexeres."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы тренировались меньше, чем раньше. Нормально для недели отдыха, иначе — повод подвигаться."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你比之前训练得少。若是休整周没问题，否则就是该动起来的提醒。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你比之前訓練得少。若是休整週沒問題，否則就是該動起來的提醒。"
+          }
+        }
+      }
+    },
+    "Breathing rate at night usually stays very stable. A clear, lasting rise can be an early sign of illness." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Atemfrequenz in der Nacht bleibt meist sehr stabil. Ein deutlicher, anhaltender Anstieg kann ein frühes Krankheitszeichen sein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La frecuencia respiratoria nocturna suele ser muy estable. Una subida clara y sostenida puede ser una señal temprana de enfermedad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fréquence respiratoire nocturne reste en général très stable. Une hausse nette et durable peut être un signe précoce de maladie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La frequenza respiratoria notturna di solito è molto stabile. Un aumento netto e duraturo può essere un primo segno di malattia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Częstość oddechu w nocy zwykle jest bardzo stabilna. Wyraźny, utrzymujący się wzrost może być wczesnym sygnałem choroby."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A frequência respiratória noturna costuma ser muito estável. Uma subida clara e duradoura pode ser um sinal precoce de doença."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Частота дыхания ночью обычно очень стабильна. Явный стойкий рост может быть ранним признаком болезни."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜间呼吸频率通常非常稳定。明显而持续的上升可能是生病的早期信号。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜間呼吸頻率通常非常穩定。明顯而持續的上升可能是生病的早期信號。"
+          }
+        }
+      }
+    },
+    "Day-to-day weight is mostly water. The trend over several weeks is what counts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gewicht von Tag zu Tag ist vor allem Wasser. Entscheidend ist der Trend über mehrere Wochen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El peso día a día es sobre todo agua. Lo que cuenta es la tendencia de varias semanas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le poids au jour le jour, c'est surtout de l'eau. C'est la tendance sur plusieurs semaines qui compte."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il peso giorno per giorno è soprattutto acqua. Conta l'andamento su più settimane."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waga z dnia na dzień to głównie woda. Liczy się trend z kilku tygodni."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O peso de dia para dia é sobretudo água. O que conta é a tendência ao longo de várias semanas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ежедневный вес — это в основном вода. Важен тренд за несколько недель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天的体重变化主要是水分，几周的趋势才是关键。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天的體重變化主要是水分，幾週的趨勢才是關鍵。"
+          }
+        }
+      }
+    },
+    "better" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "besser"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mejor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mieux"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "meglio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lepiej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "melhor"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "лучше"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "变好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "變好"
+          }
+        }
+      }
+    },
+    "worse" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "schlechter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "peor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "moins bien"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "peggio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gorzej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pior"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "хуже"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "变差"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "變差"
+          }
+        }
+      }
+    },
+    "Compared with the %lld days before" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verglichen mit den %lld Tagen davor"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparado con los %lld días anteriores"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparé aux %lld jours précédents"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rispetto ai %lld giorni precedenti"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W porównaniu z %lld dniami wcześniej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparado com os %lld dias anteriores"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По сравнению с %lld днями до этого"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与之前的 %lld 天相比"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與之前的 %lld 天相比"
+          }
+        }
+      }
+    },
     "speed" : {
       "localizations" : {
         "de" : {
