@@ -1,0 +1,1 @@
+../../../../../Strand/Forge/ForgeNoteFigures.swift

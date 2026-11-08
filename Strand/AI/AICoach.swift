@@ -2881,7 +2881,7 @@ final class AICoachEngine: ObservableObject {
         let context = toolCallingActive ? toolModeContext : await buildFullContext()
         // The new design shows the brief as a short note on Today's timeline, with the night and the
         // Charge drivers drawn under it, so it asks for that note instead of the three-part brief.
-        let shortNote = ForgeDesignPrefs.isEnabled()
+        let shortNote = Self.writesTimelineNotes
         // Empty context (tool path, nothing pending) → the instruction alone, no dangling "---" separator.
         let instruction = shortNote
             ? ForgeCoachNotes.morningInstruction(toolsActive: toolCallingActive) + "\n\n" + ForgeCoachNotes.repliesClause
@@ -2925,6 +2925,16 @@ final class AICoachEngine: ObservableObject {
         return spoken
     }
 
+    /// Whether unprompted notes are written for the iOS new design's Today timeline: short, figure-free
+    /// and guarded. The Android core has no such design and keeps the classic brief and nudges.
+    static var writesTimelineNotes: Bool {
+        #if NOOP_CORE
+        return false
+        #else
+        return ForgeDesignPrefs.isEnabled()
+        #endif
+    }
+
     /// Generate a check-in once per logical day (its OWN lock, independent of the brief's — see
     /// `lastCheckInDayKey`). Backs the daily check-in notification's tap. A failed run doesn't stamp the
     /// day, so the next tap retries.
@@ -2934,7 +2944,7 @@ final class AICoachEngine: ObservableObject {
         guard UserDefaults.standard.string(forKey: Self.lastCheckInDayKey) != today else { return }
         // The new design has one morning note, and it asks about yesterday itself; a check-in on top of it
         // would be a second morning message.
-        if ForgeDesignPrefs.isEnabled() {
+        if Self.writesTimelineNotes {
             await startBriefIfNeeded()
             if CoachBriefStamp.lastBriefDay() == today {
                 UserDefaults.standard.set(today, forKey: Self.lastCheckInDayKey)
@@ -3277,7 +3287,7 @@ final class AICoachEngine: ObservableObject {
             ? nil : ForgeCoachNotes.alreadySaidClause(headlinesToday())
         // In the new design a nudge is a timeline note like the others: figures come from the device and
         // it speaks in the same voice. The redesign's own notes carry both clauses in their instruction.
-        let noteVoice = origin == .nudge && ForgeDesignPrefs.isEnabled()
+        let noteVoice = origin == .nudge && Self.writesTimelineNotes
             ? ForgeCoachNotes.noFiguresClause + "\n\n" + ForgeCoachNotes.voiceClause : nil
         let task = [instruction, noteVoice, saidToday, ForgeCoachNotes.repliesClause].compactMap { $0 }
             .joined(separator: "\n\n")
@@ -3294,7 +3304,7 @@ final class AICoachEngine: ObservableObject {
                 var note = ForgeCoachNotes.splitReplies(clean)
                 // A timeline note repeats no figure the coach did not read this turn. The weekly review
                 // has no device figures under it, so it keeps its own.
-                let timelineNote = ForgeDesignPrefs.isEnabled() && origin != .weeklyReview
+                let timelineNote = Self.writesTimelineNotes && origin != .weeklyReview
                 if timelineNote {
                     note.text = ForgeNoteFigures.guarded(note.text, sources: noteSources + [context])
                 }
