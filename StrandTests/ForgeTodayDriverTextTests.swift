@@ -17,9 +17,16 @@ final class ForgeTodayDriverTextTests: XCTestCase {
     }
 
     func testDeviationDropsTheEnglishSuffix() {
-        let text = ForgeToday.driverValue("-0.2 C vs baseline", locale: german)
+        let text = ForgeToday.driverValue("-0.2 C vs baseline", locale: german, temperatureUnit: .celsius)
         XCTAssertFalse(text.contains("baseline"))
         XCTAssertTrue(text.contains("-0,2 °C"))
+    }
+
+    /// A difference converts by 9/5 with no +32 offset: +0.5 °C is +0.9 °F.
+    func testDeviationFollowsTheReadersUnit() {
+        let text = ForgeToday.driverValue("+0.5 C vs baseline", locale: english, temperatureUnit: .fahrenheit)
+        XCTAssertTrue(text.contains("+0.9 °F"), text)
+        XCTAssertFalse(text.contains("°C"))
     }
 
     func testUsualDropsTheWordBaseline() {
