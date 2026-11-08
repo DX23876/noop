@@ -1,4 +1,5 @@
 import Foundation
+import StrandDesign
 import StrandAnalytics
 import StrandCore
 import WhoopStore
@@ -62,7 +63,8 @@ enum WorkoutEnergyDisplay {
     static func text(_ resolved: WorkoutEnergyEstimate.Resolved?) -> String? {
         guard let resolved else { return nil }
         let number = Int(resolved.kcal.rounded()).formatted(.number.grouping(.automatic))
-        return resolved.isEstimated ? "~\(number)" : number
+        // Every calorie figure is an estimate; the new design states it without the "~" mark.
+        return resolved.isEstimated && NoopVisualStyle.skin != .forge ? "~\(number)" : number
     }
 
     /// The line under the figure that says what it is. Nil for a recorded one: a caption on every

@@ -45,7 +45,8 @@ public enum AppleInspiredColors {
         if has("cycl", "bike", "biking", "spin") { return .yellow }
         if has("swim", "row", "paddl", "kayak", "canoe", "surf", "water", "sail", "dive", "diving") { return .cyan }
         if has("strength", "weight", "lift", "bodybuild", "functional", "crossfit", "powerlift", "calisthen") {
-            return .blue
+            // The new design draws strength in teal, its lane colour; blue there read as a third colour.
+            return NoopVisualStyle.skin == .forge ? .teal : .blue
         }
         if has("hiit", "interval", "box", "kick", "martial", "muay", "judo", "jiu", "karate", "wrestl", "mma") {
             return .pink

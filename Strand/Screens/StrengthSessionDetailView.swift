@@ -111,13 +111,26 @@ struct StrengthSessionDetailView: View {
 
     /// The session's name once, as the page title, with the day and times in the reader's language.
     private var forgeHeader: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-            Text(forgeDateLine).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text(forgeDateLine).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            }
+            Spacer(minLength: 0)
+            #if os(iOS)
+            // The session's picture in the strength colour, as every page head carries one.
+            CoachPicture(main: "dumbbell.fill", accentA: "flame.fill", accentB: "sparkle", tint: StrandPalette.strengthColor)
+                .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
+            #endif
         }
         .padding(.top, 4)
+    }
+
+    private var sessionWindow: ClosedRange<Date> {
+        let start = Date(timeIntervalSince1970: TimeInterval(breakdown.startTs))
+        return start...max(start, Date(timeIntervalSince1970: TimeInterval(breakdown.endTs)))
     }
 
     private var forgeDateLine: String {
@@ -300,7 +313,9 @@ struct StrengthSessionDetailView: View {
                                    height: 130,
                                    valueFormat: { String(format: "%.0f bpm", $0) },
                                    dateFormat: { $0.formatted(date: .omitted, time: .shortened) },
-                                   accessibilityLabel: String(localized: "Heart rate during the session"))
+                                   accessibilityLabel: String(localized: "Heart rate during the session"),
+                                   // The session's own window: on the day's axis the curve sat squeezed at its edge.
+                                   workoutTimeAxis: sessionWindow)
                     }
                 }
             }
@@ -538,9 +553,10 @@ struct StrengthSessionDetailView: View {
             Spacer(minLength: 4)
 
             if let rpe = line.rpe {
+                // RPE is a rating, not a warning: the effort colour, not alarm red, in the new design.
                 Text(String(localized: "RPE \(String(format: "%.1f", rpe))"))
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.metricRose)
+                    .font(StrandFont.caption.weight(.semibold))
+                    .foregroundStyle(NoopVisualStyle.skin == .forge ? StrandPalette.effortColor : StrandPalette.metricRose)
             }
             if let estimate = line.e1rmKg, line.isWorking {
                 // The ≈ carries the "this is an estimate" meaning, so the whole token is translatable
