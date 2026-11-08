@@ -337,6 +337,8 @@ private struct ForgeTodayTile: View {
     let value: String?
     let unit: String
     var caption: String? = nil
+    /// Today against the wearer's usual value ("↘ −2", "±0"), as Liquid Today's tiles show it.
+    var delta: String? = nil
     let tint: Color
     var trend: [Double]? = nil
     @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
@@ -356,6 +358,7 @@ private struct ForgeTodayTile: View {
                         unit: value == nil ? "" : unit,
                         caption: value == nil ? String(localized: "No data yet") : caption,
                         tint: tint,
+                        delta: value == nil ? nil : delta,
                         sparkline: trend,
                         sparkColor: tint,
                         sparklineHeight: dense ? 22 : 28,
@@ -627,11 +630,28 @@ struct ForgeMeasureWidget: View {
                            // Steps speak for themselves, and the word would crowd the number in a small tile; stress
                            // reads as a word ("Medium"), and "/3" beside a word said nothing.
                            unit: key == "steps" || key == "stress" ? "" : m.map(ForgeFocusView.unit) ?? "",
+                           delta: Self.delta(key: key, values: values),
                            tint: Self.tint(key),
                            trend: values.count > 1 ? Array(values.suffix(30)) : nil)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) { await load() }
+    }
+
+    /// The latest value against the median of the 30 before it, as a signed whole step ("↗ +3", "±0"):
+    /// the plain "against your usual" Liquid Today's tiles carry. Kilograms and degrees keep one decimal.
+    /// None for measures read as words or totals (stress, steps, sleep), or with under a week of history.
+    static func delta(key: String, values: [Double]) -> String? {
+        guard !["stress", "steps", "sleep_total_min", "active_kcal", "calories_in"].contains(key),
+              let last = values.last, values.count >= 8 else { return nil }
+        let before = values.dropLast().suffix(30).sorted()
+        let usual = before[before.count / 2]
+        let decimals = ["weight", "skin_temp"].contains(key) ? 1 : 0
+        let step = decimals == 1 ? 0.1 : 1.0
+        let diff = ((last - usual) / step).rounded() * step
+        if diff == 0 { return "±0" }
+        let number = diff.magnitude.formatted(.number.precision(.fractionLength(decimals)).locale(AppLanguage.activeLocale))
+        return diff > 0 ? "↗ +\(number)" : "↘ −\(number)"
     }
 
     /// Stress on its 0 to 3 scale as a word: "2,2" alone said nothing without the scale beside it.

@@ -75,6 +75,14 @@ struct ForgeTodayView: View {
     @State private var seenBefore: Double = 0
     /// Entries the reader hid, newline-separated ids.
     @AppStorage("forge.timeline.hidden") private var hiddenRaw = ""
+    /// Hints put away for the day, as "day|id" lines of today only.
+    @AppStorage("forge.today.hintDismissed") private var hintDismissedRaw = ""
+    /// The other candidates under the hint are open.
+    @State private var hintsOpen = false
+    /// The hint's coach note is shown whole.
+    @State private var hintNoteOpen = false
+    /// The day widget shows every entry and the days before, not only today's latest three.
+    @State private var dayOpen = false
     /// Ratings the reader gave coach notes: "messageId:origin:+1" lines.
     @AppStorage("forge.coach.ratings") private var ratingsRaw = ""
     /// The note under which "less often?" is asked after a second thumbs down for its kind.
@@ -156,15 +164,13 @@ struct ForgeTodayView: View {
                             }
                             // Room between the rings and what follows, so the card reads as the page's head.
                             .padding(.bottom, 12)
+                            // A detected activity waiting for an answer, then the day's one hint.
+                            ActivitySuggestionPrompt(compact: true)
+                            hintCard
                         }
                         .padding(.horizontal, 16)
                     }
                     VStack(alignment: .leading, spacing: 16) {
-                        if !showsTimeline {
-                            // Without the timeline, what waits for an answer still has a place.
-                            ActivitySuggestionPrompt(compact: true)
-                            openCard
-                        }
                         if !tilesBelowTimeline || !showsTimeline || editingWidgets {
                             ForgeTodayWidgetArea(editing: $editingWidgets)
                         }
@@ -414,7 +420,12 @@ struct ForgeTodayView: View {
     /// The day directly on the picture: only what carries text has a surface, each entry its own.
     private var dayList: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if showsTimeline { timeline }
+            if showsTimeline {
+                ForgeSectionTitle(title: "Timeline", action: (label: dayOpen ? "Show less" : "Show all", run: {
+                    withAnimation(.snappy) { dayOpen.toggle() }
+                }))
+                timeline
+            }
             if tilesBelowTimeline && showsTimeline && !editingWidgets {
                 ForgeTodayWidgetArea(editing: $editingWidgets)
             }
@@ -435,15 +446,17 @@ struct ForgeTodayView: View {
             let todayKey = Repository.logicalDayKey(Date())
             let yesterdayKey = Repository.logicalDayKey(Date().addingTimeInterval(-86_400))
             let hidden = Set(hiddenRaw.split(separator: "\n").map(String.init))
-            let shown = snapshot.timeline.filter { TimelineFeed.isShown(day: $0.id, today: todayKey, yesterday: yesterdayKey) }
+            // The day widget: today's latest three blocks; the whole day and the day before once opened.
+            let shown = snapshot.timeline.filter {
+                TimelineFeed.isShown(day: $0.id, today: todayKey, yesterday: yesterdayKey) && (dayOpen || $0.id == todayKey)
+            }
+            // The hint under the rings shows its entry; the day leaves it out rather than say it twice.
+            let hintId = currentHints.first?.id
             ForEach(Array(shown.enumerated()), id: \.element.id) { index, day in
                 if index > 0 || day.id != todayKey {
                     dayDivider(day.date)
                 }
                 if day.id == todayKey {
-                    // A detected activity waiting for an answer is today's first entry.
-                    ActivitySuggestionPrompt(compact: true)
-                    openCard
                     if calmSoFar(day) {
                         Text("A calm day so far: your values are within your range.")
                             .font(ForgeFont.body)
@@ -453,7 +466,8 @@ struct ForgeTodayView: View {
                     }
                 }
                 if day.id == todayKey { nowMark }
-                ForEach(ForgeTimeline.blocks(day.entries.filter { !hidden.contains($0.id) })) { block in
+                let blocks = ForgeTimeline.blocks(day.entries.filter { !hidden.contains($0.id) && $0.id != hintId })
+                ForEach(dayOpen || day.id != todayKey ? blocks : Array(blocks.prefix(3))) { block in
                     switch block {
                     case .card(let entry):
                         railed(time: entry.timed ? Self.railTimeText(entry.date) : nil, tint: railTint(entry.kind)) {
@@ -712,28 +726,30 @@ struct ForgeTodayView: View {
         }
     }
 
+    /// A notice's symbol from its topic and its colour from its tone, for its card and for the hint.
+    static func noticeLook(_ notice: ForgeTimeline.Notice) -> (symbol: String, tint: Color) {
+        let tint: Color = switch notice.tone {
+        case .positive: ForgeColor.charge
+        case .neutral: ForgeColor.accent
+        case .caution: ForgeColor.effort
+        // Red only for the raised body-signal warning; anything else that needs care is amber.
+        case .critical: notice.key == MomentumKind.healthAlert.rawValue ? StrandPalette.statusCritical : ForgeColor.effort
+        }
+        let symbol: String = switch TimelineFeed.Topic(rawValue: notice.topic) {
+        case .sleep: "moon.zzz.fill"
+        case .load: "flame.fill"
+        case .bodySignals: "waveform.path.ecg"
+        case .movement: "figure.walk"
+        case .goals: "flag.checkered"
+        case .device: "dot.radiowaves.left.and.right"
+        case nil: "info.circle.fill"
+        }
+        return (symbol, tint)
+    }
+
     /// A notice from the data: what it is about, one line of why, and the one thing to do about it.
     private func noticeCard(_ notice: ForgeTimeline.Notice) -> some View {
-        let tint: Color = {
-            switch notice.tone {
-            case .positive: return ForgeColor.charge
-            case .neutral: return ForgeColor.accent
-            case .caution: return ForgeColor.effort
-            // Red only for the raised body-signal warning; anything else that needs care is amber.
-            case .critical: return notice.key == MomentumKind.healthAlert.rawValue ? StrandPalette.statusCritical : ForgeColor.effort
-            }
-        }()
-        let symbol: String = {
-            switch TimelineFeed.Topic(rawValue: notice.topic) {
-            case .sleep: return "moon.zzz.fill"
-            case .load: return "flame.fill"
-            case .bodySignals: return "waveform.path.ecg"
-            case .movement: return "figure.walk"
-            case .goals: return "flag.checkered"
-            case .device: return "dot.radiowaves.left.and.right"
-            case nil: return "info.circle.fill"
-            }
-        }()
+        let (symbol, tint) = Self.noticeLook(notice)
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: symbol)
@@ -1079,35 +1095,117 @@ struct ForgeTodayView: View {
     }
 
     /// What waits for the reader today, in one place: a proposed session and a weigh-in a weight goal misses.
-    @ViewBuilder private var openCard: some View {
-        let proposal = hasTodaysProposal
-        let weighIn = goalStore.activeGoals.contains { $0.kind == .weight }
+    /// A weight goal with no weigh-in for a week.
+    private var weighInDue: Bool {
+        goalStore.activeGoals.contains { $0.kind == .weight }
             && (snapshot.lastWeighDay.map { $0 < Repository.localDayKey(Date().addingTimeInterval(-7 * 86_400)) } ?? true)
-        if snapshot.loaded, proposal || weighIn {
-            VStack(alignment: .leading, spacing: 0) {
-                // A kicker names the card; it is not something to tap, so it stays grey and the accent is
-                // left to what can be tapped.
-                Label("Open", systemImage: "tray")
-                    .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
-                    .padding(.bottom, 6)
-                if proposal {
-                    Button { showPlan = true } label: {
-                        factRow(symbol: "calendar.badge.plus", tint: ForgeColor.accent,
-                                title: String(localized: "A suggestion waits for your answer"), detail: nil, value: nil, unit: "")
+    }
+
+    /// Today's hint candidates, most pressing first, from the one place that chooses them.
+    private var currentHints: [ForgeTodayHint] {
+        guard snapshot.loaded else { return [] }
+        let todayKey = Repository.logicalDayKey(Date())
+        let hidden = Set(hiddenRaw.split(separator: "\n").map(String.init))
+        let entries = snapshot.timeline.first { $0.id == todayKey }?.entries.filter { !hidden.contains($0.id) } ?? []
+        return ForgeTodayHint.candidates(today: entries, proposal: hasTodaysProposal, weighIn: weighInDue,
+                                         dismissed: ForgeTodayHint.dismissed(hintDismissedRaw, day: todayKey))
+    }
+
+    /// The day's one hint under the rings, as Liquid Today's Momentum line: the most pressing thing, put
+    /// away with a cross for today; the other candidates open under it.
+    @ViewBuilder private var hintCard: some View {
+        let hints = currentHints
+        if let top = hints.first {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    hintIcon(top, size: 40)
+                    hintAction(top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(top.title).font(.system(.headline)).foregroundStyle(ForgeColor.text)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if let detail = top.detail {
+                                Text(Self.markdown(detail)).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
+                                    .lineLimit(hintNoteOpen ? nil : 2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain).padding(.vertical, 6)
+                    Button { dismissHint(top) } label: {
+                        Image(systemName: "xmark").font(.system(.footnote, weight: .semibold))
+                            .foregroundStyle(ForgeColor.tertiary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Dismiss"))
                 }
-                if weighIn {
-                    NavigationLink(value: TabRoute.weight) {
-                        factRow(symbol: "figure.stand", tint: ForgeColor.rest,
-                                title: String(localized: "No weigh-in for a week"),
-                                detail: String(localized: "Your weight goal needs one now and then."), value: nil, unit: "")
+                if hints.count > 1 {
+                    if hintsOpen {
+                        ForEach(hints.dropFirst()) { hint in
+                            Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 52)
+                            hintAction(hint) {
+                                HStack(spacing: 12) {
+                                    hintIcon(hint, size: 40)
+                                    Text(hint.title).font(.system(.subheadline, weight: .medium)).foregroundStyle(ForgeColor.text)
+                                        .lineLimit(2)
+                                    Spacer(minLength: 8)
+                                    Image(systemName: "chevron.right").font(.system(.caption, weight: .semibold))
+                                        .foregroundStyle(ForgeColor.tertiary)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                        }
                     }
-                    .buttonStyle(.plain).padding(.vertical, 6)
+                    Button { withAnimation(.snappy) { hintsOpen.toggle() } } label: {
+                        Text(hintsOpen ? String(localized: "Show less") : String(localized: "\(hints.count - 1) more"))
+                            .font(.system(.subheadline, weight: .medium)).foregroundStyle(ForgeColor.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 52)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .forgeCard(radius: ForgeRadius.card, padding: 16)
+        }
+    }
+
+    private func hintIcon(_ hint: ForgeTodayHint, size: CGFloat) -> some View {
+        let look: (symbol: String, tint: Color) = switch hint.source {
+        case .notice(let notice): Self.noticeLook(notice)
+        case .coach: ("waveform.path.ecg", ForgeColor.accent)
+        case .proposal: ("calendar.badge.plus", ForgeColor.accent)
+        case .weighIn: ("figure.stand", ForgeColor.rest)
+        }
+        return Image(systemName: look.symbol)
+            .font(.system(.body, weight: .semibold))
+            .foregroundStyle(look.tint)
+            .frame(width: size, height: size)
+            .background(Circle().fill(look.tint.opacity(ForgeOpacity.wash)))
+            .accessibilityHidden(true)
+    }
+
+    /// Where a hint leads: its notice's action, the Charge page, the plan, the weight page; a coach note
+    /// opens in place.
+    @ViewBuilder private func hintAction<Label: View>(_ hint: ForgeTodayHint, @ViewBuilder label: () -> Label) -> some View {
+        switch hint.source {
+        case .notice(let notice) where notice.action == .charge:
+            NavigationLink(value: ForgeRoute.charge) { label() }.buttonStyle(.plain)
+        case .notice(let notice):
+            Button { perform(notice.action) } label: { label() }.buttonStyle(.plain)
+        case .coach:
+            Button { withAnimation(.snappy) { hintNoteOpen.toggle() } } label: { label() }.buttonStyle(.plain)
+        case .proposal:
+            Button { showPlan = true } label: { label() }.buttonStyle(.plain)
+        case .weighIn:
+            NavigationLink(value: TabRoute.weight) { label() }.buttonStyle(.plain)
+        }
+    }
+
+    private func dismissHint(_ hint: ForgeTodayHint) {
+        withAnimation(.snappy) {
+            hintDismissedRaw = ForgeTodayHint.dismissing(hint.id, day: Repository.logicalDayKey(Date()), in: hintDismissedRaw)
+            hintNoteOpen = false
         }
     }
 
