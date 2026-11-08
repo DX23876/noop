@@ -1380,7 +1380,7 @@ struct ForgeTodayView: View {
         switch kind {
         case .drink:
             NavigationLink(value: TabRoute.hydration) {
-                factRow(symbol: "drop.fill", tint: ForgeColor.accent, title: String(localized: "Drink"), detail: nil,
+                factRow(symbol: "drop.fill", tint: StrandPalette.metricCyan, title: String(localized: "Drink"), detail: nil,
                         time: time(entry), value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: value))), unit: "L")
                     .forgeEventTile()
             }

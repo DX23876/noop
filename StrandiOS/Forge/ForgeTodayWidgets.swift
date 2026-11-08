@@ -474,24 +474,19 @@ struct ForgeLastNightWidget: View {
 
     var body: some View {
         NavigationLink(value: ForgeRoute.rest(nil)) {
-            VStack(alignment: .leading, spacing: 6) {
+            ForgePictureTile(symbol: "moon.zzz.fill", accent: "star.fill", tint: ForgeColor.rest) {
                 Text("Last night").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 if let night, let asleep {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(verbatim: "\(asleep / 60) h \(asleep % 60) min")
-                            .font(.system(.title3, weight: .semibold).monospacedDigit())
-                            .foregroundStyle(ForgeColor.text)
-                        Spacer(minLength: 4)
-                        Text(verbatim: "\(Self.time(night.start)) – \(Self.time(night.end))")
-                            .font(ForgeFont.caption)
-                            .foregroundStyle(ForgeColor.secondary)
-                    }
+                    Text(verbatim: "\(asleep / 60) h \(asleep % 60) min")
+                        .font(.system(.title2, weight: .bold).monospacedDigit())
+                        .foregroundStyle(ForgeColor.text)
+                    Text(verbatim: "\(Self.time(night.start)) – \(Self.time(night.end))")
+                        .font(ForgeFont.caption)
+                        .foregroundStyle(ForgeColor.secondary)
                 } else {
                     Text("No night yet.").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
@@ -528,8 +523,8 @@ struct ForgeWeekPlanWidget: View {
                         let planned = plan.proposals(forDay: key).contains { $0.status.isCommitment }
                         VStack(spacing: 4) {
                             Circle()
-                                .fill(doneDays.contains(key) ? ForgeColor.accent : Color.clear)
-                                .overlay(Circle().strokeBorder(doneDays.contains(key) || planned ? ForgeColor.accent : ForgeColor.secondary.opacity(0.3),
+                                .fill(doneDays.contains(key) ? ForgeColor.effort : Color.clear)
+                                .overlay(Circle().strokeBorder(doneDays.contains(key) || planned ? ForgeColor.effort : ForgeColor.secondary.opacity(0.3),
                                                                lineWidth: 1.5))
                                 .frame(width: 20, height: 20)
                             Text(String(day.formatted(.dateTime.weekday(.narrow))))
@@ -563,15 +558,13 @@ struct ForgeCoachNoteWidget: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ForgePictureTile(symbol: "sparkles", accent: "text.bubble.fill", tint: StrandPalette.metricPurple) {
             Text("Coach note").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             Text(note ?? String(localized: "No note yet."))
-                .font(.system(.subheadline))
+                .font(.system(.subheadline, weight: .medium))
                 .foregroundStyle(note == nil ? ForgeColor.secondary : ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
     }
 }
 
@@ -580,12 +573,14 @@ struct ForgeMomentumWidget: View {
     @ObservedObject private var store = MomentumStore.shared
 
     var body: some View {
+        // Momentum's own colour; a neutral message's grey tone made the picture look switched off.
+        let tint = StrandPalette.metricAmber
         NavigationLink(value: MoreDestination.momentum) {
-            VStack(alignment: .leading, spacing: 4) {
+            ForgePictureTile(symbol: "bolt.horizontal.fill", accent: "arrow.up.right", tint: tint) {
                 Text("Momentum").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 if let first = store.messages.first {
                     Text(first.headline)
-                        .font(.system(.subheadline, weight: .semibold))
+                        .font(.system(.headline))
                         .foregroundStyle(ForgeColor.text)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -595,8 +590,6 @@ struct ForgeMomentumWidget: View {
                         .foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard()
         }
         .buttonStyle(LiquidPressStyle())
     }
@@ -747,9 +740,11 @@ struct ForgeLastWorkoutWidget: View {
         return VStack(alignment: .leading, spacing: 8) {
             Text("Latest workout").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             HStack(spacing: 12) {
-                WorkoutTypeIcon(workoutType: row.sport, size: 18, weight: .semibold, color: tint)
-                    .frame(width: 42, height: 42)
-                    .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
+                WorkoutTypeIcon(workoutType: row.sport, size: 22, weight: .semibold, color: .white)
+                    .frame(width: 52, height: 52)
+                    .background(Circle().fill(LinearGradient(colors: [tint.opacity(0.75), tint],
+                                                             startPoint: .topLeading, endPoint: .bottomTrailing)))
+                    .shadow(color: tint.opacity(0.4), radius: 6, y: 3)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(WorkoutSource.localizedDisplaySport(row.sport))
                         .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
@@ -768,8 +763,16 @@ struct ForgeLastWorkoutWidget: View {
                 }
             }
         }
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card)
+                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous)
+                    .fill(LinearGradient(colors: [tint.opacity(0.16), tint.opacity(0.03)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 
@@ -936,3 +939,32 @@ struct ForgeWidgetGallery: View {
     }
 }
 #endif
+
+/// A Today tile with its picture: the subject drawn small in its colour on the left, the words on the
+/// right, the card washed in the same colour, as Trends' coach cards are.
+struct ForgePictureTile<Content: View>: View {
+    let symbol: String
+    let accent: String
+    let tint: Color
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            CoachPicture(main: symbol, accentA: accent, accentB: "sparkle", tint: tint)
+                .frame(width: 58, height: 58)
+            VStack(alignment: .leading, spacing: 3) { content() }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            // The card surface first, the colour washed over it, both behind the words.
+            ZStack {
+                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card)
+                RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous)
+                    .fill(LinearGradient(colors: [tint.opacity(0.16), tint.opacity(0.03)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+            }
+        }
+    }
+}
