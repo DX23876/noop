@@ -32,11 +32,13 @@ To bring that back, a public `homebrew-noop` tap repo must be created under this
 tap — point it at the new repo via the `FORGE_ORG` / `FORGE_REPO` environment variables:
 
 ```bash
-FORGE_ORG=DX23876 Tools/update-homebrew-cask.sh <version> <zip>   # e.g. … 12.2.1 ~/Downloads/NOOP-macos-v12.2.1-dx.zip
+FORGE_ORG=DX23876 Tools/update-homebrew-cask.sh <version> <zip>
 ```
 
-Pass the zip path explicitly: the script's default (`~/Downloads/NOOP-v<version>-macos.zip`) predates this
-fork's `NOOP-macos-v<version>-dx.zip` asset name.
+The script still uses upstream's tag and asset names (`v<version>` / `NOOP-v<version>-macos.zip`, both
+for its default zip path and for the cask's download URL). This fork publishes
+`NOOP-macos-v<version>-dx.zip` under the tag `v<version>-dx`, so the script needs that change before it
+can serve a fork tap.
 
 That script computes the release zip's SHA256, regenerates `Casks/noop.rb`, and pushes it to the tap.
 There is **no GitHub Actions workflow / repo secret** — releases are cut by hand, so the cask update

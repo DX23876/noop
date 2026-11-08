@@ -17,6 +17,14 @@ What remains is local or explicitly user-configured:
   See [`docs/PUSH_PROTOCOL.md`](docs/PUSH_PROTOCOL.md).
 - **Oura history import (compile-time optional)** — pulls from Oura using a developer
   application and grant supplied by the user; it is absent from default builds.
+- **Hevy sync (optional, off by default)** — reads the user's own Hevy account with their key;
+  the only write is a coach-drafted routine the user confirms on a review screen.
+- **Exercise media pack and personal ExerciseDB source (optional)** — downloaded or read only
+  after an explicit user action; inbound only, with no workout or health data sent.
+- **Update check** — reads public release metadata from GitHub; it never downloads or installs.
+
+These paths and their code locations, for the Apple apps and the Android app in testing, are listed in
+[`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md) §1.
 
 A useful security report is one that lets data leave the device without the corresponding opt-in,
 lets a malicious strap or crafted import file corrupt the database or run code, or

@@ -26,9 +26,10 @@ local SQLite — has no network layer at all: no phone-home, no analytics, no ac
 no login, no cloud sync, and no telemetry. Everything NOOP computes about you lives in a
 single SQLite file on your own device.
 
-There are four user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
-history import** (§1.1b), the metadata-only **update check** (§1.1c), and the **Hevy strength sync**
-(§1.1d). The AI Coach is off
+There are six user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
+history import** (§1.1b), the metadata-only **update check** (§1.1c), the **Hevy strength sync**
+(§1.1d), and two training downloads, the optional **exercise media pack** and a personal **ExerciseDB
+source** (§1.1e). The AI Coach is off
 until you turn it on with your own API key; when you
 ask it a question it sends a short text summary of your recent metrics to the provider you
 choose. The Oura history import is **not even compiled into a default build** — the code
@@ -49,14 +50,16 @@ access CLI:
 | Oura history import (opt-in build flag, §1.1b) | HTTPS OAuth + REST, `api.ouraring.com` → device | Read-only from your own Oura account |
 | Apple Health export, incl. iOS "Export for Shortcuts" | On-device, user-initiated | NOOP → your Apple Health, on your device only (§1.3) |
 | Check for updates (§1.1c) | HTTPS GET to GitHub's public Releases API | Public version metadata → device; no health payload |
+| Hevy strength sync (opt-in, §1.1d) | HTTPS REST, `api.hevyapp.com` → device | Your own Hevy workouts, exercises and routines in; one confirmed routine write out |
+| Exercise media pack and ExerciseDB source (on request, §1.1e) | HTTPS download / GET | Public media archive or exercise definitions → device; no health payload |
 | Optional local access CLI (§1.4) | Local MCP over standard input/output | Bounded, read-only summaries from SQLite → the local client you launch |
 
 The only **network** paths are the opt-in AI Coach, the compile-time-optional Oura history import,
-the user-initiated public release check and the opt-in Hevy strength sync; the
+the public release check, the opt-in Hevy strength sync and the two training downloads; the
 biometric pipeline produces no network traffic of any kind. The Apple Health export above is
 an **on-device** hand-off, not a network upload — see §1.3.
 
-### 1.1 Network code: four controlled paths
+### 1.1 Network code: six controlled paths
 
 The biometric pipeline and reusable Swift packages
 (`WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, `StrandDesign`, `OuraProtocol`,
@@ -66,10 +69,15 @@ other networking API — still true after the Oura history import (§1.1b) lande
 and REST calls live entirely in the app target, `Strand/Oura/`, and `StrandImport`
 gained only pure, network-free parsers for Oura's payload shapes. The released macOS and iOS apps
 share these implementations. App-target networking is isolated to the AI Coach (`Strand/AI/`), the
-compile-time Oura cloud lane (`Strand/Oura/`), the Hevy strength lane (`Strand/Hevy/`), and the release
-reader (`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`). The Hevy lane
+compile-time Oura cloud lane (`Strand/Oura/`), the Hevy strength lane (`Strand/Hevy/`), the exercise
+media download (`Strand/Data/ExerciseMediaDownloader.swift`), and the release reader
+(`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`). The Hevy lane
 follows the same split as Oura: its HTTP lives in the app target, and `StrandImport` gained only a pure,
 network-free parser for Hevy's payload shapes.
+Two packages that the list above leaves out do hold network code, both shared with the Android app:
+`StrandCore` has the ExerciseDB request client (`ExerciseDBProviderClient`) and `streamedBytes(for:)`, the
+data-task stand-in the Coach providers stream through on Android; `NoopCoreJNI` has Android's read-only
+Hevy client (`CoreHevyClient`) and compiles the `Strand/AI/` Coach sources for Android.
 The package manifests reference dependency *download* URLs that Swift Package Manager
 resolves at build time, never at runtime:
 
@@ -87,13 +95,13 @@ The AI Coach lets you ask questions about your data in plain language. It is a u
 feature and operates only on your terms:
 
 - **Off until you enable it.** You enter your own API key for the provider you choose
-  (Anthropic, OpenAI, or a local / self-hosted OpenAI-compatible LLM such as Ollama or
-  LM Studio). No key, no network calls, ever.
+  (Anthropic, OpenAI, Google Gemini, OpenRouter, or a local / self-hosted OpenAI-compatible LLM
+  such as Ollama or LM Studio). No key, no network calls, ever.
 - **What is sent.** When you ask a question, NOOP builds a compact **text** summary of
   your recent metrics (Charge, Effort, Rest, HRV, resting HR over ~14 days, plus
   30-day averages and recent workouts) and sends it, with your question, directly to
-  your chosen endpoint (e.g. `api.anthropic.com` / `api.openai.com` for the hosted
-  providers). If you point the Coach at a local / self-hosted LLM, that endpoint is on
+  your chosen endpoint (e.g. `api.anthropic.com`, `api.openai.com`,
+  `generativelanguage.googleapis.com` or `openrouter.ai` for the hosted providers). If you point the Coach at a local / self-hosted LLM, that endpoint is on
   your own machine and the request never leaves it.
 - **What is NOT sent.** No raw biometric streams, no Bluetooth data, no account or
   device identifiers — only the summary text and your question.
@@ -109,8 +117,9 @@ feature and operates only on your terms:
   provider you picked, under your own account. NOOP runs no server in between and keeps
   no copy.
 
-If you never enable the AI Coach, never build the Oura import, and disable automatic update checks,
-NOOP makes no background network request. The manual update button remains user-initiated. In a
+If you never enable the AI Coach, never build the Oura import, never connect Hevy, never request the
+exercise media pack or an ExerciseDB source, and disable automatic update checks, NOOP makes no network
+request. The manual update button remains user-initiated. In a
 default build, the Oura cloud code is not in the binary.
 
 ### 1.1b The Oura history import (compiled out by default, bring your own OAuth app)
@@ -189,6 +198,24 @@ Steady-state cost is one request: after the first backfill the sync reads
 Hevy's public API requires a Hevy Pro account. Disconnecting removes the key and keeps the synced
 history; a separate, confirmed action removes both.
 
+### 1.1e Exercise media pack and personal ExerciseDB source (on request only)
+
+- **Exercise media pack.** No images or animations ship with NOOP. Only after you start the download
+  (Settings › Training › Manage offline exercise media), and after NOOP has shown the source, rights
+  holder and approximate size, the app fetches one pinned public archive
+  (`ExerciseMediaPack.Provider.upstream` in `StrandCore`, a fixed commit of
+  `github.com/hasaneyldrm/exercises-dataset`) with a background `URLSession` download
+  (`Strand/Data/ExerciseMediaDownloader.swift`; on Android the system `DownloadManager`). The request
+  carries nothing about you. The shared core checks paths, sizes and checksums before it installs the
+  pack in private storage that is excluded from backups; it can be deleted at any time. Details:
+  [`fork/EXERCISE_CONTENT_AND_MEDIA.md`](fork/EXERCISE_CONTENT_AND_MEDIA.md).
+- **Personal ExerciseDB source.** In the exercise library you can name an HTTPS endpoint (default
+  `https://oss.exercisedb.dev/api/v1/exercises`), an optional key header and a key. **Load exercises**
+  sends one GET (`ExerciseDBProviderClient` in `StrandCore`, shared by both platforms) carrying only that
+  key; redirects are rejected, the response is size-bounded, and no workout or health data is sent.
+  Only the definitions you select are saved. The key stays in the Keychain on Apple
+  (`ExerciseDBCredentials`, this device only) and in encrypted storage on Android.
+
 ### 1.2 The macOS sandbox (and what it means for the controlled network paths)
 
 On macOS the App Sandbox is the backstop. The app ships with a minimal entitlement set
@@ -218,7 +245,8 @@ That is the entire entitlement file. Four keys:
   ad-hoc distributed build applies **no** entitlements at all (unsigned build + ad-hoc
   re-sign), so this key only matters for a signed/sandboxed build. The entitlement only
   permits the socket the sandbox would otherwise refuse — it does not initiate traffic. Requests
-  happen only when you use the Coach, connect Oura, or tap **Check for updates**.
+  happen only when you use the Coach, connect Oura or Hevy, request the exercise media pack or an
+ExerciseDB source, or check for updates.
 
 Notably **absent**:
 
@@ -272,17 +300,23 @@ the CLI with a client you trust.
 ### 1.5 The Android app (testing)
 
 NOOP Forge for Android holds the `INTERNET` permission for the paths below and opens no other connection. The
-Forge screens and the shared Swift core they read (`Packages/NoopCoreJNI`, `Packages/StrandCore`) make no network
-calls at all; they talk to the strap over Bluetooth and to the stores on the phone.
+Forge screens and the shared Swift core they read (`Packages/NoopCoreJNI`, `Packages/StrandCore`) talk to the
+strap over Bluetooth and to the store on the phone; the core's only network code is the Coach, Hevy and
+ExerciseDB requests listed here.
 
 | Path | When | What leaves the phone |
 |---|---|---|
 | Check for updates (`com.noop.update.UpdateCheck`) | Settings button, and at most once a day after onboarding while **Check automatically** is on (the default; switching it off stops the request) | An unauthenticated HTTPS GET to `https://api.github.com/repos/DX23876/noop/releases?per_page=30`; nothing about the wearer. It reads public release metadata and never downloads or installs anything |
-| AI Coach (`com.noop.ai.AiCoach`, classic screens) | Only after the wearer saved their own API key and asked a question | A compact text summary of their metrics plus the question, to the provider they picked (OpenAI, Anthropic, Gemini, DeepSeek, or an endpoint they enter); no raw samples, no identifiers |
+| AI Coach (`com.noop.core.CoreCoach`, the shared core's coach compiled from `Strand/AI/`; ryanbr's Kotlin `com.noop.ai.AiCoach` remains as a fallback for the classic screens and the daily brief) | Only after the wearer saved their own API key and asked a question | A compact text summary of their metrics plus the question, to the provider they picked (OpenAI, Anthropic, Gemini, or an OpenAI-compatible endpoint they enter); no raw samples, no identifiers. Kotlin keeps the key in encrypted storage and hands it to the core, which holds it in memory only |
+| Hevy import (`com.noop.core.CoreHevyImport`, `CoreHevyClient` in the core) | Only after the wearer saved their own Hevy API key | Read-only HTTPS GETs to `https://api.hevyapp.com/v1` carrying the key; no health data |
+| Exercise media pack (`com.noop.core.CoreExerciseMedia`) | Only when the wearer starts the download | The system `DownloadManager` fetches the pinned public archive (§1.1e) over HTTPS; nothing about the wearer |
+| ExerciseDB source (`com.noop.core.CoreExerciseProvider`) | Only when the wearer loads exercises from an endpoint they entered | One HTTPS GET with their optional key (§1.1e); no workout or health data |
 | Self-hosted push (`com.noop.push`, Experimental) | Off by default; only to an HTTPS endpoint the wearer owns and configures (#1314) | One-way export of the configured records; nothing is read back |
 
-Data at rest stays in the app's private storage: the classic screens' Room database, the shared core's store
-(`files/core/noop-core.sqlite`) and the strap log (`files/strap-log`). A `.noopbak` export goes only where the
+Data at rest stays in the app's private storage: the shared core's store (`files/core/noop-core.sqlite`) and the
+strap log (`files/strap-log`). Since the core-only change (`docs/fork/android/CORE-ONLY-PLAN.md`) the app keeps
+no Room database of its own; an older install's Room file is handed to the core once, then kept under a new name
+until the wearer deletes it in Settings or, at the latest, 30 days later. A `.noopbak` export goes only where the
 wearer saves it through the system picker. No analytics, crash reporting or telemetry is built in.
 
 ---

@@ -17,7 +17,9 @@ Actions is disabled.
 5. **GitHub Actions is enabled and scoped.** Current workflows live in `.github/workflows/`.
    Package/i18n/source checks run on their declared triggers; app and release builds are manual or
    release-scoped. Release workflows receive `contents: write` only where they must create assets or
-   update `altstore-source.json`.
+   update `altstore-source.json`. Since 2026-11-02 no workflow run has started on `DX23876/noop`
+   (cause unresolved); check `gh run list` before treating a push as checked, and rely on
+   `Tools/local-tests.sh` and the pre-push hook meanwhile (see the fork CI guide below).
 6. **Pin and review automation.** Changes to action versions, permissions, release assets, or bot
    pushes deserve the same review as application code. Avoid unnecessary third-party actions.
 7. **Do not evade enforcement.** If GitHub restricts the repository or account again, stop automated
@@ -28,7 +30,10 @@ Actions is disabled.
 - Publish this fork only under the `v<VERSION>-dx` namespace.
 - Dispatch `publish-ios-release.yml` from `main` with a version already present in `project.yml`
   and `docs/fork/releases/v<VERSION>.md`.
-- Verify that both iOS IPAs and the macOS ZIP exist before treating a release as complete.
+- Verify that both iOS IPAs and the macOS ZIP exist before treating a release as complete. The same
+  workflow's `android` job attaches `NOOP-Forge-android-<VERSION>-testing.apk` through
+  `android-release.yml`; if it fails, the Apple assets stay and the APK can be attached later by running
+  `android-release.yml` with the tag.
 - Verify the release is public/latest and that the workflow's manifest-only commit placed the new
   version at the top of `altstore-source.json`.
 

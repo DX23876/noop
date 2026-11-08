@@ -508,8 +508,8 @@ for any day NOOP holds raw streams for, not just days WHOOP itself scored.
   quality ~15%, respiration ~5%, skin-temperature deviation ~5%), Effort as a 0–21 (or rescaled)
   cardiovascular load from HR-zone time, and Rest staged from motion + heart rate.
 - **Effort curve** (from 13.0.0 (testing), recipe AI-32; `StrainScorer`) — Effort no longer sums
-  Edwards' zones on a log scale. Each minute weighs more the closer it sits to your maximum (heart-rate
-  reserve against the maximum in Settings), and the day's load maps onto the scale with a soft cap near
+  Edwards' zones on a log scale. Each minute weighs more the closer it sits to your maximum, measured on
+  your heart-rate reserve between resting and maximum heart rate, and the day's load maps onto the scale with a soft cap near
   the top; the constants are fitted on WHOOP Strain for 3,760 shared workouts. Outside a recorded,
   imported or detected workout, heart rate below 50 % of the reserve adds nothing. Stored and live
   Effort read the same workout list. The update rescores the whole history once.
