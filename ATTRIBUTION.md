@@ -106,6 +106,56 @@ own Charge/Rest, and **never** reads or displays Oura's encrypted readiness or s
 documented Oura file-import lane (`Packages/StrandImport/Sources/StrandImport/OuraExportParser.swift`)
 remains available as a fallback.
 
+## NOOP Forge: work adopted from other people
+
+NOOP Forge (this fork) takes most of its foundation from [ryanbr/noop](https://github.com/ryanbr/noop) and
+its contributors, merged regularly; their credits live in that project's history and release notes.
+The people below are credited here because the fork took their work **directly**: from their own forks,
+or from pull requests to ryanbr/noop before or without ryanbr merging them. Each adopting commit names the
+source and carries a `Co-authored-by` line where the work was taken as code.
+
+### Pull requests to ryanbr/noop, adopted directly
+
+| Who | What NOOP Forge took | Source |
+|---|---|---|
+| [@UtkuDenizAltiok](https://github.com/UtkuDenizAltiok) | Deleted nights listed with recompute and hide; a reminder when the strap has not synced for 3 hours; daily SDNN refuses over-counted or banked beats; wind-down nudge timed from the personal sleep need; skin temperature shown once and in the reader's unit; "Building" and "Push" translations | ryanbr/noop#2660, #2661, #2722, #2906, #2899, #2904, #2897 |
+| [@kavemang](https://github.com/kavemang) | Typed sleep marks through Shortcuts; DST day-membership tests; cheaper gravity witness; a saved workout edit shows before the rescore finishes | ryanbr/noop#2651, #2694, #2705, #2706 |
+| [@paradix86](https://github.com/paradix86) | Italian WHOOP export import | ryanbr/noop#2712 |
+| [@christophersarmiento](https://github.com/christophersarmiento) | The seeded strap model is stamped only once a scan accepts a strap | ryanbr/noop#2750 |
+| [@JohanStefanes](https://github.com/JohanStefanes) | The one-shot buzz on a WHOOP 5/MG no longer sends RUN_ALARM (hardware-tested) | ryanbr/noop#2797 |
+| [@fadkeprasad](https://github.com/fadkeprasad) | Power saving's cadence holds for automatic sync triggers | ryanbr/noop#2837 |
+| [@spidervirus](https://github.com/spidervirus) | Startup zero heart rate dropped from realtime frames and HR buckets | ryanbr/noop#2840 |
+| [@goodgord](https://github.com/goodgord) | Sleep runs are no longer merged across a data gap | ryanbr/noop#2849 |
+| [@msff](https://github.com/msff) | The Mac menu-bar label redraws only when what it shows changes | ryanbr/noop#2889 |
+| [@andynilson](https://github.com/andynilson) | Charge and Effort translations | ryanbr/noop#2878 |
+| [@ahmadssadiq](https://github.com/ahmadssadiq) | The strap buzzes for incoming calls on iPhone | ryanbr/noop#2812 |
+
+### Other forks and projects
+
+| Who | What NOOP Forge took | Source |
+|---|---|---|
+| [@ayiskakov](https://github.com/ayiskakov) | Offload data-loss paths closed; the link is ended when Bluetooth powers off; an off-wrist empty offload is no clock fault; deep sleep held back after onset; a data delete is not undone by a re-score | [ayiskakov/noop](https://github.com/ayiskakov/noop) |
+| [@Iskrata](https://github.com/Iskrata) | WHOOP's absolute skin temperature stored as such on import; beat-to-beat intervals written to Apple Health; nightly vitals stamped inside the night | [Iskrata/noop](https://github.com/Iskrata/noop) |
+| [@gdorgian](https://github.com/gdorgian) | Liquid clocks stand down once the liquid stops moving; a short last stretch that continues the night is kept | gdorgian/noop |
+| [@mohamedchnafy-ds](https://github.com/mohamedchnafy-ds) | Weekly sets per muscle against the research band (idea); recent naps in the coach's context | [mohamedchnafy-ds/noop](https://github.com/mohamedchnafy-ds/noop) |
+| [@shajidahmed](https://github.com/shajidahmed) | A config read-back never confirms with the first byte of a longer value | [shajidahmed/pulsekeep](https://github.com/shajidahmed/pulsekeep) |
+| [@abhilashvadnala](https://github.com/abhilashvadnala) | The day cycle opens on an early bedtime and closes long gaps at midnight | [abhilashvadnala/noop](https://github.com/abhilashvadnala/noop) |
+| [@reinmaker](https://github.com/reinmaker) | A split night's consistency is scored at its last wake | [reinmaker/noop](https://github.com/reinmaker/noop) |
+| [@Billytheking954](https://github.com/Billytheking954) | The rollback copy before a restore reads through the WAL | Billytheking954/noop-whoop- |
+| [@J-Gur](https://github.com/J-Gur) | Health Connect permissions for distance and VO₂ max | [J-Gur/noopjg](https://github.com/J-Gur/noopjg) |
+| [@rntcruz23](https://github.com/rntcruz23) | A clear message when the strap never answers a connect | [rntcruz23/noop](https://github.com/rntcruz23/noop) |
+| [@bartmuskala](https://github.com/bartmuskala) | One resolver for the maximum heart rate (modelled on theirs) | [bartmuskala/noop](https://github.com/bartmuskala/noop) |
+| bogaczcyprien-svg | Respiratory rate off the 0.25 s resample grid | [bogaczcyprien-svg/noop](https://github.com/bogaczcyprien-svg/noop) |
+| aansun | Off-wrist stretches cut out of a kept sleep run | [aansun/PHMNoop](https://github.com/aansun/PHMNoop) |
+| denismanulov | An offload data-loss path | [denismanulov/reNOOP](https://github.com/denismanulov/reNOOP) |
+| meta1971, OpenStrap | Real sub-seconds in the WHOOP 5/MG SET_CLOCK; the full MG ECG reading (OpenStrap, MIT) | [meta1971/noop-mg-ecg](https://github.com/meta1971/noop-mg-ecg), OpenStrap |
+
+Bundled third-party content is credited separately: the body geometry (MuscleMap,
+react-native-body-highlighter) and the ExerciseDB exercise data in
+[docs/fork/THIRD_PARTY_NOTICES.md](docs/fork/THIRD_PARTY_NOTICES.md) and the app's Acknowledgements screen,
+llama.cpp and the nomic embedding model in [NOTICE](NOTICE). The app's Acknowledgements screen also lists
+the people above.
+
 ## Other
 - **GRDB.swift** (`groue/GRDB.swift`) — SQLite persistence (via Swift Package Manager).
 - **MarkdownUI** (`gonzalezreal/swift-markdown-ui`) — renders the AI Coach's Markdown

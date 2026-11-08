@@ -66,6 +66,14 @@ not bump the recipe. Never tie historical analysis to `MARKETING_VERSION`, `CURR
 Xcode installation or an ordinary launch. The confirmation-gated manual 21-day reanalysis in Settings is
 for diagnostics and does not advance the recipe version.
 
+## Crediting adopted work
+
+When the fork takes someone's work directly (a commit from their fork, or a ryanbr/noop pull request
+ryanbr has not merged), the adopting commit says `Adopted from <source> by @handle` and carries their
+`Co-authored-by` line. The same change adds them to `ATTRIBUTION.md` ("NOOP Forge: work adopted from
+other people") and to `AcknowledgementsView.contributors`, and the release notes thank them by handle.
+Work that arrives through an ordinary upstream merge is credited upstream and needs none of this.
+
 ## Before pushing app or package code
 
 Run `Tools/local-tests.sh` on the committed tree. No CI runs StrandTests, the package tests or (for a
