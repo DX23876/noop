@@ -160,7 +160,8 @@ object CoreFood {
     }
 
     data class NutrientRow(val nutrient: String, val average: Double, val today: Double, val reference: Double?,
-                           val atMost: Boolean, val source: String?, val coverage: Double, val estimatedShare: Double, val status: String,
+                           val atMost: Boolean, val source: String?, val coverage: Double, val estimatedShare: Double,
+                           val modelShare: Double, val status: String,
                            val topFoods: List<Pair<String, Double>>)
     data class NutrientReport(val loggedDays: Int, val rows: List<NutrientRow>) {
         val fine get() = rows.count { it.status == "fine" }
@@ -179,7 +180,7 @@ object CoreFood {
             val top = r.optJSONArray("topFoods") ?: JSONArray()
             NutrientRow(r.optString("nutrient"), r.optDouble("average"), r.optDouble("today"),
                 ref?.optDouble("amount"), ref?.optString("kind") == "atMost", ref?.optString("source"),
-                r.optDouble("coverage"), r.optDouble("estimatedShare", 0.0), r.optString("status"),
+                r.optDouble("coverage"), r.optDouble("estimatedShare", 0.0), r.optDouble("modelShare", 0.0), r.optString("status"),
                 (0 until top.length()).mapNotNull { j -> top.optJSONObject(j)?.let { it.optString("name") to it.optDouble("amount") } })
         })
     }

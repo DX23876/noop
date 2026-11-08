@@ -181,7 +181,7 @@ struct RootTabView: View {
                     "compare": (1, { $0.append(MoreDestination.compare) }), "trends": (1, { $0.append(TabRoute.trends) }), "metric-hrv": (1, { $0.append(TabRoute.metric("hrv")) }),
                     "focus-fitness": (1, { $0.append(ForgeRoute.focus(.fitness)) }), "focus-sleep": (1, { $0.append(ForgeRoute.focus(.sleep)) }),
                     "focus-vitals": (1, { $0.append(ForgeRoute.focus(.vitals)) }), "focus-body": (1, { $0.append(ForgeRoute.focus(.body)) }),
-                    "focus-mind": (1, { $0.append(ForgeRoute.focus(.mind)) }), "focus-more": (1, { $0.append(ForgeRoute.focus(.more)) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }),
+                    "focus-mind": (1, { $0.append(ForgeRoute.focus(.mind)) }), "focus-more": (1, { $0.append(ForgeRoute.focus(.more)) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }), "food": (1, { $0.append(ForgeRoute.food) }),
                     "alarms": (3, { $0.append(MoreDestination.alarms) }), "devices": (0, { $0.append(MoreDestination.devices) }), "backup": (0, { $0.append(MoreDestination.backupSync) }),
                     "datasources": (0, { $0.append(MoreDestination.dataSources) }), "automations": (0, { $0.append(MoreDestination.automations) })]
                 var paths = Array(repeating: NavigationPath(), count: 5)

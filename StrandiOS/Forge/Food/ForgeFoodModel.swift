@@ -1,42 +1,35 @@
 #if os(iOS)
 import Foundation
+import Observation
 import StrandCore
 import StrandAnalytics
 import WhoopStore
 
-/// One line of the add sheet's cart: a food and how much of it.
-struct FoodCartLine: Identifiable, Equatable {
-    let id = UUID()
-    var item: FoodItem
-    var grams: Double
-    var portionLabel: String?
-
-    var totals: NutrientAmounts { item.per100g.scaled(toGrams: grams) }
-}
-
-/// The Food page's state: one day of the shared food log (`FoodLog`), the calorie goal from the energy plan
-/// (`FoodTargets`), and the actions the page and the add sheet run. Health writing goes through
-/// `FoodHealthSync`, so every add or removal reaches Apple Health the same way.
+/// The Food page's state: one day of the shared food log (`FoodLog`), the calorie goal (`FoodTargets`) and the
+/// seven-day nutrient report (`FoodNutrientReport`), plus the actions the page and its sheets run. Health writing
+/// goes through `FoodHealthSync`, so every add or removal reaches Apple Health the same way.
 @MainActor
-final class ForgeFoodModel: ObservableObject {
-    @Published var day: String = Repository.localDayKey(Date())
-    @Published private(set) var summary: FoodLog.DaySummary?
-    @Published private(set) var calories: FoodTargets.Calories?
-    @Published private(set) var catalogReady = false
-    @Published private(set) var catalogFailed = false
-    @Published private(set) var nutrients: FoodNutrientReport.Report?
-    private var references: [FoodNutrient: FoodReference.Value] = [:]
+@Observable
+final class ForgeFoodModel {
+    var day: String = Repository.localDayKey(.now)
+    private(set) var summary: FoodLog.DaySummary?
+    private(set) var calories: FoodTargets.Calories?
+    private(set) var nutrients: FoodNutrientReport.Report?
+    private(set) var catalogFailed = false
+    private(set) var loaded = false
 
-    private let plan = EnergyPlanModel()
+    @ObservationIgnored private var catalogReady = false
+    @ObservationIgnored private var references: [FoodNutrient: FoodReference.Value] = [:]
+    @ObservationIgnored private let plan = EnergyPlanModel()
 
-    var isToday: Bool { day == Repository.localDayKey(Date()) }
+    var isToday: Bool { day == Repository.localDayKey(.now) }
+    var eatenKcal: Double { summary?.totals[.energyKcal] ?? 0 }
 
     func load(repo: Repository, profile: UserProfile) async {
         guard let store = await repo.storeHandle() else { return }
         if !catalogReady {
             do { try await FoodCatalog.shared.prepareBundled(); catalogReady = true } catch { catalogFailed = true }
         }
-        summary = await FoodLog.day(store: store, day)
         await plan.load(repo: repo, profile: profile)
         calories = FoodTargets.calories(measuredMeanKcal: plan.burn.measuredMeanKcal,
                                         allDaysMeanKcal: plan.burn.allDaysMeanKcal,
@@ -44,11 +37,16 @@ final class ForgeFoodModel: ObservableObject {
                                         dailyDeltaKcal: plan.targetDailyKcal)
         references = FoodReference.values(profileSex: profile.sex, age: Int(profile.age), weightKg: profile.weightKg,
                                           heightCm: profile.heightCm, energyKcal: calories?.kcal)
-        nutrients = await FoodNutrientReport.report(store: store, to: day, references: references)
+        await reload(store: store)
+        loaded = true
     }
 
     func reload(repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
+        await reload(store: store)
+    }
+
+    private func reload(store: WhoopStore) async {
         summary = await FoodLog.day(store: store, day)
         if !references.isEmpty { nutrients = await FoodNutrientReport.report(store: store, to: day, references: references) }
     }
@@ -61,56 +59,58 @@ final class ForgeFoodModel: ObservableObject {
 
     /// When an entry added to this day is eaten: now on today, midday on another day.
     func defaultTime() -> Date {
-        if isToday { return Date() }
-        let start = WeightSeries.date(forDay: day) ?? Date()
+        if isToday { return .now }
+        let start = WeightSeries.date(forDay: day) ?? .now
         return Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: start) ?? start
     }
 
     // MARK: Actions
 
     @discardableResult
-    func log(_ lines: [FoodCartLine], at: Date, meal: FoodLog.MealKind?, origin: FoodLogEntry.Origin,
-             repo: Repository, coach: AICoachEngine? = nil) async -> Bool {
+    func log(_ lines: [FoodCartLine], at: Date, meal: FoodLog.MealKind?, repo: Repository, coach: AICoachEngine?) async -> Bool {
         guard let store = await repo.storeHandle(), !lines.isEmpty else { return false }
-        var lines = lines
-        // Missing vitamins and minerals, borrowed from the closest BLS food, only when the wearer chose it.
-        if let coach, CoachFeaturePrefs.isEnabled, UserDefaults.standard.bool(forKey: FoodEstimate.enabledKey) {
-            let filled = await coach.fillingMissingNutrients(lines.map(\.item), store: store)
-            for index in lines.indices { lines[index].item = filled[index] }
+        var items = lines.map(\.item)
+        // A result found online is kept as the wearer's own food, so it is there offline next time.
+        for index in items.indices where items[index].source == .online {
+            if let saved = await FoodLibrary.saveOwn(store: store, items[index], origin: .online) { items[index] = saved }
         }
-        let entries = lines.map {
-            FoodLog.entry(for: $0.item, grams: $0.grams, at: at, origin: origin, portionLabel: $0.portionLabel, meal: meal)
+        // Missing vitamins and minerals, from the closest BLS food or the coach's estimate, only when chosen.
+        if let coach, CoachFeaturePrefs.isEnabled, UserDefaults.standard.bool(forKey: FoodEstimate.enabledKey) {
+            items = await coach.fillingMissingNutrients(items, store: store)
+        }
+        let origin: FoodLogEntry.Origin = items.contains { $0.source == .recipe } ? .recipe : .search
+        let entries = zip(lines, items).map { line, item in
+            FoodLog.entry(for: item, grams: line.grams, at: at, origin: origin, portionLabel: line.portionLabel, meal: meal)
         }
         guard await FoodLog.save(store: store, entries) else { return false }
         await FoodHealthSync.wrote(entries, store: store)
-        await reload(repo: repo)
+        await reload(store: store)
         return true
     }
 
     @discardableResult
-    func quick(name: String, kcal: Double, protein: Double?, carbs: Double?, fat: Double?, at: Date,
-               meal: FoodLog.MealKind?, repo: Repository) async -> Bool {
+    func quick(_ quick: FoodQuickEntry, repo: Repository) async -> Bool {
         guard let store = await repo.storeHandle() else { return false }
-        let entry = FoodLog.quickEntry(name: name, kcal: kcal, proteinG: protein, carbsG: carbs, fatG: fat, at: at, meal: meal)
+        let entry = FoodLog.quickEntry(name: quick.name, kcal: quick.kcal, proteinG: quick.protein, carbsG: quick.carbs,
+                                       fatG: quick.fat, at: quick.at)
         guard await FoodLog.save(store: store, [entry]) else { return false }
         await FoodHealthSync.wrote([entry], store: store)
-        await reload(repo: repo)
+        await reload(store: store)
         return true
     }
 
-    func update(_ entry: FoodLogEntry, grams: Double?, at: Date?, meal: FoodLog.MealKind??, repo: Repository) async {
+    func update(_ entry: FoodLogEntry, grams: Double?, at: Date?, meal: FoodLog.MealKind?, repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
-        let next = FoodLog.edited(entry, grams: grams, at: at, meal: meal)
+        let next = FoodLog.edited(entry, grams: grams, at: at, meal: .some(meal))
         guard await FoodLog.save(store: store, [next]) else { return }
         await FoodHealthSync.replaced(old: entry, new: next, store: store)
-        await reload(repo: repo)
+        await reload(store: store)
     }
 
     func delete(_ entries: [FoodLogEntry], repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
-        let removed = await FoodLog.delete(store: store, ids: entries.map(\.id))
-        await FoodHealthSync.removed(removed)
-        await reload(repo: repo)
+        await FoodHealthSync.removed(await FoodLog.delete(store: store, ids: entries.map(\.id)))
+        await reload(store: store)
     }
 
     func copy(_ entries: [FoodLogEntry], toDays days: [String], repo: Repository) async {
@@ -118,7 +118,7 @@ final class ForgeFoodModel: ObservableObject {
         let copies = FoodLog.copies(of: entries, toDays: days)
         guard await FoodLog.save(store: store, copies) else { return }
         await FoodHealthSync.wrote(copies, store: store)
-        await reload(repo: repo)
+        await reload(store: store)
     }
 
     func makeRecipe(name: String, from entries: [FoodLogEntry], servings: Double, repo: Repository) async -> Bool {
@@ -130,29 +130,7 @@ final class ForgeFoodModel: ObservableObject {
     func setFavourite(_ item: FoodItem, on: Bool, repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
         try? await store.setFoodFavourite(.init(foodId: item.id, name: item.name,
-                                                addedAt: Int(Date().timeIntervalSince1970)), on: on)
-    }
-
-    // MARK: Text
-
-    static func kcal(_ value: Double?) -> String {
-        guard let value else { return "–" }
-        return Int(value.rounded()).formatted(.number.locale(AppLanguage.activeLocale))
-    }
-
-    static func grams(_ value: Double?) -> String {
-        guard let value else { return "–" }
-        let digits = value < 10 ? 1 : 0
-        return value.formatted(.number.precision(.fractionLength(0...digits)).locale(AppLanguage.activeLocale))
-    }
-
-    static func mealName(_ kind: FoodLog.MealKind) -> String {
-        switch kind {
-        case .breakfast: return String(localized: "Breakfast")
-        case .lunch: return String(localized: "Lunch")
-        case .dinner: return String(localized: "Dinner")
-        case .snack: return String(localized: "Snack")
-        }
+                                                addedAt: Int(Date.now.timeIntervalSince1970)), on: on)
     }
 }
 #endif

@@ -5194,4 +5194,6 @@
     <string name="food_estimate_note">When a product leaves out vitamins and minerals, your coach picks the most similar food in the German Nutrient Database and Forge takes the missing values from it. Everything on the label stays. Borrowed values are marked as estimates. The product\'s name and stated values go to your coach\'s provider, once per product.</string>
     <string name="food_estimated_note">%1$d vitamins and minerals are estimated from a similar food in the German Nutrient Database (%2$s).</string>
     <string name="food_nutrients_estimated">%1$d %% estimated</string>
+    <string name="food_nutrients_mostly_model">Mostly your coach\'s estimate, so it is not rated.</string>
+    <string name="food_estimated_ai_note">%1$d vitamins and minerals are your coach\'s estimate. No similar food in the German Nutrient Database was close enough. Treat them as rough.</string>
 </resources>

@@ -5172,4 +5172,6 @@
     <string name="food_estimate_note">Fehlen einem Produkt Vitamine und Mineralstoffe, wählt dein Coach das ähnlichste Lebensmittel im Bundeslebensmittelschlüssel, und Forge übernimmt die fehlenden Werte daraus. Alles vom Etikett bleibt. Übernommene Werte sind als Schätzung markiert. Name und Angaben des Produkts gehen einmal je Produkt an den Anbieter deines Coaches.</string>
     <string name="food_estimated_note">%1$d Vitamine und Mineralstoffe sind geschätzt aus einem ähnlichen Lebensmittel im Bundeslebensmittelschlüssel (%2$s).</string>
     <string name="food_nutrients_estimated">%1$d %% geschätzt</string>
+    <string name="food_nutrients_mostly_model">Vor allem eine Schätzung deines Coaches, deshalb nicht bewertet.</string>
+    <string name="food_estimated_ai_note">%1$d Vitamine und Mineralstoffe sind eine Schätzung deines Coaches. Kein Lebensmittel im Bundeslebensmittelschlüssel war ähnlich genug. Nimm sie als grobe Werte.</string>
 </resources>

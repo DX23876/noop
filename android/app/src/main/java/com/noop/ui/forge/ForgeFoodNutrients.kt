@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -123,26 +127,42 @@ internal fun ForgeFoodNutrientsPage(report: CoreFood.NutrientReport, onBack: () 
             ForgeCard(Modifier.fillMaxWidth()) {
                 Text(stringResource(title), style = Forge.type.headline, color = Forge.colors.text)
                 keys.mapNotNull { key -> report.rows.firstOrNull { it.nutrient == key } }.forEach { row ->
-                    val share = row.reference?.let { row.average / maxOf(0.0001, it) } ?: 0.0
+                    // A bullet bar: the scale runs to 1.5 times the reference, which is marked at two thirds.
+                    val scale = row.reference?.let { maxOf(it * 1.5, row.average, 0.0001) } ?: 1.0
+                    val share = row.reference?.let { row.average / scale } ?: 0.0
                     val tint = when (row.status) { "fine" -> Forge.colors.charge; "attention" -> Forge.colors.effort; else -> Forge.colors.textTertiary }
+                    val symbol = when (row.status) {
+                        "fine" -> androidx.compose.material.icons.Icons.Rounded.CheckCircle
+                        "attention" -> androidx.compose.material.icons.Icons.Rounded.Error
+                        "mostlyModel" -> androidx.compose.material.icons.Icons.Rounded.AutoAwesome
+                        else -> androidx.compose.material.icons.Icons.Rounded.HelpOutline
+                    }
                     Column(Modifier.fillMaxWidth().clickable { open = if (open == row.nutrient) null else row.nutrient }
                         .padding(vertical = ForgeMetrics.space2), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Icon(symbol, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(ForgeMetrics.space2))
                             Text(nutrientName(row.nutrient), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
                                  color = Forge.colors.text, modifier = Modifier.weight(1f))
                             Text(nutrientAmount(row.average, row.nutrient), style = Forge.type.bodyNumber, color = Forge.colors.text)
                         }
                         val ref = row.reference
                         if (ref != null) {
-                            Box(Modifier.fillMaxWidth().height(6.dp).background(Forge.colors.inset, RoundedCornerShape(3.dp))) {
+                            Box(Modifier.fillMaxWidth().height(12.dp), contentAlignment = Alignment.CenterStart) {
+                                Box(Modifier.fillMaxWidth().height(6.dp).background(tint.copy(alpha = 0.24f), RoundedCornerShape(3.dp)))
                                 Box(Modifier.fillMaxWidth(min(1.0, share).toFloat()).height(6.dp).background(tint, RoundedCornerShape(3.dp)))
+                                // The reference mark, at its place on the same scale.
+                                Box(Modifier.fillMaxWidth((ref / scale).toFloat().coerceIn(0f, 1f)), contentAlignment = Alignment.CenterEnd) {
+                                    Box(Modifier.width(2.dp).height(12.dp).background(Forge.colors.text, RoundedCornerShape(1.dp)))
+                                }
                             }
                             Text(when {
                                 row.status == "incomplete" -> stringResource(R.string.food_nutrients_incomplete, (row.coverage * 100).roundToInt())
+                                row.status == "mostlyModel" -> stringResource(R.string.food_nutrients_mostly_model)
                                 row.atMost -> stringResource(R.string.food_nutrients_limit, nutrientAmount(ref, row.nutrient), row.source ?: "")
                                 else -> stringResource(R.string.food_nutrients_reference, nutrientAmount(ref, row.nutrient), row.source ?: "")
-                            } + if (row.status != "incomplete" && row.estimatedShare >= 0.05)
-                                " · " + stringResource(R.string.food_nutrients_estimated, (row.estimatedShare * 100).roundToInt()) else "", style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                            } + if (row.status != "incomplete" && row.status != "mostlyModel" && row.estimatedShare + row.modelShare >= 0.05)
+                                " · " + stringResource(R.string.food_nutrients_estimated, ((row.estimatedShare + row.modelShare) * 100).roundToInt()) else "", style = Forge.type.footnote, color = Forge.colors.textSecondary)
                         }
                         if (open == row.nutrient && row.topFoods.isNotEmpty()) {
                             Text(stringResource(R.string.food_nutrients_from), style = Forge.type.caption, color = Forge.colors.textSecondary)

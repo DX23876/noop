@@ -562,8 +562,10 @@ private fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismiss
             val totals = item.scaled(grams)
             Text("${kcalText(totals["energy_kcal"])} kcal · ${gramsText(totals["protein_g"])} g ${stringResource(R.string.food_protein)}",
                  style = Forge.type.body, color = Forge.colors.textSecondary)
-            if (item.estimatedFrom != null) Text(stringResource(R.string.food_estimated_note, item.estimatedCount, item.estimatedFrom),
-                                                 style = Forge.type.caption, color = Forge.colors.textSecondary)
+            if (item.estimatedFrom != null) Text(
+                if (item.estimatedFrom == "ai") stringResource(R.string.food_estimated_ai_note, item.estimatedCount)
+                else stringResource(R.string.food_estimated_note, item.estimatedCount, item.estimatedFrom),
+                style = Forge.type.caption, color = Forge.colors.textSecondary)
             Text(stringResource(if (item.source == "bls") R.string.food_source_bls else R.string.food_source_off),
                  style = Forge.type.caption, color = Forge.colors.textTertiary)
         }
