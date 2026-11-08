@@ -31,6 +31,11 @@ enum ForgeColor {
     static let hairline = dyn(0xFFFFFF, 0xFFFFFF, light: 0.9, dark: 0.12)
     static var accent: Color { StrandPalette.forgeAccent }
     static var onAccent: Color { StrandPalette.forgeOnAccent }
+    /// The Training area's one accent, OpenGym's green (#248A3D light, #30D158 dark): everything to press in
+    /// Training wears it, on neutral cards, the way the owner preferred that app's training screens.
+    static let trainingAccent = dyn(0x248A3D, 0x30D158)
+    /// Text on the training accent: white on the darker light-mode green, black on the bright dark-mode one.
+    static let onTrainingAccent = dyn(0xFFFFFF, 0x000000)
 
     static let charge = dyn(0x13896B, 0x3DDC97)
     static let effort = dyn(0xD45F28, 0xFF8A3D)
@@ -52,8 +57,9 @@ enum ForgeColor {
         let table: [ForgeTab: (UInt32, UInt32)]
         switch NoopVisualStyle.forgeProfile {
         case .colorful:
-            // Each tab in the colour of what it holds: Training is Effort, Sleep is Rest, Health is Charge.
-            table = [.today: (0xCFE4FF, 0x12335F), .training: (0xFFE3CC, 0x4A2A12),
+            // Each tab in the colour of what it holds: Sleep is Rest, Health is Charge. Training takes
+            // OpenGym's plain look, Apple's grouped grey and black, its green the only colour to press.
+            table = [.today: (0xCFE4FF, 0x12335F), .training: (0xF2F2F7, 0x000000),
                      .sleep: (0xE0DAFF, 0x2A2270), .health: (0xCDEFDC, 0x0D4A2F)]
         case .stone:
             table = [.today: (0xC9D6E8, 0x22314A), .training: (0xF0D2BC, 0x3A2418),
@@ -79,7 +85,7 @@ enum ForgeColor {
         guard NoopVisualStyle.forgeProfile == .colorful else { return accent }
         switch tab {
         case .today: return dyn(0x007AFF, 0x0A84FF)
-        case .training: return dyn(0xC2570C, 0xFF9F5A)
+        case .training: return dyn(0x248A3D, 0x30D158)   // the shipped design's Training green
         case .sleep: return dyn(0x5856D6, 0x7D7AFF)
         case .health: return dyn(0x13896B, 0x3DDC97)
         case nil: return dyn(0x0071A4, 0x64D2FF)

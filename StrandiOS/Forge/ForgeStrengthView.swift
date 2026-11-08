@@ -22,7 +22,7 @@ struct ForgeStrengthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Strength"),
-                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "dumbbell.fill", accent: "flame.fill", tint: ForgeColor.effort))
+                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "dumbbell.fill", accent: "flame.fill", tint: ForgeColor.trainingAccent))
                 nextUp
                 volume
                 recent
@@ -67,9 +67,9 @@ struct ForgeStrengthView: View {
                 Button { session.requestStrength(routines: [next.routine]) } label: {
                     Label("Start", systemImage: "play.fill")
                         .font(.system(.body, weight: .semibold))
-                        .foregroundStyle(ForgeColor.onAccent)
+                        .foregroundStyle(ForgeColor.onTrainingAccent)
                         .frame(maxWidth: .infinity, minHeight: 50)
-                        .background(Capsule().fill(ForgeColor.accent))
+                        .background(Capsule().fill(ForgeColor.trainingAccent))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 10)
@@ -78,7 +78,7 @@ struct ForgeStrengthView: View {
             .forgeCard(radius: ForgeRadius.card, padding: 16)
         } else if hub.loaded {
             NavigationLink(value: MoreDestination.training) {
-                ForgeRow(systemImage: "calendar.badge.plus", tint: ForgeColor.accent, title: String(localized: "Plan a strength day"),
+                ForgeRow(systemImage: "calendar.badge.plus", tint: ForgeColor.trainingAccent, title: String(localized: "Plan a strength day"),
                          subtitle: String(localized: "Pick routines for the days you train"))
                     .forgeCard(radius: ForgeRadius.card, padding: 0)
             }
@@ -125,7 +125,7 @@ struct ForgeStrengthView: View {
                 HStack(alignment: .bottom, spacing: 6) {
                     ForEach(Array(tonnes.enumerated()), id: \.offset) { i, t in
                         RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(ForgeColor.rest.opacity(i == tonnes.count - 1 ? 1 : 0.55))
+                            .fill(ForgeColor.trainingAccent.opacity(i == tonnes.count - 1 ? 1 : 0.55))
                             .frame(height: max(4, 90 * t / top))
                             .frame(maxWidth: .infinity)
                     }
@@ -163,7 +163,7 @@ struct ForgeStrengthView: View {
                 ForEach(Array(rows.enumerated()), id: \.offset) { index, s in
                     if index > 0 { ForgeRowDivider() }
                     NavigationLink(value: TabRoute.strength) {
-                        ForgeRow(systemImage: "dumbbell.fill", tint: ForgeColor.rest, title: s.title,
+                        ForgeRow(systemImage: "dumbbell.fill", tint: ForgeColor.trainingAccent, title: s.title,
                                  subtitle: Self.sessionDetail(s), value: "\(s.workingSetCount)", unit: String(localized: "sets"))
                     }
                     .buttonStyle(.plain)
@@ -186,17 +186,17 @@ struct ForgeStrengthView: View {
             ForgeSectionTitle(title: "Plan and library")
             ForgeGroup {
                 NavigationLink(value: MoreDestination.training) {
-                    ForgeRow(systemImage: "calendar", tint: ForgeColor.rest, title: String(localized: "Routines and exercises"),
+                    ForgeRow(systemImage: "calendar", tint: ForgeColor.trainingAccent, title: String(localized: "Routines and exercises"),
                              subtitle: hub.loaded ? String(localized: "\(hub.plan.routines.count) routines") : nil)
                 }
                 ForgeRowDivider()
                 NavigationLink(value: ForgeRoute.muscles) {
-                    ForgeRow(systemImage: "figure.strengthtraining.traditional", tint: ForgeColor.rest,
+                    ForgeRow(systemImage: "figure.strengthtraining.traditional", tint: ForgeColor.trainingAccent,
                              title: String(localized: "Muscles"), subtitle: String(localized: "Balance, fatigue and strength on a body map"))
                 }
                 ForgeRowDivider()
                 NavigationLink(value: TabRoute.strength) {
-                    ForgeRow(systemImage: "chart.bar.xaxis", tint: ForgeColor.rest, title: String(localized: "All strength details"),
+                    ForgeRow(systemImage: "chart.bar.xaxis", tint: ForgeColor.trainingAccent, title: String(localized: "All strength details"),
                              subtitle: String(localized: "Sessions, records and load"))
                 }
             }
@@ -217,7 +217,7 @@ struct ForgeMusclesView: View {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Muscles"),
                                   scrolledPast: $scrolledPast,
-                                  picture: PagePicture(symbol: "figure.strengthtraining.traditional", accent: "bolt.fill", tint: .orange))
+                                  picture: PagePicture(symbol: "figure.strengthtraining.traditional", accent: "bolt.fill", tint: ForgeColor.trainingAccent))
                 MuscleAnalyticsSurface(history: model.resolvedHistory, compact: false)
                     .forgeCard(radius: ForgeRadius.card, padding: 14)
                 Link("Body geometry: MuscleMap · MIT License",

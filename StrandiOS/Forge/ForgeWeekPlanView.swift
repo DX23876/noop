@@ -65,7 +65,7 @@ struct ForgeWeekPlanView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "This week's plan"),
-                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "calendar", accent: "checkmark", tint: .blue))
+                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "calendar", accent: "checkmark", tint: ForgeColor.trainingAccent))
                 effortColumns(week)
                 ForgeSectionTitle(title: "This week")
                 ForgeGroup {
@@ -75,7 +75,7 @@ struct ForgeWeekPlanView: View {
                     }
                 }
                 NavigationLink(value: MoreDestination.training) {
-                    ForgeRow(systemImage: "calendar", tint: ForgeColor.accent, title: String(localized: "Schedule and routines"),
+                    ForgeRow(systemImage: "calendar", tint: ForgeColor.trainingAccent, title: String(localized: "Schedule and routines"),
                              subtitle: String(localized: "Choose which routine goes on which day"))
                         .forgeCard(radius: ForgeRadius.card, padding: 0)
                 }
@@ -128,7 +128,7 @@ struct ForgeWeekPlanView: View {
                         .frame(height: 96)
                         Text(day.date, format: .dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
                             .font(.system(.caption, weight: cal.isDateInToday(day.date) ? .bold : .regular))
-                            .foregroundStyle(cal.isDateInToday(day.date) ? ForgeColor.accent : ForgeColor.secondary)
+                            .foregroundStyle(cal.isDateInToday(day.date) ? ForgeColor.trainingAccent : ForgeColor.secondary)
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)

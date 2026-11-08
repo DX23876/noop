@@ -35,7 +35,7 @@ struct ForgeWorkoutsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Workouts"),
-                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "figure.run", accent: "flame.fill", tint: ForgeColor.effort))
+                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "figure.run", accent: "flame.fill", tint: ForgeColor.trainingAccent))
                 actions
                 calendarCard
                 weekNumbers
@@ -243,10 +243,10 @@ private struct ForgeWorkoutActionChip: View {
     var body: some View {
         Label(title, systemImage: symbol)
             .font(.system(.subheadline, weight: .semibold))
-            .foregroundStyle(prominent ? ForgeColor.onAccent : ForgeColor.text)
+            .foregroundStyle(prominent ? ForgeColor.onTrainingAccent : ForgeColor.text)
             .padding(.horizontal, 16)
             .frame(minHeight: 44)
-            .background(Capsule().fill(prominent ? ForgeColor.accent : ForgeColor.fill))
+            .background(Capsule().fill(prominent ? ForgeColor.trainingAccent : ForgeColor.fill))
     }
 }
 

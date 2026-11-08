@@ -139,13 +139,13 @@ struct ForgeTrainingView: View {
                     VStack(spacing: 4) {
                         // A trained day shows that day's sport, as in the prototype; an open day stays light.
                         Circle()
-                            .fill(done ? ForgeColor.effort.opacity(ForgeOpacity.band) : ForgeColor.card.opacity(0.7))
-                            .overlay(Circle().strokeBorder(isToday ? ForgeColor.effortInk : ForgeColor.hairline,
+                            .fill(done ? ForgeColor.trainingAccent.opacity(ForgeOpacity.band) : ForgeColor.card.opacity(0.7))
+                            .overlay(Circle().strokeBorder(isToday ? ForgeColor.trainingAccent : ForgeColor.hairline,
                                                            lineWidth: isToday ? 1.5 : 1))
                             .frame(width: 36, height: 36)
                             .overlay {
                                 if let first {
-                                    WorkoutTypeIcon(workoutType: first.sport, size: 14, weight: .semibold, color: ForgeColor.effortInk)
+                                    WorkoutTypeIcon(workoutType: first.sport, size: 14, weight: .semibold, color: ForgeColor.trainingAccent)
                                 }
                             }
                         Text(day, format: .dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
@@ -216,7 +216,7 @@ struct ForgeTrainingView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Planned today", systemImage: "calendar")
                     .font(.system(.subheadline, weight: .semibold))
-                    .foregroundStyle(ForgeColor.accent)
+                    .foregroundStyle(ForgeColor.trainingAccent)
                 HStack(spacing: 12) {
                     Image(systemName: "dumbbell.fill")
                         .font(.system(.subheadline, weight: .semibold))
@@ -231,9 +231,9 @@ struct ForgeTrainingView: View {
                     Button { session.requestStrength(routines: [routine]) } label: {
                         Label("Start", systemImage: "play.fill")
                             .font(.system(.subheadline, weight: .semibold))
-                            .foregroundStyle(ForgeColor.onAccent)
+                            .foregroundStyle(ForgeColor.onTrainingAccent)
                             .padding(.horizontal, 16).frame(minHeight: 40)
-                            .background(Capsule().fill(ForgeColor.accent))
+                            .background(Capsule().fill(ForgeColor.trainingAccent))
                     }
                     .buttonStyle(.plain)
                 }
@@ -271,7 +271,7 @@ struct ForgeTrainingView: View {
             Text(title).font(ForgeFont.section).foregroundStyle(ForgeColor.text)
             Spacer()
             NavigationLink(value: route) {
-                Text(link).font(.system(.body)).foregroundStyle(ForgeColor.accent)
+                Text(link).font(.system(.body)).foregroundStyle(ForgeColor.trainingAccent)
             }
         }
         .padding(.horizontal, 4).padding(.top, 14)
@@ -286,7 +286,7 @@ struct ForgeTrainingView: View {
                     Text("Routines").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                     Spacer()
                     NavigationLink(value: MoreDestination.training) {
-                        Text("All").font(.system(.body)).foregroundStyle(ForgeColor.accent)
+                        Text("All").font(.system(.body)).foregroundStyle(ForgeColor.trainingAccent)
                     }
                 }
                 .padding(.horizontal, 4).padding(.top, 14)
@@ -320,10 +320,11 @@ struct ForgeTrainingView: View {
     /// Every routine in one light wash of Effort, the tab's colour: the title tells them apart.
     private func routineCard(title: String, subtitle: String, systemImage: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Image(systemName: systemImage)
-                .font(.system(.title3, weight: .semibold))
-                .foregroundStyle(ForgeColor.text)
-            Spacer(minLength: 8)
+            // The routine's picture: its symbol on a glowing disc in the tab's Effort colour.
+            CoachPicture(main: systemImage, accentA: "flame.fill", accentB: "sparkle", tint: ForgeColor.trainingAccent)
+                .frame(width: 52, height: 52)
+                .padding(.leading, -4)
+            Spacer(minLength: 6)
             Text(title)
                 .font(.system(.callout, weight: .semibold))
                 .foregroundStyle(ForgeColor.text)
@@ -332,8 +333,8 @@ struct ForgeTrainingView: View {
             Text(subtitle).font(.system(.caption)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
         }
         .padding(14)
-        .frame(width: 150, height: 120, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.effort.opacity(ForgeOpacity.wash)))
+        .frame(width: 150, height: 140, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
     }
 
     // MARK: Recent
@@ -345,7 +346,7 @@ struct ForgeTrainingView: View {
                 Text("Recent activities").font(ForgeFont.section).foregroundStyle(ForgeColor.text)
                 Spacer()
                 NavigationLink(value: ForgeRoute.workouts) {
-                    Text("All").font(.system(.body)).foregroundStyle(ForgeColor.accent)
+                    Text("All").font(.system(.body)).foregroundStyle(ForgeColor.trainingAccent)
                 }
             }
             .padding(.horizontal, 4).padding(.top, 14)
@@ -468,12 +469,12 @@ struct ForgeTrainingView: View {
             ForgeSectionTitle(title: "Tools")
             ForgeGroup {
                 NavigationLink(value: ForgeRoute.weekPlan) {
-                    ForgeRow(systemImage: "calendar.day.timeline.left", tint: ForgeColor.accent, title: String(localized: "This week's plan"),
+                    ForgeRow(systemImage: "calendar.day.timeline.left", tint: ForgeColor.trainingAccent, title: String(localized: "This week's plan"),
                              subtitle: String(localized: "Done and planned, day by day"))
                 }
                 ForgeRowDivider()
                 NavigationLink(value: MoreDestination.training) {
-                    ForgeRow(systemImage: "calendar", tint: ForgeColor.accent, title: String(localized: "Plan and library"),
+                    ForgeRow(systemImage: "calendar", tint: ForgeColor.trainingAccent, title: String(localized: "Plan and library"),
                              subtitle: String(localized: "Schedule, routines, imports, past sessions"))
                 }
                 ForgeRowDivider()
