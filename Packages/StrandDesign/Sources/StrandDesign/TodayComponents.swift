@@ -142,9 +142,10 @@ public struct TodayMetricTile<Accessory: View>: View {
     }
 
     private func captionText(_ caption: String) -> some View {
+        // The new design reads the line in secondary grey: tertiary sank into a photo behind the card.
         Text(caption)
             .font(StrandFont.footnote)
-            .foregroundStyle(StrandPalette.textTertiary)
+            .foregroundStyle(NoopVisualStyle.skin == .forge ? StrandPalette.textSecondary : StrandPalette.textTertiary)
             .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
             .minimumScaleFactor(0.7)
     }

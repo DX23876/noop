@@ -1134,10 +1134,12 @@ struct ForgeTodayView: View {
                     Button { dismissHint(top) } label: {
                         Image(systemName: "xmark").font(.system(.footnote, weight: .semibold))
                             .foregroundStyle(ForgeColor.tertiary)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    // The full 44-point target, drawn where the small cross sits: in the corner.
+                    .padding(.top, -10).padding(.trailing, -12)
                     .accessibilityLabel(Text("Dismiss"))
                 }
                 if hints.count > 1 {
@@ -1176,12 +1178,8 @@ struct ForgeTodayView: View {
         case .proposal: ("calendar.badge.plus", ForgeColor.accent)
         case .weighIn: ("figure.stand", ForgeColor.rest)
         }
-        return Image(systemName: look.symbol)
-            .font(.system(.body, weight: .semibold))
-            .foregroundStyle(look.tint)
-            .frame(width: size, height: size)
-            .background(Circle().fill(look.tint.opacity(ForgeOpacity.wash)))
-            .accessibilityHidden(true)
+        // The widgets' mark: white on a rounded square in the hint's colour, one icon style on the page.
+        return TrendsChangeSummary.categoryMark(look.symbol, tint: look.tint, size: size)
     }
 
     /// Where a hint leads: its notice's action, the Charge page, the plan, the weight page; a coach note

@@ -206,7 +206,7 @@ struct ForgeTodayWidgetArea: View {
 
     var body: some View {
         if editing || !shown.isEmpty {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 if editing {
                     // On a card of its own: the picture behind it changes with the hour.
                     VStack(alignment: .leading, spacing: 12) {
@@ -342,7 +342,8 @@ struct ForgeTodayWidgetView: View {
         switch widget.kind {
         case .measure: ForgeMeasureWidget(key: widget.key ?? "hrv", source: widget.source)
         case .trainingLoad: LiquidTrainingLoadSection(surfaceOpacity: surfaceOpacity ?? Double(opacityPercent) / 100)
-        case .goals: GoalsTodaySection(headerOutside: true)
+        // The name inside the card, as every other widget carries it.
+        case .goals: GoalsTodaySection(headerOutside: false)
         case .energy: ForgeEnergyWidget()
         case .water: ForgeWaterWidget()
         case .liveHeart:
