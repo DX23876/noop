@@ -138,26 +138,29 @@ struct TrendsChangeSummary: View {
 
     /// The span in one large line, the measure that moved most named under it.
     private var headline: some View {
-        let better = rows.filter { $0.verdict == .better }
-        let worse = rows.filter { $0.verdict == .worse }
-        let (title, detail): (String, String) = {
-            if better.count > worse.count, let top = better.first {
-                return (String(localized: "Strong stretch"), String(localized: "\(top.title) improved the most."))
-            }
-            if worse.count > better.count, let top = worse.first {
-                return (String(localized: "Tougher stretch"), String(localized: "\(top.title) needs the most attention."))
-            }
-            if let top = better.first ?? worse.first {
-                return (String(localized: "Mixed picture"), String(localized: "\(top.title) moved the most."))
-            }
-            return (String(localized: "Steady"), String(localized: "No real change. Steady is good when the level is where you want it."))
-        }()
+        let (title, detail) = Self.headline(rows)
         return VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
             Text(verbatim: detail).font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// The span in a word and the measure behind it, for this card and Today's widget alike.
+    static func headline(_ rows: [Row]) -> (title: String, detail: String) {
+        let better = rows.filter { $0.verdict == .better }
+        let worse = rows.filter { $0.verdict == .worse }
+        if better.count > worse.count, let top = better.first {
+            return (String(localized: "Strong stretch"), String(localized: "\(top.title) improved the most."))
+        }
+        if worse.count > better.count, let top = worse.first {
+            return (String(localized: "Tougher stretch"), String(localized: "\(top.title) needs the most attention."))
+        }
+        if let top = better.first ?? worse.first {
+            return (String(localized: "Mixed picture"), String(localized: "\(top.title) moved the most."))
+        }
+        return (String(localized: "Steady"), String(localized: "No real change. Steady is good when the level is where you want it."))
     }
 
     /// How many measures moved which way: one bar, then the counts as a dotted legend.
@@ -287,16 +290,21 @@ struct TrendsChangeSummary: View {
     // MARK: - Data
 
     private func load() async {
-        let span = window
+        rows = await Self.rows(repo: repo, span: window)
+        loaded = true
+    }
+
+    /// The measures that moved over `span` days against the span before, largest move first. The one
+    /// reading Trends and Today's widget share, so the two never disagree.
+    static func rows(repo: Repository, span: Int) async -> [Row] {
         var out: [Row] = []
-        for m in Self.measures {
+        for m in measures {
             guard let d = MetricCatalog.metric(key: m.key, source: m.source) else { continue }
             let series = await repo.exploreSeries(key: m.key, source: m.source, days: span * 2 + 1)
-            guard let row = Self.row(series, span: span, measure: m, metric: d) else { continue }
+            guard let row = row(series, span: span, measure: m, metric: d) else { continue }
             out.append(row)
         }
-        rows = out.sorted { abs($0.change) > abs($1.change) }
-        loaded = true
+        return out.sorted { abs($0.change) > abs($1.change) }
     }
 
     private static func row(_ series: [(day: String, value: Double)], span: Int, measure: Measure,

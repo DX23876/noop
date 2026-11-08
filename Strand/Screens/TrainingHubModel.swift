@@ -79,8 +79,12 @@ final class TrainingHubModel: ObservableObject {
         Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
     }
 
-    func routines(on date: Date) -> [TrainingRoutine] {
-        let day = Self.dayFormatter.string(from: date)
+    func routines(on date: Date) -> [TrainingRoutine] { Self.routines(in: plan, on: date) }
+
+    /// The routines `plan` holds for `date`: its own day first, then its weekday. Shared with Today's
+    /// next-session widget, which reads the plan alone instead of the whole hub.
+    static func routines(in plan: TrainingPlan, on date: Date) -> [TrainingRoutine] {
+        let day = dayFormatter.string(from: date)
         let weekday = TrainingWeekday(rawValue: Calendar.current.component(.weekday, from: date) == 1
             ? 7 : Calendar.current.component(.weekday, from: date) - 1) ?? .monday
         return plan.routines(day: day, weekday: weekday)

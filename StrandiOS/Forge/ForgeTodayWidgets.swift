@@ -15,7 +15,10 @@ import WhoopStore
 
 /// One widget the wearer placed on Today.
 struct ForgeTodayWidget: Codable, Hashable, Identifiable {
-    enum Kind: String, Codable, CaseIterable { case measure, trainingLoad, goals, energy, water, liveHeart, momentum, lastNight, weekPlan, coachNote, ageless, lastWorkout }
+    enum Kind: String, Codable, CaseIterable {
+        case measure, trainingLoad, goals, energy, water, liveHeart, momentum, lastNight, weekPlan, coachNote, ageless, lastWorkout
+        case cycle, tonight, breathe, nextSession, changes, whatWorks, strap
+    }
 
     var id = UUID()
     var kind: Kind
@@ -48,6 +51,8 @@ final class ForgeTodayWidgetStore: ObservableObject {
     static let showsTimelineKey = "forge.today.showsTimeline"
     /// Set once the first set of tiles was placed, so removing them all stays removed.
     private static let seededKey = "forge.today.widgetsSeeded"
+    /// Set once the cycle card, fixed on Today until 2026-11-08, became a widget for those who saw it.
+    private static let cycleSeededKey = "forge.today.cycleWidgetSeeded"
 
     @Published private(set) var widgets: [ForgeTodayWidget] = []
 
@@ -63,6 +68,18 @@ final class ForgeTodayWidgetStore: ObservableObject {
             }
             widgets = first + widgets
             save()
+        }
+        // The cycle card stood fixed on Today; whoever saw it keeps it, now as a widget they can remove.
+        let d = UserDefaults.standard
+        if !d.bool(forKey: Self.cycleSeededKey) {
+            d.set(true, forKey: Self.cycleSeededKey)
+            if d.bool(forKey: AppModel.cycleAwarenessKey),
+               ForgeCycleAudience.applies(sex: d.string(forKey: "profile.sex") ?? "male",
+                                          bodyFormulaSex: d.string(forKey: "profile.bodyFormulaSex") ?? ""),
+               !widgets.contains(where: { $0.kind == .cycle }) {
+                widgets.append(.init(kind: .cycle))
+                save()
+            }
         }
     }
 
@@ -103,6 +120,13 @@ final class ForgeTodayWidgetStore: ObservableObject {
     func seedDemoIfRequested() {
         guard CommandLine.arguments.contains("--demo-widgets") else { return }
         widgets = [
+            .init(kind: .tonight),
+            .init(kind: .nextSession),
+            .init(kind: .changes),
+            .init(kind: .whatWorks),
+            .init(kind: .breathe),
+            .init(kind: .strap),
+            .init(kind: .cycle),
             .init(kind: .ageless),
             .init(kind: .measure, key: "hrv", source: Repository.whoopSource),
             .init(kind: .measure, key: "rhr", source: Repository.whoopSource),
@@ -326,6 +350,13 @@ struct ForgeTodayWidgetView: View {
         case .ageless:
             if widget.isWide { ForgeAgeLessWideWidget() } else { ForgeAgeLessWidget() }
         case .lastWorkout: ForgeLastWorkoutWidget()
+        case .cycle: ForgeCycleWidget()
+        case .tonight: ForgeTonightWidget()
+        case .breathe: ForgeBreatheWidget()
+        case .nextSession: ForgeNextSessionWidget()
+        case .changes: ForgeChangesWidget()
+        case .whatWorks: ForgeWhatWorksWidget()
+        case .strap: ForgeStrapWidget()
         }
     }
 }
@@ -900,6 +931,8 @@ struct ForgeEnergyWidget: View {
 struct ForgeWidgetGallery: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = ForgeTodayWidgetStore.shared
+    @EnvironmentObject private var profile: ProfileStore
+    @AppStorage(AppModel.cycleAwarenessKey) private var cycleEnabled = false
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
 
@@ -937,6 +970,22 @@ struct ForgeWidgetGallery: View {
                     if coachFeatureEnabled {
                         row(symbol: "bubble.left.fill", title: String(localized: "Coach note"),
                             subtitle: String(localized: "Wide · the coach's latest line")) { store.add(.init(kind: .coachNote)) }
+                    }
+                    row(symbol: "moon.fill", title: String(localized: "Tonight"),
+                        subtitle: String(localized: "Wide · bedtime for a full night and the alarm")) { store.add(.init(kind: .tonight)) }
+                    row(symbol: "dumbbell.fill", title: String(localized: "Next session"),
+                        subtitle: String(localized: "Wide · your next planned routine, ready to start")) { store.add(.init(kind: .nextSession)) }
+                    row(symbol: "chart.line.uptrend.xyaxis", title: String(localized: "What changed"),
+                        subtitle: String(localized: "Wide · this week against last, in a word")) { store.add(.init(kind: .changes)) }
+                    row(symbol: "lightbulb.fill", title: String(localized: "What works"),
+                        subtitle: String(localized: "Wide · the habit that moves your Charge most")) { store.add(.init(kind: .whatWorks)) }
+                    row(symbol: "wind", title: String(localized: "Breathe"),
+                        subtitle: String(localized: "Wide · two calm minutes, one tap away")) { store.add(.init(kind: .breathe)) }
+                    row(symbol: "battery.75percent", title: String(localized: "Strap"),
+                        subtitle: String(localized: "Wide · battery, wrist and last sync")) { store.add(.init(kind: .strap)) }
+                    if cycleEnabled, ForgeCycleAudience.applies(sex: profile.sex, bodyFormulaSex: profile.bodyFormulaSex) {
+                        row(symbol: "drop.fill", title: String(localized: "Cycle"),
+                            subtitle: String(localized: "Wide · cycle day and phase")) { store.add(.init(kind: .cycle)) }
                     }
                     row(symbol: "bolt.fill", title: String(localized: "Momentum"),
                         subtitle: String(localized: "Wide · what matters most right now")) { store.add(.init(kind: .momentum)) }

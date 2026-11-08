@@ -174,7 +174,6 @@ struct ForgeTodayView: View {
                         if !tilesBelowTimeline || !showsTimeline || editingWidgets {
                             ForgeTodayWidgetArea(editing: $editingWidgets)
                         }
-                        ForgeCycleSummaryCard(showsLogButtons: false)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 20)
