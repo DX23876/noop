@@ -408,13 +408,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Frais –"
+            "value": "Charge –"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cobrar -"
+            "value": "Carga –"
           }
         },
         "ru": {
@@ -438,13 +438,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电"
+            "value": "能量 –"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電"
+            "value": "能量 –"
           }
         }
       }
@@ -478,7 +478,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cobrar · %@"
+            "value": "Carga · %@"
           }
         },
         "ru": {
@@ -502,13 +502,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电%@"
+            "value": "能量 · %@"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電%@"
+            "value": "能量 · %@"
           }
         }
       }
@@ -542,7 +542,7 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Carregar · cal"
+            "value": "Carga · cal"
           }
         },
         "ru": {
@@ -566,13 +566,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电 口径"
+            "value": "能量 · 校准"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電 口徑"
+            "value": "能量 · 校準"
           }
         }
       }
@@ -600,13 +600,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Charger %1$lld · %2$lld bpm%3$@"
+            "value": "Charge %1$lld · %2$lld bpm%3$@"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Carregar %lld · %lld bpm%@"
+            "value": "Carga %lld · %lld bpm%@"
           }
         },
         "ru": {
@@ -630,13 +630,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电%lld* 妇女%lld页:1%@"
+            "value": "能量 %lld · %lld bpm%@"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電%lld* 婦女%lld頁:1%@"
+            "value": "能量 %lld · %lld bpm%@"
           }
         }
       }
@@ -664,13 +664,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chargez %1$lld sur 100"
+            "value": "Charge de %1$lld sur 100"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Carregue %lld de 100"
+            "value": "Carga de %lld em 100"
           }
         },
         "ru": {
@@ -694,13 +694,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电%lld在100个中"
+            "value": "能量 %lld，满分 100"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電%lld在100箇中"
+            "value": "能量 %lld，滿分 100"
           }
         }
       }
@@ -728,13 +728,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Charger %1$lld%2$@"
+            "value": "Charge %1$lld%2$@"
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Carregar %lld%@"
+            "value": "Carga %lld%@"
           }
         },
         "ru": {
@@ -758,13 +758,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电%lld%@"
+            "value": "能量 %lld%@"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電%lld%@"
+            "value": "能量 %lld%@"
           }
         }
       }
@@ -950,13 +950,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电已过期, 上次同步%@在iPhone上打开NOOP."
+            "value": "能量已过期，上次同步：%@。请在 iPhone 上打开 NOOP。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電已過期, 上次同步%@在iPhone上開啟NOOP."
+            "value": "能量已過期，上次同步：%@。請在 iPhone 上開啟 NOOP。"
           }
         }
       }
@@ -1014,13 +1014,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "充电停止%@"
+            "value": "能量已过期 · %@"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "充電停止%@"
+            "value": "能量已過期 · %@"
           }
         }
       }
@@ -1048,7 +1048,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Frais non disponibles"
+            "value": "Charge non disponible"
           }
         },
         "pt-PT": {
@@ -1078,13 +1078,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法充电"
+            "value": "能量不可用"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "無法充電"
+            "value": "能量無法使用"
           }
         }
       }

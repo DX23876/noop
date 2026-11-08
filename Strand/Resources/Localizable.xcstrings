@@ -132887,13 +132887,13 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Budynek"
+            "value" : "Kształtuje się"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edifício"
+            "value" : "Em formação"
           }
         },
         "ru" : {
@@ -142444,7 +142444,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Frais –"
+            "value" : "Charge –"
           }
         },
         "it" : {
@@ -142462,7 +142462,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cobrar -"
+            "value" : "Carga –"
           }
         },
         "ru" : {
@@ -142474,13 +142474,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电"
+            "value" : "能量 –"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電"
+            "value" : "能量 –"
           }
         }
       }
@@ -142527,7 +142527,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cobrar · %@"
+            "value" : "Carga · %@"
           }
         },
         "ru" : {
@@ -142539,13 +142539,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电%@"
+            "value" : "能量 · %@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電%@"
+            "value" : "能量 · %@"
           }
         }
       }
@@ -142585,7 +142585,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cobrar · %@ pontos"
+            "value" : "Carga · %@ pontos"
           }
         },
         "ru" : {
@@ -142650,7 +142650,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Carregar · cal"
+            "value" : "Carga · cal"
           }
         },
         "ru" : {
@@ -142662,13 +142662,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电 口径"
+            "value" : "能量 · 校准"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電 口徑"
+            "value" : "能量 · 校準"
           }
         }
       }
@@ -142766,7 +142766,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Carregar (todo o histórico)"
+            "value" : "Carga (todo o histórico)"
           }
         },
         "ru" : {
@@ -142947,7 +142947,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Carregar %@%%"
+            "value" : "Carga %@%%"
           }
         },
         "ru" : {
@@ -142994,7 +142994,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charger %1$lld · %2$lld bpm%3$@"
+            "value" : "Charge %1$lld · %2$lld bpm%3$@"
           }
         },
         "it" : {
@@ -143012,7 +143012,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Carregar %lld · %lld bpm%@"
+            "value" : "Carga %lld · %lld bpm%@"
           }
         },
         "ru" : {
@@ -143024,13 +143024,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电%lld* 妇女%lld页:1%@"
+            "value" : "能量 %lld · %lld bpm%@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電%lld* 婦女%lld頁:1%@"
+            "value" : "能量 %lld · %lld bpm%@"
           }
         }
       }
@@ -143059,7 +143059,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chargez %1$lld sur 100"
+            "value" : "Charge de %1$lld sur 100"
           }
         },
         "it" : {
@@ -143077,7 +143077,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Carregue %lld de 100"
+            "value" : "Carga de %lld em 100"
           }
         },
         "ru" : {
@@ -143089,13 +143089,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电%lld在100个中"
+            "value" : "能量 %lld，满分 100"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電%lld在100箇中"
+            "value" : "能量 %lld，滿分 100"
           }
         }
       }
@@ -143135,7 +143135,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Carregue %lld hoje, então a tua banda terá %lld–%lld bpm."
+            "value" : "Carga de %lld hoje, por isso a tua faixa é %lld–%lld bpm."
           }
         },
         "ru" : {
@@ -143182,7 +143182,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charger %1$lld%2$@"
+            "value" : "Charge %1$lld%2$@"
           }
         },
         "it" : {
@@ -143200,7 +143200,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Carregar %lld%@"
+            "value" : "Carga %lld%@"
           }
         },
         "ru" : {
@@ -143212,13 +143212,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电%lld%@"
+            "value" : "能量 %lld%@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電%lld%@"
+            "value" : "能量 %lld%@"
           }
         }
       }
@@ -143252,7 +143252,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Energia → Opłata następnego dnia"
+            "value" : "Energia → Energia następnego dnia"
           }
         },
         "pt-PT" : {
@@ -144408,13 +144408,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电已过期, 上次同步%@在iPhone上打开NOOP."
+            "value" : "能量已过期，上次同步：%@。请在 iPhone 上打开 NOOP。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電已過期, 上次同步%@在iPhone上開啟NOOP."
+            "value" : "能量已過期，上次同步：%@。請在 iPhone 上開啟 NOOP。"
           }
         }
       }
@@ -144531,13 +144531,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充电停止%@"
+            "value" : "能量已过期 · %@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "充電停止%@"
+            "value" : "能量已過期 · %@"
           }
         }
       }
@@ -144682,7 +144682,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Frais non disponibles"
+            "value" : "Charge non disponible"
           }
         },
         "it" : {
@@ -144712,13 +144712,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法充电"
+            "value" : "能量不可用"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法充電"
+            "value" : "能量無法使用"
           }
         }
       }
@@ -145436,13 +145436,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge，睡眠详细信息、准备情况和充电驱动程序。"
+            "value" : "能量、睡眠详情、准备度和能量驱动因素。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charge，睡眠詳細資訊、準備和充電驅動程式。"
+            "value" : "能量、睡眠詳情、準備度和能量驅動因素。"
           }
         }
       }
@@ -196367,7 +196367,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "EFFORT"
+            "value" : "ESFORÇO"
           }
         },
         "ru" : {
@@ -396806,7 +396806,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Poderes Carregar, Esforçar, Descansar e Dormir"
+            "value" : "Alimenta a Carga, o Esforço, o Descanso e o Sono"
           }
         },
         "ru" : {
@@ -396922,7 +396922,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Esforço de poderes agora; Carregue e descanse assim que as noites suficientes e a descodificação forem confirmadas"
+            "value" : "Alimenta já o Esforço; a Carga e o Descanso assim que houver noites suficientes e a descodificação estiver confirmada"
           }
         },
         "ru" : {
@@ -402464,7 +402464,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Naciskać"
+            "value" : "Mocniej"
           }
         },
         "pt-PT" : {
@@ -402482,13 +402482,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "推送"
+            "value" : "加大强度"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "推播"
+            "value" : "加大強度"
           }
         }
       }
@@ -499377,7 +499377,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wysiłek, jaki uzyskało Twoje tętno w tym tygodniu – strona sercowo-naczyniowa, celowo oddzielona od ćwiczeń fizycznych.\n\nPodnoszenie objętości nigdy nie staje się wysiłkiem. Ciężka sesja podnosi tętno, a tętno jest już w tej liczbie; zestawy i kilogramy nie są doliczane od góry.\n\nNie są dodawane, ponieważ nie ma między nimi uczciwego kursu wymiany. Tony ruchu i minuty tętna mierzą różne rzeczy w różnych tkankach, a połączenie ich w jedną liczbę obciążenia treningowego wymagałoby wynalezienia konwersji. Dzielą się jednym budżetem na naprawę — a NOOP ma już odpowiednią kwotę. Ładunek występuje tam, gdzie spotykają się te dwa elementy, ponieważ jest mierzony na podstawie tego, co organizm zgłasza po noszeniu obu."
+            "value" : "Wysiłek, jaki uzyskało Twoje tętno w tym tygodniu – strona sercowo-naczyniowa, celowo oddzielona od ćwiczeń fizycznych.\n\nPodnoszenie objętości nigdy nie staje się wysiłkiem. Ciężka sesja podnosi tętno, a tętno jest już w tej liczbie; zestawy i kilogramy nie są doliczane od góry.\n\nNie są dodawane, ponieważ nie ma między nimi uczciwego kursu wymiany. Tony ruchu i minuty tętna mierzą różne rzeczy w różnych tkankach, a połączenie ich w jedną liczbę obciążenia treningowego wymagałoby wynalezienia konwersji. Dzielą się jednym budżetem na naprawę — a NOOP ma już odpowiednią kwotę. Energia to miejsce, w którym spotykają się te dwa elementy, ponieważ jest mierzona na podstawie tego, co organizm zgłasza po noszeniu obu."
           }
         },
         "pt-PT" : {
@@ -571819,13 +571819,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "您本周的平均费用 — 与 NOOP 中其他地方的费用相同，而不是新分数。\n\n请阅读力量和努力数字旁边的内容。这两者不能加在一起——举起的吨数和心率分钟之间没有共享单位——但它们是由一个身体携带的，只有一个恢复预算，而这个数字反映了两者。高负荷和下降充电的一周与高负荷和稳定充电的一周是不同的，这种比较就是这三者坐在一起的原因。"
+            "value" : "你本周的平均能量——与 NOOP 其他地方显示的能量相同，并不是新的分数。\n\n请结合力量和消耗数据一起看。这两者无法相加——举起的吨数与心率分钟之间没有共同单位——但它们由同一个身体承担，共用一份恢复预算，而这个数字同时反映了两者。高负荷且能量下降的一周，与高负荷且能量稳定的一周并不相同，这正是三者放在一起的原因。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "您本週的平均費用 — 與 NOOP 中其他地方的費用相同，而不是新分數。\n\n請閱讀力量和努力數字旁邊的內容。這兩者不能加在一起——舉起的噸數和心率分鐘之間沒有共享單位——但它們是由一個身體攜帶的，只有一個恢復預算，而這個數字反映了兩者。高負荷和下降充電的一周與高負荷和穩定充電的一周是不同的，這種比較就是這三者坐在一起的原因。"
+            "value" : "你本週的平均能量——與 NOOP 其他地方顯示的能量相同，並不是新的分數。\n\n請結合力量和消耗數據一起看。這兩者無法相加——舉起的噸數與心率分鐘之間沒有共同單位——但它們由同一個身體承擔，共用一份恢復預算，而這個數字同時反映了兩者。高負荷且能量下降的一週，與高負荷且能量穩定的一週並不相同，這正是三者放在一起的原因。"
           }
         }
       }
