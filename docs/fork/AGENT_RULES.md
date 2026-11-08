@@ -22,7 +22,9 @@ with no AI co-author trailer. A fresh clone (a cloud agent session, a new machin
 nor the repository's hooks, and three commits authored "Claude <noreply@anthropic.com>" reached `main` from
 one on 2026-11-08. Before the first commit in such a clone, set `user.name` and `user.email` to the identity
 above in the clone's git config and run `git config core.hooksPath .githooks`; `.githooks/pre-commit` then
-refuses any other author or committer and `.githooks/commit-msg` any AI trailer.
+refuses any other author or committer and `.githooks/commit-msg` any AI trailer. A cloud agent session does
+this at start through `.claude/hooks/cloud-git-setup.sh` (wired in `.claude/settings.json`); a local session
+is left alone by it.
 
 ## Android is a shell around the shared core
 
