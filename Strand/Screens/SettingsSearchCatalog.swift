@@ -334,7 +334,7 @@ enum SettingsSearchCatalog {
         SettingsSearchEntry(
             id: .calculation,
             title: "Calculations",
-            keywords: ["day start", "day cycle", "midnight", "effort model", "Banister", "TRIMP",
+            keywords: ["day start", "day cycle", "midnight",
                        "HRV window", "deep sleep", "sleep stage method", "wake check", "scoring"]
         ),
         SettingsSearchEntry(

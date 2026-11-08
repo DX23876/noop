@@ -5453,6 +5453,122 @@
         }
       }
     },
+    "A cardiovascular load: each minute of heart rate weighs more the closer it sits to your maximum heart rate, summed over the day and placed on a 0-100 curve fitted on 3,760 workouts. Outside workouts, only heart rate above half your heart-rate reserve counts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Herz-Kreislauf-Belastung: Jede Minute Herzfrequenz wiegt umso mehr, je näher sie an deiner maximalen Herzfrequenz liegt, aufsummiert über den Tag und auf eine 0-100-Kurve gelegt, die an 3.760 Workouts angepasst ist. Außerhalb von Workouts zählt nur Herzfrequenz über der Hälfte deiner Herzfrequenzreserve."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una carga cardiovascular: cada minuto de frecuencia cardíaca pesa más cuanto más cerca está de tu frecuencia cardíaca máxima, se suma a lo largo del día y se sitúa en una curva de 0-100 ajustada con 3.760 entrenamientos. Fuera de los entrenamientos solo cuenta la frecuencia cardíaca por encima de la mitad de tu reserva."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une charge cardiovasculaire : chaque minute de fréquence cardiaque pèse d'autant plus qu'elle est proche de votre fréquence cardiaque maximale, additionnée sur la journée et placée sur une courbe de 0-100 ajustée sur 3 760 entraînements. En dehors des entraînements, seule compte la fréquence cardiaque au-dessus de la moitié de votre réserve."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un carico cardiovascolare: ogni minuto di frequenza cardiaca pesa di più quanto più è vicino alla tua frequenza cardiaca massima, sommato sulla giornata e posto su una curva 0-100 adattata su 3.760 allenamenti. Fuori dagli allenamenti conta solo la frequenza cardiaca sopra metà della tua riserva."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie sercowo-naczyniowe: każda minuta tętna waży tym więcej, im bliżej jest Twojego tętna maksymalnego, sumowana przez cały dzień i umieszczana na krzywej 0-100 dopasowanej do 3760 treningów. Poza treningami liczy się tylko tętno powyżej połowy rezerwy tętna."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma carga cardiovascular: cada minuto de frequência cardíaca pesa mais quanto mais perto estiver da tua frequência cardíaca máxima, somado ao longo do dia e colocado numa curva de 0-100 ajustada a 3760 treinos. Fora dos treinos, só conta a frequência cardíaca acima de metade da tua reserva."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сердечно-сосудистая нагрузка: каждая минута пульса весит тем больше, чем ближе она к вашему максимальному пульсу; всё суммируется за день и ложится на кривую 0-100, подобранную по 3760 тренировкам. Вне тренировок учитывается только пульс выше половины резерва пульса."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一种心血管负荷：每一分钟的心率越接近你的最大心率，权重越大，全天累加后放到一条根据 3,760 次训练拟合的 0-100 曲线上。训练之外，只有高于心率储备一半的心率才计入。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一種心血管負荷：每一分鐘的心率越接近你的最大心率，權重越大，全天累加後放到一條根據 3,760 次訓練擬合的 0-100 曲線上。訓練之外，只有高於心率儲備一半的心率才計入。"
+          }
+        }
+      }
+    },
+    "Charge weighs your HRV against your personal baseline (~55%%), resting heart rate (~20%%), rest quality (~15%%), respiration (~5%%) and skin-temperature deviation (~5%%). Effort is a 0-%@ cardiovascular load in which each minute of heart rate counts for more the closer it sits to your maximum. Rest is staged from movement and heart rate. Everything is computed here from the strap's raw data. It works for any day NOOP collected raw streams." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energie gewichtet deine HRV gegenüber deiner persönlichen Basislinie (~55%%), Ruheherzfrequenz (~20%%), Erholungsqualität (~15%%), Atmung (~5%%) und Hauttemperatur-Abweichung (~5%%). Belastung ist eine Herz-Kreislauf-Last von 0-%@, in der jede Minute Herzfrequenz umso mehr zählt, je näher sie an deinem Maximum liegt. Erholung wird aus Bewegung und Herzfrequenz in Schlafphasen eingeteilt. Alles wird hier aus den Rohdaten des Straps berechnet. Es funktioniert für jeden Tag, an dem NOOP Rohdaten gesammelt hat."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La Carga compara tu VFC con tu referencia personal (~55%%), la frecuencia cardíaca en reposo (~20%%), la calidad del descanso (~15%%), la respiración (~5%%) y la desviación de la temperatura de la piel (~5%%). El Esfuerzo es una carga cardiovascular de 0-%@ en la que cada minuto de frecuencia cardíaca cuenta más cuanto más cerca está de tu máximo. El descanso se divide en fases a partir del movimiento y la frecuencia cardíaca. Todo se calcula aquí a partir de los datos sin procesar de la banda. Funciona para cualquier día en que NOOP haya recogido datos sin procesar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La Charge pondère votre VFC par rapport à votre référence personnelle (~55%%), la fréquence cardiaque au repos (~20%%), la qualité du repos (~15%%), la respiration (~5%%) et l'écart de température cutanée (~5%%). L'Effort est une charge cardiovasculaire de 0-%@ dans laquelle chaque minute de fréquence cardiaque compte d'autant plus qu'elle est proche de votre maximum. Le repos est découpé en phases à partir du mouvement et de la fréquence cardiaque. Tout est calculé ici à partir des données brutes du bracelet. Cela fonctionne pour chaque jour où NOOP a collecté des données brutes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge valuta il tuo HRV rispetto al tuo valore di riferimento personale (~55%%), frequenza cardiaca a riposo (~20%%), qualità del riposo (~15%%), respirazione (~5%%) e deviazione della temperatura cutanea (~5%%). Lo Sforzo è un carico cardiovascolare 0-%@ in cui ogni minuto di frequenza cardiaca conta di più quanto più è vicino al tuo massimo. Il riposo è organizzato in base al movimento e alla frequenza cardiaca. Tutto viene calcolato qui dai dati grezzi del cinturino. Funziona per qualsiasi giorno NOOP flussi non elaborati raccolti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poziom energii waży Twoje HRV wobec osobistej linii bazowej (~55%%), tętno spoczynkowe (~20%%), jakość odpoczynku (~15%%), oddech (~5%%) i odchylenie temperatury skóry (~5%%). Wysiłek to obciążenie sercowo-naczyniowe w skali 0-%@, w którym każda minuta tętna liczy się tym bardziej, im bliżej jest Twojego maksimum. Odpoczynek jest dzielony na fazy na podstawie ruchu i tętna. Wszystko liczone jest tutaj z surowych danych opaski. Działa dla każdego dnia, dla którego NOOP zebrał surowe strumienie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge pesa seu HRV em relação à sua linha de base pessoal (~55%%), frequência cardíaca em repouso (~20%%), qualidade do descanso (~15%%), respiração (~5%%) e desvio de temperatura da pele (~5%%). O Esforço é uma carga cardiovascular de 0-%@ em que cada minuto de frequência cardíaca conta mais quanto mais perto estiver do teu máximo. O descanso é baseado no movimento e na frequência cardíaca. Tudo é calculado aqui a partir dos dados brutos da pulseira. Funciona para qualquer dia em que NOOP coletaram fluxos brutos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge сравнивает ваш HRV с вашими личными базовыми показателями (~55%%), частотой пульса в состоянии покоя (~20%%), качеством отдыха (~15%%), дыханием (~5%%) и отклонением температуры кожи (~5%%). Усилие — это сердечно-сосудистая нагрузка 0-%@, в которой каждая минута пульса весит тем больше, чем ближе она к вашему максимуму. Отдых строится от движения и сердечного ритма. Здесь все рассчитывается на основе необработанных данных ремешка. Это работает в любой день, когда NOOP собирал необработанные потоки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge 根据您的个人基线 (~55%%)、静息心率 (~20%%)、休息质量 (~15%%)、呼吸 (~5%%) 和体表温度偏差 (~5%%) 来衡量您的 HRV。消耗是 0-%@ 的心血管负荷，每一分钟的心率越接近你的最大心率，计入越多。休息是根据运动和心率来进行的。这里的一切都是根据表带的原始数据计算的。它适用于任何一天 NOOP 收集的原始流。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge 根據您的個人基線 (~55%%)、靜止心率 (~20%%)、休息品質 (~15%%)、呼吸 (~5%%) 和體表溫度偏差 (~5%%) 來衡量您的 HRV。消耗是 0-%@ 的心血管負荷，每一分鐘的心率越接近你的最大心率，計入越多。休息是根據運動和心率來進行的。這裡的一切都是根據錶帶的原始數據計算出來的。它適用於任何一天 NOOP 收集的原始流。"
+          }
+        }
+      }
+    },
     "Edit Vitals" : {
       "localizations" : {
         "de" : {
@@ -5507,6 +5623,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "編輯生命徵象"
+          }
+        }
+      }
+    },
+    "Same cardiovascular-load idea as WHOOP's Day Strain (0-21). The curve is fitted on WHOOP's own Strain for 3,760 workouts that people shared, and its top is rescaled from 21 to 100 so all three scores share one scale." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieselbe Idee der Herz-Kreislauf-Belastung wie WHOOPs Day Strain (0-21). Die Kurve ist an WHOOPs eigenem Strain für 3.760 geteilte Workouts angepasst, und ihr oberes Ende ist von 21 auf 100 skaliert, damit alle drei Werte eine Skala teilen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La misma idea de carga cardiovascular que el Day Strain de WHOOP (0-21). La curva está ajustada con el propio Strain de WHOOP de 3.760 entrenamientos que la gente compartió, y su parte superior se reescala de 21 a 100 para que las tres puntuaciones compartan una escala."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Même idée de charge cardiovasculaire que le Day Strain de WHOOP (0-21). La courbe est ajustée sur le Strain de WHOOP lui-même pour 3 760 entraînements partagés, et son sommet est ramené de 21 à 100 pour que les trois scores partagent une échelle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La stessa idea di carico cardiovascolare del Day Strain di WHOOP (0-21). La curva è adattata sullo Strain di WHOOP per 3.760 allenamenti condivisi, e il suo vertice è riscalato da 21 a 100 perché i tre punteggi condividano una scala."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta sama idea obciążenia sercowo-naczyniowego co Day Strain w WHOOP (0-21). Krzywa jest dopasowana do samego Strain WHOOP dla 3760 udostępnionych treningów, a jej szczyt przeskalowano z 21 na 100, by wszystkie trzy wyniki miały wspólną skalę."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A mesma ideia de carga cardiovascular do Day Strain da WHOOP (0-21). A curva está ajustada ao próprio Strain da WHOOP para 3760 treinos partilhados, e o topo foi reescalado de 21 para 100 para que as três pontuações partilhem uma escala."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Та же идея сердечно-сосудистой нагрузки, что и Day Strain у WHOOP (0-21). Кривая подобрана по собственному Strain WHOOP для 3760 тренировок, которыми поделились люди, а её верх пересчитан с 21 на 100, чтобы у всех трёх оценок была одна шкала."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 WHOOP 的 Day Strain（0-21）是同一种心血管负荷思路。曲线根据大家分享的 3,760 次训练中 WHOOP 自己的 Strain 拟合，顶部从 21 重新缩放到 100，使三个分数共用一个刻度。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與 WHOOP 的 Day Strain（0-21）是同一種心血管負荷思路。曲線根據大家分享的 3,760 次訓練中 WHOOP 自己的 Strain 擬合，頂部從 21 重新縮放到 100，使三個分數共用一個刻度。"
+          }
+        }
+      }
+    },
+    "HR RESERVE · FITTED CURVE" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HF-RESERVE · ANGEPASSTE KURVE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RESERVA DE FC · CURVA AJUSTADA"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RÉSERVE FC · COURBE AJUSTÉE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RISERVA FC · CURVA ADATTATA"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "REZERWA TĘTNA · DOPASOWANA KRZYWA"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RESERVA DE FC · CURVA AJUSTADA"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "РЕЗЕРВ ПУЛЬСА · ПОДОБРАННАЯ КРИВАЯ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率储备 · 拟合曲线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率儲備 · 擬合曲線"
           }
         }
       }
@@ -5971,6 +6203,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "本次訓練中每個心率區間的時間，來自手環測得的脈搏。僅為估算。"
+          }
+        }
+      }
+    },
+    "Your cardiovascular load. Every minute of heart rate counts for more the closer it sits to your maximum, measured on your heart-rate reserve (Karvonen) with the maximum NOOP learns from your workouts (or the one you enter). The day's load lands on a 0-100 curve fitted on 3,760 workouts, with a soft cap near the top, so easy days sit low and 100 stays out of reach. Outside workouts, heart rate below half your reserve does not count, so hours of standing and walking around do not add up to a hard day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Herz-Kreislauf-Belastung. Jede Minute Herzfrequenz zählt umso mehr, je näher sie an deinem Maximum liegt, gemessen an deiner Herzfrequenzreserve (Karvonen) und dem Maximum, das NOOP aus deinen Workouts lernt (oder dem, das du einträgst). Die Last des Tages landet auf einer 0-100-Kurve mit weicher Obergrenze, angepasst an 3.760 Workouts, sodass leichte Tage niedrig bleiben und 100 unerreichbar bleibt. Außerhalb von Workouts zählt Herzfrequenz unter der Hälfte deiner Reserve nicht, damit stundenlanges Stehen und Herumlaufen keinen harten Tag ergibt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu carga cardiovascular. Cada minuto de frecuencia cardíaca cuenta más cuanto más cerca está de tu máximo, medido sobre tu reserva de frecuencia cardíaca (Karvonen) con el máximo que NOOP aprende de tus entrenamientos (o el que introduzcas). La carga del día se sitúa en una curva de 0-100 ajustada con 3.760 entrenamientos y con un techo suave, así que los días fáciles quedan bajos y el 100 sigue fuera de alcance. Fuera de los entrenamientos no cuenta la frecuencia cardíaca por debajo de la mitad de tu reserva, para que horas de estar de pie y caminar no sumen un día duro."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre charge cardiovasculaire. Chaque minute de fréquence cardiaque compte d'autant plus qu'elle est proche de votre maximum, mesurée sur votre réserve de fréquence cardiaque (Karvonen) avec le maximum que NOOP apprend de vos entraînements (ou celui que vous saisissez). La charge de la journée est placée sur une courbe de 0-100 ajustée sur 3 760 entraînements, avec un plafond doux, de sorte que les journées faciles restent basses et que 100 reste hors d'atteinte. En dehors des entraînements, la fréquence cardiaque sous la moitié de votre réserve ne compte pas : des heures debout ou à marcher ne font pas une journée difficile."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo carico cardiovascolare. Ogni minuto di frequenza cardiaca conta di più quanto più è vicino al tuo massimo, misurato sulla tua riserva di frequenza cardiaca (Karvonen) con il massimo che NOOP impara dai tuoi allenamenti (o quello che inserisci tu). Il carico della giornata finisce su una curva 0-100 adattata su 3.760 allenamenti, con un tetto morbido, così i giorni facili restano bassi e 100 resta irraggiungibile. Fuori dagli allenamenti la frequenza cardiaca sotto metà della tua riserva non conta, quindi ore in piedi o a camminare non diventano una giornata dura."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje obciążenie sercowo-naczyniowe. Każda minuta tętna liczy się tym bardziej, im bliżej jest Twojego maksimum, mierzona na Twojej rezerwie tętna (Karvonen) z maksimum, którego NOOP uczy się z Twoich treningów (albo tym, które wpiszesz). Obciążenie dnia trafia na krzywą 0-100 dopasowaną do 3760 treningów, z miękkim limitem u góry, więc lekkie dni zostają nisko, a 100 pozostaje poza zasięgiem. Poza treningami tętno poniżej połowy rezerwy się nie liczy, więc godziny stania i chodzenia nie składają się na ciężki dzień."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua carga cardiovascular. Cada minuto de frequência cardíaca conta mais quanto mais perto estiver do teu máximo, medido na tua reserva de frequência cardíaca (Karvonen) com o máximo que o NOOP aprende com os teus treinos (ou o que introduzires). A carga do dia é colocada numa curva de 0-100 ajustada a 3760 treinos, com um teto suave, por isso os dias fáceis ficam baixos e o 100 continua fora de alcance. Fora dos treinos, a frequência cardíaca abaixo de metade da tua reserva não conta, para que horas de pé e a andar não somem um dia duro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша сердечно-сосудистая нагрузка. Каждая минута пульса весит тем больше, чем ближе она к вашему максимуму: считается по резерву пульса (Карвонен) с максимумом, который NOOP узнаёт из ваших тренировок (или с тем, что вы укажете). Нагрузка дня ложится на кривую 0-100, подобранную по 3760 тренировкам, с мягким потолком, поэтому лёгкие дни остаются низкими, а 100 недостижимо. Вне тренировок пульс ниже половины резерва не учитывается, так что часы стояния и ходьбы не складываются в тяжёлый день."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的心血管负荷。每一分钟的心率越接近你的最大心率，计入就越多：按你的心率储备（Karvonen）计算，最大心率取自 NOOP 从你的训练中学到的值（或你自己输入的值）。一天的负荷落在一条根据 3,760 次训练拟合、顶部有柔性上限的 0-100 曲线上，因此轻松的日子分数较低，100 始终无法达到。训练之外，低于心率储备一半的心率不计入，所以长时间站立和走动不会累积成艰苦的一天。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的心血管負荷。每一分鐘的心率越接近你的最大心率，計入就越多：按你的心率儲備（Karvonen）計算，最大心率取自 NOOP 從你的訓練中學到的值（或你自己輸入的值）。一天的負荷落在一條根據 3,760 次訓練擬合、頂部有柔性上限的 0-100 曲線上，因此輕鬆的日子分數較低，100 始終無法達到。訓練之外，低於心率儲備一半的心率不計入，所以長時間站立和走動不會累積成艱苦的一天。"
           }
         }
       }
@@ -78071,6 +78361,7 @@
       }
     },
     "A cardiovascular load from time in heart-rate zones (Edwards TRIMP): each zone is weighted so harder ones count for more, summed into one daily figure. Settings offers an exponential alternative (Banister) that credits short, hard efforts more." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -119843,6 +120134,7 @@
       "shouldTranslate" : false
     },
     "BANISTER TRIMP / HR ZONES" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -144724,6 +145016,7 @@
       }
     },
     "Charge weighs your HRV against your personal baseline (~55%%), resting heart rate (~20%%), rest quality (~15%%), respiration (~5%%) and skin-temperature deviation (~5%%). Effort is a 0-%@ cardiovascular load from time in heart-rate zones. Rest is staged from movement and heart rate. Everything is computed here from the strap's raw data. It works for any day NOOP collected raw streams." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -436227,6 +436520,7 @@
       }
     },
     "Same cardiovascular-load idea as WHOOP's Day Strain (0-21). We rescaled the top of the ladder from 21 to 100 so all three scores share one scale. The rungs didn't move, so a 100 is as rare as a 21.0 was." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -573473,6 +573767,7 @@
       }
     },
     "Your cardiovascular load. NOOP turns every second of heart rate into a training-impulse using heart-rate-reserve zones (Karvonen), weights time in harder zones more heavily (Edwards / Banister), and places it on a logarithmic 0-100 scale, so easy days sit low and an all-out day approaches 100, which stays genuinely rare. A long walk with little cardio still counts, through a steps / active-energy floor." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {

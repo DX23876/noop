@@ -213,7 +213,7 @@ internal val SETTINGS_SEARCH_WORDS: Map<ForgeSettingsPage, List<String>> = mapOf
                                               "metric", "imperial", "distance", "pace", "temperature"),
     ForgeSettingsPage.Appearance to listOf("theme", "dark mode", "light mode", "accent colour", "background", "sky",
                                            "charts", "motion", "animation"),
-    ForgeSettingsPage.Calculations to listOf("day start", "day cycle", "midnight", "effort model", "recalibrate",
+    ForgeSettingsPage.Calculations to listOf("day start", "day cycle", "midnight", "recalibrate",
                                              "reset baseline", "charge baseline"),
     ForgeSettingsPage.DataBackup to listOf("export", "import", "backup file", "noopbak", "restore", "Health Connect",
                                            "data sources", "WHOOP export", "CSV"),
@@ -1209,7 +1209,7 @@ private fun BackgroundCard() {
 private fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -> Unit, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
     val experiment = remember { PuffinExperiment.from(context) }
-    // Day start and the effort model rescore at once through the view model, as the classic rows do.
+    // Day start rescores at once through the view model, as the classic row does.
     val dayCycle = NoopPrefs.dayCycleMode(context)
     SettingsCard(title = stringResource(R.string.settings_day_cycle_title), blurb = stringResource(R.string.settings_day_cycle_description)) {
         SettingRow(stringResource(R.string.settings_day_cycle_starts)) {
@@ -1225,10 +1225,8 @@ private fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) ->
              style = Forge.type.caption, color = Forge.colors.textTertiary)
     }
     SettingsCard(title = stringResource(R.string.forge_settings_scores), blurb = null) {
-        ToggleRow(stringResource(R.string.l10n_settings_screen_effort_exponential_scale),
-                  stringResource(R.string.l10n_settings_screen_effort_exponential_scale_desc),
-                  NoopPrefs.banisterEffort(context)) { on -> change { viewModel.setBanisterEffort(on) } }
-        RowDivider()
+        // No Effort-model switch: the shared core scores Effort with one fitted curve since #2438 and ignores the
+        // former Banister preference (`CoreAnalysis.Settings.effortBanister`), as iOS removed its row.
         SettingRow(stringResource(R.string.l10n_settings_screen_hrv_window_e74320b8)) {
             Segmented(listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP), UnitPrefs.hrvWindow(context),
                       label = { stringResource(if (it == HrvWindow.DEEP_SLEEP) R.string.forge_settings_hrv_deep else R.string.forge_settings_hrv_night) },
