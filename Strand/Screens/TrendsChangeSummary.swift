@@ -98,93 +98,80 @@ struct TrendsChangeSummary: View {
     private static let deadband = 0.02
 
     var body: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("What changed").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
-                    Spacer(minLength: 8)
-                    Picker("Range", selection: $window) {
-                        Text("\(7) days").tag(7)
-                        Text("\(30) days").tag(30)
-                        Text("\(90) days").tag(90)
+        // Apple's grouping: the summary is one card, every measure that moved its own white card under it,
+        // never a card inside a card.
+        VStack(alignment: .leading, spacing: 12) {
+            NoopCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("What changed").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                            Text("Compared with the \(window) days before")
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Picker("Range", selection: $window) {
+                            Text("\(7) days").tag(7)
+                            Text("\(30) days").tag(30)
+                            Text("\(90) days").tag(90)
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
                     }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                }
-                Text("Compared with the \(window) days before")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                if !rows.isEmpty {
-                    headline
-                    tally
-                }
-                if rows.isEmpty, loaded {
-                    Text("No data yet").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                } else {
-                    VStack(spacing: 16) {
-                        // Every measure that moved gets its own card with the meaning written out; the ones
-                        // that held still share one quiet block at the end.
-                        ForEach(rows.filter { $0.verdict != .steady }) { row in insightCard(row) }
-                        let steady = rows.filter { $0.verdict == .steady }
-                        if !steady.isEmpty { steadyBlock(steady) }
+                    if !rows.isEmpty {
+                        headline
+                        tally
+                    } else if loaded {
+                        Text("No data yet").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            ForEach(rows.filter { $0.verdict != .steady }) { row in insightCard(row) }
+            let steady = rows.filter { $0.verdict == .steady }
+            if !steady.isEmpty { steadyBlock(steady) }
         }
         .task(id: "\(repo.refreshSeq)-\(window)") { await load() }
     }
 
-    /// The coach's one-line read of the span: which way it leaned and what moved most.
+    /// The span in one large line, the measure that moved most named under it.
     private var headline: some View {
         let better = rows.filter { $0.verdict == .better }
         let worse = rows.filter { $0.verdict == .worse }
-        let (title, detail, symbol, tint): (String, String, String, Color) = {
+        let (title, detail): (String, String) = {
             if better.count > worse.count, let top = better.first {
-                return (String(localized: "Strong stretch"), String(localized: "\(top.title) improved the most."),
-                        "flame.fill", StrandPalette.chargeColor)
+                return (String(localized: "Strong stretch"), String(localized: "\(top.title) improved the most."))
             }
             if worse.count > better.count, let top = worse.first {
-                return (String(localized: "Tougher stretch"), String(localized: "\(top.title) needs the most attention."),
-                        "leaf.fill", StrandPalette.effortColor)
+                return (String(localized: "Tougher stretch"), String(localized: "\(top.title) needs the most attention."))
             }
             if let top = better.first ?? worse.first {
-                return (String(localized: "Mixed picture"), String(localized: "\(top.title) moved the most."),
-                        "scalemass.fill", StrandPalette.accent)
+                return (String(localized: "Mixed picture"), String(localized: "\(top.title) moved the most."))
             }
-            return (String(localized: "Steady"), String(localized: "No real change. Steady is good when the level is where you want it."),
-                    "equal.circle.fill", StrandPalette.textSecondary)
+            return (String(localized: "Steady"), String(localized: "No real change. Steady is good when the level is where you want it."))
         }()
-        return HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(tint))
-                .shadow(color: tint.opacity(0.35), radius: 6, y: 2)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                Text(verbatim: detail).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(verbatim: title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+            Text(verbatim: detail).font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(tint.opacity(0.12)))
+        .padding(.top, 4)
         .accessibilityElement(children: .combine)
     }
 
-    /// How many measures moved which way, as three counts in their colours.
+    /// How many measures moved which way: one bar, then the counts as a dotted legend.
     private var tally: some View {
         let better = rows.filter { $0.verdict == .better }.count
         let worse = rows.filter { $0.verdict == .worse }.count
         let steady = rows.count - better - worse
         let total = max(1, rows.count)
         return VStack(alignment: .leading, spacing: 12) {
-            // The share of each verdict as one bar: the page's answer at a glance before any row.
             GeometryReader { geo in
-                let gap: CGFloat = 3
+                let gap: CGFloat = 2
                 let usable = geo.size.width - gap * 2
                 HStack(spacing: gap) {
                     ForEach(Array([(better, StrandPalette.chargeColor), (worse, StrandPalette.effortColor),
-                                   (steady, StrandPalette.textTertiary.opacity(0.45))].enumerated()), id: \.offset) { _, part in
+                                   (steady, StrandPalette.textTertiary.opacity(0.4))].enumerated()), id: \.offset) { _, part in
                         if part.0 > 0 {
                             Capsule().fill(part.1)
                                 .frame(width: max(8, usable * CGFloat(part.0) / CGFloat(total)))
@@ -192,91 +179,94 @@ struct TrendsChangeSummary: View {
                     }
                 }
             }
-            .frame(height: 10)
+            .frame(height: 8)
             .accessibilityHidden(true)
-            HStack(spacing: 8) {
-                chip(count: better, word: Text("better"), color: StrandPalette.chargeColor)
-                chip(count: worse, word: Text("worse"), color: StrandPalette.effortColor)
-                chip(count: steady, word: Text("steady"), color: StrandPalette.textSecondary)
-            }
-        }
-    }
-
-    private func chip(count: Int, word: Text, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Text(verbatim: "\(count)").font(StrandFont.headline.monospacedDigit())
-            word.font(StrandFont.caption)
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 12).padding(.vertical, 4)
-        .background(Capsule().fill(color.opacity(0.12)))
-        .accessibilityElement(children: .combine)
-    }
-
-    /// One measure that moved: its name and change large, its two spans as a wide line, and what the move
-    /// means for the wearer as a short paragraph, always visible.
-    /// One measure that moved: its own picture in its own colour, its name and change large, and what the
-    /// move means for the wearer as a short paragraph, always visible. The verdict rides on the badge.
-    private func insightCard(_ row: Row) -> some View {
-        let identity = TrendIllustration.color(row.key)
-        let verdict = color(row.verdict)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
-                TrendIllustration(key: row.key, up: row.change > 0)
-                    .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(verbatim: row.title).font(StrandFont.title2)
-                        .foregroundStyle(StrandPalette.textPrimary).lineLimit(2).minimumScaleFactor(0.8)
-                    Text(verbatim: "\(row.before) → \(row.now)").font(StrandFont.subhead.monospacedDigit())
-                        .foregroundStyle(StrandPalette.textSecondary).lineLimit(1).minimumScaleFactor(0.8)
-                    HStack(spacing: 4) {
-                        Image(systemName: row.change > 0 ? "arrow.up" : "arrow.down").font(.system(size: 12, weight: .heavy))
-                        Text(verbatim: "\(abs(Int((row.change * 100).rounded()))) %").font(StrandFont.headline.monospacedDigit())
-                        if row.verdict == .better { Text("better").font(StrandFont.caption.weight(.semibold)) }
-                        if row.verdict == .worse { Text("worse").font(StrandFont.caption.weight(.semibold)) }
-                    }
-                    .foregroundStyle(row.verdict == .neutral ? identity : verdict)
-                    .padding(.horizontal, 12).padding(.vertical, 4)
-                    .background(Capsule().fill((row.verdict == .neutral ? identity : verdict).opacity(0.14)))
-                    .fixedSize()
-                }
+            HStack(spacing: 20) {
+                legend(count: better, word: Text("better"), color: StrandPalette.chargeColor)
+                legend(count: worse, word: Text("worse"), color: StrandPalette.effortColor)
+                legend(count: steady, word: Text("steady"), color: StrandPalette.textTertiary)
                 Spacer(minLength: 0)
             }
-            Text(verbatim: row.meaning).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                .lineSpacing(2)
-                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(identity.opacity(0.12)))
+    }
+
+    private func legend(count: Int, word: Text, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(verbatim: "\(count)").font(StrandFont.subhead.weight(.semibold).monospacedDigit())
+                .foregroundStyle(StrandPalette.textPrimary)
+            word.font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+        }
         .accessibilityElement(children: .combine)
     }
 
-    /// The measures that held still, one line each, under one heading.
-    private func steadyBlock(_ steady: [Row]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "equal.circle.fill").foregroundStyle(StrandPalette.textSecondary)
-                Text("Holding steady").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-            }
-            ForEach(steady) { row in
+    /// Apple Health's category mark: the measure's symbol in white on a small square in its colour.
+    static func categoryMark(_ symbol: String, tint: Color, size: CGFloat = 32) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.5, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous).fill(tint))
+            .accessibilityHidden(true)
+    }
+
+    /// One measure that moved, as Apple writes a data card: its mark and name in the measure's colour, the
+    /// change as the large figure in plain text (a coloured figure would read as a verdict), the verdict on a small badge, one line on what it means.
+    private func insightCard(_ row: Row) -> some View {
+        let identity = TrendIllustration.color(row.key)
+        let verdict = row.verdict == .neutral ? StrandPalette.textSecondary : color(row.verdict)
+        return NoopCard {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    Image(systemName: row.icon).font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(StrandPalette.textSecondary).frame(width: 22)
-                    Text(verbatim: row.title).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(verbatim: row.now).font(StrandFont.subhead.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+                    Self.categoryMark(TrendIllustration.symbol(row.key, up: row.change > 0), tint: identity)
+                    Text(verbatim: row.title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
                 }
-                .accessibilityElement(children: .combine)
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(verbatim: "\(row.before) → \(row.now)")
+                        .font(StrandFont.rounded(28, weight: .bold)).foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    HStack(spacing: 4) {
+                        Image(systemName: row.change > 0 ? "arrow.up" : "arrow.down").font(.system(size: 11, weight: .bold))
+                        Text(verbatim: "\(abs(Int((row.change * 100).rounded()))) %")
+                        if row.verdict == .better { Text("better") }
+                        if row.verdict == .worse { Text("worse") }
+                    }
+                    .font(StrandFont.subhead.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(verdict)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Capsule().fill(verdict.opacity(0.12)))
+                    .fixedSize()
+                    Spacer(minLength: 0)
+                }
+                Text(verbatim: row.meaning).font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text("No real change. Steady is good when the level is where you want it.")
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(StrandPalette.textPrimary.opacity(0.05)))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The measures that held still, one row each in a grouped card.
+    private func steadyBlock(_ steady: [Row]) -> some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Holding steady").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                ForEach(Array(steady.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 { Divider().overlay(StrandPalette.hairline).padding(.leading, 40) }
+                    HStack(spacing: 12) {
+                        Self.categoryMark(TrendIllustration.symbol(row.key, up: false),
+                                          tint: TrendIllustration.color(row.key), size: 28)
+                        Text(verbatim: row.title).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(verbatim: row.now).font(StrandFont.subhead.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private func color(_ verdict: Verdict) -> Color {
@@ -373,6 +363,9 @@ struct TrendIllustration: View {
         default: return .pink
         }
     }
+
+    /// The measure's main symbol, for its category mark.
+    static func symbol(_ key: String, up: Bool) -> String { TrendIllustration(key: key, up: up).motif.main }
 
     private var motif: (main: String, a: String, b: String) {
         switch key {

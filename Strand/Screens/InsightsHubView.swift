@@ -108,46 +108,51 @@ struct InsightsHubView: View {
         let advice: String? = good == nil ? nil
             : good == true ? String(localized: "Something worth keeping.")
                            : String(localized: "Worth trying a few days without it.")
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 14) {
-                CoachPicture(main: look.symbol, accentA: look.accent, accentB: "sparkle", tint: look.tint)
-                    .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(verbatim: r.behavior).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(String(localized: "\(ForgeEffectWording.lag(r.lag)) · \(e.nWith + e.nWithout) days together"))
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    if e.delta != 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: e.delta > 0 ? "arrow.up" : "arrow.down").font(.system(size: 11, weight: .heavy))
-                            Text(verbatim: "\(outcome.outcomeName) \(amount)").font(StrandFont.subhead.weight(.semibold).monospacedDigit())
+        return NoopCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    TrendsChangeSummary.categoryMark(look.symbol, tint: look.tint)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: r.behavior).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(String(localized: "\(ForgeEffectWording.lag(r.lag)) · \(e.nWith + e.nWithout) days together"))
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                if e.delta != 0 {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Image(systemName: e.delta > 0 ? "arrow.up" : "arrow.down").font(.system(size: 20, weight: .bold))
+                            Text(verbatim: amount).font(StrandFont.rounded(28, weight: .bold).monospacedDigit())
                         }
-                        .foregroundStyle(verdict)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(Capsule().fill(verdict.opacity(0.14)))
-                        .fixedSize()
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        Text(verbatim: outcome.outcomeName)
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(verdict)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(Capsule().fill(verdict.opacity(0.12)))
+                            .fixedSize()
+                        Spacer(minLength: 0)
                     }
                 }
-                Spacer(minLength: 0)
+                Text(verbatim: [ForgeEffectWording.line(delta: e.delta, percent: e.pctChange), advice].compactMap { $0 }.joined(separator: " "))
+                    .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(StrandPalette.hairline)
+                HStack(spacing: 8) {
+                    Text("With \(outcome.format(e.meanWith)) · n = \(e.nWith)")
+                    Text(verbatim: "·")
+                    Text("Without \(outcome.format(e.meanWithout)) · n = \(e.nWithout)")
+                    Spacer(minLength: 8)
+                    ScoreStatePill(Self.scoreState(r.confidence))
+                }
+                .font(StrandFont.footnote.monospacedDigit())
+                .foregroundStyle(StrandPalette.textTertiary)
+                .lineLimit(1).minimumScaleFactor(0.8)
             }
-            Text(verbatim: [ForgeEffectWording.line(delta: e.delta, percent: e.pctChange), advice].compactMap { $0 }.joined(separator: " "))
-                .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Text("With \(outcome.format(e.meanWith)) · n = \(e.nWith)")
-                Text(verbatim: "·")
-                Text("Without \(outcome.format(e.meanWithout)) · n = \(e.nWithout)")
-                Spacer(minLength: 0)
-            }
-            .font(StrandFont.caption.monospacedDigit())
-            .foregroundStyle(StrandPalette.textTertiary)
-            .lineLimit(1).minimumScaleFactor(0.8)
-            ScoreStatePill(Self.scoreState(r.confidence))
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(look.tint.opacity(0.12)))
         .accessibilityElement(children: .combine)
     }
 
