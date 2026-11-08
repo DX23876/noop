@@ -159,7 +159,7 @@ struct ForgeCycleSummaryCard: View {
                 }
             }
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func subline(_ snap: ForgeCycleSnapshot) -> String? {

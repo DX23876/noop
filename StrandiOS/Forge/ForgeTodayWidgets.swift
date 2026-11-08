@@ -486,8 +486,11 @@ struct ForgeLastNightWidget: View {
             ForgePictureTile(symbol: "moon.zzz.fill", accent: "star.fill", tint: ForgeColor.rest) {
                 Text("Last night").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 if let night, let asleep {
-                    Text(verbatim: "\(asleep / 60) h \(asleep % 60) min")
-                        .font(.system(.title2, weight: .bold).monospacedDigit())
+                    // The figures large, their units small beside them, as Apple writes a duration.
+                    (Text(verbatim: "\(asleep / 60)").font(ForgeFont.figure(26))
+                     + Text(verbatim: " h ").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary)
+                     + Text(verbatim: "\(asleep % 60)").font(ForgeFont.figure(26))
+                     + Text(verbatim: " min").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary))
                         .foregroundStyle(ForgeColor.text)
                     Text(verbatim: "\(Self.time(night.start)) – \(Self.time(night.end))")
                         .font(ForgeFont.caption)
@@ -765,7 +768,7 @@ struct ForgeLastWorkoutWidget: View {
                 if let strain = row.strain {
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(ForgeToday.effortText(strain, scale: UnitPrefs.resolveEffortScale(effortScaleRaw)))
-                            .font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.effortInk)
+                            .font(ForgeFont.figure(22)).foregroundStyle(ForgeColor.effortInk)
                         Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                     }
                 }
@@ -964,7 +967,7 @@ struct ForgePictureTile<Content: View>: View {
         HStack(alignment: .center, spacing: 16) {
             CoachPicture(main: symbol, accentA: accent, accentB: "sparkle", tint: tint)
                 .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
-            VStack(alignment: .leading, spacing: 3) { content() }
+            VStack(alignment: .leading, spacing: 4) { content() }
             Spacer(minLength: 0)
         }
         .padding(16)

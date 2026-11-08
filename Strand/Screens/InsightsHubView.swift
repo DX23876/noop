@@ -124,7 +124,7 @@ struct InsightsHubView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Image(systemName: e.delta > 0 ? "arrow.up" : "arrow.down").font(.system(size: 20, weight: .bold))
-                            Text(verbatim: amount).font(StrandFont.rounded(28, weight: .bold).monospacedDigit())
+                            Text(verbatim: amount).font(StrandFont.rounded(26, weight: .medium).monospacedDigit())
                         }
                         .foregroundStyle(StrandPalette.textPrimary)
                         Text(verbatim: outcome.outcomeName)
@@ -137,7 +137,7 @@ struct InsightsHubView: View {
                     }
                 }
                 Text(verbatim: [ForgeEffectWording.line(delta: e.delta, percent: e.pctChange), advice].compactMap { $0 }.joined(separator: " "))
-                    .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Divider().overlay(StrandPalette.hairline)
                 HStack(spacing: 8) {

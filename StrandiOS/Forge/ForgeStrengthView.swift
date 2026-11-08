@@ -138,7 +138,7 @@ struct ForgeStrengthView: View {
                     Text(change).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -219,7 +219,7 @@ struct ForgeMusclesView: View {
                                   scrolledPast: $scrolledPast,
                                   picture: PagePicture(symbol: "figure.strengthtraining.traditional", accent: "bolt.fill", tint: ForgeColor.trainingData))
                 MuscleAnalyticsSurface(history: model.resolvedHistory, compact: false)
-                    .forgeCard(radius: ForgeRadius.card, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
                 Link("Body geometry: MuscleMap · MIT License",
                      destination: URL(string: "https://github.com/melihcolpan/MuscleMap")!)
                     .font(ForgeFont.caption)

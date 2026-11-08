@@ -361,7 +361,7 @@ struct ForgeTodayView: View {
     private func pinnedValue(_ label: String, _ value: String?, _ tint: Color) -> some View {
         HStack(spacing: 4) {
             Circle().fill(tint).frame(width: 8, height: 8)
-            Text(value ?? "–").font(ForgeFont.rounded(16, .bold)).foregroundStyle(ForgeColor.text)
+            Text(value ?? "–").font(ForgeFont.figure(16)).foregroundStyle(ForgeColor.text)
             Text(label).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
         }
     }
@@ -464,7 +464,7 @@ struct ForgeTodayView: View {
                 Text("Workouts, nights and notes from the coach appear here as the day goes on.")
                     .font(ForgeFont.body)
                     .foregroundStyle(ForgeColor.secondaryOnPicture)
-                    .forgeCard(radius: ForgeRadius.card, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
             }
             let todayKey = Repository.logicalDayKey(Date())
             let yesterdayKey = Repository.logicalDayKey(Date().addingTimeInterval(-86_400))
@@ -486,32 +486,112 @@ struct ForgeTodayView: View {
                             .font(ForgeFont.body)
                             .foregroundStyle(ForgeColor.secondaryOnPicture)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .forgeCard(radius: ForgeRadius.card, padding: 14)
+                            .forgeCard(radius: ForgeRadius.card, padding: 16)
                     }
                 }
+                if day.id == todayKey { nowMark }
                 ForEach(ForgeTimeline.blocks(day.entries.filter { !hidden.contains($0.id) })) { block in
                     switch block {
-                    case .card(let entry): timelineEntry(entry).id(entry.id)
-                    case .rows(let entries): rowsCard(entries)
+                    case .card(let entry):
+                        railed(time: entry.timed ? Self.timeText(entry.date) : nil, tint: railTint(entry.kind)) {
+                            timelineEntry(entry)
+                        }
+                        .id(entry.id)
+                    case .rows(let entries):
+                        // Several small events keep their own times in their rows; the rail marks the block.
+                        railed(time: nil, tint: ForgeColor.tertiary) { rowsCard(entries) }
                     }
                 }
             }
         }
     }
 
+    /// A new day on the rail: a solid dot, the day's name in bold and its date in grey.
     private func dayDivider(_ date: Date) -> some View {
-        (Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundColor(ForgeColor.text)
-         + Text(verbatim: "  ") + Text(date, format: Self.isNamedDay(date)
-            ? .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)
-            : .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
-            .font(.system(.subheadline)).foregroundColor(ForgeColor.secondaryOnPicture))
-            .lineLimit(1).fixedSize()
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Capsule().fill(ForgeColor.card.opacity(surfaceOpacity)))
-            .frame(maxWidth: .infinity)
-            .padding(.top, 6)
-            .accessibilityAddTraits(.isHeader)
+        HStack(alignment: .center, spacing: 0) {
+            Color.clear.frame(width: Self.railTimeWidth)
+            Circle().fill(ForgeColor.text).frame(width: 10, height: 10)
+                .frame(width: Self.railLineWidth)
+            (Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundColor(ForgeColor.text)
+             + Text(verbatim: "  ") + Text(date, format: Self.isNamedDay(date)
+                ? .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)
+                : .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
+                .font(.system(.subheadline)).foregroundColor(ForgeColor.secondaryOnPicture))
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .background(alignment: .leading) { railLine }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: Rail
+
+    /// The column the times stand in, wide enough for "23:59" and "11:59 PM" at the default text size.
+    private static let railTimeWidth: CGFloat = 52
+    /// The column the line and its dots run in.
+    private static let railLineWidth: CGFloat = 20
+
+    /// The thin line the day hangs on, drawn through the dot column of every row.
+    private var railLine: some View {
+        // Reaches half the gap above and below, so the rows' lines join into one.
+        Rectangle().fill(ForgeColor.separator).frame(width: 1)
+            .padding(.vertical, -6)
+            .padding(.leading, Self.railTimeWidth + Self.railLineWidth / 2 - 0.5)
+            .accessibilityHidden(true)
+    }
+
+    /// One block of the day on the rail: its time on the left, a dot in its colour on the line, the card.
+    private func railed<Content: View>(time: String?, tint: Color, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(verbatim: time ?? "")
+                .font(.system(.footnote).monospacedDigit())
+                .foregroundStyle(ForgeColor.secondaryOnPicture)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(width: Self.railTimeWidth - 6, alignment: .trailing)
+                .padding(.trailing, 6)
+                .padding(.top, 14)
+            Circle().fill(tint).frame(width: 8, height: 8)
+                .overlay(Circle().stroke(ForgeColor.canvas, lineWidth: 2))
+                .frame(width: Self.railLineWidth)
+                .padding(.top, 18)
+                .accessibilityHidden(true)
+            content()
+        }
+        .background(alignment: .leading) { railLine }
+    }
+
+    /// The dot's colour says what kind of moment it is, in the colours the rest of the app uses for it.
+    private func railTint(_ kind: ForgeTimeline.Entry.Kind) -> Color {
+        switch kind {
+        case .coach: ForgeColor.accent
+        case .workout, .walks: ForgeColor.effort
+        case .wake, .nap, .dayEnd: ForgeColor.rest
+        case .weight, .dayLog, .ecg, .notice: ForgeColor.tertiary
+        }
+    }
+
+    /// Where the reader stands in the day: the time now on a small capsule, at the top of today.
+    private var nowMark: some View {
+        HStack(alignment: .center, spacing: 0) {
+            Text(Self.timeText(Date()))
+                .font(.system(.footnote, weight: .semibold).monospacedDigit())
+                .foregroundStyle(ForgeColor.effortInk)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(width: Self.railTimeWidth - 6, alignment: .trailing)
+                .padding(.trailing, 6)
+            Circle().fill(ForgeColor.effort).frame(width: 10, height: 10)
+                .frame(width: Self.railLineWidth)
+            Text("Now")
+                .font(.system(.caption, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Capsule().fill(ForgeColor.effort))
+            Spacer(minLength: 0)
+        }
+        .background(alignment: .leading) { railLine }
+        .accessibilityElement(children: .combine)
     }
 
     /// Today and yesterday are named by word, so their divider adds the weekday; any other day's title is
@@ -532,10 +612,10 @@ struct ForgeTodayView: View {
     }
 
     /// One of the day's large entries on its own card: the morning, the evening, a coach note, a notice.
-    /// Its time sits in its own top line, as in Mail.
+    /// Its time stands on the rail beside it.
     private func timelineEntry(_ entry: ForgeTimeline.Entry) -> some View {
         entryCard(entry)
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
             // New since the reader last left Today, like an unread mail.
             .overlay(alignment: .topTrailing) {
                 if isNew(entry) { newDot.padding(5) }
@@ -552,8 +632,8 @@ struct ForgeTodayView: View {
                     Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 60)
                 }
                 entryCard(entry)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                     .id(entry.id)
                     .overlay(alignment: .topLeading) {
                         if isNew(entry) { newDot.padding(.leading, 8).padding(.top, 10) }
@@ -574,9 +654,10 @@ struct ForgeTodayView: View {
             .accessibilityLabel(Text("New"))
     }
 
-    /// The time an entry shows in its top line, nil for a figure that only knows its day.
+    /// The time an entry shows in its own line, nil for a figure that only knows its day. A large entry
+    /// has its time on the rail beside it, so only a row in a card of several carries its own.
     private func time(_ entry: ForgeTimeline.Entry) -> String? {
-        entry.timed ? Self.timeText(entry.date) : nil
+        entry.timed && ForgeTimeline.isRow(entry.kind) ? Self.timeText(entry.date) : nil
     }
 
     /// Holding an entry: hide it, ask why, hear its kind less often or not at all, or correct what it shows.
@@ -697,8 +778,6 @@ struct ForgeTodayView: View {
                             .font(.system(.body, weight: .semibold)).foregroundStyle(ForgeColor.text)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 6)
-                        Text(Self.timeText(notice.date)).font(.system(.footnote).monospacedDigit())
-                            .foregroundStyle(ForgeColor.secondaryOnPicture)
                     }
                     if !notice.detail.isEmpty {
                         Text(notice.detail)
@@ -784,7 +863,7 @@ struct ForgeTodayView: View {
         case .afterWorkout: label = String(localized: "Coach · after your workout")
         case .evening: label = String(localized: "Coach · evening")
         }
-        return "\(Self.timeText(entry.date)) · \(label)"
+        return label
     }
 
     private func coachCard(_ entry: ForgeTimeline.Entry, origin: ForgeTimeline.CoachNote.Origin) -> some View {
@@ -1054,7 +1133,7 @@ struct ForgeTodayView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -1140,7 +1219,7 @@ struct ForgeTodayView: View {
                     Spacer()
                     if let strain = row.strain {
                         Text(ForgeToday.effortText(strain, scale: effortScale))
-                            .font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
+                            .font(ForgeFont.figure(20)).foregroundStyle(ForgeColor.text)
                     }
                 }
                 .padding(10)
@@ -1326,8 +1405,6 @@ struct ForgeTodayView: View {
                     .font(.system(.footnote, weight: .semibold))
                     .foregroundStyle(ForgeColor.accent)
                 Spacer(minLength: 6)
-                Text(Self.timeText(end.date)).font(.system(.footnote).monospacedDigit())
-                    .foregroundStyle(ForgeColor.secondaryOnPicture)
             }
             if let effort = snapshot.effortStored, let target = effortTarget, snapshot.charge.carriedCaption == nil {
                 ForgeEffortTargetBar(effort: effort, target: target, scale: effortScale)
@@ -1439,7 +1516,7 @@ struct ForgeTodayView: View {
                     }
                     Spacer(minLength: 6)
                     if let value {
-                        (Text(value).font(ForgeFont.rounded(19, .bold)).foregroundColor(ForgeColor.text)
+                        (Text(value).font(ForgeFont.figure(19)).foregroundColor(ForgeColor.text)
                          + Text(unit.isEmpty ? "" : " " + unit).font(.system(.caption)).foregroundColor(ForgeColor.secondaryOnPicture))
                             .lineLimit(1)
                     }

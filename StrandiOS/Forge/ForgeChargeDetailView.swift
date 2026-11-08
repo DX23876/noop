@@ -178,7 +178,7 @@ struct ForgeChargeDetailView: View {
                                 .accessibilityLabel(Text(ChargeBreakdownFormat.driverAccessibilityLabel(driver)))
                         }
                     }
-                    .forgeCard(radius: ForgeRadius.card, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
                 } else if case .calibrating(let nights) = display {
                     ForgeTabHero(overline: String(localized: "Calibrating"),
                                  headline: ChargeBreakdownFormat.calibrationCountdown(nightsRemaining: nights))

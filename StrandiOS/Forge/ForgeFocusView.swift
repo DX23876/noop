@@ -265,7 +265,7 @@ struct ForgeFocusTile: View {
                 .lineLimit(2).multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
         .accessibilityElement(children: .combine)
     }
 }

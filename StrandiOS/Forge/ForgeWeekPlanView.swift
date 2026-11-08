@@ -137,7 +137,7 @@ struct ForgeWeekPlanView: View {
                 }
             }
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     // MARK: Day rows
@@ -167,7 +167,7 @@ struct ForgeWeekPlanView: View {
         return HStack(spacing: 14) {
             VStack(spacing: 0) {
                 Text(day.date, format: .dateTime.day().locale(AppLanguage.activeLocale))
-                    .font(ForgeFont.rounded(20, .semibold))
+                    .font(ForgeFont.figure(20))
                     .foregroundStyle(past && day.done.isEmpty ? ForgeColor.secondary : ForgeColor.text)
                 Text(day.date, format: .dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale))
                     .font(.system(.caption)).foregroundStyle(ForgeColor.secondary)

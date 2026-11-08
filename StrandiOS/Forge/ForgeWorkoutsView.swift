@@ -156,7 +156,7 @@ struct ForgeWorkoutsView: View {
             .accessibilityLabel(Text("Training days in the last 13 weeks"))
             .accessibilityValue(Text("\(Set(load.keys).count) days with a workout"))
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     // MARK: This week
@@ -171,12 +171,12 @@ struct ForgeWorkoutsView: View {
             stat(ForgeTrainingView.duration(minutes), String(localized: "time"))
             stat(ForgeToday.effortText(effort, scale: effortScale), String(localized: "Effort total"))
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.text).lineLimit(1).minimumScaleFactor(0.7)
+            Text(value).font(ForgeFont.figure(22)).foregroundStyle(ForgeColor.text).lineLimit(1).minimumScaleFactor(0.7)
             Text(label).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -221,7 +221,7 @@ struct ForgeWorkoutsView: View {
             Spacer(minLength: 8)
             if let strain = row.strain {
                 VStack(alignment: .trailing, spacing: 0) {
-                    Text(ForgeToday.effortText(strain, scale: effortScale)).font(ForgeFont.rounded(19, .bold))
+                    Text(ForgeToday.effortText(strain, scale: effortScale)).font(ForgeFont.figure(19))
                         .foregroundStyle(ForgeColor.effortInk)
                     Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                 }

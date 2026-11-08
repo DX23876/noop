@@ -95,7 +95,7 @@ struct ForgeCoachWhySheet: View {
                             .font(.system(.callout, weight: .semibold))
                         }
                         .tint(ForgeColor.accent)
-                        .forgeCard(radius: ForgeRadius.card, padding: 14)
+                        .forgeCard(radius: ForgeRadius.card, padding: 16)
                     }
                     Button(action: onCoachSettings) {
                         Label("Coach settings, memory and usage", systemImage: "slider.horizontal.3")

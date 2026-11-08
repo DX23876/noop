@@ -28,13 +28,13 @@ struct ForgeNightBreakdown: View {
             shaped
             ForgeSectionTitle(title: "Sleep debt")
             SleepDebtLedgerCard(model: model)
-                .forgeCard(radius: ForgeRadius.card, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 16)
             if let phase = appModel.circadianPhase, phase.confidence != .unreadable {
                 ForgeSectionTitle(title: "Body clock")
                 BodyClockDialCard(estimate: phase,
                                   actualBedHour: SleepView.localClockHour(night.session.effectiveStartTs),
                                   actualWakeHour: SleepView.localClockHour(night.session.endTs))
-                    .forgeCard(radius: ForgeRadius.card, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
             }
         }
     }
@@ -74,7 +74,7 @@ struct ForgeNightBreakdown: View {
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -96,7 +96,7 @@ struct ForgeNightBreakdown: View {
                 }
             }
             .frame(height: 12)
-            Text(Self.duration(r.minutes)).font(ForgeFont.rounded(15, .semibold)).foregroundStyle(ForgeColor.text)
+            Text(Self.duration(r.minutes)).font(ForgeFont.figure(15)).foregroundStyle(ForgeColor.text)
                 .frame(width: 52, alignment: .trailing)
         }
         .accessibilityElement(children: .ignore)
@@ -153,7 +153,7 @@ struct ForgeNightBreakdown: View {
                     shapedRow(r.0, value: r.1, typical: r.2, unit: r.3, higherIsBetter: r.4)
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -172,7 +172,7 @@ struct ForgeNightBreakdown: View {
                     if let usual { Text(usual).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary) }
                 }
                 Spacer(minLength: 8)
-                Text(value).font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
+                Text(value).font(ForgeFont.figure(20)).foregroundStyle(ForgeColor.text)
                     .contentTransition(.numericText())
                 if higherIsBetter { ForgeDirection(delta: delta) }
             }
@@ -222,7 +222,7 @@ struct ForgeShareRing: View {
                 }
                 VStack(spacing: 0) {
                     Text("\(Int(value.rounded()))")
-                        .font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.text)
+                        .font(ForgeFont.figure(22)).foregroundStyle(ForgeColor.text)
                         .lineLimit(1).minimumScaleFactor(0.7)
                     Text(verbatim: "%").font(.system(.caption2, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
                 }

@@ -299,7 +299,7 @@ struct ForgeSleepView: View {
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
             }
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     // MARK: Naps
@@ -318,7 +318,7 @@ struct ForgeSleepView: View {
                         napRow(nap)
                     }
                 }
-                .forgeCard(radius: ForgeRadius.card, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 16)
             }
         }
     }
@@ -350,7 +350,7 @@ struct ForgeSleepView: View {
 
     private func stageFact(_ label: String, _ minutes: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(ForgeTodayView.hoursMinutes(minutes)).font(ForgeFont.rounded(17, .bold)).foregroundStyle(ForgeColor.text)
+            Text(ForgeTodayView.hoursMinutes(minutes)).font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text)
             HStack(spacing: 4) {
                 Circle().fill(color).frame(width: 7, height: 7)
                 Text(label).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
@@ -417,7 +417,7 @@ struct ForgeSleepView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .frame(height: 110)
-                .forgeCard(radius: ForgeRadius.card, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 16)
             }
         }
     }
@@ -504,7 +504,7 @@ struct ForgeSleepView: View {
                 }
                 .accessibilityElement(children: .combine)
                 }
-                .forgeCard(radius: ForgeRadius.card, padding: 14)
+                .forgeCard(radius: ForgeRadius.card, padding: 16)
             }
         }
     }
@@ -579,7 +579,7 @@ struct ForgeNightSignalTile: View {
                 .font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
                 .labelStyle(.titleAndIcon).lineLimit(1).minimumScaleFactor(0.8)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(signal.value ?? "–").font(ForgeFont.rounded(26, .bold)).foregroundStyle(ForgeColor.text)
+                Text(signal.value ?? "–").font(ForgeFont.figure(26)).foregroundStyle(ForgeColor.text)
                     .lineLimit(1).minimumScaleFactor(0.7)
                 if signal.value != nil, !signal.unit.isEmpty {
                     Text(signal.unit).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary)
@@ -607,7 +607,7 @@ struct ForgeNightSignalTile: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(signal.label))
         .accessibilityValue(Text(verbatim: [signal.value ?? "–", signal.unit].filter { !$0.isEmpty }.joined(separator: " ")))

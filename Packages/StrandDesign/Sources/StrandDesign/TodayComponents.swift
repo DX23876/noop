@@ -180,7 +180,9 @@ public struct TodayMetricTile<Accessory: View>: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(value)
-                    .font(StrandFont.number(dense ? denseValueSize : regularValueSize))
+                    // The new design writes figures at medium weight: large, not loud.
+                    .font(StrandFont.number(dense ? denseValueSize : regularValueSize,
+                                            weight: NoopVisualStyle.skin == .forge ? .medium : .semibold))
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.58)

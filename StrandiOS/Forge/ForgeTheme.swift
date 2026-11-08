@@ -120,8 +120,11 @@ enum ForgeFont {
     static let largeTitle = StrandFont.title1
     /// A tab's title in its one-row header: small, the picture and the rings are the page.
     static let headerTitle = Font.system(.title3, design: .rounded, weight: .bold)
-    static let section = Font.system(.title2, weight: .bold)
-    static let cardTitle = Font.system(.title3, weight: .semibold)
+    static let section = Font.system(.title3, weight: .bold)
+    static let cardTitle = Font.system(.headline)
+    /// A value in a card: SF Rounded at medium weight, so the figure is large without shouting; its unit
+    /// sits beside it in footnote grey.
+    static func figure(_ size: CGFloat) -> Font { rounded(size, .medium).monospacedDigit() }
     static let body = Font.system(.subheadline)
     static let caption = Font.system(.footnote)
     static let overDate = Font.system(.footnote, weight: .semibold)
@@ -363,7 +366,7 @@ struct ForgeSectionTitle: View {
             }
         }
         .padding(.horizontal, 4)
-        .padding(.top, 14)
+        .padding(.top, 12)
     }
 }
 

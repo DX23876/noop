@@ -73,7 +73,7 @@ struct ForgeEffortDetailView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .forgeCard(radius: ForgeRadius.card, padding: 14)
+                        .forgeCard(radius: ForgeRadius.card, padding: 16)
                     }
                 }
 
@@ -124,7 +124,7 @@ struct ForgeEffortDetailView: View {
             if let strain = row.strain {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(ForgeToday.effortText(strain, scale: effortScale))
-                        .font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
+                        .font(ForgeFont.figure(19)).foregroundStyle(ForgeColor.text)
                     Text(DomainTheme.effort.productName).font(.system(.caption)).foregroundStyle(ForgeColor.secondary)
                 }
             }
@@ -193,7 +193,7 @@ struct ForgeRestDetailView: View {
                                 factor(f.0, f.1)
                             }
                         }
-                        .forgeCard(radius: ForgeRadius.card, padding: 14)
+                        .forgeCard(radius: ForgeRadius.card, padding: 16)
                     }
                 }
 
@@ -377,7 +377,7 @@ struct ForgeDailyChart: View {
                     Text("Not enough days yet.").font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 }
@@ -464,11 +464,12 @@ struct ForgeWhyRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 // Driver labels come from the analytics package in English; the catalog carries their translations.
-                Text(LocalizedStringKey(label)).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    .lineLimit(2).layoutPriority(1)
+                // The label wraps before the figure shrinks: a value cut to "14…" says nothing.
+                Text(LocalizedStringKey(label)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    .lineLimit(2)
                 Spacer(minLength: 8)
-                Text(value).font(ForgeFont.rounded(19, .regular)).foregroundStyle(ForgeColor.text)
-                    .lineLimit(1).minimumScaleFactor(0.6)
+                Text(value).font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text)
+                    .lineLimit(1).fixedSize().layoutPriority(1)
                 ForgeDirection(delta: delta).frame(minWidth: 64, alignment: .trailing)
             }
             if let track {

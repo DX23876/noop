@@ -38,8 +38,9 @@ public enum StrandFont {
     }
 
     /// SF Rounded at an arbitrary fixed size/weight — the house score numeral.
-    public static func rounded(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        roundedSystem(size, weight: weight).monospacedDigit()
+    /// Without a weight the new design writes it semibold, the classic one bold.
+    public static func rounded(_ size: CGFloat, weight: Font.Weight? = nil) -> Font {
+        roundedSystem(size, weight: weight ?? (NoopVisualStyle.skin == .forge ? .semibold : .bold)).monospacedDigit()
     }
 
     /// Native rounded title. Scales through the complete Dynamic Type curve.
@@ -51,8 +52,9 @@ public enum StrandFont {
     public static let heroNumber = Font.system(.largeTitle, design: .rounded)
         .weight(.bold).monospacedDigit()
 
-    /// Native rounded secondary title.
-    public static var title2: Font { NoopVisualStyle.skin == .forge ? Font.title2.weight(.bold) : Font.system(.title2, design: .rounded).weight(.semibold) }
+    /// Native rounded secondary title. The new design sets section headings one step down, as Apple's
+    /// apps do, so the one large figure in a card is the loudest thing under them.
+    public static var title2: Font { NoopVisualStyle.skin == .forge ? Font.title3.weight(.bold) : Font.system(.title2, design: .rounded).weight(.semibold) }
 
     /// Native UI headline.
     public static let headline = Font.headline.weight(.semibold)
@@ -105,8 +107,9 @@ public enum StrandFont {
     // MARK: Numeric variants (tabular digits)
 
     /// A rounded numeric style at an arbitrary size/weight for live values.
-    public static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        roundedSystem(size, weight: weight).monospacedDigit()
+    /// Without a weight the new design writes figures at medium weight, the classic one semibold.
+    public static func number(_ size: CGFloat, weight: Font.Weight? = nil) -> Font {
+        roundedSystem(size, weight: weight ?? (NoopVisualStyle.skin == .forge ? .medium : .semibold)).monospacedDigit()
     }
 
     #if os(iOS)

@@ -610,10 +610,14 @@ extension View {
 struct ForgeSectionHeading: View {
     let title: LocalizedStringKey
     var note: String?
+    /// A link at the heading's end, in the control colour ("All", "Customize"), as in Apple's apps.
+    var link: (label: LocalizedStringKey, run: () -> Void)?
 
-    init(_ title: LocalizedStringKey, note: String? = nil) {
+    init(_ title: LocalizedStringKey, note: String? = nil,
+         link: (label: LocalizedStringKey, run: () -> Void)? = nil) {
         self.title = title
         self.note = note
+        self.link = link
     }
 
     var body: some View {
@@ -628,7 +632,13 @@ struct ForgeSectionHeading: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
             }
+            if let link {
+                Button(action: link.run) { Text(link.label).font(StrandFont.body) }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StrandPalette.controlStyle)
+            }
         }
+        .padding(.top, 8)
     }
 }
 

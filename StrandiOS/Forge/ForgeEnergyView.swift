@@ -81,7 +81,7 @@ struct ForgeEnergyView: View {
                         ProgressView()
                         Text("Loading energy…").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     }
-                    .forgeCard(radius: ForgeRadius.card, padding: 14)
+                    .forgeCard(radius: ForgeRadius.card, padding: 16)
                 } else if let summary {
                     hero(summary)
                     if refreshingToday && isToday {
@@ -271,7 +271,7 @@ struct ForgeEnergyView: View {
 
     private func figure(_ color: Color, _ title: String, _ value: Double?) -> some View {
         VStack(spacing: 4) {
-            Text(value.map(kcal) ?? "–").font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.text)
+            Text(value.map(kcal) ?? "–").font(ForgeFont.figure(22)).foregroundStyle(ForgeColor.text)
                 .monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
                 .contentTransition(.numericText())
             HStack(spacing: 4) {
@@ -313,7 +313,7 @@ struct ForgeEnergyView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Spacer(minLength: 8)
-                    Text(value.map(kcal) ?? "–").font(ForgeFont.rounded(17, .bold)).foregroundStyle(ForgeColor.text)
+                    Text(value.map(kcal) ?? "–").font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text)
                         .monospacedDigit()
                     Text(verbatim: "kcal").font(.system(.caption2, weight: .medium)).foregroundStyle(ForgeColor.secondary)
                 }
@@ -356,7 +356,7 @@ struct ForgeEnergyView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -486,7 +486,7 @@ struct ForgeEnergyView: View {
                     Text("Tap a day to open it.").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 
@@ -509,7 +509,7 @@ struct ForgeEnergyView: View {
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(.plain)
     }
@@ -526,7 +526,7 @@ struct ForgeEnergyView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     // MARK: - Loading (as `EnergyDetailView`)
@@ -685,7 +685,7 @@ struct ForgeEnergyBalance: View {
                 Text(isToday ? "Balance so far" : "Balance").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 Spacer()
                 Text("\((balance > 0 ? "+" : balance < 0 ? "−" : "") + Int(abs(balance).rounded()).formatted(.number.locale(AppLanguage.activeLocale))) kcal")
-                    .font(ForgeFont.rounded(17, .bold)).foregroundStyle(ForgeColor.text).monospacedDigit()
+                    .font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text).monospacedDigit()
             }
             GeometryReader { geo in
                 let half = geo.size.width / 2

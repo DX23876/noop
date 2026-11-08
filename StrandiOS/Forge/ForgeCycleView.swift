@@ -180,7 +180,7 @@ struct ForgeCycleView: View {
             temperatureCard(snap)
         }
         ForgeCycleCalendar(snap: snap)
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         if appModel.cyclePhase != nil {
             Button { showingHistory = true } label: {
                 ForgeRow(systemImage: "calendar", tint: ForgeColor.secondary, title: String(localized: "Cycle history"),
@@ -311,7 +311,7 @@ struct ForgeCycleView: View {
                 .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 }
 
@@ -710,7 +710,7 @@ struct ForgeCycleTopicCard: View {
         }
         .frame(width: 250, alignment: .topLeading)
         .frame(minHeight: 190, alignment: .topLeading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
         .accessibilityElement(children: .combine)
     }
 
@@ -974,7 +974,7 @@ struct ForgeCycleLogSheet: View {
             ForgeFlowLayout(spacing: 8) { chips() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func chip(_ title: String, on: Bool, tint: Color, action: @escaping () -> Void) -> some View {

@@ -82,7 +82,6 @@ object ForgeTokens {
         const val rowSpacing: Float = 10f
         const val screenHPadding: Float = 16f
         const val screenPadding: Float = 16f
-        const val sectionGap: Float = 22f
         const val sourceBadgeHeight: Float = 18f
         const val space1: Float = 4f
         const val space10: Float = 40f
@@ -140,7 +139,7 @@ object ForgeTokens {
         val overline = ForgeFont(size = 11f, weight = 600, rounded = false)
         val subhead = ForgeFont(size = 13f, weight = 400, rounded = false)
         val title1 = ForgeFont(size = 28f, weight = 700, rounded = false)
-        val title2 = ForgeFont(size = 22f, weight = 700, rounded = false)
+        val title2 = ForgeFont(size = 20f, weight = 700, rounded = false)
     }
     object StrandPalette {
         val agelessOld = ForgeColor(light = 0xFFD9435A, dark = 0xFFFF6B80)

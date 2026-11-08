@@ -228,7 +228,7 @@ struct ForgeWeeklyReportView: View {
         VStack(alignment: .leading, spacing: 4) {
             Label(label, systemImage: icon).font(.system(.footnote, weight: .semibold)).foregroundStyle(tint)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value).font(ForgeFont.rounded(24, .semibold)).foregroundStyle(ForgeColor.text)
+                Text(value).font(ForgeFont.figure(24)).foregroundStyle(ForgeColor.text)
                 if let unit { Text(unit).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary) }
             }
             .lineLimit(1).minimumScaleFactor(0.7)
@@ -270,7 +270,7 @@ struct ForgeWeeklyReportView: View {
             .frame(height: 150)
             legend([(String(localized: "This week"), ForgeColor.charge, false), (String(localized: "Last week"), ForgeColor.tertiary, true)])
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func sleepBars(_ week: ForgeWeekly.Week) -> some View {
@@ -297,7 +297,7 @@ struct ForgeWeeklyReportView: View {
             legend([(String(localized: "Asleep"), ForgeColor.rest, false),
                     (String(localized: "Need \(ForgeTodayView.hoursMinutes(need * 60)) h"), ForgeColor.secondary, true)])
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func effortBars(_ week: ForgeWeekly.Week) -> some View {
@@ -315,7 +315,7 @@ struct ForgeWeeklyReportView: View {
             .chartXAxis { weekdayAxis(week) }
             .frame(height: 140)
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private func legend(_ items: [(String, Color, Bool)]) -> some View {

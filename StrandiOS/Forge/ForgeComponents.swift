@@ -20,7 +20,7 @@ struct ForgeGroup<Content: View>: View {
 /// The inset hairline between two `ForgeRow`s, aligned with the row titles.
 struct ForgeRowDivider: View {
     var body: some View {
-        Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 58)
+        Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 66)
     }
 }
 
@@ -68,7 +68,7 @@ struct ForgeRow: View {
             Spacer(minLength: 8)
             if let value {
                 VStack(alignment: .trailing, spacing: 0) {
-                    Text(value).font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
+                    Text(value).font(ForgeFont.figure(19)).foregroundStyle(ForgeColor.text)
                     if let unit { Text(unit).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary) }
                 }
             }
@@ -79,7 +79,7 @@ struct ForgeRow: View {
                     .accessibilityHidden(true)
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .padding(.vertical, compact ? 8 : 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
@@ -131,7 +131,7 @@ struct ForgeMetricTile: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value ?? "–").font(ForgeFont.rounded(28, .bold)).foregroundStyle(ForgeColor.text)
+                Text(value ?? "–").font(ForgeFont.figure(28)).foregroundStyle(ForgeColor.text)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 if value != nil {
                     Text(unit).font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary)
@@ -172,7 +172,7 @@ struct ForgeMetricTile: View {
             if let badge { ForgeBadge(text: badge.text, tone: badge.tone) }
         }
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
         .accessibilityElement(children: .combine)
     }
 }
@@ -186,7 +186,7 @@ struct ForgeTabHero<Accessory: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(overline).font(.system(.subheadline, weight: .medium)).foregroundStyle(ForgeColor.secondary)
-            Text(headline).font(.system(.title, weight: .bold)).foregroundStyle(ForgeColor.text)
+            Text(headline).font(.system(.title2, weight: .bold)).foregroundStyle(ForgeColor.text)
                 .fixedSize(horizontal: false, vertical: true)
             accessory()
         }

@@ -101,23 +101,24 @@ struct TrendsChangeSummary: View {
         // Apple's grouping: the summary is one card, every measure that moved its own white card under it,
         // never a card inside a card.
         VStack(alignment: .leading, spacing: 12) {
+            // The heading stands above its cards, the range picker at its end, as in Apple's apps.
+            HStack(alignment: .firstTextBaseline) {
+                Text("What changed").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                Picker("Range", selection: $window) {
+                    Text("\(7) days").tag(7)
+                    Text("\(30) days").tag(30)
+                    Text("\(90) days").tag(90)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
+            .padding(.horizontal, 4)
             NoopCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("What changed").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
-                            Text("Compared with the \(window) days before")
-                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                        }
-                        Spacer(minLength: 8)
-                        Picker("Range", selection: $window) {
-                            Text("\(7) days").tag(7)
-                            Text("\(30) days").tag(30)
-                            Text("\(90) days").tag(90)
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                    }
+                    Text("Compared with the \(window) days before")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     if !rows.isEmpty {
                         headline
                         tally
@@ -151,11 +152,10 @@ struct TrendsChangeSummary: View {
             return (String(localized: "Steady"), String(localized: "No real change. Steady is good when the level is where you want it."))
         }()
         return VStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+            Text(verbatim: title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
             Text(verbatim: detail).font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.top, 4)
         .accessibilityElement(children: .combine)
     }
 
@@ -225,7 +225,7 @@ struct TrendsChangeSummary: View {
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                     Text(verbatim: "\(row.before) → \(row.now)")
-                        .font(StrandFont.rounded(28, weight: .bold)).foregroundStyle(StrandPalette.textPrimary)
+                        .font(StrandFont.rounded(26, weight: .medium)).foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1).minimumScaleFactor(0.7)
                     HStack(spacing: 4) {
                         Image(systemName: row.change > 0 ? "arrow.up" : "arrow.down").font(.system(size: 11, weight: .bold))
@@ -240,7 +240,7 @@ struct TrendsChangeSummary: View {
                     .fixedSize()
                     Spacer(minLength: 0)
                 }
-                Text(verbatim: row.meaning).font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
+                Text(verbatim: row.meaning).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

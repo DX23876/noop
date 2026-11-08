@@ -41,7 +41,7 @@ struct ForgeAgeLessView: View {
                     more
                 } else {
                     // No sex in the profile, too few nights, or still loading: the shipped section says which.
-                    HealthspanSection().forgeCard(radius: ForgeRadius.card, padding: 14)
+                    HealthspanSection().forgeCard(radius: ForgeRadius.card, padding: 16)
                 }
             }
             .padding(.horizontal, 16)
@@ -112,7 +112,7 @@ struct ForgeAgeLessView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     // MARK: Where the years come from
@@ -138,7 +138,7 @@ struct ForgeAgeLessView: View {
                         Text(HealthspanSection.domainName(d)).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
                             .frame(width: 70, alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
                         ForgeYearsBar(years: years, span: span).frame(height: 14)
-                        Text(HealthspanSection.signedYears(years)).font(ForgeFont.rounded(15, .semibold))
+                        Text(HealthspanSection.signedYears(years)).font(ForgeFont.figure(15))
                             .foregroundStyle(years <= 0 ? ForgeColor.chargeInk : ForgeColor.effortInk)
                             .frame(width: 70, alignment: .trailing)
                         Image(systemName: open.contains(d) ? "chevron.up" : "chevron.down")
@@ -226,7 +226,7 @@ struct ForgeAgeLessView: View {
             Text("Dashed: your actual age. Tap or drag to show another week.")
                 .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 
     private var more: some View {
@@ -343,7 +343,7 @@ struct ForgeAgeLessSummary: View {
                     Text("Your health age").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(.plain)
     }

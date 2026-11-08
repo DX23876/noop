@@ -192,7 +192,7 @@ struct ForgeHealthView: View {
                     }
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
     }

@@ -125,7 +125,7 @@ struct ForgeTrainingView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(workouts.isEmpty ? String(localized: "No workouts yet")
                                       : String(localized: "\(workouts.count) workouts"))
-                    .font(.system(.title, weight: .bold)).foregroundStyle(ForgeColor.text)
+                    .font(.system(.title2, weight: .bold)).foregroundStyle(ForgeColor.text)
                 if !workouts.isEmpty {
                     Text(Self.duration(minutes)).font(.system(.body, weight: .medium))
                         .foregroundStyle(ForgeColor.secondary)
@@ -250,7 +250,7 @@ struct ForgeTrainingView: View {
                     }
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         } else if coachFeatureEnabled {
             ForgeChip(title: String(localized: "Plan today with the coach"), systemImage: "sparkles", prominent: true) {
                 onAsk(String(localized: "Look at my Charge, this week's training and my routines, and suggest what I should train today."))
@@ -383,7 +383,7 @@ struct ForgeTrainingView: View {
             if let strain = row.strain {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(ForgeToday.effortText(strain, scale: effortScale))
-                        .font(ForgeFont.rounded(19, .bold)).foregroundStyle(ForgeColor.text)
+                        .font(ForgeFont.figure(19)).foregroundStyle(ForgeColor.text)
                     Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                 }
             }

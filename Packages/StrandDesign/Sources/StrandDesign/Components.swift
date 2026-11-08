@@ -13,7 +13,8 @@ public enum NoopMetrics {
     public static let heroRadius: CGFloat = 30
     public static let cardPadding: CGFloat = 16  // Apple x WHOOP: roomier card interior
     public static let gap: CGFloat = 12          // gap between cards
-    public static let sectionGap: CGFloat = 22   // Apple x WHOOP: breathing room (not cramped)
+    /// Breathing room between sections: 24 in the new design (its 4/8 grid), 22 in the classic one.
+    public static var sectionGap: CGFloat { NoopVisualStyle.skin == .forge ? 24 : 22 }
     public static let screenPadding: CGFloat = 16
     public static let tileHeight: CGFloat = 96   // Design Reset: tighter metric tile
     // Key Metrics grid: one fixed height every tile snaps to, so a sparkline-and-caption tile and a
