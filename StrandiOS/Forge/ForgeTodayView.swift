@@ -377,7 +377,7 @@ struct ForgeTodayView: View {
                 ScoreRing(model: face.model, tint: face.tint, score: face.score, decimals: face.decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
-                // Small tracked capitals in white with a chevron, as Liquid Today writes them: quiet beside the
+                // Small tracked capitals in grey with a chevron, as Liquid Today writes them: quiet beside the
                 // glowing rings, and they say the ring opens its page.
                 HStack(spacing: 4) {
                     Text(face.label.uppercased(with: AppLanguage.activeLocale))
@@ -385,7 +385,7 @@ struct ForgeTodayView: View {
                         .tracking(1.5)
                     Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundStyle(.white.opacity(0.88))
+                .foregroundStyle(ForgeColor.secondary)
                 .lineLimit(1).minimumScaleFactor(0.8)
                 .padding(.top, 8)
             }
@@ -1831,31 +1831,35 @@ private struct ForgeTodayEdges: View {
     }
 }
 
-/// The rings' own card, as Liquid Today draws it: a dark chamber in light and dark appearance alike, so the
-/// glowing rings always have darkness behind them, with large rounded corners and a soft shadow that set it
-/// apart from the tiles under it. On a photo or with see-through cards it turns to glass over the chamber.
+/// The rings' own card, as Liquid Today draws it: a light raised card in light appearance (never thinner than
+/// a readable floor over a photo), a dark chamber in dark appearance so the glowing rings have darkness
+/// behind them, with large rounded corners and a soft shadow that set it apart from the tiles under it.
 private struct ForgeHeroChamber: ViewModifier {
     @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.forgeSurfaceOpacity) private var surfaceOpacity
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
         let opacity = reduceTransparency ? 1 : surfaceOpacity ?? max(0.35, Double(opacityPercent) / 100)
         content
-            .environment(\.colorScheme, .dark)
             .frame(maxWidth: .infinity)
             .background {
-                ZStack {
-                    shape.fill(StrandPalette.organicHeroChamber.opacity(0.78 + opacity * 0.22))
-                    if opacity < 0.99 && !reduceTransparency {
-                        shape.fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + opacity * 0.12))
-                            .liquidGlass(in: shape)
-                            .opacity(opacity)
+                if colorScheme == .light {
+                    shape.fill(StrandPalette.surfaceRaised.opacity(reduceTransparency ? 1 : max(0.72, min(1, opacity))))
+                        .shadow(color: .black.opacity(0.08), radius: 14, y: 5)
+                } else {
+                    ZStack {
+                        shape.fill(StrandPalette.organicHeroChamber.opacity(0.78 + opacity * 0.22))
+                        if opacity < 0.99 && !reduceTransparency {
+                            shape.fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + opacity * 0.12))
+                                .liquidGlass(in: shape)
+                                .opacity(opacity)
+                        }
                     }
+                    .shadow(color: .black.opacity(0.34), radius: 18, y: 8)
                 }
-                .environment(\.colorScheme, .dark)
-                .shadow(color: .black.opacity(0.22), radius: 18, y: 8)
             }
     }
 }
