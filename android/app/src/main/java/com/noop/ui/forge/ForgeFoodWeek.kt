@@ -24,7 +24,6 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -220,29 +219,53 @@ internal fun ForgeFoodScorePage(score: CoreFood.Score, male: Boolean, onBack: ()
             }
         }
         Text(stringResource(R.string.food_score_about), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
-        ForgeCard(Modifier.fillMaxWidth()) {
-            score.parts.sortedByDescending { it.points }.forEach { part ->
-              Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.Top) {
-                Image(painterResource(partPicture(part.component)), contentDescription = null, contentScale = ContentScale.Crop,
-                      modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)))
-                Spacer(Modifier.width(ForgeMetrics.space3))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row {
-                        Text(componentName(part.component), style = Forge.type.body, color = colors.text, modifier = Modifier.weight(1f))
-                        Text("${gramsText(part.points)} / 10", style = Forge.type.bodyNumber, color = colors.text)
-                    }
-                    val tint = nutrientTint(when { part.points >= 7 -> "fiber_g"; part.points >= 4 -> "potassium_mg"; else -> "iron_mg" }, colors.dark)
-                    LinearProgressIndicator(progress = { (part.points / 10).toFloat() }, color = tint, trackColor = tint.copy(alpha = 0.16f),
-                                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape))
-                    Text(componentAmount(part) + " · " + componentGoal(part.component, male), style = Forge.type.footnote, color = colors.textSecondary)
-                }
-              }
-            }
-        }
+        // Like a ledger, as iOS: what adds to the score grows right of the middle line, what costs points grows left.
+        val (limits, adds) = score.parts.partition { it.component in LIMIT_PARTS }
+        FoodSectionHeader(stringResource(R.string.food_score_adds))
+        ForgeCard(Modifier.fillMaxWidth()) { adds.sortedByDescending { it.points }.forEach { ScorePartRow(it, male) } }
+        FoodSectionHeader(stringResource(R.string.food_score_costs))
+        ForgeCard(Modifier.fillMaxWidth()) { limits.sortedBy { it.points }.forEach { ScorePartRow(it, male) } }
+        Text(stringResource(R.string.food_score_costs_note), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
         score.processedShare?.let { share ->
             SettingsCard(stringResource(R.string.food_score_processed), stringResource(R.string.food_score_processed_note)) {
                 Text(stringResource(R.string.food_score_processed_value, (share * 100).roundToInt()), style = Forge.type.body, color = colors.text)
             }
+        }
+    }
+}
+
+/** Parts where less is better, as iOS `FoodScore.Component.isLimit`. */
+private val LIMIT_PARTS = setOf("sugaryDrinks", "redMeat", "sodium", "alcohol")
+
+@Composable
+private fun ScorePartRow(part: CoreFood.ScorePart, male: Boolean) {
+    val colors = Forge.colors
+    val green = nutrientTint("fiber_g", colors.dark)
+    val red = nutrientTint("iron_mg", colors.dark)
+    // Points added (more is better) or lost (less is better), from -10 to +10.
+    val effect = if (part.component in LIMIT_PARTS) -(10 - part.points) else part.points
+    val signed = if (kotlin.math.abs(effect) < 0.05) "0" else (if (effect > 0) "+" else "−") + gramsText(kotlin.math.abs(effect))
+    Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.Top) {
+        Image(painterResource(partPicture(part.component)), contentDescription = null, contentScale = ContentScale.Crop,
+              modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)))
+        Spacer(Modifier.width(ForgeMetrics.space3))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row {
+                Text(componentName(part.component), style = Forge.type.body, color = colors.text, modifier = Modifier.weight(1f))
+                Text(signed, style = Forge.type.bodyNumber,
+                     color = if (signed == "0") colors.textSecondary else if (effect > 0) green else red)
+            }
+            Canvas(Modifier.fillMaxWidth().height(12.dp)) {
+                val half = size.width / 2
+                val bar = 6.dp.toPx(); val y = (size.height - bar) / 2
+                val radius = androidx.compose.ui.geometry.CornerRadius(bar / 2)
+                drawRoundRect(colors.textSecondary.copy(alpha = 0.18f), Offset(0f, y), androidx.compose.ui.geometry.Size(size.width, bar), radius)
+                val length = half * min(1.0, kotlin.math.abs(effect) / 10).toFloat()
+                if (length > 0) drawRoundRect(if (effect > 0) green else red, Offset(if (effect > 0) half else half - length, y),
+                                              androidx.compose.ui.geometry.Size(length, bar), radius)
+                drawRect(colors.textSecondary, Offset(half - 1.dp.toPx(), 0f), androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height))
+            }
+            Text(componentAmount(part) + " · " + componentGoal(part.component, male), style = Forge.type.footnote, color = colors.textSecondary)
         }
     }
 }

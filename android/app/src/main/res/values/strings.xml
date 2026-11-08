@@ -5310,4 +5310,7 @@
     <string name="food_sentence_satfat">Quite a lot of saturated fat.</string>
     <string name="food_sentence_sugar">Quite a lot of sugar.</string>
     <string name="food_sentence_salt">Salt on the high side.</string>
+    <string name="food_score_adds">Adds points</string>
+    <string name="food_score_costs">Costs points</string>
+    <string name="food_score_costs_note">These start at full points and lose them as the amount rises.</string>
 </resources>

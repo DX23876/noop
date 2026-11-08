@@ -11,6 +11,10 @@ import WhoopStore
 public enum FoodScore {
     public enum Component: String, CaseIterable, Sendable, Codable {
         case vegetables, fruit, wholeGrains, sugaryDrinks, nutsLegumes, redMeat, fishOmega3, polyFats, sodium, alcohol
+
+        /// A part where less is better: it starts full and loses points as the amount rises, so a screen shows what
+        /// it costs rather than what it adds.
+        public var isLimit: Bool { [.sugaryDrinks, .redMeat, .sodium, .alcohol].contains(self) }
     }
 
     public struct Part: Equatable, Sendable, Codable {

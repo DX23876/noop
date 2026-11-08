@@ -33,10 +33,22 @@ struct FoodScoreView: View {
             } footer: {
                 Text("The score follows a healthy eating index from long studies of large groups. It reads what you usually eat, so it looks at a week, not a day.")
             }
-            Section("Parts") {
-                ForEach(score.parts.sorted { $0.points > $1.points }, id: \.component) { part in
+            // Like a ledger: what adds to the score grows right of the middle line, what costs points grows left.
+            Section {
+                ForEach(score.parts.filter { !$0.component.isLimit }.sorted { $0.points > $1.points }, id: \.component) { part in
                     row(part)
                 }
+            } header: {
+                Text("Adds points")
+            }
+            Section {
+                ForEach(score.parts.filter(\.component.isLimit).sorted { $0.points < $1.points }, id: \.component) { part in
+                    row(part)
+                }
+            } header: {
+                Text("Costs points")
+            } footer: {
+                Text("These start at full points and lose them as the amount rises.")
             }
             if let share = score.processedShare {
                 Section {
@@ -83,24 +95,25 @@ struct FoodScoreView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(FoodText.component(part.component)).font(.body).foregroundStyle(ForgeColor.text)
                 Spacer()
-                Text("\(FoodText.grams(part.points)) / 10").font(.subheadline.weight(.semibold)).monospacedDigit()
-                    .foregroundStyle(ForgeColor.text)
+                Text(signed(part)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle(abs(effect(part)) < 0.05 ? ForgeColor.secondary : effect(part) > 0 ? ForgeColor.nutrientLeaf : ForgeColor.nutrientRed)
             }
-            // A thin bar like the nutrient card's, so the parts read as one family with the rest of Food.
-            Capsule().fill(tint(part.points).opacity(ForgeOpacity.wash))
-                .frame(height: 6)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule().fill(tint(part.points)).frame(width: proxy.size.width * min(1, max(0, part.points / 10)))
-                    }
-                }
+            FoodScoreBar(effect: effect(part))
+
             Text("\(FoodText.componentAmount(part)) · \(FoodText.componentGoal(part.component, male: male))")
                 .font(.footnote).foregroundStyle(ForgeColor.secondary)
         }
     }
 
-    private func tint(_ points: Double) -> Color {
-        points >= 7 ? ForgeColor.nutrientLeaf : points >= 4 ? ForgeColor.nutrientSun : ForgeColor.nutrientRed
+    /// Points added (a part to have more of) or lost (a part to keep low), from -10 to +10.
+    private func effect(_ part: FoodScore.Part) -> Double {
+        part.component.isLimit ? -(10 - part.points) : part.points
+    }
+
+    private func signed(_ part: FoodScore.Part) -> String {
+        let e = effect(part)
+        guard abs(e) >= 0.05 else { return "0" }
+        return (e > 0 ? "+" : "−") + FoodText.grams(abs(e))
     }
 }
 #endif

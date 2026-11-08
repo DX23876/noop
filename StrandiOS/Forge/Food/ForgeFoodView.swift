@@ -16,8 +16,11 @@ struct ForgeFoodView: View {
     @State private var scrolledPast = false
     @State private var showAdd = false
     @State private var showSettings = false
-    @State private var showNutrients = false
-    @State private var showScore = false
+    /// The one page pushed from Food. A single destination: two `isPresented` destinations on one view let
+    /// SwiftUI open the wrong page (a tap on the score opened the nutrients).
+    @State private var subpage: Subpage?
+
+    enum Subpage: Hashable { case nutrients, score }
     @State private var editing: FoodLogEntry?
     @State private var copying: FoodEntryBatch?
     @State private var recipeFrom: FoodEntryBatch?
@@ -98,11 +101,13 @@ struct ForgeFoodView: View {
         .sheet(item: $editing) { FoodEntrySheet(entry: $0, model: model).environmentObject(repo) }
         .sheet(item: $copying) { FoodCopySheet(batch: $0, model: model).environmentObject(repo) }
         .sheet(item: $recipeFrom) { FoodRecipeSheet(batch: $0, model: model).environmentObject(repo) }
-        .navigationDestination(isPresented: $showScore) {
-            if let score = model.score { FoodScoreView(score: score, male: model.male == true) }
-        }
-        .navigationDestination(isPresented: $showNutrients) {
-            if let week = model.nutrients, let day = model.dayNutrients { FoodNutrientsView(week: week, day: day, model: model) }
+        .navigationDestination(item: $subpage) { page in
+            switch page {
+            case .score:
+                if let score = model.score { FoodScoreView(score: score, male: model.male == true) }
+            case .nutrients:
+                if let week = model.nutrients, let day = model.dayNutrients { FoodNutrientsView(week: week, day: day, model: model) }
+            }
         }
     }
 
@@ -151,8 +156,8 @@ struct ForgeFoodView: View {
     private func logHabit() { Task { await model.logHabit(repo: repo) } }
     private func reloadGoals() { Task { await model.reloadGoals(repo: repo, profile: Repository.analyticsProfile(profile)) } }
     private func openSettings() { showSettings = true }
-    private func openNutrients() { showNutrients = true }
-    private func openScore() { showScore = true }
+    private func openNutrients() { subpage = .nutrients }
+    private func openScore() { subpage = .score }
     private func showDay(_ day: String) { model.day = day }
     private func delete(_ entries: [FoodLogEntry]) { Task { await model.delete(entries, repo: repo) } }
 }

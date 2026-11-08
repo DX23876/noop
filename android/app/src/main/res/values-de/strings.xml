@@ -5288,4 +5288,7 @@
     <string name="food_sentence_satfat">Recht viele gesättigte Fette.</string>
     <string name="food_sentence_sugar">Recht viel Zucker.</string>
     <string name="food_sentence_salt">Salz eher hoch.</string>
+    <string name="food_score_adds">Bringt Punkte</string>
+    <string name="food_score_costs">Kostet Punkte</string>
+    <string name="food_score_costs_note">Diese Bereiche starten mit vollen Punkten und verlieren sie, je mehr es wird.</string>
 </resources>
