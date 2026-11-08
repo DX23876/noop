@@ -79,6 +79,8 @@ struct ForgeTodayView: View {
     @AppStorage("forge.today.hintDismissed") private var hintDismissedRaw = ""
     /// The other candidates under the hint are open.
     @State private var hintsOpen = false
+    /// The why sheet asked for the coach settings: they open when the sheet has closed.
+    @State private var openCoachSettingsAfterWhy = false
     /// The hint's coach note is shown whole.
     @State private var hintNoteOpen = false
     /// The day widget shows every entry and the days before, not only today's latest three.
@@ -224,11 +226,17 @@ struct ForgeTodayView: View {
         .onAppear { seenBefore = seenAt }
         .onDisappear { seenAt = Date().timeIntervalSince1970 }
         .coachDashboardPresentations(showCoach: $showCoachSheet, showPlan: $showPlan)
-        .sheet(item: $whyEntry) { entry in
+        // Coach settings open once the sheet has gone, from its dismissal rather than a guessed delay.
+        .sheet(item: $whyEntry, onDismiss: {
+            if openCoachSettingsAfterWhy {
+                openCoachSettingsAfterWhy = false
+                onCoachSettings()
+            }
+        }) { entry in
             ForgeCoachWhySheet(entry: entry, message: entry.sourceId.flatMap { snapshot.notes[$0] },
                                onCoachSettings: {
+                                   openCoachSettingsAfterWhy = true
                                    whyEntry = nil
-                                   DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { onCoachSettings() }
                                })
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)

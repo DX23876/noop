@@ -78,6 +78,7 @@ struct MuscleAnalyticsSurface: View {
                     Image(systemName: "figure.stand").frame(width: 34, height: 30)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel(Text(BodyGender(rawValue: figureRaw) == .female ? "Female figure" : "Male figure"))
                 // A control in the new design's Training area wears its one green, as the buttons around it.
                 .tint(NoopVisualStyle.skin == .forge ? Color(light: "#248A3D", dark: "#30D158") : StrandPalette.accent)
             }

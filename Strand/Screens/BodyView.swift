@@ -242,6 +242,7 @@ struct BodyView: View {
                         Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Text("What this means"))
                 }
                 if let navyEquation, let estimate = model.navyEstimate(equation: navyEquation) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -316,6 +317,7 @@ struct BodyView: View {
                         Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Text("What this means"))
                 }
                 Picker("Window", selection: $model.comparison) {
                     ForEach(BodyModel.ComparisonWindow.allCases) { Text($0.label).tag($0) }
@@ -451,6 +453,7 @@ struct BodyView: View {
                         Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Text("What this means"))
                 }
                 Picker("Range", selection: $model.range) {
                     ForEach(BodyModel.HistoryRange.allCases) { Text($0.label).tag($0) }

@@ -201,6 +201,8 @@ struct CoachGoalSetupReviewView: View {
                                              ? StrandPalette.accent : StrandPalette.textTertiary)
                     }
                     .buttonStyle(.plain).disabled(unavailable)
+                    .accessibilityLabel(Text(routine.action.title))
+                    .accessibilityAddTraits(selectedRoutineIds.contains(routine.id) ? .isSelected : [])
                     VStack(alignment: .leading, spacing: 3) {
                         Text(routine.action.title).font(StrandFont.footnote)
                         if !routine.action.requirement.displayLabel.isEmpty {

@@ -1872,6 +1872,7 @@ struct WorkoutsView: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .accessibilityLabel(Text("Workout actions"))
     }
 
     /// Right-click actions per row. A grandfathered DETECTED bout can be re-labelled as a real manual

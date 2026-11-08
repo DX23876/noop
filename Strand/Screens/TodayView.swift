@@ -1704,6 +1704,7 @@ struct TodayView: View {
                     Image(systemName: "slider.horizontal.3")
                 }
                 .help("Customize Today")
+                .accessibilityLabel(Text("Customize Today"))
             }
         }
         #else

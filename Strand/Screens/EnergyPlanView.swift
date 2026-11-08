@@ -299,6 +299,7 @@ struct EnergyPlanView: View {
                     Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Text("What this means"))
             }
             ForEach(BasalFormula.allCases, id: \.self) { formula in
                 Button {
@@ -388,6 +389,7 @@ struct EnergyPlanView: View {
                         Image(systemName: "info.circle").foregroundStyle(StrandPalette.textTertiary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Text("What this means"))
                 }
                 if let balance = model.balance {
                     Text(kcalPerDay(balance.estimatedDailyKcal))
@@ -867,6 +869,7 @@ struct EnergyPlanView: View {
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Text("What this means"))
             }
         }
     }
