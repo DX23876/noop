@@ -155,10 +155,9 @@ struct DietPlanView: View {
 
     private func actions(_ plan: DietPlan) -> some View {
         VStack(spacing: 10) {
-            Toggle("Hide weight and numbers", isOn: Binding(get: { plan.hideNumbers }, set: { on in
+            DietCheckRow(title: String(localized: "Hide weight and numbers"), isOn: Binding(get: { plan.hideNumbers }, set: { on in
                 var next = plan; next.hideNumbers = on; model.savePlan(next)
             }))
-            .forgeCard(padding: 12)
             Button { editing = true } label: {
                 Text("Change plan").font(.headline).frame(maxWidth: .infinity, minHeight: 50)
                     .foregroundStyle(ForgeColor.onAccent).background(ForgeColor.accent, in: .capsule)

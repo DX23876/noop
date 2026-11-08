@@ -8,7 +8,13 @@ import StrandCore
 struct DietForecastChart: View {
     let forecast: DietForecast.Forecast
     let goalKg: Double?
-    var weeks: Int = 26
+    /// Weeks shown: a little past the goal when it is in reach, else half a year, at most the whole forecast.
+    private var weeks: Int {
+        let all = forecast.weeks.count - 1
+        guard goalKg != nil else { return min(26, all) }
+        guard let range = forecast.goalWeeks else { return all }
+        return min(all, max(12, range.upperBound + 6))
+    }
 
     private var shown: [DietForecast.Week] { Array(forecast.weeks.prefix(weeks + 1)) }
 

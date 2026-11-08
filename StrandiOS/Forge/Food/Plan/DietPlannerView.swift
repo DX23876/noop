@@ -16,7 +16,6 @@ struct DietPlannerView: View {
     @State private var likesRules = false
     @State private var suggestions: [DietSuggest.Suggestion] = []
     @State private var recent: [FoodLogEntryLite] = []
-    @State private var goalWeightText = ""
 
     private enum Step: Int, CaseIterable { case welcome, goal, weight, pace, life, form, addon, numbers, summary }
 
@@ -24,8 +23,17 @@ struct DietPlannerView: View {
         self.model = model
         self.start = start
         let weight = model.currentWeightKg ?? start?.startWeightKg ?? 80
-        _draft = State(initialValue: start ?? DietPlan(startDay: Repository.localDayKey(.now), startWeightKg: weight))
-        _goalWeightText = State(initialValue: start?.goalWeightKg.map { String(format: "%.1f", $0) } ?? "")
+        var initial = start ?? DietPlan(startDay: Repository.localDayKey(.now), startWeightKg: weight)
+        #if DEBUG
+        // `--demo-planner STEP [advanced]` opens the planner at a step, for screenshots.
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--demo-planner"), i + 1 < args.count, let s = Int(args[i + 1]) {
+            _step = State(initialValue: s)
+            if args.contains("advanced") { initial.mode = .advanced }
+            if s >= 3, initial.goalWeightKg == nil { initial.goalWeightKg = (weight * 0.9).rounded() }
+        }
+        #endif
+        _draft = State(initialValue: initial)
     }
 
     private var person: DietPerson {
@@ -36,6 +44,14 @@ struct DietPlannerView: View {
         DietTargets.resolve(draft, person: person, burnKcal: burn, kcalPerKg: model.kcalPerKg)
     }
     private var current: Step { Step(rawValue: step) ?? .welcome }
+
+    /// Losing: from the lowest healthy weight (or 60 % of today) to today; gaining: today to a quarter more.
+    private var goalRange: ClosedRange<Double> {
+        let w = person.weightKg
+        if draft.goal == .gain { return w...(w * 1.25) }
+        let low = max(person.lowestGoalWeightKg ?? w * 0.6, w * 0.4)
+        return min(low, w - 1)...w
+    }
 
     var body: some View {
         NavigationStack {
@@ -53,7 +69,7 @@ struct DietPlannerView: View {
             .navigationTitle("Plan your diet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() } }
                 if step > 0 {
                     ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.left") { step -= 1 }.labelStyle(.iconOnly) }
                 }
@@ -109,7 +125,7 @@ struct DietPlannerView: View {
                 }
             }
             if person.male != true {
-                Toggle("I am pregnant or nursing", isOn: $draft.pregnantOrNursing).forgeCard(padding: 12)
+                DietCheckRow(title: String(localized: "I am pregnant or nursing"), isOn: $draft.pregnantOrNursing)
             }
         }
     }
@@ -126,12 +142,28 @@ struct DietPlannerView: View {
             .forgeCard(padding: 12)
             if draft.goal != .maintain {
                 title("A goal weight? It is optional.")
-                HStack {
-                    TextField("For example 90", text: $goalWeightText).keyboardType(.decimalPad)
-                        .onChange(of: goalWeightText) { draft.goalWeightKg = Double(goalWeightText.replacingOccurrences(of: ",", with: ".")) }
-                    Text("kg").foregroundStyle(ForgeColor.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    // Two plain choices rather than a switch: which one is on reads at a glance.
+                    HStack(spacing: 8) {
+                        choicePill(String(localized: "No goal weight"), on: draft.goalWeightKg == nil) { draft.goalWeightKg = nil }
+                        choicePill(String(localized: "Set a goal weight"), on: draft.goalWeightKg != nil) {
+                            if draft.goalWeightKg == nil {
+                                draft.goalWeightKg = goalRange.clamp((person.weightKg * (draft.goal == .lose ? 0.9 : 1.05) * 2).rounded() / 2)
+                            }
+                        }
+                    }
+                    if let goal = draft.goalWeightKg {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(DietText.kg(goal)).font(ForgeFont.rounded(30, .bold)).monospacedDigit()
+                            Spacer()
+                            Text(goal < person.weightKg ? String(localized: "\(DietText.kg(person.weightKg - goal)) less") : String(localized: "\(DietText.kg(goal - person.weightKg)) more"))
+                                .foregroundStyle(ForgeColor.secondary)
+                        }
+                        Slider(value: Binding(get: { goal }, set: { draft.goalWeightKg = ($0 * 2).rounded() / 2 }), in: goalRange)
+                            .tint(ForgeColor.food)
+                    }
                 }
-                .font(.title3).forgeCard(padding: 12)
+                .forgeCard(padding: 12)
                 if result.notes.contains(.goalWeightRaised), let g = result.goalWeightKg {
                     notice(String(localized: "The lowest healthy weight for your height is about \(DietText.kg(g)). Forge plans to that."))
                 }
@@ -182,8 +214,8 @@ struct DietPlannerView: View {
             DietChips(items: DietPlan.Keep.allCases, label: DietText.keep, isOn: { draft.keep.contains($0) }) { k in
                 if let i = draft.keep.firstIndex(of: k) { draft.keep.remove(at: i) } else { draft.keep.append(k) }
             }
-            Toggle("Clear rules are easier for me than moderation", isOn: $likesRules).forgeCard(padding: 12)
-            Toggle("I do strength training", isOn: $draft.strength).forgeCard(padding: 12)
+            DietCheckRow(title: String(localized: "Clear rules are easier for me than moderation"), isOn: $likesRules)
+            DietCheckRow(title: String(localized: "I do strength training"), isOn: $draft.strength)
         }
     }
 
@@ -334,7 +366,7 @@ struct DietPlannerView: View {
             }
             numbersCard
             ForEach(r.notes, id: \.self) { notice(DietText.note($0)) }
-            Toggle("Hide weight and numbers", isOn: $draft.hideNumbers).forgeCard(padding: 12)
+            DietCheckRow(title: String(localized: "Hide weight and numbers"), isOn: $draft.hideNumbers)
             DietExplainCard(image: DietArt.explain("hold"), title: DietText.explainHoldTitle, text: DietText.explainHold)
         }
     }
@@ -376,6 +408,17 @@ struct DietPlannerView: View {
 
     private func title(_ text: LocalizedStringKey) -> some View {
         Text(text).font(ForgeFont.rounded(26, .bold)).foregroundStyle(ForgeColor.text)
+    }
+
+    private func choicePill(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .foregroundStyle(on ? ForgeColor.onAccent : ForgeColor.text)
+                .background(on ? ForgeColor.accent : ForgeColor.fill, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private func notice(_ text: String) -> some View {
@@ -423,6 +466,32 @@ struct DietChips<Item: Hashable>: View {
                 .accessibilityAddTraits(isOn(item) ? .isSelected : [])
             }
         }
+    }
+}
+
+private extension ClosedRange where Bound == Double {
+    func clamp(_ v: Double) -> Double { Swift.min(upperBound, Swift.max(lowerBound, v)) }
+}
+
+/// A yes-or-no answer as a row with a check: the whole row is the button, the check says which it is.
+struct DietCheckRow: View {
+    let title: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            HStack(spacing: 12) {
+                Text(title).font(.body).foregroundStyle(ForgeColor.text).multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.title2).foregroundStyle(isOn ? ForgeColor.accent : ForgeColor.secondary)
+            }
+            .frame(minHeight: 44)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .forgeCard(padding: 12)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 #endif

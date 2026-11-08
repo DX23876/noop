@@ -94,6 +94,10 @@ struct ForgeFoodView: View {
                 Button("Add food", systemImage: "plus", action: openAdd).labelStyle(.iconOnly)
             }
         }
+        #if DEBUG
+        .onAppear { if CommandLine.arguments.contains("--demo-planner") { planning = true } }
+        .onAppear { if CommandLine.arguments.contains("--demo-plan-page") { subpage = .plan } }
+        #endif
         .sensoryFeedback(.success, trigger: model.savedRevision)
         .sensoryFeedback(.selection, trigger: model.day)
         .task { await model.load(repo: repo, profile: Repository.analyticsProfile(profile)) }
