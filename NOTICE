@@ -33,6 +33,21 @@ nomic-embed-text-v2-moe — https://huggingface.co/nomic-ai/nomic-embed-text-v2-
   Used for: on-device multilingual text embeddings in the optional iOS semantic-memory index.
   Pinned revision: ffbcf4c99e5d617dda10ec8c0e9f75754b0cbb80 (Q4_K_M GGUF).
 
+MarkdownUI — https://github.com/gonzalezreal/swift-markdown-ui
+  License: MIT
+  Used for: rendering the coach's Markdown replies.
+
+Swift Crypto — https://github.com/apple/swift-crypto
+  License: Apache License 2.0 (with its NOTICE)
+  Used for: integrity checks of the optional exercise media pack.
+
+OpenStrap — https://github.com/OpenStrap/edge
+  License: MIT (release v0.10.0; OpenStrap moved to AGPL-3.0 afterwards)
+  Used for: the WHOOP MG ECG reading flow, ported to Swift. See ATTRIBUTION.md.
+
+The full licence text of each component above ships inside the Apple app
+(Strand/Resources/ThirdParty/*.txt) and opens from Settings › Acknowledgements.
+
 The MIT and Apache 2.0 licenses are permissive: these components may be used, modified, and
 redistributed (including commercially) on their own terms. When they are used as
 part of NOOP's combined work, the combined work as a whole is governed by NOOP's

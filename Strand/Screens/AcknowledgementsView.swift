@@ -28,6 +28,16 @@ struct AcknowledgementsView: View {
                 entry(title: ExerciseDBProviderClient.defaultAttribution,
                       detail: String(localized: "Optional exercise metadata. Provider terms apply; media downloads are separate."),
                       link: ExerciseDBProviderClient.defaultDocumentation)
+                ForEach(Self.bundledLicenses) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        entry(title: item.title, detail: item.detail, link: item.link)
+                        NavigationLink {
+                            LicenseTextView(title: item.title, resource: item.resource)
+                        } label: {
+                            Text(verbatim: item.fileLabel).font(StrandFont.caption)
+                        }
+                    }
+                }
                 entry(title: "Exercise media (images and animations)",
                       detail: "© Gym visual — gymvisual.com. Not licensed to NOOP: cloning the exercises-dataset repository is not a licence to its media. NOOP never bundles these files; downloading them is an explicit, disclosed, opt-in action, and the credit line appears under every animation.")
                 Section {
@@ -78,6 +88,38 @@ struct AcknowledgementsView: View {
         Contributor(handle: "meta1971, OpenStrap", work: "5/MG SET_CLOCK sub-seconds, MG ECG reading"),
     ]
 
+    /// Libraries, models and ported code inside the app whose licence asks for its text to travel with every
+    /// copy. Each text ships verbatim in `Strand/Resources/ThirdParty/` and opens from its row. Keep in step
+    /// with NOTICE and ATTRIBUTION.md.
+    static let bundledLicenses: [BundledLicense] = [
+        BundledLicense(title: "GRDB.swift", detail: "SQLite database layer. Copyright (C) 2015-2024 Gwendal Roué.",
+                       link: "https://github.com/groue/GRDB.swift", licenseName: "MIT", resource: "GRDB-LICENSE"),
+        BundledLicense(title: "ZIPFoundation", detail: "Reads export archives during import. Copyright (c) 2017-2025 Thomas Zoechling.",
+                       link: "https://github.com/weichsel/ZIPFoundation", licenseName: "MIT", resource: "ZIPFoundation-LICENSE"),
+        BundledLicense(title: "MarkdownUI", detail: "Renders the coach's replies. Copyright (c) 2020 Guillermo Gonzalez.",
+                       link: "https://github.com/gonzalezreal/swift-markdown-ui", licenseName: "MIT", resource: "MarkdownUI-LICENSE"),
+        BundledLicense(title: "Swift Crypto", detail: "Cryptographic primitives. Copyright Apple Inc. and the Swift project authors.",
+                       link: "https://github.com/apple/swift-crypto", licenseName: "Apache 2.0", resource: "SwiftCrypto-LICENSE"),
+        BundledLicense(title: "llama.cpp", detail: "On-device inference for the coach's memory index (iPhone). Copyright (c) 2023-2026 The ggml authors.",
+                       link: "https://github.com/ggml-org/llama.cpp", licenseName: "MIT", resource: "llama.cpp-LICENSE"),
+        BundledLicense(title: "nomic-embed-text-v2-moe", detail: "On-device text embedding model for the coach's memory index (iPhone). Nomic AI.",
+                       link: "https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe", licenseName: "Apache 2.0",
+                       resource: "nomic-embed-text-v2-moe-LICENSE"),
+        BundledLicense(title: "OpenStrap", detail: "The WHOOP MG ECG reading flow, ported from release v0.10.0. Copyright (c) 2026 OpenStrap.",
+                       link: "https://github.com/OpenStrap/edge", licenseName: "MIT", resource: "OpenStrap-LICENSE"),
+    ]
+
+    struct BundledLicense: Identifiable {
+        let title: String
+        let detail: String
+        let link: String
+        let licenseName: String
+        let resource: String
+        var id: String { resource }
+        /// "MIT · GRDB-LICENSE.txt": the licence and the bundled file, never translated.
+        var fileLabel: String { licenseName + " · " + resource + ".txt" }
+    }
+
     struct Contributor: Identifiable {
         let handle: String
         let work: String
@@ -95,5 +137,28 @@ struct AcknowledgementsView: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// One bundled licence text, shown verbatim.
+private struct LicenseTextView: View {
+    let title: String
+    let resource: String
+
+    private var text: String {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: "txt"),
+              let body = try? String(contentsOf: url, encoding: .utf8) else { return resource + ".txt" }
+        return body
+    }
+
+    var body: some View {
+        ScrollView {
+            Text(verbatim: text)
+                .font(.system(.footnote, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+        }
+        .navigationTitle(Text(verbatim: title))
     }
 }
