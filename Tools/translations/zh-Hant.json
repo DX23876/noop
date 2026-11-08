@@ -4037,5 +4037,9 @@
   "What helps most tomorrow: an early night tonight.": "明天最有幫助的是：今晚早點睡。",
   "What helps most tomorrow: an easy day after today's load.": "明天最有幫助的是：在今天的負荷後輕鬆一天。",
   "Your weight goal needs one now and then.": "你的體重目標需要不時量一次。",
-  "as usual": "和平常一樣"
+  "as usual": "和平常一樣",
+  "Update your routine": "更新訓練方案",
+  "Use today's numbers next time": "下次沿用今天的數值",
+  "Routine updated": "訓練方案已更新",
+  "Today's weights or repetitions differ from your routine for %@. Save them as the targets for your next session?": "%@ 今天的重量或次數與訓練方案不同。要將其儲存為下次訓練的目標嗎？"
 }

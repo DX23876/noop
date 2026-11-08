@@ -3859,5 +3859,9 @@
   "What helps most tomorrow: an early night tonight.": "Больше всего завтра поможет ранний сон сегодня.",
   "What helps most tomorrow: an easy day after today's load.": "Больше всего завтра поможет лёгкий день после сегодняшней нагрузки.",
   "Your weight goal needs one now and then.": "Цели по весу иногда нужно взвешивание.",
-  "as usual": "как обычно"
+  "as usual": "как обычно",
+  "Update your routine": "Обновить программу",
+  "Use today's numbers next time": "Взять сегодняшние значения в следующий раз",
+  "Routine updated": "Программа обновлена",
+  "Today's weights or repetitions differ from your routine for %@. Save them as the targets for your next session?": "Для %@ сегодняшние веса или повторения отличаются от программы. Сохранить их как цели на следующую тренировку?"
 }

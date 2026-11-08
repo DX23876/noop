@@ -3883,5 +3883,9 @@
   "What helps most tomorrow: an early night tonight.": "Was morgen am meisten hilft: heute früh ins Bett.",
   "What helps most tomorrow: an easy day after today's load.": "Was morgen am meisten hilft: ein leichter Tag nach der heutigen Belastung.",
   "Your weight goal needs one now and then.": "Dein Gewichtsziel braucht ab und zu eine Messung.",
-  "as usual": "wie üblich"
+  "as usual": "wie üblich",
+  "Update your routine": "Routine aktualisieren",
+  "Use today's numbers next time": "Heutige Werte nächstes Mal nutzen",
+  "Routine updated": "Routine aktualisiert",
+  "Today's weights or repetitions differ from your routine for %@. Save them as the targets for your next session?": "Bei %@ weichen die heutigen Gewichte oder Wiederholungen von deiner Routine ab. Als Vorgaben für die nächste Einheit speichern?"
 }

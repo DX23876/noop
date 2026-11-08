@@ -33,7 +33,9 @@ struct ActiveSessionPresentation: ViewModifier {
             .sheet(isPresented: $session.isChoosingStrengthStart) { StrengthStartSheet() }
             .sheet(item: $session.completedWorkout) { workout in
                 StrengthWorkoutSummaryView(workout: workout, exercises: session.context.exercises,
-                                           performance: session.context.performance)
+                                           performance: session.context.performance,
+                                           routines: session.context.plan.routines,
+                                           onRoutinesSaved: session.routinesChanged)
             }
             .confirmationDialog(
                 Text("A workout is already running"),
