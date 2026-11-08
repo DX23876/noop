@@ -79,12 +79,10 @@ struct InsightsHubView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else if NoopVisualStyle.skin == .forge {
-                NoopCard {
-                    VStack(spacing: NoopMetrics.space2) {
-                        ForEach(model.ranked.indices, id: \.self) { i in
-                            if i > 0 { Divider().overlay(StrandPalette.hairline) }
-                            forgeMoverRow(model.ranked[i])
-                        }
+                // One coach card per behaviour: its picture, what it did, and what to make of it.
+                VStack(spacing: 12) {
+                    ForEach(model.ranked.indices, id: \.self) { i in
+                        forgeMoverCard(model.ranked[i])
                     }
                 }
             } else {
@@ -96,35 +94,61 @@ struct InsightsHubView: View {
         }
     }
 
-    /// New design: a ranked effect as a line; the sentence and the two means open under it.
-    private func forgeMoverRow(_ r: RankedEffect) -> some View {
+    /// New design: a ranked effect as a coach card, its picture and colour taken from what the question
+    /// is about, the effect large on a badge and the reading written out under it.
+    private func forgeMoverCard(_ r: RankedEffect) -> some View {
         let e = r.effect
         let good = e.delta == 0 ? nil : (e.delta > 0) == outcome.higherIsBetter
-        let tint = good == nil ? StrandPalette.textSecondary
-            : good == true ? StrandPalette.statusPositive : StrandPalette.statusCritical
-        let sign = e.delta > 0 ? "+" : e.delta < 0 ? "−" : ""
-        let value = e.pctChange.map { "\(sign)\(Int(abs($0).rounded()))%" }
-            ?? sign + UnitFormatter.localizedMark(String(format: "%.1f", abs(e.delta)))
-        // How many answered days stand behind the figure, as the prototype said "from 46 journal days":
-        // a large percentage from a handful of days must not read like a firm result.
-        let note = String(localized: "\(ForgeEffectWording.lag(r.lag)) · \(e.nWith + e.nWithout) days together")
-        return ForgeEffectRow(title: r.behavior, note: note,
-                              value: value, fraction: max(-1, min(1, e.cohensD / 0.8)), tint: tint) {
-            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                Text(ForgeEffectWording.line(delta: e.delta, percent: e.pctChange))
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack {
-                    Text("With \(outcome.format(e.meanWith)) · n = \(e.nWith)")
-                    Spacer()
-                    Text("Without \(outcome.format(e.meanWithout)) · n = \(e.nWithout)")
+        let verdict = good == nil ? StrandPalette.textSecondary
+            : good == true ? StrandPalette.chargeColor : StrandPalette.effortColor
+        let look = BehaviourLook.of(r.behavior)
+        let amount = e.pctChange.map { "\(Int(abs($0).rounded())) %" }
+            ?? UnitFormatter.localizedMark(String(format: "%.1f", abs(e.delta)))
+        let advice: String? = good == nil ? nil
+            : good == true ? String(localized: "Something worth keeping.")
+                           : String(localized: "Worth trying a few days without it.")
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 14) {
+                CoachPicture(main: look.symbol, accentA: look.accent, accentB: "sparkle", tint: look.tint)
+                    .frame(width: 84, height: 84)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(verbatim: r.behavior).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(String(localized: "\(ForgeEffectWording.lag(r.lag)) · \(e.nWith + e.nWithout) days together"))
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    if e.delta != 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: e.delta > 0 ? "arrow.up" : "arrow.down").font(.system(size: 11, weight: .heavy))
+                            Text(verbatim: "\(outcome.outcomeName) \(amount)").font(StrandFont.subhead.weight(.semibold).monospacedDigit())
+                        }
+                        .foregroundStyle(verdict)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(verdict.opacity(0.14)))
+                        .fixedSize()
+                    }
                 }
-                .font(StrandFont.caption.monospacedDigit())
-                .foregroundStyle(StrandPalette.textTertiary)
-                ScoreStatePill(Self.scoreState(r.confidence))
+                Spacer(minLength: 0)
             }
+            Text(verbatim: [ForgeEffectWording.line(delta: e.delta, percent: e.pctChange), advice].compactMap { $0 }.joined(separator: " "))
+                .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Text("With \(outcome.format(e.meanWith)) · n = \(e.nWith)")
+                Text(verbatim: "·")
+                Text("Without \(outcome.format(e.meanWithout)) · n = \(e.nWithout)")
+                Spacer(minLength: 0)
+            }
+            .font(StrandFont.caption.monospacedDigit())
+            .foregroundStyle(StrandPalette.textTertiary)
+            .lineLimit(1).minimumScaleFactor(0.8)
+            ScoreStatePill(Self.scoreState(r.confidence))
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(LinearGradient(colors: [look.tint.opacity(0.16), look.tint.opacity(0.04)],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing)))
+        .accessibilityElement(children: .combine)
     }
 
     /// One ranked, lag-aware mover row: behaviour → effect on the outcome, with the
@@ -800,3 +824,28 @@ private func hubPreviewRepo() -> Repository {
         .preferredColorScheme(.dark)
 }
 #endif
+
+/// What a journal question is about, read from its words, so its coach card gets a fitting picture and
+/// colour. Unknown questions get a neutral journal look rather than a guess.
+enum BehaviourLook {
+    struct Look { let symbol: String; let accent: String; let tint: Color }
+
+    static func of(_ question: String) -> Look {
+        let q = question.lowercased()
+        func has(_ words: String...) -> Bool { words.contains { q.contains($0) } }
+        if has("caffeine", "coffee", "koffein", "kaffee") { return Look(symbol: "cup.and.saucer.fill", accent: "moon.fill", tint: StrandPalette.metricAmber) }
+        if has("alcohol", "alkohol", "wine", "beer", "drink") { return Look(symbol: "wineglass.fill", accent: "moon.zzz.fill", tint: StrandPalette.metricRose) }
+        if has("stress") { return Look(symbol: "cloud.bolt.fill", accent: "wind", tint: StrandPalette.metricCyan) }
+        if has("screen", "phone", "bildschirm") { return Look(symbol: "iphone", accent: "moon.fill", tint: .indigo) }
+        if has("sauna", "hot") { return Look(symbol: "flame.fill", accent: "drop.fill", tint: StrandPalette.effortColor) }
+        if has("meal", "eat", "food", "essen", "dinner") { return Look(symbol: "fork.knife", accent: "clock.fill", tint: .orange) }
+        if has("exercise", "workout", "train", "sport", "run") { return Look(symbol: "figure.run", accent: "bolt.fill", tint: StrandPalette.chargeColor) }
+        if has("sick", "ill", "krank", "unwell") { return Look(symbol: "cross.case.fill", accent: "thermometer.medium", tint: .red) }
+        if has("travel", "reise", "flight") { return Look(symbol: "airplane", accent: "globe.europe.africa.fill", tint: .blue) }
+        if has("meditat", "breath", "atem", "relax") { return Look(symbol: "wind", accent: "leaf.fill", tint: .teal) }
+        if has("sun", "outside", "outdoor", "daylight") { return Look(symbol: "sun.max.fill", accent: "leaf.fill", tint: .yellow) }
+        if has("water", "hydrat", "wasser") { return Look(symbol: "drop.fill", accent: "sparkle", tint: .cyan) }
+        if has("sleep", "nap", "bed", "schlaf") { return Look(symbol: "moon.zzz.fill", accent: "star.fill", tint: StrandPalette.restColor) }
+        return Look(symbol: "book.closed.fill", accent: "pencil", tint: StrandPalette.metricPurple)
+    }
+}

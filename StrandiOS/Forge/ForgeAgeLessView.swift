@@ -128,8 +128,15 @@ struct ForgeAgeLessView: View {
                     withAnimation(.snappy) { if open.contains(d) { open.remove(d) } else { open.insert(d) } }
                 } label: {
                     HStack(spacing: 10) {
+                        // Each area in its own colour and symbol, as Trends gives each measure one.
+                        let look: (String, Color) = d == .sleep ? ("moon.zzz.fill", ForgeColor.rest)
+                            : d == .activity ? ("figure.walk", StrandPalette.metricAmber) : ("heart.fill", StrandPalette.metricRose)
+                        Image(systemName: look.0).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(LinearGradient(colors: [look.1.opacity(0.75), look.1],
+                                                                     startPoint: .topLeading, endPoint: .bottomTrailing)))
                         Text(HealthspanSection.domainName(d)).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                            .frame(width: 88, alignment: .leading)
+                            .frame(width: 70, alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
                         ForgeYearsBar(years: years, span: span).frame(height: 14)
                         Text(HealthspanSection.signedYears(years)).font(ForgeFont.rounded(15, .semibold))
                             .foregroundStyle(years <= 0 ? ForgeColor.chargeInk : ForgeColor.effortInk)

@@ -167,6 +167,9 @@ struct WeeklyDigestContent: View {
     /// Optional content placed directly under the three scores, before the focal points (Trends puts
     /// the week's goal results here).
     var afterScores: AnyView? = nil
+    /// Off where the page already says what changed (Trends' "What changed" in the new design), so the
+    /// week's focal sentences do not repeat it over a different span.
+    var showsDetail: Bool = true
 
     /// The Effort display scale (#268), so the Week-in-review Effort gauge matches the Today tile
     /// and the Trends small-multiple instead of being stuck on "of 100". Charge/Rest stay 0–100.
@@ -204,7 +207,7 @@ struct WeeklyDigestContent: View {
             if let afterScores { afterScores }
 
             // Focal points + secondary signals + balance footer in one frosted card.
-            detailCard
+            if showsDetail { detailCard }
         }
     }
 

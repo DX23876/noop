@@ -358,8 +358,6 @@ struct TrendsChangeSummary: View {
 struct TrendIllustration: View {
     let key: String
     let up: Bool
-    @State private var lift = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The measure's identity colour across Trends, so a tab carries more than two hues.
     static func color(_ key: String) -> Color {
@@ -393,7 +391,21 @@ struct TrendIllustration: View {
     }
 
     var body: some View {
-        let tint = Self.color(key)
+        CoachPicture(main: motif.main, accentA: motif.a, accentB: motif.b, tint: Self.color(key))
+    }
+}
+
+/// The coach cards' picture: a symbol large on a glowing disc in a given colour, with two small motifs
+/// around it, breathing gently. Drawn, not a file, so it follows light and dark and every size.
+struct CoachPicture: View {
+    let main: String
+    let accentA: String
+    let accentB: String
+    let tint: Color
+    @State private var lift = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
             ZStack {
@@ -406,19 +418,19 @@ struct TrendIllustration: View {
                     )
                     .frame(width: side * 0.78, height: side * 0.78)
                     .shadow(color: tint.opacity(0.45), radius: side * 0.08, y: side * 0.04)
-                Image(systemName: motif.main)
+                Image(systemName: main)
                     .font(.system(size: side * 0.34, weight: .semibold))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
                     .offset(y: lift ? -2 : 1)
-                Image(systemName: motif.a)
+                Image(systemName: accentA)
                     .font(.system(size: side * 0.15, weight: .bold))
                     .foregroundStyle(tint)
                     .padding(side * 0.06)
                     .background(Circle().fill(StrandPalette.surfaceBase))
                     .shadow(color: tint.opacity(0.3), radius: 4, y: 2)
                     .offset(x: side * 0.33, y: -side * 0.30)
-                Image(systemName: motif.b)
+                Image(systemName: accentB)
                     .font(.system(size: side * 0.12, weight: .bold))
                     .foregroundStyle(tint.opacity(0.9))
                     .offset(x: -side * 0.38, y: side * 0.30)

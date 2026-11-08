@@ -400,7 +400,8 @@ struct TrendsView: View {
                     // its goals went (frozen results) directly under the three scores.
                     WeeklyDigestContent(digest: digest, compact: true, showsHeader: false,
                                         liquidRings: weekUsesLiquidRings,
-                                        afterScores: AnyView(GoalsReviewBlock(period: .week, anyDay: digest.weekStart)))
+                                        afterScores: AnyView(GoalsReviewBlock(period: .week, anyDay: digest.weekStart)),
+                                        showsDetail: NoopVisualStyle.skin != .forge)
                         .padding(.top, NoopMetrics.space1)
                     // The new design adds the week day by day under its means: which days carried it.
                     if NoopVisualStyle.skin == .forge {
