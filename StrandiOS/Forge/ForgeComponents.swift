@@ -311,4 +311,19 @@ struct ForgeMiniRings: View {
         .padding(inset)
     }
 }
+
+extension View {
+    /// Runs a draw-in once the view is actually on screen. On a long tab the cards further down are built
+    /// with the tab, so `onAppear` alone played their animation out of sight before anyone scrolled there.
+    /// From iOS 18 the action waits until a third of the view is visible; iOS 17 keeps `onAppear`.
+    @ViewBuilder func revealWhenVisible(_ action: @escaping () -> Void) -> some View {
+        if #available(iOS 18.0, *) {
+            onScrollVisibilityChange(threshold: 0.3) { visible in
+                if visible { action() }
+            }
+        } else {
+            onAppear(perform: action)
+        }
+    }
+}
 #endif

@@ -240,7 +240,7 @@ struct ForgeShareRing: View {
         .accessibilityLabel(Text(label))
         .accessibilityValue(typical.map { Text(Self.percent(value)) + Text(verbatim: ", ") + Text("usual \(Int($0.rounded()))") }
                             ?? Text(Self.percent(value)))
-        .onAppear {
+        .revealWhenVisible {
             if reduceMotion { drawn = true; return }
             withAnimation(.spring(response: 0.9, dampingFraction: 0.9).delay(0.08 * Double(index))) { drawn = true }
         }
@@ -270,7 +270,7 @@ struct ForgeShareBar: View {
         }
         .frame(height: 8)
         .accessibilityHidden(true)
-        .onAppear {
+        .revealWhenVisible {
             if reduceMotion { drawn = true; return }
             withAnimation(.spring(response: 0.8, dampingFraction: 0.9)) { drawn = true }
         }

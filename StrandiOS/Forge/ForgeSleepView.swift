@@ -597,7 +597,7 @@ struct ForgeNightSignalTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(signal.label))
         .accessibilityValue(Text(verbatim: [signal.value ?? "–", signal.unit].filter { !$0.isEmpty }.joined(separator: " ")))
-        .onAppear {
+        .revealWhenVisible {
             if reduceMotion { grown = true; return }
             withAnimation(.spring(response: 0.7, dampingFraction: 0.88).delay(0.05)) { grown = true }
         }
