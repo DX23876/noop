@@ -157,9 +157,9 @@ struct TrendsChangeSummary: View {
         return HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
                 .frame(width: 40, height: 40)
-                .background(Circle().fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .top, endPoint: .bottom)))
+                .background(Circle().fill(tint))
                 .shadow(color: tint.opacity(0.35), radius: 6, y: 2)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 Text(verbatim: detail).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -167,7 +167,7 @@ struct TrendsChangeSummary: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(tint.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(tint.opacity(0.12)))
         .accessibilityElement(children: .combine)
     }
 
@@ -177,7 +177,7 @@ struct TrendsChangeSummary: View {
         let worse = rows.filter { $0.verdict == .worse }.count
         let steady = rows.count - better - worse
         let total = max(1, rows.count)
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             // The share of each verdict as one bar: the page's answer at a glance before any row.
             GeometryReader { geo in
                 let gap: CGFloat = 3
@@ -208,7 +208,7 @@ struct TrendsChangeSummary: View {
             word.font(StrandFont.caption)
         }
         .foregroundStyle(color)
-        .padding(.horizontal, 10).padding(.vertical, 5)
+        .padding(.horizontal, 12).padding(.vertical, 4)
         .background(Capsule().fill(color.opacity(0.12)))
         .accessibilityElement(children: .combine)
     }
@@ -220,11 +220,11 @@ struct TrendsChangeSummary: View {
     private func insightCard(_ row: Row) -> some View {
         let identity = TrendIllustration.color(row.key)
         let verdict = color(row.verdict)
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 14) {
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 16) {
                 TrendIllustration(key: row.key, up: row.change > 0)
                     .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(verbatim: row.title).font(StrandFont.title2)
                         .foregroundStyle(StrandPalette.textPrimary).lineLimit(2).minimumScaleFactor(0.8)
                     Text(verbatim: "\(row.before) → \(row.now)").font(StrandFont.subhead.monospacedDigit())
@@ -236,7 +236,7 @@ struct TrendsChangeSummary: View {
                         if row.verdict == .worse { Text("worse").font(StrandFont.caption.weight(.semibold)) }
                     }
                     .foregroundStyle(row.verdict == .neutral ? identity : verdict)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .padding(.horizontal, 12).padding(.vertical, 4)
                     .background(Capsule().fill((row.verdict == .neutral ? identity : verdict).opacity(0.14)))
                     .fixedSize()
                 }
@@ -249,20 +249,19 @@ struct TrendsChangeSummary: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(LinearGradient(colors: [identity.opacity(0.16), identity.opacity(0.04)],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing)))
+            .fill(identity.opacity(0.12)))
         .accessibilityElement(children: .combine)
     }
 
     /// The measures that held still, one line each, under one heading.
     private func steadyBlock(_ steady: [Row]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "equal.circle.fill").foregroundStyle(StrandPalette.textSecondary)
                 Text("Holding steady").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
             }
             ForEach(steady) { row in
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     Image(systemName: row.icon).font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(StrandPalette.textSecondary).frame(width: 22)
                     Text(verbatim: row.title).font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary).lineLimit(1)
@@ -277,7 +276,7 @@ struct TrendsChangeSummary: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(StrandPalette.textPrimary.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(StrandPalette.textPrimary.opacity(0.05)))
     }
 
     private func color(_ verdict: Verdict) -> Color {
@@ -412,11 +411,7 @@ struct CoachPicture: View {
                 // A faint halo, not a glow: Apple's symbols sit on colour, they do not shine.
                 Circle().fill(tint.opacity(0.14)).blur(radius: side * 0.12).scaleEffect(0.95)
                 Circle()
-                    .fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .overlay(
-                        Circle().fill(RadialGradient(colors: [.white.opacity(0.45), .clear], center: .topLeading,
-                                                     startRadius: 0, endRadius: side * 0.6))
-                    )
+                    .fill(tint)
                     .frame(width: side * 0.78, height: side * 0.78)
                     .shadow(color: tint.opacity(0.22), radius: side * 0.05, y: side * 0.03)
                 Image(systemName: main)

@@ -20,8 +20,7 @@ struct SettingsPageBanner: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(LinearGradient(colors: [tint.opacity(0.18), tint.opacity(0.04)],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing)))
+            .fill(tint.opacity(0.12)))
         .accessibilityElement(children: .combine)
     }
 }

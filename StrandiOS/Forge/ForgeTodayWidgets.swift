@@ -178,7 +178,7 @@ struct ForgeTodayWidgetArea: View {
 
     var body: some View {
         if editing || !shown.isEmpty {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 if editing {
                     // On a card of its own: the picture behind it changes with the hour.
                     VStack(alignment: .leading, spacing: 12) {
@@ -194,7 +194,7 @@ struct ForgeTodayWidgetArea: View {
                         }
                         layoutChoices
                     }
-                    .padding(14)
+                    .padding(16)
                     .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.card))
                 }
                 ForEach(rows, id: \.first!.id) { row in
@@ -225,7 +225,7 @@ struct ForgeTodayWidgetArea: View {
 
     /// Two or three tiles to a row, for the phone in hand, and where the tiles start.
     private var layoutChoices: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             layoutChoice("Tiles per row") {
                 Picker("Tiles per row", selection: Binding(get: { columns }, set: { columnsRaw = $0 })) {
                     ForEach(KeyMetricPrefs.columnChoices, id: \.self) { Text(verbatim: "\($0)").tag($0) }
@@ -465,7 +465,7 @@ struct ForgeLiveHeartWideWidget: View {
         LiquidLiveHR(tint: StrandPalette.metricRose, fallback: banked.map(\.bpm),
                      fallbackTimes: banked.map { Date(timeIntervalSince1970: TimeInterval($0.ts)) },
                      animated: !reduceMotion, headerRoute: .fullDayChart)
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
             .task(id: repo.refreshSeq) {
                 let now = Date()
                 banked = await repo.hrBuckets(from: Int(Calendar.current.startOfDay(for: now).timeIntervalSince1970),
@@ -547,7 +547,7 @@ struct ForgeWeekPlanWidget: View {
                 .accessibilityLabel(Text("\(doneDays.count) days with a workout this week"))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
@@ -751,8 +751,7 @@ struct ForgeLastWorkoutWidget: View {
             HStack(spacing: 12) {
                 WorkoutTypeIcon(workoutType: row.sport, size: 22, weight: .semibold, color: .white)
                     .frame(width: 52, height: 52)
-                    .background(Circle().fill(LinearGradient(colors: [tint.opacity(0.75), tint],
-                                                             startPoint: .topLeading, endPoint: .bottomTrailing)))
+                    .background(Circle().fill(tint))
                     .shadow(color: tint.opacity(0.4), radius: 6, y: 3)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(WorkoutSource.localizedDisplaySport(row.sport))
@@ -786,7 +785,7 @@ struct ForgeLastWorkoutWidget: View {
                 .opacity(loaded ? 1 : 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .forgeCard(radius: ForgeRadius.card, padding: 16)
     }
 }
 
@@ -802,7 +801,7 @@ struct ForgeEnergyWidget: View {
 
     var body: some View {
         NavigationLink(value: TabRoute.energy) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Energy").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Spacer()
@@ -810,7 +809,7 @@ struct ForgeEnergyWidget: View {
                 }
                 if let summary, summary.totalBurnedSoFar == nil, eaten == nil {
                     // Nothing measured yet: one quiet line, not a large empty ring taking the tile's height.
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         Image(systemName: "flame.fill").font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(StrandPalette.forgeEnergyActive)
                             .frame(width: 32, height: 32)
@@ -845,7 +844,7 @@ struct ForgeEnergyWidget: View {
                         .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
                 }
             }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
@@ -962,7 +961,7 @@ struct ForgePictureTile<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: 16) {
             CoachPicture(main: symbol, accentA: accent, accentB: "sparkle", tint: tint)
                 .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
             VStack(alignment: .leading, spacing: 3) { content() }

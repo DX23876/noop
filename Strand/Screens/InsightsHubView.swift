@@ -147,8 +147,7 @@ struct InsightsHubView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(LinearGradient(colors: [look.tint.opacity(0.16), look.tint.opacity(0.04)],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing)))
+            .fill(look.tint.opacity(0.12)))
         .accessibilityElement(children: .combine)
     }
 
