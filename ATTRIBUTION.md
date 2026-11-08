@@ -19,14 +19,10 @@ NOOP builds on prior community reverse-engineering and interoperability work:
 - **OpenStrap** (`OpenStrap/edge`, `OpenStrap/protocol`, MIT, Copyright (c) 2026 OpenStrap)
   — the WHOOP MG ECG reading flow (the R17 reading state machine, the result-plus-heart-rate
   category table and the capture lifecycle), ported to Swift in `Whoop5EcgReading.swift` and
-  `EcgReadingController.swift` from release v0.10.0. The MIT notice applies to those ports:
-  "Permission is hereby granted, free of charge, to any person obtaining a copy of this
-  software and associated documentation files (the "Software"), to deal in the Software
-  without restriction, including without limitation the rights to use, copy, modify, merge,
-  publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-  to whom the Software is furnished to do so, subject to the following conditions: The above
-  copyright notice and this permission notice shall be included in all copies or substantial
-  portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND."
+  `EcgReadingController.swift` from release v0.10.0, when OpenStrap was MIT-licensed (it moved to
+  AGPL-3.0 on 2026-10-10; nothing from later releases is ported). The full MIT licence text for those
+  ports ships with the app as `Strand/Resources/ThirdParty/OpenStrap-LICENSE.txt` and opens from
+  Settings › Acknowledgements.
 
 ## Xiaomi Smart Band (Mi Band) import
 - **`artyomxx/xiaomi-band-ios-export`** — documented the Mi Fitness iOS app's on-device
