@@ -41,7 +41,7 @@ struct GoalsOverviewScreen: View {
                                    #endif
                            }
                            .font(.title3)
-                           .foregroundStyle(StrandPalette.accent)
+                           .foregroundStyle(StrandPalette.controlStyle)
                            .buttonStyle(.plain)
                        }) {
             GoalsOverviewView()
@@ -194,7 +194,7 @@ struct GoalsOverviewView: View {
             }
             NavigationLink(value: GoalsRoute.settings) {
                 Label("Goal settings", systemImage: "gearshape")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.controlStyle)
             }
             .buttonStyle(.plain)
             .padding(.top, 4)
@@ -302,7 +302,7 @@ struct GoalsOverviewView: View {
                         Text("All").font(StrandFont.caption)
                         Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
                     }
-                    .foregroundStyle(StrandPalette.accent)
+                    .foregroundStyle(StrandPalette.controlStyle)
                 }
                 .buttonStyle(.plain)
             }
@@ -312,8 +312,8 @@ struct GoalsOverviewView: View {
 
     private func addRow(_ title: String) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "plus.circle.fill").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
-            Text(title).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+            Image(systemName: "plus.circle.fill").foregroundStyle(StrandPalette.controlStyle).accessibilityHidden(true)
+            Text(title).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.controlStyle)
             Spacer()
         }
         .padding(.vertical, 8)
@@ -486,7 +486,7 @@ struct GoalsOverviewView: View {
                 Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
                 Spacer()
             }
-            .foregroundStyle(StrandPalette.accent)
+            .foregroundStyle(StrandPalette.controlStyle)
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
@@ -735,7 +735,7 @@ struct GoalsOverviewView: View {
                                     periodGoals.resume(snapshot.id)
                                     refresh()
                                 }
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.controlStyle)
                                 .buttonStyle(.plain)
                             }
                         }
@@ -763,7 +763,7 @@ struct GoalsOverviewView: View {
                         Button("Keep it") { answerChain(goal.id, keep: true) }
                         Button("End it") { answerChain(goal.id, keep: false) }
                     }
-                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.controlStyle)
                     .buttonStyle(.plain)
                 }
             }
@@ -801,7 +801,7 @@ struct GoalsOverviewView: View {
                         Button("Add weekly goal") { addLinkedWeekly(goal) }
                         Button("No thanks") { dismissLinkOffer(goal.id) }
                     }
-                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.controlStyle)
                     .buttonStyle(.plain)
                 }
             }
@@ -861,7 +861,7 @@ struct GoalsOverviewView: View {
                     NavigationLink(value: GoalsRoute.list(.week)) { Text("Pause one") }
                     Button("Keep going") { crowdHintShown = true }
                 }
-                .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+                .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.controlStyle)
                 .buttonStyle(.plain)
             }
         }

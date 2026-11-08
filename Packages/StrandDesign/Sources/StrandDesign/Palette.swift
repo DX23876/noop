@@ -1466,3 +1466,11 @@ private func swatchRow(_ title: String, _ items: [(String, Color)]) -> some View
     }
 }
 #endif
+
+public extension StrandPalette {
+    /// A link or control's colour: the surrounding tint in the new design (a tab's own control colour, as
+    /// Training's green), the fixed accent in the shipped one, so one page's controls never mix two colours.
+    static var controlStyle: AnyShapeStyle {
+        NoopVisualStyle.skin == .forge ? AnyShapeStyle(.tint) : AnyShapeStyle(StrandPalette.accent)
+    }
+}

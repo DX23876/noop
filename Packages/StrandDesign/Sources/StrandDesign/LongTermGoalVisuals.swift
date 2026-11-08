@@ -663,12 +663,14 @@ public struct GoalFilterChips: View {
                 } label: {
                     Text(verbatim: chip.label)
                         .font(StrandFont.subhead.weight(selected ? .semibold : .regular))
-                        .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textPrimary)
+                        .foregroundStyle(selected ? StrandPalette.controlStyle : AnyShapeStyle(StrandPalette.textPrimary))
                         .lineLimit(1)
                         .fixedSize()
                         .padding(.horizontal, padding)
                         .padding(.vertical, 7)
-                        .background(Capsule().fill(selected ? StrandPalette.accentMuted : StrandPalette.surfaceRaised))
+                        .background(Capsule().fill(selected
+                                                   ? (NoopVisualStyle.skin == .forge ? AnyShapeStyle(.tint.opacity(0.16)) : AnyShapeStyle(StrandPalette.accentMuted))
+                                                   : AnyShapeStyle(StrandPalette.surfaceRaised)))
                         .overlay(Capsule().strokeBorder(selected ? StrandPalette.accent.opacity(0.5)
                                                                  : StrandPalette.hairline, lineWidth: 1))
                 }

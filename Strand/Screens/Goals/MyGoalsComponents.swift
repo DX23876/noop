@@ -684,7 +684,7 @@ struct BadgesCard: View {
                                 Text("All").font(StrandFont.caption)
                                 Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
                             }
-                            .foregroundStyle(StrandPalette.accent)
+                            .foregroundStyle(StrandPalette.controlStyle)
                         }
                         .buttonStyle(.plain)
                     }

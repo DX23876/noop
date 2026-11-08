@@ -45,7 +45,7 @@ struct GoalsContextCard: View {
             } else if context == .training {
                 Button { open = .setup } label: {
                     Label("Set a weekly training goal", systemImage: "target")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.controlStyle)
                 }
                 .buttonStyle(.plain)
             }
@@ -82,7 +82,7 @@ struct GoalContributionNote: View {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(items, id: \.self) { line in
                     HStack(spacing: 6) {
-                        Image(systemName: "target").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
+                        Image(systemName: "target").foregroundStyle(StrandPalette.controlStyle).accessibilityHidden(true)
                         Text(line)
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     }
@@ -180,7 +180,7 @@ struct WeightGoalRateHint: View {
                     apply(implied.rate)
                     StrandHaptic.commit.play()
                 }
-                .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.accent)
+                .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.controlStyle)
                 .buttonStyle(.plain)
             }
             .padding(10)
