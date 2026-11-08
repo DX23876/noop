@@ -115,9 +115,15 @@ struct BodyView: View {
 
     @ViewBuilder private var header: some View {
         if NoopVisualStyle.skin == .forge {
-            Text("Body").font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
-                .accessibilityAddTraits(.isHeader)
-                .padding(.top, 4)
+            HStack(alignment: .center, spacing: 14) {
+                Text("Body").font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                // The page's picture: a figure with a tape, in the body measurements' colour.
+                CoachPicture(main: "figure.stand", accentA: "ruler.fill", accentB: "sparkle", tint: .pink)
+                    .frame(width: 72, height: 72)
+            }
+            .padding(.top, 4)
         } else {
             classicHeader
         }

@@ -187,6 +187,9 @@ private struct BreathingContent: View {
                        // tabs carry, so Breathe sits in one atmosphere.
                        topBackground: liquidScaffoldSky()) {
 
+            // The new design opens on the breath itself: an orb that swells and settles at a calm pace
+            // before anything is chosen, so the page invites rather than opens on settings.
+            if NoopVisualStyle.skin == .forge && !running { BreathOrb() }
             modeSwitch
             StressCheckInCard(center: nudgeCenter) { startOneMinuteCue() }
 
@@ -1491,6 +1494,39 @@ private struct CalmModeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        }
+    }
+}
+
+/// A slow breathing orb: soft teal rings swell over about five seconds and settle again, the pace of the
+/// coherence rhythm, with the wind symbol at its centre.
+private struct BreathOrb: View {
+    @State private var inhale = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let tint = Color.teal
+        ZStack {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(tint.opacity(0.10 + Double(2 - i) * 0.06))
+                    .frame(width: 96 + CGFloat(i) * 34, height: 96 + CGFloat(i) * 34)
+                    .scaleEffect(inhale ? 1.08 + CGFloat(i) * 0.04 : 0.86)
+            }
+            Circle()
+                .fill(LinearGradient(colors: [tint.opacity(0.7), tint, .blue.opacity(0.7)],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: 96, height: 96)
+                .shadow(color: tint.opacity(0.45), radius: 14, y: 6)
+                .scaleEffect(inhale ? 1.06 : 0.94)
+            Image(systemName: "wind").font(.system(size: 34, weight: .semibold)).foregroundStyle(.white)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 190)
+        .accessibilityHidden(true)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 5.5).repeatForever(autoreverses: true)) { inhale = true }
         }
     }
 }
