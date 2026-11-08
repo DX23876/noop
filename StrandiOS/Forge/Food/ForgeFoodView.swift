@@ -24,8 +24,8 @@ struct ForgeFoodView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Food"),
-                                  scrolledPast: $scrolledPast)
+                // The day is named once, in the picker below, not again as an overline.
+                ForgeDetailHeader(overline: nil, title: String(localized: "Food"), scrolledPast: $scrolledPast)
                 FoodDayPicker(model: model)
                 FoodEnergyCard(eaten: model.eatenKcal, calories: model.calories)
                 FoodMacroRow(totals: model.summary?.totals ?? NutrientAmounts())
@@ -35,7 +35,7 @@ struct ForgeFoodView: View {
                         FoodMealCard(meal: meal, onEdit: { editing = $0 }, onCopy: { copying = FoodEntryBatch(entries: $0) },
                                      onRecipe: { recipeFrom = FoodEntryBatch(entries: $0) }, onDelete: delete)
                     }
-                } else if model.loaded {
+                } else if model.summary != nil {
                     ContentUnavailableView("Nothing logged yet", systemImage: "fork.knife",
                                            description: Text("Search for a food, scan a barcode or just enter the calories."))
                         .forgeCard()

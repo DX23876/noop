@@ -27,6 +27,8 @@ final class ForgeFoodModel {
 
     func load(repo: Repository, profile: UserProfile) async {
         guard let store = await repo.storeHandle() else { return }
+        // The day first, so the page fills before the catalogue and the energy plan have loaded.
+        summary = await FoodLog.day(store: store, day)
         if !catalogReady {
             do { try await FoodCatalog.shared.prepareBundled(); catalogReady = true } catch { catalogFailed = true }
         }
