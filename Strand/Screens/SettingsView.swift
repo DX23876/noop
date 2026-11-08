@@ -743,14 +743,18 @@ private struct SettingsPageContent: View, Equatable {
                 // standing value the whole app reads, while the Body page holds DATED measurements with
                 // their own history. Removing these rows outright would lose everyone who knows where
                 // they are — so this points at the fuller surface rather than replacing them with it.
-                SettingsNavRow(
-                    icon: (symbol: "figure.stand", id: "body"),
-                    title: "Body measurements…",
-                    subtitle: "Weight, body fat and tape measurements, each with the date it was taken",
-                    route: .bodyMeasurements
-                )
-                .accessibilityLabel("Open body measurements")
-                rowDivider
+                // The new design keeps dated measurements where they are read, under Health, Body and
+                // nutrition; the profile holds only the standing values the app computes from.
+                if NoopVisualStyle.skin != .forge {
+                    SettingsNavRow(
+                        icon: (symbol: "figure.stand", id: "body"),
+                        title: "Body measurements…",
+                        subtitle: "Weight, body fat and tape measurements, each with the date it was taken",
+                        route: .bodyMeasurements
+                    )
+                    .accessibilityLabel("Open body measurements")
+                    rowDivider
+                }
                 FormRow(label: "Max heart rate") {
                     VStack(alignment: .trailing, spacing: 6) {
                         hrMaxField
