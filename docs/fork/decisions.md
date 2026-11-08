@@ -1079,3 +1079,38 @@ two. Mixed ways failing alone removes only them. Fewer than ten answers extends 
 minute is fixed; a wearer who walks slower gets no full minutes, and only this wearer's data exists to tune it.
 
 Analysis migration required: no. Suggestions feed no score; `activity-v2` has not shipped, so this stays on it.
+
+## The food log, after Bevel, on iOS and Android (2026-11-08)
+
+Replaces the 2026-09-30 row "Energy reads daily nutrition totals from Apple Health without becoming a food diary".
+That row rested on a food catalogue needing a server; the German Nutrient Database (Bundeslebensmittelschlüssel,
+BLS 4.0, Max Rubner-Institut) has been free under CC BY 4.0 since 2025-12-16, with about 7,140 foods and 138
+components per 100 g, so a full catalogue now ships in the app. Requested by the owner after comparing Bevel.
+
+- **One core for both platforms.** Storage (WhoopStore v86: entries with a nutrient snapshot, own foods, recipes,
+  favourites), search, day totals, the label reader, the coach's meal parsing and online search are shared Swift;
+  iOS and Android each add only screens, camera, downloads and their health store.
+- **Catalogues.** BLS is bundled as a table (`Tools/build_food_catalog.py`) and indexed on the phone. Branded
+  products come from Open Food Facts only after the wearer chooses: **online search** (search words and barcodes
+  go to Open Food Facts, filtered by up to three countries) or **country packs** downloaded from this
+  repository's `food-packs` release (`Tools/build_food_packs.py`, `.github/workflows/food-packs.yml`), checked
+  against the manifest's SHA-256 before use. No choice means nothing leaves the phone. Commercial databases
+  (FatSecret, Nutritionix, Edamam) were rejected: account, online only, no caching. The search index is a word
+  table (prefixes, compound tails, joined word pairs) because the Android core's SQLite has no FTS5.
+- **Precedence.** `NutritionReads`: Apple Health, Health Connect, CSV, then the food log, then a typed day value.
+  Two sources are never summed for a day.
+- **Health.** Each entry is written to Apple Health as a food correlation and to Health Connect as a
+  `NutritionRecord` (on by default, a switch on the Food data page), deleted or replaced with the entry; the
+  imports skip the app's own records. Android now also reads other apps' nutrition (`READ_NUTRITION`).
+- **Coach.** Describing or photographing a meal: the cheap model names foods and grams and then picks the
+  matching catalogue entry among the phone's candidates; nutrients always come from the catalogue, and the
+  result is a cart the wearer checks. Photos work with Gemini, OpenAI and Anthropic. Hidden when the coach is off.
+- **Goal.** `FoodTargets.calories`: the measured usual burn (else the formula's) plus the plan's daily change,
+  never below 1,200 kcal. Nutrient goals and a diet-quality score follow after a research note the owner
+  decides on (evidence over DGE wording; AHEI-2010 is the leading candidate, over seven days).
+- **Android scanning** uses CameraX and ZXing (Apache 2.0). Google ML Kit is excluded because it reports usage
+  to Google. Reading a label from a photo on Android needs the Tesseract language data, not added yet.
+
+Analysis migration required: no. Nutrition is resolved at read time; the new tables are wearer input and no
+stored score reads them.
+

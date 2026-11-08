@@ -5,6 +5,34 @@ import FoundationNetworking
 import StrandAnalytics
 
 struct AnthropicClient: AIProviderClient {
+    var readsImages: Bool { true }
+
+    /// The picture as a base64 image block before the question (the Messages API vision shape).
+    func sendWithImage(key: String, model: String, systemPrompt: String, text: String, imageBase64: String,
+                       mimeType: String, session: URLSession) async throws -> String {
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": CoachOutputBudget.maxTokens,
+            "system": systemPrompt,
+            "messages": [["role": "user", "content": [
+                ["type": "image", "source": ["type": "base64", "media_type": mimeType, "data": imageBase64]],
+                ["type": "text", "text": text],
+            ]]],
+        ]
+        var req = URLRequest(url: AIProvider.anthropic.endpoint)
+        req.httpMethod = "POST"
+        req.setValue(key, forHTTPHeaderField: "x-api-key")
+        req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        req.setValue("application/json", forHTTPHeaderField: "content-type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let json = try await performRequest(req, session: session)
+        guard let content = json["content"] as? [[String: Any]],
+              let text = content.compactMap({ $0["text"] as? String }).joined()
+                  .trimmingCharacters(in: .whitespacesAndNewlines) as String?, !text.isEmpty else {
+            throw emptyReplyError(json)
+        }
+        return text
+    }
 
     func send(
         key: String,

@@ -186,7 +186,7 @@ final class HealthKitBridge: ObservableObject {
     private var writeTypes: Set<HKSampleType> {
         var s = Set<HKSampleType>()
         for id in HealthKitBridge.quantityWriteIds + HealthKitBridge.highResQuantityWriteIds
-            + HealthKitBridge.bodyMassWriteIds
+            + HealthKitBridge.bodyMassWriteIds + FoodHealthSync.writeIds
             where !HealthKitBridge.writeDenied.contains(id) {
             if let t = HKObjectType.quantityType(forIdentifier: id) { s.insert(t) }
         }
@@ -217,10 +217,11 @@ final class HealthKitBridge: ObservableObject {
         // show up without being typed in twice. Lands in the hydration source rather than apple-health,
         // because the hydration screen is what consumes it. Never written back.
         .dietaryWater,
-        // Nutrition — READ-ONLY. NOOP deliberately ships no food diary (that is a separate app and
-        // would need a server this project does not have), but a wearer logging in one that syncs to
-        // Health should not have to retype it here. These feed the energy-balance check, which for a
-        // strap-only setup is the only remaining way to validate the daily figure at all.
+        // Nutrition — read as daily totals from other apps. Since the fork's food log (decision 2026-11-08)
+        // NOOP also WRITES what is logged here, one food correlation per entry (`FoodHealthSync`); the
+        // import below skips NOOP's own samples, so a logged meal is never counted twice. The totals feed
+        // the energy-balance check, which for a strap-only setup is the only way to validate the daily
+        // figure at all.
         .dietaryEnergyConsumed, .dietaryProtein, .dietaryCarbohydrates, .dietaryFatTotal,
         // Caffeine — READ-ONLY (#949). Feeds the caffeine window's decay estimate, which already stores
         // time + optional mg per intake, so a Health sample maps onto it directly. Apple exposes this as

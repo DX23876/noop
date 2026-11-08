@@ -42,6 +42,8 @@ data class ForgeColors(
     val recoveryStops: List<Pair<Float, Color>>,
     val sleepDeep: Color, val sleepLight: Color, val sleepRem: Color, val sleepAwake: Color,
     val heart: Color,
+    // The food log's colours, the values of iOS `ForgeColor.food`/`protein`/`carbs`/`fat`.
+    val food: Color, val protein: Color, val carbs: Color, val fat: Color,
 )
 
 @Immutable
@@ -73,7 +75,17 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
     sleepDeep = P.sleepDeep.pick(dark), sleepLight = P.sleepLight.pick(dark), sleepRem = P.sleepREM.pick(dark),
     sleepAwake = P.sleepAwake.pick(dark),
     heart = P.liquidHeart.pick(dark),
+    food = FoodInk.food.pick(dark), protein = FoodInk.protein.pick(dark), carbs = FoodInk.carbs.pick(dark),
+    fat = FoodInk.fat.pick(dark),
 )
+
+/** The food log's hues (iOS `ForgeTheme.swift`, decision 2026-11-08); hand-set there too, not design-system tokens. */
+private object FoodInk {
+    val food = ForgeColor(light = 0xFFB4530B, dark = 0xFFF5A524)
+    val protein = ForgeColor(light = 0xFFB83280, dark = 0xFFF472B6)
+    val carbs = ForgeColor(light = 0xFF1D6FB8, dark = 0xFF5AB0FF)
+    val fat = ForgeColor(light = 0xFFA16207, dark = 0xFFFACC15)
+}
 
 /**
  * The faces standing in for Apple's, which may not ship outside Apple's platforms: Nunito where iOS uses SF Pro

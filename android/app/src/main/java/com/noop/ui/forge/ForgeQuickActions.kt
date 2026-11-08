@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.EditNote
@@ -56,7 +57,7 @@ import com.noop.ui.ProfileAvatar
 import kotlin.math.roundToInt
 
 /** What the Today header's "+" opens, after the iOS `QuickAction`. */
-enum class QuickAction { Battery, Live, Workout, Journal, Breathe, Goals, LiveSession, CustomizeToday }
+enum class QuickAction { Battery, Live, Workout, Journal, Food, Breathe, Goals, LiveSession, CustomizeToday }
 
 /** The header's trailing pair after iOS (`headerProfileButton`, `LiquidAddButton`): the profile photo, then "+". */
 @Composable
@@ -113,6 +114,7 @@ internal fun ForgeQuickActionSheet(viewModel: AppViewModel, onDismiss: () -> Uni
             ActionRow(stringResource(R.string.forge_qa_start_workout), Icons.Rounded.DirectionsRun, colors.effort) { onPick(QuickAction.Workout) }
             ActionRow(stringResource(R.string.forge_qa_log_journal), Icons.Rounded.EditNote,
                       ForgeTokens.Color.systemOrange.resolve()) { onPick(QuickAction.Journal) }
+            ActionRow(stringResource(R.string.food_log_food), Icons.Rounded.Restaurant, colors.food) { onPick(QuickAction.Food) }
             ActionRow(stringResource(R.string.forge_qa_breathe), Icons.Rounded.Air, colors.rest) { onPick(QuickAction.Breathe) }
             ActionRow(stringResource(R.string.forge_lay_section_goals), Icons.Rounded.TrackChanges, colors.charge) { onPick(QuickAction.Goals) }
             // The guided session (iOS "Silent Guardian"), while its beta switch is on (Settings › Training).

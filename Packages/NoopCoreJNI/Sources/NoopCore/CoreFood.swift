@@ -144,6 +144,47 @@ enum CoreFood {
             } catch {
                 return #"{"error":"invalidArchive"}"#
             }
+        case "food.onlineSearch":
+            // Only when the wearer chose online search; Kotlin passes the countries it chose.
+            do {
+                return CoreRead.json(["items": try await FoodOnline.search(string("query"),
+                    countries: args["countries"] as? [String] ?? [], language: string("language").isEmpty ? "de" : string("language"))])
+            } catch { return #"{"error":"offline"}"# }
+        case "food.onlineBarcode":
+            do {
+                guard let found = try await FoodOnline.product(barcode: string("code"),
+                    language: string("language").isEmpty ? "de" : string("language")) else { return "null" }
+                return CoreRead.json(found)
+            } catch { return #"{"error":"offline"}"# }
+        case "food.importHealth":
+            // Health Connect's daily nutrition per app, as Apple's import resolves it: one app per day, the
+            // preferred one when several wrote, a day left out when several did and none is preferred.
+            let rows = (args["rows"] as? [[String: Any]]) ?? []
+            let preferred = (args["preferred"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            let from = string("from"), to = string("to")
+            guard !from.isEmpty, !to.isEmpty else { return #"{"error":"invalid"}"# }
+            var byDay: [String: [[String: Any]]] = [:]
+            for row in rows { if let day = row["day"] as? String { byDay[day, default: []].append(row) } }
+            var points: [MetricPoint] = []
+            var unresolved: [String] = []
+            for (day, candidates) in byDay {
+                let chosen = preferred.flatMap { id in candidates.first { $0["source"] as? String == id } }
+                    ?? (candidates.count == 1 ? candidates.first : nil)
+                guard let chosen else { unresolved.append(day); continue }
+                for (key, field) in [(NutritionReads.caloriesKey, "calories"), (NutritionReads.proteinKey, "protein"),
+                                     (NutritionReads.carbsKey, "carbs"), (NutritionReads.fatKey, "fat")] {
+                    if let value = (chosen[field] as? NSNumber)?.doubleValue, value.isFinite, value > 0 {
+                        points.append(MetricPoint(day: day, key: key, value: value))
+                    }
+                }
+            }
+            do {
+                try await store.replaceMetricSeriesWindow(points, deviceId: MetricResolver.healthConnectSource,
+                    keys: [NutritionReads.caloriesKey, NutritionReads.proteinKey, NutritionReads.carbsKey, NutritionReads.fatKey],
+                    from: from, to: to)
+            } catch { return #"{"error":"storeFailed"}"# }
+            struct ImportWire: Encodable { var ok: Bool; var unresolvedDays: [String] }
+            return CoreRead.json(ImportWire(ok: true, unresolvedDays: unresolved.sorted()))
         case "food.removePack":
             await catalog.removePack(country: string("country"))
             return #"{"ok":true}"#

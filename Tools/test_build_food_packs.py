@@ -90,5 +90,14 @@ class PackTests(unittest.TestCase):
         self.assertEqual(meta["tableFormat"], common.TABLE_FORMAT)
 
 
+class CountryTableTests(unittest.TestCase):
+    def test_swift_country_table_matches(self):
+        import re
+        source = (Path(__file__).resolve().parent.parent
+                  / "Packages/StrandCore/Sources/StrandCore/Food/FoodCountries.swift").read_text(encoding="utf-8")
+        swift = dict(re.findall(r'"([A-Z]{2})": "([a-z0-9-]+)"', source))
+        self.assertEqual(swift, {iso: tag for tag, iso in packs.ISO_CODES.items()})
+
+
 if __name__ == "__main__":
     unittest.main()

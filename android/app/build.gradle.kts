@@ -317,6 +317,15 @@ dependencies {
     // --- Health Connect (optional native Android import of steps/HR/HRV/sleep/etc.) ---
     // Pinned to alpha07: alpha11+ require compileSdk 35; this module is compileSdk 34.
     implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
+    // The food log's barcode scanner (decision 2026-11-08): CameraX frames decoded on the phone by ZXing
+    // (Apache 2.0). Not Google ML Kit, which reports usage to Google.
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("com.google.zxing:core:3.5.3")
+    // CameraX hands back Guava's ListenableFuture. Guava 31.1-android is already on the runtime classpath
+    // (through CameraX); the compiler needs to see the same version.
+    compileOnly("com.google.guava:guava:31.1-android")
 
     // --- Unit / instrumentation tests ---
     testImplementation("junit:junit:4.13.2")

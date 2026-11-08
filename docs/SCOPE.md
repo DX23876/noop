@@ -15,7 +15,10 @@ user-controlled exceptions are narrow: Coach requests go directly to the configu
 source-built Oura lane imports data from the user's own account, an opt-in Hevy lane imports the user's
 own strength training from theirs, and the update checker reads public GitHub release metadata manually
 or, when enabled, at most once per day. These are hard boundaries, not permission to add general cloud
-features.
+features. The food log adds one more, default off: after the wearer chooses, branded products come
+either from Open Food Facts' public search (search words and barcodes only, no account) or from country packs
+downloaded as public files from this repository's `food-packs` release; with no choice nothing leaves the phone
+(decision 2026-11-08).
 
 Each exception shares one shape, which is what makes it an exception rather than a precedent: the
 user's own account, their own credential, data moving IN, nothing hosted by this project, and default

@@ -949,7 +949,7 @@ struct RootTabView: View {
             case .liveHeartRate: withAnimation(Self.sheetEase) { quickAction = .live }
             case .weight: pushOnToday(TabRoute.weight)
             case .drink: pushOnToday(TabRoute.hydration)
-            case .energy: pushOnToday(TabRoute.energy)
+            case .energy: pushOnToday(ForgeRoute.food)
             case .sleep:
                 // The full Sleep screen, where marks are logged and a night is edited.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }

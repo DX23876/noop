@@ -46,6 +46,13 @@ enum ForgeColor {
     static let cycleShift = dyn(0xB07A0C, 0xE8B64A)
     static let cycleFertile = dyn(0x4E9F2E, 0x9BDB6B)
 
+    /// Food: what was eaten in amber, the three macronutrients in their own hues so a bar is never
+    /// mistaken for a score. Android's `ForgePalette` carries the same values.
+    static let food = dyn(0xB4530B, 0xF5A524)
+    static let protein = dyn(0xB83280, 0xF472B6)
+    static let carbs = dyn(0x1D6FB8, 0x5AB0FF)
+    static let fat = dyn(0xA16207, 0xFACC15)
+
     /// The per-tab wash at the top of a plain screen. Colorful gives each area its own colour; the calm
     /// profiles stay close to their canvas and differ only slightly from tab to tab.
     static func wash(_ tab: ForgeTab) -> Color {

@@ -4475,6 +4475,20 @@ final class AICoachEngine: ObservableObject {
         } catch { return nil }
     }
 
+    /// Whether the chosen provider sends a picture to the cheap model (food photos).
+    var readsFoodPhotos: Bool { CoachFeaturePrefs.isEnabled && resolvedKey != nil && provider.client.readsImages }
+
+    /// `cheapComplete` with one picture (base64), for the food log's photo entry. Nil on any failure.
+    func cheapCompleteWithImage(system: String, text: String, imageBase64: String, mimeType: String,
+                                role: CoachModelRole = .cardAnalysis) async -> String? {
+        guard let key = resolvedKey, provider.client.readsImages else { return nil }
+        do {
+            return try await provider.client.sendWithImage(
+                key: key, model: model(for: role), systemPrompt: system, text: text,
+                imageBase64: imageBase64, mimeType: mimeType, session: session)
+        } catch { return nil }
+    }
+
     /// Write a generated summary back onto a conversation (called by `MemoryMaintainer`). `conversations`
     /// has a private setter, so the maintainer routes writes through here.
     ///

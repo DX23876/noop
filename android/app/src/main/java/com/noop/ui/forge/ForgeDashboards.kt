@@ -804,6 +804,7 @@ internal fun ForgeClassicToday(padding: androidx.compose.foundation.layout.Paddi
                 QuickAction.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
                 QuickAction.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
                 QuickAction.Goals -> more.push(MoreRoute.Dest(MoreDest.Goals))
+                QuickAction.Food -> more.push(MoreRoute.Dest(MoreDest.Food))
                 QuickAction.LiveSession -> liveSession = true
                 QuickAction.CustomizeToday -> more.push(MoreRoute.Dest(MoreDest.Settings))
             }

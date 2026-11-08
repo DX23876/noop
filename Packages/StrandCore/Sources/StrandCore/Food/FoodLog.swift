@@ -255,3 +255,6 @@ public enum FoodLibrary {
                  per100g: NutrientAmounts(stored: food.per100g), barcode: food.barcode)
     }
 }
+
+/// Entries are listed and edited by their id.
+extension FoodLogEntry: Identifiable {}

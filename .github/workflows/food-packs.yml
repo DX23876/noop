@@ -1,0 +1,74 @@
+# Builds the food log's downloadable product packs, one per country, from the Open Food Facts export
+# (decision 2026-11-08) and publishes them as assets of the `food-packs` release of this repository.
+#
+# The app never downloads anything on its own: a wearer who chose "Download for offline" picks countries
+# from `manifest.json`, and the app checks each file's SHA-256 from that manifest before it uses it.
+# The release is a public file host on GitHub, not a NOOP server; no request carries anything about
+# the wearer.
+#
+# Data: Open Food Facts, ODbL 1.0 (database) and DbCL 1.0 (contents). Each pack is a derived database and
+# is published under ODbL 1.0 with the attribution in `docs/fork/food-data/`.
+name: Food packs
+
+on:
+  schedule:
+    # The 3rd of each month, 03:41 UTC: off the hour, after Open Food Facts' nightly export.
+    - cron: '41 3 3 * *'
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: 'Comma-separated Open Food Facts country tags; empty builds every country with enough products'
+        type: string
+        default: ''
+      min_products:
+        description: 'Smallest pack worth publishing'
+        type: string
+        default: '500'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: food-packs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: Tools
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download the Open Food Facts export
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/products.csv.gz" \
+            -A "NOOP-Forge food-packs workflow (github.com/DX23876/noop)" \
+            https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz
+          ls -l "$RUNNER_TEMP/products.csv.gz"
+
+      - name: Build the packs
+        run: |
+          set -euo pipefail
+          python3 Tools/build_food_packs.py --input "$RUNNER_TEMP/products.csv.gz" --output-dir "$RUNNER_TEMP/packs" \
+            --countries "${{ inputs.countries }}" --min-products "${{ inputs.min_products || '500' }}"
+          ls -l "$RUNNER_TEMP/packs"
+          # A manifest without packs means the export changed shape, not that the world stopped selling food.
+          python3 -c "import json,sys; m=json.load(open(sys.argv[1])); sys.exit(0 if m['packs'] else 'manifest lists no packs: the export format may have changed')" "$RUNNER_TEMP/packs/manifest.json"
+
+      - name: Publish to the food-packs release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view food-packs -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create food-packs -R "$GITHUB_REPOSITORY" --title "Food packs" --latest=false \
+              --notes "Product packs for the NOOP Forge food log, one per country, from Open Food Facts (ODbL 1.0). Downloaded only from the app's Food data page, after the wearer chooses a country."
+          fi
+          gh release upload food-packs -R "$GITHUB_REPOSITORY" --clobber "$RUNNER_TEMP"/packs/*

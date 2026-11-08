@@ -40,6 +40,17 @@ enum CoreCoach {
         if op == "coach.today" { return CoreRead.json(await TodayCoachCard(reader: reader)) }
         if op == "coach.checkin" { return CoreRead.json(await CheckInState(reader: reader, fixedMinutes: args["fixedMinutes"] as? Int ?? 480)) }
         let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
+        if op == "coach.foodPhotos" { return CoreRead.json(["reads": coach.readsFoodPhotos]) }
+        if op == "coach.foodCart" {
+            // A described or photographed meal as cart lines (`CoachFoodLogging`); nothing is saved here.
+            guard let result = await coach.foodCart(description: args["description"] as? String ?? "",
+                                                    imageBase64: args["image"] as? String,
+                                                    mimeType: args["mimeType"] as? String ?? "image/jpeg",
+                                                    store: reader.store) else { return #"{"error":"noAnswer"}"# }
+            struct Line: Encodable { var item: FoodItem; var grams: Double }
+            struct Wire: Encodable { var lines: [Line]; var unmatched: [CoachFoodLogging.Guess] }
+            return CoreRead.json(Wire(lines: result.lines.map { Line(item: $0.item, grams: $0.grams) }, unmatched: result.unmatched))
+        }
         let id = (args["id"] as? String).flatMap(UUID.init(uuidString:))
         switch op {
         case "coach.configure":

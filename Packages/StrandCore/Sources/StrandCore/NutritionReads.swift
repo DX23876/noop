@@ -4,7 +4,7 @@ import WhoopStore
 
 /// One day's resolved nutrition: each field from the most deliberate source that logged it.
 public struct NutritionDay: Equatable, Sendable {
-    public enum Source: String, Sendable { case appleHealth, csv, foodLog, manual }
+    public enum Source: String, Sendable { case appleHealth, healthConnect, csv, foodLog, manual }
 
     public let day: String
     public var calories: Double?
@@ -59,7 +59,8 @@ public enum NutritionReads {
     public static func nutritionByDay(store: WhoopStore, from: String, to: String,
                                       healthSourceNames: [String: String] = [:]) async -> [String: NutritionDay] {
         let sources: [(id: String, source: NutritionDay.Source)] = [
-            (MetricResolver.appleHealthSource, .appleHealth), (csvIntakeSource, .csv),
+            (MetricResolver.appleHealthSource, .appleHealth), (MetricResolver.healthConnectSource, .healthConnect),
+            (csvIntakeSource, .csv),
             (WhoopStore.foodLogSourceId, .foodLog), (manualIntakeSource, .manual),
         ]
         var byDay: [String: NutritionDay] = [:]
