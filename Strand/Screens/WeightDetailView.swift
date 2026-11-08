@@ -55,7 +55,7 @@ struct WeightDetailView: View {
                     logButton
                     forgeHistory
                 }
-        .pagePicture("scalemass.fill", accent: "leaf.fill", tint: .pink)
+        .pagePicture("scalemass.fill", accent: "leaf.fill", tint: Self.weightTint)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
@@ -227,8 +227,11 @@ struct WeightDetailView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.noopProminent)
-        .tint(StrandPalette.accent)
+        .tint(Self.weightTint)
     }
+
+    /// The weight page's one colour: the pink of its picture in the new design, the accent in the shipped one.
+    static var weightTint: Color { NoopVisualStyle.skin == .forge ? Color.pink : StrandPalette.accent }
 
     // MARK: - Chart
 
@@ -238,8 +241,8 @@ struct WeightDetailView: View {
             NoopCard {
                 VStack(alignment: .leading, spacing: 8) {
                     TrendChart(points: chartPoints,
-                               gradient: Gradient(colors: [StrandPalette.accent.opacity(0.35),
-                                                           StrandPalette.accent]),
+                               // The weight colour of the page's picture in the new design.
+                               gradient: Gradient(colors: [Self.weightTint.opacity(0.35), Self.weightTint]),
                                valueRange: chartRange,
                                height: 200,
                                valueFormat: { UnitFormatter.massFromKilograms($0, system: unitSystem) },
