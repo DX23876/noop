@@ -505,8 +505,9 @@ for any day NOOP holds raw streams for, not just days WHOOP itself scored.
   sleep about H tonight." Explicitly labelled as a forecast; your real Charge is still scored from
   tomorrow's HRV when you wake.
 - **How this works** — a plain explanation of the Charge weighting (HRV ~55%, resting HR ~20%, rest
-  quality ~15%, respiration ~5%, skin-temperature deviation ~5%), Effort as a 0–21 (or rescaled)
-  cardiovascular load from HR-zone time, and Rest staged from motion + heart rate.
+  quality ~15%, respiration ~5%, skin-temperature deviation ~5%), Effort as a 0–100 (or 0–21)
+  cardiovascular load in which each minute of heart rate counts for more the closer it sits to your
+  maximum, and Rest staged from motion + heart rate.
 - **Effort curve** (from 13.0.0 (testing), recipe AI-32; `StrainScorer`) — Effort no longer sums
   Edwards' zones on a log scale. Each minute weighs more the closer it sits to your maximum, measured on
   your heart-rate reserve between resting and maximum heart rate, and the day's load maps onto the scale with a soft cap near

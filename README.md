@@ -631,7 +631,7 @@ Both are free, both keep your data on your device, and both need no WHOOP subscr
 |---|---|
 | use an **Android** phone and want a finished app today | **ryanbr/noop.** Forge for Android is still in testing |
 | use an **Android** phone and want to help test | **NOOP Forge**, see [Android](#-android-testing) |
-| want the **official** project with a community (Discord, Reddit, issue tracker) | **ryanbr/noop** |
+| want the **original** project with its larger community | **ryanbr/noop** |
 | want a **workout log, goals, body tracking and muscle analysis** in the same app | **NOOP Forge** |
 | want an **AI coach** that can look up your real data and suggest plans | **NOOP Forge** |
 | want to take **ECG readings** with a WHOOP MG | **NOOP Forge** |
@@ -878,6 +878,11 @@ The Bluetooth work builds on community research, with thanks to
 > [!IMPORTANT]
 > NOOP Forge is not a medical device. Its scores, ECG readings and health values are estimates for
 > personal use, not medical advice or a diagnosis. If you have health concerns, talk to a doctor.
+
+## Help and support
+
+Questions, bug reports and how to reach the project: [SUPPORT.md](SUPPORT.md) and the
+[FAQ](docs/FAQ.md#help-bug-reports-and-support).
 
 ## Support NOOP Forge
 
