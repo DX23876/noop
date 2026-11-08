@@ -85,6 +85,14 @@ Strand/Screens/
 `.environmentObject(model.coach)`. It owns the conversation list, the active conversation, streaming
 state, and every setting.
 
+**Android (in testing) runs the same engine.** `Packages/NoopCoreJNI/Sources/NoopCore/Shared` links the
+`Strand/AI/` sources into the shared core, and the Android chat calls it through `coach.configure`,
+`coach.send` and `coach.state` (`android/…/core/CoreCoach.kt`): Kotlin hands in the settings and the key
+from its encrypted store, the core keeps the key in memory only, and the conversation history and plan
+book come from the same `CoachPlanStore`. Streaming goes through `streamedBytes(for:)` in `StrandCore`,
+because Android's Foundation has no `URLSession.bytes(for:)`. Not on Android yet: the semantic Coach
+memory (Nomic on llama.cpp, see the iOS Nomic runtime below). Running state: [`android/STATUS.md`](android/STATUS.md).
+
 ### The request path
 
 ```
@@ -122,8 +130,9 @@ Three deliberate choices in there:
   `maxHistoryMessages = 10` it used to be — one number can't serve both a 2 048-token local Ollama
   model and a 200 000-token Claude. The old count survives as a FLOOR, so no provider gets less
   context than before, and an unknown Custom/OpenRouter model id stays conservative: guessing large
-  risks a hard context overflow, guessing small only costs scrollback. (Android still uses the flat
-  count; the floor keeps the two agreeing on the small-model case.)
+  risks a hard context overflow, guessing small only costs scrollback. (The Android chat runs this
+  same engine, see below; only ryanbr's Kotlin fallback coach there still uses the flat count, and the
+  floor keeps the two agreeing on the small-model case.)
 - **Readiness and Charge drivers are read from the SAME engines Today uses**
   (`ReadinessEngine.evaluate`, `ChargeDrivers.chargeDrivers`) — never re-derived or eyeballed by the
   model. The coach cannot contradict what the Today screen already told you.
@@ -787,10 +796,9 @@ answer now says so, instead of an unexplained "(no reply)" for a request the use
 
 **Custom** points at any OpenAI-compatible base URL — Ollama (`http://localhost:11434/v1`), LM
 Studio, llama.cpp, or a hosted gateway. Keyless for a local server, so a fully local coach means
-*nothing* leaves your network at all. It's also confirmed working against **OpenRouter**
-(`https://openrouter.ai/api/v1`) today — that's this same Custom path, not a dedicated integration;
-a first-class OpenRouter provider with a searchable model picker (its catalogue is 300+ entries) is
-on the fork roadmap.
+*nothing* leaves your network at all. **OpenRouter** is now a provider of its own (`AIProvider.openRouter`,
+`https://openrouter.ai/api/v1`), with tools per model and a searchable model sheet
+(`ModelSearchSheet`) for its 300+ entry catalogue; before that it was reached through this Custom path.
 
 **Prompt caching (Anthropic only).** The tool-use loop re-sends the full tool-definition list and
 system prompt on every round of a multi-round answer — the exact prefix a `cache_control: ephemeral`

@@ -347,9 +347,9 @@ provisioning profile, or personal developer name.
 The Android app (`android/`, applicationId `io.github.dx23876.noop`, Android 8.0+ / minSdk 26) is in
 testing (see [`fork/android/TESTING.md`](fork/android/TESTING.md) and
 [`fork/android/STATUS.md`](fork/android/STATUS.md)). Its store and its scoring are the shared Swift
-core's; Kotlin keeps Bluetooth, Android services and the screens. Every build compiles the shared Swift core from `Packages/NoopCoreJNI` into `libNoopCore.so` (arm64) and packs
-it with the Swift runtime into the APK. The `versionName` is read from `MARKETING_VERSION` in
-`project.yml`.
+core's; Kotlin keeps Bluetooth, Android services and the screens. Every build compiles the shared Swift
+core from `Packages/NoopCoreJNI` into `libNoopCore.so` (arm64) and packs it with the Swift runtime into the
+APK. The `versionName` is read from `MARKETING_VERSION` in `project.yml`.
 
 Prerequisites, as pinned in `.github/workflows/android.yml` and `android/swift-core/build-swift-core.sh`:
 
