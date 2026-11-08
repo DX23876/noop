@@ -164,8 +164,6 @@ enum ForgeWidgetMeasures {
 
 struct ForgeTodayWidgetArea: View {
     @Binding var editing: Bool
-    /// Kinds Today shows elsewhere right now (its "right now" section); kept in the list, left off the board.
-    var hiddenKinds: Set<ForgeTodayWidget.Kind> = []
     @ObservedObject private var store = ForgeTodayWidgetStore.shared
     @State private var addingWidget = false
 
@@ -186,10 +184,7 @@ struct ForgeTodayWidgetArea: View {
     /// for while tracking is on, so a widget with nothing to draw never holds an empty row.
     private var shown: [ForgeTodayWidget] {
         let cycle = cycleEnabled && ForgeCycleAudience.applies(sex: profile.sex, bodyFormulaSex: profile.bodyFormulaSex)
-        return store.widgets.filter {
-            ($0.kind != .ageless || healthspanEnabled) && ($0.kind != .cycle || cycle)
-                && (editing || !hiddenKinds.contains($0.kind))
-        }
+        return store.widgets.filter { ($0.kind != .ageless || healthspanEnabled) && ($0.kind != .cycle || cycle) }
     }
 
     /// Small tiles fill a row of two or three; a wide tile takes its own row.

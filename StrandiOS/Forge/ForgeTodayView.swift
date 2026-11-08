@@ -167,13 +167,12 @@ struct ForgeTodayView: View {
                             // A detected activity waiting for an answer, then the day's one hint.
                             ActivitySuggestionPrompt(compact: true)
                             hintCard
-                            daypartSection
                         }
                         .padding(.horizontal, 16)
                     }
                     VStack(alignment: .leading, spacing: 16) {
                         if !tilesBelowTimeline || !showsTimeline || editingWidgets {
-                            ForgeTodayWidgetArea(editing: $editingWidgets, hiddenKinds: daypartKinds)
+                            ForgeTodayWidgetArea(editing: $editingWidgets)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -427,7 +426,7 @@ struct ForgeTodayView: View {
                 timeline
             }
             if tilesBelowTimeline && showsTimeline && !editingWidgets {
-                ForgeTodayWidgetArea(editing: $editingWidgets, hiddenKinds: daypartKinds)
+                ForgeTodayWidgetArea(editing: $editingWidgets)
             }
         }
         .padding(.horizontal, 16)
@@ -1095,57 +1094,6 @@ struct ForgeTodayView: View {
     }
 
     /// What waits for the reader today, in one place: a proposed session and a weigh-in a weight goal misses.
-    // MARK: Right now
-
-    private var daypart: ForgeDaypart {
-        ForgeDaypart.current(bedtime: ForgeToday.plannedBedtime(now: Date()))
-    }
-
-    /// The widgets the "right now" section shows, left out of the board below so none shows twice.
-    private var daypartKinds: Set<ForgeTodayWidget.Kind> {
-        switch daypart {
-        case .morning, .day: [.nextSession]
-        case .evening: [.tonight, .nextSession]
-        }
-    }
-
-    /// What the part of the day asks: in the morning the plan and the target, in the day how much Effort
-    /// is left, in the evening the night ahead and what comes tomorrow.
-    @ViewBuilder private var daypartSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForgeSectionTitle(title: daypartTitle)
-            switch daypart {
-            case .morning:
-                ForgeNextSessionWidget()
-                effortCard
-            case .day:
-                effortCard
-                ForgeNextSessionWidget()
-            case .evening:
-                ForgeTonightWidget()
-                ForgeNextSessionWidget()
-            }
-        }
-    }
-
-    private var daypartTitle: LocalizedStringKey {
-        switch daypart {
-        case .morning: "This morning"
-        case .day: "Right now"
-        case .evening: "This evening"
-        }
-    }
-
-    /// Effort against today's target on one bar; the target comes from today's own Charge only.
-    @ViewBuilder private var effortCard: some View {
-        if snapshot.charge.carriedCaption == nil, let target = effortTarget {
-            ForgeWidgetCard(title: String(localized: "Effort today"),
-                            route: ForgeRoute.effort(stored: snapshot.effortStored, charge: chargeScore)) {
-                ForgeEffortTargetBar(effort: snapshot.effortStored ?? 0, target: target, scale: effortScale)
-            }
-        }
-    }
-
     /// A weight goal with no weigh-in for a week.
     private var weighInDue: Bool {
         goalStore.activeGoals.contains { $0.kind == .weight }
