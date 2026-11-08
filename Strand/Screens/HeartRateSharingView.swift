@@ -53,6 +53,7 @@ struct HeartRateSharingView: View {
                 if strapCanBroadcast { strapCard }
             }
         }
+        .pagePicture("heart.fill", accent: "antenna.radiowaves.left.and.right", tint: StrandPalette.metricRose)
         .onAppear {
             broadcastLogSink.live = live
             hrBroadcaster.bind(to: live)

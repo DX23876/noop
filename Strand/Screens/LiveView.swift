@@ -180,6 +180,7 @@ struct LiveView: View {
             }
             }
         }
+        .pagePicture("heart.fill", accent: "waveform.path.ecg", tint: StrandPalette.metricRose)
         #if DEBUG
         // Screenshot QA of the connected page: `--demo-live` fakes a bonded strap on this screen.
         .onAppear {

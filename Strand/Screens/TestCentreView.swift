@@ -178,6 +178,7 @@ struct TestCentreView: View {
             }
             }
         }
+        .pagePicture("stethoscope", accent: "wrench.and.screwdriver.fill", tint: .indigo)
         .id(refreshToken)
         .onAppear {
             refreshToken &+= 1

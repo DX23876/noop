@@ -34,6 +34,7 @@ struct NotificationSettingsView: View {
                     .staggeredAppear(index: store.activeCategories.count + 1)
             }
         }
+        .pagePicture("bell.badge.fill", accent: "sparkle", tint: .pink)
     }
 
     // MARK: - Master

@@ -382,6 +382,7 @@ struct GoalsArchiveView: View {
                 .buttonStyle(.plain)
             }
         }
+        .pagePicture("archivebox.fill", accent: "flag.fill", tint: .gray)
     }
 
     private func endedLine(_ action: GoalAction) -> String {
@@ -538,6 +539,7 @@ struct GoalsReviewScreen: View {
             Text("Earlier weeks are in Trends, in the week in review.")
                 .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         }
+        .pagePicture("clock.arrow.circlepath", accent: "star.fill", tint: .green)
     }
 }
 

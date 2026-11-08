@@ -36,6 +36,7 @@ struct StorageView: View {
                 explainerCard.staggeredAppear(index: 2)
             }
         }
+        .pagePicture("externaldrive.fill", accent: "folder.fill", tint: .teal)
         .task { await load() }
     }
 

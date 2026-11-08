@@ -37,6 +37,7 @@ struct DevicesView: View {
                     symbol: "badge.plus.radiowaves.right")
             }
         }
+        .pagePicture("sensor.tag.radiowaves.forward.fill", accent: "antenna.radiowaves.left.and.right", tint: StrandPalette.chargeColor)
     }
 }
 

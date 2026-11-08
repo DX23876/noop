@@ -103,6 +103,7 @@ struct IntelligenceView: View {
                 }
             }
         }
+        .pagePicture("brain.head.profile", accent: "sparkles", tint: StrandPalette.metricPurple)
         .task { if intelligence.results.isEmpty { await intelligence.analyzeRecent() } }
         .toolbar {
             ToolbarItem {

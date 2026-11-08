@@ -257,6 +257,7 @@ struct AppleHealthView: View {
                 }
             }
         }
+        .pagePicture("heart.fill", accent: "arrow.triangle.2.circlepath", tint: .red)
         .task(id: AppleHealthLoadKey(seq: repo.refreshSeq, dayKey: Repository.localDayKey(Date()))) { await load(allowCache: true) }
         .onChangeCompat(of: range) { _ in rebuildWindowCache() }
     }

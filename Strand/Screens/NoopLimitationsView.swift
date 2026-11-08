@@ -82,6 +82,7 @@ struct NoopLimitationsView: View {
             tableCard
             legendCard
         }
+        .pagePicture("checklist", accent: "sensor.tag.radiowaves.forward.fill", tint: .blue)
     }
 
     // MARK: - Cards

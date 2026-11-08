@@ -44,6 +44,7 @@ struct TrainingHistoryView: View {
                 content(built)
             }
         }
+        .pagePicture("calendar", accent: "chart.bar.fill", tint: StrandPalette.effortColor)
         .task { await model.load(repo: repo) }
         .task(id: BuildKey(loaded: model.source != nil, span: span, jump: jumpDay, lifts: liftsRaw)) {
             guard let source = model.source else { return }

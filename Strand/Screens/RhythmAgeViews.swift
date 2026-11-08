@@ -301,6 +301,7 @@ struct RhythmAgeDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .pagePicture("sun.and.horizon.fill", accent: "moon.fill", tint: .orange)
         .sheet(isPresented: $showsAbout) { RhythmAgeAboutSheet() }
         .task(id: repo.refreshSeq) { (snapshot, history) = await RhythmAgeSnapshot.load(repo: repo) }
     }

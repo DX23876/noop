@@ -106,6 +106,7 @@ struct StressView: View {
                 emptyState
             }
         }
+        .pagePicture("leaf.fill", accent: "wind", tint: StrandPalette.metricCyan)
         .onAppear { rebuildModelIfNeeded() }
         .onChangeCompat(of: repo.days) { _ in rebuildModelIfNeeded() }
         .task(id: repo.refreshSeq) { await load() }

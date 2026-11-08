@@ -54,6 +54,7 @@ struct InsightsHubView: View {
                 }
             }
         }
+        .pagePicture("lightbulb.fill", accent: "sparkles", tint: .yellow)
         .task(id: repo.refreshSeq) { await model.load(repo: repo) }
         .onChangeCompat(of: outcome) { model.rankFor($0) }
     }

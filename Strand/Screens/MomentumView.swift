@@ -55,6 +55,7 @@ struct MomentumView: View {
                 }
             }
         }
+        .pagePicture("bolt.horizontal.fill", accent: "arrow.up.right", tint: StrandPalette.metricAmber)
     }
 
     // MARK: - New design

@@ -115,6 +115,7 @@ struct IntervalTimerView: View {
                 }
             }
         }
+        .pagePicture("timer", accent: "flame.fill", tint: .orange)
         .onReceive(ticker) { _ in tick() }
         .onChangeCompat(of: workSeconds) { _ in if !running { resetToStart() } }
         .onChangeCompat(of: restSeconds) { _ in if !running { resetToStart() } }

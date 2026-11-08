@@ -260,6 +260,7 @@ struct WorkoutsView: View {
                 sessionsSection(rows: windowRows)
             }
         }
+        .pagePicture("figure.run", accent: "flame.fill", tint: StrandPalette.effortColor)
         // Keyed on the energy revision too: a correction of stored session energy (recipes AI-13 to AI-15)
         // or a re-priced day changes the rows and the heatmap without a strap refresh, and the list kept
         // showing the old figure until the next one. Likewise heart rate filled into Apple Health rows.

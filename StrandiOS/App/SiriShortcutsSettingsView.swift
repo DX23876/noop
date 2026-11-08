@@ -21,6 +21,7 @@ struct SiriShortcutsSettingsView: View {
                 shortcutsCard
             }
         }
+        .pagePicture("mic.fill", accent: "sparkles", tint: .purple)
     }
 
     /// What NOOP answers to, one row per action, with the words that start it.

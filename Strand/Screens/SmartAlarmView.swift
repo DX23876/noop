@@ -76,6 +76,7 @@ struct SmartAlarmView: View {
                 }
             }
         }
+        .pagePicture("alarm.fill", accent: "moon.fill", tint: StrandPalette.restColor)
         .onAppear(perform: unifyWakeTimesOnce)
         .alert(String(localized: "Notifications are off"), isPresented: $showNotifDeniedAlert) {
             Button(String(localized: "Open Settings")) { Self.openNotificationSettings() }

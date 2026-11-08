@@ -146,6 +146,7 @@ struct XiaomiBandView: View {
                 }
             }
         }
+        .pagePicture("figure.walk.motion", accent: "heart.fill", tint: .orange)
         .task(id: repo.refreshSeq) { await load() }
         .onChangeCompat(of: range) { _ in rebuildWindowCache() }
         .onPreferenceChange(ChartWidthKey.self) { w in if w > 1 { chartWidthPts = w } }

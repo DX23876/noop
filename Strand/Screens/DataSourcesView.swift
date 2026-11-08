@@ -90,6 +90,7 @@ struct DataSourcesView: View {
                 if NoopVisualStyle.skin != .forge { liveCard.staggeredAppear(index: 10) }
             }
         }
+        .pagePicture("tray.and.arrow.down.fill", accent: "doc.fill", tint: .blue)
         // A single target-aware importer avoids SwiftUI collapsing competing importers on the same screen.
         .fileImporter(isPresented: $showingImporter,
                       allowedContentTypes: importTarget.allowedContentTypes,

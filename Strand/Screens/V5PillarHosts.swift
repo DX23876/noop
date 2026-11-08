@@ -34,6 +34,7 @@ struct FusedRecordHost: View {
                                subtitle: "Building your best-sourced record…") {
                     ComingSoon.loading("Reading your sources…", title: "Reading your sources", symbol: "square.stack.3d.up")
                 }
+        .pagePicture("square.stack.3d.up.fill", accent: "checkmark.seal.fill", tint: .indigo)
             }
         }
         .task(id: repo.refreshSeq) {

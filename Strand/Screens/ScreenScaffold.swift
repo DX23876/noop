@@ -44,6 +44,8 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     @ObservedObject private var backgroundStore = BackgroundImageStore.shared
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = SceneBackgroundPrefs.defaultEnabled
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    /// The page's picture beside its title in the new design, set with `.pagePicture(_:tint:)`.
+    @Environment(\.pagePicture) private var pagePicture
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -180,7 +182,40 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             }
             Spacer(minLength: 0)
             trailing()
+            #if os(iOS)
+            if NoopVisualStyle.skin == .forge, let pagePicture {
+                CoachPicture(main: pagePicture.symbol, accentA: pagePicture.accent, accentB: "sparkle",
+                             tint: pagePicture.tint)
+                    .frame(width: 68, height: 68)
+            }
+            #endif
         }
+    }
+}
+
+/// A page's picture: its subject drawn as a coach picture beside the title in the new design.
+struct PagePicture {
+    let symbol: String
+    let accent: String
+    let tint: Color
+}
+
+private struct PagePictureKey: EnvironmentKey {
+    static let defaultValue: PagePicture? = nil
+}
+
+extension EnvironmentValues {
+    var pagePicture: PagePicture? {
+        get { self[PagePictureKey.self] }
+        set { self[PagePictureKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Gives the `ScreenScaffold` page inside this view its picture beside the title (new design only):
+    /// every page carries a picture of what it is about, not only a title over text.
+    func pagePicture(_ symbol: String, accent: String = "sparkle", tint: Color) -> some View {
+        environment(\.pagePicture, PagePicture(symbol: symbol, accent: accent, tint: tint))
     }
 }
 

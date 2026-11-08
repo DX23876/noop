@@ -213,6 +213,7 @@ struct CompareView: View {
                 }
             }
         }
+        .pagePicture("arrow.left.arrow.right", accent: "chart.line.uptrend.xyaxis", tint: .blue)
         .task(id: loadTaskID) {
             await loadSelected()
             refreshPairCache(activeSeries)

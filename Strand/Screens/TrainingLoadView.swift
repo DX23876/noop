@@ -274,6 +274,7 @@ struct TrainingLoadView: View {
                 explainers.trainingCardEntrance().id("method")
             }
         }
+        .pagePicture("chart.bar.fill", accent: "dumbbell.fill", tint: StrandPalette.effortColor)
         .task(id: repo.refreshSeq) { await model.load(repo: repo) }
         .sheet(item: $openSummary) { detail in summarySheet(detail) }
     }

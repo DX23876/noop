@@ -724,6 +724,7 @@ struct MetricExplorerView: View {
                 .buttonStyle(.plain)
             }
         }
+        .pagePicture("square.grid.2x2.fill", accent: "magnifyingglass", tint: .blue)
         // Rows push MetricDetailView directly (closure-based NavigationLink above) — no value/destination
         // pairing, which is what double-pushed (#38). Nothing else registers a MetricDescriptor destination.
     }

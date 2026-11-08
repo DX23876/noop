@@ -55,6 +55,7 @@ struct WeightDetailView: View {
                     logButton
                     forgeHistory
                 }
+        .pagePicture("scalemass.fill", accent: "leaf.fill", tint: .pink)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {

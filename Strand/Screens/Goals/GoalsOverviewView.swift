@@ -46,6 +46,7 @@ struct GoalsOverviewScreen: View {
                        }) {
             GoalsOverviewView()
         }
+        .pagePicture("target", accent: "flag.fill", tint: .green)
         .goalsRouteDestinations()
         .sheet(isPresented: $showIntro) { GoalsIntroSheet() }
         .onAppear {

@@ -838,6 +838,7 @@ struct GoalBadgesView: View {
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             }
         }
+        .pagePicture("trophy.fill", accent: "star.fill", tint: .yellow)
         .onAppear {
             if let motivation = tracking.motivation { GoalPrefs.markBadgesSeen(motivation.earned.map(\.id)) }
         }

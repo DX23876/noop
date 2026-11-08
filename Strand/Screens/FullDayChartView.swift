@@ -103,6 +103,7 @@ struct FullDayChartView: View {
             }
             zoomHint
         }
+        .pagePicture("chart.xyaxis.line", accent: "clock.fill", tint: StrandPalette.metricPurple)
         .task(id: taskKey) { await reload() }
         .task(id: annotationKey) { await reloadAnnotations() }
         .task { await landOnLatestDayIfNeeded() }

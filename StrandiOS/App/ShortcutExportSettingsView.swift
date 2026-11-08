@@ -14,6 +14,7 @@ struct ShortcutExportSettingsView: View {
                        subtitle: "Strap data into Apple Health without HealthKit, for sideloaded installs.") {
             exportCard
         }
+        .pagePicture("square.and.arrow.up.fill", accent: "heart.fill", tint: .blue)
     }
 
     private var exportCard: some View {
