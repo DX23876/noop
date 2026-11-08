@@ -50,8 +50,6 @@ struct AutomationsView: View {
     /// posting read — has no UI to flip and is stuck at its default OFF. Bind the SAME raw key here so
     /// iPhone users can actually turn wrist alerts on. Default OFF, matching the store's default.
     @AppStorage("notif.masterEnabled") private var wristAlertsMaster = false
-    /// Buzz the strap while an incoming call rings (`CallBuzzMonitor`). Default off.
-    @AppStorage(CallBuzzMonitor.enabledKey) private var callBuzzEnabled = false
     #endif
 
     // #haptics (#1115): per-event toggles for NOOP's IN-SESSION strap buzzes. Default ON (opt-out) — these
@@ -75,7 +73,6 @@ struct AutomationsView: View {
                 #if os(iOS)
                 LiveNotificationSettingsCard()
                 wristAlertsCard
-                incomingCallsCard
                 #endif
             }
             if scope != .notifications {
@@ -132,26 +129,6 @@ struct AutomationsView: View {
                 ToggleRow(label: String(localized: "Enable wrist alerts"),
                           help: String(localized: "The master switch for every wrist buzz (inactivity, stress, alerts). Off keeps the strap quiet no matter what else is on."),
                           isOn: $wristAlertsMaster)
-            }
-        }
-    }
-
-    /// The incoming-call wrist buzz (`CallBuzzMonitor`, ryanbr/noop#2812). Gated by the wrist-alerts master
-    /// above like every ambient buzz, and offered for WHOOP 5.0/MG only (`BLEManager.buzzCallAlert`).
-    private var incomingCallsCard: some View {
-        Section2(icon: "phone.arrow.down.left.fill", title: String(localized: "Incoming calls"),
-                 blurb: String(localized: "Buzz your strap while a call rings: phone calls, FaceTime, and apps that ring like a phone call, such as WhatsApp. NOOP only sees that a call is ringing, never who is calling."),
-                 active: callBuzzEnabled && wristAlertsMaster) {
-            VStack(spacing: 0) {
-                ToggleRow(label: String(localized: "Buzz strap for incoming calls"),
-                          help: String(localized: "WHOOP 5.0 and MG. Keeps buzzing until you answer or decline, or the call ends. Double-tap the strap to stop the buzz; the call keeps ringing on your phone."),
-                          isOn: $callBuzzEnabled)
-                Text("iOS only lets NOOP react while it is running. In the background the strap has to wake it, so turn on Continuous HRV capture and turn off Overnight only for alerts all day. Does not work after NOOP is swiped away in the app switcher.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, NoopMetrics.space2)
             }
         }
     }

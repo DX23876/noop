@@ -67,7 +67,6 @@ struct AcknowledgementsView: View {
         Contributor(handle: "@paradix86", work: "Italian WHOOP exports"),
         Contributor(handle: "@msff", work: "Mac menu-bar redraws"),
         Contributor(handle: "@andynilson", work: "Charge and Effort translations"),
-        Contributor(handle: "@ahmadssadiq", work: "Strap buzz for incoming calls"),
         Contributor(handle: "@shajidahmed", work: "Config read-back check"),
         Contributor(handle: "@abhilashvadnala", work: "Day cycle on an early bedtime"),
         Contributor(handle: "@reinmaker", work: "Split-night consistency"),

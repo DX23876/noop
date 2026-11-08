@@ -128,7 +128,6 @@ source and carries a `Co-authored-by` line where the work was taken as code.
 | [@goodgord](https://github.com/goodgord) | Sleep runs are no longer merged across a data gap | ryanbr/noop#2849 |
 | [@msff](https://github.com/msff) | The Mac menu-bar label redraws only when what it shows changes | ryanbr/noop#2889 |
 | [@andynilson](https://github.com/andynilson) | Charge and Effort translations | ryanbr/noop#2878 |
-| [@ahmadssadiq](https://github.com/ahmadssadiq) | The strap buzzes for incoming calls on iPhone | ryanbr/noop#2812 |
 
 ### Other forks and projects
 
