@@ -1,4 +1,6 @@
 {
+  "speed": "prędkość",
+  "Avg speed": "Śr. prędkość",
   "Nothing recorded today yet.": "Dziś jeszcze nic nie zarejestrowano.",
   "No wearable data for this day — this is your estimated basal rate, not a measurement.": "Brak danych z urządzenia dla tego dnia — to Twoja szacowana przemiana podstawowa, a nie pomiar.",
   "Estimated from steps: no device recorded energy on this day.": "Oszacowano na podstawie kroków: tego dnia żadne urządzenie nie zarejestrowało energii.",

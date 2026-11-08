@@ -97,16 +97,20 @@ struct NoopButtonAppearance {
 
 extension NoopButtonAppearance {
     /// The new design's kinds: primary and destructive as tinted capsules (their colour washed behind the
-    /// label in that colour), secondary and tertiary as before.
+    /// label in that colour), secondary as a neutral wash, tertiary as before. The raised panel surface the
+    /// shipped design gives secondary is the new design's card colour, so on a card it vanished.
     init(forgeTinted kind: NoopButtonKind, accent: Color) {
         switch kind {
+        case .secondary:
+            self.init(fill: StrandPalette.textPrimary.opacity(0.07), label: StrandPalette.textPrimary,
+                      border: nil, usesPanelSurface: false)
         case .primary:
             self.init(fill: accent.opacity(NoopButtonMetrics.forgeTintOpacity), label: accent,
                       border: nil, usesPanelSurface: false)
         case .destructive:
             self.init(fill: StrandPalette.statusCritical.opacity(NoopButtonMetrics.forgeTintOpacity),
                       label: StrandPalette.statusCritical, border: nil, usesPanelSurface: false)
-        case .secondary, .tertiary:
+        case .tertiary:
             self.init(kind, accent: accent)
         }
     }

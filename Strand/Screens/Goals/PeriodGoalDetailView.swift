@@ -204,8 +204,11 @@ struct PeriodGoalDetailView: View {
         // opaque tiles floated on it as white blocks).
         return NoopCard(padding: 14) {
             HStack(spacing: 12) {
-                fact(label: "So far", value: GoalFormat.amount(r.current, metric))
-                factDivider
+                // The new design's ring and hero already carry the count; a third "So far" repeats it.
+                if NoopVisualStyle.skin != .forge {
+                    fact(label: "So far", value: GoalFormat.amount(r.current, metric))
+                    factDivider
+                }
                 if let pace = r.paceFraction, pace < 0.999 {
                     fact(label: "Target by today", value: GoalFormat.amount(pace * r.target, metric))
                 } else {

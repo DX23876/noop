@@ -186,6 +186,8 @@ struct ForgeAgeLessView: View {
         let actual = snapshot.weeks[shown].result.chronologicalAge
         let values = snapshot.weeks.map(\.result.healthspanAge) + [actual]
         let lo = (values.min() ?? 0).rounded(.down) - 1, hi = (values.max() ?? 0).rounded(.up) + 1
+        // The line in the page's verdict colour: green reads as "good" and must not draw an age running ahead.
+        let tint = snapshot.weeks[shown].result.healthspanAge <= actual ? ForgeColor.charge : ForgeColor.effort
         return VStack(alignment: .leading, spacing: 8) {
             Chart {
                 RuleMark(y: .value("Actual age", actual))
@@ -193,10 +195,10 @@ struct ForgeAgeLessView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                 ForEach(weeks, id: \.offset) { i, w in
                     LineMark(x: .value("Week", i), y: .value("AgeLess age", w.result.healthspanAge))
-                        .foregroundStyle(ForgeColor.charge)
+                        .foregroundStyle(tint)
                         .interpolationMethod(.monotone)
                     PointMark(x: .value("Week", i), y: .value("AgeLess age", w.result.healthspanAge))
-                        .foregroundStyle(i == shown ? ForgeColor.text : ForgeColor.charge)
+                        .foregroundStyle(i == shown ? ForgeColor.text : tint)
                         .symbolSize(i == shown ? 80 : 24)
                 }
             }

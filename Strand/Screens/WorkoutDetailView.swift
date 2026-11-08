@@ -445,7 +445,8 @@ struct WorkoutDetailView: View {
                         HStack(spacing: 0) {
                             routeStat(String(localized: "Distance"), distanceLabel(row.distanceM),
                                       tint: StrandPalette.metricCyan)
-                            routeStat(String(localized: "Avg pace"), paceLabel, tint: StrandPalette.effortBright)
+                            routeStat(showsSpeed ? String(localized: "Avg speed") : String(localized: "Avg pace"),
+                                      showsSpeed ? speedLabel : paceLabel, tint: StrandPalette.effortBright)
                             routeStat(String(localized: "Points"), "\(route.count)", tint: StrandPalette.textSecondary)
                         }
                         .padding(NoopMetrics.cardPadding)
@@ -527,6 +528,19 @@ struct WorkoutDetailView: View {
         guard secs > 0 else { return "–" }
         let km = m / 1000.0
         return UnitFormatter.paceFromSecPerKm(secs / km, system: distanceUnitSystem)
+    }
+
+    /// A ride reads in speed, as every bike computer shows it: "2:31 /km" for a ride means nothing to a cyclist.
+    private var showsSpeed: Bool {
+        let sport = row.sport.lowercased()
+        return ["cycl", "bik", "ride", "spin"].contains { sport.contains($0) }
+    }
+
+    private var speedLabel: String {
+        guard let m = row.distanceM, m > 0 else { return "–" }
+        let secs = row.durationS ?? Double(row.endTs - row.startTs)
+        guard secs > 0 else { return "–" }
+        return UnitFormatter.speedFromKilometersPerHour(m / 1000 / (secs / 3600), system: distanceUnitSystem) ?? "–"
     }
 
     private var routeAccessibilityLabel: String {
@@ -879,7 +893,8 @@ extension WorkoutDetailView {
         var out = [ForgeStat(label: String(localized: "time"), value: durationLabel(row.durationS))]
         if let m = row.distanceM, m > 0 {
             out.append(ForgeStat(label: String(localized: "distance"), value: distanceLabel(m)))
-            out.append(ForgeStat(label: String(localized: "pace"), value: paceLabel))
+            out.append(showsSpeed ? ForgeStat(label: String(localized: "speed"), value: speedLabel)
+                                  : ForgeStat(label: String(localized: "pace"), value: paceLabel))
         }
         let avgHeart = row.avgHr ?? Self.heartFigure(rawHeartBpm, peak: false)
         out.append(ForgeStat(label: String(localized: "avg heart"), value: avgHeart.map { "\($0)" } ?? "–",
@@ -916,7 +931,8 @@ extension WorkoutDetailView {
         case .activityFile: parts.append(String(localized: "File"))
         case .oura: parts.append(String(localized: "Oura"))
         }
-        if let energyCaption, energy != nil { parts.append(energyCaption) }
+        // Only an estimate earns a word here; the plain "kcal" fallback read as "Whoop · kcal".
+        if let estimate = WorkoutEnergyDisplay.caption(energy) { parts.append(estimate) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -968,7 +984,8 @@ extension WorkoutDetailView {
                         workoutTimeAxis: Date(timeIntervalSince1970: TimeInterval(row.startTs))...Date(timeIntervalSince1970: TimeInterval(row.endTs))
                     )
                     .frame(height: 150)
-                    .padding(.top, 10)
+                    // The top axis label is drawn above the plot; room so it does not sit on the title.
+                    .padding(.top, 18)
                     if let z = zoneMinutes, z.reduce(0, +) > 0 {
                         forgeZoneBand(z)
                     }

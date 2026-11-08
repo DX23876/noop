@@ -30,6 +30,8 @@ struct ForgeTrainingView: View {
     }
 
     @State private var recent: [WorkoutRow] = []
+    /// False until the first read: "nothing recorded" and "0 workouts" only once that is known, not while loading.
+    @State private var recentLoaded = false
     @State private var vo2max: [Double] = []
 
     /// Each day's stored Effort this training week, nil for a day without a row (or still to come).
@@ -347,7 +349,7 @@ struct ForgeTrainingView: View {
                 }
             }
             .padding(.horizontal, 4).padding(.top, 14)
-            if rows.isEmpty {
+            if rows.isEmpty, recentLoaded {
                 Text("Workouts you record or import appear here.")
                     .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary).padding(.horizontal, 4)
             } else {
@@ -422,15 +424,17 @@ struct ForgeTrainingView: View {
                     }
                 }
                 NavigationLink(value: TabRoute.metric("vo2max_est")) {
-                    // The figure alone: the unit is a lab measure, not an everyday one.
+                    // The figure alone: the unit is a lab measure, not an everyday one. One decimal, as the
+                    // Fitness focus page and the metric page print it, so the two never read 56 and 55.8.
                     ForgeMetricTile(label: String(localized: "VO₂max"),
-                                    value: vo2max.last.map { String(format: "%.0f", $0) },
+                                    value: vo2max.last.map { $0.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale)) },
                                     unit: "", trend: Array(vo2max.suffix(30)), tint: ForgeColor.charge)
                 }
                 NavigationLink(value: ForgeRoute.workouts) {
-                    ForgeMetricTile(label: String(localized: "Last 30 days"), value: "\(recent.count)",
+                    ForgeMetricTile(label: String(localized: "Last 30 days"), value: recentLoaded ? "\(recent.count)" : nil,
                                     unit: String(localized: "workouts"),
-                                    trend: nil, tint: ForgeColor.effort)
+                                    trend: nil, tint: ForgeColor.effort,
+                                    bars: recentLoaded ? workoutsPerWeek : nil)
                 }
             }
             .buttonStyle(LiquidPressStyle())
@@ -493,6 +497,18 @@ struct ForgeTrainingView: View {
         await hub.load(repo: repo, session: session, weekStartsOn: weekStart, force: force)
         recent = (await repo.workoutRows(days: 30, reconcileHrCap: 0)).sorted { $0.startTs > $1.startTs }
         vo2max = (await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 120)).map(\.value)
+        recentLoaded = true
+    }
+
+    /// Workouts in each of the last four seven-day spans, oldest first, so the count carries its shape.
+    private var workoutsPerWeek: [Double] {
+        let now = Date().timeIntervalSince1970
+        var weeks = [Double](repeating: 0, count: 4)
+        for row in recent {
+            let age = Int((now - Double(row.startTs)) / (7 * 86_400))
+            if (0..<4).contains(age) { weeks[3 - age] += 1 }
+        }
+        return weeks
     }
 }
 #endif

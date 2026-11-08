@@ -91,6 +91,8 @@ struct ForgeFocusView: View {
     @State private var series: [String: [(day: String, value: Double)]] = [:]
     @State private var loaded = false
     @State private var scrolledPast = false
+    /// Body and nutrition: each finished day's burn, oldest first, so Energy has a tile beside Weight.
+    @State private var energyTotals: [Double] = []
 
     private struct Tile: Identifiable {
         let metric: MetricDescriptor
@@ -113,12 +115,20 @@ struct ForgeFocusView: View {
             VStack(alignment: .leading, spacing: 14) {
                 ForgeDetailHeader(overline: nil, title: area.title, scrolledPast: $scrolledPast)
                 let tiles = self.tiles
-                if !tiles.isEmpty {
+                if !tiles.isEmpty || !energyTotals.isEmpty {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                         ForEach(tiles) { t in
                             NavigationLink(value: TabRoute.metricSourced(key: t.metric.key, source: t.metric.source)) {
                                 ForgeMetricTile(label: t.metric.title, value: Self.format(t.values.last, t.metric),
                                                 unit: Self.unit(t.metric), trend: Array(t.values.suffix(30)), tint: area.tint)
+                            }
+                            .buttonStyle(LiquidPressStyle())
+                        }
+                        if !energyTotals.isEmpty {
+                            NavigationLink(value: TabRoute.energy) {
+                                ForgeMetricTile(label: String(localized: "Energy"),
+                                                value: energyTotals.last.map { Int($0.rounded()).formatted(.number.locale(AppLanguage.activeLocale)) },
+                                                unit: "kcal", trend: Array(energyTotals.suffix(30)), tint: StrandPalette.forgeEnergyActive)
                             }
                             .buttonStyle(LiquidPressStyle())
                         }
@@ -153,6 +163,12 @@ struct ForgeFocusView: View {
             out[d.id] = await repo.exploreSeries(key: m.key, source: m.source, days: 90)
         }
         series = out
+        if area == .body {
+            // Finished days only: today's running total would end every trend on a dip.
+            let today = Repository.logicalDayKey(Date())
+            let days = await repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
+            energyTotals = days.filter { $0.day != today }.sorted { $0.day < $1.day }.compactMap(\.totalBurnedSoFar)
+        }
         loaded = true
     }
 
@@ -164,13 +180,20 @@ struct ForgeFocusView: View {
             return "\(total / 60):\(String(format: "%02d", total % 60))"
         }
         let decimals = m.unit == "/100" ? 0 : m.decimals
-        return v.formatted(.number.precision(.fractionLength(decimals)).locale(AppLanguage.activeLocale))
+        let text = v.formatted(.number.precision(.fractionLength(decimals)).locale(AppLanguage.activeLocale))
+        // Skin temperature is stored either absolute (imports) or as a change from the wearer's usual: a
+        // change carries its sign, so "+0.1 °C" is not read as a body at a tenth of a degree, nor as a
+        // second, different temperature beside the Health tab's "33.9 °C".
+        if m.key == "skin_temp", v < 20, v >= 0 { return "+" + text }
+        return text
     }
 
     static func unit(_ m: MetricDescriptor) -> String {
         switch m.unit {
         case "min": return "h"
-        case "/100", "/3", "/5": return ""
+        // A score out of 100 reads by itself; "0.7" on a 0 to 3 scale needs its ceiling beside it.
+        case "/100": return ""
+        case "/3", "/5": return m.unit
         default: return m.unit
         }
     }

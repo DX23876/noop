@@ -469,6 +469,7 @@ struct ForgeSleepView: View {
             }
             .pickerStyle(.segmented)
             if points.count > 1 {
+                VStack(alignment: .leading, spacing: 10) {
                 Chart {
                     ForEach(Array(points.enumerated()), id: \.offset) { index, p in
                         BarMark(x: .value("Night", p.0, unit: .day), y: .value("Hours", p.1))
@@ -492,8 +493,18 @@ struct ForgeSleepView: View {
                     }
                 }
                 .frame(height: 150)
-                .forgeCard(radius: ForgeRadius.card, padding: 14)
                 .accessibilityLabel(Text("Hours asleep night by night"))
+                // The chart has no scale of its own; the dotted line's key gives it one.
+                HStack(spacing: 6) {
+                    HStack(spacing: 2) {
+                        ForEach(0..<3, id: \.self) { _ in Circle().fill(ForgeColor.restInk).frame(width: 2.5, height: 2.5) }
+                    }
+                    Text("Need \(ForgeTodayView.hoursMinutes(need)) h")
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                }
+                .forgeCard(radius: ForgeRadius.card, padding: 14)
             }
         }
     }
@@ -533,7 +544,8 @@ struct ForgeSleepView: View {
             .buttonStyle(.plain)
             // What the full Sleep screen kept beyond the night itself: marks for the night and the nights
             // deleted by mistake, so the tab no longer sends anyone to the older page for them.
-            SleepMarkCard()
+            // The section rhythm of the page: the mark card's own heading sat 8 pt under the alarms.
+            SleepMarkCard().padding(.top, 16)
             DeletedSleepNightsSection()
         }
     }

@@ -111,7 +111,8 @@ struct SleepDebtLedgerCard: View {
     /// once, matching the final reading. Final-value identical to `debtHeadline(_:)`.
     private func debtHeadline(forMagnitudeMin m: Double, ledger: SleepDebtLedger) -> String {
         if m < SleepDebt.onTargetBandMin { return String(localized: "On target") }
-        return "≈\(durationText(m))"
+        // Every sleep-debt figure is an estimate; the new design states it without the "≈" mark.
+        return NoopVisualStyle.skin == .forge ? durationText(m) : "≈\(durationText(m))"
     }
 
     /// Short tag under/beside the headline: DEBT / ON TARGET.
@@ -142,8 +143,9 @@ struct SleepDebtLedgerCard: View {
         if ledger.magnitudeMin < SleepDebt.onTargetBandMin || !ledger.isDebt {
             return StrandPalette.statusPositive
         }
-        // A debt: amber up to ~3 h accumulated, red beyond.
-        return ledger.magnitudeMin < 180 ? StrandPalette.statusWarning : StrandPalette.statusCritical
+        // A debt: amber up to ~3 h accumulated, red beyond. Amber as text takes its darker foreground
+        // shade: the bright fill shade fails contrast on a light card.
+        return ledger.magnitudeMin < 180 ? StrandPalette.statusWarningForeground : StrandPalette.statusCritical
     }
 
     /// Signed "+1h 20m" / "−2h 10m" / "0m" balance string.
