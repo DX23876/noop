@@ -5,6 +5,13 @@ NOOP's own source code and documentation are licensed under the PolyForm
 Noncommercial License 1.0.0 (see LICENSE). That license covers NOOP's original
 work only. The components and prior work below keep their own terms.
 
+Required Notice: Copyright 2026 NoopApp
+Required Notice: Copyright 2026 DX23876 (NOOP Forge) – https://github.com/DX23876/noop
+
+This copy is NOOP Forge, a fork of NOOP (https://github.com/ryanbr/noop). The first
+line covers NOOP; the second covers what DX23876 added in the fork. Whoever passes on
+any part of this software must include both lines together with the license terms.
+
 Bundled dependencies
 --------------------
 

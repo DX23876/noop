@@ -831,3 +831,15 @@ Donating is optional. The app works exactly the same either way and never nags y
 
 Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for personal,
 non-commercial use. See [NOTICE](NOTICE) and [ATTRIBUTION.md](ATTRIBUTION.md) for credits.
+
+**Building on NOOP Forge?** You are welcome to, within the license. It carries two Required Notices,
+one for NOOP and one for NOOP Forge:
+
+```
+Required Notice: Copyright 2026 NoopApp
+Required Notice: Copyright 2026 DX23876 (NOOP Forge) – https://github.com/DX23876/noop
+```
+
+Anyone who passes on any part of this code, changed or not, has to include both lines with the
+license terms. Please also say in your README which project you build on: if your app contains NOOP
+Forge code, "built on NOOP" alone leaves out the fork it came from.
