@@ -54,10 +54,14 @@ jobs:
           ls -l "$RUNNER_TEMP/products.csv.gz"
 
       - name: Build the packs
+        # Inputs reach the script as environment variables, never spliced into it.
+        env:
+          COUNTRIES: ${{ inputs.countries }}
+          MIN_PRODUCTS: ${{ inputs.min_products || '500' }}
         run: |
           set -euo pipefail
           python3 Tools/build_food_packs.py --input "$RUNNER_TEMP/products.csv.gz" --output-dir "$RUNNER_TEMP/packs" \
-            --countries "${{ inputs.countries }}" --min-products "${{ inputs.min_products || '500' }}"
+            --countries "$COUNTRIES" --min-products "$MIN_PRODUCTS"
           ls -l "$RUNNER_TEMP/packs"
           # A manifest without packs means the export changed shape, not that the world stopped selling food.
           python3 -c "import json,sys; m=json.load(open(sys.argv[1])); sys.exit(0 if m['packs'] else 'manifest lists no packs: the export format may have changed')" "$RUNNER_TEMP/packs/manifest.json"

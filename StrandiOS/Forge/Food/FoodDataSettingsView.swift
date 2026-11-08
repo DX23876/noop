@@ -14,12 +14,17 @@ struct FoodDataSettingsView: View {
     @AppStorage(FoodEstimate.enabledKey) private var estimateMissing = false
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var packs = FoodPacksModel()
+    @AppStorage(FoodTargets.Keys.calories) private var fixedKcal = 0.0
+    @AppStorage(FoodTargets.Keys.proteinPercent) private var proteinPercent = FoodTargets.defaultSplit.protein
+    @AppStorage(FoodTargets.Keys.carbsPercent) private var carbsPercent = FoodTargets.defaultSplit.carbs
+    @AppStorage(FoodTargets.Keys.fatPercent) private var fatPercent = FoodTargets.defaultSplit.fat
 
     private var mode: FoodProductDataMode { FoodProductDataMode(rawValue: modeRaw) ?? .none }
 
     var body: some View {
         NavigationStack {
             Form {
+                FoodGoalsSection(fixedKcal: $fixedKcal, protein: $proteinPercent, carbs: $carbsPercent, fat: $fatPercent)
                 Section {
                     Picker("Branded products", selection: $modeRaw) {
                         Text("Off").tag(FoodProductDataMode.none.rawValue)

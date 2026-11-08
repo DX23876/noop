@@ -61,6 +61,15 @@ public enum FoodLog {
         return meals
     }
 
+    /// The calories the energy plan counts for `day` when they do NOT come from the food log (a typed day value,
+    /// Health, Health Connect or a CSV import win over or replace it), so the Food page can say so instead of
+    /// showing a second, different intake (one fact, one readout).
+    public static func otherIntake(store: WhoopStore, _ day: String) async -> (kcal: Double, source: NutritionDay.Source)? {
+        guard let resolved = await NutritionReads.nutritionByDay(store: store, from: day, to: day)[day],
+              let kcal = resolved.calories, let source = resolved.caloriesSource, source != .foodLog else { return nil }
+        return (kcal, source)
+    }
+
     public static func day(store: WhoopStore, _ day: String) async -> DaySummary {
         let entries = (try? await store.foodLogEntries(from: day, to: day)) ?? []
         return DaySummary(day: day, entries: entries, meals: meals(entries),
@@ -193,10 +202,11 @@ public enum FoodLibrary {
             let tokens = FoodSearchText.tokens(text)
             return words.allSatisfy { word in tokens.contains { $0.hasPrefix(word) } || FoodSearchText.normalised(text).contains(word) }
         }
-        let own = ((try? await store.customFoods()) ?? []).map(item(for:)).filter { matches($0.name + " " + ($0.brand ?? "")) }
+        let customs = (try? await store.customFoods()) ?? []
+        let own = customs.map(item(for:)).filter { matches($0.name + " " + ($0.brand ?? "")) }
         let recipes = ((try? await store.foodRecipes()) ?? []).compactMap(FoodLog.item(for:)).filter { matches($0.name) }
         // A product kept as the wearer's own (often with its gaps filled) replaces its catalogue row.
-        let kept = Set(((try? await store.customFoods()) ?? []).compactMap(\.sourceId))
+        let kept = Set(customs.compactMap(\.sourceId))
         let catalogue = await catalog.search(query, limit: limit).filter { !kept.contains($0.id) }
         var seen = Set<String>()
         return (recipes + own + catalogue).filter { seen.insert($0.id).inserted }.prefix(limit).map { $0 }
@@ -214,9 +224,22 @@ public enum FoodLibrary {
     }
 
     public static func favourites(store: WhoopStore, catalog: FoodCatalog = .shared) async -> [FoodItem] {
+        let own = (try? await store.customFoods()) ?? []
+        let byId = Dictionary(own.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let bySource = keptBySource(own)
         var out: [FoodItem] = []
         for favourite in (try? await store.foodFavourites()) ?? [] {
-            if let item = await item(store: store, catalog: catalog, id: favourite.foodId) { out.append(item) }
+            if let food = byId[favourite.foodId] ?? bySource[favourite.foodId] { out.append(item(for: food)) }
+            else if let found = await item(store: store, catalog: catalog, id: favourite.foodId) { out.append(found) }
+        }
+        return out
+    }
+
+    /// The newest own food per catalogue id it was kept from.
+    static func keptBySource(_ own: [CustomFood]) -> [String: CustomFood] {
+        var out: [String: CustomFood] = [:]
+        for food in own {
+            if let source = food.sourceId, (out[source]?.updatedAt ?? -1) < food.updatedAt { out[source] = food }
         }
         return out
     }
@@ -241,9 +264,7 @@ public enum FoodLibrary {
 
     /// Online results with every product the wearer already keeps swapped for the kept version.
     public static func preferKept(store: WhoopStore, _ items: [FoodItem]) async -> [FoodItem] {
-        let own = (try? await store.customFoods()) ?? []
-        var bySource: [String: CustomFood] = [:]
-        for food in own { if let source = food.sourceId, (bySource[source]?.updatedAt ?? -1) < food.updatedAt { bySource[source] = food } }
+        let bySource = keptBySource((try? await store.customFoods()) ?? [])
         return items.map { bySource[$0.id].map(item(for:)) ?? $0 }
     }
 
@@ -260,10 +281,13 @@ public enum FoodLibrary {
                                now: Date = Date()) async -> FoodItem? {
         let stamp = Int(now.timeIntervalSince1970)
         let id = food.source == .own ? food.id : "own:\(UUID().uuidString)"
+        // Updating an own food keeps where it came from and when; a placeholder id ("own:new") is no source.
+        let existing = food.source == .own ? try? await store.customFood(id: food.id) : nil
+        let source = food.source == .own || food.id.hasPrefix("own:") ? existing?.sourceId : food.id
         let custom = CustomFood(id: id, name: food.name, brand: food.brand, barcode: food.barcode, group: food.group,
                                 nova: food.nova, servingG: food.servingG, servingLabel: food.servingLabel,
-                                per100g: food.per100g.stored, origin: origin,
-                                sourceId: food.source == .own ? nil : food.id, createdAt: stamp, updatedAt: stamp,
+                                per100g: food.per100g.stored, origin: existing?.origin ?? origin,
+                                sourceId: source, createdAt: existing?.createdAt ?? stamp, updatedAt: stamp,
                                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [])
         guard (try? await store.saveCustomFood(custom)) == true else { return nil }
         return item(for: custom)

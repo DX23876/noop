@@ -339,3 +339,43 @@ final class FoodModelEstimateTests: XCTestCase {
         XCTAssertEqual(row.status, .mostlyModel)
     }
 }
+
+final class FoodDemoSeedTests: XCTestCase {
+    func testTheDemoWeekFindsItsFoodsAndSeedsOnce() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("food-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try await WhoopStore.inMemory()
+        let catalog = FoodCatalog(directory: directory)
+        let seeded = await FoodDemoSeed.seedIfEmpty(store: store, catalog: catalog)
+        XCTAssertGreaterThan(seeded, 60, "most dishes resolve to a BLS food")
+        let again = await FoodDemoSeed.seedIfEmpty(store: store, catalog: catalog)
+        XCTAssertEqual(again, 0)
+        let own = try await store.customFoods()
+        XCTAssertEqual(own.first?.estimatedFrom.map { $0.hasPrefix("bls:") }, true, "the pudding borrowed from quark")
+        XCTAssertNil(own.first?.sourceId.flatMap { $0.hasPrefix("own:") ? $0 : nil })
+        let recipes = try await store.foodRecipes()
+        XCTAssertEqual(recipes.count, 1)
+        let all = try await store.foodLogEntries(from: "0000-00-00", to: "9999-99-99")
+        let byIds = try await store.foodLogEntries(ids: [try XCTUnwrap(all.first?.id)])
+        XCTAssertEqual(byIds.count, 1)
+    }
+}
+
+final class FoodTargetTests: XCTestCase {
+    func testMacroGoalsSplitTheCalorieGoal() throws {
+        let m = try XCTUnwrap(FoodTargets.macros(kcal: 2_000, protein: 25, carbs: 45, fat: 30))
+        XCTAssertEqual(m.proteinG, 125, accuracy: 1e-9)
+        XCTAssertEqual(m.carbsG, 225, accuracy: 1e-9)
+        XCTAssertEqual(m.fatG, 2_000 * 0.3 / 9, accuracy: 1e-9)
+        let scaled = try XCTUnwrap(FoodTargets.macros(kcal: 2_000, protein: 50, carbs: 90, fat: 60))
+        XCTAssertEqual(scaled.proteinG, 125, accuracy: 1e-9)
+    }
+
+    func testAFixedGoalWinsAndPinsFallBack() {
+        let plan = FoodTargets.calories(measuredMeanKcal: 2_500, allDaysMeanKcal: nil, formulaTdeeKcal: nil, dailyDeltaKcal: -500)
+        XCTAssertEqual(FoodTargets.calories(fixedKcal: 1_800, plan: plan)?.kcal, 1_800)
+        XCTAssertEqual(FoodTargets.calories(fixedKcal: 0, plan: plan)?.kcal, 2_000)
+        XCTAssertEqual(FoodTargets.pinned(from: "iron_mg,bogus,vitamin_d_ug"), [.ironMg, .vitaminDUg])
+        XCTAssertEqual(FoodTargets.pinned(from: nil), FoodTargets.defaultPinned)
+    }
+}

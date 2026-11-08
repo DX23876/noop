@@ -68,6 +68,7 @@ public actor FoodCatalog {
     private var queues: [String: DatabaseQueue] = [:]
     /// The BLS rows held for composition matching; 7,140 foods, read once.
     private var blsRows: [FoodItem]?
+    private var blsMaxima: [FoodNutrient: Double]?
 
     public init(directory: URL? = nil) {
         self.directoryOverride = directory
@@ -224,18 +225,28 @@ public actor FoodCatalog {
     /// BLS foods with the most similar make-up per 100 g (`FoodEstimate.distance`), for borrowing missing values by
     /// composition rather than by name: a protein pudding resembles low-fat quark more than vanilla pudding.
     public func nearestBLS(to item: FoodItem, limit: Int = 8) -> [FoodItem] {
-        guard let queue = try? queue(for: "bls") else { return [] }
-        if blsRows == nil {
-            blsRows = (try? queue.read { db in try Row.fetchAll(db, sql: "SELECT * FROM food").compactMap(Self.item) }) ?? []
-        }
-        return (blsRows ?? []).compactMap { candidate in FoodEstimate.distance(item, candidate).map { (candidate, $0) } }
+        loadBLSRows().compactMap { candidate in FoodEstimate.distance(item, candidate).map { (candidate, $0) } }
             .sorted { $0.1 < $1.1 }.prefix(limit).map(\.0)
     }
 
     /// The highest value any BLS food has for `nutrient`, the plausibility ceiling for a model's estimate.
     public func blsMaximum(_ nutrient: FoodNutrient) -> Double? {
-        if blsRows == nil { _ = nearestBLS(to: FoodItem(id: "", source: .own, name: "", per100g: NutrientAmounts()), limit: 0) }
-        return blsRows?.compactMap { $0.per100g[nutrient] }.max()
+        if blsMaxima == nil {
+            var maxima: [FoodNutrient: Double] = [:]
+            for row in loadBLSRows() {
+                for (n, value) in row.per100g.values where value > (maxima[n] ?? -1) { maxima[n] = value }
+            }
+            blsMaxima = maxima
+        }
+        return blsMaxima?[nutrient]
+    }
+
+    /// The BLS rows, read once and held for composition matching.
+    private func loadBLSRows() -> [FoodItem] {
+        if let blsRows { return blsRows }
+        let rows = (try? queue(for: "bls").read { db in try Row.fetchAll(db, sql: "SELECT * FROM food").compactMap(Self.item) }) ?? []
+        if !rows.isEmpty { blsRows = rows }
+        return rows
     }
 
     public func item(id: String) -> FoodItem? {

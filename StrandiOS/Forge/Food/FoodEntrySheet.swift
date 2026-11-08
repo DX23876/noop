@@ -34,6 +34,25 @@ struct FoodEntrySheet: View {
                         LabeledContent("Energy", value: "\(FoodText.kcal(NutrientAmounts(stored: per100g).scaled(toGrams: grams)[.energyKcal])) kcal")
                     }
                 }
+                Section {
+                    ForEach(nutrients, id: \.0) { nutrient, value in
+                        LabeledContent {
+                            Text(FoodText.amount(value, nutrient))
+                        } label: {
+                            HStack(spacing: 12) {
+                                FoodNutrientBadge(nutrient: nutrient)
+                                Text(FoodText.nutrient(nutrient))
+                                if entry.estimatedKeys.contains(nutrient.rawValue) || entry.estimatedKeys.contains(FoodEstimate.aiPrefix + nutrient.rawValue) {
+                                    Text("estimated").font(.caption).foregroundStyle(ForgeColor.secondary)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Nutrients")
+                } footer: {
+                    Text("For the amount above. Nutrients the source does not state are left out.")
+                }
                 Section("When") {
                     DatePicker("Time", selection: $time)
                     FoodMealPicker(meal: $meal)
@@ -50,6 +69,14 @@ struct FoodEntrySheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    /// Every nutrient this entry knows, for the amount being edited, in the nutrient page's order.
+    private var nutrients: [(FoodNutrient, Double)] {
+        let totals = entry.per100g.map { NutrientAmounts(stored: $0).scaled(toGrams: grams) } ?? NutrientAmounts(stored: entry.totals)
+        let order = [FoodNutrient.energyKcal, .proteinG, .carbsG, .fatG] + FoodNutrientReport.groups.flatMap(\.nutrients)
+        var seen = Set<FoodNutrient>()
+        return order.filter { seen.insert($0).inserted }.compactMap { n in totals[n].map { (n, $0) } }
     }
 
     private func cancel() { dismiss() }

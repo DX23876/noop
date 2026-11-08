@@ -324,6 +324,8 @@ object HealthConnectImporter {
         // own gate is read so the healed coverage is what gets consulted. Idempotent, best-effort
         // like the refile above.
         try { repo.purgeHcShadowedStrapDays() } catch (_: Exception) { /* best-effort */ }
+        // Other apps' meals for the energy plan, with every import, not only when the Food page opens.
+        try { FoodHealthConnect.importDays(context) } catch (_: Exception) { /* best-effort */ }
 
         val client = client(context)
 

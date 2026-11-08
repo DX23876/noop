@@ -280,6 +280,16 @@ extension WhoopStore {
         }
     }
 
+    /// The entries with these ids, in eating order.
+    public func foodLogEntries(ids: [String]) async throws -> [FoodLogEntry] {
+        guard !ids.isEmpty else { return [] }
+        return try syncRead { db in
+            let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
+            return try Row.fetchAll(db, sql: "SELECT * FROM foodLogEntry WHERE id IN (\(placeholders)) ORDER BY loggedAt, createdAt, id",
+                                    arguments: StatementArguments(ids)).compactMap(Self.decodeEntry)
+        }
+    }
+
     public func foodLogEntry(id: String) async throws -> FoodLogEntry? {
         try syncRead { db in
             try Row.fetchOne(db, sql: "SELECT * FROM foodLogEntry WHERE id = ?", arguments: [id]).flatMap(Self.decodeEntry)

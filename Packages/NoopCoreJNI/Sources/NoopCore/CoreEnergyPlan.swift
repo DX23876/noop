@@ -42,6 +42,8 @@ enum CoreEnergyPlan {
         var formulas: [Formula]
         var corridorKcal: [Double]
         var corridorSpreadKcal: Double?
+        /// Each day's measured burn in the window, today until now (the Food page's "Burned so far").
+        var burnedByDay: [String: Double] = [:]
     }
     struct Formula: Encodable { var formula: String; var basalKcal: Double?; var available: Bool; var switchDeltaKcal: Double? }
 
@@ -116,7 +118,9 @@ enum CoreEnergyPlan {
                         switchDeltaKcal: BasalRate.switchDelta(from: current, to: f, weightKg: weight, heightCm: height,
                                                                age: profile.age, sex: profile.sex, bodyFatPercent: bodyFat))
             },
-            corridorKcal: corridor.present, corridorSpreadKcal: corridor.spreadKcal)
+            corridorKcal: corridor.present, corridorSpreadKcal: corridor.spreadKcal,
+            burnedByDay: Dictionary(summaries.compactMap { s in s.totalBurnedSoFar.map { (s.day, $0) } },
+                                    uniquingKeysWith: { _, last in last }))
     }
 
     /// The day summaries of the last `days` days as Apple's `energySummaries` builds them: daily rows, logged

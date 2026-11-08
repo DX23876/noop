@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -18,7 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -26,6 +30,7 @@ import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Settings
@@ -59,6 +64,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
 import com.noop.R
 import com.noop.core.CoreEnergyPlan
 import com.noop.core.CoreFood
@@ -93,7 +102,11 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var day by remember { mutableStateOf(LocalDate.now()) }
     var summary by remember { mutableStateOf<CoreFood.Day?>(null) }
-    var goal by remember { mutableStateOf<Double?>(null) }
+    var goals by remember { mutableStateOf<CoreFood.Goals?>(null) }
+    val goal = goals?.kcal
+    var dayNutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }
+    var pinned by remember { mutableStateOf(foodPinned(context)) }
+    var burnedByDay by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     var revision by remember { mutableIntStateOf(0) }
     var adding by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
@@ -106,9 +119,9 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             CoreRead.open(context)
             CoreFood.prepare()
             FoodHealthConnect.importDays(context)
-            goal = CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))?.let { plan ->
-                foodCalorieGoal(plan.measuredMeanKcal, plan.allDaysMeanKcal, plan.formulaTdeeKcal, plan.dailyDeltaKcal)
-            }
+            val plan = CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))
+            goals = loadFoodGoals(context, plan)
+            burnedByDay = plan?.burnedByDay ?: emptyMap()
         }
     }
     LaunchedEffect(day, revision, goal) {
@@ -117,17 +130,26 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             val profile = com.noop.ui.ProfileStore.from(context)
             CoreFood.nutrients(day.toString(), profile.sex, profile.age, profile.weightKg, profile.heightCm, goal)
         }
+        dayNutrients = withContext(Dispatchers.IO) {
+            val profile = com.noop.ui.ProfileStore.from(context)
+            CoreFood.nutrients(day.toString(), profile.sex, profile.age, profile.weightKg, profile.heightCm, goal, span = "day")
+        }
     }
     fun reload() { revision++ }
 
-    if (showNutrients && nutrients != null) {
+    if (showNutrients && nutrients != null && dayNutrients != null) {
         BackHandler { showNutrients = false }
-        ForgeFoodNutrientsPage(nutrients!!, onBack = { showNutrients = false })
+        ForgeFoodNutrientsPage(nutrients!!, dayNutrients!!, pinned, onPin = { key -> pinned = toggleFoodPin(context, key) },
+                               onBack = { showNutrients = false })
         return
     }
     if (settings) {
-        BackHandler { settings = false }
-        ForgeFoodDataPage(onBack = { settings = false })
+        BackHandler { settings = false; revision++ }
+        ForgeFoodDataPage(onBack = {
+            settings = false
+            scope.launch { goals = withContext(Dispatchers.IO) { loadFoodGoals(context, CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))) } }
+            revision++
+        })
         return
     }
     if (adding) {
@@ -153,55 +175,84 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
         })
     }
 
-    SettingsColumn {
-        PageTitle(stringResource(R.string.food_title), onBack) {
-            IconButton(onClick = { settings = true }) {
-                Icon(Icons.Rounded.Settings, stringResource(R.string.food_data_title), tint = Forge.sceneInk.text)
-            }
-        }
-        DayPicker(day) { day = it }
-        EnergyCard(summary?.totals ?: emptyMap(), goal)
-        MacroRow(summary?.totals ?: emptyMap())
-        val s = summary
-        FoodNutrientCard(nutrients) { showNutrients = true }
-        if (s != null && s.meals.isNotEmpty()) {
-            s.meals.forEach { meal ->
-                MealCard(meal, onEdit = { editing = it }, onCopyTomorrow = {
-                    scope.launch {
-                        withContext(Dispatchers.IO) {
-                            val copies = CoreFood.copy(meal.entries.map { it.id }, listOf(day.plusDays(1).toString()))
-                            FoodHealthConnect.wrote(context, copies)
-                        }
-                        reload()
-                    }
-                }, onDelete = {
-                    scope.launch {
-                        withContext(Dispatchers.IO) { FoodHealthConnect.removed(context, CoreFood.delete(meal.entries.map { it.id })) }
-                        reload()
-                    }
+    // The Food page's picture (iOS `FoodHeroPicture`): a dark still life behind the title, fading out above the plate.
+    Box(Modifier.fillMaxSize()) {
+        // Only in the dark appearance: the photo is a night scene and would sit as a dark block on the light canvas.
+        if (Forge.colors.dark) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.food_hero), contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop, alignment = Alignment.TopEnd,
+            modifier = Modifier.fillMaxWidth().height(400.dp)
+                .graphicsLayer(compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen)
+                .drawWithContent {
+                    drawContent()
+                    drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
+                        0f to androidx.compose.ui.graphics.Color.Black, 0.4f to androidx.compose.ui.graphics.Color.Black,
+                        0.7f to androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f), 0.92f to androidx.compose.ui.graphics.Color.Transparent),
+                        blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
                 })
+        SettingsColumn {
+            // Adding sits in the title row, always in reach, instead of a button below the meals.
+            PageTitle(stringResource(R.string.food_title), onBack) {
+                IconButton(onClick = { settings = true }) {
+                    Icon(Icons.Rounded.Settings, stringResource(R.string.food_data_title), tint = Forge.sceneInk.text)
+                }
+                IconButton(onClick = { adding = true }) {
+                    Icon(Icons.Rounded.Add, stringResource(R.string.food_add), tint = Forge.colors.accent)
+                }
             }
-        } else {
-            ForgeCard(Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.food_empty_title), style = Forge.type.headline, color = Forge.colors.text)
-                Text(stringResource(R.string.food_empty_body), style = Forge.type.body, color = Forge.colors.textSecondary)
+            Text(dayTitle(day).uppercase(Locale.getDefault()), style = Forge.type.overline, color = Forge.sceneInk.secondary)
+            FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
+            val s = summary
+            FoodSectionHeader(stringResource(R.string.food_nutrients)) { showNutrients = true }
+            FoodNutrientCard(dayNutrients, pinned) { showNutrients = true }
+            FoodSectionHeader(stringResource(R.string.food_meals))
+            if (s != null && s.meals.isNotEmpty()) {
+                s.meals.forEach { meal ->
+                    MealCard(meal, onEdit = { editing = it }, onCopyTomorrow = {
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                val copies = CoreFood.copy(meal.entries.map { it.id }, listOf(day.plusDays(1).toString()))
+                                FoodHealthConnect.wrote(context, copies)
+                            }
+                            reload()
+                        }
+                    }, onDelete = {
+                        scope.launch {
+                            withContext(Dispatchers.IO) { FoodHealthConnect.removed(context, CoreFood.delete(meal.entries.map { it.id })) }
+                            reload()
+                        }
+                    })
+                }
+            } else {
+                ForgeCard(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.food_empty_title), style = Forge.type.headline, color = Forge.colors.text)
+                    Text(stringResource(R.string.food_empty_body), style = Forge.type.body, color = Forge.colors.textSecondary)
+                    TextButton(onClick = { adding = true }) { Text(stringResource(R.string.food_add), color = Forge.colors.accent) }
+                }
             }
         }
-        TextButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()
-            .background(Forge.colors.accent, RoundedCornerShape(50)).heightIn(min = 52.dp)) {
-            Icon(Icons.Rounded.Add, null, tint = Forge.colors.onDark)
-            Spacer(Modifier.width(ForgeMetrics.space2))
-            Text(stringResource(R.string.food_add), style = Forge.type.headline, color = Forge.colors.onDark)
-        }
-        Text(stringResource(R.string.food_sources_note), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
     }
 }
 
-/** `FoodTargets.calories` in the core; repeated here only for the arithmetic, with the same floor. */
-internal fun foodCalorieGoal(measured: Double?, allDays: Double?, formula: Double?, delta: Double?): Double? {
-    val burn = measured ?: allDays ?: formula ?: return null
-    if (burn <= 0 || burn.isNaN()) return null
-    return max(1_200.0, burn + (delta ?: 0.0))
+/** The goals from the core (`FoodTargets`), with the wearer's fixed goal and split from the shared keys. */
+internal fun loadFoodGoals(context: android.content.Context, plan: CoreEnergyPlan.Plan?): CoreFood.Goals? {
+    val prefs = com.noop.ui.NoopPrefs.of(context)
+    fun pct(key: String) = if (prefs.contains(key)) prefs.getFloat(key, 0f).toDouble() else null
+    return CoreFood.goals(plan?.measuredMeanKcal, plan?.allDaysMeanKcal, plan?.formulaTdeeKcal, plan?.dailyDeltaKcal,
+                          prefs.getFloat("food.goal.kcal", 0f).toDouble().takeIf { it > 0 },
+                          pct("food.goal.proteinPercent"), pct("food.goal.carbsPercent"), pct("food.goal.fatPercent"))
+}
+
+/** The nutrients pinned to the Food page, the same key and default as iOS (`FoodTargets.Keys.pinned`). */
+internal fun foodPinned(context: android.content.Context): List<String> =
+    (com.noop.ui.NoopPrefs.of(context).getString("food.pinnedNutrients", "") ?: "").split(',').filter { it.isNotBlank() }
+        .ifEmpty { listOf("fiber_g", "sugar_g", "sat_fat_g", "salt_g") }.take(4)
+
+internal fun toggleFoodPin(context: android.content.Context, key: String): List<String> {
+    val list = foodPinned(context).toMutableList()
+    if (!list.remove(key)) list.add(key)
+    val next = list.takeLast(4)
+    com.noop.ui.NoopPrefs.of(context).edit().putString("food.pinnedNutrients", next.joinToString(",")).apply()
+    return next
 }
 
 internal fun kcalText(value: Double?): String =
@@ -211,6 +262,8 @@ internal fun gramsText(value: Double?): String {
     val v = value ?: return "–"
     val f = NumberFormat.getNumberInstance(Locale.getDefault())
     f.maximumFractionDigits = if (v < 10) 1 else 0
+    // No grouping: this text is also what the amount fields parse back ("1.200" would read as 1.2).
+    f.isGroupingUsed = false
     return f.format(v)
 }
 
@@ -223,81 +276,143 @@ internal fun mealName(kind: String): String = stringResource(when (kind) {
 })
 
 @Composable
-private fun DayPicker(day: LocalDate, onChange: (LocalDate) -> Unit) {
-    val title = if (day == LocalDate.now()) stringResource(R.string.food_today)
-        else day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()))
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { onChange(day.minusDays(1)) }) {
-            Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.food_previous_day), tint = Forge.colors.accent)
-        }
-        Text(title, style = Forge.type.headline, color = Forge.sceneInk.text, modifier = Modifier.weight(1f),
-             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        IconButton(onClick = { onChange(day.plusDays(1)) }) {
-            Icon(Icons.Rounded.ChevronRight, stringResource(R.string.food_next_day), tint = Forge.colors.accent)
-        }
-    }
-}
+private fun dayTitle(day: LocalDate): String = if (day == LocalDate.now()) stringResource(R.string.food_today)
+    else day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()))
 
+/**
+ * The plate standing free in the scene, as iOS `FoodPlate`: calories eaten as the outer ring, protein, carbohydrate
+ * and fat as three finer rings inside it, what is left of the goal in the middle. The day before and after sit on
+ * either side; under it the three macronutrients and the day's energy.
+ */
 @Composable
-private fun EnergyCard(totals: Map<String, Double>, goal: Double?) {
+private fun FoodHero(day: LocalDate, totals: Map<String, Double>, goals: CoreFood.Goals?, burned: Double?,
+                     onDay: (LocalDate) -> Unit) {
     val colors = Forge.colors
     val eaten = totals["energy_kcal"] ?: 0.0
-    val share = goal?.let { min(1.0, eaten / max(1.0, it)) } ?: 0.0
-    ForgeCard(Modifier.fillMaxWidth()) {
+    val goal = goals?.kcal
+    val macros = listOf(
+        PlateMacro(stringResource(R.string.food_protein), totals["protein_g"] ?: 0.0, goals?.proteinG, colors.protein),
+        PlateMacro(stringResource(R.string.food_carbs), totals["carbs_g"] ?: 0.0, goals?.carbsG, colors.carbs),
+        PlateMacro(stringResource(R.string.food_fat), totals["fat_g"] ?: 0.0, goals?.fatG, colors.fat),
+    )
+    var showReason by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2), horizontalAlignment = Alignment.CenterHorizontally,
+           verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space5)) {
+        Row(Modifier.fillMaxWidth().pointerInput(day) {
+                var dx = 0f
+                detectHorizontalDragGestures(onDragEnd = {
+                    if (abs(dx) > 60) onDay(if (dx < 0) day.plusDays(1) else day.minusDays(1))
+                    dx = 0f
+                }) { _, d -> dx += d }
+            }, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onDay(day.minusDays(1)) }) {
+                Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.food_previous_day), tint = colors.textSecondary)
+            }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(262.dp), contentAlignment = Alignment.Center) {
+                    Canvas(Modifier.size(262.dp)) {
+                        // Outer ring 236 dp at 18 dp, inner rings 199, 169 and 139 dp at 11 dp, each 4 dp apart.
+                        fun ring(diameter: Float, line: Float, share: Double, tint: androidx.compose.ui.graphics.Color) {
+                            val d = diameter.dp.toPx(); val w = line.dp.toPx()
+                            val topLeft = Offset((size.width - d) / 2, (size.height - d) / 2)
+                            val box = androidx.compose.ui.geometry.Size(d, d)
+                            drawArc(tint.copy(alpha = 0.2f), 0f, 360f, false, topLeft, box, style = Stroke(w))
+                            val sweep = (360 * min(1.0, max(0.0, share))).toFloat()
+                            if (sweep > 0) {
+                                // A soft glow under the arc, then the arc deepening towards its tip.
+                                drawArc(tint.copy(alpha = 0.22f), -90f, sweep, false, topLeft, box, style = Stroke(w * 1.9f, cap = StrokeCap.Round))
+                                drawArc(tint, -90f, sweep, false, topLeft, box, style = Stroke(w, cap = StrokeCap.Round))
+                            }
+                        }
+                        ring(236f, 18f, goal?.let { eaten / max(1.0, it) } ?: 0.0, colors.food)
+                        listOf(199f, 169f, 139f).zip(macros).forEach { (d, m) ->
+                            ring(d, 11f, m.goal?.let { m.grams / max(1.0, it) } ?: 0.0, m.tint)
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val left = goal?.let { it - eaten }
+                        Text(kcalText(abs(left ?: eaten)), style = Forge.type.heroNumber.copy(fontSize = 38.sp),
+                             color = if ((left ?: 0.0) < 0) colors.effort else colors.text)
+                        Text(stringResource(when {
+                            left == null -> R.string.food_kcal_eaten_short
+                            left >= 0 -> R.string.food_kcal_left_short
+                            else -> R.string.food_kcal_over_short
+                        }), style = Forge.type.body, color = colors.textSecondary)
+                    }
+                }
+            }
+            IconButton(onClick = { onDay(day.plusDays(1)) }) {
+                Icon(Icons.Rounded.ChevronRight, stringResource(R.string.food_next_day), tint = colors.textSecondary)
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            macros.forEach { m ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(8.dp).background(m.tint, CircleShape))
+                        Spacer(Modifier.width(6.dp))
+                        Text(m.name, style = Forge.type.footnote, color = colors.textSecondary)
+                    }
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(gramsText(m.grams), style = Forge.type.title2, color = colors.text)
+                        Text(m.goal?.let { " / ${gramsText(it)} g" } ?: " g", style = Forge.type.footnote, color = colors.textSecondary,
+                             modifier = Modifier.padding(bottom = 2.dp))
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+            EnergyFigure(stringResource(R.string.food_eaten_label), kcalText(eaten))
+            if (goals != null) {
+                EnergyFigure(stringResource(R.string.food_goal_label), kcalText(goals.kcal), info = true,
+                             modifier = Modifier.clickable(role = Role.Button) { showReason = true })
+            }
+            if (burned != null) {
+                EnergyFigure(stringResource(if (day == LocalDate.now()) R.string.food_burned_so_far else R.string.food_burned), kcalText(burned))
+            }
+        }
+    }
+    if (showReason && goals != null) {
+        val usual = stringResource(if (goals.basis == "measured") R.string.food_goal_usual else R.string.food_goal_formula, kcalText(goals.burnKcal))
+        val text = when {
+            goals.basis == "fixed" -> stringResource(R.string.food_goal_fixed)
+            goals.planDeltaKcal < 0 -> usual + " " + stringResource(R.string.food_goal_plan_off, kcalText(-goals.planDeltaKcal))
+            goals.planDeltaKcal > 0 -> usual + " " + stringResource(R.string.food_goal_plan_adds, kcalText(goals.planDeltaKcal))
+            else -> usual
+        }
+        AlertDialog(onDismissRequest = { showReason = false }, title = { Text(stringResource(R.string.food_goal_how)) },
+                    text = { Text(text) },
+                    confirmButton = { TextButton(onClick = { showReason = false }) { Text(stringResource(R.string.food_done)) } })
+    }
+}
+
+private data class PlateMacro(val name: String, val grams: Double, val goal: Double?, val tint: androidx.compose.ui.graphics.Color)
+
+@Composable
+private fun EnergyFigure(title: String, value: String, info: Boolean = false, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.size(112.dp)) {
-                    val stroke = 12.dp.toPx()
-                    drawArc(colors.food.copy(alpha = 0.24f), 0f, 360f, false, style = Stroke(stroke),
-                            topLeft = Offset(stroke / 2, stroke / 2),
-                            size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke))
-                    drawArc(colors.food, -90f, (360 * share).toFloat(), false, style = Stroke(stroke, cap = StrokeCap.Round),
-                            topLeft = Offset(stroke / 2, stroke / 2),
-                            size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke))
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(kcalText(eaten), style = Forge.type.title1, color = colors.text)
-                    Text("kcal", style = Forge.type.caption, color = colors.textSecondary)
-                }
-            }
-            Spacer(Modifier.width(ForgeMetrics.space4))
-            Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
-                if (goal != null) {
-                    val left = goal - eaten
-                    Text(if (left >= 0) stringResource(R.string.food_kcal_left, kcalText(left)) else stringResource(R.string.food_kcal_over, kcalText(-left)),
-                         style = Forge.type.headline, color = if (left >= 0) colors.text else colors.effort)
-                    Text(stringResource(R.string.food_goal, kcalText(goal)), style = Forge.type.body, color = colors.textSecondary)
-                } else {
-                    Text(stringResource(R.string.food_eaten_today), style = Forge.type.headline, color = colors.text)
-                    Text(stringResource(R.string.food_no_plan), style = Forge.type.footnote, color = colors.textSecondary)
-                }
+            Text(title, style = Forge.type.footnote, color = Forge.colors.textSecondary)
+            if (info) {
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Rounded.Info, null, tint = Forge.colors.textSecondary, modifier = Modifier.size(14.dp))
             }
         }
+        Text(value, style = Forge.type.bodyNumber, color = Forge.colors.text)
     }
 }
 
+/** A section's title standing in the scene above its card; with an action it opens the section's own page. */
 @Composable
-private fun MacroRow(totals: Map<String, Double>) {
-    val colors = Forge.colors
-    val p = totals["protein_g"] ?: 0.0; val c = totals["carbs_g"] ?: 0.0; val f = totals["fat_g"] ?: 0.0
-    val energy = max(1.0, p * 4 + c * 4 + f * 9)
-    Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-        MacroTile(stringResource(R.string.food_protein), p, p * 4 / energy, colors.protein, Modifier.weight(1f))
-        MacroTile(stringResource(R.string.food_carbs), c, c * 4 / energy, colors.carbs, Modifier.weight(1f))
-        MacroTile(stringResource(R.string.food_fat), f, f * 9 / energy, colors.fat, Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun MacroTile(name: String, grams: Double, share: Double, tint: androidx.compose.ui.graphics.Color, modifier: Modifier) {
-    ForgeCard(modifier, contentPadding = ForgeMetrics.space3) {
-        Text(name, style = Forge.type.footnote, color = Forge.colors.textSecondary)
-        Text("${gramsText(grams)} g", style = Forge.type.title2, color = Forge.colors.text)
-        Box(Modifier.fillMaxWidth().height(6.dp).background(tint.copy(alpha = 0.24f), RoundedCornerShape(3.dp))) {
-            Box(Modifier.fillMaxWidth(min(1.0, max(0.0, share)).toFloat()).height(6.dp).background(tint, RoundedCornerShape(3.dp)))
+internal fun FoodSectionHeader(title: String, onOpen: (() -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4)
+            .then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = Forge.type.title2, color = Forge.sceneInk.text)
+        if (onOpen != null) {
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Rounded.ChevronRight, null, tint = Forge.sceneInk.secondary)
         }
-        Text(stringResource(R.string.food_share_energy, (share * 100).roundToInt()), style = Forge.type.caption,
-             color = Forge.colors.textSecondary)
     }
 }
 
@@ -311,7 +426,7 @@ private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onCo
             Text(mealName(meal.kind), style = Forge.type.headline, color = Forge.colors.text)
             Spacer(Modifier.width(ForgeMetrics.space2))
             Text(time, style = Forge.type.footnote, color = Forge.colors.textSecondary, modifier = Modifier.weight(1f))
-            Text("${kcalText(meal.totals["energy_kcal"])} kcal", style = Forge.type.bodyNumber, color = Forge.colors.food)
+            Text("${kcalText(meal.totals["energy_kcal"])} kcal", style = Forge.type.body, color = Forge.colors.textSecondary)
             Box {
                 TextButton(onClick = { menu = true }) { Text("···", color = Forge.colors.textSecondary) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -324,9 +439,12 @@ private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onCo
             Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onEdit(entry) }.padding(vertical = ForgeMetrics.space2),
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(entry.name, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
-                    val detail = listOfNotNull(entry.portionLabel ?: entry.grams?.let { "${gramsText(it)} g" }, entry.brand)
-                    if (detail.isNotEmpty()) Text(detail.joinToString(" · "), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                    // A database name like "Vollmilch frisch, 3,5 % Fett" reads as its first part; the rest goes below.
+                    val rest = entry.name.substringAfter(", ", "").ifEmpty { null }
+                    Text(entry.name.substringBefore(", "), style = Forge.type.body, color = Forge.colors.text, maxLines = 2)
+                    val detail = listOfNotNull(rest, entry.portionLabel ?: entry.grams?.let { "${gramsText(it)} g" }, entry.brand)
+                    if (detail.isNotEmpty()) Text(detail.joinToString(" · "), style = Forge.type.footnote, color = Forge.colors.textSecondary,
+                                                  maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
                 Text(kcalText(entry.totals["energy_kcal"]), style = Forge.type.bodyNumber, color = Forge.colors.text)
             }
@@ -340,12 +458,27 @@ private fun FoodEntryDialog(entry: CoreFood.Entry, onDismiss: () -> Unit, onSave
     var grams by remember { mutableStateOf(entry.grams?.let { gramsText(it) } ?: "") }
     var meal by remember { mutableStateOf(entry.meal) }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(entry.name) }, text = {
-        Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2),
+               modifier = Modifier.verticalScroll(rememberScrollState())) {
             if (entry.per100g != null) {
                 OutlinedTextField(grams, { grams = it }, label = { Text(stringResource(R.string.food_grams)) },
                                   keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
             }
             MealChooser(meal) { meal = it }
+            // Every nutrient this entry knows, for the amount typed above.
+            val g = grams.replace(',', '.').toDoubleOrNull()
+            val totals = entry.per100g?.takeIf { g != null }?.mapValues { it.value * g!! / 100.0 } ?: entry.totals
+            Text(stringResource(R.string.food_nutrients), style = Forge.type.headline, color = Forge.colors.text)
+            (listOf("energy_kcal", "protein_g", "carbs_g", "fat_g") + foodNutrientGroups.flatMap { it.second }).distinct()
+                .filter { totals[it] != null }.forEach { key ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        NutrientBadge(key)
+                        Spacer(Modifier.width(ForgeMetrics.space2))
+                        Text(if (key == "energy_kcal") stringResource(R.string.food_energy) else nutrientName(key),
+                             style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                        Text(nutrientAmount(totals.getValue(key), key), style = Forge.type.bodyNumber, color = Forge.colors.text)
+                    }
+                }
         }
     }, confirmButton = {
         TextButton(onClick = { onSave(grams.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }, meal, meal != entry.meal) }) {
@@ -745,6 +878,7 @@ private fun ForgeFoodDataPage(onBack: () -> Unit) {
 
     SettingsColumn {
         PageTitle(stringResource(R.string.food_data_title), onBack)
+        FoodGoalsCard()
         SettingsCard(stringResource(R.string.food_branded), stringResource(when (mode) {
             FoodDataPrefs.ONLINE -> R.string.food_mode_online_note; FoodDataPrefs.PACKS -> R.string.food_mode_packs_note
             else -> R.string.food_mode_none_note })) {
@@ -856,5 +990,43 @@ private fun downloadPack(context: android.content.Context, pack: OfferedPack): S
         "download"
     } finally {
         target.delete()
+    }
+}
+
+/** The calorie goal (the energy plan's, or a fixed number) and its split, as iOS `FoodGoalsSection`, same keys. */
+@Composable
+private fun FoodGoalsCard() {
+    val context = LocalContext.current
+    val prefs = remember { com.noop.ui.NoopPrefs.of(context) }
+    var fixed by remember { mutableStateOf(prefs.getFloat("food.goal.kcal", 0f).toDouble()) }
+    var protein by remember { mutableStateOf(prefs.getFloat("food.goal.proteinPercent", 25f).toDouble()) }
+    var carbs by remember { mutableStateOf(prefs.getFloat("food.goal.carbsPercent", 45f).toDouble()) }
+    var fat by remember { mutableStateOf(prefs.getFloat("food.goal.fatPercent", 30f).toDouble()) }
+    fun save() {
+        prefs.edit().putFloat("food.goal.kcal", fixed.toFloat()).putFloat("food.goal.proteinPercent", protein.toFloat())
+            .putFloat("food.goal.carbsPercent", carbs.toFloat()).putFloat("food.goal.fatPercent", fat.toFloat()).apply()
+    }
+    val total = (protein + carbs + fat).roundToInt()
+    SettingsCard(stringResource(R.string.food_goals), stringResource(if (fixed > 0) R.string.food_goal_fixed_note else R.string.food_goal_plan_note) +
+        if (total != 100) " " + stringResource(R.string.food_goal_scaled, total) else "") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.food_goal_fixed), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Switch(fixed > 0, { on -> fixed = if (on) maxOf(fixed, 2_000.0) else 0.0; save() })
+        }
+        if (fixed > 0) GoalStepper(stringResource(R.string.food_goal_kcal), "${kcalText(fixed)} kcal",
+                                   { fixed = maxOf(1_200.0, fixed - 50); save() }, { fixed = minOf(6_000.0, fixed + 50); save() })
+        GoalStepper(stringResource(R.string.food_protein), "${protein.roundToInt()} %", { protein = maxOf(10.0, protein - 5); save() }, { protein = minOf(40.0, protein + 5); save() })
+        GoalStepper(stringResource(R.string.food_carbs), "${carbs.roundToInt()} %", { carbs = maxOf(20.0, carbs - 5); save() }, { carbs = minOf(65.0, carbs + 5); save() })
+        GoalStepper(stringResource(R.string.food_fat), "${fat.roundToInt()} %", { fat = maxOf(15.0, fat - 5); save() }, { fat = minOf(45.0, fat + 5); save() })
+    }
+}
+
+@Composable
+private fun GoalStepper(title: String, value: String, minus: () -> Unit, plus: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+        TextButton(onClick = minus) { Text("−", style = Forge.type.headline, color = Forge.colors.accent) }
+        Text(value, style = Forge.type.bodyNumber, color = Forge.colors.text)
+        TextButton(onClick = plus) { Text("+", style = Forge.type.headline, color = Forge.colors.accent) }
     }
 }

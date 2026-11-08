@@ -15,14 +15,33 @@ final class ForgeFoodModel {
     private(set) var summary: FoodLog.DaySummary?
     private(set) var calories: FoodTargets.Calories?
     private(set) var nutrients: FoodNutrientReport.Report?
+    /// The shown day alone, for its nutrition facts and the pinned nutrients.
+    private(set) var dayNutrients: FoodNutrientReport.Report?
+    /// Gram goals for protein, carbohydrate and fat, from the calorie goal and the wearer's split.
+    var macroGoals: FoodTargets.Macros? {
+        guard let kcal = calories?.kcal else { return nil }
+        let d = UserDefaults.standard, split = FoodTargets.defaultSplit
+        func share(_ key: String, _ fallback: Double) -> Double { d.object(forKey: key) as? Double ?? fallback }
+        return FoodTargets.macros(kcal: kcal, protein: share(FoodTargets.Keys.proteinPercent, split.protein),
+                                  carbs: share(FoodTargets.Keys.carbsPercent, split.carbs),
+                                  fat: share(FoodTargets.Keys.fatPercent, split.fat))
+    }
+    var pinned: [FoodNutrient] { FoodTargets.pinned(from: UserDefaults.standard.string(forKey: FoodTargets.Keys.pinned)) }
     private(set) var catalogFailed = false
     private(set) var loaded = false
+    /// The plan's intake for the day when it comes from somewhere other than this log.
+    private(set) var otherIntake: (kcal: Double, source: NutritionDay.Source)?
 
     @ObservationIgnored private var catalogReady = false
     @ObservationIgnored private var references: [FoodNutrient: FoodReference.Value] = [:]
     @ObservationIgnored private let plan = EnergyPlanModel()
 
     var isToday: Bool { day == Repository.localDayKey(.now) }
+    /// What each recent day burned as measured by the strap and Health, today until now.
+    @ObservationIgnored private var burnedByDay: [String: Double] = [:]
+    private(set) var burnRevision = 0
+    /// The shown day's measured burn; nil before the energy plan has loaded or beyond its window.
+    var burned: Double? { _ = burnRevision; return burnedByDay[day] }
     var eatenKcal: Double { summary?.totals[.energyKcal] ?? 0 }
 
     func load(repo: Repository, profile: UserProfile) async {
@@ -33,15 +52,21 @@ final class ForgeFoodModel {
             do { try await FoodCatalog.shared.prepareBundled(); catalogReady = true } catch { catalogFailed = true }
         }
         await plan.load(repo: repo, profile: profile)
-        calories = FoodTargets.calories(measuredMeanKcal: plan.burn.measuredMeanKcal,
-                                        allDaysMeanKcal: plan.burn.allDaysMeanKcal,
-                                        formulaTdeeKcal: plan.formulaTdee(profile: profile),
-                                        dailyDeltaKcal: plan.targetDailyKcal)
+        let planned = FoodTargets.calories(measuredMeanKcal: plan.burn.measuredMeanKcal,
+                                           allDaysMeanKcal: plan.burn.allDaysMeanKcal,
+                                           formulaTdeeKcal: plan.formulaTdee(profile: profile),
+                                           dailyDeltaKcal: plan.targetDailyKcal)
+        calories = FoodTargets.calories(fixedKcal: UserDefaults.standard.double(forKey: FoodTargets.Keys.calories), plan: planned)
+        burnedByDay = plan.burnedByDay
+        burnRevision += 1
         references = FoodReference.values(profileSex: profile.sex, age: Int(profile.age), weightKg: profile.weightKg,
                                           heightCm: profile.heightCm, energyKcal: calories?.kcal)
         await reload(store: store)
         loaded = true
     }
+
+    /// After the goal settings changed.
+    func reloadGoals(repo: Repository, profile: UserProfile) async { await load(repo: repo, profile: profile) }
 
     func reload(repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
@@ -50,8 +75,23 @@ final class ForgeFoodModel {
 
     private func reload(store: WhoopStore) async {
         summary = await FoodLog.day(store: store, day)
-        if !references.isEmpty { nutrients = await FoodNutrientReport.report(store: store, to: day, references: references) }
+        otherIntake = await FoodLog.otherIntake(store: store, day)
+        if !references.isEmpty {
+            nutrients = await FoodNutrientReport.report(store: store, to: day, references: references)
+            dayNutrients = FoodNutrientReport.report(entries: summary?.entries ?? [], from: day, to: day, references: references)
+        }
     }
+
+    /// Pins or unpins a nutrient on the Food page (at most four; the oldest pin gives way).
+    func togglePin(_ nutrient: FoodNutrient) {
+        var list = pinned
+        if let index = list.firstIndex(of: nutrient) { list.remove(at: index) } else { list.append(nutrient) }
+        if list.count > 4 { list.removeFirst(list.count - 4) }
+        UserDefaults.standard.set(list.map(\.rawValue).joined(separator: ","), forKey: FoodTargets.Keys.pinned)
+        pinRevision += 1
+    }
+    /// Bumped on a pin change so views reading `pinned` refresh.
+    private(set) var pinRevision = 0
 
     func shiftDay(by days: Int) {
         guard let date = WeightSeries.date(forDay: day),

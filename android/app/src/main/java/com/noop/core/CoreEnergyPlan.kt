@@ -24,6 +24,8 @@ object CoreEnergyPlan {
         val todayBalanceKcal: Double?, val todayVerdict: String?, val activity: String, val targetKgPerWeek: Double,
         val dailyDeltaKcal: Double?, val observedKcalPerKg: Double?, val currentFormula: String, val formulaTdeeKcal: Double?,
         val formulas: List<Formula>, val corridorKcal: List<Double>, val corridorSpreadKcal: Double?,
+        /** Each day's measured burn in the window, today until now. */
+        val burnedByDay: Map<String, Double> = emptyMap(),
     )
 
     fun formulaLog(context: Context): String = NoopPrefs.of(context).getString(FORMULA_LOG, "") ?: ""
@@ -89,6 +91,7 @@ object CoreEnergyPlan {
             },
             corridorKcal = if (corridor == null) emptyList() else (0 until corridor.length()).map { corridor.getDouble(it) },
             corridorSpreadKcal = dbl("corridorSpreadKcal"),
+            burnedByDay = o.optJSONObject("burnedByDay")?.let { m -> m.keys().asSequence().associateWith { m.getDouble(it) } } ?: emptyMap(),
         )
     }
 }

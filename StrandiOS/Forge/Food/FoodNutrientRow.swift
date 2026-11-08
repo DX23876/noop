@@ -2,28 +2,43 @@
 import SwiftUI
 import StrandCore
 
-/// One nutrient: the week's average, a bullet bar with the reference marked, its status in a symbol and in words,
-/// and on a tap the foods it mostly came from.
+/// One nutrient: the average against the recommended amount, a thin bar, and on a tap the foods it mostly came from.
 struct FoodNutrientRow: View {
     let row: FoodNutrientReport.Row
+    var pinned = false
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button(action: toggle) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Label(FoodText.nutrient(row.nutrient), systemImage: symbol)
-                            .labelStyle(FoodStatusLabelStyle(tint: tint))
-                        Spacer()
-                        Text(FoodText.amount(row.average, row.nutrient)).font(.subheadline).bold().foregroundStyle(ForgeColor.text)
-                    }
-                    if let reference = row.reference {
-                        // The scale runs to one and a half times the reference, so the mark sits at two thirds.
-                        let scale = max(reference.amount * 1.5, row.average)
-                        FoodShareBar(share: row.average / max(0.0001, scale), tint: tint, reference: reference.amount / max(0.0001, scale))
-                        Text(caption(reference)).font(.footnote).foregroundStyle(ForgeColor.secondary)
+                HStack(spacing: 12) {
+                    FoodNutrientBadge(nutrient: row.nutrient)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(FoodText.nutrient(row.nutrient)).font(ForgeFont.body).foregroundStyle(ForgeColor.text)
+                            if pinned {
+                                Image(systemName: "pin.fill").font(.caption2).foregroundStyle(ForgeColor.tertiary)
+                                    .accessibilityLabel(Text("Pinned"))
+                            }
+                            if row.status == .attention {
+                                Image(systemName: "exclamationmark.circle.fill").font(.caption).foregroundStyle(ForgeColor.effort)
+                            }
+                            Spacer()
+                            Text(FoodText.amount(row.average, row.nutrient)).font(.subheadline).bold().foregroundStyle(ForgeColor.text)
+                            if let reference = row.reference {
+                                Text(reference.kind == .atLeast ? "of \(FoodText.amount(reference.amount, row.nutrient))"
+                                                                : "max \(FoodText.amount(reference.amount, row.nutrient))")
+                                    .font(.footnote).foregroundStyle(ForgeColor.secondary)
+                            }
+                        }
+                        if let reference = row.reference {
+                            let scale = max(reference.amount, row.average)
+                            FoodShareBar(share: row.average / max(0.0001, scale), tint: tint, height: 4)
+                        }
+                        if let note {
+                            Text(note).font(.caption).foregroundStyle(ForgeColor.secondary)
+                        }
                     }
                 }
                 .contentShape(.rect)
@@ -36,44 +51,42 @@ struct FoodNutrientRow: View {
                         LabeledContent(source.name, value: FoodText.amount(source.amount, row.nutrient)).font(.footnote)
                     }
                 }
+                .padding(.leading, 44)
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(.vertical, 12)
         .accessibilityElement(children: .combine)
+        .accessibilityValue(Text(statusWord))
     }
 
+    /// The nutrient's own colour; amber when it is outside what is recommended, grey when it cannot be judged.
     private var tint: Color {
         switch row.status {
-        case .fine: ForgeColor.charge
         case .attention: ForgeColor.effort
-        default: ForgeColor.tertiary
+        case .incomplete, .mostlyModel: ForgeColor.tertiary
+        default: FoodNutrientBadge.tint(row.nutrient)
         }
     }
 
-    private var symbol: String {
+    private var statusWord: String {
         switch row.status {
-        case .fine: "checkmark.circle.fill"
-        case .attention: "exclamationmark.circle.fill"
-        case .incomplete: "questionmark.circle"
-        case .mostlyModel: "sparkles"
-        case .none: "circle"
+        case .fine: String(localized: "In range")
+        case .attention: row.reference?.kind == .atMost ? String(localized: "Above the recommendation") : String(localized: "Below the recommendation")
+        case .incomplete: String(localized: "Not enough data")
+        case .mostlyModel: String(localized: "Estimated")
+        case .none: String(localized: "No recommendation")
         }
     }
 
-    private func caption(_ reference: FoodReference.Value) -> String {
+    /// Said only when the figure cannot be read at face value.
+    private var note: String? {
         switch row.status {
-        case .incomplete:
-            return String(localized: "Not enough data: only \(FoodText.percent(row.coverage)) of what you logged states it.")
-        case .mostlyModel:
-            return String(localized: "Mostly your coach's estimate, so it is not rated.")
+        case .incomplete: return String(localized: "Too few of your foods state it.")
+        case .mostlyModel: return String(localized: "Mostly estimated by your coach.")
         default:
-            let ref = FoodText.amount(reference.amount, row.nutrient)
-            var text = reference.kind == .atLeast ? String(localized: "Reference \(ref) a day (\(reference.source))")
-                                                  : String(localized: "Limit \(ref) a day (\(reference.source))")
             let estimated = row.estimatedShare + row.modelShare
-            if estimated >= 0.05 { text += " · " + String(localized: "\(FoodText.percent(estimated)) estimated") }
-            return text
+            return estimated >= 0.25 ? String(localized: "\(FoodText.percent(estimated)) estimated") : nil
         }
     }
 

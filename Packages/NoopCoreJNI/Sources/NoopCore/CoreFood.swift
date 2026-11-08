@@ -20,7 +20,7 @@ enum CoreFood {
         }
     }
     struct MealWire: Codable { var kind: String; var start: Int; var entries: [EntryWire]; var totals: NutrientAmounts }
-    struct DayWire: Codable { var day: String; var meals: [MealWire]; var totals: NutrientAmounts }
+    struct DayWire: Codable { var day: String; var meals: [MealWire]; var totals: NutrientAmounts; var otherKcal: Double?; var otherSource: String? }
     struct RecentWire: Codable { var item: FoodItem; var lastGrams: Double? }
 
     static func run(_ op: String, args: [String: Any], store: WhoopStore) async -> String {
@@ -64,10 +64,11 @@ enum CoreFood {
             return CoreRead.json(found)
         case "food.day":
             let summary = await FoodLog.day(store: store, string("day"))
+            let other = await FoodLog.otherIntake(store: store, string("day"))
             return CoreRead.json(DayWire(day: summary.day, meals: summary.meals.map {
                 MealWire(kind: $0.kind.rawValue, start: Int($0.start.timeIntervalSince1970),
                          entries: $0.entries.map(EntryWire.init), totals: $0.totals)
-            }, totals: summary.totals))
+            }, totals: summary.totals, otherKcal: other?.kcal, otherSource: other?.source.rawValue))
         case "food.logCart":
             // The add sheet's and the coach's cart: every line becomes an entry in one save.
             let at = date("at")
@@ -98,8 +99,7 @@ enum CoreFood {
             return CoreRead.json(["removed": await FoodLog.delete(store: store, ids: args["ids"] as? [String] ?? [])
                 .map(EntryWire.init)])
         case "food.copy":
-            let originals = ((try? await store.foodLogEntries(from: "0000-00-00", to: "9999-99-99")) ?? [])
-                .filter { (args["ids"] as? [String] ?? []).contains($0.id) }
+            let originals = (try? await store.foodLogEntries(ids: args["ids"] as? [String] ?? [])) ?? []
             let copies = FoodLog.copies(of: originals, toDays: args["days"] as? [String] ?? [])
             guard !copies.isEmpty, await FoodLog.save(store: store, copies) else { return #"{"error":"invalid"}"# }
             return entries(copies)
@@ -119,8 +119,7 @@ enum CoreFood {
         case "food.recipes":
             return CoreRead.json(["items": ((try? await store.foodRecipes()) ?? []).compactMap(FoodLog.item(for:))])
         case "food.makeRecipe":
-            let ids = Set(args["ids"] as? [String] ?? [])
-            let chosen = ((try? await store.foodLogEntries(from: "0000-00-00", to: "9999-99-99")) ?? []).filter { ids.contains($0.id) }
+            let chosen = (try? await store.foodLogEntries(ids: args["ids"] as? [String] ?? [])) ?? []
             guard let recipe = FoodLog.recipe(name: string("name"), from: chosen, servings: double("servings") ?? 1),
                   (try? await store.saveFoodRecipe(recipe)) == true, let made = FoodLog.item(for: recipe)
             else { return #"{"error":"invalid"}"# }
@@ -191,7 +190,22 @@ enum CoreFood {
             let references = FoodReference.values(profileSex: string("sex"), age: (args["age"] as? Int) ?? 40,
                                                   weightKg: double("weightKg"), heightCm: double("heightCm"),
                                                   energyKcal: double("energyKcal"))
+            if string("span") == "day" {
+                // One day as a nutrition label: the same rows, over that day's entries only.
+                let entries = (try? await store.foodLogEntries(from: string("day"), to: string("day"))) ?? []
+                return CoreRead.json(FoodNutrientReport.report(entries: entries, from: string("day"), to: string("day"), references: references))
+            }
             return CoreRead.json(await FoodNutrientReport.report(store: store, to: string("day"), references: references))
+        case "food.goals":
+            // The calorie goal (plan or fixed) and its macro split, as Apple's Food page resolves them.
+            let plan = FoodTargets.calories(measuredMeanKcal: double("measuredMeanKcal"), allDaysMeanKcal: double("allDaysMeanKcal"),
+                                            formulaTdeeKcal: double("formulaTdeeKcal"), dailyDeltaKcal: double("dailyDeltaKcal"))
+            guard let calories = FoodTargets.calories(fixedKcal: double("fixedKcal"), plan: plan) else { return "null" }
+            let split = FoodTargets.defaultSplit
+            let macros = FoodTargets.macros(kcal: calories.kcal, protein: double("proteinPercent") ?? split.protein,
+                                            carbs: double("carbsPercent") ?? split.carbs, fat: double("fatPercent") ?? split.fat)
+            struct GoalsWire: Encodable { var calories: FoodTargets.Calories; var macros: FoodTargets.Macros? }
+            return CoreRead.json(GoalsWire(calories: calories, macros: macros))
         case "food.removePack":
             await catalog.removePack(country: string("country"))
             return #"{"ok":true}"#

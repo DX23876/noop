@@ -81,11 +81,51 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
 
 /** The food log's hues (iOS `ForgeTheme.swift`, decision 2026-11-08); hand-set there too, not design-system tokens. */
 private object FoodInk {
-    val food = ForgeColor(light = 0xFFB4530B, dark = 0xFFF5A524)
-    val protein = ForgeColor(light = 0xFFB83280, dark = 0xFFF472B6)
-    val carbs = ForgeColor(light = 0xFF1D6FB8, dark = 0xFF5AB0FF)
-    val fat = ForgeColor(light = 0xFFA16207, dark = 0xFFFACC15)
+    val food = ForgeColor(light = 0xFFD9381E, dark = 0xFFFF5A36)
+    val protein = ForgeColor(light = 0xFFC21A7A, dark = 0xFFFF3EA5)
+    val carbs = ForgeColor(light = 0xFF0A6FD1, dark = 0xFF3DB8FF)
+    val fat = ForgeColor(light = 0xFFB58900, dark = 0xFFFFD60A)
+    // Nutrient marks (iOS `ForgeColor.nutrient…`): each nutrient its own hue by what it is found in or known for.
+    val sea = ForgeColor(light = 0xFF0E7490, dark = 0xFF22D3EE)
+    val olive = ForgeColor(light = 0xFF4D7C0F, dark = 0xFFA3E635)
+    val leaf = ForgeColor(light = 0xFF15803D, dark = 0xFF4ADE80)
+    val red = ForgeColor(light = 0xFFB91C1C, dark = 0xFFF87171)
+    val sun = ForgeColor(light = 0xFFA16207, dark = 0xFFFDE047)
+    val citrus = ForgeColor(light = 0xFFC2410C, dark = 0xFFFB923C)
+    val slate = ForgeColor(light = 0xFF475569, dark = 0xFFA5B4C8)
+    val sky = ForgeColor(light = 0xFF0369A1, dark = 0xFF7DD3FC)
+    val indigo = ForgeColor(light = 0xFF4338CA, dark = 0xFFA5B4FC)
+    val rose = ForgeColor(light = 0xFFBE185D, dark = 0xFFFB7185)
+    val copper = ForgeColor(light = 0xFF9A3412, dark = 0xFFF0A07A)
+    val teal = ForgeColor(light = 0xFF21877B, dark = 0xFF5FD3C4)
+    val violet = ForgeColor(light = 0xFF5B4DBF, dark = 0xFFA996FF)
 }
+
+/**
+ * A nutrient's colour, as iOS `FoodNutrientBadge.tint`. Only related nutrients share one (salt and sodium, the B
+ * vitamins).
+ */
+internal fun nutrientTint(key: String, dark: Boolean): Color = when (key) {
+    "energy_kcal" -> FoodInk.food
+    "protein_g" -> FoodInk.protein
+    "carbs_g" -> FoodInk.carbs
+    "fat_g", "sat_fat_g" -> FoodInk.fat
+    "fiber_g", "magnesium_mg", "vitamin_k_ug" -> FoodInk.leaf
+    "sugar_g" -> FoodInk.rose
+    "mono_fat_g", "vitamin_e_mg" -> FoodInk.olive
+    "poly_fat_g", "calcium_mg" -> FoodInk.sky
+    "omega3_g" -> FoodInk.teal
+    "epa_g", "dha_g", "iodine_ug" -> FoodInk.sea
+    "cholesterol_mg", "iron_mg" -> FoodInk.red
+    "salt_g", "sodium_mg", "zinc_mg" -> FoodInk.slate
+    "potassium_mg", "vitamin_d_ug" -> FoodInk.sun
+    "phosphorus_mg", "thiamin_mg", "riboflavin_mg", "niacin_mg", "pantothenic_mg", "vitamin_b6_mg", "biotin_ug",
+    "folate_ug", "vitamin_b12_ug" -> FoodInk.indigo
+    "copper_mg" -> FoodInk.copper
+    "manganese_mg" -> FoodInk.violet
+    "vitamin_a_ug", "vitamin_c_mg" -> FoodInk.citrus
+    else -> FoodInk.slate
+}.pick(dark)
 
 /**
  * The faces standing in for Apple's, which may not ship outside Apple's platforms: Nunito where iOS uses SF Pro

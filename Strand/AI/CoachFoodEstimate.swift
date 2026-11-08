@@ -116,7 +116,7 @@ extension AICoachEngine {
         var out: [FoodItem] = []
         for item in items {
             guard let filled = await estimateMissingNutrients(item),
-                  let kept = await FoodLibrary.saveOwn(store: store, filled, origin: item.source == .own ? .own : .online)
+                  let kept = await FoodLibrary.saveOwn(store: store, filled, origin: item.source == .online ? .online : .own)
             else { out.append(item); continue }
             out.append(kept)
         }

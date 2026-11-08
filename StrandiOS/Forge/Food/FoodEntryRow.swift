@@ -14,11 +14,11 @@ struct FoodEntryRow: View {
         Button(action: edit) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.name).font(.callout).bold().foregroundStyle(ForgeColor.text).lineLimit(2)
+                    Text(title).font(.body).foregroundStyle(ForgeColor.text).lineLimit(2)
                     Text(detail).font(.footnote).foregroundStyle(ForgeColor.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                Text(FoodText.kcal(entry.totals["energy_kcal"])).font(ForgeFont.rounded(17, .semibold))
+                Text(FoodText.kcal(entry.totals["energy_kcal"])).font(ForgeFont.rounded(17, .medium)).monospacedDigit()
                     .foregroundStyle(ForgeColor.text)
             }
             .padding(.vertical, 12)
@@ -32,11 +32,19 @@ struct FoodEntryRow: View {
         .accessibilityHint(Text("Edit amount, time or meal"))
     }
 
+    /// A database name like "Vollmilch frisch, 3,5 % Fett, pasteurisiert" reads as its first part; the rest
+    /// moves to the grey line under it.
+    private var nameParts: (title: String, rest: String?) {
+        guard let comma = entry.name.range(of: ", ") else { return (entry.name, nil) }
+        return (String(entry.name[..<comma.lowerBound]), String(entry.name[comma.upperBound...]))
+    }
+    private var title: String { nameParts.title }
+
     private var detail: String {
         var parts: [String] = []
+        if let rest = nameParts.rest { parts.append(rest) }
         if let label = entry.portionLabel { parts.append(label) } else if let grams = entry.grams { parts.append("\(FoodText.grams(grams)) g") }
         if let brand = entry.brand { parts.append(brand) }
-        if !entry.estimatedKeys.isEmpty { parts.append(String(localized: "partly estimated")) }
         return parts.joined(separator: " · ")
     }
 

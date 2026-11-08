@@ -34,6 +34,14 @@ enum FoodText {
         return value.formatted(.number.precision(.fractionLength(0...digits)).locale(AppLanguage.activeLocale)) + " " + unit
     }
 
+    /// A recommendation as the page states it: the amount and its direction, without who recommends it (that is
+    /// behind the page's info button).
+    static func recommendation(_ reference: FoodReference.Value, _ n: FoodNutrient) -> String {
+        let value = amount(reference.amount, n)
+        return reference.kind == .atLeast ? String(localized: "Recommended: at least \(value) a day")
+                                          : String(localized: "Recommended: under \(value) a day")
+    }
+
     static func group(_ group: String) -> String {
         switch group {
         case "minerals": String(localized: "Minerals")
@@ -54,7 +62,7 @@ enum FoodText {
         case .monoFatG: String(localized: "Monounsaturated fat")
         case .polyFatG: String(localized: "Polyunsaturated fat")
         case .omega3G: String(localized: "Omega-3, total")
-        case .epaG: String(localized: "Omega-3 from fish (EPA and DHA)")
+        case .epaG: String(localized: "Omega-3 from fish")
         case .dhaG: String(localized: "DHA")
         case .alcoholG: String(localized: "Alcohol")
         case .waterG: String(localized: "Water")
