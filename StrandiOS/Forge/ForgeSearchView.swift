@@ -199,8 +199,15 @@ struct ForgeSearchView: View {
                 }
             }
         } else {
-            Text("Search for a metric like HRV, a screen like Workouts, or a setting like the alarm.")
-                .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary).padding(.horizontal, 4)
+            VStack(spacing: 14) {
+                CoachPicture(main: "magnifyingglass", accentA: "sparkle", accentB: "star.fill", tint: ForgeColor.accent)
+                    .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
+                Text("Search for a metric like HRV, a screen like Workouts, or a setting like the alarm.")
+                    .font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 24)
         }
     }
 

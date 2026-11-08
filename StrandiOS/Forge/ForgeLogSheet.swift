@@ -25,6 +25,8 @@ struct ForgeLogSheet: View {
         let choice: ForgeLogChoice
         let title: String
         let systemImage: String
+        /// The entry's own colour, as the measure it logs is drawn elsewhere in the app.
+        var tint: Color = ForgeColor.accent
         var id: String { title }
     }
 
@@ -32,18 +34,18 @@ struct ForgeLogSheet: View {
     /// paired markers); mood and medication open the journal, where both are logged.
     private var direct: [Item] {
         [
-            Item(choice: .workout, title: String(localized: "Add workout"), systemImage: "figure.walk"),
-            Item(choice: .weight, title: String(localized: "Weight"), systemImage: "figure.stand"),
-            Item(choice: .journal, title: String(localized: "Journal"), systemImage: "book.fill"),
-            Item(choice: .drink, title: String(localized: "Drink"), systemImage: "drop.fill"),
-            Item(choice: .energy, title: String(localized: "Food"), systemImage: "fork.knife"),
-            Item(choice: .sleep, title: String(localized: "Sleep"), systemImage: "moon.fill"),
-            Item(choice: .labMarkers, title: String(localized: "Blood pressure"), systemImage: "drop.fill"),
-            Item(choice: .journal, title: String(localized: "Mood"), systemImage: "face.smiling.inverse"),
-            Item(choice: .labMarkers, title: String(localized: "Health records"), systemImage: "flask.fill"),
-            Item(choice: .journal, title: String(localized: "Medication"), systemImage: "cross.case.fill"),
-            Item(choice: .breathe, title: String(localized: "Breathe"), systemImage: "wind"),
-            Item(choice: .liveHeartRate, title: String(localized: "Live heart rate"), systemImage: "heart.fill"),
+            Item(choice: .workout, title: String(localized: "Add workout"), systemImage: "figure.walk", tint: ForgeColor.effort),
+            Item(choice: .weight, title: String(localized: "Weight"), systemImage: "figure.stand", tint: .pink),
+            Item(choice: .journal, title: String(localized: "Journal"), systemImage: "book.fill", tint: .brown),
+            Item(choice: .drink, title: String(localized: "Drink"), systemImage: "drop.fill", tint: StrandPalette.metricCyan),
+            Item(choice: .energy, title: String(localized: "Food"), systemImage: "fork.knife", tint: .orange),
+            Item(choice: .sleep, title: String(localized: "Sleep"), systemImage: "moon.fill", tint: ForgeColor.rest),
+            Item(choice: .labMarkers, title: String(localized: "Blood pressure"), systemImage: "drop.fill", tint: .red),
+            Item(choice: .journal, title: String(localized: "Mood"), systemImage: "face.smiling.inverse", tint: .yellow),
+            Item(choice: .labMarkers, title: String(localized: "Health records"), systemImage: "flask.fill", tint: .purple),
+            Item(choice: .journal, title: String(localized: "Medication"), systemImage: "cross.case.fill", tint: .mint),
+            Item(choice: .breathe, title: String(localized: "Breathe"), systemImage: "wind", tint: .teal),
+            Item(choice: .liveHeartRate, title: String(localized: "Live heart rate"), systemImage: "heart.fill", tint: StrandPalette.metricRose),
         ]
     }
 
@@ -72,7 +74,7 @@ struct ForgeLogSheet: View {
                             HStack(spacing: 8) {
                                 Image(systemName: item.systemImage)
                                     .font(.system(.subheadline, weight: .semibold))
-                                    .foregroundStyle(ForgeColor.accent)
+                                    .foregroundStyle(item.tint)
                                 Text(item.title)
                                     .font(.system(.callout, weight: .medium))
                                     .foregroundStyle(ForgeColor.text)
