@@ -216,8 +216,10 @@ struct StrandiOSApp: App {
         // scenePhase pass below starts the offload and wrote to Health in parallel with it, so a night
         // synced on open only reached Health at the next launch. Weak so the scene owns the bridge's
         // lifetime; the bridge no-ops unless Health was authorized.
-        model.healthWriteBack = { [weak bridge] in
+        model.healthWriteBack = { [weak bridge, weak model] in
             _ = await bridge?.writeBackAfterNewData()
+            // New data is also the moment a workout note or the evening recap may be due (new design only).
+            await model?.coach.runForgeNotesInBackground()
         }
     }
 

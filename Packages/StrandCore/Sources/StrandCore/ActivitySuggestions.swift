@@ -10,8 +10,12 @@ public enum ActivitySuggestions {
 
     /// How many days the inbox lists.
     public static let listDays = 14
-    /// A suggestion is asked about only once heart rate has had this long to settle after it ended.
-    public static let settleSeconds = 10 * 60
+    /// A suggestion is asked about only once the stored data reaches this far past its end. By then it can no
+    /// longer grow: the walk track waits out `walkStopMinutes`, the heart-rate track `joinGapMinutes`.
+    public static let settleSeconds = 15 * 60
+    /// Newest minute the last `refresh` read, by device. The stored spans end where their data ended, so the wait
+    /// is measured here and not on the clock: a span computed mid-walk looks finished as time passes.
+    static func dataThroughCursor(_ deviceId: String) -> String { "activityCandidates.dataThrough:" + deviceId }
     /// Share of a suggestion a logged workout must cover for the suggestion to count as logged.
     public static let loggedCoverage = 0.5
 
@@ -31,12 +35,16 @@ public enum ActivitySuggestions {
         public let kinds: [ActivityDetectionScore.Kind]
         public let ruleVersion: String
         public let state: State
-        /// Whether it carries enough load to be asked about at the wearer's level (walks always do).
+        /// Whether it is asked about at the wearer's level (`ActivityCandidates.Candidate.asks`).
         public let asks: Bool
+        /// Newest minute of data the suggestion was computed against; nil before a refresh recorded one.
+        public let dataThrough: Int?
 
         public var id: String { "\(track.rawValue):\(start)" }
         public var durationMinutes: Int { (end - start) / 60 }
         public var likelyKind: ActivityDetectionScore.Kind { kinds.first ?? .other }
+        /// Whether the data already reaches `settleSeconds` past its end.
+        public func isSettled(now: Int) -> Bool { end + settleSeconds <= min(now, dataThrough ?? now) }
     }
 
     public struct Settings: Equatable, Sendable {
@@ -52,7 +60,7 @@ public enum ActivitySuggestions {
     /// to forget; they stay forgotten. Walk suggestions are left out when walks are switched off.
     public static func resolve(candidates: [ActivityCandidateRow], answers: [ActivitySuggestionAnswer],
                                workouts: [WorkoutRow], legacyDismissed: [Range<Int>] = [],
-                               settings: Settings) -> [Suggestion] {
+                               settings: Settings, dataThrough: Int? = nil) -> [Suggestion] {
         let logged = workouts.filter { WorkoutSource.classify($0.source) != .detected && $0.endTs > $0.startTs }
         return candidates.compactMap { row in
             guard let track = ActivityCandidates.Track(rawValue: row.track), row.endTs > row.startTs else { return nil }
@@ -74,7 +82,8 @@ public enum ActivitySuggestions {
                 load: row.load, cadence: row.cadence, locomotionShare: row.locomotionShare, kinds: [])
             return Suggestion(track: track, start: row.startTs, end: row.endTs, avgBpm: row.avgBpm, load: row.load,
                               kinds: row.kinds.compactMap(ActivityDetectionScore.Kind.init(rawValue:)),
-                              ruleVersion: row.ruleVersion, state: state, asks: candidate.asks(at: settings.level))
+                              ruleVersion: row.ruleVersion, state: state, asks: candidate.asks(at: settings.level),
+                              dataThrough: dataThrough)
         }
     }
 
@@ -85,16 +94,16 @@ public enum ActivitySuggestions {
         all.filter { $0.track == track && $0.candidateStartTs < end && $0.candidateEndTs > start }
     }
 
-    /// What the Today prompt and a notification ask about: open suggestions above the level whose heart rate
-    /// has settled, newest first. `snoozed` are ids the wearer put off with "Later" in this launch.
+    /// What the Today prompt and a notification ask about: open suggestions above the level that are settled,
+    /// newest first. `snoozed` are ids the wearer put off with "Later" in this launch.
     public static func toAsk(_ all: [Suggestion], now: Int, snoozed: Set<String> = []) -> [Suggestion] {
-        all.filter { $0.state == .open && $0.asks && $0.end + settleSeconds <= now && !snoozed.contains($0.id) }
+        all.filter { $0.state == .open && $0.asks && $0.isSettled(now: now) && !snoozed.contains($0.id) }
             .sorted { $0.start > $1.start }
     }
 
     /// The inbox rows: the last `listDays` days, open first (newest first), then answered and logged ones.
     public static func inbox(_ all: [Suggestion], now: Int) -> [Suggestion] {
-        let recent = all.filter { $0.end > now - listDays * 86_400 && $0.end + settleSeconds <= now }
+        let recent = all.filter { $0.end > now - listDays * 86_400 && $0.isSettled(now: now) }
         let open = recent.filter { $0.state == .open }.sorted { $0.start > $1.start }
         let rest = recent.filter { $0.state != .open }.sorted { $0.start > $1.start }
         return open + rest
@@ -104,6 +113,11 @@ public enum ActivitySuggestions {
     /// wearer logging by hand can pick the span the detector saw.
     public static func forSheet(_ all: [Suggestion], dayStart: Int, dayEnd: Int) -> [Suggestion] {
         all.filter { $0.state == .open && $0.start < dayEnd && $0.end > dayStart }.sorted { $0.start < $1.start }
+    }
+
+    /// What the last `refresh` of this device saw, for `resolve`.
+    public static func dataThrough(store: WhoopStore, deviceId: String) async -> Int? {
+        try? await store.cursor(dataThroughCursor(deviceId))
     }
 
     /// The answer row for a suggestion, with what was shown and when.
@@ -170,6 +184,7 @@ public enum ActivitySuggestions {
         }
         try await store.replaceActivityCandidates(deviceId: deviceId, from: firstDay, to: now + 1,
                                                   rows: found.map { row($0, deviceId: deviceId) })
+        if let newest = minutes.last?.ts { try await store.setCursor(dataThroughCursor(deviceId), newest) }
         return found
     }
 

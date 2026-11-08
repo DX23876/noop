@@ -23,10 +23,10 @@ extension AICoachEngine {
         }
     }
 
-    /// Write whichever redesign note is due right now, at most one per call. Called when Today loads, the
-    /// same moment the brief and nudges use, so nothing runs in the background.
+    /// Write whichever redesign note is due right now, at most one per call: the morning note, then a note
+    /// after a workout, then the evening recap. Called when Today loads.
     @discardableResult
-    func runForgeNotesIfDue(workouts: [WorkoutRow], now: Date = Date()) async -> Bool {
+    func runForgeNotesIfDue(workouts: [WorkoutRow], now: Date = Date(), includeMorning: Bool = true) async -> Bool {
         // Never before the person has read the coach's first-use note (what it is, what it sends): the
         // notes are the coach speaking unasked, so they wait for the same acknowledgement the chat does.
         guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending,
@@ -44,8 +44,19 @@ extension AICoachEngine {
         noteTurn = true
         defer { noteTurn = false }
 
+        // The morning note first: the day's first word, once the night has settled. `startBriefIfNeeded`
+        // owns the once-a-day stamp and stays silent while the wake time still needs review. It is not
+        // announced: whoever wakes opens the app, and a notification each morning would teach to ignore them.
+        if includeMorning, ForgeCoachNotes.mayPost(.morning, now: now, enabled: ForgeCoachNotes.isEnabled(.morning),
+                                   initiatedToday: used),
+           !lessOftenHolds(.morning, origin: .brief, now: now),
+           CoachBriefStamp.lastBriefDay() != LogicalDay.key(now) {
+            return await startBriefIfNeeded()
+        }
+
         if ForgeCoachNotes.mayPost(.afterWorkout, now: now, enabled: ForgeCoachNotes.isEnabled(.afterWorkout),
                                    initiatedToday: used),
+           !lessOftenHolds(.afterWorkout, origin: .afterWorkout, now: now),
            let workout = ForgeCoachNotes.workoutDue(
                workouts.filter { row in
                    ForgeCoachNotes.isWorthANote(sport: row.sport, minutes: Self.noteMinutes(row),
@@ -62,22 +73,94 @@ extension AICoachEngine {
                     minutes: Self.noteMinutes(workout), ended: ended),
                 prefix: String(localized: "After your workout"),
                 stampKey: ForgeCoachNotes.lastWorkoutNoteKey,
-                stampValue: workoutId, workoutId: workoutId, origin: .nudge)
+                stampValue: workoutId, workoutId: workoutId, origin: .afterWorkout)
             if spoke { announceLatestNote(now: now) }
             return spoke
         }
 
-        if ForgeCoachNotes.mayPost(.evening, now: now, enabled: ForgeCoachNotes.isEnabled(.evening),
-                                   initiatedToday: used),
+        if !lessOftenHolds(.evening, origin: .evening, now: now),
+           ForgeCoachNotes.mayPost(.evening, now: now, enabled: ForgeCoachNotes.isEnabled(.evening),
+                                   initiatedToday: used,
+                                   eveningStart: ForgeToday.eveningStart(now: now, bedtime: ForgeToday.plannedBedtime(now: now))),
            defaults.string(forKey: ForgeCoachNotes.lastEveningDayKey) != LogicalDay.key(now) {
             let spoke = await runSeededTurnCancellable(
                 instruction: ForgeCoachNotes.eveningInstruction(),
                 prefix: String(localized: "Evening recap"),
-                stampKey: ForgeCoachNotes.lastEveningDayKey, origin: .nudge)
+                stampKey: ForgeCoachNotes.lastEveningDayKey, origin: .evening)
             if spoke { announceLatestNote(now: now) }
             return spoke
         }
         return false
+    }
+
+    /// Open the thread an unprompted note lives in, so a reply to it is read with the note in view. A
+    /// morning note sits in its own day thread, archived once the day is over; replying brings it back.
+    @discardableResult
+    func focusConversation(containing messageId: UUID) -> Bool {
+        guard let thread = conversations.first(where: { $0.messages.contains { $0.id == messageId } }) else {
+            return false
+        }
+        if thread.archived { setArchived(thread.id, false) }
+        switchTo(thread.id)
+        return true
+    }
+
+    /// A question asked from a chip under a timeline note, answered briefly in the note's own thread: the
+    /// question is stored as the reader's turn, the answer as the coach's reply, so both show under the note
+    /// and in the chat. Figures in the answer pass the same guard as the notes.
+    @discardableResult
+    func answerInline(to noteId: UUID, question: String) async -> Bool {
+        guard CoachFeaturePrefs.isEnabled, isConfigured, dataConsent, !sending,
+              focusConversation(containing: noteId) else { return false }
+        appendMessage(ChatMessage(role: .user, text: question))
+        noteTurn = true
+        defer { noteTurn = false }
+        return await runSeededTurnCancellable(instruction: ForgeCoachNotes.inlineAnswerInstruction(question),
+                                              prefix: "", stampKey: ForgeCoachNotes.lastInlineAnswerKey,
+                                              origin: .reply)
+    }
+
+    /// "Explain this" on a notice or a report: two sentences about exactly that entry, from the figures the
+    /// device shows with it. The answer's id is kept for the day, so the entry shows it and nothing is asked
+    /// twice.
+    @discardableResult
+    func explainInline(key: String, title: String, figures: String, now: Date = Date()) async -> Bool {
+        guard CoachFeaturePrefs.isEnabled, isConfigured, dataConsent, !sending else { return false }
+        let storeKey = ForgeCoachNotes.explanationKey(key, day: LogicalDay.key(now))
+        guard UserDefaults.standard.string(forKey: storeKey) == nil else { return false }
+        appendMessage(ChatMessage(role: .user, text: String(localized: "Explain: \(title)")))
+        noteTurn = true
+        defer { noteTurn = false }
+        let spoke = await runSeededTurnCancellable(
+            instruction: ForgeCoachNotes.explainInstruction(title: title, figures: figures),
+            prefix: "", stampKey: ForgeCoachNotes.lastInlineAnswerKey, origin: .reply)
+        if spoke, let answer = conversations.first(where: { $0.id == activeConversationID })?.messages.last,
+           answer.role == .assistant {
+            UserDefaults.standard.set(answer.id.uuidString, forKey: storeKey)
+        }
+        return spoke
+    }
+
+    /// Whether a note of this kind was written on the logical day before `now`. A kind the reader asked to
+    /// hear less often skips the day after one.
+    func forgeWroteYesterday(_ origin: ChatMessage.Origin, now: Date = Date()) -> Bool {
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now).map({ LogicalDay.key($0) }) else { return false }
+        return conversations.contains { $0.messages.contains { $0.origin == origin && LogicalDay.key($0.date) == yesterday } }
+    }
+
+    private func lessOftenHolds(_ kind: ForgeCoachNotes.Kind, origin: ChatMessage.Origin, now: Date) -> Bool {
+        ForgeNotices.list(ForgeNotices.lessOftenKey).contains(kind.rawValue) && forgeWroteYesterday(origin, now: now)
+    }
+
+    /// After new strap data lands with the app in the background: the note after a workout and the evening
+    /// recap, but only where they would be announced. A note nobody is told about can wait for Today to open,
+    /// and the morning note is never announced, so it is never written here.
+    func runForgeNotesInBackground(now: Date = Date()) async {
+        guard ForgeDesignPrefs.isEnabled() else { return }
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.authorizationStatus == .authorized else { return }
+        let workouts = await repo.workoutRows(days: 2, reconcileHrCap: 0)
+        _ = await runForgeNotesIfDue(workouts: workouts, now: now, includeMorning: false)
     }
 
     private static func noteMinutes(_ row: WorkoutRow) -> Int {

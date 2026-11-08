@@ -145,9 +145,12 @@ extension ReadOnlyDB {
         }
         var steps: [Int: (steps: Int, walk: Int, run: Int, classed: Int)] = [:]
         try query("""
-            SELECT (ts / 60) * 60, MAX(counter) - MIN(counter), SUM(activityClass = 1), SUM(activityClass = 2),
-                   SUM(activityClass IS NOT NULL) FROM stepSample
-            WHERE deviceId = '\(device)' AND ts >= \(from) AND ts < \(to) GROUP BY ts / 60
+            SELECT minute, SUM(MAX(rise, 0)), SUM(activityClass = 1), SUM(activityClass = 2),
+                   SUM(activityClass IS NOT NULL)
+            FROM (SELECT (ts / 60) * 60 AS minute, activityClass,
+                         counter - LAG(counter) OVER (PARTITION BY ts / 60 ORDER BY ts) AS rise
+                  FROM stepSample WHERE deviceId = '\(device)' AND ts >= \(from) AND ts < \(to))
+            GROUP BY minute
             """) { s in
             steps[ReadOnlyDB.int(s, 0)] = (max(0, ReadOnlyDB.int(s, 1)), ReadOnlyDB.int(s, 2), ReadOnlyDB.int(s, 3),
                                            ReadOnlyDB.int(s, 4))

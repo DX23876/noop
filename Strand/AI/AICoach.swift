@@ -59,6 +59,10 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         case checkIn
         case nudge
         case weeklyReview
+        /// The new design's short note about one finished workout. Stored as a nudge before 2026-11-07.
+        case afterWorkout
+        /// The new design's evening recap. Stored as a nudge before 2026-11-07.
+        case evening
 
         /// Whether this arrived unprompted. `reply` is the only one that didn't.
         var isCoachInitiated: Bool { self != .reply }
@@ -93,10 +97,13 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     let workoutId: String?
     /// Answers the coach offered with this note, written for it. Empty for nearly every message.
     let replies: [String]
+    /// What Today showed when an unprompted note was written (its Charge and night), so a later re-score
+    /// can be shown as "figures updated since" instead of leaving the words over different numbers.
+    let basis: String?
 
     init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(),
          toolsUsed: [String] = [], localContextUsed: [LocalContextCategory] = [], origin: Origin = .reply,
-         memoryWrites: [UUID] = [], workoutId: String? = nil, replies: [String] = []) {
+         memoryWrites: [UUID] = [], workoutId: String? = nil, replies: [String] = [], basis: String? = nil) {
         self.id = id
         self.role = role
         self.text = text
@@ -107,10 +114,11 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         self.memoryWrites = memoryWrites
         self.workoutId = workoutId
         self.replies = replies
+        self.basis = basis
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, role, text, date, toolsUsed, localContextUsed, origin, memoryWrites, workoutId, replies
+        case id, role, text, date, toolsUsed, localContextUsed, origin, memoryWrites, workoutId, replies, basis
     }
 
     init(from decoder: Decoder) throws {
@@ -125,6 +133,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         memoryWrites = try c.decodeIfPresent([UUID].self, forKey: .memoryWrites) ?? []
         workoutId = try c.decodeIfPresent(String.self, forKey: .workoutId)
         replies = try c.decodeIfPresent([String].self, forKey: .replies) ?? []
+        basis = try c.decodeIfPresent(String.self, forKey: .basis)
     }
 
     /// The same message with different text, every other field carried over.
@@ -137,7 +146,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     func replacingText(_ newText: String) -> ChatMessage {
         ChatMessage(id: id, role: role, text: newText, date: date, toolsUsed: toolsUsed,
                     localContextUsed: localContextUsed, origin: origin, memoryWrites: memoryWrites,
-                    workoutId: workoutId, replies: replies)
+                    workoutId: workoutId, replies: replies, basis: basis)
     }
 
     /// The same message with the evidence chain attached — what a finished turn knows and a streaming
@@ -145,7 +154,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     func attaching(toolsUsed newTools: [String], memoryWrites newWrites: [UUID]) -> ChatMessage {
         ChatMessage(id: id, role: role, text: text, date: date, toolsUsed: newTools,
                     localContextUsed: localContextUsed, origin: origin, memoryWrites: newWrites,
-                    workoutId: workoutId, replies: replies)
+                    workoutId: workoutId, replies: replies, basis: basis)
     }
 
     /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
@@ -1808,6 +1817,9 @@ final class AICoachEngine: ObservableObject {
     /// Fact ids written by the memory tools during the turn currently in flight, drained onto the reply
     /// that caused them (`takeMemoryWrites`). Not `private`: `runCoachTool` lives in CoachTools.swift.
     var memoryWrites: [UUID] = []
+    /// What the tools returned during the turn in flight: the only numbers a timeline note may repeat
+    /// (`ForgeNoteFigures`). Reset with `memoryWrites` at the start of each unprompted turn.
+    var noteSources: [String] = []
 
     /// Cheap-model routing verdicts, keyed by the question text (see `questionRouting(for:)`). Bounded:
     /// a Retry or a Regenerate must not pay for the same classification twice, but a long session must
@@ -2858,6 +2870,7 @@ final class AICoachEngine: ObservableObject {
         guard let key = resolvedKey else { return spoken }
         clearError()
         memoryWrites = []
+        noteSources = []
         sending = true
         defer { sending = false }
 
@@ -2866,8 +2879,13 @@ final class AICoachEngine: ObservableObject {
         await ensureOpenRouterCapabilities()
 
         let context = toolCallingActive ? toolModeContext : await buildFullContext()
+        // The new design shows the brief as a short note on Today's timeline, with the night and the
+        // Charge drivers drawn under it, so it asks for that note instead of the three-part brief.
+        let shortNote = Self.writesTimelineNotes
         // Empty context (tool path, nothing pending) → the instruction alone, no dangling "---" separator.
-        let instruction = Self.briefInstruction(toolsActive: toolCallingActive)
+        let instruction = shortNote
+            ? ForgeCoachNotes.morningInstruction(toolsActive: toolCallingActive) + "\n\n" + ForgeCoachNotes.repliesClause
+            : Self.briefInstruction(toolsActive: toolCallingActive)
         let briefContent = context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? instruction
             : context + "\n\n---\n\n" + instruction
@@ -2876,9 +2894,20 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
-                appendMessage(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
+                var note = shortNote ? ForgeCoachNotes.splitReplies(clean) : (text: clean, replies: [])
+                if shortNote {
+                    note.text = ForgeNoteFigures.guarded(note.text, sources: noteSources + [context])
+                }
+                guard !note.text.isEmpty else {
+                    // Every sentence named a figure the coach never read: the device's own morning card
+                    // stands alone today rather than under words about other numbers.
+                    CoachBriefStamp.stamp(day: LogicalDay.key(Date()))
+                    return nil
+                }
+                appendMessage(ChatMessage(role: .assistant, text: String(localized: "Today's brief") + "\n\n" + note.text,
                                           toolsUsed: reply.toolsUsed, origin: .brief,
-                                          memoryWrites: takeMemoryWrites()))
+                                          memoryWrites: takeMemoryWrites(), replies: note.replies,
+                                          basis: shortNote ? ForgeNoteBasis.current : nil))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 CoachBriefStamp.stamp(day: LogicalDay.key(Date()))
@@ -2896,6 +2925,16 @@ final class AICoachEngine: ObservableObject {
         return spoken
     }
 
+    /// Whether unprompted notes are written for the iOS new design's Today timeline: short, figure-free
+    /// and guarded. The Android core has no such design and keeps the classic brief and nudges.
+    static var writesTimelineNotes: Bool {
+        #if NOOP_CORE
+        return false
+        #else
+        return ForgeDesignPrefs.isEnabled()
+        #endif
+    }
+
     /// Generate a check-in once per logical day (its OWN lock, independent of the brief's — see
     /// `lastCheckInDayKey`). Backs the daily check-in notification's tap. A failed run doesn't stamp the
     /// day, so the next tap retries.
@@ -2903,6 +2942,15 @@ final class AICoachEngine: ObservableObject {
         guard CoachFeaturePrefs.isEnabled else { return }
         let today = LogicalDay.key(Date())
         guard UserDefaults.standard.string(forKey: Self.lastCheckInDayKey) != today else { return }
+        // The new design has one morning note, and it asks about yesterday itself; a check-in on top of it
+        // would be a second morning message.
+        if Self.writesTimelineNotes {
+            await startBriefIfNeeded()
+            if CoachBriefStamp.lastBriefDay() == today {
+                UserDefaults.standard.set(today, forKey: Self.lastCheckInDayKey)
+            }
+            return
+        }
         await runCheckInCancellable()
     }
 
@@ -3079,7 +3127,7 @@ final class AICoachEngine: ObservableObject {
         // detection already happened locally, and a network failure shouldn't also hide it from the bell.
         coachAppHooks().proactiveSignal(signal, level: proactiveLevel)
         let goodNews = signal.category == .milestone || signal.category == .bodyPositive
-        let prefix = goodNews ? "Nice work" : "A quick nudge"
+        let prefix = goodNews ? String(localized: "Nice work") : String(localized: "A quick nudge")
         let spoke = await runSeededTurnCancellable(
             instruction: Self.proactiveNudgeInstruction(for: signal),
             prefix: prefix, stampKey: Self.lastProactiveDayKey, origin: .nudge)
@@ -3222,6 +3270,7 @@ final class AICoachEngine: ObservableObject {
         guard let key = resolvedKey else { return spoke }
         clearError()
         memoryWrites = []
+        noteSources = []
         sending = true
         defer { sending = false }
 
@@ -3233,8 +3282,15 @@ final class AICoachEngine: ObservableObject {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
         // The goal and weekly reviews stand on their own; everything else must not repeat today's notes.
-        let saidToday = origin == .weeklyReview ? nil : ForgeCoachNotes.alreadySaidClause(headlinesToday())
-        let task = [instruction, saidToday, ForgeCoachNotes.repliesClause].compactMap { $0 }.joined(separator: "\n\n")
+        // The weekly review stands on its own, and an answer to a question must answer it.
+        let saidToday = origin == .weeklyReview || origin == .reply
+            ? nil : ForgeCoachNotes.alreadySaidClause(headlinesToday())
+        // In the new design a nudge is a timeline note like the others: figures come from the device and
+        // it speaks in the same voice. The redesign's own notes carry both clauses in their instruction.
+        let noteVoice = origin == .nudge && Self.writesTimelineNotes
+            ? ForgeCoachNotes.noFiguresClause + "\n\n" + ForgeCoachNotes.voiceClause : nil
+        let task = [instruction, noteVoice, saidToday, ForgeCoachNotes.repliesClause].compactMap { $0 }
+            .joined(separator: "\n\n")
         let trailer = preamble.isEmpty ? task : preamble + "\n\n---\n\n" + task
         let history = Self.wirePairs(from: windowedMessages(), context: "")
         let wire = Self.appendTrailingUserTurn(history, content: trailer)
@@ -3245,13 +3301,27 @@ final class AICoachEngine: ObservableObject {
                 // Decided to stay quiet: answered, so the moment is not asked again, but nothing was said.
                 UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
             } else if !clean.isEmpty {
-                let note = ForgeCoachNotes.splitReplies(clean)
-                appendMessage(ChatMessage(role: .assistant, text: prefix + "\n\n" + note.text,
-                                          toolsUsed: reply.toolsUsed, origin: origin,
-                                          memoryWrites: takeMemoryWrites(), workoutId: workoutId,
-                                          replies: note.replies))
-                UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
-                spoke = true
+                var note = ForgeCoachNotes.splitReplies(clean)
+                // A timeline note repeats no figure the coach did not read this turn. The weekly review
+                // has no device figures under it, so it keeps its own.
+                let timelineNote = Self.writesTimelineNotes && origin != .weeklyReview
+                if timelineNote {
+                    note.text = ForgeNoteFigures.guarded(note.text, sources: noteSources + [context])
+                }
+                if note.text.isEmpty {
+                    // Nothing true was left to say: the moment counts as answered, the timeline shows only
+                    // the device's own entry.
+                    UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
+                } else {
+                    // The memory block sent with the turn is recorded, so a note can say it drew on memory.
+                    appendMessage(ChatMessage(role: .assistant, text: prefix.isEmpty ? note.text : prefix + "\n\n" + note.text,
+                                              toolsUsed: reply.toolsUsed,
+                                              localContextUsed: relevant.isEmpty ? [] : [.keywordMemory], origin: origin,
+                                              memoryWrites: takeMemoryWrites(), workoutId: workoutId,
+                                              replies: note.replies, basis: timelineNote ? ForgeNoteBasis.current : nil))
+                    UserDefaults.standard.set(stampValue ?? LogicalDay.key(Date()), forKey: stampKey)
+                    spoke = true
+                }
             }
         } catch let e as AICoachError {
             setError(e)
@@ -4581,7 +4651,9 @@ final class AICoachEngine: ObservableObject {
                 messages: messages,
                 tools: availableTools,
                 runTool: { [weak self] name, input in
-                    await self?.runCoachTool(name, input: input, allowedTools: Set(availableTools)) ?? ""
+                    let output = await self?.runCoachTool(name, input: input, allowedTools: Set(availableTools)) ?? ""
+                    self?.noteSources.append(output)
+                    return output
                 },
                 session: session
             )

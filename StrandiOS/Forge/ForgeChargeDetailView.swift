@@ -87,7 +87,7 @@ struct ForgeChargeDetailView: View {
     }
 
     /// The night's figure for a driver, read from a day row, by the driver's label.
-    private static func driverFigure(_ label: String, _ d: DailyMetric) -> Double? {
+    static func driverFigure(_ label: String, _ d: DailyMetric) -> Double? {
         switch label {
         case "Heart rate variability": return d.avgHrv
         case "Resting heart rate": return d.restingHr.map(Double.init)
@@ -101,8 +101,16 @@ struct ForgeChargeDetailView: View {
     /// before the shown one, the night's figure placed on a track around it. Nil under 7 nights, where the
     /// row keeps its single usual value.
     private func usualRange(_ label: String) -> (text: String, position: Double, band: ClosedRange<Double>)? {
-        guard let row, let value = Self.driverFigure(label, row) else { return nil }
-        let before = repo.days.filter { $0.day < row.day }.suffix(30).compactMap { Self.driverFigure(label, $0) }
+        guard let row else { return nil }
+        return Self.usualRange(label, row: row, days: repo.days)
+    }
+
+    /// The same range for any screen that shows a driver (Today's morning report and notices read it here,
+    /// so the two can never place a night differently).
+    static func usualRange(_ label: String, row: DailyMetric, days: [DailyMetric])
+        -> (text: String, position: Double, band: ClosedRange<Double>)? {
+        guard let value = Self.driverFigure(label, row) else { return nil }
+        let before = days.filter { $0.day < row.day }.suffix(30).compactMap { Self.driverFigure(label, $0) }
         guard let q = ForgeToday.middleHalf(before) else { return nil }
         let placed = ForgeToday.place(value, low: q.low, high: q.high)
         let decimals = label == "Resting heart rate" || label == "Heart rate variability" ? 0 : 1

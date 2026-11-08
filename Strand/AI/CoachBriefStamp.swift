@@ -61,6 +61,13 @@ enum CoachBriefStamp {
         defaults.string(forKey: wakeConfirmedDayKey) == today
     }
 
+    /// The reader asked for today's morning note again because its figures changed since it was written.
+    static func invalidateForNewFigures(now: Date = Date(), defaults: UserDefaults = .standard) {
+        let today = LogicalDay.key(now)
+        defaults.removeObject(forKey: lastBriefDayKey)
+        defaults.set(today, forKey: staleAfterSleepEditKey)
+    }
+
     static func clearStale(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: staleAfterSleepEditKey)
     }

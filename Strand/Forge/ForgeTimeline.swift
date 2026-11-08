@@ -1,4 +1,5 @@
 import Foundation
+import StrandAnalytics
 
 /// The redesigned Today timeline (2026-11): one list of what happened, newest first, assembled from data
 /// the app already stores. Nothing here is persisted and nothing is derived: every figure is copied from an
@@ -11,7 +12,19 @@ enum ForgeTimeline {
     // MARK: Inputs (plain values copied from existing reads)
 
     struct CoachNote: Equatable {
-        enum Origin: String { case brief, checkIn, nudge, weeklyReview }
+        enum Origin: String {
+            case brief, checkIn, nudge, weeklyReview, afterWorkout, evening
+
+            /// The kind of a note stored before kinds were (2026-11-07): the workout note and the evening
+            /// recap were nudges told apart only by their first line, in English or in the app's language.
+            static func legacy(nudgeText text: String) -> Origin {
+                let first = text.split(separator: "\n", maxSplits: 1).first.map(String.init)?
+                    .trimmingCharacters(in: .whitespaces) ?? ""
+                if first == "After your workout" || first == String(localized: "After your workout") { return .afterWorkout }
+                if first == "Evening recap" || first == String(localized: "Evening recap") { return .evening }
+                return .nudge
+            }
+        }
         let id: String
         let date: Date
         let text: String
@@ -20,6 +33,16 @@ enum ForgeTimeline {
         var workoutId: String? = nil
         /// Answers the coach offered with this note. Empty unless the note asks something.
         var replies: [String] = []
+        /// What Today showed when the note was written (`ForgeNoteBasis`).
+        var basis: String? = nil
+        /// Questions asked under the note and the coach's answers, in order.
+        var followUps: [FollowUp] = []
+    }
+
+    /// One question asked from a note and the coach's answer, shown under the note.
+    struct FollowUp: Equatable {
+        let question: String
+        let answer: String
     }
 
     struct Workout: Equatable {
@@ -31,6 +54,8 @@ enum ForgeTimeline {
         let effort: Double?
         let distanceM: Double?
         let energyKcal: Double?
+        /// A walk the app detected or another app imported: bundled with the day's others.
+        var bundles = false
     }
 
     struct Sleep: Equatable {
@@ -70,6 +95,30 @@ enum ForgeTimeline {
         let averageHr: Int?
     }
 
+    /// A notice from the data (a Momentum signal, a strap that still has the night, a body signal),
+    /// already admitted by `TimelineFeed.admit` and placed at the moment it first appeared.
+    struct Notice: Equatable {
+        enum Tone: String { case positive, neutral, caution, critical }
+        enum Action: Equatable { case none, charge, plan, goals, sleep, confirmWake }
+        let key: String
+        let date: Date
+        let topic: String
+        let tone: Tone
+        let headline: String
+        let detail: String
+        var action: Action = .none
+        var actionTitle: String? = nil
+    }
+
+    /// The evening report without a coach: Effort against today's target, the sessions, tomorrow's plan,
+    /// and a bedtime only while sleep debt grows.
+    struct DayEnd: Equatable {
+        let date: Date
+        let sessions: Int
+        let tomorrow: String?
+        let bedtime: Date?
+    }
+
     struct Input: Equatable {
         var coach: [CoachNote] = []
         var workouts: [Workout] = []
@@ -78,6 +127,9 @@ enum ForgeTimeline {
         var weights: [Weight] = []
         var dayLogs: [DayLog] = []
         var ecgs: [Ecg] = []
+        var notices: [Notice] = []
+        /// The day's own close, shown when no evening recap from the coach covers it.
+        var dayEnd: DayEnd? = nil
     }
 
     // MARK: Output
@@ -91,6 +143,9 @@ enum ForgeTimeline {
             case weight
             case dayLog(DayLog.Kind)
             case ecg
+            case notice
+            case dayEnd
+            case walks
         }
         let id: String
         let date: Date
@@ -111,6 +166,16 @@ enum ForgeTimeline {
         var workoutId: String? = nil
         /// Morning brief: the wake moment of the night shown inside it, instead of as an entry of its own.
         var wake: Date? = nil
+        /// Coach: what Today showed when the note was written (`ForgeNoteBasis`).
+        var basis: String? = nil
+        /// Notice: what it says and where it leads.
+        var notice: Notice? = nil
+        /// The evening report.
+        var dayEnd: DayEnd? = nil
+        /// Walks: the bundled walks of the day, earliest first.
+        var walkIds: [String] = []
+        /// Coach: questions asked under the note and their answers.
+        var followUps: [FollowUp] = []
     }
 
     struct Day: Identifiable, Equatable {
@@ -147,9 +212,22 @@ enum ForgeTimeline {
             entries.append(Entry(id: "coach-\(note.id)", date: workout?.end ?? note.date, kind: .coach(note.origin),
                                  kicker: split.kicker, title: split.headline, detail: split.body,
                                  value: nil, sourceId: note.id, replies: note.replies,
-                                 workoutId: workout?.id, wake: wake))
+                                 workoutId: workout?.id, wake: wake, basis: note.basis,
+                                 followUps: note.followUps))
         }
-        for w in shownWorkouts.values where !workoutsInNotes.contains(w.id) {
+        // Two or more detected or imported walks on a day are one entry; a walk the wearer started stays.
+        let bundled = TimelineFeed.walkBundles(
+            shownWorkouts.values.filter { !workoutsInNotes.contains($0.id) }
+                .map { TimelineFeed.Walk(id: $0.id, start: $0.start, end: $0.end, bundles: $0.bundles) },
+            dayKey: dayKey)
+        let inBundles = Set(bundled.values.flatMap { $0.map(\.id) })
+        for (day, walks) in bundled {
+            guard let last = walks.last else { continue }
+            entries.append(Entry(id: "walks-\(day)", date: last.end, kind: .walks, title: "", detail: "",
+                                 value: walks.reduce(0) { $0 + $1.minutes }, sourceId: nil,
+                                 walkIds: walks.map(\.id)))
+        }
+        for w in shownWorkouts.values where !workoutsInNotes.contains(w.id) && !inBundles.contains(w.id) {
             entries.append(Entry(id: "workout-\(w.id)", date: w.end, kind: .workout, title: w.sport,
                                  detail: "", value: w.effort, sourceId: w.id))
         }
@@ -173,6 +251,16 @@ enum ForgeTimeline {
             entries.append(Entry(id: "ecg-\(e.id)", date: e.date, kind: .ecg, title: "", detail: "",
                                  value: e.averageHr.map(Double.init), sourceId: e.id))
         }
+        if let end = input.dayEnd, end.date <= now,
+           !input.coach.contains(where: { $0.origin == .evening && dayKey($0.date) == dayKey(end.date) && $0.date <= now }) {
+            entries.append(Entry(id: "dayEnd-\(dayKey(end.date))", date: end.date, kind: .dayEnd, title: "",
+                                 detail: end.tomorrow ?? "", value: Double(end.sessions), sourceId: nil,
+                                 dayEnd: end))
+        }
+        for n in input.notices where n.date <= now {
+            entries.append(Entry(id: "notice-\(n.key)-\(dayKey(n.date))", date: n.date, kind: .notice,
+                                 title: n.headline, detail: n.detail, value: nil, sourceId: n.key, notice: n))
+        }
 
         let keyed = Dictionary(grouping: entries) { entry in
             entry.kind == .wake ? nightDay(entry.date) : dayKey(entry.date)
@@ -185,6 +273,49 @@ enum ForgeTimeline {
             }
             return Day(id: key, date: first.date, entries: sorted)
         }
+    }
+
+    // MARK: Blocks (2026-11-07)
+
+    /// How a day's entries are drawn: the morning, the evening, coach notes and notices each on a card of
+    /// their own, and runs of small events (a session, walks, a weigh-in, drinks, an ECG, a nap) as rows
+    /// sharing one card, so a busy day reads as a few blocks rather than a dozen equal cards.
+    enum Block: Identifiable, Equatable {
+        case card(Entry)
+        case rows([Entry])
+
+        var id: String {
+            switch self {
+            case .card(let entry): return entry.id
+            case .rows(let entries): return "rows-" + (entries.first?.id ?? "")
+            }
+        }
+    }
+
+    static func isRow(_ kind: Entry.Kind) -> Bool {
+        switch kind {
+        case .workout, .walks, .weight, .dayLog, .ecg, .nap: return true
+        case .coach, .wake, .notice, .dayEnd: return false
+        }
+    }
+
+    /// `entries` in order, with neighbouring small events joined into one block.
+    static func blocks(_ entries: [Entry]) -> [Block] {
+        var out: [Block] = []
+        var run: [Entry] = []
+        func flush() {
+            if !run.isEmpty { out.append(.rows(run)); run = [] }
+        }
+        for entry in entries {
+            if isRow(entry.kind) {
+                run.append(entry)
+            } else {
+                flush()
+                out.append(.card(entry))
+            }
+        }
+        flush()
+        return out
     }
 
     /// Moves a wake moment past the rollover when working out its day; never far enough to reach the next one.

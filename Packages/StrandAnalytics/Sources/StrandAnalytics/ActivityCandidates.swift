@@ -15,9 +15,12 @@ import Foundation
 //   training load (Edwards' zone minutes) before it is asked about, which keeps housework and errands out.
 //
 // A walk starts and ends on a full walking minute and is then held open: slower minutes keep it going, and
-// standing still ends it only after `walkStopMinutes`, so a red light is not the end of a walk. Heart-rate
-// pieces are built the GGIR way (short gaps as long as at least `boutShare` qualifies), joined first (a
-// strength session is sets with rests) and measured after. Pure: no I/O, no clock, unix seconds.
+// standing still ends it only after `walkStopMinutes`, so a red light is not the end of a walk. Once it counts
+// as a walk, the slower minutes around it join it (setting off and arriving, `walkEdgeMinutes` at most).
+// Heart-rate pieces are built the GGIR way (short gaps as long as at least `boutShare` qualifies), joined first
+// (a strength session is sets with rests) and measured after. A heart-rate span that was mostly walking is a
+// mixed way (a shop or a tram in the middle, too short between stops for the walk track): it takes the same
+// edges and is asked about without the minimum load. Pure: no I/O, no clock, unix seconds.
 public enum ActivityCandidates {
 
     /// Bumped whenever a threshold or rule below changes, so stored suggestions and answers can be told apart.
@@ -34,6 +37,10 @@ public enum ActivityCandidates {
     /// Longest stretch of standing still inside a walk. A two-minute light touches up to three clock
     /// minutes, plus the slowing down and getting going around it.
     public static let walkStopMinutes = 5
+    /// How far a walk grows over slower walking minutes on each side, once it counts as a walk.
+    public static let walkEdgeMinutes = 10
+    /// Share of a heart-rate span the strap must call walking or running, above which it is a mixed way.
+    public static let mostlyWalkingShare = 0.5
     public static let everydayMarginHRR = 0.12
     public static let everydayQuantile = 0.75
     /// Without enough history, the heart-rate track uses this fixed reserve instead of the everyday level.
@@ -118,8 +125,14 @@ public enum ActivityCandidates {
             self.kinds = kinds
         }
 
-        /// Whether a heart-rate span carries enough load to ask about at `level`. Walks always do.
-        public func asks(at level: Level) -> Bool { track == .walk || load >= level.minimumLoad }
+        /// A heart-rate span the strap mostly called walking or running. Unknown without a class, so never here.
+        public var isMostlyWalking: Bool { (locomotionShare ?? 0) > mostlyWalkingShare }
+
+        /// Whether a span is asked about at `level`. Walks always are. A heart-rate span is when it carries enough
+        /// load, or when it was mostly walking, unless the wearer wants clear ones only (a mixed way is not).
+        public func asks(at level: Level) -> Bool {
+            track == .walk || load >= level.minimumLoad || (level != .onlyClear && isMostlyWalking)
+        }
     }
 
     // MARK: - Walk track
@@ -137,8 +150,19 @@ public enum ActivityCandidates {
     /// Index ranges of walks: from a full walking minute to the last one before more than `walkStopMinutes`
     /// of standing still, at least `minimumMinutes` long. The share is only held to `joinedShare` from that
     /// length on, or a light in the first minutes of a walk would cut those minutes off. A hole in the data
-    /// counts as standing still.
+    /// counts as standing still. Whether a stretch qualifies is settled before its edges are added, so a slow
+    /// minute can never turn pottering about into a walk.
     static func walkSpans(_ minutes: [Minute]) -> [ClosedRange<Int>] {
+        let cores = walkCores(minutes)
+        var out: [ClosedRange<Int>] = []
+        for (n, core) in cores.enumerated() {
+            out.append(withWalkingEdges(core, in: minutes, floor: (out.last?.upperBound ?? -1) + 1,
+                                        ceiling: n + 1 < cores.count ? cores[n + 1].lowerBound - 1 : minutes.count - 1))
+        }
+        return out
+    }
+
+    static func walkCores(_ minutes: [Minute]) -> [ClosedRange<Int>] {
         var out: [ClosedRange<Int>] = []
         var i = 0
         while i < minutes.count {
@@ -165,6 +189,25 @@ public enum ActivityCandidates {
             i = last + 1
         }
         return out
+    }
+
+    /// `range` grown over the slower walking minutes on each side: at most `walkEdgeMinutes`, past one minute
+    /// that is not walking at most, and never beyond `floor` and `ceiling` (the neighbouring spans).
+    static func withWalkingEdges(_ range: ClosedRange<Int>, in minutes: [Minute],
+                                 floor: Int, ceiling: Int) -> ClosedRange<Int> {
+        let start = minutes[range.lowerBound].ts, end = minutes[range.upperBound].ts
+        var first = range.lowerBound, last = range.upperBound
+        var k = first - 1
+        while k >= floor, start - minutes[k].ts <= walkEdgeMinutes * 60, minutes[first].ts - minutes[k].ts <= 120 {
+            if isSlowWalkMinute(minutes[k]) { first = k }
+            k -= 1
+        }
+        k = last + 1
+        while k <= ceiling, minutes[k].ts - end <= walkEdgeMinutes * 60, minutes[k].ts - minutes[last].ts <= 120 {
+            if isSlowWalkMinute(minutes[k]) { last = k }
+            k += 1
+        }
+        return first ... last
     }
 
     public static func walkCandidates(_ minutes: [Minute], hrMax: Int) -> [Candidate] {
@@ -234,7 +277,18 @@ public enum ActivityCandidates {
                 let length = (last.ts - first.ts) / 60 + 1
                 guard length >= minimumMinutes,
                       Double(piece.filter(above).count) / Double(length) >= joinedShare else { return }
-                out.append(candidate(.heartRate, piece, hrMax: hrMax, kinds: likelyKinds(piece)))
+                let found = candidate(.heartRate, piece, hrMax: hrMax, kinds: likelyKinds(piece))
+                guard found.isMostlyWalking, let lo = minutes.firstIndex(of: first), let hi = minutes.firstIndex(of: last)
+                else { out.append(found); return }
+                let taken: (Minute) -> Bool = { m in
+                    walkSpans.contains { m.ts >= $0.start && m.ts < $0.end }
+                        || out.contains { m.ts >= $0.start && m.ts < $0.end }
+                }
+                let grown = withWalkingEdges(lo ... hi, in: minutes,
+                                             floor: (minutes[..<lo].lastIndex(where: taken) ?? -1) + 1,
+                                             ceiling: (minutes[(hi + 1)...].firstIndex(where: taken) ?? minutes.count) - 1)
+                let span = Array(minutes[grown])
+                out.append(candidate(.heartRate, span, hrMax: hrMax, kinds: likelyKinds(span)))
             }
             for m in minutes[range] {
                 if walkSpans.contains(where: { m.ts >= $0.start && m.ts < $0.end }) { close() } else { piece.append(m) }

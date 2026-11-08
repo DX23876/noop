@@ -14,10 +14,11 @@ enum ActivitySuggestionNotifier {
     static let notTrainingAction = "noop.activity.notTraining"
     static let idKey = "suggestionId"
 
-    static let maxPerDay = 2
+    static let maxPerDay = 3
     static let quietFromHour = 22
     static let quietUntilHour = 7
-    static let pauseAfterUnanswered = 3
+    /// Just under two full days of `maxPerDay`, so one day left unanswered does not silence a week.
+    static let pauseAfterUnanswered = 5
     static let pauseDays = 7
 
     private struct State: Codable {
@@ -74,7 +75,7 @@ enum ActivitySuggestionNotifier {
         if state.day != today { state.day = today; state.sentToday = 0 }
         state.notified = state.notified.filter { $0.value > now - 30 * 86_400 }
         guard state.notified[next.id] == nil, now >= state.pausedUntil, state.sentToday < maxPerDay else { return }
-        // Three notified and still open: stop asking for a week.
+        // Notified and still open too often: stop asking for a week.
         let openIds = Set(toAsk.map(\.id))
         if state.notified.keys.filter(openIds.contains).count >= pauseAfterUnanswered {
             state.pausedUntil = now + pauseDays * 86_400
