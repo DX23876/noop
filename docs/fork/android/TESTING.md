@@ -38,13 +38,13 @@ for the same data, or a page does not open, say which page and what you saw.
 - **More → Goals:** daily, weekly and long-term goals, badges and records.
 - **Settings → Lab:** AgeLess, Daily rhythm and Training-based VO₂max, all off by default.
 
-## The experimental switch
+## History is kept until the core stored it
 
-**More → Experimental → Shared core confirms history** is off by default. On, the strap only deletes its
-history after the app's shared core has saved it. If you turn it on, keep it on for a night and send the strap
-log of the next morning: each history chunk should appear as acked, and a line starting with
-`Backfill: holding ack` means the core was too slow for that chunk (the strap keeps it and sends it again,
-nothing is lost).
+Since the move to the shared core's store ([`CORE-ONLY-PLAN.md`](CORE-ONLY-PLAN.md)) the strap deletes a chunk
+of its history only after the app's shared core has saved it. This used to be the switch **Shared core confirms
+history** under Experimental; it is now always on and not yet verified on a real strap. Please send the strap
+log of the first morning after a night with the app: a line containing `holding ack` means the app could not
+save that chunk in time, so the strap keeps it and sends it again. Nothing is lost.
 
 ## If something goes wrong
 

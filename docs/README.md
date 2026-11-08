@@ -1,13 +1,19 @@
 # Documentation map
 
 This index separates current guidance from historical records. The current fork ships iOS, macOS,
-widgets/Live Activity, and an optional watchOS companion. It does not contain or release Android;
-use [RyanBR's upstream NOOP](https://github.com/ryanbr/noop) for Android.
+widgets/Live Activity, and an optional watchOS companion; the latest release is 12.2.1 and 13.0.0 is in
+testing. Android is back since 2026-10-25 as a Kotlin shell around the shared Swift core and is in
+testing ([Android status](ANDROID.md)); for a finished Android app use
+[RyanBR's upstream NOOP](https://github.com/ryanbr/noop).
 
 ## Start here
 
 - [README](../README.md) — product overview and downloads.
 - [iOS installation](IOS.md) — AltStore/SideStore, Full IPA, and source builds.
+- [Android status](ANDROID.md) — the testing build, how it sits on the shared core, and where its plans
+  live.
+- [Testing NOOP Forge 13](fork/TESTING-13.0.0.md) — what to check in the current testing build, and
+  [Android testing](fork/android/TESTING.md) for the Android round.
 - [Build and release](BUILD.md) — XcodeGen, package/app builds, and publication.
 - [Features](FEATURES.md) — current product surfaces.
 - [FAQ](FAQ.md) — common score, privacy, and calibration questions.
@@ -30,11 +36,13 @@ use [RyanBR's upstream NOOP](https://github.com/ryanbr/noop) for Android.
 
 - [Contributing](CONTRIBUTING.md)
 - [System architecture](ARCHITECTURE.md)
-- [Apple-platform architecture](CROSS_PLATFORM.md)
+- [Cross-platform architecture](CROSS_PLATFORM.md)
 - [Package library](LIBRARY.md)
 - [Data model](DATA_MODEL.md)
 - [Analytics](ANALYTICS.md)
 - [Fork maintenance](FORK_GUIDE.md)
+- [Fork agent rules](fork/AGENT_RULES.md) — what overrides `AGENTS.md` here: the shared core, the
+  analysis-migration rule and the local test gate.
 - [Scope and non-goals](SCOPE.md)
 - [GitHub and release safeguards](SAFEGUARDS.md)
 
@@ -53,6 +61,16 @@ use [RyanBR's upstream NOOP](https://github.com/ryanbr/noop) for Android.
 - [Exercise content and media](fork/EXERCISE_CONTENT_AND_MEDIA.md) and
   [third-party notices](fork/THIRD_PARTY_NOTICES.md).
 
+## Android on the shared core
+
+- [Plan](fork/android/PLAN.md) — Android on a shared Swift core (decided 2026-10-24), with the
+  [parity continuation](fork/android/PARITY-PLAN.md) and the
+  [core-only plan](fork/android/CORE-ONLY-PLAN.md) that removed Room from the app.
+- [Status](fork/android/STATUS.md) — running state and open steps.
+- [Inventory](fork/android/INVENTORY.md) — the iOS screens, settings and actions the Android screens
+  follow.
+- [`android/README.md`](../android/README.md) — Gradle prerequisites (upstream's file with a fork note).
+
 ## Protocol and device references
 
 - [WHOOP protocol](PROTOCOL.md), with its chapters on [concepts](PROTOCOL_CONCEPTS.md),
@@ -70,12 +88,14 @@ use [RyanBR's upstream NOOP](https://github.com/ryanbr/noop) for Android.
 - [Device-driver architecture](DEVICE_DRIVER_ARCHITECTURE.md)
 
 Some protocol documents retain clearly labelled Kotlin/Android observations as historical
-provenance. Those references do not imply that the files still exist in this fork.
+provenance. They describe upstream's Kotlin implementation or the fork's pre-2026-08-14 tree, not the
+current shared-core Android app.
 
 ## Historical records — do not rewrite as current behavior
 
 - `docs/releases/` — upstream-era release notes.
-- `docs/fork/releases/` — released fork notes, up to 12.0.1.
+- `docs/fork/releases/` — fork release notes, released up to 12.2.1; `v13.0.0.md` is the draft for the
+  release in testing.
 - `docs/fork/decisions.md` — chronological decisions; later rows may supersede earlier rows.
 - `docs/superpowers/` — dated plans and specifications.
 - `docs/fork/redesign-*`, `docs/fork/feature-spec.md` and `docs/fork/design/` — implementation inputs
@@ -83,7 +103,6 @@ provenance. Those references do not imply that the files still exist in this for
 - Dated fork work notes such as `docs/fork/today-ui-fixes-2026-10-03.md`,
   `docs/fork/workout-background-test.md`, `docs/fork/APPLE_WORKOUT_HR_PLAN.md` and
   `docs/fork/research/` — records of one investigation, not maintained guides.
-- [Android status](ANDROID.md) — redirect explaining removal of the former Android tree.
 - [R-R optimization](RR-OPTIMIZATION.md) — historical experiment record plus current Swift outcome.
 
 When current guidance conflicts with a historical record, the current guide and the source tree win.
