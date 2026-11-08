@@ -148,7 +148,9 @@ struct ForgeTodayView: View {
                                     }
                                 dayAnswer
                             }
-                            .forgeCard(radius: ForgeRadius.card, padding: 12)
+                            .padding(.vertical, 20)
+                            .padding(.horizontal, 8)
+                            .modifier(ForgeHeroChamber())
                             .onGeometryChange(for: Bool.self) { $0.frame(in: .named("forge-today")).minY < 8 } action: { under in
                                 withAnimation(.easeOut(duration: 0.15)) { cardUnderClock = under }
                             }
@@ -277,12 +279,13 @@ struct ForgeTodayView: View {
 
     /// The three equal rings with their names; the card around them and the sentence are the caller's.
     private var hero: some View {
-        // A tenth smaller than the shared layout: the rings sit on their own card now and need room inside it.
-        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth) * 0.9
+        let diameter = LiquidHeroRingLayout.diameter(rowWidth: rowWidth)
         let hit = LiquidHeroRingLayout.hitDiameter(rowWidth: rowWidth)
         // Worked out here, once per change of the page: the clock's closure runs 60 times a second.
+        // Charge takes the colour of its band, as Liquid Today and the widgets draw it: the colour says how
+        // recovered, not only which score.
         let charge = ringFace(metric: .charge, label: DomainTheme.charge.productName, score: chargeScore,
-                              tint: chargeScore == nil ? StrandPalette.organicMissing : StrandPalette.chargeColor)
+                              tint: chargeScore.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.organicMissing)
         let effort = ringFace(metric: .effort, label: DomainTheme.effort.productName, score: effortScore,
                               tint: StrandPalette.organicEffort,
                               maxValue: effortScale == .whoop ? 21 : 100, decimals: effortScale == .whoop ? 1 : 0)
@@ -349,15 +352,6 @@ struct ForgeTodayView: View {
         }
     }
 
-    /// The ring's name in its domain colour, as in the prototype.
-    private static func labelTint(_ metric: OrganicScoreMetric) -> Color {
-        switch metric {
-        case .charge: return ForgeColor.chargeInk
-        case .effort: return ForgeColor.effortInk
-        case .rest: return ForgeColor.restInk
-        }
-    }
-
     /// What one ring shows, apart from the frame it is drawn at.
     private struct RingFace {
         let metric: OrganicScoreMetric
@@ -383,11 +377,17 @@ struct ForgeTodayView: View {
                 ScoreRing(model: face.model, tint: face.tint, score: face.score, decimals: face.decimals, frame: frame,
                                  diameter: diameter, hitDiameter: hit)
                     .frame(width: hit, height: diameter)
-                Text(face.label)
-                    .font(.system(.subheadline, weight: .semibold))
-                    // The rings sit on their own card now, so the name keeps its domain colour on a photo too.
-                    .foregroundStyle(Self.labelTint(face.metric))
-                    .lineLimit(1).minimumScaleFactor(0.8)
+                // Small tracked capitals in white with a chevron, as Liquid Today writes them: quiet beside the
+                // glowing rings, and they say the ring opens its page.
+                HStack(spacing: 4) {
+                    Text(face.label.uppercased(with: AppLanguage.activeLocale))
+                        .font(.system(.footnote, weight: .semibold))
+                        .tracking(1.5)
+                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.white.opacity(0.88))
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .padding(.top, 8)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -1828,6 +1828,35 @@ private struct ForgeTodayEdges: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+    }
+}
+
+/// The rings' own card, as Liquid Today draws it: a dark chamber in light and dark appearance alike, so the
+/// glowing rings always have darkness behind them, with large rounded corners and a soft shadow that set it
+/// apart from the tiles under it. On a photo or with see-through cards it turns to glass over the chamber.
+private struct ForgeHeroChamber: ViewModifier {
+    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.forgeSurfaceOpacity) private var surfaceOpacity
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        let opacity = reduceTransparency ? 1 : surfaceOpacity ?? max(0.35, Double(opacityPercent) / 100)
+        content
+            .environment(\.colorScheme, .dark)
+            .frame(maxWidth: .infinity)
+            .background {
+                ZStack {
+                    shape.fill(StrandPalette.organicHeroChamber.opacity(0.78 + opacity * 0.22))
+                    if opacity < 0.99 && !reduceTransparency {
+                        shape.fill(StrandPalette.organicHeroChamberLift.opacity(0.16 + opacity * 0.12))
+                            .liquidGlass(in: shape)
+                            .opacity(opacity)
+                    }
+                }
+                .environment(\.colorScheme, .dark)
+                .shadow(color: .black.opacity(0.22), radius: 18, y: 8)
+            }
     }
 }
 

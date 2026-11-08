@@ -187,13 +187,13 @@ struct OrganicScoreRing: View {
                 if score != nil {
                     CountUpNumber(
                         value: shown,
-                        font: StrandFont.rounded(diameter * 0.27),
+                        font: StrandFont.rounded(diameter * 0.27, weight: .bold),
                         decimals: decimals
                     )
                 } else {
                     // Every empty ring shows the dash, the not-yet-computed Effort ring included.
                     Text(verbatim: "–")
-                        .font(StrandFont.rounded(diameter * 0.27))
+                        .font(StrandFont.rounded(diameter * 0.27, weight: .bold))
                         .monospacedDigit()
                 }
             }
