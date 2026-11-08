@@ -49,8 +49,6 @@ struct ForgeSleepView: View {
     private var need: Double { SleepModel.debtNeedMin(days: repo.days) }
     /// The night editor, its undo and the nap delete confirmation, shared with the full Sleep screen.
     @StateObject private var editor = SleepNightEditor()
-    /// The bedtime planner still counts back from the wearer's own setting in Alarms.
-    private var plannedNeed: Double { Double(WindDownNudge.sleepNeedMinutes) }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -209,11 +207,6 @@ struct ForgeSleepView: View {
                 Rectangle().fill(ForgeColor.separator).frame(height: 0.5)
                 Text("Need **\(ForgeTodayView.hoursMinutes(need)) h** · alarm \(wakeText)")
                     .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
-                // The bedtime above counts back from the setting, so say so when the two needs part.
-                if abs(need - plannedNeed) >= 15 {
-                    Text("Bedtime counts \(ForgeTodayView.hoursMinutes(plannedNeed)) h, as set in Alarms.")
-                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                }
             }
             .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
