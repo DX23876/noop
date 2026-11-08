@@ -255,11 +255,10 @@ struct ForgeFocusTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: area.symbol)
-                .font(.system(.title3, weight: .semibold))
-                .foregroundStyle(area.tint)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(area.tint.opacity(ForgeOpacity.wash)))
+            // The area's picture, the same one its page carries, so the tile and the page match.
+            CoachPicture(main: area.symbol, accentA: "sparkle", accentB: "star.fill", tint: area.tint)
+                .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
+                .padding(.leading, -4)
             Text(area.title).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
                 .lineLimit(2).multilineTextAlignment(.leading)
             Text(area.subtitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

@@ -94,7 +94,8 @@ struct ForgeHealthView: View {
                                     let ok = r.banding.band == .inRange
                                     HStack(spacing: 6) {
                                         Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                                            .foregroundStyle(ok ? ForgeColor.text : ForgeColor.effortInk)
+                                            // In range reads green, as a check means "fine"; black said nothing.
+                                            .foregroundStyle(ok ? ForgeColor.charge : ForgeColor.effortInk)
                                         Text(Self.plainLabel(r)).foregroundStyle(ok ? ForgeColor.text : ForgeColor.effortInk)
                                     }
                                     .font(.system(.footnote, weight: .semibold))
