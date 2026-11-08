@@ -403,7 +403,10 @@ private struct SettingsPageContent: View, Equatable {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 #if os(iOS)
                 if let initialPage {
-                    if NoopVisualStyle.skin == .forge { SettingsPageBanner(page: initialPage) }
+                    if NoopVisualStyle.skin == .forge {
+                        // The profile opens on the wearer, not on a banner describing the page.
+                        if initialPage == .profile { forgeProfileHead } else { SettingsPageBanner(page: initialPage) }
+                    }
                     settingsPageContent(initialPage)
                 } else {
                     SettingsHubView(query: $query)
@@ -632,8 +635,11 @@ private struct SettingsPageContent: View, Equatable {
             headerAction: (profileEditing ? "Done" : "Edit", { profileEditing.toggle() })
         ) {
             VStack(spacing: 0) {
-                profilePhotoRow
-                rowDivider
+                // The new design changes the photo on the head above; the row stays in the shipped one.
+                if NoopVisualStyle.skin != .forge {
+                    profilePhotoRow
+                    rowDivider
+                }
                 FormRow(label: "Date of birth") {
                     HStack(spacing: 12) {
                         Text("\(profile.age)")
@@ -824,6 +830,35 @@ private struct SettingsPageContent: View, Equatable {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// The new design's profile head: the photo large, tap it to change it, and the figures the profile
+    /// holds in one line under it.
+    private var forgeProfileHead: some View {
+        VStack(spacing: 10) {
+            PhotosPicker(selection: $avatarPickerItem, matching: .images) {
+                ProfileAvatarView(imageData: profile.avatarImageData, size: 104)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(StrandPalette.surfaceRaised))
+                            .overlay(Circle().strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(profile.hasAvatar ? "Change photo" : "Choose photo")
+            Text(verbatim: [String(localized: "\(profile.age) years"),
+                            "\(Int(profile.heightCm.rounded())) cm",
+                            profile.weightKg.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale)) + " kg"]
+                .joined(separator: " · "))
+                .font(StrandFont.subhead.weight(.semibold))
+                .foregroundStyle(StrandPalette.textSecondary)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
     }
 
     /// Compact profile-photo control kept inside the Profile card so the optional avatar does not
