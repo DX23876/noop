@@ -172,9 +172,9 @@ struct HydrationView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(StrandPalette.textPrimary)
+            .foregroundStyle(StrandPalette.metricCyan)
             .frame(maxWidth: .infinity, minHeight: 60)
-            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(StrandPalette.metricCyan.opacity(0.13), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel(Text(title))
@@ -635,14 +635,43 @@ struct ForgeWaterGlass: View {
     }
 
     private func glass(phase: Double, amplitude: Double) -> some View {
-        ZStack {
-            GlassShape().fill(StrandPalette.surfaceInset)
-            WaterShape(level: min(1, max(0, fraction)), phase: phase,
+        // A glass of water in water's colours: a tinted body, a highlight down one side, a few rising
+        // bubbles once there is water, and droplets beside it. An empty glass still reads as a glass.
+        let water = StrandPalette.metricCyan
+        return ZStack {
+            GlassShape().fill(LinearGradient(colors: [water.opacity(0.10), water.opacity(0.04)],
+                                             startPoint: .top, endPoint: .bottom))
+            WaterShape(level: min(1, max(0.035, fraction)), phase: phase,
                        amplitude: fraction > 0.001 ? amplitude : 0)
-                .fill(LinearGradient(colors: [StrandPalette.metricCyan.opacity(0.7), StrandPalette.metricCyan],
+                .fill(LinearGradient(colors: [water.opacity(0.65), water, .blue.opacity(0.85)],
                                      startPoint: .top, endPoint: .bottom))
                 .clipShape(GlassShape())
-            GlassShape().stroke(StrandPalette.hairlineStrong, lineWidth: 1.5)
+                .shadow(color: water.opacity(0.4), radius: 10, y: 4)
+            if fraction > 0.05 {
+                GeometryReader { geo in
+                    ForEach(0..<5, id: \.self) { i in
+                        Circle().fill(.white.opacity(0.55))
+                            .frame(width: CGFloat(3 + i % 3 * 2), height: CGFloat(3 + i % 3 * 2))
+                            .position(x: geo.size.width * [0.35, 0.55, 0.45, 0.62, 0.40][i],
+                                      y: geo.size.height * (1 - min(fraction, 1) * [0.2, 0.45, 0.65, 0.3, 0.8][i]))
+                    }
+                }
+                .clipShape(GlassShape())
+            }
+            GeometryReader { geo in
+                Capsule().fill(LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0)],
+                                              startPoint: .top, endPoint: .bottom))
+                    .frame(width: geo.size.width * 0.07, height: geo.size.height * 0.62)
+                    .rotationEffect(.degrees(-5))
+                    .position(x: geo.size.width * 0.22, y: geo.size.height * 0.42)
+            }
+            GlassShape().stroke(water.opacity(0.55), lineWidth: 2)
+            Image(systemName: "drop.fill").font(.system(size: 18)).foregroundStyle(water)
+                .offset(x: 70, y: -38)
+            Image(systemName: "drop.fill").font(.system(size: 11)).foregroundStyle(water.opacity(0.6))
+                .offset(x: -66, y: 8)
+            Image(systemName: "sparkle").font(.system(size: 12, weight: .bold)).foregroundStyle(water.opacity(0.7))
+                .offset(x: 62, y: 30)
         }
     }
 }
