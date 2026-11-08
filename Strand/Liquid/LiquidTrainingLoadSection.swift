@@ -49,7 +49,7 @@ struct LiquidTrainingLoadSection: View {
                         Text("All").font(StrandFont.caption)
                         Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
                     }
-                    .foregroundStyle(StrandPalette.accent)
+                    .foregroundStyle(NoopVisualStyle.skin == .forge ? Color(light: "#248A3D", dark: "#30D158") : StrandPalette.accent)
                 }
                 .buttonStyle(.plain)
             }
@@ -95,7 +95,9 @@ struct LiquidTrainingLoadSection: View {
         HStack(alignment: .center, spacing: NoopMetrics.space3) {
             Image(systemName: lane.kind == .strength ? "dumbbell.fill" : "figure.run")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(lane.kind == .strength ? StrandPalette.metricPurple : StrandPalette.metricCyan)
+                .foregroundStyle(NoopVisualStyle.skin == .forge
+                                 ? (lane.kind == .strength ? StrandPalette.strengthColor : StrandPalette.cardioColor)
+                                 : (lane.kind == .strength ? StrandPalette.metricPurple : StrandPalette.metricCyan))
                 .frame(width: 22)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 7) {

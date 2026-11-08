@@ -161,11 +161,15 @@ public struct TodayMetricTile<Accessory: View>: View {
                 .frame(width: dense ? 26 : 30, height: dense ? 26 : 30)
                 .accessibilityHidden(true)
 
+                // The new design names a tile in plain 13 pt: 9 to 10 pt tracked labels sat below the
+                // readable minimum on a phone.
                 label
-                    .font(dynamicTypeSize.isAccessibilitySize
+                    .font(NoopVisualStyle.skin == .forge
+                          ? .system(size: dense ? 12 : 13, weight: .semibold)
+                          : dynamicTypeSize.isAccessibilitySize
                           ? StrandFont.overline
                           : StrandFont.overlineScaled(dense ? 9 : 10))
-                    .tracking(StrandFont.overlineTracking)
+                    .tracking(NoopVisualStyle.skin == .forge ? 0 : StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)

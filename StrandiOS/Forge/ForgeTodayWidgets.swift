@@ -195,7 +195,9 @@ struct ForgeTodayWidgetArea: View {
                 ForEach(rows, id: \.first!.id) { row in
                     HStack(alignment: .top, spacing: 12) {
                         ForEach(row) { w in cell(w) }
-                        if !row[0].isWide {
+                        // A short last row shares the width instead of leaving an empty third of the row,
+                        // except while arranging, where the empty slot shows where a tile can go.
+                        if !row[0].isWide, editing {
                             ForEach(row.count..<columns, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
                         }
                     }
@@ -799,7 +801,18 @@ struct ForgeEnergyWidget: View {
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
                 }
-                if let summary {
+                if let summary, summary.totalBurnedSoFar == nil, eaten == nil {
+                    // Nothing measured yet: one quiet line, not a large empty ring taking the tile's height.
+                    HStack(spacing: 10) {
+                        Image(systemName: "flame.fill").font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(StrandPalette.forgeEnergyActive)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(StrandPalette.forgeEnergyActive.opacity(0.15)))
+                        Text("Nothing recorded today yet.")
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                        Spacer(minLength: 0)
+                    }
+                } else if let summary {
                     HStack(spacing: 16) {
                         ForgeEnergyRing(resting: summary.basalBurnedSoFar, active: summary.activeBurnedSoFar,
                                         total: summary.totalBurnedSoFar, usual: usual,
