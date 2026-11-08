@@ -142,7 +142,7 @@ The fork runs the macOS workflows only around a release, which changes what vali
 | `tools-python-windows.yml` | The `Tools/linux-capture` tests again under Windows console encodings | PR + push touching `Tools/linux-capture/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
 | `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
-| `android.yml` | Gradle debug builds of the full and demo flavours with the shared Swift core (toolchain, Swift SDK for Android and NDK r30 installed first) + the JVM unit tests | PR + push touching `android/**`, `project.yml` (the version name), `Packages/**` (the core) or `Tools/parity_cases/**` (Android plan D-5, D-7) |
+| `android.yml` | Gradle debug builds of the full and demo flavours with the shared Swift core (toolchain, Swift SDK for Android and NDK r30 installed first) + the JVM unit tests | PR + push touching `android/**`, `project.yml` (the version name), `Packages/**` (the core), `Strand/**` (app sources linked into `NoopCoreJNI`, the string catalogue) or `Tools/parity_cases/**` (Android plan D-5, D-7) |
 | `android-release.yml` | Signed, minified release APK | dispatch; called by `publish-ios-release.yml` |
 | `android-signing-check.yml` | Opens the Android release keystore with its password secret, prints the public fingerprint | dispatch only |
 | `fork-testing-build.yml` | Testing build (`testing-latest`) for testers | dispatch only |

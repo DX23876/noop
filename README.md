@@ -671,7 +671,7 @@ merges ryanbr/noop; the 13.0.0 testing build contains its changes up to early No
 
 | | ryanbr/noop | NOOP Forge |
 |---|---|---|
-| Code base | Swift for Apple, an independent Kotlin reimplementation for Android, kept byte-identical by rule | One shared Swift core for every platform. Android is a Kotlin shell (Bluetooth, Android services, Compose screens) that calls the core through JNI and stores in the same SQLite database. The parity rule was retired on 23 July 2026; Android came back on the shared core on 25 October 2026, and Room left the app on 1 November 2026 |
+| Code base | Swift for Apple, an independent Kotlin reimplementation for Android, kept byte-identical by rule | One shared Swift core for every platform. Android is a Kotlin shell (Bluetooth and its frame decoding, Android services, Compose screens) that calls the core through JNI and stores in the same SQLite database. The parity rule was retired on 23 July 2026; Android came back on the shared core on 25 October 2026, and Room left the app on 1 November 2026 |
 | Swift packages | 8 | 13: adds `StrandCore` (the shared app core), `NoopCoreJNI` (the Android bridge), `StrandTraining`, `MuscleMap` and `SemanticMemory` |
 | Coach | 2 source files plus 4 provider adapters | About 60 source files, 38 tools, nine permission purposes, an on-device embedding model for memory |
 | Coach memory | Stored chat messages | Up to 120 facts with confirmation for health facts, expiry and ranking; on-device semantic search |

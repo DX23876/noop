@@ -74,14 +74,11 @@ Strand/                         macOS SwiftUI app target (the reference implemen
 │   ├── StandardHeartRate.swift 0x2A37 BLE-standard HR/RR parser (pure)
 │   ├── BackfillPolicy.swift    rate-limiter for historical offload triggers
 │   └── StuckStrapDetector.swift safety-net liveness watchdog
-├── Collect/                    Persistence orchestration (BLE → store)
-│   ├── Collector.swift         buffers live frames → decoded-first persistence
-│   ├── Backfiller.swift        historical-offload state machine (safe-trim)
-│   ├── ClockCorrelation.swift  device-epoch ↔ wall-clock correlation (pure)
-│   ├── ClockPolicy.swift       when to (re)issue SET_CLOCK
-│   ├── StorePaths.swift        on-disk SQLite location (App Support/OpenWhoop)
-│   ├── PrunePolicy.swift       raw-outbox retention (24h / 50MB)
-│   └── RawCaptureWindow.swift  bounded on-demand raw-capture window
+├── Collect/                    App-side persistence glue (BLE → store)
+│   ├── BackfillDrain.swift     ordered offload-frame queue drained into the Backfiller
+│   └── StorePaths.swift        on-disk SQLite location (App Support/OpenWhoop)
+│                               (fork: Collector, Backfiller, ClockCorrelation, ClockPolicy,
+│                               PrunePolicy and RawCaptureWindow now live in Packages/StrandCore)
 ├── Data/                       Read model + import glue
 │   ├── Repository.swift        @MainActor read model over WhoopStore
 │   ├── WhoopImporter.swift     CSV result → store rows
@@ -100,16 +97,34 @@ Packages/                       Reusable Swift packages
 ├── StrandDesign/               SwiftUI design system (palette, components, charts)
 ├── OuraProtocol/               Oura BLE protocol/decode
 ├── PolarProtocol/              Polar protocol/decode
+├── StrandTraining/             training catalogue, plans, routines, workout engine (pure)
+├── StrandCore/                 fork: platform-neutral app core shared by Apple and Android
+│                               (daily analysis host, AnalysisRecipe, collector/backfiller,
+│                               backup archive, metric resolver, energy, Hevy sync, …)
+├── NoopCoreJNI/                fork: Android bridge — `NoopCore` shared library + `CJNI` (JNI)
+├── MuscleMap/                  SwiftUI muscle-map rendering (third-party, MIT)
 ├── SemanticMemory/             local Coach memory index
 └── NoopLocalAccess/            optional read-only macOS local-access CLI/core
+
+android/                        fork: Android app (Kotlin/Compose shell over the shared core)
+└── swift-core/                 builds libNoopCore.so from Packages/NoopCoreJNI for the APK
 
 Tools/Backfill/                 CLI offload/replay tool
 ```
 
 The app target (`Strand/`) is the **macOS reference implementation**. The released iOS/iPadOS app
 uses `StrandiOS/`, shared `Strand/` sources, and the same package implementations; widgets, Live
-Activity and the optional Watch companion are defined by `project.yml`. This fork no longer carries
-Android. Package manifests declare their real platform floors individually.
+Activity and the optional Watch companion are defined by `project.yml`. Package manifests declare
+their real platform floors individually.
+
+**Android in this fork** (restored 2026-10-25, in testing) is a Kotlin shell around the same Swift
+core, not an independent reimplementation: `android/swift-core/build-swift-core.sh` cross-compiles
+`Packages/NoopCoreJNI` (with `StrandCore` and the packages below it) into `libNoopCore.so` using the
+Swift SDK for Android, and the app calls it through JNI. Since 2026-11-01 Android stores only in the
+core's GRDB database (Room is gone from the app). Kotlin keeps the Bluetooth transport and its frame
+decoding, Android services, the Compose UI and presentation helpers; scoring, analytics, import and
+backup run in the core. See [`fork/android/STATUS.md`](fork/android/STATUS.md) and
+[`fork/android/CORE-ONLY-PLAN.md`](fork/android/CORE-ONLY-PLAN.md).
 
 ---
 
@@ -129,7 +144,15 @@ WhoopStore ─────────▶ GRDB.swift
    │
 StrandAnalytics ────▶ WhoopProtocol + WhoopStore
 StrandImport ───────▶ WhoopProtocol + WhoopStore + ZIPFoundation
+   ▲
+   │
+StrandCore ─────────▶ WhoopProtocol + WhoopStore + StrandAnalytics + StrandTraining + StrandImport
+   ▲                  (+ GRDB, ZIPFoundation, swift-crypto)
+   │
+NoopCoreJNI ────────▶ StrandCore + SemanticMemory (+ the packages above); Android only at runtime
 ```
+
+(`WhoopStore` also depends on `OuraProtocol` and `StrandTraining`.)
 
 | Package | Responsibility | Key types / functions | Notable boundary |
 |---|---|---|---|
@@ -138,6 +161,8 @@ StrandImport ───────▶ WhoopProtocol + WhoopStore + ZIPFoundation
 | **StrandAnalytics** | All physiological math, as pure functions over inputs. HRV, recovery, strain, sleep staging, workout detection, baselines, HR zones, correlation/comparison. | `AnalyticsEngine.analyzeDay(...)` → `DayResult`, `HRVAnalyzer`, `RecoveryScorer`, `StrainScorer`, `SleepStager`, `WorkoutDetector`, `Baselines`, `CorrelationEngine` | **Pure** — never touches the database. Produces `DailyMetric`/`CachedSleepSession` shapes for the store. |
 | **StrandImport** | Parse data the user already owns: WHOOP CSV exports and Apple Health exports (`export.xml`, streaming). | `ImportCoordinator.detectAndImport`, `WhoopExportImporter`, `AppleHealthImporter`, `AppleHealthAggregator` | **Parsing only** — returns normalized model arrays; the app maps them into the store. |
 | **StrandDesign** | The SwiftUI design system: palette, typography, motion, charts, components. | `StrandPalette`, `StrandCard`, `RecoveryRing`, `StrainGauge`, `Hypnogram`, `TrendChart`, `Sparkline`, `YearHeatStrip` | No data or protocol deps — pure presentation. |
+| **StrandCore** (fork) | The platform-neutral app core shared by the Apple apps and Android: the daily analysis pass and its host, `AnalysisRecipe` (the rebuild lineage), raw collection and backfill, backup archive, metric resolver, energy, Hevy sync, exercise media, score provenance. | `AnalysisHost`, `DailyAnalysis`, `AnalysisRecipe`, `Collector`, `Backfiller`, `BackupArchive`, `MetricResolver` | No SwiftUI, Combine or StrandDesign: everything must also build for Android. |
+| **NoopCoreJNI** (fork) | Android's door into the core: a dynamic `NoopCore` library whose JNI entry points call plain Swift functions in `Bridge.swift`; `Sources/NoopCore/Shared` links app sources Android needs unchanged. | `Bridge.swift`, `JNIExports.swift`, `CoreCall`, `Core*` facades | `CJNI` (jni.h) is used only on Android; the bridge functions are tested on macOS. |
 
 ### Multi-generation protocol support
 

@@ -100,8 +100,10 @@ still the best way to avoid wasted work — it's just not an enforced gate.
 
 The codebase is split into reusable Swift packages plus Apple app targets. The **macOS app is the
 reference implementation**; iOS/iPadOS ships as an unsigned IPA and source target; the optional
-Watch companion ships in the Full IPA. This fork no longer contains Android — use
-[RyanBR's upstream repository](https://github.com/ryanbr/noop) for Android work.
+Watch companion ships in the Full IPA. Android (restored in this fork on 2026-10-25, in testing) is a
+Kotlin/Compose shell under `android/` around the same Swift core, reached through
+`Packages/NoopCoreJNI`; see [`fork/android/STATUS.md`](fork/android/STATUS.md) and
+[`fork/AGENT_RULES.md`](fork/AGENT_RULES.md).
 
 ```
 Strand/
@@ -110,7 +112,7 @@ Strand/
 ├── Strand/                     # macOS SwiftUI app target (product name: NOOP)
 │   ├── App/                    # StrandApp, AppModel, RootView, ContentView
 │   ├── BLE/                    # CoreBluetooth manager, frame router, command set, live state
-│   ├── Collect/                # Backfiller, Collector, clock correlation, prune/store paths
+│   ├── Collect/                # backfill drain, store paths (Collector/Backfiller live in StrandCore)
 │   ├── Data/                   # Repository, importers, MetricCatalog, profile, notification settings
 │   ├── Screens/                # SwiftUI screens (Today, Sleep, Trends, MetricExplorer, …)
 │   ├── MenuBar/                # MenuBarExtra content (glanceable live HR)
@@ -127,8 +129,13 @@ Strand/
 │   ├── StrandDesign/           # SwiftUI design system (palette, components, charts)
 │   ├── OuraProtocol/           # Oura BLE protocol/decode
 │   ├── PolarProtocol/          # Polar protocol/decode
+│   ├── StrandTraining/         # training catalogue, plans, workout engine
+│   ├── StrandCore/             # fork: shared app core (daily analysis, AnalysisRecipe, backup, …)
+│   ├── NoopCoreJNI/            # fork: Android JNI bridge (libNoopCore.so)
+│   ├── MuscleMap/              # SwiftUI muscle map (third-party, MIT)
 │   ├── SemanticMemory/         # local Coach memory index
 │   └── NoopLocalAccess/        # read-only local access (macOS)
+├── android/                    # fork: Android app (Kotlin/Compose shell over the shared core)
 ├── Tools/
 │   ├── Backfill/               # `swift run backfill` — re-runs importers into the on-device DB
 │   └── linux-capture/          # Headless Linux capture workbench (Python/bleak + whoop-decode)
@@ -142,6 +149,7 @@ Strand/
 | Decoding strap bytes, CRC, framing, packet/event types | `Packages/WhoopProtocol` | **Platform-pure — no CoreBluetooth.** Runs in tests/CLI unchanged. |
 | Persisting decoded data, migrations, caches, reads | `Packages/WhoopStore` | GRDB/SQLite only. |
 | Computing recovery / strain / HRV / sleep / correlations | `Packages/StrandAnalytics` | Pure, database-free analyzers. |
+| The daily analysis pass, analysis recipe, collection/backfill, backup, logic Android also needs | `Packages/StrandCore` | Fork. No SwiftUI/Combine; must also build for Android. Never write a Kotlin version instead. |
 | Parsing WHOOP CSV or Apple Health `export.xml` | `Packages/StrandImport` | Header-name-driven CSV; streaming SAX XML. |
 | Colors, fonts, motion, cards, charts | `Packages/StrandDesign` | No external UI deps; bridges AppKit/UIKit. |
 | CoreBluetooth, bonding, offload, live state | `Strand/BLE`, `Strand/Collect` | macOS-app layer — wraps the pure packages. |
@@ -173,6 +181,12 @@ Do not add AppKit/UIKit/CoreBluetooth to a platform-pure package target. UI brid
 under `StrandiOS/` or behind target membership in `project.yml`.
 
 ### The parity ledger (one-sided declarations)
+
+> **Fork note:** this fork does not carry the parity-governance tooling (`Tools/parity_ledger.py`,
+> `Tools/parity_ratchet.py`, `Tools/parity_dispositions.json`, `parity-governance.yml`); the Kotlin
+> parity contract is retired here (2026-07-23) and Android runs the shared Swift core. The section is
+> kept as upstream's description. In this fork, the core parity oracles in
+> `android/app/src/test/resources/core_parity/` check Android against the core instead.
 
 The discipline above is also enforced mechanically. `Tools/parity_ledger.py` pairs declarations across
 the two platforms and `Tools/parity_ratchet.py` refuses new **one-sided** ones that carry no typed
@@ -604,7 +618,8 @@ Schema lives in `Packages/WhoopStore/Sources/WhoopStore/Database.swift` as a **v
 - **Update `schema_oracle.json` in the same PR.** `SchemaOracleTests.swift` compares the committed
   GRDB contract to `PRAGMA table_info`/indexes and catches column order, type, nullability, default,
   primary-key, index and unpinned-table drift. Android-specific keys in that fixture are retained as
-  historical/upstream compatibility metadata; this fork no longer carries the former Room twin.
+  historical/upstream compatibility metadata: in this fork Android has no Room schema of its own and
+  runs these same GRDB migrations through the core.
 - **GRDB migration identifiers are `v<N>[-slug]`, strictly sequential.** GRDB keys migrations by NAME
   and applies them in registration order, so two open PRs that both add a `v31` produce two migrations
   claiming one number (and an exact name collision makes GRDB silently skip the second body). The
@@ -688,7 +703,7 @@ increase monotonically for releases.
 
 NOOP's logic already lives in shared Swift packages, so most Apple-platform work is app-layer wiring
 rather than rewrites of the core. Today macOS and iOS/iPadOS ship from this fork; the optional Watch
-companion ships inside the Full IPA.
+companion ships inside the Full IPA. Android runs the same core and is in testing.
 Contributions toward these are welcome — open an issue to coordinate first.
 
 ### Other platforms
@@ -697,7 +712,9 @@ Contributions toward these are welcome — open an issue to coordinate first.
   `WhoopProtocol/Resources/whoop_protocol.json` and the framing/CRC rules are language-agnostic, so
   the wire behavior is portable; the work is a Windows BLE stack + UI re-implementation that matches
   the shared packages' behavior.
-- **Android.** Not carried by this fork. Use [RyanBR's upstream repository](https://github.com/ryanbr/noop).
+- **Android (testing).** A Kotlin/Compose shell around the shared Swift core (`Packages/StrandCore`
+  through `Packages/NoopCoreJNI`), restored 2026-10-25; Room is gone from the app since 2026-11-01. See
+  [`fork/android/STATUS.md`](fork/android/STATUS.md) and [`fork/android/TESTING.md`](fork/android/TESTING.md).
 - **iOS (unsigned release).** iOS is a first-class target — the `NOOPiOS` and
   `NOOPiOSWidgets` schemes (app target plus widgets, a Live Activity, and HealthKit), built against
   current code in Xcode. The fork publishes an intentionally unsigned IPA for AltStore and SideStore:

@@ -1,5 +1,29 @@
 # NOOP — Android
 
+> **NOOP Forge fork (DX23876) note.** The rest of this file is upstream's description of an independent
+> Kotlin/Compose/Room reimplementation kept in byte parity with Swift. That is not how Android works in
+> this fork:
+>
+> - Android was restored here on 2026-10-25 as a **shell around the shared Swift core**: the logic
+>   (scoring, analytics, import, backup) lives in `Packages/` (`StrandCore` and the packages under it) and
+>   reaches the app through `Packages/NoopCoreJNI` over JNI. Kotlin keeps the Bluetooth transport, Android
+>   services, the Forge Compose UI (`com.noop.ui.forge`) and presentation helpers. There is no Kotlin twin
+>   and no byte-parity contract.
+> - **Room is gone from the app** (2026-11-01): Android stores only in the core's GRDB database through the
+>   generated `CoreWhoopDao`. Room remains only as a transitive WorkManager dependency.
+> - **Building needs more than the prerequisites below:** every build runs
+>   [`swift-core/build-swift-core.sh`](swift-core/build-swift-core.sh), which needs a swift.org toolchain
+>   6.4.1, the matching Swift SDK for Android (installed with `swift sdk install`) and NDK r30
+>   (`ANDROID_NDK_HOME`, or `$ANDROID_HOME/ndk/30.0.16248370`); it builds arm64 only.
+>   [`.github/workflows/android.yml`](../.github/workflows/android.yml) shows the full setup.
+>   `-Pnoop.swiftCore=false` builds without the core, for a machine lacking the toolchain.
+> - The app is in **testing**: applicationId `io.github.dx23876.noop`, Android 8.0+.
+>
+> Current state: [`docs/fork/android/STATUS.md`](../docs/fork/android/STATUS.md) · plan:
+> [`docs/fork/android/CORE-ONLY-PLAN.md`](../docs/fork/android/CORE-ONLY-PLAN.md) · testers:
+> [`docs/fork/android/TESTING.md`](../docs/fork/android/TESTING.md) · fork rules:
+> [`docs/fork/AGENT_RULES.md`](../docs/fork/AGENT_RULES.md).
+
 An **offline WHOOP companion** for Android. NOOP connects directly to a WHOOP 4.0
 (and WHOOP 5.0) strap over Bluetooth Low Energy, reads heart rate, R-R intervals,
 battery, and sensor data, and stores everything **locally** on the device. There is
