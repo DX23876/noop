@@ -22,7 +22,7 @@ struct ForgeStrengthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Strength"),
-                                  scrolledPast: $scrolledPast)
+                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "dumbbell.fill", accent: "flame.fill", tint: ForgeColor.effort))
                 nextUp
                 volume
                 recent
@@ -216,7 +216,8 @@ struct ForgeMusclesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Muscles"),
-                                  scrolledPast: $scrolledPast)
+                                  scrolledPast: $scrolledPast,
+                                  picture: PagePicture(symbol: "figure.strengthtraining.traditional", accent: "bolt.fill", tint: .orange))
                 MuscleAnalyticsSurface(history: model.resolvedHistory, compact: false)
                     .forgeCard(radius: ForgeRadius.card, padding: 14)
                 Link("Body geometry: MuscleMap · MIT License",

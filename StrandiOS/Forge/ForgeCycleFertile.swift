@@ -14,7 +14,7 @@ struct ForgeCycleFertileInfo: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: nil, title: String(localized: "Fertile days"), scrolledPast: $scrolledPast)
+                ForgeDetailHeader(overline: nil, title: String(localized: "Fertile days"), scrolledPast: $scrolledPast, picture: PagePicture(symbol: "sparkles", accent: "heart.fill", tint: .pink))
                 warning
                 steps
                 if let f = snap.fertile, !f.pastRiseDays.isEmpty {

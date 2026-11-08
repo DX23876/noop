@@ -24,7 +24,7 @@ struct ForgeAgeLessView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: nil, title: "AgeLess", scrolledPast: $scrolledPast)
+                ForgeDetailHeader(overline: nil, title: "AgeLess", scrolledPast: $scrolledPast, picture: PagePicture(symbol: "hourglass", accent: "heart.fill", tint: ForgeColor.charge))
                 if let snapshot, !snapshot.weeks.isEmpty {
                     let shown = min(max(index ?? snapshot.weeks.count - 1, 0), snapshot.weeks.count - 1)
                     let week = snapshot.weeks[shown]

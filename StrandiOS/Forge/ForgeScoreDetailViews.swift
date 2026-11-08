@@ -407,15 +407,24 @@ struct ForgeDetailHeader: View {
     let overline: String?
     let title: String
     @Binding var scrolledPast: Bool
+    /// The page's picture beside the title; nil on the score pages, whose ring is their picture.
+    var picture: PagePicture? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            if let overline {
-                Text(overline.uppercased(with: AppLanguage.activeLocale))
-                    .font(ForgeFont.overDate).foregroundStyle(ForgeColor.secondary)
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                if let overline {
+                    Text(overline.uppercased(with: AppLanguage.activeLocale))
+                        .font(ForgeFont.overDate).foregroundStyle(ForgeColor.secondary)
+                }
+                Text(title).font(ForgeFont.largeTitle).foregroundStyle(ForgeColor.text)
+                    .accessibilityAddTraits(.isHeader)
             }
-            Text(title).font(ForgeFont.largeTitle).foregroundStyle(ForgeColor.text)
-                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            if let picture {
+                CoachPicture(main: picture.symbol, accentA: picture.accent, accentB: "sparkle", tint: picture.tint)
+                    .frame(width: 68, height: 68)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)

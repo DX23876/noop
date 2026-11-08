@@ -35,7 +35,7 @@ struct ForgeWorkoutsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Workouts"),
-                                  scrolledPast: $scrolledPast)
+                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "figure.run", accent: "flame.fill", tint: ForgeColor.effort))
                 actions
                 calendarCard
                 weekNumbers

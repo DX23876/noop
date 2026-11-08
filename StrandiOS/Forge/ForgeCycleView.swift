@@ -28,7 +28,7 @@ struct ForgeCycleView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: nil, title: String(localized: "Cycle"), scrolledPast: $scrolledPast)
+                ForgeDetailHeader(overline: nil, title: String(localized: "Cycle"), scrolledPast: $scrolledPast, picture: PagePicture(symbol: "drop.fill", accent: "moon.fill", tint: .pink))
                 if !cycleEnabled {
                     optIn
                 } else if let snap {

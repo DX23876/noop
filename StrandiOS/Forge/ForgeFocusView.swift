@@ -113,7 +113,7 @@ struct ForgeFocusView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                ForgeDetailHeader(overline: nil, title: area.title, scrolledPast: $scrolledPast)
+                ForgeDetailHeader(overline: nil, title: area.title, scrolledPast: $scrolledPast, picture: PagePicture(symbol: area.symbol, accent: "sparkle", tint: area.tint))
                 let tiles = self.tiles
                 if !tiles.isEmpty || !energyTotals.isEmpty {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
