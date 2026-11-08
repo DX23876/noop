@@ -150,10 +150,12 @@ The fork runs the macOS workflows only around a release, which changes what vali
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
 | `prune-stale-branches.yml` | Deletes branches whose PR merged or closed | weekly cron + dispatch |
 
-**Since 2026-11-02 no workflow has started on this repository at all**, not on push and not on its
-schedule, although Actions is enabled (an account limit is suspected; unresolved as of 2026-11-08). Until
-runs appear again, a push to `main` is checked only by `Tools/local-tests.sh`, the `Tools/` Python tests
-and the local i18n audit; check `gh run list -R DX23876/noop --commit <sha>` before calling anything green.
+**From 2026-11-02 no workflow started on this repository**, because GitHub disabled the workflows on this
+fork. The Actions tab then shows "Workflows on this fork have been disabled" with a button to enable them
+again, while Settings › Actions still reads enabled; only the owner can press it. While no runs appear, a
+push to `main` is checked only by `Tools/local-tests.sh`, the `Tools/` Python tests and the local i18n
+audit; check `gh run list -R DX23876/noop --commit <sha>` before calling anything green. (The weekly
+schedules ran on Monday 2026-11-02 and were next due on 2026-11-09.)
 
 **`StrandTests` runs in exactly one place in CI** — `app-build.yml`'s macOS leg. Since a push to `main` no longer triggers it, a change to app-target Swift is built for macOS and iOS and its `StrandTests` run **locally before the push**; a release runs the workflow as its gate. `Test Strand` is a later
 step in the same job, so a red *build* step silently **skips** the tests rather than failing them. A
