@@ -210,14 +210,17 @@ struct ForgeEnergyView: View {
                 .frame(width: 200, height: 200)
                 .padding(.top, 4)
             VStack(spacing: 4) {
-                Text(isToday ? "Burned so far" : "Burned")
-                    .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                if s.totalBurnedSoFar != nil {
+                    Text(isToday ? "Burned so far" : "Burned")
+                        .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                }
                 if let line = usualLine(s) {
                     Text(verbatim: line).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                         .multilineTextAlignment(.center)
                 }
             }
-            figures(s)
+            // A row of dashes says nothing the ring's "No data yet" did not.
+            if s.totalBurnedSoFar != nil || eaten != nil { figures(s) }
             if let eaten, let total = s.totalBurnedSoFar {
                 ForgeEnergyBalance(eaten: eaten, burned: total, isToday: isToday)
             }
@@ -337,8 +340,9 @@ struct ForgeEnergyView: View {
             EnergyBurnRateCard(dayStart: start, isToday: isToday, points: dayRate.points, bands: dayRate.bands,
                                comparison: $comparison, comparisonPoints: comparisonPoints,
                                comparisonCaption: comparisonCaption, comparisonUnavailable: comparisonUnavailable)
-        } else if dayRate != nil {
+        } else if dayRate != nil, s.totalBurnedSoFar != nil {
             // A daily figure without a minute-by-minute record must not read as a day without activity.
+            // With no figure at all the ring already says so.
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "chart.xyaxis.line").font(.system(.footnote, weight: .semibold))
                     .foregroundStyle(ForgeColor.tertiary)
@@ -440,9 +444,6 @@ struct ForgeEnergyView: View {
                             RuleMark(y: .value("Usual", usualTotal))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                                 .foregroundStyle(ForgeColor.secondary)
-                                .annotation(position: .top, alignment: .leading) {
-                                    Text("usual").font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
-                                }
                         }
                         if series == .balance {
                             RuleMark(y: .value("Zero", 0)).foregroundStyle(ForgeColor.tertiary)
@@ -469,6 +470,19 @@ struct ForgeEnergyView: View {
                     }
                     .frame(height: 190)
                     .accessibilityLabel(Text("Daily energy burn"))
+                    // The dashed line's key sits under the chart: a word inside the plot lands on a bar.
+                    if series == .burned, let usualTotal {
+                        HStack(spacing: 6) {
+                            HStack(spacing: 2) {
+                                ForEach(0..<3, id: \.self) { _ in
+                                    Capsule().fill(ForgeColor.secondary).frame(width: 4, height: 1.5)
+                                }
+                            }
+                            Text("Usual day \(kcal(usualTotal)) kcal")
+                                .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
                     Text("Tap a day to open it.").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
                 }
             }
@@ -609,14 +623,27 @@ struct ForgeEnergyRing: View {
             .accessibilityHidden(true)
             arc(from: 0, to: restFraction, color: StrandPalette.forgeEnergyResting)
             arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.forgeEnergyActive)
-            VStack(spacing: 0) {
-                Text(verbatim: totalText)
-                    .font(ForgeFont.rounded(compact ? 21 : 36, .bold)).foregroundStyle(ForgeColor.text)
-                    .lineLimit(1).minimumScaleFactor(0.6).monospacedDigit()
-                    .contentTransition(.numericText())
-                Text(verbatim: "kcal").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+            if total == nil, compact {
+                // The tile says it in a sentence beside the ring; the ring holds only the flame.
+                Image(systemName: "flame.fill").font(.system(size: 26))
+                    .foregroundStyle(StrandPalette.forgeEnergyActive.opacity(0.45))
+            } else if total == nil {
+                // Nothing measured yet: words in the ring rather than a dash over "kcal".
+                Text("No data yet")
+                    .font(compact ? ForgeFont.caption : .system(.subheadline, weight: .semibold))
+                    .foregroundStyle(ForgeColor.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, line + 6)
+            } else {
+                VStack(spacing: 0) {
+                    Text(verbatim: totalText)
+                        .font(ForgeFont.rounded(compact ? 21 : 36, .bold)).foregroundStyle(ForgeColor.text)
+                        .lineLimit(1).minimumScaleFactor(0.6).monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text(verbatim: "kcal").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                }
+                .padding(.horizontal, line + 6)
             }
-            .padding(.horizontal, line + 6)
         }
         .padding(line / 2)
         .revealWhenVisible {

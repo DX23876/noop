@@ -1,4 +1,9 @@
 {
+  "Nothing recorded today yet.": "Dziś jeszcze nic nie zarejestrowano.",
+  "No wearable data for this day — this is your estimated basal rate, not a measurement.": "Brak danych z urządzenia dla tego dnia — to Twoja szacowana przemiana podstawowa, a nie pomiar.",
+  "Estimated from steps: no device recorded energy on this day.": "Oszacowano na podstawie kroków: tego dnia żadne urządzenie nie zarejestrowało energii.",
+  "Estimated from your logged sessions and steps: no device recorded energy on this day.": "Oszacowano na podstawie zapisanych sesji i kroków: tego dnia żadne urządzenie nie zarejestrowało energii.",
+  "Mostly estimated — very little of this day was recorded.": "W większości oszacowane — tego dnia zarejestrowano bardzo mało danych.",
   "About a usual day": "Mniej więcej typowy dzień",
   "%@ kcal short of a usual day": "%@ kcal mniej niż w typowy dzień",
   "%@ kcal past a usual day": "%@ kcal więcej niż w typowy dzień",

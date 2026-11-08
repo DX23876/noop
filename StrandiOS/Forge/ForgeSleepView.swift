@@ -225,7 +225,9 @@ struct ForgeSleepView: View {
         let cal = Calendar.current
         let tomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date())) ?? Date()
         let minutes = WindDownNudge.wakeMinutes(forWeekday: cal.component(.weekday, from: tomorrow))
-        return String(format: "%02d:%02d", minutes / 60, minutes % 60)
+        // In the reader's clock, as the bedtime above it: "7:00 AM" beside "11:00 PM", not "07:00".
+        let wake = cal.date(byAdding: .minute, value: minutes, to: cal.startOfDay(for: tomorrow)) ?? tomorrow
+        return wake.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.activeLocale))
     }
 
     /// "Sat to Sun": the two weekdays the night spans.

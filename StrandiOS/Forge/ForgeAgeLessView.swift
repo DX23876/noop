@@ -272,8 +272,10 @@ struct ForgeAgeLine: View {
                 Text("actual").font(.system(.caption2)).foregroundStyle(ForgeColor.secondary).fixedSize()
                     .position(x: x(actual), y: mid + 24)
                 if let projected {
+                    // On the same line as "actual" unless the two words would touch; then one row lower.
+                    let crowded = abs(x(projected) - x(actual)) < 80
                     Text("in 6 months").font(.system(.caption2)).foregroundStyle(ForgeColor.secondary).fixedSize()
-                        .position(x: x(projected), y: mid + 38)
+                        .position(x: min(max(x(projected), 36), w - 36), y: mid + (crowded ? 38 : 24))
                 }
             }
         }

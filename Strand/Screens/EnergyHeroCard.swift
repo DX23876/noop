@@ -352,24 +352,30 @@ struct EnergyHeroCard: View {
     /// Same wording, same rules as the Today card — including the one that stops NOOP blaming a
     /// strap that simply has not synced (`EnergyCard.unmeasuredNote`).
     var qualityNote: LocalizedStringKey? {
+        // A past day is "this day", not "today": the card also shows any day picked from the history.
+        let past = summary.day != Repository.localDayKey(Date())
         switch summary.source {
         case .profileOnly:
             return EnergyCard.unmeasuredNote(
-                base: "No wearable data for today yet — this is your estimated basal rate, not a measurement.",
+                base: past ? "No wearable data for this day — this is your estimated basal rate, not a measurement."
+                           : "No wearable data for today yet — this is your estimated basal rate, not a measurement.",
                 strapPaired: strapSync.paired, lastStrapSync: strapSync.lastSync, day: summary.day)
         case .stepsEstimate:
             return EnergyCard.unmeasuredNote(
-                base: "Estimated from steps: no device recorded energy today.",
+                base: past ? "Estimated from steps: no device recorded energy on this day."
+                           : "Estimated from steps: no device recorded energy today.",
                 strapPaired: strapSync.paired, lastStrapSync: strapSync.lastSync, day: summary.day)
         case .loggedActivity:
             return EnergyCard.unmeasuredNote(
-                base: "Estimated from your logged sessions and steps: no device recorded energy today.",
+                base: past ? "Estimated from your logged sessions and steps: no device recorded energy on this day."
+                           : "Estimated from your logged sessions and steps: no device recorded energy today.",
                 strapPaired: strapSync.paired, lastStrapSync: strapSync.lastSync, day: summary.day)
         case .appleSplit, .strapWornTime, .mixed:
             switch summary.confidence {
             case .solid:       return nil
             case .building:    return "Partly estimated — your device didn't cover the whole day."
-            case .calibrating: return "Mostly estimated — very little of today was recorded."
+            case .calibrating: return past ? "Mostly estimated — very little of this day was recorded."
+                                           : "Mostly estimated — very little of today was recorded."
             }
         }
     }

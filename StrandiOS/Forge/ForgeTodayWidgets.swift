@@ -810,8 +810,15 @@ struct ForgeEnergyWidget: View {
                                         totalText: ForgeEnergyView.plainTotal(summary), selectedDay: summary.day, compact: true)
                             .frame(width: 104, height: 104)
                         VStack(alignment: .leading, spacing: 6) {
-                            figure(StrandPalette.forgeEnergyResting, String(localized: "Resting"), summary.basalBurnedSoFar)
-                            figure(StrandPalette.forgeEnergyActive, String(localized: "Active"), summary.activeBurnedSoFar)
+                            if summary.totalBurnedSoFar == nil {
+                                // Before the first sync of the day: one sentence, not two rows of dashes.
+                                Text("Nothing recorded today yet.")
+                                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else {
+                                figure(StrandPalette.forgeEnergyResting, String(localized: "Resting"), summary.basalBurnedSoFar)
+                                figure(StrandPalette.forgeEnergyActive, String(localized: "Active"), summary.activeBurnedSoFar)
+                            }
                             if let eaten { figure(ForgeColor.charge, String(localized: "Eaten"), eaten) }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

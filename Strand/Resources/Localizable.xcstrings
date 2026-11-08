@@ -1,6 +1,296 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Nothing recorded today yet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute noch nichts erfasst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay nada registrado hoy."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien d'enregistré aujourd'hui pour l'instant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nulla registrato oggi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dziś jeszcze nic nie zarejestrowano."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda nada registado hoje."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодня пока ничего не записано."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天还没有记录。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天還沒有記錄。"
+          }
+        }
+      }
+    },
+    "No wearable data for this day — this is your estimated basal rate, not a measurement." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Wearable-Daten für diesen Tag — das ist dein geschätzter Grundumsatz, keine Messung."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay datos del dispositivo para este día: esta es tu tasa basal estimada, no una medición."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée de l'appareil pour ce jour : il s'agit de votre taux basal estimé, pas d'une mesure."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato dal dispositivo per questo giorno: questo è il tuo tasso basale stimato, non una misurazione."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak danych z urządzenia dla tego dnia — to Twoja szacowana przemiana podstawowa, a nie pomiar."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não há dados do dispositivo para este dia — esta é a tua taxa basal estimada, não uma medição."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет данных с устройства за этот день — это ваш расчётный базовый обмен, а не измерение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一天没有可穿戴设备数据——这是你的估算基础代谢率，并非实测值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這一天沒有穿戴裝置資料——這是你的估算基礎代謝率，並非實測值。"
+          }
+        }
+      }
+    },
+    "Estimated from steps: no device recorded energy on this day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geschätzt aus Schritten: An diesem Tag wurde von keinem Gerät Energie erfasst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado a partir de los pasos: ese día ningún dispositivo registró energía."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimé à partir des pas : aucun appareil n'a enregistré d'énergie ce jour-là."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimato dai passi: quel giorno nessun dispositivo ha registrato energia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oszacowano na podstawie kroków: tego dnia żadne urządzenie nie zarejestrowało energii."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado a partir dos passos: nesse dia nenhum dispositivo registou energia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценка по количеству шагов: в этот день ни одно устройство не зафиксировало расход энергии."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据步数估算：这一天没有设备记录能量消耗。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據步數估算：這一天沒有裝置記錄能量消耗。"
+          }
+        }
+      }
+    },
+    "Estimated from your logged sessions and steps: no device recorded energy on this day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus deinen protokollierten Einheiten und Schritten geschätzt: An diesem Tag hat kein Gerät Energie aufgezeichnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado a partir de tus sesiones y pasos registrados: ese día ningún dispositivo registró energía."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimation basée sur vos séances et vos pas enregistrés : aucun appareil n’a mesuré l’énergie ce jour-là."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimato dalle sessioni e dai passi registrati: quel giorno nessun dispositivo ha rilevato energia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oszacowano na podstawie zapisanych sesji i kroków: tego dnia żadne urządzenie nie zarejestrowało energii."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimado a partir das sessões e dos passos registados: nenhum dispositivo registou energia nesse dia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оценка по записанным тренировкам и шагам: в этот день ни одно устройство не записало расход энергии."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据已记录的训练和步数估算：这一天没有设备记录能量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據已記錄的訓練和步數估算：這一天沒有裝置記錄能量。"
+          }
+        }
+      }
+    },
+    "Mostly estimated — very little of this day was recorded." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Größtenteils geschätzt — von diesem Tag wurde nur sehr wenig erfasst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mayormente estimado: ese día se registró muy poco."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Principalement estimé : très peu de données ont été enregistrées ce jour-là."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per lo più stimato: quel giorno è stato registrato pochissimo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W większości oszacowane — tego dnia zarejestrowano bardzo mało danych."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maioritariamente estimado — nesse dia foi registado muito pouco."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В основном оценено — в этот день зафиксировано очень мало данных."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大部分为估算——这一天记录的数据很少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大部分為估算——這一天記錄的資料很少。"
+          }
+        }
+      }
+    },
     "About a usual day" : {
       "localizations" : {
         "de" : {
@@ -488950,55 +489240,55 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "travel"
+            "value" : "Travel"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "viaje"
+            "value" : "Viaje"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "voyage"
+            "value" : "Voyage"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "viagem"
+            "value" : "Viaggio"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "viagem"
+            "value" : "Podróż"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "viagem"
+            "value" : "Viagem"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "viagem"
+            "value" : "Поездка"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "viagem"
+            "value" : "出行"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "viagem"
+            "value" : "出行"
           }
         }
       }
