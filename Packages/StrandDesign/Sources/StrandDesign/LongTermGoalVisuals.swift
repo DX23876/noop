@@ -588,9 +588,11 @@ public struct InsightRow: View {
             HStack(alignment: .center, spacing: NoopMetrics.space3) {
                 Image(systemName: icon)
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(StrandPalette.accent)
+                    .foregroundStyle(StrandPalette.controlStyle)
                     .frame(width: 32, height: 32)
-                    .background(Circle().fill(StrandPalette.accent.opacity(0.12)))
+                    .background(Circle().fill(NoopVisualStyle.skin == .forge
+                                              ? AnyShapeStyle(.tint.opacity(0.12))
+                                              : AnyShapeStyle(StrandPalette.accent.opacity(0.12))))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: NoopMetrics.spaceHalf) {
                     Text(verbatim: title)

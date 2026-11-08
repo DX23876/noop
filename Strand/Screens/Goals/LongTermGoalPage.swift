@@ -90,7 +90,7 @@ struct LongTermGoalPage: View {
                 VStack(alignment: .leading, spacing: NoopMetrics.space6) {
                     VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                         if NoopVisualStyle.skin == .forge {
-                            forgeHero(content)
+                            forgeHero(content, snapshot: snapshot)
                         } else {
                             LongTermGoalHero(snapshot: snapshot, content: content)
                         }
@@ -139,12 +139,22 @@ struct LongTermGoalPage: View {
     }
 
     /// The new design's head: the goal's name, where it stands, the figure that answers it, its facts.
-    private func forgeHero(_ content: LongTermGoalContent) -> some View {
+    private func forgeHero(_ content: LongTermGoalContent, snapshot: GoalTrackingSnapshot) -> some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(content.title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(content.style.wordText).font(StrandFont.footnote).foregroundStyle(content.style.tone.color)
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(content.title).font(StrandFont.title1).foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(content.style.wordText).font(StrandFont.footnote).foregroundStyle(content.style.tone.color)
+                }
+                Spacer(minLength: 0)
+                #if os(iOS)
+                // The goal's picture in its own colour, as every page head carries one.
+                CoachPicture(main: GoalCatalog.template(for: snapshot.goal)?.icon ?? snapshot.goal.kind.icon,
+                             accentA: "flag.fill", accentB: "sparkle",
+                             tint: CoachIconColors.color(for: "coach.goal.\(snapshot.goal.kind.rawValue)"))
+                    .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
+                #endif
             }
             HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
                 Text(content.heroValue)
@@ -279,7 +289,7 @@ struct LongTermGoalPage: View {
                     Text(action.label).font(StrandFont.footnote.weight(.semibold))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(StrandPalette.accent)
+                .foregroundStyle(StrandPalette.controlStyle)
             }
         }
         .padding(.horizontal, NoopMetrics.space1)
@@ -373,7 +383,7 @@ struct LongTermGoalPage: View {
 
     private func manageRow(_ title: LocalizedStringKey, icon: String, chevron: Bool = false) -> some View {
         HStack(spacing: NoopMetrics.space3) {
-            Image(systemName: icon).foregroundStyle(StrandPalette.accent).frame(width: 32).accessibilityHidden(true)
+            Image(systemName: icon).foregroundStyle(StrandPalette.controlStyle).frame(width: 32).accessibilityHidden(true)
             Text(title).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
             Spacer(minLength: NoopMetrics.space2)
             if chevron {
