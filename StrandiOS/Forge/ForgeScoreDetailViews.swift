@@ -463,17 +463,34 @@ struct ForgeWhyRow: View {
     /// The wearer's usual range on the same 0 to 100 track, drawn as a band behind the dot.
     var band: ClosedRange<Double>? = nil
 
+    // Driver labels come from the analytics package in English; the catalog carries their translations.
+    private var labelText: some View {
+        Text(LocalizedStringKey(label)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+    }
+
+    private var valueText: some View {
+        Text(value).font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text).lineLimit(1).fixedSize()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                // Driver labels come from the analytics package in English; the catalog carries their translations.
-                // The label wraps before the figure shrinks: a value cut to "14…" says nothing.
-                Text(LocalizedStringKey(label)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                Text(value).font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text)
-                    .lineLimit(1).fixedSize().layoutPriority(1)
-                ForgeDirection(delta: delta).frame(minWidth: 64, alignment: .trailing)
+            // Label, value and direction on one line when they fit; otherwise the label takes its own line
+            // above the value, so neither is cut ("14…" or "Sk i…" both said nothing).
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    labelText.fixedSize()
+                    Spacer(minLength: 8)
+                    valueText
+                    ForgeDirection(delta: delta)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    labelText.fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        valueText
+                        Spacer(minLength: 8)
+                        ForgeDirection(delta: delta)
+                    }
+                }
             }
             if let track {
                 GeometryReader { geo in
