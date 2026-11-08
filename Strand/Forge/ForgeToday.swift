@@ -130,14 +130,28 @@ enum ForgeToday {
 
     /// `ChargeDrivers` writes its read-outs in fixed English ("15.3 br/min", "-0.2 C vs baseline") because
     /// tests and the coach read them. These turn one into what a screen prints: the reader's decimal mark,
-    /// plain units and "usual" instead of "baseline".
-    static func driverValue(_ text: String, locale: Locale = AppLanguage.activeLocale) -> String {
-        var out = localizedDecimals(text, locale: locale).replacingOccurrences(of: "br/min", with: "/min")
-        if out.hasSuffix(" C vs baseline") {
-            out = String(out.dropLast(" C vs baseline".count))
-            return String(localized: "\(out) °C vs usual")
+    /// plain units, "usual" instead of "baseline", and a skin-temperature deviation in the reader's unit
+    /// (the engine's text is Celsius-only by contract, so a Fahrenheit reader used to see °C here). The
+    /// deviation is converted from the engine's one-decimal figure, the same `skinTempDeviationFigure` the
+    /// classic Charge breakdown uses.
+    static func driverValue(_ text: String, locale: Locale = AppLanguage.activeLocale,
+                            temperatureUnit: TemperatureUnit = readerTemperatureUnit) -> String {
+        if text.hasSuffix(" C vs baseline"),
+           let celsius = Double(text.dropLast(" C vs baseline".count)) {
+            let figure = localizedDecimals(
+                ChargeBreakdownFormat.skinTempDeviationFigure(celsius, unit: temperatureUnit), locale: locale)
+            return String(localized: "\(figure) vs usual")
         }
-        return out
+        return localizedDecimals(text, locale: locale).replacingOccurrences(of: "br/min", with: "/min")
+    }
+
+    /// The reader's temperature unit, resolved the way every screen resolves it (explicit override when
+    /// set, else from the unit system). Read from the store because this is not a View.
+    static var readerTemperatureUnit: TemperatureUnit {
+        let defaults = UserDefaults.standard
+        let system = UnitSystem(rawValue: defaults.string(forKey: UnitPrefs.systemKey) ?? "") ?? .metric
+        return UnitPrefs.resolveTemperature(system: system,
+                                            override: defaults.string(forKey: UnitPrefs.temperatureKey) ?? "")
     }
 
     /// "75 ms baseline" as "usually 75 ms".
