@@ -12,6 +12,7 @@ struct FoodDataSettingsView: View {
     @AppStorage(FoodProductDataPrefs.unknownBarcodesOnlineKey) private var unknownBarcodesOnline = false
     @AppStorage(FoodHealthSync.enabledKey) private var writeHealth = true
     @AppStorage(FoodEstimate.enabledKey) private var estimateMissing = false
+    @AppStorage(FoodScore.enabledKey) private var showScore = false
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var packs = FoodPacksModel()
     @AppStorage(FoodTargets.Keys.calories) private var fixedKcal = 0.0
@@ -63,6 +64,13 @@ struct FoodDataSettingsView: View {
                     Toggle("Write meals to Apple Health", isOn: $writeHealth)
                 } footer: {
                     Text("Each meal goes to Apple Health with its nutrients. Forge does not read its own meals back, so nothing is counted twice.")
+                }
+                Section {
+                    Toggle("Nutrition score", isOn: $showScore)
+                } header: {
+                    Text("Lab")
+                } footer: {
+                    Text("A score for the last seven days from a widely used healthy eating index: vegetables, fruit, whole grains, nuts and pulses, fish, fats, salt, sweet drinks, red meat and alcohol. It needs five logged days of seven. It describes habits, not a single day.")
                 }
                 Section("Sources") {
                     Text("German Nutrient Database (Bundeslebensmittelschlüssel) 4.0, Max Rubner-Institut, CC BY 4.0.")

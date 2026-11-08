@@ -2085,6 +2085,11 @@ extension WhoopStore {
         migrator.registerMigration("v86-food-log") { db in
             try WhoopStore.createFoodLogTables(db)
         }
+        // A meal photographed for the coach keeps its photo (decision 2026-11-08): the file lives in the app's
+        // own folder, outside the database and outside backups; the entry only names it.
+        migrator.registerMigration("v87-food-photo") { db in
+            try db.alter(table: "foodLogEntry") { t in t.add(column: "photoId", .text) }
+        }
         return migrator
     }
 }

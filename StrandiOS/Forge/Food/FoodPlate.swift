@@ -19,11 +19,11 @@ struct FoodPlate: View {
     var body: some View {
         ZStack {
             GlowRing(fraction: goal.map { eaten / max(1, $0) } ?? 0, value: 0, format: Self.blank,
-                     color: ForgeColor.food, diameter: Self.outer.diameter, lineWidth: Self.outer.line)
+                     color: ForgeColor.food, diameter: Self.outer.diameter, lineWidth: Self.outer.line, overflow: true)
                 .shadow(color: ForgeColor.food.opacity(0.55), radius: 12)
             ForEach(Array(macros.enumerated()), id: \.offset) { index, macro in
                 GlowRing(fraction: macro.share, value: 0, format: Self.blank, color: macro.tint,
-                         diameter: Self.inner[index], lineWidth: Self.innerLine)
+                         diameter: Self.inner[index], lineWidth: Self.innerLine, overflow: true)
                     .shadow(color: macro.tint.opacity(0.5), radius: 8)
             }
             centre

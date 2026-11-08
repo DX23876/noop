@@ -87,15 +87,15 @@ public enum FoodLog {
 
     /// A new entry for `grams` of `item`, eaten at `at`. Pure, so the arithmetic is testable on its own.
     public static func entry(for item: FoodItem, grams: Double, at: Date, origin: FoodLogEntry.Origin,
-                             portionLabel: String? = nil, meal: MealKind? = nil, id: String = UUID().uuidString,
-                             now: Date = Date()) -> FoodLogEntry {
+                             portionLabel: String? = nil, meal: MealKind? = nil, photoId: String? = nil,
+                             id: String = UUID().uuidString, now: Date = Date()) -> FoodLogEntry {
         let stamp = Int(now.timeIntervalSince1970)
         return FoodLogEntry(
             id: id, loggedAt: Int(at.timeIntervalSince1970), day: StoreReader.localDayKey(at), meal: meal?.rawValue,
             foodId: item.id, name: item.name, brand: item.brand, grams: grams, portionLabel: portionLabel,
             per100g: item.per100g.stored, totals: item.per100g.scaled(toGrams: grams).stored, origin: origin,
             recipeId: item.source == .recipe ? String(item.id.dropFirst("recipe:".count)) : nil,
-            createdAt: stamp, updatedAt: stamp, estimatedKeys: item.estimatedKeys ?? [])
+            createdAt: stamp, updatedAt: stamp, estimatedKeys: item.estimatedKeys ?? [], photoId: photoId)
     }
 
     /// A calorie figure without a food ("about 600 kcal at the canteen").
@@ -136,8 +136,15 @@ public enum FoodLog {
     }
 
     @discardableResult
-    public static func delete(store: WhoopStore, ids: [String]) async -> [FoodLogEntry] {
-        (try? await store.deleteFoodLogEntries(ids: ids)) ?? []
+    public static func delete(store: WhoopStore, ids: [String],
+                              photos: FoodPhotoStore? = FoodPhotoStore.appDefault) async -> [FoodLogEntry] {
+        let removed = (try? await store.deleteFoodLogEntries(ids: ids)) ?? []
+        // A photo goes with the last entry that names it; copies on other days keep it alive.
+        let named = Set(removed.compactMap(\.photoId))
+        if let photos, !named.isEmpty, let inUse = try? await store.foodPhotoIdsInUse(named) {
+            for id in named.subtracting(inUse) { photos.remove(id) }
+        }
+        return removed
     }
 
     /// Copies of entries on other days at the same time of day, as new entries without Health records.

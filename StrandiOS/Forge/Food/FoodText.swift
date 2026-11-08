@@ -102,5 +102,81 @@ enum FoodText {
         }
         return String(localized: "\(count) vitamins and minerals are taken from a similar food in the German Nutrient Database.")
     }
+
+    // MARK: Evening sentence and score
+
+    /// One short sentence per observation, the good one first ("Plenty of protein. Salt on the high side.").
+    static func sentence(_ points: [FoodDaySentence.Point]) -> String {
+        points.map(phrase).joined(separator: " ")
+    }
+
+    private static func phrase(_ p: FoodDaySentence.Point) -> String {
+        switch (p.nutrient, p.plenty) {
+        case (.proteinG, true): String(localized: "Plenty of protein today.")
+        case (.proteinG, false): String(localized: "Protein on the low side.")
+        case (.fiberG, true): String(localized: "Plenty of fibre today.")
+        case (.fiberG, false): String(localized: "Fibre on the low side.")
+        case (.satFatG, _): String(localized: "Quite a lot of saturated fat.")
+        case (.sugarG, _): String(localized: "Quite a lot of sugar.")
+        case (.saltG, _): String(localized: "Salt on the high side.")
+        default: ""
+        }
+    }
+
+    static func component(_ c: FoodScore.Component) -> String {
+        switch c {
+        case .vegetables: String(localized: "Vegetables")
+        case .fruit: String(localized: "Fruit")
+        case .wholeGrains: String(localized: "Whole grains")
+        case .sugaryDrinks: String(localized: "Sweet drinks and juice")
+        case .nutsLegumes: String(localized: "Nuts and pulses")
+        case .redMeat: String(localized: "Red and processed meat")
+        case .fishOmega3: String(localized: "Omega-3 from fish")
+        case .polyFats: String(localized: "Fats from plant oils and nuts")
+        case .sodium: String(localized: "Salt")
+        case .alcohol: String(localized: "Alcohol")
+        }
+    }
+
+    /// What earns the full points, in everyday words.
+    static func componentGoal(_ c: FoodScore.Component, male: Bool) -> String {
+        switch c {
+        case .vegetables: String(localized: "Full points from 5 portions a day")
+        case .fruit: String(localized: "Full points from 4 portions a day")
+        case .wholeGrains: male ? String(localized: "Full points from 90 g a day") : String(localized: "Full points from 75 g a day")
+        case .sugaryDrinks: String(localized: "Full points with none")
+        case .nutsLegumes: String(localized: "Full points from 1 portion a day")
+        case .redMeat: String(localized: "Full points with none")
+        case .fishOmega3: String(localized: "Full points from about two fish meals a week")
+        case .polyFats: String(localized: "Full points from a tenth of your calories")
+        case .sodium: String(localized: "Full points up to about 4 g salt a day")
+        case .alcohol: String(localized: "Full points with none")
+        }
+    }
+
+    /// The week's daily amount in the component's everyday unit.
+    static func componentAmount(_ part: FoodScore.Part) -> String {
+        let a = part.amountPerDay
+        func one(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(0...1)).locale(AppLanguage.activeLocale)) }
+        switch part.component {
+        case .vegetables, .fruit, .sugaryDrinks, .nutsLegumes, .redMeat:
+            return String(localized: "\(one(a)) portions a day")
+        case .wholeGrains: return String(localized: "\(grams(a)) g a day")
+        case .fishOmega3: return String(localized: "\(kcal(a)) mg a day")
+        case .polyFats: return String(localized: "\(one(a)) % of calories")
+        case .sodium: return String(localized: "\(one(a * 2.5 / 1_000)) g salt a day")
+        case .alcohol: return String(localized: "\(one(a)) drinks a day")
+        }
+    }
+
+    /// The score in words, so the number is never the only reading.
+    static func scoreWord(_ score: Double) -> String {
+        switch score {
+        case ..<40: String(localized: "Room to grow")
+        case ..<60: String(localized: "Fair")
+        case ..<75: String(localized: "Good")
+        default: String(localized: "Very good")
+        }
+    }
 }
 #endif

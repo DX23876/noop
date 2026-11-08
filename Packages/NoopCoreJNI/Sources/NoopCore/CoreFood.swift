@@ -11,15 +11,29 @@ enum CoreFood {
     struct EntryWire: Codable {
         var id: String, loggedAt: Int, day: String, meal: String?, foodId: String?, name: String, brand: String?
         var grams: Double?, portionLabel: String?, per100g: FoodNutrientValues?, totals: FoodNutrientValues
-        var origin: String, recipeId: String?, healthId: String?
+        var origin: String, recipeId: String?, healthId: String?, photoId: String?
 
         init(_ e: FoodLogEntry) {
             id = e.id; loggedAt = e.loggedAt; day = e.day; meal = e.meal; foodId = e.foodId; name = e.name; brand = e.brand
             grams = e.grams; portionLabel = e.portionLabel; per100g = e.per100g; totals = e.totals
-            origin = e.origin.rawValue; recipeId = e.recipeId; healthId = e.healthId
+            origin = e.origin.rawValue; recipeId = e.recipeId; healthId = e.healthId; photoId = e.photoId
         }
     }
-    struct MealWire: Codable { var kind: String; var start: Int; var entries: [EntryWire]; var totals: NutrientAmounts }
+    /// `motif` names the still life the meal card shows (`FoodGroupMotif`), nil without one.
+    struct MealWire: Codable { var kind: String; var start: Int; var entries: [EntryWire]; var totals: NutrientAmounts; var motif: String? }
+    struct WeekDayWire: Codable { var day: String; var totals: NutrientAmounts }
+    struct WeekWire: Encodable { var days: [WeekDayWire]; var loggedDays: Int; var score: FoodScore.Result? }
+    struct HabitWire: Encodable { var kind: String; var days: Int; var entries: [EntryWire]; var motif: String? }
+    struct PointWire: Encodable { var nutrient: String; var plenty: Bool; var watch: Bool }
+
+    /// Stored groups of foods whose id does not carry one, for the meal pictures.
+    static func groups(_ entries: [FoodLogEntry], store: WhoopStore) async -> [String: String] {
+        var out: [String: String] = [:]
+        for id in Set(entries.compactMap(\.foodId)) where FoodGroupMotif.forFoodId(id) == nil {
+            if let group = await FoodLibrary.item(store: store, id: id)?.group { out[id] = group }
+        }
+        return out
+    }
     struct DayWire: Codable { var day: String; var meals: [MealWire]; var totals: NutrientAmounts; var otherKcal: Double?; var otherSource: String? }
     struct RecentWire: Codable { var item: FoodItem; var lastGrams: Double? }
 
@@ -65,10 +79,51 @@ enum CoreFood {
         case "food.day":
             let summary = await FoodLog.day(store: store, string("day"))
             let other = await FoodLog.otherIntake(store: store, string("day"))
+            let groups = await groups(summary.entries, store: store)
             return CoreRead.json(DayWire(day: summary.day, meals: summary.meals.map {
                 MealWire(kind: $0.kind.rawValue, start: Int($0.start.timeIntervalSince1970),
-                         entries: $0.entries.map(EntryWire.init), totals: $0.totals)
+                         entries: $0.entries.map(EntryWire.init), totals: $0.totals,
+                         motif: FoodGroupMotif.forMeal($0.entries, groups: groups)?.rawValue)
             }, totals: summary.totals, otherKcal: other?.kcal, otherSource: other?.source.rawValue))
+        case "food.week":
+            // The week strip and, behind the Lab switch, the week's nutrition score (`FoodScore`).
+            let days = FoodLog.weekDays(shown: string("day"), today: string("today"))
+            guard let first = days.first, let last = days.last else { return "null" }
+            let entries = (try? await store.foodLogEntries(from: first, to: last)) ?? []
+            let byDay = Dictionary(grouping: entries, by: \.day)
+            var score: FoodScore.Result?
+            if args["score"] as? Bool == true {
+                var facts: [String: FoodScore.FoodFacts] = [:]
+                for id in Set(entries.compactMap(\.foodId)) where !id.hasPrefix("bls:") {
+                    if let found = await FoodLibrary.item(store: store, id: id) { facts[id] = .init(group: found.group, nova: found.nova) }
+                }
+                let sex = string("sex").lowercased()
+                score = FoodScore.week(entries: entries, lastDay: last, facts: facts,
+                                       male: sex == "male" ? true : sex == "female" ? false : nil)
+            }
+            return CoreRead.json(WeekWire(days: days.map { day in
+                WeekDayWire(day: day, totals: .sum((byDay[day] ?? []).map { NutrientAmounts(stored: $0.totals) }))
+            }, loggedDays: byDay.count, score: score))
+        case "food.habit":
+            // "As usual": a meal eaten on several of the last days, offered at its time of day.
+            let today = string("day")
+            guard let todayDate = WeightSeries.date(forDay: today),
+                  let start = Calendar.current.date(byAdding: .day, value: -FoodRepeat.window, to: todayDate),
+                  let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: todayDate) else { return "null" }
+            let history = (try? await store.foodLogEntries(from: StoreReader.localDayKey(start), to: StoreReader.localDayKey(yesterday))) ?? []
+            let todayEntries = (try? await store.foodLogEntries(from: today, to: today)) ?? []
+            guard let habit = FoodRepeat.suggestion(history: history, todayEntries: todayEntries, today: today, now: date("now")) else { return "null" }
+            return CoreRead.json(HabitWire(kind: habit.kind.rawValue, days: habit.days, entries: habit.entries.map(EntryWire.init),
+                                           motif: FoodGroupMotif.forMeal(habit.entries, groups: await groups(habit.entries, store: store))?.rawValue))
+        case "food.sentence":
+            // The evening sentence's observations, against the same goals the plate and the nutrient card use.
+            let entries = (try? await store.foodLogEntries(from: string("day"), to: string("day"))) ?? []
+            let references = FoodReference.values(profileSex: string("sex"), age: (args["age"] as? Int) ?? 40,
+                                                  weightKg: double("weightKg"), heightCm: double("heightCm"),
+                                                  energyKcal: double("energyKcal"))
+            let points = FoodDaySentence.points(totals: .sum(entries.map { NutrientAmounts(stored: $0.totals) }),
+                                                proteinGoalG: double("proteinGoalG"), references: references)
+            return CoreRead.json(["points": points.map { PointWire(nutrient: $0.nutrient.rawValue, plenty: $0.plenty, watch: $0.watch) }])
         case "food.logCart":
             // The add sheet's and the coach's cart: every line becomes an entry in one save.
             let at = date("at")

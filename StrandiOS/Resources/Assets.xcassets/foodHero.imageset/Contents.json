@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "foodHeroLight.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "foodHero.heic",
       "idiom" : "universal"
     }

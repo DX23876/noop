@@ -22,10 +22,12 @@ struct FoodCartBar: View {
                         .font(.footnote)
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(ForgeColor.fill, in: .capsule)
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
             }
             .scrollIndicators(.hidden)
+            .animation(.smooth, value: cart.map(\.id))
             HStack {
                 FoodMealPicker(meal: $meal).labelsHidden()
                 DatePicker("Time", selection: $time, displayedComponents: [.hourAndMinute]).labelsHidden()

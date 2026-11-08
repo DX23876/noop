@@ -43,6 +43,35 @@ final class ForgeFoodModel {
     /// The shown day's measured burn; nil before the energy plan has loaded or beyond its window.
     var burned: Double? { _ = burnRevision; return burnedByDay[day] }
     var eatenKcal: Double { summary?.totals[.energyKcal] ?? 0 }
+    /// Stored groups of the shown day's foods whose id does not name one, for the meal pictures.
+    private(set) var groupsById: [String: String] = [:]
+    /// A meal eaten on several of the last days, offered again at its time of day (today only).
+    private(set) var habit: FoodRepeat.Suggestion?
+    /// Seven days for the week strip, oldest first, each with its totals (empty for a day without a log).
+    private(set) var week: [WeekDay] = []
+    /// The week's nutrition score; nil while the Lab switch is off or fewer than five days carry a log.
+    private(set) var score: FoodScore.Result?
+    /// Logged days in the score's window, for "after five logged days" while there is no score yet.
+    private(set) var scoreLoggedDays = 0
+    var scoreEnabled: Bool { UserDefaults.standard.bool(forKey: FoodScore.enabledKey) }
+
+    struct WeekDay: Equatable, Identifiable {
+        let day: String
+        let totals: NutrientAmounts
+        var id: String { day }
+        var logged: Bool { !totals.isEmpty }
+    }
+
+    /// The evening's observations for the shown day, read against the plate's and the card's goals. Empty
+    /// before 18:00 on today.
+    func sentence(now: Date = .now) -> [FoodDaySentence.Point] {
+        if isToday, Calendar.current.component(.hour, from: now) < FoodDaySentence.fromHour { return [] }
+        guard let totals = summary?.totals, !(summary?.entries.isEmpty ?? true) else { return [] }
+        return FoodDaySentence.points(totals: totals, proteinGoalG: macroGoals?.proteinG, references: references)
+    }
+
+    /// Bumped on every successful add, so the page can answer it with a tap of haptics.
+    private(set) var savedRevision = 0
 
     func load(repo: Repository, profile: UserProfile) async {
         guard let store = await repo.storeHandle() else { return }
@@ -59,10 +88,15 @@ final class ForgeFoodModel {
         calories = FoodTargets.calories(fixedKcal: UserDefaults.standard.double(forKey: FoodTargets.Keys.calories), plan: planned)
         burnedByDay = plan.burnedByDay
         burnRevision += 1
+        male = profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil
         references = FoodReference.values(profileSex: profile.sex, age: Int(profile.age), weightKg: profile.weightKg,
                                           heightCm: profile.heightCm, energyKcal: calories?.kcal)
         await reload(store: store)
         loaded = true
+        // Photos of carts that were never saved, once they are a day old.
+        if let photos = FoodPhotoStore.appDefault, let kept = try? await store.allFoodPhotoIds() {
+            Task.detached(priority: .utility) { photos.sweep(keeping: kept) }
+        }
     }
 
     /// After the goal settings changed.
@@ -75,11 +109,76 @@ final class ForgeFoodModel {
 
     private func reload(store: WhoopStore) async {
         summary = await FoodLog.day(store: store, day)
+        await resolveGroups(store: store)
+        await findHabit(store: store)
+        await loadWeek(store: store)
         otherIntake = await FoodLog.otherIntake(store: store, day)
         if !references.isEmpty {
             nutrients = await FoodNutrientReport.report(store: store, to: day, references: references)
             dayNutrients = FoodNutrientReport.report(entries: summary?.entries ?? [], from: day, to: day, references: references)
         }
+    }
+
+    /// Looks up the group of foods whose id does not carry it (products, own foods), once per food.
+    private func resolveGroups(store: WhoopStore) async {
+        let ids = Set((summary?.entries ?? []).compactMap(\.foodId))
+            .filter { FoodGroupMotif.forFoodId($0) == nil && groupsById[$0] == nil }
+        for id in ids {
+            if let group = await FoodLibrary.item(store: store, id: id)?.group { groupsById[id] = group }
+        }
+    }
+
+    /// The week strip ends today while the shown day is within its seven days, else on the shown day, so tapping
+    /// a day of the strip does not move the strip.
+    private func loadWeek(store: WhoopStore) async {
+        let days = FoodLog.weekDays(shown: day, today: Repository.localDayKey(.now))
+        guard let first = days.first, let last = days.last else { return }
+        let entries = (try? await store.foodLogEntries(from: first, to: last)) ?? []
+        let byDay = Dictionary(grouping: entries, by: \.day)
+        week = days.map { WeekDay(day: $0, totals: .sum((byDay[$0] ?? []).map { NutrientAmounts(stored: $0.totals) })) }
+        scoreLoggedDays = byDay.count
+        guard scoreEnabled else { score = nil; return }
+        var facts: [String: FoodScore.FoodFacts] = [:]
+        for id in Set(entries.compactMap(\.foodId)) where !id.hasPrefix("bls:") {
+            if let item = await FoodLibrary.item(store: store, id: id) { facts[id] = .init(group: item.group, nova: item.nova) }
+        }
+        score = FoodScore.week(entries: entries, lastDay: last, facts: facts, male: male)
+    }
+
+    /// From the profile; nil when it names neither, which takes the lower whole-grain and alcohol limits.
+    private(set) var male: Bool?
+
+    private func findHabit(store: WhoopStore) async {
+        guard isToday, let date = WeightSeries.date(forDay: day),
+              let start = Calendar.current.date(byAdding: .day, value: -FoodRepeat.window, to: date),
+              let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date) else { habit = nil; return }
+        let history = (try? await store.foodLogEntries(from: Repository.localDayKey(start),
+                                                       to: Repository.localDayKey(yesterday))) ?? []
+        let found = FoodRepeat.suggestion(history: history, todayEntries: summary?.entries ?? [], today: day, now: .now)
+        habit = found.flatMap { UserDefaults.standard.string(forKey: Self.habitDismissedKey) == Self.habitKey(day, $0.kind) ? nil : $0 }
+    }
+
+    private static let habitDismissedKey = "food.repeat.dismissed"
+    private static func habitKey(_ day: String, _ kind: FoodLog.MealKind) -> String { "\(day):\(kind.rawValue)" }
+
+    /// Logs the offered meal again, today at the time it was last eaten.
+    func logHabit(repo: Repository) async {
+        guard let habit else { return }
+        // Today's plate is not yesterday's photo: the copy shows the group's picture.
+        await copy(habit.entries.map { var entry = $0; entry.photoId = nil; return entry }, toDays: [day], repo: repo)
+    }
+
+    /// Hides the offer until the next meal time or the next day.
+    func dismissHabit() {
+        guard let habit else { return }
+        UserDefaults.standard.set(Self.habitKey(day, habit.kind), forKey: Self.habitDismissedKey)
+        self.habit = nil
+    }
+
+    /// The picture for a meal: its own photo, else the still life of its main food group.
+    func picture(for meal: FoodLog.Meal) -> FoodMealPicture.Source? {
+        if let id = meal.entries.lazy.compactMap(\.photoId).first { return .photo(id) }
+        return FoodGroupMotif.forMeal(meal.entries, groups: groupsById).map { .motif($0) }
     }
 
     /// Pins or unpins a nutrient on the Food page (at most four; the oldest pin gives way).
@@ -122,11 +221,13 @@ final class ForgeFoodModel {
         }
         let origin: FoodLogEntry.Origin = items.contains { $0.source == .recipe } ? .recipe : .search
         let entries = zip(lines, items).map { line, item in
-            FoodLog.entry(for: item, grams: line.grams, at: at, origin: origin, portionLabel: line.portionLabel, meal: meal)
+            FoodLog.entry(for: item, grams: line.grams, at: at, origin: origin, portionLabel: line.portionLabel, meal: meal,
+                          photoId: line.photoId)
         }
         guard await FoodLog.save(store: store, entries) else { return false }
         await FoodHealthSync.wrote(entries, store: store)
         await reload(store: store)
+        savedRevision += 1
         return true
     }
 
@@ -138,6 +239,7 @@ final class ForgeFoodModel {
         guard await FoodLog.save(store: store, [entry]) else { return false }
         await FoodHealthSync.wrote([entry], store: store)
         await reload(store: store)
+        savedRevision += 1
         return true
     }
 
@@ -161,6 +263,7 @@ final class ForgeFoodModel {
         guard await FoodLog.save(store: store, copies) else { return }
         await FoodHealthSync.wrote(copies, store: store)
         await reload(store: store)
+        savedRevision += 1
     }
 
     func makeRecipe(name: String, from entries: [FoodLogEntry], servings: Double, repo: Repository) async -> Bool {

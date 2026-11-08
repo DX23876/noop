@@ -24,7 +24,14 @@ object CoreFood {
         val per100g: Map<String, Double>?, val origin: String, val healthId: String?,
     )
 
-    data class Meal(val kind: String, val start: Long, val entries: List<Entry>, val totals: Map<String, Double>)
+    /** [motif] names the still life the meal card shows (`FoodGroupMotif`), null without one. */
+    data class Meal(val kind: String, val start: Long, val entries: List<Entry>, val totals: Map<String, Double>, val motif: String? = null)
+    data class WeekDay(val day: String, val totals: Map<String, Double>) { val logged get() = totals.isNotEmpty() }
+    data class ScorePart(val component: String, val points: Double, val amountPerDay: Double)
+    data class Score(val score: Double, val parts: List<ScorePart>, val loggedDays: Int, val processedShare: Double?)
+    data class Week(val days: List<WeekDay>, val loggedDays: Int, val score: Score?)
+    data class Habit(val kind: String, val days: Int, val entries: List<Entry>, val motif: String?)
+    data class SentencePoint(val nutrient: String, val plenty: Boolean, val watch: Boolean)
     data class Day(val day: String, val meals: List<Meal>, val totals: Map<String, Double>, val otherKcal: Double?, val otherSource: String?)
     data class Pack(val country: String, val iso: String, val rows: Int, val builtAt: String, val sha256: String)
     data class Label(val per100: Map<String, Double>, val servingAmount: Double?, val complete: Boolean)
@@ -96,7 +103,7 @@ object CoreFood {
         val meals = json.optJSONArray("meals") ?: JSONArray()
         return Day(json.optString("day"), (0 until meals.length()).mapNotNull { index ->
             val meal = meals.optJSONObject(index) ?: return@mapNotNull null
-            Meal(meal.optString("kind"), meal.optLong("start"), entries(meal), numbers(meal.optJSONObject("totals")))
+            Meal(meal.optString("kind"), meal.optLong("start"), entries(meal), numbers(meal.optJSONObject("totals")), meal.text("motif"))
         }, numbers(json.optJSONObject("totals")), json.number("otherKcal"), json.text("otherSource"))
     }
 
@@ -251,5 +258,37 @@ object CoreFood {
         brand?.let { json.put("brand", it) }; servingG?.let { json.put("servingG", it) }
         servingLabel?.let { json.put("servingLabel", it) }; barcode?.let { json.put("barcode", it) }
         return item(json)
+    }
+
+    /** The week strip's seven days and, when [withScore], the week's nutrition score (null below five logged days). */
+    fun week(day: String, today: String, withScore: Boolean, sex: String): Week? {
+        val json = call("food.week", JSONObject().put("day", day).put("today", today).put("score", withScore).put("sex", sex)) ?: return null
+        val days = json.optJSONArray("days") ?: JSONArray()
+        val score = json.optJSONObject("score")?.let { s ->
+            val parts = s.optJSONArray("parts") ?: JSONArray()
+            Score(s.optDouble("score"), (0 until parts.length()).mapNotNull { i ->
+                parts.optJSONObject(i)?.let { ScorePart(it.optString("component"), it.optDouble("points"), it.optDouble("amountPerDay")) }
+            }, s.optInt("loggedDays"), s.number("processedShare"))
+        }
+        return Week((0 until days.length()).mapNotNull { i ->
+            days.optJSONObject(i)?.let { WeekDay(it.optString("day"), numbers(it.optJSONObject("totals"))) }
+        }, json.optInt("loggedDays"), score)
+    }
+
+    /** "As usual": a meal eaten on several of the last days, offered at its time of day; null without one. */
+    fun habit(day: String, nowEpoch: Long): Habit? {
+        val json = call("food.habit", JSONObject().put("day", day).put("now", nowEpoch)) ?: return null
+        return Habit(json.optString("kind"), json.optInt("days"), entries(json), json.text("motif"))
+    }
+
+    /** The evening sentence's observations for [day], read against the same goals as the plate and the card. */
+    fun sentence(day: String, proteinGoalG: Double?, sex: String, age: Int, weightKg: Double?, heightCm: Double?, energyKcal: Double?): List<SentencePoint> {
+        val args = JSONObject().put("day", day).put("sex", sex).put("age", age)
+        proteinGoalG?.let { args.put("proteinGoalG", it) }; weightKg?.let { args.put("weightKg", it) }
+        heightCm?.let { args.put("heightCm", it) }; energyKcal?.let { args.put("energyKcal", it) }
+        val array = call("food.sentence", args)?.optJSONArray("points") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { i ->
+            array.optJSONObject(i)?.let { SentencePoint(it.optString("nutrient"), it.optBoolean("plenty"), it.optBoolean("watch")) }
+        }
     }
 }

@@ -19,6 +19,7 @@ struct FoodPlateLegend: View {
                         Text(macro.goal.map { "/ \(FoodText.grams($0)) g" } ?? "g").font(.footnote).foregroundStyle(ForgeColor.secondary)
                     }
                     .monospacedDigit()
+                    .animation(.smooth, value: macro.grams)
                 }
                 .frame(maxWidth: .infinity)
                 .accessibilityElement(children: .combine)

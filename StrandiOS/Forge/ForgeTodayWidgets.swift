@@ -654,17 +654,24 @@ struct ForgeMeasureWidget: View {
     }
 }
 
-/// Today's energy as the shipped Energy card draws it.
+/// Today's energy: what was eaten against what the day has burned so far, as one ring with the two figures beside
+/// it. Eaten comes from the food log as on the Food page, burned from the same energy summary the Food page reads,
+/// so the tile and the page never show two different numbers.
 struct ForgeEnergyWidget: View {
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
     @State private var summary: DailyEnergySummary?
+    @State private var eaten: Double?
+    /// Burned so far on the calendar day, keyed as the Food page keys it.
+    @State private var burned: Double?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Energy").font(.system(.headline)).foregroundStyle(ForgeColor.text).padding(.horizontal, 2)
             NavigationLink(value: TabRoute.energy) {
-                if let summary {
+                if let burned, let eaten {
+                    balance(eaten: eaten, burned: burned)
+                } else if let summary {
                     EnergyCard(summary: summary, compact: true, showsTitle: false)
                 } else {
                     HStack(spacing: 8) {
@@ -679,8 +686,34 @@ struct ForgeEnergyWidget: View {
         }
         .task(id: repo.refreshSeq) {
             let today = Repository.logicalDayKey(Date())
-            summary = await repo.energySummaries(days: 3, profile: Repository.analyticsProfile(profile)).first { $0.day == today }
+            let summaries = await repo.energySummaries(days: 3, profile: Repository.analyticsProfile(profile))
+            summary = summaries.first { $0.day == today }
+            burned = summaries.first { $0.day == Repository.localDayKey(.now) }?.totalBurnedSoFar
+            if let store = await repo.storeHandle() {
+                let day = await FoodLog.day(store: store, Repository.localDayKey(.now))
+                eaten = day.entries.isEmpty ? nil : day.totals[.energyKcal] ?? 0
+            }
         }
+    }
+
+    private func balance(eaten: Double, burned: Double) -> some View {
+        let gap = burned - eaten
+        return HStack(spacing: 16) {
+            GlowRing(fraction: eaten / max(1, burned), value: 0, format: { _ in "" }, color: ForgeColor.food,
+                     diameter: 64, lineWidth: 9, overflow: true)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 24) {
+                    FoodEnergyFigure(title: String(localized: "Eaten"), value: FoodText.kcal(eaten))
+                    FoodEnergyFigure(title: String(localized: "Burned so far"), value: FoodText.kcal(burned))
+                }
+                Text(gap >= 0 ? "\(FoodText.kcal(gap)) kcal less than burned so far"
+                              : "\(FoodText.kcal(-gap)) kcal more than burned so far")
+                    .font(.footnote).foregroundStyle(ForgeColor.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .accessibilityElement(children: .combine)
     }
 }
 

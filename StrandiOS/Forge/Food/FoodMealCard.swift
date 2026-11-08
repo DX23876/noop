@@ -6,6 +6,7 @@ import WhoopStore
 /// One meal: its name, time and calories, a menu for the whole meal, and its entries.
 struct FoodMealCard: View {
     let meal: FoodLog.Meal
+    var picture: FoodMealPicture.Source? = nil
     let onEdit: (FoodLogEntry) -> Void
     let onCopy: ([FoodLogEntry]) -> Void
     let onRecipe: ([FoodLogEntry]) -> Void
@@ -13,6 +14,9 @@ struct FoodMealCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if let picture {
+                FoodMealPicture(source: picture).padding(.bottom, 12)
+            }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(FoodText.meal(meal.kind)).font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
                 Text(meal.start, format: .dateTime.hour().minute()).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

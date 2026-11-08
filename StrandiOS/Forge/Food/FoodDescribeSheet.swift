@@ -71,7 +71,15 @@ struct FoodDescribeSheet: View {
     }
 
     private func cancel() { dismiss() }
-    private func confirm() { add(lines.filter { $0.grams > 0 }); dismiss() }
+    private func confirm() {
+        // The photo is kept with the meal (decision 2026-11-08), outside the database and outside backups.
+        let kept = photoData.flatMap(UIImage.init(data:)).flatMap { image -> String? in
+            guard let photos = FoodPhotoStore.appDefault, let jpeg = FoodPhoto.jpeg(image) else { return nil }
+            return photos.save(jpeg: jpeg, preview: FoodPhoto.jpeg(image, longestSide: 480, quality: 0.75))
+        }
+        add(lines.filter { $0.grams > 0 }.map { line in var line = line; line.photoId = kept; return line })
+        dismiss()
+    }
     private func removeLines(_ offsets: IndexSet) { lines.remove(atOffsets: offsets) }
 
     private func identify() {

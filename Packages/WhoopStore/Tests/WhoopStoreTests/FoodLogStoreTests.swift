@@ -119,4 +119,21 @@ final class FoodLogStoreTests: XCTestCase {
         XCTAssertEqual(json, #"{"energy_kcal":100,"protein_g":1.5}"#)
         XCTAssertEqual(WhoopStore.decodeNutrients(json), ["energy_kcal": 100, "protein_g": 1.5])
     }
+
+    func testPhotoIdRoundTripsAndCountsAsInUseUntilItsLastEntryGoes() async throws {
+        let store = try await WhoopStore.inMemory()
+        var a = entry("a"), b = entry("b", kcal: 100)
+        a.photoId = "p1"; b.photoId = "p1"
+        try await store.saveFoodLogEntries([a, b, entry("c")])
+        let saved = try await store.foodLogEntries(from: "2026-11-08", to: "2026-11-08")
+        XCTAssertEqual(saved.compactMap(\.photoId), ["p1", "p1"])
+        let allIds = try await store.allFoodPhotoIds()
+        XCTAssertEqual(allIds, ["p1"])
+        try await store.deleteFoodLogEntries(ids: ["a"])
+        let stillUsed = try await store.foodPhotoIdsInUse(["p1", "p2"])
+        XCTAssertEqual(stillUsed, ["p1"])
+        try await store.deleteFoodLogEntries(ids: ["b"])
+        let gone = try await store.foodPhotoIdsInUse(["p1"])
+        XCTAssertEqual(gone, [])
+    }
 }

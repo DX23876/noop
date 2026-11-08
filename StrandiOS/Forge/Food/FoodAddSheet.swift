@@ -85,8 +85,10 @@ struct FoodAddSheet: View {
             .safeAreaInset(edge: .bottom) {
                 if !cart.isEmpty {
                     FoodCartBar(cart: $cart, meal: $meal, time: $time, saving: saving, add: addCart)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
+            .animation(.smooth, value: cart.isEmpty)
             .task(id: search.query) { await search.run(repo: repo, online: mode == .online) }
             .task { await search.loadLists(repo: repo); time = model.defaultTime() }
             .sheet(item: $portionFor) { item in

@@ -113,6 +113,11 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     var editing by remember { mutableStateOf<CoreFood.Entry?>(null) }
     var nutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }
     var showNutrients by remember { mutableStateOf(false) }
+    var week by remember { mutableStateOf<CoreFood.Week?>(null) }
+    var habit by remember { mutableStateOf<CoreFood.Habit?>(null) }
+    var sentence by remember { mutableStateOf<List<CoreFood.SentencePoint>>(emptyList()) }
+    var showScore by remember { mutableStateOf(false) }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -134,9 +139,31 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             val profile = com.noop.ui.ProfileStore.from(context)
             CoreFood.nutrients(day.toString(), profile.sex, profile.age, profile.weightKg, profile.heightCm, goal, span = "day")
         }
+        withContext(Dispatchers.IO) {
+            val profile = com.noop.ui.ProfileStore.from(context)
+            val today = LocalDate.now()
+            week = CoreFood.week(day.toString(), today.toString(), foodScoreEnabled(context), profile.sex)
+            habit = if (day == today && !foodHabitDismissed(context, today.toString())) CoreFood.habit(today.toString(), System.currentTimeMillis() / 1000) else null
+            // The evening sentence from 18:00 on today, any time for a past day (iOS `FoodDaySentence.fromHour`).
+            sentence = if (day != today || java.time.LocalTime.now().hour >= 18)
+                CoreFood.sentence(day.toString(), goals?.proteinG, profile.sex, profile.age, profile.weightKg, profile.heightCm, goal)
+            else emptyList()
+        }
+    }
+    // A light tick when the day changes, not when the page opens.
+    var shownOnce by remember { mutableStateOf(false) }
+    LaunchedEffect(day) {
+        if (shownOnce) haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+        shownOnce = true
     }
     fun reload() { revision++ }
 
+    val score = week?.score
+    if (showScore && score != null) {
+        BackHandler { showScore = false }
+        ForgeFoodScorePage(score, male = com.noop.ui.ProfileStore.from(context).sex.lowercase() == "male", onBack = { showScore = false })
+        return
+    }
     if (showNutrients && nutrients != null && dayNutrients != null) {
         BackHandler { showNutrients = false }
         ForgeFoodNutrientsPage(nutrients!!, dayNutrients!!, pinned, onPin = { key -> pinned = toggleFoodPin(context, key) },
@@ -177,8 +204,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
 
     // The Food page's picture (iOS `FoodHeroPicture`): a dark still life behind the title, fading out above the plate.
     Box(Modifier.fillMaxSize()) {
-        // Only in the dark appearance: the photo is a night scene and would sit as a dark block on the light canvas.
-        if (Forge.colors.dark) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.food_hero), contentDescription = null,
+        // drawable-night holds the night photo, drawable the daylight one, so it never sits as a dark block on light.
+        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.food_hero), contentDescription = null,
             contentScale = androidx.compose.ui.layout.ContentScale.Crop, alignment = Alignment.TopEnd,
             modifier = Modifier.fillMaxWidth().height(400.dp)
                 .graphicsLayer(compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen)
@@ -201,10 +228,25 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             }
             Text(dayTitle(day).uppercase(Locale.getDefault()), style = Forge.type.overline, color = Forge.sceneInk.secondary)
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
+            if (sentence.isNotEmpty()) FoodSentence(sentence)
+            week?.let { w ->
+                FoodSectionHeader(stringResource(R.string.food_week))
+                FoodWeekStrip(w.days, day.toString(), goals) { day = LocalDate.parse(it) }
+                if (foodScoreEnabled(context)) FoodScoreRow(w.score, w.loggedDays) { if (w.score != null) showScore = true }
+            }
             val s = summary
             FoodSectionHeader(stringResource(R.string.food_nutrients)) { showNutrients = true }
             FoodNutrientCard(dayNutrients, pinned) { showNutrients = true }
             FoodSectionHeader(stringResource(R.string.food_meals))
+            habit?.let { h ->
+                FoodHabitCard(h, onAdd = {
+                    scope.launch {
+                        withContext(Dispatchers.IO) { FoodHealthConnect.wrote(context, CoreFood.copy(h.entries.map { it.id }, listOf(day.toString()))) }
+                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        reload()
+                    }
+                }, onDismiss = { dismissFoodHabit(context, day.toString()); habit = null })
+            }
             if (s != null && s.meals.isNotEmpty()) {
                 s.meals.forEach { meal ->
                     MealCard(meal, onEdit = { editing = it }, onCopyTomorrow = {
@@ -323,6 +365,12 @@ private fun FoodHero(day: LocalDate, totals: Map<String, Double>, goals: CoreFoo
                                 drawArc(tint.copy(alpha = 0.22f), -90f, sweep, false, topLeft, box, style = Stroke(w * 1.9f, cap = StrokeCap.Round))
                                 drawArc(tint, -90f, sweep, false, topLeft, box, style = Stroke(w, cap = StrokeCap.Round))
                             }
+                            // Past a full turn a second lap in a deeper shade, as iOS `GlowRing(overflow:)` draws it.
+                            val lap = (360 * min(1.0, max(0.0, share - 1))).toFloat()
+                            if (lap > 0) {
+                                val deep = androidx.compose.ui.graphics.lerp(tint, androidx.compose.ui.graphics.Color.Black, 0.28f)
+                                drawArc(deep, -90f, lap, false, topLeft, box, style = Stroke(w, cap = StrokeCap.Round))
+                            }
                         }
                         ring(236f, 18f, goal?.let { eaten / max(1.0, it) } ?: 0.0, colors.food)
                         listOf(199f, 169f, 139f).zip(macros).forEach { (d, m) ->
@@ -422,6 +470,10 @@ private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onCo
     val time = Instant.ofEpochSecond(meal.start).atZone(ZoneId.systemDefault()).toLocalTime()
         .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault()))
     ForgeCard(Modifier.fillMaxWidth()) {
+        foodMotifDrawable(meal.motif)?.let { res ->
+            FoodMotifPicture(res, Modifier.fillMaxWidth().height(132.dp))
+            Spacer(Modifier.height(ForgeMetrics.space3))
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(mealName(meal.kind), style = Forge.type.headline, color = Forge.colors.text)
             Spacer(Modifier.width(ForgeMetrics.space2))
@@ -955,6 +1007,13 @@ private fun ForgeFoodDataPage(onBack: () -> Unit) {
                 Switch(writeHealth, { writeHealth = it; prefs.writeHealth = it })
             }
             LinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
+        }
+        var showScore by remember { mutableStateOf(foodScoreEnabled(context)) }
+        SettingsCard(stringResource(R.string.food_lab), stringResource(R.string.food_score_note)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.food_score_title), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                Switch(showScore, { showScore = it; com.noop.ui.NoopPrefs.of(context).edit().putBoolean(FOOD_SCORE_KEY, it).apply() })
+            }
         }
         SettingsCard(stringResource(R.string.food_sources), stringResource(R.string.food_sources_credits)) {}
     }

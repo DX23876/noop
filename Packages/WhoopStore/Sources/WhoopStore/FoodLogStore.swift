@@ -48,12 +48,15 @@ public struct FoodLogEntry: Equatable, Sendable {
     public var updatedAt: Int
     /// Nutrients in this entry that were estimated (borrowed from a similar BLS food), not stated by the source.
     public var estimatedKeys: [String]
+    /// The meal photo this entry was logged from, shared by every entry of that meal; nil without one.
+    public var photoId: String?
 
     public init(id: String, loggedAt: Int, day: String, meal: String? = nil, foodId: String?, name: String,
                 brand: String? = nil, grams: Double?, portionLabel: String? = nil, per100g: FoodNutrientValues?,
                 totals: FoodNutrientValues, origin: Origin, recipeId: String? = nil, healthId: String? = nil,
-                createdAt: Int, updatedAt: Int, estimatedKeys: [String] = []) {
+                createdAt: Int, updatedAt: Int, estimatedKeys: [String] = [], photoId: String? = nil) {
         self.estimatedKeys = estimatedKeys
+        self.photoId = photoId
         self.id = id; self.loggedAt = loggedAt; self.day = day; self.meal = meal; self.foodId = foodId
         self.name = name; self.brand = brand; self.grams = grams; self.portionLabel = portionLabel
         self.per100g = per100g; self.totals = totals; self.origin = origin; self.recipeId = recipeId
@@ -236,13 +239,13 @@ extension WhoopStore {
                 try db.execute(sql: """
                     INSERT OR REPLACE INTO foodLogEntry
                       (id, loggedAt, day, meal, foodId, name, brand, grams, portionLabel, per100g, totals, origin,
-                       recipeId, healthId, createdAt, updatedAt, estimatedKeys)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       recipeId, healthId, createdAt, updatedAt, estimatedKeys, photoId)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, arguments: [
                         entry.id, entry.loggedAt, entry.day, entry.meal, entry.foodId, entry.name, entry.brand,
                         entry.grams, entry.portionLabel, entry.per100g.map(Self.encodeNutrients),
                         Self.encodeNutrients(entry.totals), entry.origin.rawValue, entry.recipeId, entry.healthId,
-                        entry.createdAt, entry.updatedAt, Self.encodeKeys(entry.estimatedKeys)])
+                        entry.createdAt, entry.updatedAt, Self.encodeKeys(entry.estimatedKeys), entry.photoId])
             }
             for day in days { try Self.rebankFoodLogDay(day, in: db) }
         }
@@ -261,6 +264,24 @@ extension WhoopStore {
             try db.execute(sql: "DELETE FROM foodLogEntry WHERE id IN (\(placeholders))", arguments: StatementArguments(ids))
             for day in Set(removed.map(\.day)) { try Self.rebankFoodLogDay(day, in: db) }
             return removed
+        }
+    }
+
+    /// The photo ids among `ids` that some entry still names, so a photo is removed only with its last entry.
+    public func foodPhotoIdsInUse(_ ids: Set<String>) async throws -> Set<String> {
+        guard !ids.isEmpty else { return [] }
+        return try syncRead { db in
+            let list = Array(ids)
+            let placeholders = Array(repeating: "?", count: list.count).joined(separator: ",")
+            return Set(try String.fetchAll(db, sql: "SELECT DISTINCT photoId FROM foodLogEntry WHERE photoId IN (\(placeholders))",
+                                           arguments: StatementArguments(list)))
+        }
+    }
+
+    /// Every photo id an entry names, for clearing photos no entry kept (a cart that was never saved).
+    public func allFoodPhotoIds() async throws -> Set<String> {
+        try syncRead { db in
+            Set(try String.fetchAll(db, sql: "SELECT DISTINCT photoId FROM foodLogEntry WHERE photoId IS NOT NULL"))
         }
     }
 
@@ -365,7 +386,7 @@ extension WhoopStore {
             name: row["name"], brand: row["brand"], grams: row["grams"], portionLabel: row["portionLabel"],
             per100g: (row["per100g"] as String?).flatMap(decodeNutrients), totals: totals, origin: origin,
             recipeId: row["recipeId"], healthId: row["healthId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"],
-            estimatedKeys: decodeKeys(row["estimatedKeys"]))
+            estimatedKeys: decodeKeys(row["estimatedKeys"]), photoId: row["photoId"])
     }
 
     // MARK: - Custom foods

@@ -17,6 +17,7 @@ struct ForgeFoodView: View {
     @State private var showAdd = false
     @State private var showSettings = false
     @State private var showNutrients = false
+    @State private var showScore = false
     @State private var editing: FoodLogEntry?
     @State private var copying: FoodEntryBatch?
     @State private var recipeFrom: FoodEntryBatch?
@@ -30,16 +31,32 @@ struct ForgeFoodView: View {
                 if let other = model.otherIntake {
                     FoodOtherIntakeNote(kcal: other.kcal, source: other.source)
                 }
+                if !model.week.isEmpty {
+                    FoodSectionHeader(title: String(localized: "Week"))
+                        .padding(.top, 16)
+                    FoodWeekStrip(week: model.week, shownDay: model.day, calorieGoal: model.calories?.kcal,
+                                  macroGoals: model.macroGoals, select: showDay)
+                    if model.scoreEnabled {
+                        FoodScoreRow(score: model.score, loggedDays: model.scoreLoggedDays, open: openScore)
+                            .disabled(model.score == nil)
+                    }
+                }
                 FoodSectionHeader(title: String(localized: "Nutrients"), action: openNutrients)
                     .padding(.top, 16)
                 FoodNutrientCard(day: model.dayNutrients, pinned: model.pinned, open: openNutrients)
                     .id(model.pinRevision)
                 FoodSectionHeader(title: String(localized: "Meals"))
                     .padding(.top, 16)
+                if let habit = model.habit {
+                    FoodHabitCard(habit: habit, picture: FoodGroupMotif.forMeal(habit.entries).map { .motif($0) },
+                                  add: logHabit, dismiss: model.dismissHabit)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                }
                 if let summary = model.summary, !summary.entries.isEmpty {
                     ForEach(summary.meals) { meal in
-                        FoodMealCard(meal: meal, onEdit: { editing = $0 }, onCopy: { copying = FoodEntryBatch(entries: $0) },
+                        FoodMealCard(meal: meal, picture: model.picture(for: meal), onEdit: { editing = $0 }, onCopy: { copying = FoodEntryBatch(entries: $0) },
                                      onRecipe: { recipeFrom = FoodEntryBatch(entries: $0) }, onDelete: delete)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 } else if model.summary != nil {
                     ContentUnavailableView {
@@ -58,6 +75,8 @@ struct ForgeFoodView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
+            .animation(.smooth, value: model.summary?.entries.map(\.id))
+            .animation(.smooth, value: model.habit)
             // The picture scrolls with the page and runs up under the bar; as a background it never sets the width.
             .background(alignment: .top) { FoodHeroPicture().padding(.top, -120) }
         }
@@ -70,6 +89,8 @@ struct ForgeFoodView: View {
                 Button("Add food", systemImage: "plus", action: openAdd).labelStyle(.iconOnly)
             }
         }
+        .sensoryFeedback(.success, trigger: model.savedRevision)
+        .sensoryFeedback(.selection, trigger: model.day)
         .task { await model.load(repo: repo, profile: Repository.analyticsProfile(profile)) }
         .onChange(of: model.day) { Task { await model.reload(repo: repo) } }
         .sheet(isPresented: $showAdd) { FoodAddSheet(model: model).environmentObject(repo) }
@@ -77,6 +98,9 @@ struct ForgeFoodView: View {
         .sheet(item: $editing) { FoodEntrySheet(entry: $0, model: model).environmentObject(repo) }
         .sheet(item: $copying) { FoodCopySheet(batch: $0, model: model).environmentObject(repo) }
         .sheet(item: $recipeFrom) { FoodRecipeSheet(batch: $0, model: model).environmentObject(repo) }
+        .navigationDestination(isPresented: $showScore) {
+            if let score = model.score { FoodScoreView(score: score, male: model.male == true) }
+        }
         .navigationDestination(isPresented: $showNutrients) {
             if let week = model.nutrients, let day = model.dayNutrients { FoodNutrientsView(week: week, day: day, model: model) }
         }
@@ -103,6 +127,15 @@ struct ForgeFoodView: View {
             .gesture(DragGesture(minimumDistance: 30).onEnded(swipeDay))
             FoodPlateLegend(macros: plate.macros)
             FoodDayFigures(eaten: model.eatenKcal, calories: model.calories, burned: model.burned, isToday: model.isToday)
+            let sentence = model.sentence()
+            if !sentence.isEmpty {
+                Text(FoodText.sentence(sentence))
+                    .font(ForgeFont.body).foregroundStyle(ForgeColor.text)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
+                    .transition(.opacity)
+            }
         }
         .padding(.top, 8)
     }
@@ -115,9 +148,12 @@ struct ForgeFoodView: View {
     }
 
     private func openAdd() { showAdd = true }
+    private func logHabit() { Task { await model.logHabit(repo: repo) } }
     private func reloadGoals() { Task { await model.reloadGoals(repo: repo, profile: Repository.analyticsProfile(profile)) } }
     private func openSettings() { showSettings = true }
     private func openNutrients() { showNutrients = true }
+    private func openScore() { showScore = true }
+    private func showDay(_ day: String) { model.day = day }
     private func delete(_ entries: [FoodLogEntry]) { Task { await model.delete(entries, repo: repo) } }
 }
 #endif

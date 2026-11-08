@@ -1,18 +1,13 @@
 #if os(iOS)
 import SwiftUI
 
-/// The Food page's picture: a dark still life of fresh food behind the title, fading into the scene before the
-/// plate, as the night photo does on the Sleep page. Decorative only, and only in the dark appearance: the photo is
-/// a night scene and would sit as a dark block on the light canvas.
+/// The Food page's picture: a still life of fresh food behind the title, fading into the scene before the
+/// plate, as the night photo does on the Sleep page. Decorative only. The asset carries a daylight version for the
+/// light appearance, so the picture never sits as a dark block on the light canvas.
 struct FoodHeroPicture: View {
     var height: CGFloat = 400
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        if colorScheme == .dark { picture }
-    }
-
-    private var picture: some View {
         Image("foodHero")
             .resizable()
             .scaledToFill()

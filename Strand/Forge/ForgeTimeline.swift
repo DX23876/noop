@@ -89,6 +89,18 @@ enum ForgeTimeline {
         var timed = true
     }
 
+    /// A meal from the food log, at the time it was eaten (decision 2026-11-08). A day with logged meals shows
+    /// them instead of the food day line, so one day's food is never counted twice.
+    struct Meal: Equatable {
+        let id: String
+        let date: Date
+        let title: String
+        let foods: String
+        let kcal: Double
+        /// "photo:<id>" or "motif:<group>", for the small picture; nil without one.
+        let picture: String?
+    }
+
     struct Ecg: Equatable {
         let id: String
         let date: Date
@@ -126,6 +138,7 @@ enum ForgeTimeline {
         var naps: [Nap] = []
         var weights: [Weight] = []
         var dayLogs: [DayLog] = []
+        var meals: [Meal] = []
         var ecgs: [Ecg] = []
         var notices: [Notice] = []
         /// The day's own close, shown when no evening recap from the coach covers it.
@@ -142,6 +155,7 @@ enum ForgeTimeline {
             case nap
             case weight
             case dayLog(DayLog.Kind)
+            case meal
             case ecg
             case notice
             case dayEnd
@@ -247,6 +261,10 @@ enum ForgeTimeline {
             entries.append(Entry(id: "\(log.kind.rawValue)-\(dayKey(log.date))", date: log.date, kind: .dayLog(log.kind),
                                  title: "", detail: "", value: log.value, sourceId: nil, timed: log.timed))
         }
+        for m in input.meals where m.date <= now {
+            entries.append(Entry(id: "meal-\(m.id)", date: m.date, kind: .meal, title: m.title, detail: m.foods,
+                                 value: m.kcal, sourceId: m.picture))
+        }
         for e in input.ecgs where e.date <= now {
             entries.append(Entry(id: "ecg-\(e.id)", date: e.date, kind: .ecg, title: "", detail: "",
                                  value: e.averageHr.map(Double.init), sourceId: e.id))
@@ -294,7 +312,7 @@ enum ForgeTimeline {
 
     static func isRow(_ kind: Entry.Kind) -> Bool {
         switch kind {
-        case .workout, .walks, .weight, .dayLog, .ecg, .nap: return true
+        case .workout, .walks, .weight, .dayLog, .meal, .ecg, .nap: return true
         case .coach, .wake, .notice, .dayEnd: return false
         }
     }

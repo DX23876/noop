@@ -32,6 +32,8 @@ struct FoodDayFigures: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .animation(.smooth, value: eaten)
+        .animation(.smooth, value: burned)
     }
 
     private func explainGoal() { showsGoalReason = true }
