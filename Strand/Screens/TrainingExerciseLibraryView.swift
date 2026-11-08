@@ -196,7 +196,7 @@ struct TrainingExerciseLibraryView: View {
 
     private var filterChips: some View {
         VStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     ExerciseFilterChip(title: String(localized: "All"), selected: region == nil && !favoritesOnly) {
                         region = nil; favoritesOnly = false
@@ -214,7 +214,8 @@ struct TrainingExerciseLibraryView: View {
                 .padding(.horizontal, NoopMetrics.screenPadding)
                 .padding(.top, 8)
             }
-            ScrollView(.horizontal, showsIndicators: false) {
+            .scrollIndicators(.hidden)
+            ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     filterChip(String(localized: "Any equipment"), id: "all")
                     if !availableEquipment.isEmpty {
@@ -227,6 +228,7 @@ struct TrainingExerciseLibraryView: View {
                 .padding(.horizontal, NoopMetrics.screenPadding)
                 .padding(.vertical, 8)
             }
+            .scrollIndicators(.hidden)
         }
         .background {
             if NoopVisualStyle.skin != .forge { Rectangle().fill(.bar) }

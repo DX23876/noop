@@ -155,7 +155,7 @@ struct JournalLogCard: View {
             // that day's pill. Only when not editing.
             if !editing {
                 ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    ScrollView(.horizontal) {
                         HStack(spacing: 6) {
                             ForEach(Self.journalDayOffsets, id: \.self) { off in
                                 dayPill(journalDayLabel(off), offset: off).id(off)
@@ -166,6 +166,7 @@ struct JournalLogCard: View {
                         }
                         .padding(.horizontal, 1)   // don't clip the selected pill's ring
                     }
+                    .scrollIndicators(.hidden)
                     // Defer the initial scroll a tick: scrollTo in onAppear can no-op before the pills lay
                     // out, which would leave the picker on the oldest day instead of the selected one.
                     .onAppear {

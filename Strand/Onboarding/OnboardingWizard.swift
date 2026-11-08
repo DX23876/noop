@@ -1107,7 +1107,7 @@ private struct StepShell<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        ScrollView(.vertical) {
             VStack(spacing: 20) {
                 if title != nil || subtitle != nil {
                     VStack(spacing: 8) {
@@ -1131,6 +1131,7 @@ private struct StepShell<Content: View>: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
         }
+        .scrollIndicators(.hidden)
         #if os(iOS)
         // #697/#horizontal-swipe parity, see ScreenScaffold. First-run wizard, every step routes
         // through this one shell, so a single fix here covers the whole onboarding flow.

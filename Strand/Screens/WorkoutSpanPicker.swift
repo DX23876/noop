@@ -335,13 +335,14 @@ struct WorkoutSpanPicker: View {
     private var suggestionRow: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Spotted on this day").strandOverline()
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(spacing: NoopMetrics.space2) {
                     ForEach(suggestions) { s in
                         suggestionChip(s)
                     }
                 }
             }
+            .scrollIndicators(.hidden)
         }
     }
 

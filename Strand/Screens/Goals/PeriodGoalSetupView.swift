@@ -472,7 +472,7 @@ struct GuidedPeriodGoalSetup: View {
                     .onChange(of: sportText) { _ in applySports() }
                 let recent = Array(Set(inputs.workouts.suffix(80).map(\.sport))).sorted().prefix(6)
                 if !recent.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    ScrollView(.horizontal) {
                         HStack(spacing: 6) {
                             ForEach(Array(recent), id: \.self) { sport in
                                 Button(sport) {
@@ -487,6 +487,7 @@ struct GuidedPeriodGoalSetup: View {
                             }
                         }
                     }
+                    .scrollIndicators(.hidden)
                 }
             }
         }
@@ -750,13 +751,14 @@ struct StartPacksView: View {
         if !available.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Start packs").strandOverline().padding(.horizontal, 2)
-                ScrollView(.horizontal, showsIndicators: false) {
+                ScrollView(.horizontal) {
                     HStack(spacing: 10) {
                         ForEach(available) { pack in
                             Button { openPack = pack } label: { packCard(pack) }.buttonStyle(.plain)
                         }
                     }
                 }
+                .scrollIndicators(.hidden)
             }
             .sheet(item: $openPack) { pack in StartPackSheet(pack: pack) }
         }

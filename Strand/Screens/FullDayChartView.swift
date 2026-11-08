@@ -144,10 +144,11 @@ struct FullDayChartView: View {
     // MARK: Controls
 
     private var metricPills: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             SegmentedPillControl(Repository.TimelineMetric.allCases, selection: $metric) { $0.title }
                 .padding(.vertical, NoopMetrics.space1 / 2)
         }
+        .scrollIndicators(.hidden)
     }
 
     @ViewBuilder private var sourcePill: some View {

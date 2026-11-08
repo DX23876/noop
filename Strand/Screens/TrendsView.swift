@@ -819,9 +819,10 @@ struct TrendsView: View {
                 if recoveryDays.isEmpty {
                     sparsePlaceholder.frame(height: 120)
                 } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    ScrollView(.horizontal) {
                         YearHeatStrip(days: recoveryDays).padding(.vertical, NoopMetrics.space1 / 2)
                     }
+                    .scrollIndicators(.hidden)
                     Divider().overlay(StrandPalette.hairline)
                     legend
                 }

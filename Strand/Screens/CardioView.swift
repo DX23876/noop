@@ -752,7 +752,7 @@ struct CardioView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 SectionHeader("Your bests", overline: LocalizedStringKey(sportName(sport)))
                 NoopCard {
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    ScrollView(.horizontal) {
                         HStack(spacing: 8) {
                             if let farthest = model.bests.farthest {
                                 bestChip(String(localized: "Farthest"),
@@ -774,6 +774,7 @@ struct CardioView: View {
                         }
                         .padding(.vertical, 1)
                     }
+                    .scrollIndicators(.hidden)
                 }
             }
         }

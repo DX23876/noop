@@ -107,13 +107,14 @@ struct LongTermStartPacksRow: View {
         if !packs.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Start packs").strandOverline().padding(.horizontal, 2)
-                ScrollView(.horizontal, showsIndicators: false) {
+                ScrollView(.horizontal) {
                     HStack(spacing: 10) {
                         ForEach(packs) { pack in
                             Button { open = pack } label: { card(pack) }.buttonStyle(.plain)
                         }
                     }
                 }
+                .scrollIndicators(.hidden)
             }
             .sheet(item: $open) { pack in LongTermStartPackSheet(pack: pack, onAdded: onAdded) }
         }

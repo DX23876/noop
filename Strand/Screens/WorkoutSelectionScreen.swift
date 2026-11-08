@@ -216,13 +216,14 @@ struct WorkoutSelectionScreen: View {
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space3) {
             sectionOverline("Recent")
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(spacing: NoopMetrics.space2) {
                     ForEach(recentSports) { sport in
                         RecentWorkoutChip(sport: sport) { choose(sport) }
                     }
                 }
             }
+            .scrollIndicators(.hidden)
         }
     }
 

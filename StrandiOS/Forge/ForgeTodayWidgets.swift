@@ -527,14 +527,13 @@ struct ForgeLastNightWidget: View {
     var body: some View {
         ForgeWidgetCard(title: String(localized: "Last night"), route: ForgeRoute.rest(nil)) {
             if let night, let asleep {
-                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     // The figures large, their units small beside them, as Apple writes a duration.
-                    (Text(verbatim: "\(asleep / 60)").font(ForgeFont.figure(28))
-                     + Text(verbatim: " ") + Text("h").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary)
-                     + Text(verbatim: " ") + Text(verbatim: String(asleep % 60)).font(ForgeFont.figure(28))
-                     + Text(verbatim: " ")
-                     + Text("min").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary))
-                        .foregroundStyle(ForgeColor.text)
+                    Text(verbatim: "\(asleep / 60)").font(ForgeFont.figure(28)).foregroundStyle(ForgeColor.text)
+                    Text("h").font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary)
+                    Text(verbatim: String(asleep % 60)).font(ForgeFont.figure(28)).foregroundStyle(ForgeColor.text)
+                        .padding(.leading, 4)
+                    Text("min").font(.system(.footnote, weight: .medium)).foregroundStyle(ForgeColor.secondary)
                     Spacer(minLength: 8)
                     Text(verbatim: "\(Self.time(night.start)) – \(Self.time(night.end))")
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

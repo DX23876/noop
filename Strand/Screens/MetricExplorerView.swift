@@ -756,7 +756,7 @@ struct MetricExplorerView: View {
             .padding(.horizontal, 12)
             .frame(minHeight: 44)
             .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(spacing: NoopMetrics.space2) {
                     ForEach(ForgeMetricSource.allCases) { source in
                         ForgeFilterChip(title: source.label, isSelected: forgeSource == source) { forgeSource = source }
@@ -767,6 +767,7 @@ struct MetricExplorerView: View {
                     }
                 }
             }
+            .scrollIndicators(.hidden)
         }
     }
 

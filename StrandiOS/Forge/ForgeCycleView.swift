@@ -158,7 +158,7 @@ struct ForgeCycleView: View {
         logRow
         if let phase = snap.phase {
             ForgeSectionTitle(title: "This phase for you")
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 10) {
                     ForEach(ForgeCycleTopic.allCases) { topic in
                         let push = ForgeCyclePush.make(topic: topic, phase: phase, charge: todayCharge,
@@ -174,6 +174,7 @@ struct ForgeCycleView: View {
                 }
                 .padding(.horizontal, 16)
             }
+            .scrollIndicators(.hidden)
             .padding(.horizontal, -16)
         }
         if snap.temps.count > 2 {

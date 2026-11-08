@@ -95,7 +95,7 @@ extension StrengthView {
                             .foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
-                ScrollView(.horizontal, showsIndicators: false) {
+                ScrollView(.horizontal) {
                     HStack(spacing: 8) {
                         if let heaviest = records.heaviestSet {
                             recordChip(String(localized: "Heaviest set"),
@@ -122,6 +122,7 @@ extension StrengthView {
                     }
                     .padding(.vertical, 1)
                 }
+                .scrollIndicators(.hidden)
             }
         }
     }

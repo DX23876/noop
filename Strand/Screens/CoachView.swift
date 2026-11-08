@@ -1189,7 +1189,7 @@ struct CoachView: View {
     /// (the reply text isn't scanned for "you should breathe" etc.) — guessing intent from prose is
     /// fragile; these are just the standing fast paths from advice to doing something about it.
     private var actionRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack(spacing: 8) {
                 if !goalSetupStore.pending.isEmpty {
                     actionChip(icon: "target", action: { activeSheet = .goalSetup }) { Text("Review draft") }
@@ -1213,6 +1213,7 @@ struct CoachView: View {
                 actionChip(icon: "calendar.badge.plus", action: { activeSheet = .plan }) { Text("Schedule a session") }
             }
         }
+        .scrollIndicators(.hidden)
         .padding(.top, 2)
     }
 

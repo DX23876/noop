@@ -73,8 +73,11 @@ struct ForgeTonightWidget: View {
                         .font(ForgeFont.figure(28)).foregroundStyle(ForgeColor.text)
                     Text("in bed").font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
                     Spacer(minLength: 0)
-                    (Text(verbatim: ForgeTodayView.hoursMinutes(max(0, wake.timeIntervalSince(bed)) / 60)) + Text(verbatim: " ") + Text("h"))
-                        .font(.system(.subheadline, weight: .semibold).monospacedDigit()).foregroundStyle(ForgeColor.restInk)
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(verbatim: ForgeTodayView.hoursMinutes(max(0, wake.timeIntervalSince(bed)) / 60))
+                        Text("h")
+                    }
+                    .font(.system(.subheadline, weight: .semibold).monospacedDigit()).foregroundStyle(ForgeColor.restInk)
                 }
                 // The night as one band from bedtime to the alarm.
                 HStack(spacing: 8) {

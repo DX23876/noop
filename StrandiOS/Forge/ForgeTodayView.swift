@@ -488,13 +488,15 @@ struct ForgeTodayView: View {
             Color.clear.frame(width: Self.railTimeWidth)
             Circle().fill(ForgeColor.text).frame(width: 10, height: 10)
                 .frame(width: Self.railLineWidth)
-            (Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundColor(ForgeColor.text)
-             + Text(verbatim: "  ") + Text(date, format: Self.isNamedDay(date)
-                ? .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)
-                : .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
-                .font(.system(.subheadline)).foregroundColor(ForgeColor.secondaryOnPicture))
-                .lineLimit(1).minimumScaleFactor(0.8)
-                .legibleOnPhoto()
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(dayTitle(date)).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                Text(date, format: Self.isNamedDay(date)
+                    ? .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)
+                    : .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
+                    .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondaryOnPicture)
+            }
+            .lineLimit(1).minimumScaleFactor(0.8)
+            .legibleOnPhoto()
             Spacer(minLength: 0)
         }
         .padding(.vertical, 4)
@@ -1549,9 +1551,13 @@ struct ForgeTodayView: View {
                     }
                     Spacer(minLength: 6)
                     if let value {
-                        (Text(value).font(ForgeFont.figure(19)).foregroundColor(ForgeColor.text)
-                         + Text(unit.isEmpty ? "" : " " + unit).font(.system(.caption)).foregroundColor(ForgeColor.secondaryOnPicture))
-                            .lineLimit(1)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(value).font(ForgeFont.figure(19)).foregroundStyle(ForgeColor.text)
+                            if !unit.isEmpty {
+                                Text(unit).font(.system(.caption)).foregroundStyle(ForgeColor.secondaryOnPicture)
+                            }
+                        }
+                        .lineLimit(1)
                     }
                 }
             }

@@ -125,7 +125,7 @@ extension Theme {
                 .markdownMargin(top: 4, bottom: 8)
         }
         .codeBlock { configuration in
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 configuration.label
                     .relativeLineSpacing(.em(0.2))
                     .markdownTextStyle {
@@ -134,6 +134,7 @@ extension Theme {
                     }
                     .padding(10)
             }
+            .scrollIndicators(.hidden)
             .background(StrandPalette.surfaceInset)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)

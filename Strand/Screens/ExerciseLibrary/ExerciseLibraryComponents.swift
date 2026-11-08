@@ -131,7 +131,7 @@ struct ExerciseMusclePickerView: View {
                     }
                     .frame(height: 280)
                     ScrollViewReader { proxy in
-                        ScrollView(.horizontal, showsIndicators: false) {
+                        ScrollView(.horizontal) {
                             HStack(spacing: 8) {
                                 ForEach(ExerciseMuscleGroup.allCases) { group in
                                     ExerciseFilterChip(title: "\(group.title) \(counts[group] ?? 0)",
@@ -143,6 +143,7 @@ struct ExerciseMusclePickerView: View {
                             }
                             .padding(.vertical, 2)
                         }
+                        .scrollIndicators(.hidden)
                         .onChange(of: selection) { value in
                             if let value { withAnimation { proxy.scrollTo(value, anchor: .center) } }
                         }

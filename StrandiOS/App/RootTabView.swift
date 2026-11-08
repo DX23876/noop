@@ -541,7 +541,7 @@ struct RootTabView: View {
             guard coachFeatureEnabled else { return }
             openCoachArea()
         }
-        .onChange(of: coachFeatureEnabled) { enabled in
+        .onChange(of: coachFeatureEnabled) { _, enabled in
             // A cover can remain on screen while the switch is changed from a second window or a
             // Settings deep link. Close it immediately so "off" really means no visible Coach UI.
             if !enabled { showCoach = false }

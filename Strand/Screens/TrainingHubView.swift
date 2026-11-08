@@ -3265,7 +3265,7 @@ private struct TrainingPlateCalculatorView: View {
                     if loading.platesPerSideKg.isEmpty {
                         Text("Bar only").foregroundStyle(.secondary)
                     } else {
-                        ScrollView(.horizontal, showsIndicators: false) {
+                        ScrollView(.horizontal) {
                             HStack(spacing: 8) {
                                 ForEach(Array(loading.platesPerSideKg.enumerated()), id: \.offset) { _, plate in
                                     Text(TrainingPreferences.displayWeight(plate, unit: weightUnit)
@@ -3277,6 +3277,7 @@ private struct TrainingPlateCalculatorView: View {
                                 }
                             }.padding(.vertical, 4)
                         }
+                        .scrollIndicators(.hidden)
                     }
                     LabeledContent("Achievable", value: TrainingPreferences.formattedWeight(loading.achievableTotalKg, unit: weightUnit))
                     if loading.remainderKg > 0.001 {
