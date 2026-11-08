@@ -76,8 +76,6 @@ struct ForgeTodayView: View {
     @AppStorage("forge.coach.ratings") private var ratingsRaw = ""
     /// The note under which "less often?" is asked after a second thumbs down for its kind.
     @State private var askLessOften: String?
-    /// An entry the day strip asked to scroll to.
-    @State private var scrollTarget: String?
     /// Entries whose "explain this" or inline answer is being written.
     @State private var asking: Set<String> = []
     @ObservedObject private var goalStore = CoachGoalStore.shared
@@ -148,6 +146,8 @@ struct ForgeTodayView: View {
                                 dayAnswer
                             }
                             .forgeCard(radius: ForgeRadius.card, padding: 12)
+                            // Room between the rings and what follows, so the card reads as the page's head.
+                            .padding(.bottom, 12)
                         }
                         .padding(.horizontal, 16)
                     }
@@ -187,11 +187,6 @@ struct ForgeTodayView: View {
             }
             .onChange(of: backToTop) { _, _ in
                 withAnimation(.smooth) { proxy.scrollTo("forge-today-top", anchor: .top) }
-            }
-            .onChange(of: scrollTarget) { _, target in
-                guard let target else { return }
-                withAnimation(.smooth) { proxy.scrollTo(target, anchor: .center) }
-                scrollTarget = nil
             }
         }
         .background(ForgeBackground(tab: .today, showsMotif: true))
@@ -304,32 +299,16 @@ struct ForgeTodayView: View {
         .padding(.vertical, 4)
     }
 
-    /// Under the rings, the day's answer in one line, coach or no coach: where Effort stands against today's
-    /// target, worked out on the device. A carried Charge says whose night it is, as `ChargeDisplay` requires
-    /// of every screen that draws a carried score.
+    /// Under the rings, only when Charge is carried from an earlier night: whose night it is, as
+    /// `ChargeDisplay` requires of every screen that draws a carried score. The day's sentence is gone; the
+    /// rings and their target speak for themselves.
     @ViewBuilder private var dayAnswer: some View {
-        let caption = snapshot.loaded ? snapshot.charge.carriedCaption : nil
-        // A carried Charge belongs to an earlier night, so it sets no target for today: the line stays away
-        // rather than call that night's target today's.
-        let line: String? = caption != nil ? nil
-            : ForgeToday.summary(effortStored: snapshot.effortStored, charge: chargeScore, scale: effortScale)
-            ?? ForgeToday.effortTargetStored(charge: chargeScore).map {
-                let t = ForgeToday.targetText($0, scale: effortScale)
-                return String(localized: "Today's Effort target: \(t.low) to \(t.high).")
-            }
-        if line != nil || caption != nil {
-            VStack(spacing: 2) {
-                if let line {
-                    Text(line).font(.system(.subheadline, weight: .semibold))
-                }
-                if let caption {
-                    Text(verbatim: "\(DomainTheme.charge.productName) · \(caption)").font(ForgeFont.caption)
-                }
-            }
-            .foregroundStyle(ForgeColor.text)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 8).padding(.bottom, 4)
+        if let caption = snapshot.loaded ? snapshot.charge.carriedCaption : nil {
+            Text(verbatim: "\(DomainTheme.charge.productName) · \(caption)").font(ForgeFont.caption)
+                .foregroundStyle(ForgeColor.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 4)
         }
     }
 
@@ -454,9 +433,6 @@ struct ForgeTodayView: View {
                 if index > 0 || day.id != todayKey {
                     dayDivider(day.date)
                 }
-                ForgeDayStrip(spans: stripSpans(day), marks: stripMarks(day), dayStart: Self.calendarStart(day.date)) { id in
-                    scrollTarget = id
-                }
                 if day.id == todayKey {
                     // A detected activity waiting for an answer is today's first entry.
                     ActivitySuggestionPrompt(compact: true)
@@ -498,6 +474,7 @@ struct ForgeTodayView: View {
                 : .dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
                 .font(.system(.subheadline)).foregroundColor(ForgeColor.secondaryOnPicture))
                 .lineLimit(1).minimumScaleFactor(0.8)
+                .legibleOnPhoto()
             Spacer(minLength: 0)
         }
         .padding(.vertical, 4)
@@ -532,6 +509,7 @@ struct ForgeTodayView: View {
                 .frame(width: Self.railTimeWidth - 6, alignment: .trailing)
                 .padding(.trailing, 6)
                 .padding(.top, 14)
+                .legibleOnPhoto()
             Circle().fill(tint).frame(width: 8, height: 8)
                 .overlay(Circle().stroke(ForgeColor.canvas, lineWidth: 2))
                 .frame(width: Self.railLineWidth)
@@ -561,6 +539,7 @@ struct ForgeTodayView: View {
                 .lineLimit(1).minimumScaleFactor(0.7)
                 .frame(width: Self.railTimeWidth - 6, alignment: .trailing)
                 .padding(.trailing, 6)
+                .legibleOnPhoto()
             Circle().fill(ForgeColor.effort).frame(width: 10, height: 10)
                 .frame(width: Self.railLineWidth)
             Text("Now")
@@ -1123,53 +1102,6 @@ struct ForgeTodayView: View {
             return false
         }
         return snapshot.driverRanges.values.allSatisfy { $0.band.contains($0.position) }
-    }
-
-    // MARK: Day strip (2026-11-07)
-
-    /// The calendar start of a timeline day's date.
-    static func calendarStart(_ date: Date) -> Date { Calendar.current.startOfDay(for: date) }
-
-    /// Sleep and sessions of a day as spans on its strip.
-    private func stripSpans(_ day: ForgeTimeline.Day) -> [ForgeDayStrip.Span] {
-        var out: [ForgeDayStrip.Span] = []
-        for entry in day.entries {
-            switch entry.kind {
-            case .wake:
-                if let night = snapshot.nights[Int(entry.date.timeIntervalSince1970)] {
-                    out.append(.init(start: night.start, end: night.end, tint: ForgeColor.rest, target: entry.id))
-                }
-            case .nap:
-                if let minutes = entry.value {
-                    out.append(.init(start: entry.date.addingTimeInterval(-minutes * 60), end: entry.date,
-                                     tint: ForgeColor.rest, target: entry.id))
-                }
-            case .workout:
-                if let row = entry.sourceId.flatMap({ snapshot.workouts[$0] }) {
-                    out.append(.init(start: Date(timeIntervalSince1970: TimeInterval(row.startTs)),
-                                     end: Date(timeIntervalSince1970: TimeInterval(row.endTs)), tint: ForgeColor.effort, target: entry.id))
-                }
-            case .walks:
-                for row in entry.walkIds.compactMap({ snapshot.workouts[$0] }) {
-                    out.append(.init(start: Date(timeIntervalSince1970: TimeInterval(row.startTs)),
-                                     end: Date(timeIntervalSince1970: TimeInterval(row.endTs)), tint: ForgeColor.effort, target: entry.id))
-                }
-            default:
-                break
-            }
-        }
-        return out
-    }
-
-    /// Notes and notices of a day as marks on its strip.
-    private func stripMarks(_ day: ForgeTimeline.Day) -> [ForgeDayStrip.Mark] {
-        day.entries.compactMap { entry in
-            switch entry.kind {
-            case .coach: return .init(at: entry.date, tint: ForgeColor.accent, target: entry.id)
-            case .notice: return .init(at: entry.date, tint: ForgeColor.text, target: entry.id)
-            default: return nil
-            }
-        }
     }
 
     /// The coach's emphasis rendered (bold figures), never raw asterisks.
@@ -1775,67 +1707,6 @@ struct ForgeTodayView: View {
         // When it lands, the transcript changes and `reloadKey` brings it into the timeline.
         if coachFeatureEnabled {
             Task { await coach.runForgeNotesIfDue(workouts: workouts, now: Self.notesClock(now)) }
-        }
-    }
-}
-/// A day from midnight to midnight on one thin strip: sleep and sessions as spans in their scores' colours,
-/// notes and notices as dots. Tapping a span or a dot scrolls to its entry. One strip above the day, not an
-/// axis beside the entries.
-struct ForgeDayStrip: View {
-    struct Span: Equatable { let start: Date; let end: Date; let tint: Color; let target: String }
-    struct Mark: Equatable { let at: Date; let tint: Color; let target: String }
-
-    let spans: [Span]
-    let marks: [Mark]
-    let dayStart: Date
-    let onSelect: (String) -> Void
-
-    private func x(_ date: Date, _ width: CGFloat) -> CGFloat {
-        CGFloat(min(max(date.timeIntervalSince(dayStart) / 86_400, 0), 1)) * width
-    }
-
-    var body: some View {
-        if spans.isEmpty && marks.isEmpty {
-            EmptyView()
-        } else {
-            VStack(spacing: 3) {
-                GeometryReader { geo in
-                    let w = geo.size.width
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(ForgeColor.fill).frame(height: 8)
-                        ForEach(Array(spans.enumerated()), id: \.offset) { _, span in
-                            let a = x(span.start, w), b = x(span.end, w)
-                            if b > a {
-                                Capsule().fill(span.tint)
-                                    .frame(width: max(b - a, 4), height: 8)
-                                    .offset(x: a)
-                                    .onTapGesture { onSelect(span.target) }
-                            }
-                        }
-                        ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
-                            Circle().fill(mark.tint)
-                                .overlay(Circle().stroke(ForgeColor.card, lineWidth: 1.5))
-                                .frame(width: 10, height: 10)
-                                .offset(x: x(mark.at, w) - 5)
-                                .onTapGesture { onSelect(mark.target) }
-                        }
-                    }
-                    .frame(height: 12)
-                }
-                .frame(height: 12)
-                HStack {
-                    ForEach([0, 6, 12, 18, 24], id: \.self) { hour in
-                        Text(verbatim: "\(hour)")
-                        if hour < 24 { Spacer(minLength: 0) }
-                    }
-                }
-                .font(.system(.caption2).monospacedDigit())
-                .foregroundStyle(ForgeColor.secondaryOnPicture)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card.opacity(0.75)))
-            .accessibilityHidden(true)
         }
     }
 }
