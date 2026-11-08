@@ -1005,6 +1005,27 @@ Analysis migration required: yes (AI-34).
   which the card above carries (breathing stays there when a night has no stages). The night card's stage
   figures carry their colours and one bar of the night's make-up.
 
+## 2026-11-08 Today's plus, tiles without the timeline, Energy as a ring
+
+- **Start and Add entry behind one plus.** The row of two buttons under the rings is gone; a plus beside the
+  battery opens Start workout (Back to workout while one runs), Add entry and Customize Today. The rings stand
+  alone. Holding a tile or the rings still starts the editor.
+- **The timeline can be switched off** in the editor ("Show the timeline"). Today is then the rings and the
+  wearer's tiles only; a detected activity and the open items still show above the tiles, since they wait for
+  an answer. "Tiles start" only appears while the timeline is on.
+- **More tiles, all optional:** AgeLess small (age and calendar age) or wide (the AgeLess card from Health, now
+  one shared view), the latest workout with its Effort, and fitness age as a measure. AgeLess is offered and shown
+  only while AgeLess is on. Each tile reads what its page reads.
+- **Energy rebuilt for the new design.** One ring: resting then active energy on a circle a usual day fills (the
+  median total of the last 30 finished days, from five), the usual as a tick, the share of a usual day in the
+  middle. Beside it resting, active and eaten; under it the balance either side of zero, tonight's forecast and
+  the quality note. Basal, daily movement and training as tiles with their share, the day's curve as before, the
+  last 30 days as bars (burned split into resting and active, eaten, balance) where a tap opens the day. Every
+  figure is the shipped engine's and loads as the shipped page does; the Liquid design keeps its page. Today's
+  Energy tile draws the same ring and reads the usual day through the same function.
+
+Analysis migration required: no. Presentation only; no stored value or computation changed.
+
 ## Today's timeline: one feed, guarded notes (2026-11-07)
 
 Owner's decisions in a grilling of 37 questions after the timeline report

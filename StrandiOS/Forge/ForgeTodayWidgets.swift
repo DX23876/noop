@@ -15,23 +15,26 @@ import WhoopStore
 
 /// One widget the wearer placed on Today.
 struct ForgeTodayWidget: Codable, Hashable, Identifiable {
-    enum Kind: String, Codable, CaseIterable { case measure, trainingLoad, goals, energy, water, liveHeart, momentum, lastNight, weekPlan, coachNote }
+    enum Kind: String, Codable, CaseIterable { case measure, trainingLoad, goals, energy, water, liveHeart, momentum, lastNight, weekPlan, coachNote, ageless, lastWorkout }
 
     var id = UUID()
     var kind: Kind
     /// For a measure: the catalog key and the preferred source.
     var key: String? = nil
     var source: String? = nil
-    /// Live heart rate only: a full-width card with its curve instead of a tile with a beating heart.
+    /// Live heart rate and AgeLess: a full-width card (the curve, the age line) instead of a small tile.
     var wide: Bool? = nil
 
     var isWide: Bool {
         switch kind {
         case .measure, .water: return false
-        case .liveHeart: return wide == true
+        case .liveHeart, .ageless: return wide == true
         default: return true
         }
     }
+
+    /// Kinds that come in both sizes, switched in the editor.
+    var resizable: Bool { kind == .liveHeart || kind == .ageless }
 }
 
 /// The wearer's widgets, oldest first, kept as JSON in UserDefaults.
@@ -41,6 +44,8 @@ final class ForgeTodayWidgetStore: ObservableObject {
     static let shared = ForgeTodayWidgetStore()
     /// True: the tiles start after the timeline instead of under the rings.
     static let belowTimelineKey = "forge.today.tilesBelowTimeline"
+    /// False: Today shows no timeline, only the rings and the tiles.
+    static let showsTimelineKey = "forge.today.showsTimeline"
     /// Set once the first set of tiles was placed, so removing them all stays removed.
     private static let seededKey = "forge.today.widgetsSeeded"
 
@@ -68,7 +73,7 @@ final class ForgeTodayWidgetStore: ObservableObject {
     func add(_ w: ForgeTodayWidget) { widgets.append(w); save() }
     func remove(_ id: UUID) { widgets.removeAll { $0.id == id }; save() }
 
-    /// Live heart rate between its small tile and its full-width card.
+    /// A resizable widget between its small tile and its full-width card.
     func toggleWide(_ id: UUID) {
         guard let i = widgets.firstIndex(where: { $0.id == id }) else { return }
         widgets[i].wide = widgets[i].isWide ? false : true
@@ -98,11 +103,15 @@ final class ForgeTodayWidgetStore: ObservableObject {
     func seedDemoIfRequested() {
         guard CommandLine.arguments.contains("--demo-widgets") else { return }
         widgets = [
+            .init(kind: .ageless),
+            .init(kind: .measure, key: "hrv", source: Repository.whoopSource),
+            .init(kind: .measure, key: "rhr", source: Repository.whoopSource),
+            .init(kind: .energy),
+            .init(kind: .lastWorkout),
+            .init(kind: .ageless, wide: true),
             .init(kind: .momentum),
             .init(kind: .lastNight),
             .init(kind: .weekPlan),
-            .init(kind: .measure, key: "hrv", source: Repository.whoopSource),
-            .init(kind: .measure, key: "rhr", source: Repository.whoopSource),
             .init(kind: .goals),
             .init(kind: .measure, key: "weight", source: "apple-health"),
             .init(kind: .measure, key: "sleep_total_min", source: Repository.whoopSource),
@@ -119,6 +128,7 @@ enum ForgeWidgetMeasures {
         ("sleep_total_min", Repository.whoopSource), ("vo2max_est", Repository.whoopSource), ("stress", Repository.whoopSource),
         ("weight", "noop-weight"), ("spo2", Repository.whoopSource), ("resp_rate", Repository.whoopSource),
         ("skin_temp", Repository.whoopSource), ("active_kcal", "apple-health"), ("calories_in", "nutrition-csv"),
+        ("fitness_age", Repository.whoopSource),
     ]
 
     static func descriptor(_ key: String, _ source: String?) -> MetricDescriptor? {
@@ -135,13 +145,20 @@ struct ForgeTodayWidgetArea: View {
 
     @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var belowTimeline = false
+    @AppStorage(ForgeTodayWidgetStore.showsTimelineKey) private var showsTimeline = true
+    @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
     private var columns: Int { KeyMetricPrefs.columns(columnsRaw) }
+
+    /// The placed widgets on show: AgeLess only while AgeLess is switched on.
+    private var shown: [ForgeTodayWidget] {
+        store.widgets.filter { $0.kind != .ageless || healthspanEnabled }
+    }
 
     /// Small tiles fill a row of two or three; a wide tile takes its own row.
     private var rows: [[ForgeTodayWidget]] {
         var out: [[ForgeTodayWidget]] = []
         var pending: [ForgeTodayWidget] = []
-        for w in store.widgets {
+        for w in shown {
             if w.isWide {
                 if !pending.isEmpty { out.append(pending); pending = [] }
                 out.append([w])
@@ -155,7 +172,7 @@ struct ForgeTodayWidgetArea: View {
     }
 
     var body: some View {
-        if editing || !store.widgets.isEmpty {
+        if editing || !shown.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 if editing {
                     // On a card of its own: the picture behind it changes with the hour.
@@ -207,10 +224,16 @@ struct ForgeTodayWidgetArea: View {
                     ForEach(KeyMetricPrefs.columnChoices, id: \.self) { Text(verbatim: "\($0)").tag($0) }
                 }
             }
-            layoutChoice("Tiles start") {
-                Picker("Tiles start", selection: $belowTimeline) {
-                    Text("Under the rings").tag(false)
-                    Text("After the timeline").tag(true)
+            Toggle(isOn: $showsTimeline.animation(.snappy)) {
+                Text("Show the timeline").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+            }
+            .tint(ForgeColor.accent)
+            if showsTimeline {
+                layoutChoice("Tiles start") {
+                    Picker("Tiles start", selection: $belowTimeline) {
+                        Text("Under the rings").tag(false)
+                        Text("After the timeline").tag(true)
+                    }
                 }
             }
         }
@@ -240,7 +263,7 @@ struct ForgeTodayWidgetArea: View {
                     .accessibilityLabel(Text("Remove widget"))
                 }
                 .overlay(alignment: .topTrailing) {
-                    if w.kind == .liveHeart {
+                    if w.resizable {
                         Button { withAnimation(.snappy) { store.toggleWide(w.id) } } label: {
                             Image(systemName: w.isWide ? "arrow.down.right.and.arrow.up.left.circle.fill" : "arrow.up.left.and.arrow.down.right.circle.fill")
                                 .font(.title2)
@@ -293,6 +316,9 @@ struct ForgeTodayWidgetView: View {
         case .lastNight: ForgeLastNightWidget()
         case .weekPlan: ForgeWeekPlanWidget()
         case .coachNote: ForgeCoachNoteWidget()
+        case .ageless:
+            if widget.isWide { ForgeAgeLessWideWidget() } else { ForgeAgeLessWidget() }
+        case .lastWorkout: ForgeLastWorkoutWidget()
         }
     }
 }
@@ -654,33 +680,170 @@ struct ForgeMeasureWidget: View {
     }
 }
 
-/// Today's energy as the shipped Energy card draws it.
+/// AgeLess as a small tile: the AgeLess age, with the calendar age under it. Opens the AgeLess page.
+struct ForgeAgeLessWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var profile: ProfileStore
+    @State private var week: HealthspanWeek?
+
+    var body: some View {
+        NavigationLink(value: ForgeRoute.ageless) {
+            ForgeTodayTile(label: "AgeLess", symbol: "hourglass",
+                           value: week.map { HealthspanSection.years($0.result.healthspanAge) },
+                           unit: String(localized: "years"),
+                           caption: week.map { String(localized: "Age \(HealthspanSection.years($0.result.chronologicalAge))") },
+                           tint: week.map { $0.result.healthspanAge <= $0.result.chronologicalAge ? ForgeColor.charge : ForgeColor.effort }
+                               ?? ForgeColor.accent)
+        }
+        .buttonStyle(LiquidPressStyle())
+        .task(id: repo.refreshSeq) { week = await ForgeAgeLessWidget.latestWeek(repo: repo, profile: profile) }
+    }
+
+    /// The week the AgeLess page opens on, read through the shipped engine; nil without a sex in the profile.
+    static func latestWeek(repo: Repository, profile: ProfileStore) async -> HealthspanWeek? {
+        guard let sex = HealthspanEngine.Sex(profileValue: profile.sex) else { return nil }
+        return await HealthspanSnapshot.load(repo: repo, age: profile.age, sex: sex)?.weeks.last
+    }
+}
+
+/// AgeLess as a full-width card: the top of the AgeLess page on its age line.
+struct ForgeAgeLessWideWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var profile: ProfileStore
+    @State private var week: HealthspanWeek?
+
+    var body: some View {
+        ForgeAgeLessSummary(week: week)
+            .task(id: repo.refreshSeq) { week = await ForgeAgeLessWidget.latestWeek(repo: repo, profile: profile) }
+    }
+}
+
+/// The latest session: sport, when and how long, and its Effort. Opens the workout.
+struct ForgeLastWorkoutWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    @State private var row: WorkoutRow?
+    @State private var loaded = false
+
+    var body: some View {
+        Group {
+            if let row {
+                NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) { card(row) }
+            } else {
+                NavigationLink(value: ForgeRoute.workouts) { empty }
+            }
+        }
+        .buttonStyle(LiquidPressStyle())
+        .task(id: repo.refreshSeq) {
+            row = await repo.workoutRows(days: 60, reconcileHrCap: 0).max { $0.endTs < $1.endTs }
+            loaded = true
+        }
+    }
+
+    private func card(_ row: WorkoutRow) -> some View {
+        let tint = AppleInspiredColors.role(forSport: row.sport).color
+        let start = Date(timeIntervalSince1970: TimeInterval(row.startTs))
+        let minutes = Int((row.durationS ?? Double(max(row.endTs - row.startTs, 0))) / 60)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Latest workout").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+            HStack(spacing: 12) {
+                WorkoutTypeIcon(workoutType: row.sport, size: 18, weight: .semibold, color: tint)
+                    .frame(width: 42, height: 42)
+                    .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(WorkoutSource.localizedDisplaySport(row.sport))
+                        .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
+                    Text(verbatim: LiquidTodayView.workoutDayText(start) + " "
+                         + start.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))
+                         + " · " + String(localized: "\(minutes) min"))
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if let strain = row.strain {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text(ForgeToday.effortText(strain, scale: UnitPrefs.resolveEffortScale(effortScaleRaw)))
+                            .font(ForgeFont.rounded(22, .bold)).foregroundStyle(ForgeColor.effortInk)
+                        Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var empty: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Latest workout").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+            Text("Workouts you record or import appear here.")
+                .font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
+                .opacity(loaded ? 1 : 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeCard(radius: ForgeRadius.card, padding: 14)
+    }
+}
+
+/// Today's energy as the Energy page opens: the same ring, burned against a usual day, with resting, active
+/// and eaten beside it. Opens the Energy page.
 struct ForgeEnergyWidget: View {
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
     @State private var summary: DailyEnergySummary?
+    @State private var usual: Double?
+    @State private var eaten: Double?
+    @State private var loaded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Energy").font(.system(.headline)).foregroundStyle(ForgeColor.text).padding(.horizontal, 2)
-            NavigationLink(value: TabRoute.energy) {
+        NavigationLink(value: TabRoute.energy) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Energy").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
+                }
                 if let summary {
-                    EnergyCard(summary: summary, compact: true, showsTitle: false)
-                } else {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("Loading energy…").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    HStack(spacing: 16) {
+                        ForgeEnergyRing(resting: summary.basalBurnedSoFar, active: summary.activeBurnedSoFar,
+                                        total: summary.totalBurnedSoFar, usual: usual,
+                                        totalText: EnergyDisplay.totalText(summary), selectedDay: summary.day, compact: true)
+                            .frame(width: 104, height: 104)
+                        VStack(alignment: .leading, spacing: 6) {
+                            figure(StrandPalette.energyResting, String(localized: "Resting"), summary.basalBurnedSoFar)
+                            figure(StrandPalette.energyActive, String(localized: "Active"), summary.activeBurnedSoFar)
+                            if let eaten { figure(StrandPalette.chargeColor, String(localized: "Eaten"), eaten) }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 60)
-                    .forgeCard(radius: ForgeRadius.card, padding: 14)
+                } else {
+                    Text(loaded ? "Energy appears as soon as a connected source records activity." : "Loading energy…")
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
                 }
             }
-            .buttonStyle(.plain)
+            .forgeCard(radius: ForgeRadius.card, padding: 14)
         }
+        .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
             let today = Repository.logicalDayKey(Date())
-            summary = await repo.energySummaries(days: 3, profile: Repository.analyticsProfile(profile)).first { $0.day == today }
+            let all = await repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
+            summary = all.first { $0.day == today }
+            usual = ForgeEnergyView.usualTotal(all, today: today)
+            eaten = await repo.intakeByDay(from: today, to: today)[today]
+            loaded = true
         }
+    }
+
+    private func figure(_ color: Color, _ title: String, _ value: Double?) -> some View {
+        HStack(spacing: 8) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(title).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+            Spacer(minLength: 4)
+            Text(verbatim: value.map { Int($0.rounded()).formatted(.number.locale(AppLanguage.activeLocale)) } ?? "–")
+                .font(.system(.subheadline, weight: .semibold).monospacedDigit()).foregroundStyle(ForgeColor.text)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -690,6 +853,7 @@ struct ForgeWidgetGallery: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = ForgeTodayWidgetStore.shared
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
+    @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -710,6 +874,14 @@ struct ForgeWidgetGallery: View {
                         subtitle: String(localized: "Wide · this week's goals")) { store.add(.init(kind: .goals)) }
                     row(symbol: "flame.fill", title: String(localized: "Energy"),
                         subtitle: String(localized: "Wide · burned and eaten today")) { store.add(.init(kind: .energy)) }
+                    row(symbol: "figure.run", title: String(localized: "Latest workout"),
+                        subtitle: String(localized: "Wide · your last session and its Effort")) { store.add(.init(kind: .lastWorkout)) }
+                    if healthspanEnabled {
+                        row(symbol: "hourglass", title: "AgeLess",
+                            subtitle: String(localized: "Small · your AgeLess age")) { store.add(.init(kind: .ageless)) }
+                        row(symbol: "hourglass", title: "AgeLess",
+                            subtitle: String(localized: "Wide · your AgeLess age on the age line")) { store.add(.init(kind: .ageless, wide: true)) }
+                    }
                     row(symbol: "moon.fill", title: String(localized: "Last night"),
                         subtitle: String(localized: "Wide · hours asleep and bedtime")) { store.add(.init(kind: .lastNight)) }
                     row(symbol: "calendar", title: String(localized: "This week's plan"),

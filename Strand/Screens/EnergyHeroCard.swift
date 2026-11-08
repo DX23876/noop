@@ -341,7 +341,7 @@ struct EnergyHeroCard: View {
         .background(StrandPalette.surfaceInset, in: Capsule())
     }
 
-    private var confidenceLabel: LocalizedStringKey {
+    var confidenceLabel: LocalizedStringKey {
         switch summary.confidence {
         case .solid:       return "Measured"
         case .building:    return "Partly estimated"
@@ -351,7 +351,7 @@ struct EnergyHeroCard: View {
 
     /// Same wording, same rules as the Today card — including the one that stops NOOP blaming a
     /// strap that simply has not synced (`EnergyCard.unmeasuredNote`).
-    private var qualityNote: LocalizedStringKey? {
+    var qualityNote: LocalizedStringKey? {
         switch summary.source {
         case .profileOnly:
             return EnergyCard.unmeasuredNote(

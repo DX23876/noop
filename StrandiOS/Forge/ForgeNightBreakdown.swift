@@ -251,14 +251,16 @@ struct ForgeShareRing: View {
 struct ForgeShareBar: View {
     let fraction: Double
     let typical: Double?
+    /// Sleep's blue unless a page passes its own colour.
+    var tint: Color = ForgeColor.rest
     @State private var drawn = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(ForgeColor.rest.opacity(0.16))
-                Capsule().fill(LinearGradient(colors: [ForgeColor.rest.opacity(0.6), ForgeColor.rest],
+                Capsule().fill(tint.opacity(0.16))
+                Capsule().fill(LinearGradient(colors: [tint.opacity(0.6), tint],
                                               startPoint: .leading, endPoint: .trailing))
                     .frame(width: max(6, geo.size.width * min(max(fraction, 0), 1) * (drawn ? 1 : 0)))
                 if let typical {

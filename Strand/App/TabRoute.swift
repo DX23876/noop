@@ -1,4 +1,5 @@
 import SwiftUI
+import StrandDesign
 
 // MARK: - TabRoute
 //
@@ -111,7 +112,12 @@ extension View {
             case .hydration: HydrationView()
             case .coupled: CoupledView()
             case .weight: WeightDetailView()
-            case .energy: EnergyDetailView()
+            case .energy:
+                #if os(iOS)
+                if NoopVisualStyle.skin == .forge { ForgeEnergyView() } else { EnergyDetailView() }
+                #else
+                EnergyDetailView()
+                #endif
             case .strength: StrengthView()
             case .cardio: CardioView()
             case .trainingLoad: TrainingLoadView()

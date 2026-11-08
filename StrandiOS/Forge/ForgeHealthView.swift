@@ -275,37 +275,8 @@ struct ForgeHealthView: View {
 }
 
 extension ForgeHealthView {
-    /// AgeLess on Health: the top of its page only (AgeLess age, actual age, pace, six months on) on the
-    /// same age line, opening the full page. Without a week to show (no sex in the profile, too few nights)
-    /// it still opens the page, which says what is missing.
-    @ViewBuilder var agelessCard: some View {
-        NavigationLink(value: ForgeRoute.ageless) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Label("AgeLess", systemImage: "hourglass").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
-                }
-                if let week = healthspan {
-                    let age = week.result.healthspanAge, actual = week.result.chronologicalAge
-                    let projected = week.pace.map { HealthspanEngine.projectedAge(currentAge: age, pace: $0) }
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(HealthspanSection.years(age)).font(ForgeFont.rounded(34, .bold))
-                            .foregroundStyle(age <= actual ? ForgeColor.chargeInk : ForgeColor.effortInk)
-                        Text("AgeLess age · actual \(HealthspanSection.years(actual))").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                    }
-                    ForgeAgeLine(actual: actual, age: age, projected: projected).frame(height: 70)
-                    if let pace = week.pace {
-                        Text(ForgeAgeLessView.paceSentence(pace)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                    }
-                } else {
-                    Text("Your health age").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                }
-            }
-            .forgeCard(radius: ForgeRadius.card, padding: 14)
-        }
-        .buttonStyle(.plain)
-    }
+    /// AgeLess on Health: the top of its page only, opening the full page (`ForgeAgeLessSummary`).
+    var agelessCard: some View { ForgeAgeLessSummary(week: healthspan) }
 }
 
 extension ForgeHealthView {

@@ -6,8 +6,8 @@ import StrandCore
 import WhoopStore
 import StrandTraining
 
-/// The redesigned Today (2026-11, "New design (preview)"): the three organic rings, Log and Start, the wearer's
-/// tiles, then one sheet over the motif with what happened, newest first.
+/// The redesigned Today (2026-11, "New design (preview)"): the three organic rings, a plus for Start and Log, the
+/// wearer's tiles, then one sheet over the motif with what happened, newest first.
 ///
 /// Every number is read through the same resolvers the shipped Today uses (`ChargeDisplay`,
 /// `DashboardRestScore`/`freshRestScore`, `LiveEffort` floored by `effectiveEffort`), so the two designs can
@@ -64,6 +64,8 @@ struct ForgeTodayView: View {
     /// Today's session the morning note proposed, opened from the note itself.
     @ObservedObject private var planStore = CoachPlanStore.shared
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var tilesBelowTimeline = false
+    /// Off: Today is the rings and the wearer's tiles only.
+    @AppStorage(ForgeTodayWidgetStore.showsTimelineKey) private var showsTimeline = true
     /// Bumped by a tap on the pinned bar: back to the rings.
     @State private var backToTop = 0
     /// Long notes opened in place: figures and a few lines first, the rest on request.
@@ -123,7 +125,7 @@ struct ForgeTodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForgeLargeHeader(title: "Today", onProfile: onProfile)
+                        ForgeLargeHeader(title: "Today", onProfile: onProfile) { addMenu }
                             .id("forge-today-top")
                         VStack(alignment: .leading, spacing: 14) {
                             HealthAlertBanner()
@@ -144,12 +146,16 @@ struct ForgeTodayView: View {
                                     withAnimation(.easeOut(duration: 0.2)) { heroHidden = hidden }
                                 }
                             dayAnswer
-                            actions
                         }
                         .padding(.horizontal, 16)
                     }
                     VStack(alignment: .leading, spacing: 14) {
-                        if !tilesBelowTimeline || editingWidgets {
+                        if !showsTimeline {
+                            // Without the timeline, what waits for an answer still has a place.
+                            ActivitySuggestionPrompt(compact: true)
+                            openCard
+                        }
+                        if !tilesBelowTimeline || !showsTimeline || editingWidgets {
                             ForgeTodayWidgetArea(editing: $editingWidgets)
                         }
                         ForgeCycleSummaryCard(showsLogButtons: false)
@@ -234,25 +240,31 @@ struct ForgeTodayView: View {
         backToTop += 1
     }
 
-    /// Log and Start in one row under the rings, where a thumb finds them. Editing starts by holding a tile.
-    private var actions: some View {
-        HStack(spacing: 8) {
-            Button(action: onLog) { actionLabel("Add entry", systemImage: "plus") }
-                .buttonStyle(.plain)
-            Button(action: onWorkout) { actionLabel("Start", systemImage: "figure.run") }
-                .buttonStyle(.plain)
+    /// Start and Add entry behind one plus beside the battery, so the rings have the page to themselves.
+    /// Customize Today sits there too, for a page with no tile to hold.
+    private var addMenu: some View {
+        Menu {
+            Button(action: onWorkout) {
+                if model?.activeWorkout != nil {
+                    Label("Back to workout", systemImage: "figure.run")
+                } else {
+                    Label("Start workout", systemImage: "figure.run")
+                }
+            }
+            Button(action: onLog) { Label("Add entry", systemImage: "square.and.pencil") }
+            Divider()
+            Button { startEditingWidgets() } label: { Label("Customize Today", systemImage: "square.grid.2x2") }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(ForgeColor.accent)
+                .frame(width: 34, height: 34)
+                .modifier(ForgeTodayActionSurface())
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
-    }
-
-    private func actionLabel(_ title: LocalizedStringKey, systemImage: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: systemImage).foregroundStyle(ForgeColor.accent)
-            Text(title).foregroundStyle(ForgeColor.text)
-        }
-        .font(.system(.subheadline, weight: .semibold))
-        .frame(maxWidth: .infinity, minHeight: 46)
-        .modifier(ForgeTodayActionSurface())
-        .contentShape(Capsule())
+        .menuOrder(.fixed)
+        .accessibilityLabel(Text("Add"))
     }
 
     // MARK: - Hero
@@ -436,8 +448,8 @@ struct ForgeTodayView: View {
     /// The day directly on the picture: only what carries text has a surface, each entry its own.
     private var dayList: some View {
         VStack(alignment: .leading, spacing: 14) {
-            timeline
-            if tilesBelowTimeline && !editingWidgets {
+            if showsTimeline { timeline }
+            if tilesBelowTimeline && showsTimeline && !editingWidgets {
                 ForgeTodayWidgetArea(editing: $editingWidgets)
             }
         }
@@ -1771,7 +1783,7 @@ struct ForgeDayStrip: View {
     }
 }
 
-/// Log and Start on a solid surface, the page's two actions standing out from the see-through tiles under them.
+/// The plus in the header on a solid surface, standing out from the picture behind it.
 private struct ForgeTodayActionSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 
