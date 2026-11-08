@@ -31,6 +31,9 @@ on:
 
 permissions:
   contents: write
+  # Build provenance for the attached APK (see publish-ios-release.yml). A caller must grant these too.
+  id-token: write
+  attestations: write
 
 env:
   SWIFT_TOOLCHAIN_URL: https://download.swift.org/swift-6.4.1-release/ubuntu2404/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-ubuntu24.04.tar.gz
@@ -154,4 +157,13 @@ jobs:
         run: |
           set -euo pipefail
           [ -n "$TAG" ] || { echo "::error::no release tag given"; exit 1; }
-          gh release upload "$TAG" "$FILE" --repo "$GITHUB_REPOSITORY" --clobber
+          SUMS="${FILE%.apk}.sha256"
+          (cd "$(dirname "$FILE")" && sha256sum "$(basename "$FILE")") > "$SUMS"
+          cat "$SUMS"
+          gh release upload "$TAG" "$FILE" "$SUMS" --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Attest build provenance
+        if: ${{ !inputs.dry_run }}
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: ${{ steps.apk.outputs.file }}

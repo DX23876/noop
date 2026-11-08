@@ -748,6 +748,15 @@ Choose **NOOPiOS** for iPhone or **Strand** for Mac. See the [build guide](docs/
 </tr>
 </table>
 
+**Check what you downloaded.** Release files are built by GitHub Actions from this repository's public
+code. From the first release after 13.0.0, each release also carries a `.sha256` file with every download's
+checksum, and GitHub signs where each file was built. With the [GitHub CLI](https://cli.github.com) you can check that a file came from this
+repository's own release workflow:
+
+```bash
+gh attestation verify NOOP-ios-unsigned-v13.0.0-dx.ipa --repo DX23876/noop
+```
+
 **Updating keeps your data.** **Moving to a new phone:** export a backup under Data & Backup and import it
 on the new device.
 
