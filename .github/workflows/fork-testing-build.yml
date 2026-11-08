@@ -16,6 +16,9 @@ on:
 
 permissions:
   contents: write
+  # Signed build provenance for every attached file, as in publish-ios-release.yml.
+  id-token: write
+  attestations: write
 
 concurrency:
   group: testing-build
@@ -230,7 +233,15 @@ jobs:
           codesign --force --deep --sign - "$APP"
           codesign -dvv "$APP" 2>&1 | grep -Ei 'identifier|signature|flags' || true
           ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}.zip"
-          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-macos-v${VER}.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          shasum -a 256 "NOOP-macos-v${VER}.zip" > "NOOP-macos-v${VER}.sha256"
+          cat "NOOP-macos-v${VER}.sha256"
+          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-macos-v${VER}.zip" "NOOP-macos-v${VER}.sha256" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          echo "MAC_ZIP=NOOP-macos-v${VER}.zip" >> "$GITHUB_ENV"
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: ${{ env.MAC_ZIP }}
 
   ios:
     needs: meta
@@ -279,7 +290,18 @@ jobs:
           FULL_IPA="NOOP-ios-full-unsigned-v${VER}.ipa"
           Tools/anonymize-ios-app.sh "$APP"
           Tools/package-ios-ipas.sh "$APP" "$LITE_IPA" "$FULL_IPA"
-          gh release upload "${{ needs.meta.outputs.tag }}" "$LITE_IPA" "$FULL_IPA" --repo "$GITHUB_REPOSITORY" --clobber
+          SUMS="NOOP-ios-v${VER}.sha256"
+          shasum -a 256 "$LITE_IPA" "$FULL_IPA" > "$SUMS"
+          cat "$SUMS"
+          gh release upload "${{ needs.meta.outputs.tag }}" "$LITE_IPA" "$FULL_IPA" "$SUMS" --repo "$GITHUB_REPOSITORY" --clobber
+          echo "LITE_IPA=$LITE_IPA" >> "$GITHUB_ENV"
+          echo "FULL_IPA=$FULL_IPA" >> "$GITHUB_ENV"
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: |
+            ${{ env.LITE_IPA }}
+            ${{ env.FULL_IPA }}
 
   # Fork-only housekeeping: the disposable `noop-staging` branch exists ONLY to feed this build. Once every
   # platform job has finished (pass OR fail — always()), delete it so GitHub's "Compare & pull request"
