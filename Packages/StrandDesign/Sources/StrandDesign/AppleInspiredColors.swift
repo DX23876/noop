@@ -180,7 +180,7 @@ private struct AppleInspiredControlColorKey: EnvironmentKey {
     static let defaultValue: Color? = nil
 }
 
-extension EnvironmentValues {
+public extension EnvironmentValues {
     /// The colour custom StrandDesign controls should use when an `appleInspiredTint` wraps them.
     var appleInspiredControlColor: Color? {
         get { self[AppleInspiredControlColorKey.self] }

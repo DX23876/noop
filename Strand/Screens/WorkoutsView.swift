@@ -261,6 +261,10 @@ struct WorkoutsView: View {
             }
         }
         .pagePicture("figure.run", accent: "flame.fill", tint: StrandPalette.effortColor)
+        // The new design's Training area: its controls in the one Training green.
+        .environment(\.appleInspiredControlColor,
+                     NoopVisualStyle.skin == .forge ? Color(light: "#248A3D", dark: "#30D158") : nil)
+        .tint(NoopVisualStyle.skin == .forge ? Color(light: "#248A3D", dark: "#30D158") : StrandPalette.accent)
         // Keyed on the energy revision too: a correction of stored session energy (recipes AI-13 to AI-15)
         // or a re-priced day changes the rows and the heatmap without a strap refresh, and the list kept
         // showing the old figure until the next one. Likewise heart rate filled into Apple Health rows.
@@ -1233,14 +1237,14 @@ struct WorkoutsView: View {
             HStack(spacing: NoopMetrics.rowSpacing) {
                 analysisLink(title: String(localized: "Strength"),
                              subtitle: String(localized: "sets, muscles, records"),
-                             icon: "dumbbell.fill") { StrengthView() }
+                             icon: "dumbbell.fill", tint: StrandPalette.strengthColor) { StrengthView() }
                 analysisLink(title: String(localized: "Cardio"),
                              subtitle: String(localized: "pace, distance, load"),
-                             icon: "figure.run.circle.fill") { CardioView() }
+                             icon: "figure.run.circle.fill", tint: StrandPalette.cardioColor) { CardioView() }
             }
             analysisLink(title: String(localized: "Training Load"),
                          subtitle: String(localized: "strength and cardio vs your baseline"),
-                         icon: "gauge.with.dots.needle.67percent") { TrainingLoadView() }
+                         icon: "gauge.with.dots.needle.67percent", tint: StrandPalette.effortColor) { TrainingLoadView() }
         }
     }
 
@@ -1252,7 +1256,7 @@ struct WorkoutsView: View {
     /// INERT from the other — the tap simply did nothing, which is exactly what happened the first time
     /// this was tried. `TabRoute`'s own note says deeper links stay closure-based for this reason.
     private func analysisLink<Destination: View>(
-        title: String, subtitle: String, icon: String,
+        title: String, subtitle: String, icon: String, tint: Color? = nil,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
         NavigationLink {
@@ -1262,7 +1266,7 @@ struct WorkoutsView: View {
                 HStack(spacing: 10) {
                     Image(systemName: icon)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(tint ?? StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title).font(StrandFont.subhead)
