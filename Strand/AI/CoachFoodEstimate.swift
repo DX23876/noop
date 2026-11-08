@@ -34,6 +34,34 @@ enum CoachFoodEstimate {
         return text
     }
 
+    /// The free estimate's prompt, used only when no BLS food is close enough (decision 2026-11-08).
+    static let estimateSystem = """
+        You estimate vitamins and minerals per 100 g for a packaged food that does not state them, for a personal \
+        nutrition diary. Use what you know about this kind of product and its typical ingredients. Rules: only the \
+        nutrients asked for; never change or repeat the stated values; do not assume fortification unless the name or \
+        stated values show it; give null when you cannot tell. Units are in the key (g, mg, ug). Reply with JSON only, \
+        for example {"calcium_mg": 120, "vitamin_d_ug": null}.
+        """
+
+    static func estimatePrompt(_ item: FoodItem, missing: [FoodNutrient]) -> String {
+        var text = "Product: \(item.name)"
+        if let brand = item.brand { text += " (\(brand))" }
+        if let group = item.group { text += "\nCategory: \(group)" }
+        let stated = FoodNutrient.allCases.compactMap { n in item.per100g[n].map { "\(n.rawValue) \($0)" } }
+        text += "\nStated per 100 g: " + stated.joined(separator: ", ")
+        text += "\nEstimate: " + missing.map(\.rawValue).joined(separator: ", ")
+        return text
+    }
+
+    static func parseEstimate(_ reply: String) -> [FoodNutrient: Double] {
+        guard let object = CoachFoodLogging.jsonObject(in: reply) else { return [:] }
+        var out: [FoodNutrient: Double] = [:]
+        for (key, value) in object {
+            if let nutrient = FoodNutrient(rawValue: key), let number = (value as? NSNumber)?.doubleValue { out[nutrient] = number }
+        }
+        return out
+    }
+
     static func parsePick(_ reply: String, count: Int) -> Int? {
         guard let object = CoachFoodLogging.jsonObject(in: reply), let pick = (object["pick"] as? NSNumber)?.intValue,
               (0..<count).contains(pick) else { return nil }
@@ -64,13 +92,22 @@ extension AICoachEngine {
     /// or the coach could not answer.
     func estimateMissingNutrients(_ item: FoodItem, catalog: FoodCatalog = .shared) async -> FoodItem? {
         guard FoodEstimate.needsFilling(item) else { return nil }
+        // First a measured neighbour from the BLS; only when none is close enough, the model's own estimate.
         let candidates = await CoachFoodEstimate.candidates(for: item, catalog: catalog)
-        guard !candidates.isEmpty,
-              let reply = await strongComplete(system: CoachFoodEstimate.system,
-                                               user: CoachFoodEstimate.prompt(item, candidates: candidates)),
-              let pick = CoachFoodEstimate.parsePick(reply, count: candidates.count) else { return nil }
-        let filled = FoodEstimate.filled(item, from: candidates[pick])
-        return filled.estimatedFrom == nil ? nil : filled
+        if !candidates.isEmpty,
+           let reply = await strongComplete(system: CoachFoodEstimate.system,
+                                            user: CoachFoodEstimate.prompt(item, candidates: candidates)),
+           let pick = CoachFoodEstimate.parsePick(reply, count: candidates.count) {
+            let filled = FoodEstimate.filled(item, from: candidates[pick])
+            if filled.estimatedFrom != nil { return filled }
+        }
+        let missing = FoodEstimate.missing(item)
+        guard let reply = await strongComplete(system: CoachFoodEstimate.estimateSystem,
+                                               user: CoachFoodEstimate.estimatePrompt(item, missing: missing)) else { return nil }
+        var ceilings: [FoodNutrient: Double] = [:]
+        for nutrient in missing { ceilings[nutrient] = await catalog.blsMaximum(nutrient) }
+        let estimated = FoodEstimate.filledByModel(item, values: CoachFoodEstimate.parseEstimate(reply)) { ceilings[$0] }
+        return estimated.estimatedFrom == nil ? nil : estimated
     }
 
     /// The cart's products with their gaps filled and kept as the wearer's own, so each product is matched once.

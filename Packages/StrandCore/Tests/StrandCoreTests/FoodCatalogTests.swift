@@ -318,3 +318,24 @@ final class FoodCompositionMatchTests: XCTestCase {
         XCTAssertNotNil(FoodEstimate.filled(pudding, from: quark).estimatedFrom)
     }
 }
+
+final class FoodModelEstimateTests: XCTestCase {
+    func testModelValuesAreMarkedApartAndBoundedAndNotJudged() {
+        let bar = FoodItem(id: "off:2", source: .off, name: "Protein Bar",
+                           per100g: NutrientAmounts([.energyKcal: 380, .proteinG: 33, .carbsG: 30, .fatG: 12, .calciumMg: 300]))
+        let filled = FoodEstimate.filledByModel(bar, values: [.magnesiumMg: 150, .ironMg: 9_999, .calciumMg: 1],
+                                                ceiling: { _ in 500 })
+        XCTAssertEqual(filled.per100g[.magnesiumMg], 150)
+        XCTAssertNil(filled.per100g[.ironMg], "beyond 1.5 times any BLS food")
+        XCTAssertEqual(filled.per100g[.calciumMg], 300, "a stated value is never replaced")
+        XCTAssertEqual(filled.estimatedFrom, FoodEstimate.aiSource)
+        XCTAssertEqual(filled.estimatedKeys, ["ai:magnesium_mg"])
+        let entry = FoodLog.entry(for: filled, grams: 100, at: Date(), origin: .search)
+        let row = FoodNutrientReport.report(entries: [entry], from: entry.day, to: entry.day,
+                                            references: FoodReference.values(profileSex: "male", age: 40, weightKg: 80,
+                                                                             heightCm: 180, energyKcal: 2_500))
+            .rows.first { $0.nutrient == .magnesiumMg }!
+        XCTAssertEqual(row.modelShare, 1)
+        XCTAssertEqual(row.status, .mostlyModel)
+    }
+}

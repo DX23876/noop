@@ -49,6 +49,29 @@ public enum FoodEstimate {
         return abs(p - q) <= max(3, 0.4 * max(p, q))
     }
 
+    /// Marks a nutrient the coach's model estimated freely, when no BLS food was close enough. Kept apart from
+    /// borrowed BLS values in every entry, so a report can tell a measured neighbour from a model's guess.
+    public static let aiPrefix = "ai:"
+    public static let aiSource = "ai"
+
+    /// `item` with the model's free estimates for its gaps. Values outside zero to 1.5 times the highest any BLS
+    /// food has (`ceiling`) are dropped: a model's guess must at least be possible for some real food.
+    public static func filledByModel(_ item: FoodItem, values: [FoodNutrient: Double],
+                                     ceiling: (FoodNutrient) -> Double?) -> FoodItem {
+        var next = item
+        var keys: [String] = []
+        for nutrient in missing(item) {
+            guard let value = values[nutrient], value.isFinite, value >= 0,
+                  let limit = ceiling(nutrient), value <= limit * 1.5 else { continue }
+            next.per100g[nutrient] = value
+            keys.append(aiPrefix + nutrient.rawValue)
+        }
+        guard !keys.isEmpty else { return item }
+        next.estimatedFrom = aiSource
+        next.estimatedKeys = keys.sorted()
+        return next
+    }
+
     /// `item` with its gaps taken from `reference`, per 100 g, and marked.
     public static func filled(_ item: FoodItem, from reference: FoodItem) -> FoodItem {
         guard closeEnough(item, reference) else { return item }

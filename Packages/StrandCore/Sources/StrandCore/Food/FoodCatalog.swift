@@ -232,6 +232,12 @@ public actor FoodCatalog {
             .sorted { $0.1 < $1.1 }.prefix(limit).map(\.0)
     }
 
+    /// The highest value any BLS food has for `nutrient`, the plausibility ceiling for a model's estimate.
+    public func blsMaximum(_ nutrient: FoodNutrient) -> Double? {
+        if blsRows == nil { _ = nearestBLS(to: FoodItem(id: "", source: .own, name: "", per100g: NutrientAmounts()), limit: 0) }
+        return blsRows?.compactMap { $0.per100g[nutrient] }.max()
+    }
+
     public func item(id: String) -> FoodItem? {
         for key in catalogKeys() {
             guard let queue = try? queue(for: key),
