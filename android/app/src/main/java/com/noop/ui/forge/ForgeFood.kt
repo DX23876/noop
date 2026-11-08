@@ -98,6 +98,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     var adding by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<CoreFood.Entry?>(null) }
+    var nutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }
+    var showNutrients by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -109,9 +111,20 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             }
         }
     }
-    LaunchedEffect(day, revision) { summary = withContext(Dispatchers.IO) { CoreFood.day(day.toString()) } }
+    LaunchedEffect(day, revision, goal) {
+        summary = withContext(Dispatchers.IO) { CoreFood.day(day.toString()) }
+        nutrients = withContext(Dispatchers.IO) {
+            val profile = com.noop.ui.ProfileStore.from(context)
+            CoreFood.nutrients(day.toString(), profile.sex, profile.age, profile.weightKg, profile.heightCm, goal)
+        }
+    }
     fun reload() { revision++ }
 
+    if (showNutrients && nutrients != null) {
+        BackHandler { showNutrients = false }
+        ForgeFoodNutrientsPage(nutrients!!, onBack = { showNutrients = false })
+        return
+    }
     if (settings) {
         BackHandler { settings = false }
         ForgeFoodDataPage(onBack = { settings = false })
@@ -150,8 +163,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
         EnergyCard(summary?.totals ?: emptyMap(), goal)
         MacroRow(summary?.totals ?: emptyMap())
         val s = summary
+        FoodNutrientCard(nutrients) { showNutrients = true }
         if (s != null && s.meals.isNotEmpty()) {
-            NutrientCard(s.totals)
             s.meals.forEach { meal ->
                 MealCard(meal, onEdit = { editing = it }, onCopyTomorrow = {
                     scope.launch {
@@ -285,22 +298,6 @@ private fun MacroTile(name: String, grams: Double, share: Double, tint: androidx
         }
         Text(stringResource(R.string.food_share_energy, (share * 100).roundToInt()), style = Forge.type.caption,
              color = Forge.colors.textSecondary)
-    }
-}
-
-@Composable
-private fun NutrientCard(totals: Map<String, Double>) {
-    ForgeCard(Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.food_worth_a_look), style = Forge.type.headline, color = Forge.colors.text)
-        listOf(R.string.food_fibre to "fiber_g", R.string.food_sugar to "sugar_g", R.string.food_sat_fat to "sat_fat_g",
-               R.string.food_salt to "salt_g").forEach { (label, key) ->
-            Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space1)) {
-                Text(stringResource(label), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                val v = totals[key]
-                Text(v?.let { "${gramsText(it)} g" } ?: stringResource(R.string.food_not_known), style = Forge.type.bodyNumber,
-                     color = if (v == null) Forge.colors.textTertiary else Forge.colors.text)
-            }
-        }
     }
 }
 

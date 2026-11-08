@@ -326,6 +326,9 @@ dependencies {
     // CameraX hands back Guava's ListenableFuture. Guava 31.1-android is already on the runtime classpath
     // (through CameraX); the compiler needs to see the same version.
     compileOnly("com.google.guava:guava:31.1-android")
+    // Reading a nutrition label from a photo on the phone (Tesseract 5, Apache 2.0); the fast German and
+    // English models ship in assets/tessdata (tesseract-ocr/tessdata_fast, Apache 2.0).
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.8.0")
 
     // --- Unit / instrumentation tests ---
     testImplementation("junit:junit:4.13.2")

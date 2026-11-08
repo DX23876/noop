@@ -203,3 +203,45 @@ final class FoodLogTests: XCTestCase {
         XCTAssertEqual(WhoopStore.foodLogDayKeys.map(\.nutrient), FoodNutrient.macros.map(\.rawValue))
     }
 }
+
+final class FoodNutrientReportTests: XCTestCase {
+    private func entry(_ day: String, kcal: Double, _ values: [String: Double]) -> FoodLogEntry {
+        FoodLogEntry(id: UUID().uuidString, loggedAt: 0, day: day, foodId: "x", name: "Food \(kcal)", grams: 100,
+                     per100g: nil, totals: values.merging(["energy_kcal": kcal]) { a, _ in a }, origin: .search,
+                     createdAt: 0, updatedAt: 0)
+    }
+
+    func testAveragesOverLoggedDaysAndJudgesAgainstTheReference() {
+        let references = FoodReference.values(sex: .female, age: 40, weightKg: 70, heightCm: 170, energyKcal: 2_000)
+        let entries = [entry("2026-11-07", kcal: 1_000, ["vitamin_c_mg": 50, "iron_mg": 20]),
+                       entry("2026-11-08", kcal: 1_000, ["vitamin_c_mg": 150, "iron_mg": 20])]
+        let report = FoodNutrientReport.report(entries: entries, from: "2026-11-02", to: "2026-11-08", references: references)
+        XCTAssertEqual(report.loggedDays, 2)
+        let c = report.rows.first { $0.nutrient == .vitaminCMg }!
+        XCTAssertEqual(c.average, 100)
+        XCTAssertEqual(c.today, 150)
+        XCTAssertEqual(c.status, .fine)          // women 95 mg
+        let iron = report.rows.first { $0.nutrient == .ironMg }!
+        XCTAssertEqual(iron.status, .fine)       // 20 mg against 16 mg
+    }
+
+    func testAnUnstatedNutrientIsIncompleteNotLow() {
+        let references = FoodReference.values(sex: .male, age: 40, weightKg: 80, heightCm: 180, energyKcal: 2_500)
+        let entries = [entry("2026-11-08", kcal: 2_000, [:]), entry("2026-11-08", kcal: 200, ["vitamin_d_ug": 1])]
+        let row = FoodNutrientReport.report(entries: entries, from: "2026-11-02", to: "2026-11-08", references: references)
+            .rows.first { $0.nutrient == .vitaminDUg }!
+        XCTAssertEqual(row.status, .incomplete)
+        XCTAssertLessThan(row.coverage, 0.2)
+    }
+
+    func testProteinFollowsTheWeightAtBmi25AndEpaCountsDha() {
+        let references = FoodReference.values(sex: .male, age: 40, weightKg: 200, heightCm: 180, energyKcal: 3_000)
+        XCTAssertEqual(references[.proteinG]!.amount, 0.83 * 25 * 1.8 * 1.8, accuracy: 1e-9)
+        let row = FoodNutrientReport.report(entries: [entry("2026-11-08", kcal: 500, ["epa_g": 0.1, "dha_g": 0.2])],
+                                            from: "2026-11-08", to: "2026-11-08", references: references)
+            .rows.first { $0.nutrient == .epaG }!
+        XCTAssertEqual(row.average, 0.3, accuracy: 1e-9)
+        XCTAssertEqual(row.status, .fine)
+        XCTAssertEqual(references[.saltG]?.kind, .atMost)
+    }
+}

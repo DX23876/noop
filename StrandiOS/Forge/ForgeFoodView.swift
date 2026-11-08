@@ -17,6 +17,7 @@ struct ForgeFoodView: View {
     @State private var scrolledPast = false
     @State private var showAdd = false
     @State private var showSettings = false
+    @State private var showNutrients = false
     @State private var editing: FoodLogEntry?
     @State private var copying: [FoodLogEntry]?
     @State private var recipeFrom: [FoodLogEntry]?
@@ -30,8 +31,8 @@ struct ForgeFoodView: View {
                 dayPicker
                 energyCard
                 macroCard
+                ForgeFoodNutrientCard(report: model.nutrients) { showNutrients = true }
                 if let summary = model.summary, !summary.entries.isEmpty {
-                    nutrientCard(summary.totals)
                     ForEach(summary.meals) { meal in mealCard(meal) }
                 } else {
                     emptyCard
@@ -56,6 +57,9 @@ struct ForgeFoodView: View {
             }
         }
         .sheet(isPresented: $showSettings) { ForgeFoodProductDataView() }
+        .navigationDestination(isPresented: $showNutrients) {
+            if let report = model.nutrients { ForgeFoodNutrientsView(report: report) }
+        }
         .task { await model.load(repo: repo, profile: analyticsProfile) }
         .onChange(of: model.day) { _, _ in Task { await model.reload(repo: repo) } }
         .sheet(isPresented: $showAdd) {
@@ -182,29 +186,6 @@ struct ForgeFoodView: View {
         }
         .forgeCard(padding: 12)
         .accessibilityElement(children: .combine)
-    }
-
-    // MARK: Nutrients
-
-    /// The nutrients most worth a glance, as plain amounts. Goals for them come with the nutrition score.
-    private func nutrientCard(_ totals: NutrientAmounts) -> some View {
-        let rows: [(String, FoodNutrient, String)] = [
-            (String(localized: "Fibre"), .fiberG, "g"), (String(localized: "Sugar"), .sugarG, "g"),
-            (String(localized: "Saturated fat"), .satFatG, "g"), (String(localized: "Salt"), .saltG, "g"),
-        ]
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Worth a look").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
-            ForEach(rows, id: \.1) { row in
-                HStack {
-                    Text(row.0).font(ForgeFont.body).foregroundStyle(ForgeColor.text)
-                    Spacer()
-                    Text(totals[row.1].map { "\(ForgeFoodModel.grams($0)) \(row.2)" } ?? String(localized: "not known"))
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(totals[row.1] == nil ? ForgeColor.tertiary : ForgeColor.text)
-                }
-            }
-        }
-        .forgeCard()
     }
 
     // MARK: Meals

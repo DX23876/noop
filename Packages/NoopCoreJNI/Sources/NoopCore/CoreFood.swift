@@ -185,6 +185,12 @@ enum CoreFood {
             } catch { return #"{"error":"storeFailed"}"# }
             struct ImportWire: Encodable { var ok: Bool; var unresolvedDays: [String] }
             return CoreRead.json(ImportWire(ok: true, unresolvedDays: unresolved.sorted()))
+        case "food.nutrients":
+            // The nutrient card and page: seven days against the EFSA references for this person.
+            let references = FoodReference.values(profileSex: string("sex"), age: (args["age"] as? Int) ?? 40,
+                                                  weightKg: double("weightKg"), heightCm: double("heightCm"),
+                                                  energyKcal: double("energyKcal"))
+            return CoreRead.json(await FoodNutrientReport.report(store: store, to: string("day"), references: references))
         case "food.removePack":
             await catalog.removePack(country: string("country"))
             return #"{"ok":true}"#

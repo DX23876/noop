@@ -153,8 +153,33 @@ private fun BarcodeCamera(modifier: Modifier, onCode: (String) -> Unit) {
 }
 
 /**
- * A nutrition label typed in, saved as the wearer's own food with the scanned barcode. Reading the label from a
- * photo on the phone needs the Tesseract language data, which is not in this build yet.
+ * Text of a label photo, read on the phone by Tesseract with the bundled fast German and English models. The
+ * models are copied from the APK's assets once; the photo is deleted after reading.
+ */
+internal fun readLabelText(context: android.content.Context, photo: java.io.File): List<String>? = runCatching {
+    val root = java.io.File(context.filesDir, "tesseract")
+    val data = java.io.File(root, "tessdata").apply { mkdirs() }
+    for (name in listOf("deu.traineddata", "eng.traineddata")) {
+        val target = java.io.File(data, name)
+        if (!target.isFile || target.length() == 0L) {
+            context.assets.open("tessdata/$name").use { input -> target.outputStream().use { input.copyTo(it) } }
+        }
+    }
+    val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+    val bitmap = android.graphics.BitmapFactory.decodeFile(photo.path, options) ?: return null
+    val api = com.googlecode.tesseract.android.TessBaseAPI()
+    try {
+        if (!api.init(root.absolutePath, "deu+eng")) return null
+        api.setImage(bitmap)
+        api.getUTF8Text().orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+    } finally {
+        api.recycle()
+    }
+}.getOrNull()
+
+/**
+ * A nutrition label, read from a photo on the phone or typed in, saved as the wearer's own food with the scanned
+ * barcode. Every value stays editable before saving.
  */
 @Composable
 private fun ForgeFoodLabelPage(barcode: String?, onBack: () -> Unit, onSaved: (CoreFood.Item) -> Unit) {
@@ -168,10 +193,36 @@ private fun ForgeFoodLabelPage(barcode: String?, onBack: () -> Unit, onSaved: (C
                         "protein_g" to R.string.food_label_protein, "salt_g" to R.string.food_label_salt)
     val values = remember { mutableStateOf(mapOf<String, String>()) }
     fun num(s: String?) = s?.replace(',', '.')?.toDoubleOrNull()
+    val context = LocalContext.current
+    var reading by remember { mutableStateOf(false) }
+    val photo = remember { java.io.File(java.io.File(context.cacheDir, "food").apply { mkdirs() }, "label.jpg") }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        if (!taken) return@rememberLauncherForActivityResult
+        reading = true
+        scope.launch {
+            val label = withContext(Dispatchers.IO) {
+                try { readLabelText(context, photo)?.let { CoreFood.parseLabel(it) } } finally { photo.delete() }
+            }
+            reading = false
+            label?.let { read ->
+                values.value = values.value + read.per100.mapValues { gramsText(it.value) }
+                read.servingAmount?.let { serving = gramsText(it) }
+            }
+        }
+    }
     val complete = name.isNotBlank() && listOf("energy_kcal", "protein_g", "carbs_g", "fat_g").all { num(values.value[it]) != null }
     SettingsColumn {
         PageTitle(stringResource(R.string.food_label_title), onBack)
         Text(stringResource(R.string.food_label_note), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
+        // The app declares CAMERA for the scanner, so the system camera may only be asked once it is granted.
+        val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+            if (ok) camera.launch(androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", photo))
+        }
+        TextButton(enabled = !reading, onClick = {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                camera.launch(androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", photo))
+            } else cameraPermission.launch(Manifest.permission.CAMERA)
+        }) { Text(stringResource(if (reading) R.string.food_working else R.string.food_label_photo)) }
         ForgeCard(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
                 OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.food_label_name)) }, singleLine = true)

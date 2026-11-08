@@ -157,6 +157,31 @@ object CoreFood {
         return runCatching { JSONObject(text).optString("error").ifEmpty { null } }.getOrDefault("invalidArchive")
     }
 
+    data class NutrientRow(val nutrient: String, val average: Double, val today: Double, val reference: Double?,
+                           val atMost: Boolean, val source: String?, val coverage: Double, val status: String,
+                           val topFoods: List<Pair<String, Double>>)
+    data class NutrientReport(val loggedDays: Int, val rows: List<NutrientRow>) {
+        val fine get() = rows.count { it.status == "fine" }
+        val judged get() = rows.count { it.status == "fine" || it.status == "attention" }
+    }
+
+    /** Seven days against the EFSA references for this person (`FoodNutrientReport` in the core). */
+    fun nutrients(day: String, sex: String, age: Int, weightKg: Double?, heightCm: Double?, energyKcal: Double?): NutrientReport? {
+        val args = JSONObject().put("day", day).put("sex", sex).put("age", age)
+        weightKg?.let { args.put("weightKg", it) }; heightCm?.let { args.put("heightCm", it) }; energyKcal?.let { args.put("energyKcal", it) }
+        val json = call("food.nutrients", args) ?: return null
+        val rows = json.optJSONArray("rows") ?: return null
+        return NutrientReport(json.optInt("loggedDays"), (0 until rows.length()).mapNotNull { i ->
+            val r = rows.optJSONObject(i) ?: return@mapNotNull null
+            val ref = r.optJSONObject("reference")
+            val top = r.optJSONArray("topFoods") ?: JSONArray()
+            NutrientRow(r.optString("nutrient"), r.optDouble("average"), r.optDouble("today"),
+                ref?.optDouble("amount"), ref?.optString("kind") == "atMost", ref?.optString("source"),
+                r.optDouble("coverage"), r.optString("status"),
+                (0 until top.length()).mapNotNull { j -> top.optJSONObject(j)?.let { it.optString("name") to it.optDouble("amount") } })
+        })
+    }
+
     fun removePack(country: String) { call("food.removePack", JSONObject().put("country", country)) }
 
     /** Open Food Facts online (only in the online mode); null when the network failed. */

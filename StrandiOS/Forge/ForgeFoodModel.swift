@@ -24,6 +24,8 @@ final class ForgeFoodModel: ObservableObject {
     @Published private(set) var calories: FoodTargets.Calories?
     @Published private(set) var catalogReady = false
     @Published private(set) var catalogFailed = false
+    @Published private(set) var nutrients: FoodNutrientReport.Report?
+    private var references: [FoodNutrient: FoodReference.Value] = [:]
 
     private let plan = EnergyPlanModel()
 
@@ -40,11 +42,15 @@ final class ForgeFoodModel: ObservableObject {
                                         allDaysMeanKcal: plan.burn.allDaysMeanKcal,
                                         formulaTdeeKcal: plan.formulaTdee(profile: profile),
                                         dailyDeltaKcal: plan.targetDailyKcal)
+        references = FoodReference.values(profileSex: profile.sex, age: Int(profile.age), weightKg: profile.weightKg,
+                                          heightCm: profile.heightCm, energyKcal: calories?.kcal)
+        nutrients = await FoodNutrientReport.report(store: store, to: day, references: references)
     }
 
     func reload(repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
         summary = await FoodLog.day(store: store, day)
+        if !references.isEmpty { nutrients = await FoodNutrientReport.report(store: store, to: day, references: references) }
     }
 
     func shiftDay(by days: Int) {
