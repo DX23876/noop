@@ -7,8 +7,8 @@
 # <noreply@anthropic.com>" reached origin/main from one on 2026-11-08. This hook travels with the
 # repository so such a clone stops at the commit instead.
 #
-# Enable once per clone (hooks are not cloned by git); `.claude/hooks/cloud-git-setup.sh` does it for
-# agent sessions:
+# Enable once per clone (hooks are not cloned by git); a cloud agent session does it in its environment's
+# private setup script:
 #   git config core.hooksPath .githooks
 set -euo pipefail
 
