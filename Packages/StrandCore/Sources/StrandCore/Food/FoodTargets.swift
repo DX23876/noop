@@ -5,7 +5,7 @@ import StrandAnalytics
 /// energy card, the coach), so two readouts of the goal can never disagree.
 public enum FoodTargets {
     /// Where the calorie goal comes from, said on the screen in words.
-    public enum CalorieBasis: String, Sendable, Codable { case measured, formula, fixed }
+    public enum CalorieBasis: String, Sendable, Codable { case measured, formula, fixed, plan }
 
     public struct Calories: Equatable, Sendable, Codable {
         /// What to eat today to follow the wearer's own plan.
@@ -67,6 +67,26 @@ extension FoodTargets {
     public static func calories(fixedKcal: Double?, plan: Calories?) -> Calories? {
         guard let fixedKcal, fixedKcal >= 800, fixedKcal <= 10_000 else { return plan }
         return Calories(kcal: fixedKcal, burnKcal: plan?.burnKcal ?? fixedKcal, planDeltaKcal: 0, basis: .fixed)
+    }
+
+    /// The calorie goal for `day` from the wearer's diet plan (decision 2026-11-09), which outranks the older fixed
+    /// goal and the energy plan's rate. On a fasting form's fasting day it is that day's own figure.
+    public static func calories(plan: DietPlan, result: DietTargets.Result, day: String) -> Calories {
+        Calories(kcal: DietTargets.kcal(on: day, plan: plan, result: result), burnKcal: result.burnKcal,
+                 planDeltaKcal: result.averageKcal - result.burnKcal, basis: .plan)
+    }
+
+    /// Macro goals from the diet plan; on a fasting day scaled to that day's calories.
+    public static func macros(plan: DietPlan, result: DietTargets.Result, day: String) -> Macros {
+        let kcal = DietTargets.kcal(on: day, plan: plan, result: result)
+        let scale = result.averageKcal > 0 ? kcal / result.averageKcal : 1
+        // Protein holds on eating days (it protects muscle); carbohydrate and fat take the difference.
+        let fasting = DietTargets.isFastingDay(day, plan: plan)
+        let protein = fasting ? result.proteinG * scale : result.proteinG
+        let rest = max(0, kcal - protein * 4)
+        let restPlanned = max(1, result.carbsG * 4 + result.fatG * 9)
+        return Macros(proteinG: protein, carbsG: rest * (result.carbsG * 4 / restPlanned) / 4,
+                      fatG: rest * (result.fatG * 9 / restPlanned) / 9)
     }
 
     public static func pinned(from raw: String?) -> [FoodNutrient] {
