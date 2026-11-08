@@ -30,7 +30,7 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
 
     var isWide: Bool {
         switch kind {
-        case .measure, .water: return false
+        case .measure, .water, .breathe, .strap: return false
         case .liveHeart, .ageless: return wide == true
         default: return true
         }
@@ -171,6 +171,8 @@ struct ForgeTodayWidgetArea: View {
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var belowTimeline = false
     @AppStorage(ForgeTodayWidgetStore.showsTimelineKey) private var showsTimeline = true
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+    @AppStorage(AppModel.cycleAwarenessKey) private var cycleEnabled = false
+    @EnvironmentObject private var profile: ProfileStore
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// At the accessibility text sizes three tiles to a row cut their figures off ("51 bp…"); two fit.
     private var columns: Int {
@@ -178,9 +180,11 @@ struct ForgeTodayWidgetArea: View {
         return dynamicTypeSize.isAccessibilitySize ? min(chosen, 2) : chosen
     }
 
-    /// The placed widgets on show: AgeLess only while AgeLess is switched on.
+    /// The placed widgets on show: AgeLess only while AgeLess is switched on, the cycle only for those it is
+    /// for while tracking is on, so a widget with nothing to draw never holds an empty row.
     private var shown: [ForgeTodayWidget] {
-        store.widgets.filter { $0.kind != .ageless || healthspanEnabled }
+        let cycle = cycleEnabled && ForgeCycleAudience.applies(sex: profile.sex, bodyFormulaSex: profile.bodyFormulaSex)
+        return store.widgets.filter { ($0.kind != .ageless || healthspanEnabled) && ($0.kind != .cycle || cycle) }
     }
 
     /// Small tiles fill a row of two or three; a wide tile takes its own row.
@@ -362,7 +366,7 @@ struct ForgeTodayWidgetView: View {
 }
 
 /// The Liquid Today metric tile as Today's tiles draw it: neutral surface, colour on the icon and the line.
-private struct ForgeTodayTile: View {
+struct ForgeTodayTile: View {
     let label: String
     let symbol: String
     let value: String?
@@ -980,9 +984,9 @@ struct ForgeWidgetGallery: View {
                     row(symbol: "lightbulb.fill", title: String(localized: "What works"),
                         subtitle: String(localized: "Wide · the habit that moves your Charge most")) { store.add(.init(kind: .whatWorks)) }
                     row(symbol: "wind", title: String(localized: "Breathe"),
-                        subtitle: String(localized: "Wide · two calm minutes, one tap away")) { store.add(.init(kind: .breathe)) }
+                        subtitle: String(localized: "Small · two calm minutes, one tap away")) { store.add(.init(kind: .breathe)) }
                     row(symbol: "battery.75percent", title: String(localized: "Strap"),
-                        subtitle: String(localized: "Wide · battery, wrist and last sync")) { store.add(.init(kind: .strap)) }
+                        subtitle: String(localized: "Small · battery and last sync")) { store.add(.init(kind: .strap)) }
                     if cycleEnabled, ForgeCycleAudience.applies(sex: profile.sex, bodyFormulaSex: profile.bodyFormulaSex) {
                         row(symbol: "drop.fill", title: String(localized: "Cycle"),
                             subtitle: String(localized: "Wide · cycle day and phase")) { store.add(.init(kind: .cycle)) }
