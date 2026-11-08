@@ -165,7 +165,7 @@ public struct TodayMetricTile<Accessory: View>: View {
                 // readable minimum on a phone.
                 label
                     .font(NoopVisualStyle.skin == .forge
-                          ? .system(size: dense ? 12 : 13, weight: .semibold)
+                          ? (dense ? Font.caption.weight(.semibold) : Font.footnote.weight(.semibold))
                           : dynamicTypeSize.isAccessibilitySize
                           ? StrandFont.overline
                           : StrandFont.overlineScaled(dense ? 9 : 10))

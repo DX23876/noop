@@ -147,7 +147,12 @@ struct ForgeTodayWidgetArea: View {
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var belowTimeline = false
     @AppStorage(ForgeTodayWidgetStore.showsTimelineKey) private var showsTimeline = true
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
-    private var columns: Int { KeyMetricPrefs.columns(columnsRaw) }
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// At the accessibility text sizes three tiles to a row cut their figures off ("51 bp…"); two fit.
+    private var columns: Int {
+        let chosen = KeyMetricPrefs.columns(columnsRaw)
+        return dynamicTypeSize.isAccessibilitySize ? min(chosen, 2) : chosen
+    }
 
     /// The placed widgets on show: AgeLess only while AgeLess is switched on.
     private var shown: [ForgeTodayWidget] {
@@ -337,10 +342,12 @@ private struct ForgeTodayTile: View {
     @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
     /// nil until the wearer sets Card transparency: until then close to solid, so figures stay clean.
     @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent: Int?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.forgeSurfaceOpacity) private var surfaceOpacity
 
     var body: some View {
-        let dense = KeyMetricPrefs.columns(columnsRaw) > 2
+        // Matches the area's columns: two at the accessibility text sizes, so not dense there.
+        let dense = KeyMetricPrefs.columns(columnsRaw) > 2 && !dynamicTypeSize.isAccessibilitySize
         // Sentence case: small tracked capitals over a picture were the hardest words on the page to read.
         TodayMetricTile(label: Text(verbatim: label),
                         systemImage: symbol,
