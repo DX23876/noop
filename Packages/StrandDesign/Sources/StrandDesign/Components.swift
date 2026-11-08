@@ -212,7 +212,10 @@ public struct SectionHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 // The redesign drops the kicker above a section heading; the heading carries itself.
                 if let overline, NoopVisualStyle.skin != .forge { Text(overline).strandOverline() }
-                Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
+                // Almost every use heads a card from inside it; the new design writes a card's title small and
+                // semibold, as Apple's apps do, so the card's one large figure leads.
+                Text(title).font(NoopVisualStyle.skin == .forge ? StrandFont.headline : StrandFont.title2)
+                    .foregroundStyle(StrandPalette.textPrimary)
             }
             // The title wins the space contest. Without this the trailing text — usually a date range,
             // which is the secondary half — squeezed the heading until SwiftUI hyphenated it, and a

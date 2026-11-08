@@ -1726,7 +1726,7 @@ struct MetricDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(heroValue)
-                                .font(StrandFont.rounded(56, weight: .bold))
+                                .font(NoopVisualStyle.skin == .forge ? StrandFont.rounded(48, weight: .semibold) : StrandFont.rounded(56, weight: .bold))
                                 .foregroundStyle(StrandPalette.textPrimary)
                                 .lineLimit(1).minimumScaleFactor(0.5)
                         }

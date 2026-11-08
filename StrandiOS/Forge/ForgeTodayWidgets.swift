@@ -488,9 +488,10 @@ struct ForgeLastNightWidget: View {
                 if let night, let asleep {
                     // The figures large, their units small beside them, as Apple writes a duration.
                     (Text(verbatim: "\(asleep / 60)").font(ForgeFont.figure(26))
-                     + Text(verbatim: " h ").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary)
-                     + Text(verbatim: "\(asleep % 60)").font(ForgeFont.figure(26))
-                     + Text(verbatim: " min").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary))
+                     + Text(verbatim: " ") + Text("h").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary)
+                     + Text(verbatim: " ") + Text(verbatim: String(asleep % 60)).font(ForgeFont.figure(26))
+                     + Text(verbatim: " ")
+                     + Text("min").font(.system(.footnote, weight: .medium)).foregroundColor(ForgeColor.secondary))
                         .foregroundStyle(ForgeColor.text)
                     Text(verbatim: "\(Self.time(night.start)) – \(Self.time(night.end))")
                         .font(ForgeFont.caption)

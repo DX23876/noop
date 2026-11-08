@@ -74,7 +74,7 @@ struct ForgeEnergyView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: String(localized: "Health"), title: String(localized: "Energy"), scrolledPast: $scrolledPast, picture: PagePicture(symbol: "flame.fill", accent: "bolt.fill", tint: StrandPalette.forgeEnergyActive))
+                ForgeDetailHeader(overline: nil, title: String(localized: "Energy"), scrolledPast: $scrolledPast, picture: PagePicture(symbol: "flame.fill", accent: "bolt.fill", tint: StrandPalette.forgeEnergyActive))
                 dayStepper
                 if !loaded {
                     HStack(spacing: 10) {

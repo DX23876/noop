@@ -413,12 +413,13 @@ struct ForgeDetailHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                if let overline {
-                    Text(overline.uppercased(with: AppLanguage.activeLocale))
-                        .font(ForgeFont.overDate).foregroundStyle(ForgeColor.secondary)
-                }
                 Text(title).font(ForgeFont.largeTitle).foregroundStyle(ForgeColor.text)
                     .accessibilityAddTraits(.isHeader)
+                // Which day the page is about, in sentence case under the title: tracked capitals above
+                // it read as a label from another app.
+                if let overline {
+                    Text(overline).font(.system(.subheadline)).foregroundStyle(ForgeColor.secondary)
+                }
             }
             Spacer(minLength: 0)
             if let picture {
