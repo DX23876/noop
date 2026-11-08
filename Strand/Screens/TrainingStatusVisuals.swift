@@ -62,7 +62,8 @@ extension RelativeLoadBand {
 
     var color: Color {
         switch self {
-        case .below:      return StrandPalette.restColor
+        // Rest's violet clashed with the new design's green and teal Training; a calm blue says "below" there.
+        case .below:      return NoopVisualStyle.skin == .forge ? Color(light: "#007AFF", dark: "#0A84FF") : StrandPalette.restColor
         case .usual:      return StrandPalette.statusPositive
         case .higher:     return StrandPalette.metricCyan
         case .muchHigher: return StrandPalette.metricAmber
