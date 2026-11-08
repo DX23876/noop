@@ -36,6 +36,9 @@ enum ForgeColor {
     static let trainingAccent = dyn(0x248A3D, 0x30D158)
     /// Text on the training accent: white on the darker light-mode green, black on the bright dark-mode one.
     static let onTrainingAccent = dyn(0xFFFFFF, 0x000000)
+    /// Training's data colour beside the green: OpenGym's teal for strength (volume, muscles, routines).
+    /// Controls stay green; data and pictures take their own matched colours, Effort and energy orange.
+    static let trainingData = dyn(0x0E8AA3, 0x40C8E0)
 
     static let charge = dyn(0x13896B, 0x3DDC97)
     static let effort = dyn(0xD45F28, 0xFF8A3D)

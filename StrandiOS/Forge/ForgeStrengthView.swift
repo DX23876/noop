@@ -22,7 +22,7 @@ struct ForgeStrengthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Strength"),
-                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "dumbbell.fill", accent: "flame.fill", tint: ForgeColor.trainingAccent))
+                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "dumbbell.fill", accent: "flame.fill", tint: ForgeColor.trainingData))
                 nextUp
                 volume
                 recent
@@ -125,7 +125,7 @@ struct ForgeStrengthView: View {
                 HStack(alignment: .bottom, spacing: 6) {
                     ForEach(Array(tonnes.enumerated()), id: \.offset) { i, t in
                         RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(ForgeColor.trainingAccent.opacity(i == tonnes.count - 1 ? 1 : 0.55))
+                            .fill(ForgeColor.trainingData.opacity(i == tonnes.count - 1 ? 1 : 0.55))
                             .frame(height: max(4, 90 * t / top))
                             .frame(maxWidth: .infinity)
                     }
@@ -163,7 +163,7 @@ struct ForgeStrengthView: View {
                 ForEach(Array(rows.enumerated()), id: \.offset) { index, s in
                     if index > 0 { ForgeRowDivider() }
                     NavigationLink(value: TabRoute.strength) {
-                        ForgeRow(systemImage: "dumbbell.fill", tint: ForgeColor.trainingAccent, title: s.title,
+                        ForgeRow(systemImage: "dumbbell.fill", tint: ForgeColor.trainingData, title: s.title,
                                  subtitle: Self.sessionDetail(s), value: "\(s.workingSetCount)", unit: String(localized: "sets"))
                     }
                     .buttonStyle(.plain)
@@ -217,7 +217,7 @@ struct ForgeMusclesView: View {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "Muscles"),
                                   scrolledPast: $scrolledPast,
-                                  picture: PagePicture(symbol: "figure.strengthtraining.traditional", accent: "bolt.fill", tint: ForgeColor.trainingAccent))
+                                  picture: PagePicture(symbol: "figure.strengthtraining.traditional", accent: "bolt.fill", tint: ForgeColor.trainingData))
                 MuscleAnalyticsSurface(history: model.resolvedHistory, compact: false)
                     .forgeCard(radius: ForgeRadius.card, padding: 14)
                 Link("Body geometry: MuscleMap · MIT License",

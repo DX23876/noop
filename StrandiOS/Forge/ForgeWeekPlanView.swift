@@ -65,7 +65,7 @@ struct ForgeWeekPlanView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ForgeDetailHeader(overline: nil, title: String(localized: "This week's plan"),
-                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "calendar", accent: "checkmark", tint: ForgeColor.trainingAccent))
+                                  scrolledPast: $scrolledPast, picture: PagePicture(symbol: "calendar", accent: "checkmark", tint: .blue))
                 effortColumns(week)
                 ForgeSectionTitle(title: "This week")
                 ForgeGroup {

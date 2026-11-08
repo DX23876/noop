@@ -321,7 +321,7 @@ struct ForgeTrainingView: View {
     private func routineCard(title: String, subtitle: String, systemImage: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             // The routine's picture: its symbol on a glowing disc in the tab's Effort colour.
-            CoachPicture(main: systemImage, accentA: "flame.fill", accentB: "sparkle", tint: ForgeColor.trainingAccent)
+            CoachPicture(main: systemImage, accentA: "flame.fill", accentB: "sparkle", tint: ForgeColor.trainingData)
                 .frame(width: 52, height: 52)
                 .padding(.leading, -4)
             Spacer(minLength: 6)
@@ -421,7 +421,7 @@ struct ForgeTrainingView: View {
                     NavigationLink(value: TabRoute.cardio) {
                         ForgeMetricTile(label: pace.label,
                                         value: pace.paces.last.map { UnitFormatter.paceFromSecPerKm($0, system: distanceSystem) },
-                                        unit: "", trend: pace.paces.count > 1 ? pace.paces.map { -$0 } : nil, tint: ForgeColor.trainingAccent)
+                                        unit: "", trend: pace.paces.count > 1 ? pace.paces.map { -$0 } : nil, tint: ForgeColor.trainingData)
                     }
                 }
                 NavigationLink(value: TabRoute.metric("vo2max_est")) {
@@ -434,7 +434,7 @@ struct ForgeTrainingView: View {
                 NavigationLink(value: ForgeRoute.workouts) {
                     ForgeMetricTile(label: String(localized: "Last 30 days"), value: recentLoaded ? "\(recent.count)" : nil,
                                     unit: String(localized: "workouts"),
-                                    trend: nil, tint: ForgeColor.trainingAccent,
+                                    trend: nil, tint: ForgeColor.trainingData,
                                     bars: recentLoaded ? workoutsPerWeek : nil)
                 }
             }
