@@ -96,10 +96,14 @@ changes app code, a package or `project.yml` without a passing run for exactly t
   tests), and run the full script once on the final tree before the one push.
 - Finished fork work goes straight to `origin/main`; no pull request. Contributions to `ryanbr/noop` are
   separate branches based on `upstream/main` and go through a pull request there.
-- **Do not assume a push ran CI.** No GitHub Actions run has started on `DX23876/noop` since 2026-11-02,
-  not even the schedules (account limit suspected, unresolved). Before calling a push green, check that
-  `gh run list -R DX23876/noop --commit <sha>` shows runs at all; when it shows none, say so and rely on
-  the local run, the `Tools/` Python tests (`cd Tools && python3 -m unittest discover -p 'test_*.py'`) and
+- **Do not assume a push ran CI.** From 2026-11-02 (about 22:45 UTC) no GitHub Actions run started on
+  `DX23876/noop`: GitHub had disabled the workflows on this fork ("Workflows on this fork have been
+  disabled ... to reduce the amount of compute that is wasted"), shown as a banner on the Actions tab while
+  Settings › Actions still read enabled. A manual dispatch answers "Actions has been disabled for this
+  repository". Only the owner can switch them back on, with the button under that banner, and GitHub can
+  do it again. Before calling a push green, check that `gh run list -R DX23876/noop --commit <sha>` shows
+  runs at all; when it shows none, look for that banner first, say so, and rely on the local run, the
+  `Tools/` Python tests (`cd Tools && python3 -m unittest discover -p 'test_*.py'`) and
   `python3 Tools/i18n_audit.py --ci origin/main`.
 
 ## Readout and CI invariants
