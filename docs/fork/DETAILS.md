@@ -48,6 +48,10 @@ be worth having. It needs to iterate quickly, for one person. So rather than pus
   formally retired for this fork. Dropping Android parity is also what unblocked iOS-only system
   surface this fork wouldn't otherwise have bothered with — a home-screen widget and a Siri
   "How's my recovery?" intent, for instance, that would have needed an Android twin before.
+  **Update (2026-10-24/25):** Android came back, but not as a twin: it is a Kotlin shell around
+  the shared Swift core (`Packages/StrandCore` through `Packages/NoopCoreJNI`), restored on
+  2026-10-25 and in testing; the parity contract stays retired. See
+  [`android/STATUS.md`](android/STATUS.md).
 - **Additive only.** Everything this fork adds lives in its own new files under `Strand/AI/`. No
   upstream logic is rewritten in place. Nothing touches BLE, protocol decoding, or the analytics
   math — the parts that genuinely benefit from cross-platform parity are left completely alone.
@@ -121,8 +125,10 @@ design, not this fork's:
 | **Import** | `Packages/StrandImport` | WHOOP CSV, Apple Health, Strong, Hevy, FitNotes. |
 | **Training** 🆕 | `Packages/StrandTraining`, `Packages/MuscleMap` | Routines, the offline exercise catalogue, set maths, muscle taxonomy and body maps. |
 | **Memory** 🆕 | `Packages/SemanticMemory` | On-device embeddings and retrieval for the coach. |
+| **Shared core** 🆕 | `Packages/StrandCore`, `Packages/NoopCoreJNI` | The platform-neutral app core (daily analysis, `AnalysisRecipe`, collection and backfill, backup, metric resolver, energy, Hevy sync) and its JNI bridge, so Android runs the same Swift code. |
 | **Design system** | `Packages/StrandDesign` | Palette, components, charts. UI uses tokens only, no hardcoded colours. |
 | **App** | `Strand/`, `StrandiOS/`, `StrandiOSWidgets/`, `NOOPWatch*` | CoreBluetooth, the Repository, the screens, `RootTabView`, widgets and the watch. |
+| **Android** 🆕 | `android/` | Kotlin: Bluetooth transport, Android services, the Forge Compose screens and presentation; logic comes from the shared core. |
 | **The coach** 🆕 | `Strand/AI/` | Chat, providers, tools, goals and consent. |
 
 The rule that keeps this fork sane: **the more wire-level or math-level a change is, the deeper
@@ -159,15 +165,20 @@ AltStore errors.
 
 ## Relationship to upstream today
 
-**Since 2026-07-23 this fork is Apple-only and diverges freely.** The cross-platform parity contract
-is retired and the Android tree was removed on 2026-08-14. What still binds, and is unrelated to that
-retirement: the app stays offline, on-device, with no server, no account, no cloud sync, no telemetry,
-and the project stays anonymous (see `CLAUDE.md`).
+**This fork diverges freely.** The cross-platform parity contract is retired (2026-07-23). The
+Android tree was removed on 2026-08-14 and restored on 2026-10-25 (phase D of
+[`android/PLAN.md`](android/PLAN.md)) as a shell around the shared Swift core rather than a Kotlin
+twin; since 2026-11-01 Room is gone from the app ([`android/CORE-ONLY-PLAN.md`](android/CORE-ONLY-PLAN.md)).
+Android is in testing and not yet a release download ([`android/TESTING.md`](android/TESTING.md)).
+What still binds, and is unrelated to that retirement: the app stays offline, on-device, with no
+server, no account, no cloud sync, no telemetry, and the project stays anonymous (see
+[`AGENT_RULES.md`](AGENT_RULES.md)).
 
-Upstream is still merged on purpose. Release 12.0.1 carries three syncs, through upstream 12.0.0 and
-the 12.1.0 test beta. On 2026-10-10 the fork was **692 commits ahead and 0 behind** upstream's `main`
-(re-check with `git rev-list --left-right --count upstream/main...HEAD`; the number moves and is not
-maintained here). How a sync is done, and the gotchas that recur, are in [FORK_GUIDE](../FORK_GUIDE.md);
+Upstream is still merged on purpose. Release 12.0.1 carried three syncs and 12.1.0 one more; the
+latest published release is 12.2.1 (2026-10-21). The 13.0.0 release notes (13.0.0 is in testing, not
+released) record ryanbr/noop merged through `2a1de7609`. Earlier record: on 2026-10-10 the fork was 692 commits ahead and 0 behind upstream's
+`main`. Re-check with `git rev-list --left-right --count upstream/main...HEAD`; the number moves and
+is not maintained here. How a sync is done, and the gotchas that recur, are in [FORK_GUIDE](../FORK_GUIDE.md);
 every judgement call is recorded in [decisions](decisions.md).
 
 Because fork-specific work mostly lives in its own files (the coach in `Strand/AI/`, training in its

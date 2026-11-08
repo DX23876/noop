@@ -25,11 +25,11 @@ Android is a shell around the shared core, not a second implementation:
 
 | Layer | Where | What lives there |
 |---|---|---|
-| Shared core | `Packages/` (`StrandCore`, `StrandAnalytics`, `WhoopStore`, `StrandImport`, `StrandTraining`, the protocol packages) | Scoring, analytics, imports, backups, goals, the coach's data reads and every other computation |
+| Shared core | `Packages/` (`StrandCore`, `StrandAnalytics`, `WhoopStore`, `StrandImport`, `StrandTraining`) | Scoring, analytics, imports, backups, goals, the coach's data reads and every other computation |
 | Bridge | `Packages/NoopCoreJNI` | The JNI entry points (`NoopCore`, `CJNI`) Kotlin calls into |
 | Native build | `android/swift-core/build-swift-core.sh` | Cross-compiles the core with the Swift SDK for Android and NDK r30 into the APK |
 | Storage | the core's GRDB database through the generated `CoreWhoopDao` (`Tools/gen_core_dao.py`) | One store on every platform. Room left the app on 2026-11-01 ([`fork/android/CORE-ONLY-PLAN.md`](fork/android/CORE-ONLY-PLAN.md)); an old Room file is adopted once on first start, and older `.noopbak` backups (also from ryanbr's Android app) are converted on restore |
-| Kotlin | `android/app/src/main/java/com/noop/…` | Bluetooth transport, Android services and widgets, the Forge Compose screens (`com.noop.ui.forge`) and presentation helpers only |
+| Kotlin | `android/app/src/main/java/com/noop/…` | Bluetooth transport and its frame decoding (`com.noop.protocol`, `com.noop.ble`; the decoded samples are written into the core's tables), Health Connect reads, Android services and widgets, the Forge Compose screens (`com.noop.ui.forge`) and presentation helpers only |
 
 The rules that keep it that way are in [`fork/AGENT_RULES.md`](fork/AGENT_RULES.md) ("Android is a shell
 around the shared core"): logic goes into `Packages/`, never into Kotlin, and a schema change is a

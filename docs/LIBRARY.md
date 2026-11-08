@@ -41,10 +41,25 @@ interoperability work:
 | **StrandImport** | WHOOP CSV + Apple Health (`export.xml`, streaming) importers | ✅ Pure Foundation/XML | none | ZIPFoundation |
 | **StrandDesign** | SwiftUI design system (palette, components, charts) | SwiftUI only | SwiftUI | none |
 
-All five packages declare the same platforms — **iOS 16+ and macOS 13+** — and
-build with **swift-tools-version 5.9**. The first four are platform-pure: they
+The five packages above are documented in detail below. The repository's `Packages/` directory also
+holds these, summarised here from their sources and `Package.swift`:
+
+| Package | Purpose | Pure / portable? | External deps |
+|---|---|---|---|
+| **OuraProtocol** | Oura BLE protocol decode (experimental support), plus the `oura-decode` CLI | ✅ Pure | none |
+| **PolarProtocol** | Clean-room Polar Measurement Data (PMD) decoder and control-point command builder, from Polar's public BLE SDK documentation; no BLE wiring | ✅ Pure | none |
+| **StrandTraining** | Training catalogue (bundled offline exercise catalogue), plans, routines, progression and the workout engine | ✅ Pure | none |
+| **StrandCore** (fork) | The platform-neutral app core shared by the Apple apps and Android: daily analysis and its host, `AnalysisRecipe`, raw collection and backfill, backup archive, metric resolver, energy, Hevy sync, exercise media, score provenance | ✅ No SwiftUI/Combine/StrandDesign; also builds for Android | GRDB, ZIPFoundation, swift-crypto (+ WhoopProtocol, WhoopStore, StrandAnalytics, StrandTraining, StrandImport) |
+| **NoopCoreJNI** (fork) | Android bridge: the dynamic `NoopCore` library (JNI entry points over plain Swift functions in `Bridge.swift`) and the `CJNI` header target; built for Android by `android/swift-core/build-swift-core.sh` | Android at runtime; tested on macOS | (StrandCore, SemanticMemory and the packages under them) |
+| **SemanticMemory** | Local Coach memory index (`SemanticIndexStore`, ranking) | ✅ Pure | GRDB |
+| **MuscleMap** | SwiftUI muscle-map views and rendering (third-party, MIT) | SwiftUI | none |
+| **NoopLocalAccess** | `noop-local-access`: bounded, read-only local access to NOOP health data over MCP (stdio) or one-shot JSON queries; no network or write path | macOS 13+ | GRDB |
+
+All packages build with **swift-tools-version 5.9**, and each manifest declares its own platform floor:
+the five above declare iOS 16+ and macOS 13+ (`StrandAnalytics` and `StrandDesign` also watchOS 10+).
+The first four are platform-pure: they
 never import `CoreBluetooth`, `UIKit`, or `AppKit`, so they run unchanged in CLI
-tools, tests, and on any platform. `StrandDesign` is the only SwiftUI package;
+tools, tests, and on any platform. `StrandDesign` is SwiftUI;
 it builds on both iOS and macOS, bridging through `UIColor`/`NSColor` only where
 unavoidable, guarded with `#if canImport(UIKit)` / `#if canImport(AppKit)`.
 
@@ -61,13 +76,20 @@ StrandAnalytics ◄───────────┘            (depends on W
 StrandImport   ──► WhoopProtocol, WhoopStore   (+ ZIPFoundation)
 
 StrandDesign   (standalone — SwiftUI only, no internal deps)
+
+StrandCore     ──► WhoopProtocol, WhoopStore, StrandAnalytics, StrandTraining, StrandImport
+NoopCoreJNI    ──► StrandCore, SemanticMemory (+ the packages above)
 ```
+
+(`WhoopStore` additionally depends on `OuraProtocol` and `StrandTraining`.)
 
 The reference app target (`Strand/`, macOS SwiftUI) is the integration layer: it
 owns the CoreBluetooth transport, wraps the protocol library's UUID *strings* in
 `CBUUID`, and wires the pure packages together. The released macOS and iOS apps consume these
-packages directly; the platform-neutral packages run unchanged across both Apple targets. This
-fork no longer carries the former Android/Kotlin twin.
+packages directly; the platform-neutral packages run unchanged across both Apple targets. In this
+fork the Android app (restored 2026-10-25, in testing) consumes them too: `NoopCoreJNI` cross-compiles
+`StrandCore` and the packages below it for Android, and the Kotlin app calls them over JNI. There is
+no Kotlin twin of this logic (see [`fork/android/STATUS.md`](fork/android/STATUS.md)).
 
 ---
 
@@ -259,7 +281,8 @@ targets: [
 ### Schema
 
 The migrator (`WhoopStore.makeMigrator()`) currently runs through
-`v40-analysis-input-revision`. The separate `WhoopStoreInfo.schemaVersion` constant is legacy
+`v85-single-active-device`; the table below lists the core tables only (see
+[`DATA_MODEL.md`](DATA_MODEL.md)). The separate `WhoopStoreInfo.schemaVersion` constant is legacy
 metadata and is not the migration authority. On open, the store enables WAL journal
 mode, `synchronous = NORMAL`, a 16 MB page cache, 256 MB mmap, and a 5-second
 busy timeout so two handles to the same file don't deadlock.

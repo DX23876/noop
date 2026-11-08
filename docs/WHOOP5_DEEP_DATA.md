@@ -62,8 +62,10 @@ bytes, the value byte (an ASCII `'1'`/`'2'`) at offset 32, then 7 zeros. `SET_CO
 legacy sender name for it; the protocol schema calls 120 `SET_FF_VALUE`, so that is what a
 strap log shows when the strap answers one. Same opcode, two names. The exact ordered set, with
 values, is in [`Whoop5Config.swift`](../Packages/WhoopProtocol/Sources/WhoopProtocol/Whoop5Config.swift).
-Older Kotlin parity references in this document describe the removed Android tree and remain only as
-historical provenance. `enable_r22_packets` is the one that opens the type-`0x2F` biometric stream; the rest
+Kotlin references in this document describe upstream's Android implementation. This fork's Android
+app (restored 2026-10-25) still carries those Kotlin protocol decoders for its Bluetooth transport
+(`android/app/src/main/java/com/noop/protocol/`, including `Whoop5Config.kt`), while its analysis and
+storage run on the shared Swift core. `enable_r22_packets` is the one that opens the type-`0x2F` biometric stream; the rest
 tune channel selection, wear detection and sleep behaviour. Flags 1–15 come from judes.club's
 frame-builder; the 16th, `enable_sig12`, was added from a real on-strap HCI capture ([#103](https://github.com/ryanbr/noop/issues/103))
 that otherwise reproduced flags 1–15 byte-for-byte in this order.

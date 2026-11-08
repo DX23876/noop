@@ -20,7 +20,11 @@ The persistence layer is the `WhoopStore` Swift package
 declares both platforms — `.iOS(.v16)` and `.macOS(.v13)`
 (`Packages/WhoopStore/Package.swift`) — and is UI-framework agnostic, so the same schema and
 storage code back both the released macOS app and iOS app (see
-`docs/IOS.md`).
+`docs/IOS.md`). In this fork the Android app (in testing) uses the same store: since 2026-11-01 it
+keeps everything in the core's GRDB database (`<filesDir>/core/noop-core.sqlite`, opened in
+`android/…/core/SwiftCore.kt`) through the generated `CoreWhoopDao` (`Tools/gen_core_dao.py`), and
+Room is gone from the app, so every migration below runs on both platforms (see
+[`fork/android/CORE-ONLY-PLAN.md`](fork/android/CORE-ONLY-PLAN.md)).
 
 The macOS app target opens the database at a fixed, per-user location
 (`Strand/Collect/StorePaths.swift`):
@@ -61,10 +65,10 @@ single `DatabaseQueue` and applies these PRAGMAs before any query runs:
 
 `WhoopStore` is an `actor`: all GRDB calls run on the actor's serial executor (off the main
 thread) through the `syncRead` / `syncWrite` helpers. `WhoopStore.schemaVersion` is a
-separate, manually-maintained constant (currently `21`) that has lagged the real migration
+separate, manually-maintained constant (currently `26`) that has lagged the real migration
 history and must not be read as the schema's true version. The migrator itself (`makeMigrator()`,
 below) is the source of truth for what tables/columns exist and currently runs through
-**`v49-whoop-energy-context`**.
+**`v85-single-active-device`**.
 
 ---
 
@@ -121,6 +125,12 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v48-whoop-energy-hourly** | Adds `whoopEnergyHourly` — one day's ACTIVE energy at hourly resolution, written by the same bucket pass as `whoopDailyEnergy`. The substrate for the personal time-of-day activity curve that replaced the linear day forecast. Additive, no existing row touched. |
 | **v49-whoop-energy-context** | Adds `representedSeconds`, `physiologicalSeconds`, and `contextJSON` to `whoopDailyEnergy`. v4 can keep HR evidence distinct from quiet-HR physiology while giving `EnergyEngine` the exact wall-time denominator whose basal share is already inside the total. Defaults preserve old rows, which version filtering ignores until the atomic 120-day recompute replaces them. |
 | **v59-reattribute-archived-strap-samples** | Data repair, no schema change. Moves per-sample stream rows (`hrSample`, `rrInterval`, `gravitySample`, the other Type-47 and 5/MG streams, `event`, `battery`, and `rawBatch`) that were filed under an **archived** WHOOP registry row after its `lastSeenAt` onto the **active** WHOOP with the same `peripheralId`. These are the samples the pre-fix `SourceIdentity.resolve` misattributed to a re-added strap's old row (#1881 follow-up). `UPDATE OR IGNORE`: a sample whose key already exists under the active id stays where it was, and nothing is deleted. Marks the moved UTC days in `analysisInputRevision` for both ids, so exactly those days re-score. |
+| **Training and workouts** (selected, v60–v75) | `v60-training-session-fusion` and `v61-native-training` with its follow-ups (`v62`…`v67`) build the native strength-training tables; `v69-lift-log`, `v70-training-session-load`, `v72-workout-energy-source`, `v73-workout-heart-rate-fill` and `v75-workout-recording` add workout-side tables. See `Database.swift` for each identifier and for the stream migrations in between (`v68-rr-source-index`, `v71-whoop-energy-fitness`, `v74-rr-whoop5-fill`). |
+| **v77-ecg-reading**, **v81-ecg-waveform** | Saved WHOOP MG ECG readings, and `ecgWaveformSample` — the flash-banked MG ECG records stored verbatim (upstream's v48, renumbered after the fork's v80). Nothing reads the waveform rows yet. |
+| **v78-workout-elevation** | Adds `workoutElevation` — ascent/descent for a workout, from NOOP's barometer or the workout's source. Additive. |
+| **v82-activity-suggestion-answer**, **v83-activity-candidate** | The wearer's answers to activity-detection suggestions (wearer input, carried in the `.noopbak` copy) and the daily pass's rolling suggestion window. Additive. |
+| **v84-android-only-tables** | Fork: `dismissedWorkout`, `dismissedSleep` and `coachMessage`, the three tables only Android's former Room store had, so Android keeps them in the core's store. Empty on Apple. |
+| **v85-single-active-device** | Fork: registry repair that keeps one active device when a store holds two (for example an Android backup converted on top of the seeded `my-whoop`). No derived value changes. |
 
 > This table is a selection, not the full list — it covers the migrations the tables above refer to.
 > The registered set is the authority. Migrations are keyed by their **identifier string**, not by
