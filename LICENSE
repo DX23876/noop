@@ -1,6 +1,7 @@
 NOOP is licensed under the PolyForm Noncommercial License 1.0.0, reproduced below.
 
 Copyright 2026 NoopApp
+NOOP Forge additions: Copyright 2026 DX23876
 
 Scope and notices:
 
@@ -13,6 +14,11 @@ Scope and notices:
 - Third-party components keep their own licenses and are not relicensed by this
   file. See NOTICE for the full list (GRDB.swift and ZIPFoundation are MIT).
 - Required Notice: Copyright 2026 NoopApp
+- Required Notice: Copyright 2026 DX23876 (NOOP Forge) – https://github.com/DX23876/noop
+- NOOP Forge (https://github.com/DX23876/noop) is a fork of NOOP. The second Required
+  Notice covers the code and documentation DX23876 added in that fork. Anyone who
+  passes on any part of this software, changed or not, must pass on both lines with
+  these terms, as the license's Notices section requires.
 
 In short: NOOP is source-available and free for personal and other non-commercial
 use — read it, run it, fork it, and contribute. Commercial use is not granted by
