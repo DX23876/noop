@@ -11,6 +11,10 @@ import StrandCore
 final class ActivitySuggestionCenterTests: XCTestCase {
     private let deviceId = "my-whoop"
 
+    /// A center of the test's own: the host app's screens attach their repository to `shared` while the
+    /// suite runs, and a test on `shared` lost its store to them in a full run.
+    private let center = ActivitySuggestionCenter()
+
     private func setUp(_ store: WhoopStore, start: Int) async throws -> Repository {
         try await store.replaceActivityCandidates(deviceId: deviceId, from: start - 86_400, to: start + 86_400, rows: [
             ActivityCandidateRow(deviceId: deviceId, track: "heartRate", startTs: start, endTs: start + 1_800,
@@ -22,7 +26,7 @@ final class ActivitySuggestionCenterTests: XCTestCase {
         ])
         let repo = Repository(deviceId: deviceId)
         repo.setStoreForTesting(store)
-        ActivitySuggestionCenter.shared.attach(repo)
+        center.attach(repo)
         return repo
     }
 
@@ -43,7 +47,6 @@ final class ActivitySuggestionCenterTests: XCTestCase {
             // The center holds the repository weakly, as the app's lives for the whole run; keep it alive here.
             let repo = try await setUp(store, start: start)
             defer { withExtendedLifetime(repo) {} }
-            let center = ActivitySuggestionCenter.shared
             await center.reload()
             XCTAssertEqual(center.toAsk.map(\.track), [.walk, .heartRate])
 
@@ -77,7 +80,6 @@ final class ActivitySuggestionCenterTests: XCTestCase {
             let store = try await WhoopStore.inMemory()
             let start = Int(Date().timeIntervalSince1970) - 6 * 3_600
             let repo = try await setUp(store, start: start)
-            let center = ActivitySuggestionCenter.shared
             await center.reload()
             let manual = WorkoutRow(startTs: start + 7_100, endTs: start + 9_100, sport: "Walking", source: "manual",
                                     durationS: 2_000, energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil,

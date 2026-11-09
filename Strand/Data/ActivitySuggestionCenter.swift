@@ -33,7 +33,8 @@ final class ActivitySuggestionCenter: ObservableObject {
     private var inflight: Task<Void, Never>?
     private var reloadAgain = false
 
-    private init() {}
+    /// Internal rather than private so a test can own an instance the running host app never attaches to.
+    init() {}
 
     /// Wires the center to the app's repository once; every data refresh re-reads the suggestions.
     func attach(_ repo: Repository) {
