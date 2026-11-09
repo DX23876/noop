@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "foodMotif_sweets_light.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "foodMotif_sweets.heic",
       "idiom" : "universal"
     }

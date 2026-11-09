@@ -11,7 +11,8 @@ struct FoodScoreView: View {
     var body: some View {
         List {
             Section {
-                // A still life of a balanced week behind the number; the food sits right, the number on the calm left.
+                // A still life of a balanced week behind the number, light or dark with the appearance; the food sits right, the
+                // number on the calm left in the page's own text colours.
                 ZStack(alignment: .leading) {
                     Image("foodScoreHero").resizable().scaledToFill()
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -19,10 +20,10 @@ struct FoodScoreView: View {
                         .clipped()
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(FoodText.kcal(score.score)).font(ForgeFont.rounded(56, .bold)).foregroundStyle(ForgeColor.onDarkPhoto)
+                        Text(FoodText.kcal(score.score)).font(ForgeFont.rounded(56, .bold)).foregroundStyle(ForgeColor.text)
                             .monospacedDigit()
-                        Text(FoodText.scoreWord(score.score)).font(.headline).foregroundStyle(ForgeColor.onDarkPhoto)
-                        Text("From \(score.loggedDays) logged days of the last 7").font(.footnote).foregroundStyle(ForgeColor.onDarkPhotoSecondary)
+                        Text(FoodText.scoreWord(score.score)).font(.headline).foregroundStyle(ForgeColor.text)
+                        Text("From \(score.loggedDays) logged days of the last 7").font(.footnote).foregroundStyle(ForgeColor.secondary)
                     }
                     // The calm left part of the photo only, so the words never run over the food.
                     .frame(maxWidth: 150, alignment: .leading)

@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "foodMotif_fats_light.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "foodMotif_fats.heic",
       "idiom" : "universal"
     }

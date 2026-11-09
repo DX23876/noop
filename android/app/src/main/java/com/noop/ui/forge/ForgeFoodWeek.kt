@@ -208,14 +208,14 @@ internal fun ForgeFoodScorePage(score: CoreFood.Score, male: Boolean, onBack: ()
     val colors = Forge.colors
     SettingsColumn {
         PageTitle(stringResource(R.string.food_score_title), onBack)
-        // A still life of a balanced week behind the number, as iOS `FoodScoreView`; the photo is dark in both themes.
+        // A still life of a balanced week behind the number, as iOS `FoodScoreView`; the photo has a light and a night version.
         Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(ForgeMetrics.space4)), contentAlignment = Alignment.CenterStart) {
             Image(painterResource(R.drawable.food_score_hero), contentDescription = null, contentScale = ContentScale.Crop,
                   alignment = Alignment.CenterEnd, modifier = Modifier.matchParentSize())
             Column(Modifier.padding(start = ForgeMetrics.space5)) {
-                Text(score.score.roundToInt().toString(), style = Forge.type.heroNumber, color = Color.White)
-                Text(scoreWord(score.score), style = Forge.type.headline, color = Color.White)
-                Text(stringResource(R.string.food_score_from_days, score.loggedDays), style = Forge.type.footnote, color = Color.White.copy(alpha = 0.78f))
+                Text(score.score.roundToInt().toString(), style = Forge.type.heroNumber, color = colors.text)
+                Text(scoreWord(score.score), style = Forge.type.headline, color = colors.text)
+                Text(stringResource(R.string.food_score_from_days, score.loggedDays), style = Forge.type.footnote, color = colors.textSecondary)
             }
         }
         Text(stringResource(R.string.food_score_about), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
