@@ -9,10 +9,14 @@ import WhoopStore
 /// energy plan sets, the three macronutrients, the week's nutrients, and the meals in eating order.
 struct ForgeFoodView: View {
     var onAsk: (String) -> Void = { _ in }
+    /// Opens the add sheet once on arrival: the Home Screen's "Log food" and the Health card's button.
+    var opensAdd = false
 
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
     @State private var model = ForgeFoodModel()
+    /// Set once the arrival sheet has been shown, so coming back from a subpage does not open it again.
+    @State private var openedAdd = false
     @State private var scrolledPast = false
     @State private var showAdd = false
     @State private var showSettings = false
@@ -98,6 +102,11 @@ struct ForgeFoodView: View {
         .onAppear { if CommandLine.arguments.contains("--demo-planner") { planning = true } }
         .onAppear { if CommandLine.arguments.contains("--demo-plan-page") { subpage = .plan } }
         #endif
+        .onAppear {
+            guard opensAdd, !openedAdd else { return }
+            openedAdd = true
+            showAdd = true
+        }
         .sensoryFeedback(.success, trigger: model.savedRevision)
         .sensoryFeedback(.selection, trigger: model.day)
         .task { await model.load(repo: repo, profile: Repository.analyticsProfile(profile)) }

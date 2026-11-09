@@ -142,7 +142,7 @@ struct RootTabView: View {
         // Same for the redesign's pushed pages and sheets, which the board comparison captures one by one.
         if let i = args.firstIndex(of: "--demo-route"), i + 1 < args.count {
             // Effort and Rest take Today's values, so they are opened from the rings instead.
-            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search, "forgeageless": .ageless, "forgecycle": .cycle, "forgefood": .food]
+            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search, "forgeageless": .ageless, "forgecycle": .cycle, "forgefood": .food, "forgefoodadd": .foodAdd]
             // The cycle demo turns cycle tracking on; the seeder adds the cycle with `--demo-cycle`.
             if args.contains("--demo-cycle"), !UserDefaults.standard.bool(forKey: AppModel.cycleAwarenessKey) {
                 UserDefaults.standard.set(true, forKey: AppModel.cycleAwarenessKey)
@@ -579,22 +579,23 @@ struct RootTabView: View {
         guard homeScreenQuickActionsEnabled,
               let action = homeScreenQuickActions.pendingAction else { return }
 
-        if action == .goals {
-            // A push on the Today stack, like the battery row, not a sheet.
+        if action == .logFood {
+            // A push on the Today stack, like the battery row, not a sheet: the food log with its add sheet open.
             homeScreenQuickActions.consume(action)
             showDevices = false
             routedPillar = nil
             quickAction = nil
             selectedTab = 0
             tabPaths[0] = NavigationPath()
-            tabPaths[0].append(TabRoute.goals)
+            tabPaths[0].append(ForgeRoute.foodAdd)
             return
         }
-        let destination: QuickAction = switch action {
-        case .liveHeartRate: .live
-        case .startWorkout: .workout
-        case .logJournal: .journal
-        case .goals: .goals
+        let destination: QuickAction
+        switch action {
+        case .liveHeartRate: destination = .live
+        case .startWorkout: destination = .workout
+        case .logJournal: destination = .journal
+        case .logFood: return  // Pushed above.
         }
         homeScreenQuickActions.consume(action)
         withAnimation(Self.sheetEase) {
