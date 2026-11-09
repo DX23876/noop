@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,6 +67,8 @@ enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: Forg
     Sleep(R.string.nav_sleep, Icons.Rounded.KingBed, ForgeBackdrop.Night),
     Health(R.string.nav_health, Icons.Rounded.FavoriteBorder, ForgeBackdrop.Canvas),
     More(R.string.nav_more, Icons.Rounded.MoreHoriz, ForgeBackdrop.Sky),
+    /** The coach in its own place, as iOS's search-role tab: a round button beside the bar, only while it is on. */
+    Coach(R.string.nav_coach, Icons.Rounded.AutoAwesome, ForgeBackdrop.Sky),
 }
 
 /** How wide the window is, by the Compose window size class breakpoints (600 and 840 dp). */
@@ -129,15 +133,37 @@ private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifie
     // Opaque with a hairline and a soft shadow: Android cannot blur the scrolling content behind the bar as iOS glass does,
     // and a see-through or outline-less bar fused with the white cards scrolling under it.
     // A real shadow, so the bar stays apart from the white cards that scroll under it (as iOS's glass bar does).
-    ForgeCard(modifier.widthIn(max = 480.dp).fillMaxWidth()
+    val coach = com.noop.ui.BottomBarStyleStore.coachEnabled
+    Row(modifier.widthIn(max = 480.dp + 72.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+    ForgeCard(Modifier.weight(1f)
                   .shadow(18.dp, RoundedCornerShape(32.dp), ambientColor = Color.Black.copy(alpha = 0.16f),
                           spotColor = Color.Black.copy(alpha = 0.26f))
                   .border(BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.10f)), RoundedCornerShape(32.dp)), radius = 32.dp,
               fill = Forge.colors.surface, contentPadding = 6.dp) {
         Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
-            ForgeTab.entries.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
+            ForgeTab.entries.filter { it != ForgeTab.Coach }.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
         }
+    }
+    if (coach) CoachTabButton(selected = current == ForgeTab.Coach) { onSelect(ForgeTab.Coach) }
+    }
+}
+
+/** The coach's round button at the bar's end, as iOS draws its search-role tab: tinted while the coach is open. */
+@Composable
+private fun CoachTabButton(selected: Boolean, onClick: () -> Unit) {
+    val colors = Forge.colors
+    val label = stringResource(R.string.nav_coach)
+    Box(Modifier.size(64.dp)
+            .shadow(18.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.16f), spotColor = Color.Black.copy(alpha = 0.26f))
+            .background(colors.surface, CircleShape)
+            .border(BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.10f)), CircleShape)
+            .clip(CircleShape)
+            .clickable(role = Role.Tab, onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center) {
+        Icon(ForgeTab.Coach.icon, contentDescription = label, tint = if (selected) colors.accent else colors.text,
+             modifier = Modifier.size(26.dp))
     }
 }
 
@@ -152,7 +178,8 @@ private fun ForgeRail(current: ForgeTab, onSelect: (ForgeTab) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ForgeTab.entries.forEach { t -> TabItem(t, t == current, Modifier.fillMaxWidth()) { onSelect(t) } }
+        ForgeTab.entries.filter { it != ForgeTab.Coach || com.noop.ui.BottomBarStyleStore.coachEnabled }
+            .forEach { t -> TabItem(t, t == current, Modifier.fillMaxWidth()) { onSelect(t) } }
     }
 }
 

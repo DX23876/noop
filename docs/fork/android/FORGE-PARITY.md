@@ -10,7 +10,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 
 | | iOS (new design) | Android (Forge) | Gap |
 |---|---|---|---|
-| Tabs | Today, Training, Sleep, Health, Coach (search-role tab, only with the coach on) | Today, Trends, Training, Sleep, More | Health tab missing (Android reaches Health through More); Trends and More are tabs of their own; no Coach tab |
+| Tabs | Today, Training, Sleep, Health, Coach (search-role tab, only with the coach on) | Today, Training, Sleep, Health, More, and the coach as a round button beside the bar (2026-11-09) | More is still a tab; its pages move to Health and Settings next |
 | Settings | the profile picture in each tab's header | More tab and the profile button on Today | same entry, different place |
 | Search | magnifier in each tab's header (`ForgeSearchView`) | none in the header | missing |
 
@@ -22,7 +22,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 | Rings | three organic rings in one chamber with the day's answer under them | `Hero` with organic rings | answer line under the rings missing |
 | Hint | one most-pressing hint (`ForgeTodayHint`) | status pills plus the Momentum card | different structure |
 | Tiles | a free grid of measure and picture tiles, three sizes, moved by drag in edit mode (`ForgeTodayWidgets`) | Key metrics section, arranged in a separate editor | sizes and drag missing |
-| Timeline | the day as a time rail: coach notes, workouts, wake, naps, weigh-ins, logs, with a "Now" marker (`ForgeTimeline`) | none | missing; the largest gap |
+| Timeline | the day as a time rail: coach notes, workouts, wake, naps, weigh-ins, logs, with a "Now" marker (`ForgeTimeline`) | time rail with Now, workouts, waking up with stages, naps, Yesterday (2026-11-09, `ForgeTodayTimeline`) | coach notes, weigh-ins, logs and "Show all" missing |
 | Scene | painted day-cycle scene at the top, scrolls away with the rings | scene backdrop | check the fade and the scroll |
 | Cards | fully clear by default in the new design (Card transparency 0) | glass cards | follow the transparency setting |
 
@@ -32,8 +32,8 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 |---|---|---|---|
 | Training | week strip, quick actions, Your week, Routines, Recent activities, Key metrics, Tools | `ForgeTraining*` with history, reports, muscles, lift logger | close; check the order and the headings |
 | Sleep | night navigator, Rest and duration tiles, Tonight, Last night stages, Highlights, This night, History, Alarm and naps | `ForgeSleep`, `ForgeSleepCards` | compare card by card |
-| Health | Vitals in range, Vitals tiles, Focus areas, Heart and stress, Body and energy, Long term and patterns | spread across More, Trends and dashboards | the tab itself is missing |
-| Coach | the coach inside its tab | `ForgeCoach` behind More | tab missing |
+| Health | Vitals in range, Vitals tiles, Focus areas, Heart and stress, Body and energy, Long term and patterns | `ForgeHealthTab` (2026-11-09): vitals in range, tiles, the three groups, Trends | Focus areas missing |
+| Coach | the coach inside its tab | own tab button (2026-11-09) | close |
 
 ## Order of work
 

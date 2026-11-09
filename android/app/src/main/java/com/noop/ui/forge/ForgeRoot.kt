@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.compose.foundation.layout.padding
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
@@ -52,9 +53,18 @@ fun ForgeRoot(viewModel: AppViewModel) {
                 ForgeTab.Training -> ForgeTrainingScreen(padding, viewModel)
                 ForgeTab.Sleep -> ForgeSleepScreen(padding, width, viewModel)
                 ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
+                // The chat in its tab, as iOS (2026-11); leaving it returns to Today.
+                ForgeTab.Coach -> {
+                    val select = LocalForgeTabSelect.current
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(padding)) {
+                        ForgeCoachChatPages(viewModel, androidx.compose.ui.res.stringResource(com.noop.R.string.nav_coach),
+                                            onBack = { select(ForgeTab.Today) })
+                    }
+                }
             }
         }
-        // Over every tab, under the pages that open over them (`RootTabView` mounts it the same way).
-        ForgeCoachButton(viewModel)
+        // While the coach is on it has its own place (`ForgeTab.Coach`: a button beside the bar, a rail entry on wide
+        // windows), as on iOS; the floating button is for nothing then.
+        if (!com.noop.ui.BottomBarStyleStore.coachEnabled) ForgeCoachButton(viewModel)
     }
 }
