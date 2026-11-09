@@ -899,12 +899,28 @@ struct ForgeMeasureWidget: View {
     }
 
     /// The preferred source first, then any other source of the same measure that has data.
+    /// Time asleep with its latest night taken from the same resolver the Sleep tab, the timeline and the
+    /// Last night card read (`ForgeRecentSleep`), so the tile cannot print another figure for that night. The
+    /// daily row can hold a different total (another source, a nap folded in); older days keep the series.
+    private static func withLatestNight(_ series: [(day: String, value: Double)],
+                                        repo: Repository) async -> [(day: String, value: Double)] {
+        guard let night = await ForgeRecentSleep.load(repo: repo, days: 3).nights.max(by: { $0.end < $1.end })
+        else { return series }
+        let wakeDay = Repository.localDayKey(night.end)
+        var out = series.filter { $0.day != wakeDay && $0.day < wakeDay }
+        out.append((day: wakeDay, value: night.asleepMinutes))
+        return out + series.filter { $0.day > wakeDay }
+    }
+
     private func load() async {
         var candidates: [MetricDescriptor] = []
         if let d = ForgeWidgetMeasures.descriptor(key, source) { candidates.append(d) }
         candidates += MetricCatalog.all.filter { $0.key == key && !candidates.contains($0) }
         for d in candidates {
-            let s = await repo.exploreSeries(key: d.key, source: d.source, days: 60)
+            var s = await repo.exploreSeries(key: d.key, source: d.source, days: 60)
+            if key == "sleep_total_min" {
+                s = await Self.withLatestNight(s, repo: repo)
+            }
             if !s.isEmpty {
                 metric = d
                 values = s.map(\.value)

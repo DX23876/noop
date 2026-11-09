@@ -184,6 +184,7 @@ struct ForgeTodayView: View {
                 }
                 .padding(.top, 6)
                 .environment(\.forgeSurfaceOpacity, surfaceOpacity)
+                .background(alignment: .top) { ForgeScrollingMotif() }
             }
             .scrollIndicators(.hidden)
             // Cards dissolve before they reach the clock and the tab bar, leaving the picture there, with nothing
@@ -1566,6 +1567,9 @@ struct ForgeTodayView: View {
                             }
                         }
                         .lineLimit(1)
+                        // The figure is the row's point: the detail beside it wraps, the figure never cuts off.
+                        .fixedSize()
+                        .layoutPriority(1)
                     }
                 }
             }

@@ -161,6 +161,7 @@ struct ForgeBackground: View {
     /// Only Today's own page carries the motif; everything pushed from it takes the area's colour.
     var showsMotif = false
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var sky = ForgeDesignPrefs.skyDefaultInNewDesign
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var behindCards = false
     @ObservedObject private var photo = BackgroundImageStore.shared
 
     var body: some View {
@@ -169,7 +170,9 @@ struct ForgeBackground: View {
             if photo.isActive {
                 // Today's own page keeps the photo clear; every other page veils it for its text.
                 BackgroundImageBackdrop(veil: !showsMotif)
-            } else if sky && showsMotif {
+            } else if sky && showsMotif && behindCards {
+                // Behind every card the scene stays put; at its default height it scrolls with the page
+                // instead (`ForgeScrollingMotif`), so the timeline below the rings sits on the quiet canvas.
                 ForgeTodayMotif()
             }
             // Otherwise the plain system canvas, Apple's grouped grey or black: the colour belongs to the
@@ -217,6 +220,24 @@ struct ForgeStatusBarScrim: View {
 /// Today's day-cycle picture, whole: no fade and no veil, the day's sheet ends it. A light page takes no night
 /// sky, which would leave the status bar's dark clock unreadable, so its evening stays at sunset and its small
 /// hours at dawn. On a dark page the night keeps its moon, raised past the title.
+/// Today's scene as part of the page: drawn at the top of the scroll content, so it leaves with the rings and
+/// the timeline below never reads over clouds. Nothing when a photo is the backdrop, the sky is off, or the
+/// scene is set to stand behind every card (then `ForgeBackground` keeps it fixed).
+struct ForgeScrollingMotif: View {
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var sky = ForgeDesignPrefs.skyDefaultInNewDesign
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var behindCards = false
+    @ObservedObject private var photo = BackgroundImageStore.shared
+
+    var body: some View {
+        if sky && !behindCards && !photo.isActive {
+            ForgeTodayMotif()
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
 private struct ForgeTodayMotif: View {
     @Environment(\.colorScheme) private var colorScheme
     /// On: the scene fills the page behind every card. Off: as in the shipped design, it stands behind the
