@@ -27,6 +27,8 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     var source: String? = nil
     /// Live heart rate and AgeLess: a full-width card (the curve, the age line) instead of a small tile.
     var wide: Bool? = nil
+    /// A tile over two columns (2) instead of one; nil or 1 is one column.
+    var span: Int? = nil
 
     var isWide: Bool {
         switch kind {
@@ -36,8 +38,28 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
         }
     }
 
-    /// Kinds that come in both sizes, switched in the editor.
-    var resizable: Bool { kind == .liveHeart || kind == .ageless }
+    /// How much of a row the widget takes, as the editor switches it.
+    enum Size { case small, medium, wide }
+
+    var size: Size { isWide ? .wide : (span == 2 ? .medium : .small) }
+
+    /// Kinds drawn as a tile: they come small or over two columns, and two of them also across the row.
+    var resizable: Bool {
+        switch kind {
+        case .measure, .water, .breathe, .strap, .liveHeart, .ageless: return true
+        default: return false
+        }
+    }
+
+    /// The size after one tap on the size control: small, two columns, then the whole row where the kind
+    /// has a card for it, then small again.
+    var nextSize: Size {
+        switch size {
+        case .small: return .medium
+        case .medium: return (kind == .liveHeart || kind == .ageless) ? .wide : .small
+        case .wide: return .small
+        }
+    }
 }
 
 /// The wearer's widgets, oldest first, kept as JSON in UserDefaults.
@@ -90,18 +112,23 @@ final class ForgeTodayWidgetStore: ObservableObject {
     func add(_ w: ForgeTodayWidget) { widgets.append(w); save() }
     func remove(_ id: UUID) { widgets.removeAll { $0.id == id }; save() }
 
-    /// A resizable widget between its small tile and its full-width card.
-    func toggleWide(_ id: UUID) {
+    /// A resizable widget to its next size: small, two columns, the whole row.
+    func cycleSize(_ id: UUID) {
         guard let i = widgets.firstIndex(where: { $0.id == id }) else { return }
-        widgets[i].wide = widgets[i].isWide ? false : true
+        switch widgets[i].nextSize {
+        case .small: widgets[i].wide = false; widgets[i].span = nil
+        case .medium: widgets[i].wide = false; widgets[i].span = 2
+        case .wide: widgets[i].wide = true; widgets[i].span = nil
+        }
         save()
     }
 
-    /// Moves `id` to the place of `target`.
-    func move(_ id: UUID, before target: UUID) {
-        guard id != target, let from = widgets.firstIndex(where: { $0.id == id }) else { return }
+    /// Moves `id` into the place `target` holds: a later target puts it after, an earlier one before, so a
+    /// tile dragged over its neighbour swaps with it either way.
+    func move(_ id: UUID, to target: UUID) {
+        guard id != target, let from = widgets.firstIndex(where: { $0.id == id }),
+              let to = widgets.firstIndex(where: { $0.id == target }) else { return }
         let item = widgets.remove(at: from)
-        let to = widgets.firstIndex(where: { $0.id == target }) ?? widgets.count
         widgets.insert(item, at: to)
         save()
     }
@@ -166,6 +193,11 @@ struct ForgeTodayWidgetArea: View {
     @Binding var editing: Bool
     @ObservedObject private var store = ForgeTodayWidgetStore.shared
     @State private var addingWidget = false
+    /// The area's width, for the column widths a tile over two columns needs.
+    @State private var areaWidth: CGFloat = 0
+    /// The tile being moved while arranging; the others trade places with it as it passes over them.
+    @State private var dragged: UUID?
+    private static let gap: CGFloat = 12
 
     @AppStorage(KeyMetricPrefs.columnsKey) private var columnsRaw = 0
     @AppStorage(ForgeTodayWidgetStore.belowTimelineKey) private var belowTimeline = false
@@ -187,21 +219,41 @@ struct ForgeTodayWidgetArea: View {
         return store.widgets.filter { ($0.kind != .ageless || healthspanEnabled) && ($0.kind != .cycle || cycle) }
     }
 
-    /// Small tiles fill a row of two or three; a wide tile takes its own row.
+    /// Columns a tile takes in a row: two for a medium tile (the whole row when there are only two).
+    private func span(_ w: ForgeTodayWidget) -> Int { w.size == .medium ? min(2, columns) : 1 }
+
+    /// Tiles fill a row of two or three columns, a medium tile taking two; a wide widget takes its own row.
     private var rows: [[ForgeTodayWidget]] {
         var out: [[ForgeTodayWidget]] = []
         var pending: [ForgeTodayWidget] = []
+        var used = 0
         for w in shown {
             if w.isWide {
-                if !pending.isEmpty { out.append(pending); pending = [] }
+                if !pending.isEmpty { out.append(pending); pending = []; used = 0 }
                 out.append([w])
             } else {
+                let n = span(w)
+                if used + n > columns, !pending.isEmpty { out.append(pending); pending = []; used = 0 }
                 pending.append(w)
-                if pending.count == columns { out.append(pending); pending = [] }
+                used += n
+                if used >= columns { out.append(pending); pending = []; used = 0 }
             }
         }
         if !pending.isEmpty { out.append(pending) }
         return out
+    }
+
+    /// A tile's width in its row. A full row, and every row while arranging, keeps to the column grid so tiles
+    /// line up across rows; a short last row shares the width by span instead of leaving a hole.
+    private func width(_ w: ForgeTodayWidget, in row: [ForgeTodayWidget]) -> CGFloat? {
+        guard areaWidth > 0, !w.isWide else { return nil }
+        let units = row.reduce(0) { $0 + span($1) }
+        if units >= columns || editing {
+            let column = (areaWidth - Self.gap * CGFloat(columns - 1)) / CGFloat(columns)
+            return (column * CGFloat(span(w)) + Self.gap * CGFloat(span(w) - 1)).rounded(.down)
+        }
+        let free = areaWidth - Self.gap * CGFloat(row.count - 1)
+        return (free * CGFloat(span(w)) / CGFloat(units)).rounded(.down)
     }
 
     var body: some View {
@@ -225,17 +277,28 @@ struct ForgeTodayWidgetArea: View {
                     .padding(16)
                     .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ForgeColor.card))
                 }
-                ForEach(rows, id: \.first!.id) { row in
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach(row) { w in cell(w) }
-                        // A short last row shares the width instead of leaving an empty third of the row,
-                        // except while arranging, where the empty slot shows where a tile can go.
-                        if !row[0].isWide, editing {
-                            ForEach(row.count..<columns, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
+                VStack(alignment: .leading, spacing: Self.gap) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .top, spacing: Self.gap) {
+                            ForEach(row) { w in
+                                cell(w)
+                                    .frame(width: width(w, in: row))
+                                    .frame(maxWidth: width(w, in: row) == nil ? .infinity : nil)
+                            }
                         }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .fixedSize(horizontal: false, vertical: true)
                 }
+                // The full width on offer, whatever the tiles in it ask for: measured on a frame that takes the
+                // whole proposal, so a tile's width can never feed back into the width it is computed from.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onGeometryChange(for: CGFloat.self) { ($0.size.width).rounded(.down) } action: { areaWidth = $0 }
+                                .sensoryFeedback(.selection, trigger: store.widgets.map(\.id))
+                // Let go between tiles: the tile is already in its new place, only the faint slot clears.
+                .onDrop(of: [.text], isTargeted: nil) { _ in dragged = nil; return true }
+                .onChange(of: editing) { _, _ in dragged = nil }
+
                 if editing {
                     Button { addingWidget = true } label: {
                         Label("Add a widget", systemImage: "plus.circle.fill")
@@ -299,8 +362,8 @@ struct ForgeTodayWidgetArea: View {
                 }
                 .overlay(alignment: .topTrailing) {
                     if w.resizable {
-                        Button { withAnimation(.snappy) { store.toggleWide(w.id) } } label: {
-                            Image(systemName: w.isWide ? "arrow.down.right.and.arrow.up.left.circle.fill" : "arrow.up.left.and.arrow.down.right.circle.fill")
+                        Button { withAnimation(.snappy) { store.cycleSize(w.id) } } label: {
+                            Image(systemName: w.nextSize == .small ? "arrow.down.right.and.arrow.up.left.circle.fill" : "arrow.up.left.and.arrow.down.right.circle.fill")
                                 .font(.title2)
                                 .symbolRenderingMode(.palette).foregroundStyle(.white, ForgeColor.accent)
                                 .frame(width: 44, height: 44)
@@ -311,15 +374,16 @@ struct ForgeTodayWidgetArea: View {
                     }
                 }
                 .contentShape(Rectangle())
+                // Held and dragged, a tile lifts; passing over another trades places with it at once, and the
+                // system scrolls the page at its edges.
+                .onDrag {
+                    dragged = w.id
+                    return NSItemProvider(object: w.id.uuidString as NSString)
+                }
+                .onDrop(of: [.text], delegate: ForgeWidgetDropDelegate(target: w.id, dragged: $dragged, store: store))
                 // Dragging is not the only way: VoiceOver and Switch Control move a widget by action.
                 .accessibilityAction(named: Text("Move earlier")) { store.shift(w.id, by: -1) }
                 .accessibilityAction(named: Text("Move later")) { store.shift(w.id, by: 1) }
-                .draggable(w.id.uuidString)
-                .dropDestination(for: String.self) { items, _ in
-                    guard let s = items.first, let id = UUID(uuidString: s) else { return false }
-                    withAnimation(.snappy) { store.move(id, before: w.id) }
-                    return true
-                }
         } else {
             // Held, a tile starts the editor; a plain tap still opens its page.
             content
@@ -328,6 +392,27 @@ struct ForgeTodayWidgetArea: View {
                 })
                 .accessibilityAction(named: Text("Customize Today")) { editing = true }
         }
+    }
+}
+
+
+/// Arranging Today's tiles: a tile carried over another takes its place at once, so the board rearranges under
+/// the finger rather than only where it is let go.
+struct ForgeWidgetDropDelegate: DropDelegate {
+    let target: UUID
+    @Binding var dragged: UUID?
+    let store: ForgeTodayWidgetStore
+
+    func dropEntered(info: DropInfo) {
+        guard let dragged, dragged != target else { return }
+        withAnimation(.snappy) { store.move(dragged, to: target) }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragged = nil
+        return true
     }
 }
 
@@ -347,7 +432,11 @@ struct ForgeTodayWidgetView: View {
         case .energy: ForgeEnergyWidget()
         case .water: ForgeWaterWidget()
         case .liveHeart:
-            if widget.isWide { ForgeLiveHeartWideWidget() } else { ForgeLiveHeartWidget() }
+            switch widget.size {
+            case .wide: ForgeLiveHeartWideWidget()
+            case .medium: ForgeLiveHeartWidget(showsCurve: true)
+            case .small: ForgeLiveHeartWidget()
+            }
         case .momentum: ForgeMomentumWidget()
         case .lastNight: ForgeLastNightWidget()
         case .weekPlan: ForgeWeekPlanWidget()
@@ -394,7 +483,8 @@ struct ForgeTodayTile: View {
                         systemImage: symbol,
                         value: value ?? "",
                         unit: value == nil ? "" : unit,
-                        caption: value == nil ? String(localized: "No data yet") : caption,
+                        // A tile that knows why it is empty ("Strap not connected") says so; the rest say no data yet.
+                        caption: value == nil ? (caption ?? String(localized: "No data yet")) : caption,
                         tint: tint,
                         delta: value == nil ? nil : delta,
                         deltaColor: deltaColor ?? StrandPalette.textTertiary,
@@ -468,9 +558,22 @@ struct ForgeBeatingHeart: View {
     }
 }
 
-/// The heart rate right now as a small tile, with a heart beating at that rate. Opens the Live page.
+/// The heart rate right now as a small tile, with a heart beating at that rate. Opens the Live page. Over two
+/// columns it also draws the pulse as a line: the last minute and a half while the strap streams, today's
+/// five-minute trace while it does not.
 struct ForgeLiveHeartWidget: View {
+    var showsCurve = false
     @EnvironmentObject private var live: LiveState
+    @EnvironmentObject private var repo: Repository
+    @State private var samples: [Double] = []
+    @State private var banked: [Double] = []
+    private let maxSamples = 90
+
+    private var curve: [Double]? {
+        guard showsCurve else { return nil }
+        let line = samples.count >= 2 ? samples : banked
+        return line.count >= 2 ? line : nil
+    }
 
     /// The same gate the Live card reads: no number without a connected strap reporting one.
     private var bpm: Int? {
@@ -484,7 +587,7 @@ struct ForgeLiveHeartWidget: View {
             ForgeTodayTile(label: String(localized: "Live"), symbol: "waveform.path.ecg",
                            value: bpm.map { "\($0)" }, unit: "bpm",
                            caption: bpm == nil ? (live.connected ? String(localized: "Waiting for a pulse") : String(localized: "Strap not connected")) : nil,
-                           tint: StrandPalette.metricRose)
+                           tint: StrandPalette.metricRose, trend: curve)
                 .overlay(alignment: .bottomTrailing) {
                     if bpm != nil {
                         ForgeBeatingHeart(bpm: bpm)
@@ -494,6 +597,18 @@ struct ForgeLiveHeartWidget: View {
                 }
         }
         .buttonStyle(LiquidPressStyle())
+        .onChange(of: live.heartRate) { _, hr in
+            guard showsCurve else { return }
+            guard let hr, hr > 0, live.connected else { samples.removeAll(); return }
+            samples.append(Double(hr))
+            if samples.count > maxSamples { samples.removeFirst(samples.count - maxSamples) }
+        }
+        .task(id: showsCurve ? repo.refreshSeq : -1) {
+            guard showsCurve else { banked = []; return }
+            let now = Date()
+            banked = await repo.hrBuckets(from: Int(Calendar.current.startOfDay(for: now).timeIntervalSince1970),
+                                          to: Int(now.timeIntervalSince1970), bucketSeconds: 300).map(\.bpm)
+        }
     }
 }
 
