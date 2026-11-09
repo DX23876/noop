@@ -1505,6 +1505,7 @@ private struct CalmModeView: View {
 private struct BreathOrb: View {
     @State private var inhale = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
 
     var body: some View {
         let tint = Color.teal
@@ -1527,7 +1528,7 @@ private struct BreathOrb: View {
         .frame(height: 190)
         .accessibilityHidden(true)
         .onAppear {
-            guard !reduceMotion else { return }
+            guard !motion.poseStill(reduceMotion) else { return }
             withAnimation(.easeInOut(duration: 5.5).repeatForever(autoreverses: true)) { inhale = true }
         }
     }

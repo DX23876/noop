@@ -407,6 +407,7 @@ struct CoachPicture: View {
     let tint: Color
     @State private var lift = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
 
     var body: some View {
         GeometryReader { geo in
@@ -437,7 +438,7 @@ struct CoachPicture: View {
         }
         .accessibilityHidden(true)
         .onAppear {
-            guard !reduceMotion else { return }
+            guard !motion.poseStill(reduceMotion) else { return }
             withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { lift = true }
         }
     }
