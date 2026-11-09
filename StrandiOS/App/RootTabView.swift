@@ -223,6 +223,8 @@ struct RootTabView: View {
     /// pop is skipped, so scroll position survives and the refresh doesn't double with a re-run of the
     /// root's `.task` (#198).
     private func reselectTab(_ tag: Int) {
+        // The Coach tab has no stack of its own here; its chat keeps its place on a re-tap.
+        guard tabPaths.indices.contains(tag) else { return }
         Task { await repo.refresh() }
         if !tabPaths[tag].isEmpty {
             tabPaths[tag] = NavigationPath()   // on a subpage: animated pop back to the root
@@ -320,7 +322,7 @@ struct RootTabView: View {
             // interactive-pop itself: far worse than the bug being fixed.
             .simultaneousGesture(
                 tabSwipeGesture,
-                including: selectedTab != 0 && tabPaths[selectedTab].isEmpty ? .all : .subviews
+                including: selectedTab != 0 && tabPaths.indices.contains(selectedTab) && tabPaths[selectedTab].isEmpty ? .all : .subviews
             )
             // The minimized running workout, above the tab bar on every tab.
             .activeSessionMiniBar()
@@ -544,7 +546,10 @@ struct RootTabView: View {
         .onChange(of: coachFeatureEnabled) { _, enabled in
             // A cover can remain on screen while the switch is changed from a second window or a
             // Settings deep link. Close it immediately so "off" really means no visible Coach UI.
-            if !enabled { showCoach = false }
+            if !enabled {
+                showCoach = false
+                if selectedTab == Self.forgeCoachTag { selectedTab = 0 }
+            }
         }
         // A screen's top-bar "+" routes here: open the quick-action sheet, then clear the flag.
         .onChange(of: router.quickActionsRequested) { _, req in
@@ -789,16 +794,24 @@ struct RootTabView: View {
         return false
     }
 
-    /// Tag of the coach button in the redesign's bar. Never becomes the selection: choosing it opens the chat.
+    /// Tag of the coach tab in the redesign's bar (iOS 18 on): the chat lives in the tab itself.
     private static let forgeCoachTag = 9
+
+    /// Opens the chat: the Coach tab where the redesign's bar has one, the full-screen cover everywhere else.
+    private func presentCoach() {
+        guard coachFeatureEnabled else { return }
+        if forgeTabBarHostsCoach {
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = Self.forgeCoachTag }
+        } else {
+            showCoach = true
+        }
+    }
 
     private var forgeSelection: Binding<Int> {
         Binding(
             get: { selectedTab },
             set: { tag in
-                if tag == Self.forgeCoachTag {
-                    if coachFeatureEnabled { showCoach = true }
-                } else if tag == selectedTab {
+                if tag == selectedTab {
                     reselectTab(tag)
                 } else {
                     selectedTab = tag
@@ -817,7 +830,7 @@ struct RootTabView: View {
                 if model.activeWorkout != nil { session.present() }
                 else { withAnimation(Self.sheetEase) { quickAction = .workout } }
             },
-            onCoach: { if coachFeatureEnabled { showCoach = true } },
+            onCoach: { presentCoach() },
             onSleep: { withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 } },
             onCoachSettings: { pushOnToday(MoreDestination.coachSettings) },
             onAsk: askCoach
@@ -879,9 +892,15 @@ struct RootTabView: View {
                 }
                 if coachFeatureEnabled {
                     Tab(value: Self.forgeCoachTag, role: .search) {
-                        Color.clear
+                        NavigationStack {
+                            CoachView()
+                                .environmentObject(coach)
+                                // Opening the chat is having seen it, as in the cover.
+                                .onAppear { coach.markCoachMessagesSeen() }
+                        }
                     } label: {
-                        forgeTabLabel("Coach", symbol: "bubble.left.and.text.bubble.right", selected: false)
+                        forgeTabLabel("Coach", symbol: "bubble.left.and.text.bubble.right",
+                                      selected: selectedTab == Self.forgeCoachTag)
                     }
                 }
             }
@@ -918,7 +937,9 @@ struct RootTabView: View {
             let wasShowingSheet = showAllFeatures || quickAction != nil
             showAllFeatures = false
             quickAction = nil
-            if wasShowingSheet {
+            if forgeTabBarHostsCoach {
+                presentCoach()
+            } else if wasShowingSheet {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { showCoach = true }
             } else {
                 showCoach = true
@@ -935,10 +956,10 @@ struct RootTabView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
             switch choice {
             case .coachWrite, .coachSpeak:
-                if coachFeatureEnabled { showCoach = true }
+                presentCoach()
             case .coachPhoto(let png):
                 guard coachFeatureEnabled else { return }
-                showCoach = true
+                presentCoach()
                 Task {
                     await coach.sendPhoto(png, question: String(localized: "Here is a photo I want to log, such as a meal or a workout screen. Say what you see and what I could log from it. Mark any estimate as an estimate and do not log anything yourself."))
                 }
@@ -974,7 +995,7 @@ struct RootTabView: View {
             return
         }
         coach.pendingPrompt = question
-        showCoach = true
+        presentCoach()
     }
 
     private func sendPendingAsk(withData: Bool) {
@@ -982,7 +1003,7 @@ struct RootTabView: View {
         pendingAsk = nil
         if withData { coach.dataConsent = true }
         coach.pendingPrompt = question
-        showCoach = true
+        presentCoach()
     }
 
     /// One tab's navigation stack without its bar item, shared by both tab APIs.
