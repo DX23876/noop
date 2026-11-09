@@ -82,6 +82,7 @@ object ForgeTokens {
         const val rowSpacing: Float = 10f
         const val screenHPadding: Float = 16f
         const val screenPadding: Float = 16f
+        const val sectionGap: Float = 24f
         const val sourceBadgeHeight: Float = 18f
         const val space1: Float = 4f
         const val space10: Float = 40f
@@ -134,6 +135,7 @@ object ForgeTokens {
         val captionNumber = ForgeFont(size = 12f, weight = 500, rounded = false)
         val footnote = ForgeFont(size = 13f, weight = 400, rounded = false)
         val headline = ForgeFont(size = 17f, weight = 600, rounded = false)
+        val heroNumber = ForgeFont(size = 34f, weight = 600, rounded = true)
         val mono = ForgeFont(size = 13f, weight = 400, rounded = false)
         val overline = ForgeFont(size = 11f, weight = 600, rounded = false)
         val subhead = ForgeFont(size = 13f, weight = 400, rounded = false)

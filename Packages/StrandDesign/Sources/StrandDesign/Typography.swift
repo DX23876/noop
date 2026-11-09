@@ -50,10 +50,7 @@ public enum StrandFont {
     /// The one figure a detail screen exists for. A step above `title1` and monospaced, for the
     /// single number a screen is opened to read — not for headings, which `title1` still owns.
     /// The new design sets it semibold: the one large figure on the page, large rather than heavy.
-    public static var heroNumber: Font {
-        Font.system(.largeTitle, design: .rounded)
-            .weight(NoopVisualStyle.skin == .forge ? .semibold : .bold).monospacedDigit()
-    }
+    public static var heroNumber: Font { NoopVisualStyle.skin == .forge ? Font.system(.largeTitle, design: .rounded).weight(.semibold).monospacedDigit() : Font.system(.largeTitle, design: .rounded).weight(.bold).monospacedDigit() }
 
     /// Native rounded secondary title. The new design sets section headings one step down, as Apple's
     /// apps do, so the one large figure in a card is the loudest thing under them.
