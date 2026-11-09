@@ -27,16 +27,41 @@ struct ForgeHealthView: View {
     @State private var hrvOverCountByDay: [String: Double] = [:]
     /// The strap's own nightly blood-oxygen estimate, read the way Today reads it.
     @State private var spo2CandidateByDay: [String: Double] = [:]
-    @State private var weightKg: Double?
-    @State private var weightChange30d: Double?
     @State private var restByDay: [String: Double] = [:]
-    @State private var energyKcal: Double?
+    /// The resolved vitals, kept between redraws: resolving walks every stored day of every source, and the
+    /// tab redraws for many reasons that do not touch the vitals (editing tiles, a tile store change, a
+    /// Repository publish of something else). Rebuilt only when `vitalsInputs` changes.
+    @State private var vitalsCache: VitalsCache?
     @ObservedObject private var tileStore = ForgeVitalTileStore.shared
     @AppStorage(ForgeVitalTileStore.columnsKey) private var tileColumnsRaw = 2
     @State private var editingTiles = false
     @State private var tilePick: ForgeVitalTilePick?
-    /// Every vital the resolver knows, empty ones included: a chosen tile shows "–" rather than vanishing.
-    private var allReadings: [BodyVitalReading] {
+    /// Everything the vitals resolve from. `refreshSeq` stands for the source rows: the Repository assigns
+    /// `vitalRows` only in the publish that bumps it; `days.count` covers previews, which set `days` alone.
+    private struct VitalsInputs: Hashable {
+        let refreshSeq: Int
+        let dayCount: Int
+        let logicalDay: String
+        let unitSystem: String
+        let temperature: String
+        let skinTemp: String
+        let spo2Candidate: [String: Double]
+        let hrvOverCount: [String: Double]
+    }
+
+    private struct VitalsCache {
+        let inputs: VitalsInputs
+        let all: [BodyVitalReading]
+    }
+
+    private var vitalsInputs: VitalsInputs {
+        VitalsInputs(refreshSeq: repo.refreshSeq, dayCount: repo.days.count,
+                     logicalDay: Repository.logicalDayKey(Date()), unitSystem: unitSystemRaw,
+                     temperature: temperatureRaw, skinTemp: skinTempDisplayRaw,
+                     spo2Candidate: spo2CandidateByDay, hrvOverCount: hrvOverCountByDay)
+    }
+
+    private func resolveVitals() -> [BodyVitalReading] {
         BodyVitalSigns.readings(
             sourceRows: repo.vitalMetricRows,
             temperatureUnit: UnitPrefs.resolveTemperature(system: unitSystem, override: temperatureRaw),
@@ -45,8 +70,21 @@ struct ForgeHealthView: View {
             skinTempPreferred: SkinTempDisplay.Kind(rawValue: skinTempDisplayRaw) ?? .absolute)
     }
 
-    private var readings: [BodyVitalReading] {
-        allReadings
+    /// Every vital the resolver knows, empty ones included: a chosen tile shows "–" rather than vanishing.
+    /// Read from the cache when it matches; the first frame, before the cache is filled, resolves once.
+    private var allReadings: [BodyVitalReading] {
+        if let vitalsCache, vitalsCache.inputs == vitalsInputs { return vitalsCache.all }
+        return resolveVitals()
+    }
+
+    private func refreshVitalsCache() {
+        let inputs = vitalsInputs
+        guard vitalsCache?.inputs != inputs else { return }
+        vitalsCache = VitalsCache(inputs: inputs, all: resolveVitals())
+    }
+
+    private static func ordered(_ all: [BodyVitalReading]) -> [BodyVitalReading] {
+        all
             // The raw optical reading is an experimental instrument; an empty one is noise on this tab.
             .filter { !($0.key == "spo2raw" && $0.value == nil) }
             // The prototype's order: HRV, resting heart rate, blood oxygen, breathing, then the rest.
@@ -63,20 +101,13 @@ struct ForgeHealthView: View {
         .buttonStyle(LiquidPressStyle())
     }
 
-    /// "−1,7 kg in 30 days" with a real minus and the reader's decimal separator.
-    private func weightChangeText(_ kg: Double) -> String {
-        let value = unitSystem == .imperial ? UnitFormatter.kgToPounds(kg) : kg
-        let figure = abs(value).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale))
-        let signed = "\(value < 0 ? "−" : "+")\(figure) \(UnitFormatter.massUnit(unitSystem))"
-        return String(localized: "\(signed) in 30 days")
-    }
-
     private static func order(_ key: String) -> Int {
         ["hrv", "rhr", "spo2", "resp", "skin", "spo2raw"].firstIndex(of: key) ?? 99
     }
 
     var body: some View {
-        let readings = readings
+        let all = allReadings
+        let readings = Self.ordered(all)
         let scored = readings.filter { $0.banding.band != .noData && $0.key != "spo2raw" }
         let inRange = scored.filter { $0.banding.band == .inRange }.count
         ScrollViewReader { proxy in
@@ -112,7 +143,7 @@ struct ForgeHealthView: View {
                         ForgeSectionTitle(title: "Vitals", action: editingTiles ? nil : (label: "Edit", run: {
                             withAnimation(.snappy) { editingTiles = true }
                         }))
-                        vitalTiles(readings)
+                        vitalTiles(readings, all: all)
 
                         // The cycle at a glance, only while cycle tracking is on.
                         ForgeCycleSummaryCard()
@@ -168,6 +199,8 @@ struct ForgeHealthView: View {
         .refreshable { await repo.refresh() }
         .sheet(item: $tilePick) { pick in tilePicker(pick) }
         .task(id: repo.days.count) { await load() }
+        .onAppear(perform: refreshVitalsCache)
+        .onChange(of: vitalsInputs) { _, _ in refreshVitalsCache() }
         .task(id: "\(repo.refreshSeq)|\(healthspanEnabled)") {
             guard healthspanEnabled, let sex = HealthspanEngine.Sex(profileValue: profile.sex) else { healthspan = nil; return }
             healthspan = await HealthspanSnapshot.load(repo: repo, age: profile.age, sex: sex)?.weeks.last
@@ -196,11 +229,15 @@ struct ForgeHealthView: View {
         .buttonStyle(LiquidPressStyle())
     }
 
-    private static func weekday(_ key: String) -> String {
+    private static let dayKeyParser: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
-        guard let date = f.date(from: key) else { return "" }
+        return f
+    }()
+
+    private static func weekday(_ key: String) -> String {
+        guard let date = dayKeyParser.date(from: key) else { return "" }
         return date.formatted(.dateTime.weekday(.narrow).locale(AppLanguage.activeLocale))
     }
 
@@ -263,14 +300,8 @@ struct ForgeHealthView: View {
         hrvOverCountByDay = Dictionary(oc.map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
         let cand = await repo.exploreSeries(key: "spo2_candidate", source: "my-whoop", days: 30)
         spo2CandidateByDay = Dictionary(cand.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
-        let summary = await repo.weightTrendSummary(days: 91)
-        weightKg = WeightSeries.currentWeight(summary: summary, profileWeightKg: profile.weightKg).kg
-        weightChange30d = summary?.change30dKg
         let rest = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource, days: 14)
         restByDay = Dictionary(rest.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
-        let today = Repository.logicalDayKey(Date())
-        energyKcal = (await repo.energySummaries(days: 2, profile: Repository.analyticsProfile(profile)))
-            .last(where: { $0.day == today })?.totalBurnedSoFar
     }
 }
 
@@ -341,8 +372,8 @@ extension ForgeHealthView {
         ForgeVitalTile.allCases.filter { $0 != .ageless || healthspanEnabled }
     }
 
-    func tileTitle(_ t: ForgeVitalTile) -> String {
-        if let r = allReadings.first(where: { $0.key == t.rawValue }) {
+    func tileTitle(_ t: ForgeVitalTile, all: [BodyVitalReading]) -> String {
+        if let r = all.first(where: { $0.key == t.rawValue }) {
             return t == .spo2raw ? r.label : Self.plainLabel(r)
         }
         switch t {
@@ -356,7 +387,7 @@ extension ForgeHealthView {
     }
 
     /// Rows of two or three; a short last row stretches its tiles instead of leaving a hole.
-    @ViewBuilder func vitalTiles(_ readings: [BodyVitalReading]) -> some View {
+    @ViewBuilder func vitalTiles(_ readings: [BodyVitalReading], all: [BodyVitalReading]) -> some View {
         let tiles = shownTiles(readings)
         let current = tileStore.tiles(default: defaultTiles(readings))
         let rows = stride(from: 0, to: tiles.count, by: tileColumns).map { Array(tiles[$0..<min($0 + tileColumns, tiles.count)]) }
@@ -389,7 +420,7 @@ extension ForgeHealthView {
             }
             ForEach(rows, id: \.first!.id) { row in
                 HStack(alignment: .top, spacing: 10) {
-                    ForEach(row) { t in tileCell(t, readings: readings, current: current) }
+                    ForEach(row) { t in tileCell(t, all: all, current: current) }
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }
@@ -406,13 +437,13 @@ extension ForgeHealthView {
         .sensoryFeedback(.impact, trigger: editingTiles)
     }
 
-    @ViewBuilder private func tileContent(_ t: ForgeVitalTile) -> some View {
+    @ViewBuilder private func tileContent(_ t: ForgeVitalTile, all: [BodyVitalReading]) -> some View {
         let compact = tileColumns > 2
         if t.isVital {
-            if let r = allReadings.first(where: { $0.key == t.rawValue }) {
+            if let r = all.first(where: { $0.key == t.rawValue }) {
                 vitalTile(r, compact: compact)
             } else {
-                ForgeMetricTile(label: tileTitle(t), value: nil, unit: "", minHeight: compact ? 96 : 132)
+                ForgeMetricTile(label: tileTitle(t, all: all), value: nil, unit: "", minHeight: compact ? 96 : 132)
             }
         } else if t == .ageless {
             NavigationLink(value: ForgeRoute.ageless) {
@@ -429,12 +460,12 @@ extension ForgeHealthView {
             }
             .buttonStyle(LiquidPressStyle())
         } else if let m = t.measure {
-            ForgeHealthMeasureTile(key: m.key, source: m.source, label: tileTitle(t), compact: compact)
+            ForgeHealthMeasureTile(key: m.key, source: m.source, label: tileTitle(t, all: all), compact: compact)
         }
     }
 
-    @ViewBuilder private func tileCell(_ t: ForgeVitalTile, readings: [BodyVitalReading], current: [ForgeVitalTile]) -> some View {
-        let content = tileContent(t).frame(maxWidth: .infinity)
+    @ViewBuilder private func tileCell(_ t: ForgeVitalTile, all: [BodyVitalReading], current: [ForgeVitalTile]) -> some View {
+        let content = tileContent(t, all: all).frame(maxWidth: .infinity)
         if editingTiles {
             content
                 .allowsHitTesting(false)
@@ -484,8 +515,9 @@ extension ForgeHealthView {
     }
 
     func tilePicker(_ pick: ForgeVitalTilePick) -> some View {
-        let current = tileStore.tiles(default: defaultTiles(readings))
-        return ForgeVitalTilePicker(pick: pick, placed: current, offered: offeredTiles(), title: tileTitle) { chosen in
+        let all = allReadings
+        let current = tileStore.tiles(default: defaultTiles(Self.ordered(all)))
+        return ForgeVitalTilePicker(pick: pick, placed: current, offered: offeredTiles(), title: { tileTitle($0, all: all) }) { chosen in
             withAnimation(.snappy) {
                 switch pick {
                 case .add:
