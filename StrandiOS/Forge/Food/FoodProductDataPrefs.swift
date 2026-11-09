@@ -9,6 +9,14 @@ enum FoodProductDataPrefs {
     static let modeKey = "food.productData.mode"
     static let countriesKey = "food.productData.countries"
     static let unknownBarcodesOnlineKey = "food.productData.unknownBarcodesOnline"
+    /// Set once the first-visit setup has been closed, by Done, Later or a swipe.
+    static let setupDoneKey = "food.setup.done"
+
+    /// Whether the food log should open its setup: never shown yet, and no product source picked in Food data,
+    /// so a wearer who already chose there is not asked again.
+    static var setupNeeded: Bool {
+        !UserDefaults.standard.bool(forKey: setupDoneKey) && mode == .none
+    }
 
     static var mode: FoodProductDataMode {
         FoodProductDataMode(rawValue: UserDefaults.standard.string(forKey: modeKey) ?? "") ?? .none

@@ -7,6 +7,8 @@ import StrandAnalytics
 /// iPhone, filling missing nutrients, Apple Health writing and the sources' credits. Nothing goes online before
 /// the wearer picks a mode here (decision 2026-11-08).
 struct FoodDataSettingsView: View {
+    /// Asks the food log to show its first-visit setup once these settings have closed.
+    var openSetup: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @AppStorage(FoodProductDataPrefs.modeKey) private var modeRaw = FoodProductDataMode.none.rawValue
     @AppStorage(FoodProductDataPrefs.unknownBarcodesOnlineKey) private var unknownBarcodesOnline = false
@@ -80,6 +82,11 @@ struct FoodDataSettingsView: View {
                     Text("Lab")
                 } footer: {
                     Text("A score for the last seven days from a widely used healthy eating index: vegetables, fruit, whole grains, nuts and pulses, fish, fats, salt, sweet drinks, red meat and alcohol. It needs five logged days of seven. It describes habits, not a single day.")
+                }
+                if let openSetup {
+                    Section {
+                        Button("Show the setup again") { openSetup(); dismiss() }
+                    }
                 }
                 Section("Sources") {
                     Text("German Nutrient Database (Bundeslebensmittelschlüssel) 4.0, Max Rubner-Institut, CC BY 4.0.")

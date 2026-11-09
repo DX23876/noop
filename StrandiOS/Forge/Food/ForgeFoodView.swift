@@ -9,7 +9,7 @@ import WhoopStore
 /// energy plan sets, the three macronutrients, the week's nutrients, and the meals in eating order.
 struct ForgeFoodView: View {
     var onAsk: (String) -> Void = { _ in }
-    /// Opens the add sheet once on arrival: the Home Screen's "Log food" and the Health card's button.
+    /// Opens the add sheet once on arrival: Today's Log sheet and the Health card's button.
     var opensAdd = false
 
     @EnvironmentObject private var repo: Repository
@@ -20,6 +20,9 @@ struct ForgeFoodView: View {
     @State private var scrolledPast = false
     @State private var showAdd = false
     @State private var showSettings = false
+    /// The first-visit setup (owner, 2026-11-09), shown while `FoodProductDataPrefs.setupNeeded`.
+    @State private var showSetup = false
+    @State private var setupAfterSettings = false
     /// The one page pushed from Food. A single destination: two `isPresented` destinations on one view let
     /// SwiftUI open the wrong page (a tap on the score opened the nutrients).
     @State private var subpage: Subpage?
@@ -103,9 +106,11 @@ struct ForgeFoodView: View {
         .onAppear { if CommandLine.arguments.contains("--demo-plan-page") { subpage = .plan } }
         #endif
         .onAppear {
-            guard opensAdd, !openedAdd else { return }
-            openedAdd = true
-            showAdd = true
+            if FoodProductDataPrefs.setupNeeded, !showSetup {
+                showSetup = true
+                return
+            }
+            openAddOnArrival()
         }
         .sensoryFeedback(.success, trigger: model.savedRevision)
         .sensoryFeedback(.selection, trigger: model.day)
@@ -113,7 +118,8 @@ struct ForgeFoodView: View {
         .onChange(of: model.day) { Task { await model.reload(repo: repo) } }
         .sheet(isPresented: $planning) { DietPlannerView(model: model).environmentObject(repo) }
         .sheet(isPresented: $showAdd) { FoodAddSheet(model: model).environmentObject(repo) }
-        .sheet(isPresented: $showSettings, onDismiss: reloadGoals) { FoodDataSettingsView() }
+        .sheet(isPresented: $showSettings, onDismiss: settingsClosed) { FoodDataSettingsView(openSetup: askSetup) }
+        .sheet(isPresented: $showSetup, onDismiss: setupClosed) { FoodSetupSheet() }
         .sheet(item: $editing) { FoodEntrySheet(entry: $0, model: model).environmentObject(repo) }
         .sheet(item: $copying) { FoodCopySheet(batch: $0, model: model).environmentObject(repo) }
         .sheet(item: $recipeFrom) { FoodRecipeSheet(batch: $0, model: model).environmentObject(repo) }
@@ -172,6 +178,25 @@ struct ForgeFoodView: View {
     }
 
     private func openAdd() { showAdd = true }
+    /// The add sheet a route asked for, once: after the setup when that came first.
+    private func openAddOnArrival() {
+        guard opensAdd, !openedAdd else { return }
+        openedAdd = true
+        showAdd = true
+    }
+    private func askSetup() { setupAfterSettings = true }
+    private func settingsClosed() {
+        reloadGoals()
+        if setupAfterSettings {
+            setupAfterSettings = false
+            showSetup = true
+        }
+    }
+    private func setupClosed() {
+        UserDefaults.standard.set(true, forKey: FoodProductDataPrefs.setupDoneKey)
+        reloadGoals()
+        openAddOnArrival()
+    }
     private func logHabit() { Task { await model.logHabit(repo: repo) } }
     private func reloadGoals() { Task { await model.reloadGoals(repo: repo, profile: Repository.analyticsProfile(profile)) } }
     private func openSettings() { showSettings = true }
