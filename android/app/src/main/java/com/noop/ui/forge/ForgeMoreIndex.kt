@@ -358,6 +358,10 @@ private fun CategoryPage(category: MoreCategory, onBack: () -> Unit, onOpen: (Mo
     SettingsColumn {
         PageTitle(stringResource(category.titleRes), onBack)
         val context = LocalContext.current
+        // The Forge Health tab's Nutrition card on iOS (`FoodHealthCard`); on Android, Health & body is that place.
+        if (category == MoreCategory.HealthBody) {
+            FoodTodayCard(onOpen = { onOpen(MoreDest.Food) }, onAdd = { FoodArrival.requestAdd(); onOpen(MoreDest.Food) })
+        }
         DestCard(MORE_GROUPS.getValue(category).filter { it.shown(context) }, onOpen)
     }
 }

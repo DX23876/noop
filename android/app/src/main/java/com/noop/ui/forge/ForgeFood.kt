@@ -120,7 +120,11 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     var pinned by remember { mutableStateOf(foodPinned(context)) }
     var burnedByDay by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     var revision by remember { mutableIntStateOf(0) }
-    var adding by remember { mutableStateOf(false) }
+    // The first-visit setup (owner, 2026-11-09) comes first; a request to add (Today's Log sheet, the Health & body
+    // card) is kept and opens the add page once the setup closes.
+    var setup by remember { mutableStateOf(foodSetupNeeded(context)) }
+    var addAfterSetup by remember { mutableStateOf(FoodArrival.consume()) }
+    var adding by remember { mutableStateOf(addAfterSetup && !setup) }
     var settings by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<CoreFood.Entry?>(null) }
     var nutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }
@@ -221,13 +225,23 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
                                onBack = { showNutrients = false })
         return
     }
+    fun reloadGoals() {
+        scope.launch { baseGoals = withContext(Dispatchers.IO) { loadFoodGoals(context, CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))) } }
+        revision++
+    }
+    if (setup) {
+        val close = {
+            markFoodSetupDone(context); setup = false; reloadGoals()
+            if (addAfterSetup) { addAfterSetup = false; adding = true }
+        }
+        BackHandler(onBack = close)
+        ForgeFoodSetupPage(onDone = close)
+        return
+    }
     if (settings) {
         BackHandler { settings = false; revision++ }
-        ForgeFoodDataPage(onBack = {
-            settings = false
-            scope.launch { baseGoals = withContext(Dispatchers.IO) { loadFoodGoals(context, CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))) } }
-            revision++
-        })
+        ForgeFoodDataPage(onBack = { settings = false; reloadGoals() },
+                          onSetup = { settings = false; setup = true })
         return
     }
     if (adding) {
@@ -945,7 +959,20 @@ private data class OfferedPack(val country: String, val rows: Int, val file: Str
 private const val PACKS_BASE = "https://github.com/DX23876/noop/releases/download/food-packs/"
 
 @Composable
-private fun ForgeFoodDataPage(onBack: () -> Unit) {
+private fun ForgeFoodDataPage(onBack: () -> Unit, onSetup: () -> Unit) {
+    SettingsColumn {
+        PageTitle(stringResource(R.string.food_data_title), onBack)
+        FoodGoalsCard()
+        FoodProductDataCards()
+        FoodExtrasCards()
+        SettingsCard(null, null) { LinkRow(stringResource(R.string.food_setup_again), null, onClick = onSetup) }
+        SettingsCard(stringResource(R.string.food_sources), stringResource(R.string.food_sources_credits)) {}
+    }
+}
+
+/** Where branded products come from, the countries and the packs: Food data and the first-visit setup share it. */
+@Composable
+internal fun FoodProductDataCards() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val prefs = remember { FoodDataPrefs(context) }
@@ -957,10 +984,6 @@ private fun ForgeFoodDataPage(onBack: () -> Unit) {
     var failure by remember { mutableStateOf<String?>(null) }
     var countries by remember { mutableStateOf(prefs.countries) }
     var unknownOnline by remember { mutableStateOf(prefs.unknownBarcodesOnline) }
-    var writeHealth by remember { mutableStateOf(prefs.writeHealth) }
-    var estimateMissing by remember { mutableStateOf(prefs.estimateMissing) }
-    val permissions = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) { }
     val failedText = stringResource(R.string.food_download_failed)
     val spaceText = stringResource(R.string.food_no_space)
 
@@ -981,94 +1004,100 @@ private fun ForgeFoodDataPage(onBack: () -> Unit) {
         }
     }
 
-    SettingsColumn {
-        PageTitle(stringResource(R.string.food_data_title), onBack)
-        FoodGoalsCard()
-        SettingsCard(stringResource(R.string.food_branded), stringResource(when (mode) {
-            FoodDataPrefs.ONLINE -> R.string.food_mode_online_note; FoodDataPrefs.PACKS -> R.string.food_mode_packs_note
-            else -> R.string.food_mode_none_note })) {
-            listOf(FoodDataPrefs.NONE to R.string.food_mode_none, FoodDataPrefs.ONLINE to R.string.food_mode_online,
-                   FoodDataPrefs.PACKS to R.string.food_mode_packs).forEach { (value, label) ->
-                Row(Modifier.fillMaxWidth().clickable(role = Role.RadioButton) { mode = value; prefs.mode = value }
-                    .padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.RadioButton(selected = mode == value, onClick = { mode = value; prefs.mode = value })
-                    Text(stringResource(label), style = Forge.type.body, color = Forge.colors.text)
-                }
+    SettingsCard(stringResource(R.string.food_branded), stringResource(when (mode) {
+        FoodDataPrefs.ONLINE -> R.string.food_mode_online_note; FoodDataPrefs.PACKS -> R.string.food_mode_packs_note
+        else -> R.string.food_mode_none_note })) {
+        listOf(FoodDataPrefs.NONE to R.string.food_mode_none, FoodDataPrefs.ONLINE to R.string.food_mode_online,
+               FoodDataPrefs.PACKS to R.string.food_mode_packs).forEach { (value, label) ->
+            Row(Modifier.fillMaxWidth().clickable(role = Role.RadioButton) { mode = value; prefs.mode = value }
+                .padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.RadioButton(selected = mode == value, onClick = { mode = value; prefs.mode = value })
+                Text(stringResource(label), style = Forge.type.body, color = Forge.colors.text)
             }
         }
-        if (mode == FoodDataPrefs.ONLINE) {
-            SettingsCard(stringResource(R.string.food_countries), null) {
-                (offered?.map { it.country } ?: listOf("germany", "austria", "switzerland", "france", "united-kingdom", "united-states"))
-                    .sortedBy { FoodDataPrefs.countryName(it) }.forEach { tag ->
-                        Row(Modifier.fillMaxWidth().clickable {
-                            countries = if (tag in countries) countries - tag else if (countries.size < 3) countries + tag else countries
-                            prefs.countries = countries
-                        }.padding(vertical = ForgeMetrics.space2)) {
-                            Text(FoodDataPrefs.countryName(tag), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                            if (tag in countries) Text("✓", color = Forge.colors.accent)
-                        }
-                    }
-            }
-        }
-        if (mode == FoodDataPrefs.PACKS) {
-            SettingsCard(stringResource(R.string.food_on_phone), if (installed.isEmpty()) stringResource(R.string.food_no_pack) else null) {
-                installed.forEach { pack ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(FoodDataPrefs.countryName(pack.country), style = Forge.type.body, color = Forge.colors.text)
-                            Text(stringResource(R.string.food_products, NumberFormat.getIntegerInstance().format(pack.rows)),
-                                 style = Forge.type.footnote, color = Forge.colors.textSecondary)
-                        }
-                        offered?.firstOrNull { it.country == pack.country && it.sha256 != pack.sha256 }?.let { update ->
-                            TextButton(enabled = downloading == null, onClick = { download(update) }) { Text(stringResource(R.string.food_update)) }
-                        }
-                        TextButton(onClick = { scope.launch { withContext(Dispatchers.IO) { CoreFood.removePack(pack.country) }; installed = withContext(Dispatchers.IO) { CoreFood.packs() } } }) {
-                            Text(stringResource(R.string.food_delete), color = Forge.colors.effort)
-                        }
+    }
+    if (mode == FoodDataPrefs.ONLINE) {
+        SettingsCard(stringResource(R.string.food_countries), null) {
+            (offered?.map { it.country } ?: listOf("germany", "austria", "switzerland", "france", "united-kingdom", "united-states"))
+                .sortedBy { FoodDataPrefs.countryName(it) }.forEach { tag ->
+                    Row(Modifier.fillMaxWidth().clickable {
+                        countries = if (tag in countries) countries - tag else if (countries.size < 3) countries + tag else countries
+                        prefs.countries = countries
+                    }.padding(vertical = ForgeMetrics.space2)) {
+                        Text(FoodDataPrefs.countryName(tag), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                        if (tag in countries) Text("✓", color = Forge.colors.accent)
                     }
                 }
-            }
-            SettingsCard(stringResource(R.string.food_download), stringResource(R.string.food_download_note)) {
-                if (manifestFailed) Text(stringResource(R.string.food_manifest_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
-                offered.orEmpty().filter { o -> installed.none { it.country == o.country } }.forEach { pack ->
-                    LinkRow(FoodDataPrefs.countryName(pack.country),
-                            stringResource(R.string.food_products, NumberFormat.getIntegerInstance().format(pack.rows)) +
-                                " · " + android.text.format.Formatter.formatShortFileSize(context, pack.bytes),
-                            busy = downloading == pack.country) { if (downloading == null) download(pack) }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.food_unknown_online), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                    Switch(unknownOnline, { unknownOnline = it; prefs.unknownBarcodesOnline = it })
-                }
-            }
         }
-        failure?.let { Text(it, style = Forge.type.body, color = Forge.colors.effort) }
-        if (com.noop.ui.NoopPrefs.coachEnabled(context)) {
-            SettingsCard(stringResource(R.string.food_estimate_title), stringResource(R.string.food_estimate_note)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+    }
+    if (mode == FoodDataPrefs.PACKS) {
+        SettingsCard(stringResource(R.string.food_on_phone), if (installed.isEmpty()) stringResource(R.string.food_no_pack) else null) {
+            installed.forEach { pack ->
+                Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.food_estimate_toggle), style = Forge.type.body, color = Forge.colors.text)
-                        Text(stringResource(R.string.food_recommended), style = Forge.type.caption, color = Forge.colors.accent)
+                        Text(FoodDataPrefs.countryName(pack.country), style = Forge.type.body, color = Forge.colors.text)
+                        Text(stringResource(R.string.food_products, NumberFormat.getIntegerInstance().format(pack.rows)),
+                             style = Forge.type.footnote, color = Forge.colors.textSecondary)
                     }
-                    Switch(estimateMissing, { estimateMissing = it; prefs.estimateMissing = it })
+                    offered?.firstOrNull { it.country == pack.country && it.sha256 != pack.sha256 }?.let { update ->
+                        TextButton(enabled = downloading == null, onClick = { download(update) }) { Text(stringResource(R.string.food_update)) }
+                    }
+                    TextButton(onClick = { scope.launch { withContext(Dispatchers.IO) { CoreFood.removePack(pack.country) }; installed = withContext(Dispatchers.IO) { CoreFood.packs() } } }) {
+                        Text(stringResource(R.string.food_delete), color = Forge.colors.effort)
+                    }
                 }
             }
         }
-        SettingsCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.food_write_health), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                Switch(writeHealth, { writeHealth = it; prefs.writeHealth = it })
+        SettingsCard(stringResource(R.string.food_download), stringResource(R.string.food_download_note)) {
+            if (manifestFailed) Text(stringResource(R.string.food_manifest_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+            offered.orEmpty().filter { o -> installed.none { it.country == o.country } }.forEach { pack ->
+                LinkRow(FoodDataPrefs.countryName(pack.country),
+                        stringResource(R.string.food_products, NumberFormat.getIntegerInstance().format(pack.rows)) +
+                            " · " + android.text.format.Formatter.formatShortFileSize(context, pack.bytes),
+                        busy = downloading == pack.country) { if (downloading == null) download(pack) }
             }
-            LinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
-        }
-        var showScore by remember { mutableStateOf(foodScoreEnabled(context)) }
-        SettingsCard(stringResource(R.string.food_lab), stringResource(R.string.food_score_note)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.food_score_title), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                Switch(showScore, { showScore = it; com.noop.ui.NoopPrefs.of(context).edit().putBoolean(FOOD_SCORE_KEY, it).apply() })
+                Text(stringResource(R.string.food_unknown_online), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                Switch(unknownOnline, { unknownOnline = it; prefs.unknownBarcodesOnline = it })
             }
         }
-        SettingsCard(stringResource(R.string.food_sources), stringResource(R.string.food_sources_credits)) {}
+    }
+    failure?.let { Text(it, style = Forge.type.body, color = Forge.colors.effort) }
+}
+
+/** Apple Health's twin (Health Connect), filling missing nutrients and the Lab score, as Food data and the setup show them. */
+@Composable
+internal fun FoodExtrasCards() {
+    val context = LocalContext.current
+    val prefs = remember { FoodDataPrefs(context) }
+    var writeHealth by remember { mutableStateOf(prefs.writeHealth) }
+    var estimateMissing by remember { mutableStateOf(prefs.estimateMissing) }
+    val permissions = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) { }
+    if (com.noop.ui.NoopPrefs.coachEnabled(context)) {
+        SettingsCard(stringResource(R.string.food_estimate_title), stringResource(R.string.food_estimate_note)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.food_estimate_toggle), style = Forge.type.body, color = Forge.colors.text)
+                    Text(stringResource(R.string.food_recommended), style = Forge.type.caption, color = Forge.colors.accent)
+                }
+                Switch(estimateMissing, { estimateMissing = it; prefs.estimateMissing = it })
+            }
+        }
+    }
+    SettingsCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.food_write_health), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Switch(writeHealth, { writeHealth = it; prefs.writeHealth = it })
+        }
+        LinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
+    }
+    var showScore by remember { mutableStateOf(foodScoreEnabled(context)) }
+    SettingsCard(stringResource(R.string.food_lab), stringResource(R.string.food_score_note)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.food_score_title), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Switch(showScore, { showScore = it; com.noop.ui.NoopPrefs.of(context).edit().putBoolean(FOOD_SCORE_KEY, it).apply() })
+        }
     }
 }
 
