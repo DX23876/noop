@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# pre-commit — refuse a commit whose author or committer is not the fork's one identity.
+#
+# NOOP is anonymous (see "What NOOP is" in CLAUDE.md) and this fork publishes under DX23876 only. Local
+# clones enforce that with hooks outside the repository, but a fresh clone (a cloud agent session, a new
+# machine) has neither those hooks nor a configured identity, and commits authored "Claude
+# <noreply@anthropic.com>" reached origin/main from one on 2026-11-08. This hook travels with the
+# repository so such a clone stops at the commit instead.
+#
+# Enable once per clone (hooks are not cloned by git); a cloud agent session does it in its environment's
+# private setup script:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+EXPECTED_NAME="DX23876"
+EXPECTED_EMAIL="176692557+DX23876@users.noreply.github.com"
+
+check() {
+  local role="$1" ident="$2"
+  local name="${ident% <*}"
+  local email="${ident#*<}"; email="${email%%>*}"
+  if [ "$name" != "$EXPECTED_NAME" ] || [ "$email" != "$EXPECTED_EMAIL" ]; then
+    echo "" >&2
+    echo "  ✖ commit rejected: the $role is \"$name <$email>\"." >&2
+    echo "" >&2
+    echo "    This fork commits only as $EXPECTED_NAME <$EXPECTED_EMAIL>. Set it once per clone" >&2
+    echo "    (user.name and user.email in the clone's git config)." >&2
+    echo "" >&2
+    exit 1
+  fi
+}
+
+check author "$(git var GIT_AUTHOR_IDENT)"
+check committer "$(git var GIT_COMMITTER_IDENT)"

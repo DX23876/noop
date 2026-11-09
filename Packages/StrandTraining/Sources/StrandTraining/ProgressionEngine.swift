@@ -175,3 +175,68 @@ public enum TrainingProgressionEngine {
         }
     }
 }
+
+/// The one figure per measure the progression engine reasons about for an exercise: its heaviest working
+/// set, its fewest repetitions and its longest duration. Starting a session reads it once, hands it to
+/// `TrainingProgressionEngine.next` and then to `apply`, so both see the same reference.
+public struct ProgressionReference: Equatable, Sendable {
+    public let weightKg: Double?
+    public let reps: Int?
+    public let durationS: Int?
+
+    public init(workingSets sets: [NativeWorkoutSet]) {
+        let work = sets.filter { $0.phase == .work }
+        weightKg = work.compactMap(\.weightKg).max()
+        reps = work.compactMap(ProgressionReference.reps(of:)).min()
+        durationS = work.compactMap(\.durationS).max()
+    }
+
+    /// Repetitions a set counts as: its own figure, else the weaker side of a unilateral set.
+    public static func reps(of set: NativeWorkoutSet) -> Int? {
+        if let reps = set.reps { return reps }
+        if let left = set.leftReps, let right = set.rightReps { return min(left, right) }
+        return set.leftReps ?? set.rightReps
+    }
+}
+
+extension TrainingProgressionEngine {
+    /// Writes a prescription into an exercise's working sets.
+    ///
+    /// The engine prescribes one figure per exercise, measured against `reference`. Each working set
+    /// therefore MOVES by the step between the reference and the prescription instead of being set to it,
+    /// so a pyramid (80, 95, 105 kg) or a back-off set keeps its shape and a prescription that changes
+    /// nothing (progression off, a first session) leaves every set as planned. Writing the prescription
+    /// into every set turned a planned pyramid into three sets at the heaviest weight. A set without a
+    /// figure of its own takes the prescription as it is.
+    public static func apply(_ prescription: ProgressionPrescription, reference: ProgressionReference,
+                             to sets: inout [NativeWorkoutSet], unilateral: Bool) {
+        for index in sets.indices where sets[index].phase == .work {
+            if let weight = prescription.weightKg {
+                sets[index].weightKg = shifted(sets[index].weightKg, from: reference.weightKg, to: weight)
+            }
+            if let reps = prescription.reps {
+                if unilateral {
+                    let shared = sets[index].reps
+                    sets[index].leftReps = shifted(sets[index].leftReps ?? shared, from: reference.reps, to: reps)
+                    sets[index].rightReps = shifted(sets[index].rightReps ?? shared, from: reference.reps, to: reps)
+                    sets[index].reps = nil
+                } else {
+                    sets[index].reps = shifted(sets[index].reps, from: reference.reps, to: reps)
+                }
+            }
+            if let duration = prescription.durationS {
+                sets[index].durationS = shifted(sets[index].durationS, from: reference.durationS, to: duration)
+            }
+        }
+    }
+
+    private static func shifted(_ value: Double?, from reference: Double?, to target: Double) -> Double {
+        guard let value, let reference else { return target }
+        return max(0, value + (target - reference))
+    }
+
+    private static func shifted(_ value: Int?, from reference: Int?, to target: Int) -> Int {
+        guard let value, let reference else { return target }
+        return max(0, value + (target - reference))
+    }
+}

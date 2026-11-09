@@ -61,6 +61,9 @@ final class ActiveSessionController: ObservableObject {
     @Published var staleDraft: WorkoutDraft?
     /// The strength workout that just finished, for its summary.
     @Published var completedWorkout: NativeWorkout?
+    /// Bumped when routines were saved outside the routine editor (a finished workout's numbers taken
+    /// over as new targets), so screens holding the plan reload it.
+    @Published private(set) var routinesRevision = 0
     /// Offered when a strength session is requested without a plan chosen yet.
     @Published var isChoosingStrengthStart = false
     @Published private(set) var context = TrainingStartContext()
@@ -388,6 +391,12 @@ final class ActiveSessionController: ObservableObject {
         app.strengthWorkoutWatchStateSink?(nil)
         contextLoaded = false
         completedWorkout = workout
+    }
+
+    /// The routines changed after a workout ended; the next start reads them again.
+    func routinesChanged() {
+        contextLoaded = false
+        routinesRevision += 1
     }
 
     /// Called by the logger once a strength workout is thrown away.

@@ -15,6 +15,17 @@ verbatim. Where the two disagree, this file wins. Everything else that is true h
   twin, no byte-identical Room/GRDB or `.noopbak` gate. Offline, no server, no account and anonymity still
   bind.
 
+## Commit identity
+
+Every commit in this fork is authored and committed as `DX23876 <176692557+DX23876@users.noreply.github.com>`,
+with no AI co-author trailer. A fresh clone (a cloud agent session, a new machine) has neither that identity
+nor the repository's hooks, and three commits authored "Claude <noreply@anthropic.com>" reached `main` from
+one on 2026-11-08. Before the first commit in such a clone, set `user.name` and `user.email` to the identity
+above in the clone's git config and run `git config core.hooksPath .githooks`; `.githooks/pre-commit` then
+refuses any other author or committer and `.githooks/commit-msg` any AI trailer. A cloud agent session gets
+these settings from its environment's own setup script, kept with the owner's account and not in this
+public repository.
+
 ## Android is a shell around the shared core
 
 `AGENTS.md` describes Android as an independent Kotlin, Compose and Room reimplementation. That is not

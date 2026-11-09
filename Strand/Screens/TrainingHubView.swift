@@ -74,6 +74,10 @@ struct TrainingHubView: View {
             guard !live else { return }
             Task { await model.load(repo: repo, session: session, weekStartsOn: weekStart, force: true) }
         }
+        // The summary can save a workout's numbers into its routines after the session has ended.
+        .onChange(of: session.routinesRevision) { _ in
+            Task { await model.load(repo: repo, session: session, weekStartsOn: weekStart, force: true) }
+        }
         .sheet(item: $model.historyImportPreview) { preview in
             TrainingHistoryImportPreviewView(preview: preview,
                 onCancel: { model.historyImportPreview = nil },
@@ -741,6 +745,12 @@ struct StrengthWorkoutSummaryView: View {
     @State private var workout: NativeWorkout
     let exercises: [TrainingExercise]
     let performance: TrainingPerformanceHistory
+    /// The routines the workout may have been started from, read once at finish.
+    let routines: [TrainingRoutine]
+    /// Called after the routines were saved with this workout's numbers, so screens holding the plan reload.
+    let onRoutinesSaved: () -> Void
+    @State private var targetUpdate: RoutineTargetUpdate?
+    @State private var targetUpdateState = TargetUpdateState.offered
     @State private var highlights: StrengthSessionHighlights?
     @State private var canonicalRow: WorkoutRow?
     @State private var hrPoints: [TrendPoint] = []
@@ -752,10 +762,18 @@ struct StrengthWorkoutSummaryView: View {
         TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
     }
 
-    init(workout: NativeWorkout, exercises: [TrainingExercise], performance: TrainingPerformanceHistory) {
+    private enum TargetUpdateState { case offered, saving, saved, failed }
+
+    init(workout: NativeWorkout, exercises: [TrainingExercise], performance: TrainingPerformanceHistory,
+         routines: [TrainingRoutine] = [], onRoutinesSaved: @escaping () -> Void = {}) {
         _workout = State(initialValue: workout)
         self.exercises = exercises
         self.performance = performance
+        self.routines = routines
+        self.onRoutinesSaved = onRoutinesSaved
+        let update = RoutineTargetUpdate.make(workout: workout, routines: routines,
+                                              now: Int(Date().timeIntervalSince1970))
+        _targetUpdate = State(initialValue: update.isEmpty ? nil : update)
     }
 
     var body: some View {
@@ -776,6 +794,7 @@ struct StrengthWorkoutSummaryView: View {
                         }.frame(maxWidth: .infinity)
                     }
                     sessionFacts
+                    routineTargets
                     progress
                     let muscles = TrainingMuscleProjection.workout(workout, exercises: exerciseById)
                     if !muscles.isEmpty {
@@ -828,6 +847,55 @@ struct StrengthWorkoutSummaryView: View {
                 fact("Warm-up sets", summary.warmupSetCount.formatted())
                 fact("Exercises", summary.exerciseCount.formatted())
                 if summary.loadedVolumeKg > 0 { fact("Loaded volume", volume(summary.loadedVolumeKg)) }
+            }
+        }
+    }
+
+    /// Offers this workout's weights and repetitions as the routine's new targets, so a wearer who went
+    /// up mid-session does not have to open the editor and type the same numbers again. Shown only when
+    /// a planned set was performed with other numbers; nothing changes until the button is pressed.
+    @ViewBuilder private var routineTargets: some View {
+        if let update = targetUpdate {
+            NoopCard(tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    Text("Update your routine").font(StrandFont.headline)
+                    Text(routineTargetsText(update))
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    switch targetUpdateState {
+                    case .offered, .saving:
+                        NoopButton("Use today's numbers next time", systemImage: "arrow.triangle.2.circlepath",
+                                   kind: .secondary, fullWidth: true) { saveRoutineTargets(update) }
+                            .disabled(targetUpdateState == .saving)
+                    case .saved:
+                        Label("Routine updated", systemImage: "checkmark.circle.fill")
+                            .font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.chargeColor)
+                    case .failed:
+                        Label("The routine could not be saved.", systemImage: "exclamationmark.triangle.fill")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.metricAmber)
+                        NoopButton("Try again", kind: .secondary, fullWidth: true) { saveRoutineTargets(update) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func routineTargetsText(_ update: RoutineTargetUpdate) -> String {
+        let names = update.exerciseIds.map { exerciseById[$0]?.title ?? $0 }
+            .formatted(.list(type: .and))
+        return String(localized: "Today's weights or repetitions differ from your routine for \(names). Save them as the targets for your next session?")
+    }
+
+    private func saveRoutineTargets(_ update: RoutineTargetUpdate) {
+        targetUpdateState = .saving
+        Task {
+            do {
+                for routine in update.routines { try await repo.saveNativeTrainingRoutine(routine) }
+                targetUpdateState = .saved
+                onRoutinesSaved()
+            } catch {
+                targetUpdateState = .failed
             }
         }
     }

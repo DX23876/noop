@@ -4376,14 +4376,15 @@ struct StepsCalibrationSheet: View {
     @State private var draftManual: Double = 0
     @State private var didLoad = false
 
-    /// The strap has banked no motion, and we have looked.
+    /// The strap has banked no motion, as the analysis pass found it.
     ///
     /// Named once because two places depend on it and they must stay exactly complementary: the
-    /// no-motion banner appears, and the calibration countdown does NOT. Written as two separate
-    /// expressions they drifted immediately — the guard's first draft tested `sampleMotion == nil`
-    /// alone, which is also true during the load, so the countdown vanished in a window where the
-    /// banner had not appeared yet and the card explained nothing at all.
-    private var strapHasNoMotion: Bool { didLoad && sampleMotion == nil }
+    /// no-motion banner appears, and the calibration countdown does NOT. It reads the same persisted
+    /// flag as the Today tile's caption (`stepsHasBankedMotion`), so the two surfaces cannot disagree.
+    /// The sheet's own `sampleMotion` is not a presence test: it is only measured once a calibration
+    /// exists, so a strap that synced weeks of motion but had not been calibrated yet was told that no
+    /// motion had arrived (a WHOOP 5.0 tester, 2026-11-08).
+    private var strapHasNoMotion: Bool { !profile.stepsHasBankedMotion }
 
     /// #107: the sheet's guidance depends on the strap family. A WHOOP 4.0 streams motion automatically, so
     /// "let it sync" is right; a 5/MG only streams motion once the experimental deep-data unlock is on, so

@@ -1,8 +1,13 @@
 # FAQ
 
-Answers to the questions that come up most often in issues. If your question isn't here,
-[ANALYTICS.md](ANALYTICS.md) documents how every score is computed and
-[PRIVACY_SECURITY.md](PRIVACY_SECURITY.md) covers what stays on your device.
+Answers to the questions that come up most often in issues and on Discord. If your question isn't
+here, [ANALYTICS.md](ANALYTICS.md) documents how every score is computed,
+[PRIVACY_SECURITY.md](PRIVACY_SECURITY.md) covers what stays on your device, and the wiki has
+[Troubleshooting](https://github.com/DX23876/noop/wiki/Troubleshooting) (pairing, sync, "no data") and
+the [WHOOP 5.0 / MG status](https://github.com/DX23876/noop/wiki/WHOOP-5.0-and-MG-Status) page.
+
+Something broken, or want to help? Jump to
+[Help, bug reports and support](#help-bug-reports-and-support).
 
 ---
 
@@ -67,8 +72,8 @@ Both are user-initiated. See [docs/PRIVACY_SECURITY.md](PRIVACY_SECURITY.md).
 `UpstreamStoreUpgradeTests` open stores from upstream 11.5 and 11.7 with their history intact.
 
 **From NOOP Forge back to RyanBR's NOOP: not guaranteed.** Forge's database carries many more
-migrations than upstream's (v77 against upstream's v47 at 12.1.0), and some upstream migrations were
-renumbered when they were merged. GRDB ignores unknown later migrations, and
+migrations than upstream's (v85 in Forge 13.0.0; upstream was at v47 when they were last compared,
+at 12.1.0), and some upstream migrations were renumbered when they were merged. GRDB ignores unknown later migrations, and
 `testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins that for an older reader, but no test opens a
 current Forge backup in a current upstream build.
 
@@ -96,7 +101,127 @@ before it can tell a high night from a low one, so it shows a countdown instead 
 Tapping **Recalibrate baseline** restarts that countdown from zero — it discards the nights already
 banked. If you're sitting at "Calibrating" and tap it again, you reset your own progress.
 
+## Why are my steps missing, marked "est." or wrong?
+
+It depends on the strap:
+
+- **WHOOP 4.0** does not send a step count over Bluetooth. NOOP estimates your steps from the strap's
+  motion and marks them "est.". The estimate calibrates itself against your phone's step count (Apple
+  Health or Health Connect), and on a day where the phone has a real count, the phone's count wins.
+  You can see the fit and set it by hand under Settings → **Strap** → *Steps* → **Step estimate**.
+- **WHOOP 5.0 and MG** count steps themselves. If the total is off by a fixed factor (for example
+  10,000 steps after a counted 1,000-step walk), adjust **Step correction** in the same place. Leave
+  it at 1.0 when the count looks right.
+
+Two differences from other apps are expected. NOOP's day follows your sleep, not midnight, so a late
+night does not split one day's walking across two dates and a daily total can differ from the Health
+app's. And when an iPhone and an Apple Watch both counted the same walk, NOOP keeps the higher of the
+two instead of adding them together.
+
+## How do I bring in my WHOOP history or other data?
+
+Everything is imported on your device; nothing is uploaded. Imports live under Settings → **Data &
+Backup** (on the Mac, also in the **Data Sources** sidebar entry):
+
+- **WHOOP history:** request a data export at app.whoop.com → *Data Management*, then import the
+  `.zip` (or the unzipped folder) under **Data Sources**. It covers recovery, strain, sleep and
+  workouts for 4.0, 5.0 and MG.
+- **Apple Health:** on iPhone, NOOP can read Apple Health directly (**Apple Health** in the same
+  section). For your full history, import the export from the Health app (profile picture → *Export
+  All Health Data*). Large exports take a minute or two.
+- **Others:** Strong, Hevy, FitNotes, nutrition CSVs from Cronometer or MacroFactor, Mi Band (Mi
+  Fitness export) and GPX, TCX and FIT routes.
+- **A backup from RyanBR's NOOP:** restore the `.noopbak` under Data & Backup; see the backup question
+  above.
+
+## How do I update, and do I keep my data?
+
+Updating keeps your data. A backup before a big update costs nothing, though (Settings → **Data &
+Backup**).
+
+- **iPhone and iPad:** if you added the NOOP Forge source to AltStore or SideStore, updates appear
+  there. With a free Apple ID the app must be refreshed every seven days, which the sideloader does
+  in the background. Details are in the [iOS guide](IOS.md).
+- **Mac:** download the newest build from the
+  [latest release](https://github.com/DX23876/noop/releases/latest) and replace the app in your
+  Applications folder.
+
+Settings → **About** → **Check for updates** tells you whether a newer release exists, and **Check
+automatically** does that at most once a day. It only reads the public release information from
+GitHub; it never downloads or installs anything. What changed is in the release notes on the
+[releases page](https://github.com/DX23876/noop/releases).
+
 ## Is NOOP a medical device?
 
 No. It is not a medical device and makes no diagnostic claim. Values are raw readings or
 locally-computed estimates, for personal and informational use only.
+
+---
+
+# Help, bug reports and support
+
+NOOP Forge is a free project built in spare time. There is no company behind it and no paid support,
+so the questions below are about getting help quickly and about how to help back.
+
+## Where do I ask a question, and where do I report a bug?
+
+- **Questions, setup help, "is this normal?":** [Discord](https://discord.com/invite/wKgyqVdjrP), or
+  [GitHub Discussions](https://github.com/DX23876/noop/discussions). Please read this FAQ and the
+  [Troubleshooting](https://github.com/DX23876/noop/wiki/Troubleshooting) page first; most questions
+  are already answered there.
+- **Ideas and feature requests:** [GitHub Discussions](https://github.com/DX23876/noop/discussions).
+- **A confirmed bug:** a [GitHub issue](https://github.com/DX23876/noop/issues/new/choose), using the
+  bug template.
+
+Bugs reported only in Discord tend to get lost: nobody can read the whole chat in their free time to
+collect them. An issue is tracked until it is fixed.
+
+Before opening an issue, search the
+[existing issues](https://github.com/DX23876/noop/issues?q=is%3Aissue). If yours is already there, add
+a 👍 or add **new** information (another device, another strap, a log). A comment that only says "same
+here" changes nothing.
+
+## What makes a bug report useful?
+
+NOOP runs entirely on your device. There is no server to look at, so everything a fix needs has to be
+in the report. "X doesn't work" on its own cannot be investigated. Please include:
+
+- the NOOP version (Settings → About) and the platform with its OS version
+- the strap model (WHOOP 4.0, 5.0 or MG) and where the data comes from (live strap, import)
+- what you did, what you expected, and what happened instead
+- when it happened, so the right part of the log can be found
+- **the strap log**, which is the single most helpful thing you can attach:
+  - iPhone, iPad and Mac: Settings → **Connection diagnostics** → *Strap log* → **Save…** (or
+    **Copy**)
+  - Android test builds: Settings → **Help & Diagnostics** → **Share strap log**
+
+Save the log soon after the problem happens, while the relevant part is still in it. The strap's
+serial number and Bluetooth addresses are masked automatically, but it is still your data, so have a
+quick look before you post it publicly.
+
+## Why is some text still in English?
+
+The interface is being rebuilt screen by screen into a clearer layout. Translations are completed on
+the new screens instead of being patched into old ones that are about to be replaced, so an older
+screen can still show English text for a while.
+
+If a **new** screen shows untranslated text, that is worth reporting; say which screen and which
+language. Translation help is welcome too, and is easiest once a screen has been rebuilt.
+
+## How can I help?
+
+You do not need to be able to code. Any of these helps:
+
+- **Test:** try new releases and report what breaks, and also what works ("works on iOS 18 with a 4.0"
+  is useful information).
+- **Report well:** a complete bug report with a log, as described above, often saves days of
+  back-and-forth.
+- **Give concrete feedback:** say what is confusing or hard to find and, ideally, suggest something
+  better. That matters most right now, while the interface is being rebuilt.
+- **Help others:** answer questions on Discord or point people to the right FAQ entry.
+- **Translate:** help with a language you speak once a rebuilt screen lands.
+- **Contribute code:** pull requests are welcome. Read [AGENTS.md](../AGENTS.md) and
+  [CONTRIBUTING.md](CONTRIBUTING.md) first, keep one topic per pull request, and test on your own
+  device before you submit. Untested patches have broken the app before.
+- **Donate:** if you have neither time nor the skills, you can support NOOP Forge on
+  [Ko-fi](https://ko-fi.com/dx23876). It is optional; the app is the same either way.

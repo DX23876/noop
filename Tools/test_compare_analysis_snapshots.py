@@ -1,10 +1,18 @@
 import io
 import os
+import shutil
 import sqlite3
 import tempfile
 import unittest
+from unittest import mock
 
 import compare_analysis_snapshots as tool
+
+# The fast path hashes each table with the sqlite3 command-line shell, which is not part of Python. Where
+# it is missing, `compare` falls back to the row-by-row comparison and prints "(compared row by row)".
+HAVE_SQLITE_SHELL = shutil.which("sqlite3") is not None
+NEEDS_SHELL = ("needs the sqlite3 command-line shell for the .sha3sum fast path; "
+               "the patched tests below still cover both messages without it")
 
 
 class CompareAnalysisSnapshotsTest(unittest.TestCase):
@@ -25,6 +33,7 @@ class CompareAnalysisSnapshotsTest(unittest.TestCase):
         out = io.StringIO()
         return tool.compare(a, b, out=out, ignored=set(ignored)), out.getvalue()
 
+    @unittest.skipUnless(HAVE_SQLITE_SHELL, NEEDS_SHELL)
     def test_identical_stores_match_by_hash(self):
         # Mixed case on purpose: the sqlite3 shell prints table names lower-cased.
         rows = ["CREATE TABLE dailyMetric(day TEXT, charge REAL)",
@@ -33,6 +42,7 @@ class CompareAnalysisSnapshotsTest(unittest.TestCase):
         self.assertEqual(differing, 0)
         self.assertIn("same  dailyMetric\n", text)
 
+    @unittest.skipUnless(HAVE_SQLITE_SHELL, NEEDS_SHELL)
     def test_rows_written_in_another_order_still_match(self):
         a = self.db("a.sqlite", ["CREATE TABLE daily(day TEXT, charge REAL)",
                                  "INSERT INTO daily VALUES('2026-10-01', 75.5), ('2026-10-02', 60.0)"])
@@ -41,6 +51,36 @@ class CompareAnalysisSnapshotsTest(unittest.TestCase):
         differing, text = self.run_compare(a, b)
         self.assertEqual(differing, 0)
         self.assertIn("another order", text)
+
+    def test_equal_shell_hashes_report_same_without_a_row_comparison(self):
+        rows = ["CREATE TABLE dailyMetric(day TEXT, charge REAL)",
+                "INSERT INTO dailyMetric VALUES('2026-10-01', 75.5)"]
+        a, b = self.db("a.sqlite", rows), self.db("b.sqlite", rows)
+        with mock.patch.object(tool, "shell_hash", return_value="abc"), \
+                mock.patch.object(tool, "rows_multiset", side_effect=AssertionError("rows were read")):
+            differing, text = self.run_compare(a, b)
+        self.assertEqual(differing, 0)
+        self.assertIn("same  dailyMetric\n", text)
+
+    def test_differing_shell_hashes_with_equal_rows_report_another_order(self):
+        a = self.db("a.sqlite", ["CREATE TABLE daily(day TEXT, charge REAL)",
+                                 "INSERT INTO daily VALUES('2026-10-01', 75.5), ('2026-10-02', 60.0)"])
+        b = self.db("b.sqlite", ["CREATE TABLE daily(day TEXT, charge REAL)",
+                                 "INSERT INTO daily VALUES('2026-10-02', 60.0), ('2026-10-01', 75.5)"])
+        with mock.patch.object(tool, "shell_hash", side_effect=lambda path, _table: path):
+            differing, text = self.run_compare(a, b)
+        self.assertEqual(differing, 0)
+        self.assertIn("same  daily (rows in another order)\n", text)
+
+    def test_without_the_shell_rows_are_compared_one_by_one(self):
+        a = self.db("a.sqlite", ["CREATE TABLE daily(day TEXT, charge REAL)",
+                                 "INSERT INTO daily VALUES('2026-10-01', 75.5), ('2026-10-02', 60.0)"])
+        b = self.db("b.sqlite", ["CREATE TABLE daily(day TEXT, charge REAL)",
+                                 "INSERT INTO daily VALUES('2026-10-02', 60.0), ('2026-10-01', 75.5)"])
+        with mock.patch.object(tool, "shell_hash", return_value=None):
+            differing, text = self.run_compare(a, b)
+        self.assertEqual(differing, 0)
+        self.assertIn("same  daily (compared row by row)\n", text)
 
     def test_a_last_bit_change_is_a_difference(self):
         a = self.db("a.sqlite", ["CREATE TABLE daily(day TEXT, charge REAL)",
