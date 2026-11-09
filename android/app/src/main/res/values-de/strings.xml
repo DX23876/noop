@@ -5003,4 +5003,18 @@
     <string name="forge_data_update_body">NOOP überträgt deinen Verlauf in den neuen Speicher. Das passiert einmal und kann ein paar Minuten dauern. Lass die App geöffnet.</string>
     <string name="workout_export_title">Training exportieren</string>
     <string name="workout_export_body">Speichere dieses Training mit seinem Puls als FIT-Datei für Strava, Garmin Connect oder eine andere App. Die Datei entsteht auf deinem Handy und verlässt es erst, wenn du sie teilst.</string>
+    <string name="forge_health_vitals_last_night">Vitalwerte letzte Nacht</string>
+    <string name="forge_health_in_range">%1$d von %2$d im Bereich</string>
+    <string name="forge_health_no_readings">Noch keine Messwerte</string>
+    <string name="forge_health_vitals">Vitalwerte</string>
+    <string name="forge_health_heart_stress">Herz und Stress</string>
+    <string name="forge_health_body_energy">Körper und Energie</string>
+    <string name="forge_health_long_term">Langzeit und Muster</string>
+    <string name="forge_health_all_metrics">Alle Messwerte</string>
+    <string name="forge_timeline_now">Jetzt</string>
+    <string name="forge_timeline_woke_up">Aufgewacht</string>
+    <string name="forge_timeline_h_asleep">h Schlaf</string>
+    <string name="forge_timeline_minutes">%1$d Min.</string>
+    <string name="forge_timeline_nap">Nickerchen</string>
+    <string name="forge_timeline_title">Tagesverlauf</string>
 </resources>

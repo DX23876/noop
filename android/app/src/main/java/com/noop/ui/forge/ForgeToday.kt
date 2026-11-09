@@ -279,6 +279,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         if (shown == today) ForgeMorningSuggestion()
         // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
         sections.forEach { drawSection(it) }
+        // The day as a time rail under the arranged sections, as the new iOS Today ends (`dayList`).
+        if (shown == today) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
     }

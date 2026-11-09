@@ -361,7 +361,7 @@ private fun CategoryPage(category: MoreCategory, onBack: () -> Unit, onOpen: (Mo
 
 /** A grouped card of destination rows: icon tile and title, as the iOS More list draws them. */
 @Composable
-private fun DestCard(dests: List<MoreDest>, onOpen: (MoreDest) -> Unit) {
+internal fun DestCard(dests: List<MoreDest>, onOpen: (MoreDest) -> Unit) {
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
         dests.forEachIndexed { i, d ->
             HubRow(d.icon, destTint(d), stringResource(d.titleRes), "") { onOpen(d) }

@@ -5006,4 +5006,18 @@
     <string name="forge_data_update_body">NOOP przenosi Twoją historię do nowego magazynu. Dzieje się to tylko raz i może potrwać kilka minut. Nie zamykaj aplikacji.</string>
     <string name="workout_export_title">Eksportuj trening</string>
     <string name="workout_export_body">Zapisz ten trening z tętnem jako plik FIT do zaimportowania w Stravie, Garmin Connect lub innej aplikacji. Plik powstaje na Twoim telefonie i opuszcza go dopiero, gdy go udostępnisz.</string>
+    <string name="forge_health_vitals_last_night">Parametry życiowe ostatniej nocy</string>
+    <string name="forge_health_in_range">%1$d z %2$d w zakresie</string>
+    <string name="forge_health_no_readings">Brak pomiarów</string>
+    <string name="forge_health_vitals">Parametry życiowe</string>
+    <string name="forge_health_heart_stress">Serce i stres</string>
+    <string name="forge_health_body_energy">Ciało i energia</string>
+    <string name="forge_health_long_term">Długi okres i wzorce</string>
+    <string name="forge_health_all_metrics">Wszystkie wskaźniki</string>
+    <string name="forge_timeline_now">Teraz</string>
+    <string name="forge_timeline_woke_up">Pobudka</string>
+    <string name="forge_timeline_h_asleep">h snu</string>
+    <string name="forge_timeline_minutes">%1$d min</string>
+    <string name="forge_timeline_nap">Drzemka</string>
+    <string name="forge_timeline_title">Oś czasu</string>
 </resources>

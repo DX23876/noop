@@ -31,7 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MoreHoriz
-import androidx.compose.material.icons.rounded.ShowChart
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,10 +58,12 @@ import com.noop.R
  * the backdrop each one draws on iOS.
  */
 enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: ForgeBackdrop) {
+    // The new iOS design's order (2026-11): Today, Training, Sleep, Health. Trends lives in Health, as on iOS;
+    // More stays last until its pages have their places in Health and Settings (docs/fork/android/FORGE-PARITY.md).
     Today(R.string.nav_today, Icons.Rounded.GridView, ForgeBackdrop.Scene),
-    Trends(R.string.nav_trends, Icons.Rounded.ShowChart, ForgeBackdrop.Sky),
     Training(R.string.forge_training, Icons.Rounded.FitnessCenter, ForgeBackdrop.Canvas),
     Sleep(R.string.nav_sleep, Icons.Rounded.KingBed, ForgeBackdrop.Night),
+    Health(R.string.nav_health, Icons.Rounded.FavoriteBorder, ForgeBackdrop.Canvas),
     More(R.string.nav_more, Icons.Rounded.MoreHoriz, ForgeBackdrop.Sky),
 }
 

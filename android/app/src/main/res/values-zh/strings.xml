@@ -4960,4 +4960,18 @@
     <string name="forge_data_update_body">NOOP 正在将你的历史记录迁移到新的存储中。此过程只进行一次，可能需要几分钟。请保持应用打开。</string>
     <string name="workout_export_title">导出训练</string>
     <string name="workout_export_body">将此训练连同心率保存为 FIT 文件，可导入 Strava、Garmin Connect 或其他应用。文件在你的手机上生成，只有在你分享时才会离开手机。</string>
+    <string name="forge_health_vitals_last_night">昨晚的生命体征</string>
+    <string name="forge_health_in_range">%2$d 项中 %1$d 项在范围内</string>
+    <string name="forge_health_no_readings">暂无读数</string>
+    <string name="forge_health_vitals">生命体征</string>
+    <string name="forge_health_heart_stress">心脏与压力</string>
+    <string name="forge_health_body_energy">身体与能量</string>
+    <string name="forge_health_long_term">长期与规律</string>
+    <string name="forge_health_all_metrics">全部指标</string>
+    <string name="forge_timeline_now">现在</string>
+    <string name="forge_timeline_woke_up">起床</string>
+    <string name="forge_timeline_h_asleep">小时睡眠</string>
+    <string name="forge_timeline_minutes">%1$d 分钟</string>
+    <string name="forge_timeline_nap">小睡</string>
+    <string name="forge_timeline_title">时间线</string>
 </resources>
