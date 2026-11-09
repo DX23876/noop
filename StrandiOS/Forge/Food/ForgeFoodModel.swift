@@ -167,7 +167,10 @@ final class ForgeFoodModel {
         if isToday, Calendar.current.component(.hour, from: now) < FoodDaySentence.fromHour { return nil }
         guard let plan, let entries = summary?.entries,
               let motif = FoodDaySentence.offPlan(entries: entries, groups: groupsById, form: plan.form, addon: plan.addon) else { return nil }
-        return String(localized: "Quite a lot of \(FoodText.motif(motif).lowercased()) for \(DietText.form(plan.form).lowercased()).")
+        // Mid-sentence names go lower case, except in German, which capitalises its nouns.
+        let locale = AppLanguage.activeLocale
+        let inSentence: (String) -> String = { locale.language.languageCode?.identifier == "de" ? $0 : $0.lowercased(with: locale) }
+        return String(localized: "Quite a lot of \(inSentence(FoodText.motif(motif))) for \(inSentence(DietText.form(plan.form))).")
     }
 
     /// Bumped on every successful add, so the page can answer it with a tap of haptics.

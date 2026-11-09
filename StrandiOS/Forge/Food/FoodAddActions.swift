@@ -10,7 +10,7 @@ struct FoodAddActions: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            FoodActionTile(title: String(localized: "Scan"), systemImage: "barcode.viewfinder", action: scan)
+            FoodActionTile(title: String(localized: "food.action.scan", defaultValue: "Scan"), systemImage: "barcode.viewfinder", action: scan)
             FoodActionTile(title: String(localized: "Calories"), systemImage: "number", action: quick)
             if coachOn {
                 FoodActionTile(title: String(localized: "Describe"), systemImage: "text.bubble", action: describe)
