@@ -259,7 +259,7 @@ struct ForgeHealthView: View {
                           lineWidth: 2, showsArea: true)
                     .frame(height: 90)
                     .padding(12)
-                    .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
+                    .background(ForgeCardSurface(radius: ForgeRadius.inner))
                     .accessibilityHidden(true)
             }
             if coachFeatureEnabled {
@@ -388,7 +388,7 @@ extension ForgeHealthView {
                     }
                 }
                 .padding(14)
-                .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.card))
+                .background(ForgeCardSurface(radius: 22))
             }
             ForEach(rows, id: \.first!.id) { row in
                 HStack(alignment: .top, spacing: 10) {
@@ -401,7 +401,7 @@ extension ForgeHealthView {
                     Label("Add a tile", systemImage: "plus.circle.fill")
                         .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.accent)
                         .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(ForgeColor.card))
+                        .background(ForgeCardSurface(radius: 22))
                 }
                 .buttonStyle(.plain)
             }

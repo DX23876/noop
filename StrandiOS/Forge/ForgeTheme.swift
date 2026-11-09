@@ -219,23 +219,44 @@ struct ForgeStatusBarScrim: View {
 /// hours at dawn. On a dark page the night keeps its moon, raised past the title.
 private struct ForgeTodayMotif: View {
     @Environment(\.colorScheme) private var colorScheme
+    /// On: the scene fills the page behind every card. Off: as in the shipped design, it stands behind the
+    /// rings and fades into the canvas, so the cards below rest on a quiet ground.
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var behindCards = false
 
     var body: some View {
         let hour = Calendar.current.component(.hour, from: Date())
+        let height = behindCards ? Self.height : Self.heroHeight
+        let fades = !behindCards
         if colorScheme == .light {
-            SceneScreenBackground(hour: ForgeToday.lightPageSceneHour(hour), height: Self.height, fades: false)
+            SceneScreenBackground(hour: ForgeToday.lightPageSceneHour(hour), height: height, fades: fades)
         } else if hour >= 21 || hour <= 4 {
-            SceneScreenBackground(hour: hour, height: Self.height + 110, fades: false).offset(y: -110)
+            SceneScreenBackground(hour: hour, height: height + 110, fades: fades).offset(y: -110)
         } else {
-            SceneScreenBackground(hour: hour, height: Self.height, fades: false)
+            SceneScreenBackground(hour: hour, height: height, fades: fades)
         }
     }
 
     /// Taller than any iPhone, so the picture always reaches the sheet.
     private static let height: CGFloat = 960
+    /// Down to just under the rings card, where the scene has faded out.
+    private static let heroHeight: CGFloat = 520
 }
 
 // MARK: - Glass cards
+
+/// A card's plain surface for content laid out by hand (routines, focus areas, a night's figures): the same
+/// fill and the same Card transparency as `forgeCard`, so a fully clear setting leaves no stray box behind.
+struct ForgeCardSurface: View {
+    var radius: CGFloat = ForgeRadius.inner
+    @AppStorage(CardAppearancePrefs.opacityKey) private var opacityPercent = ForgeCardModifier.defaultGlassPercent
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(ForgeColor.card.opacity(reduceTransparency ? 1 : Double(opacityPercent) / 100))
+    }
+}
+
 
 /// A redesign card: a clear, unblurred fill that follows the existing Card transparency setting, with a soft
 /// shadow in light mode. When the person never set a transparency, the redesign uses its
@@ -252,7 +273,7 @@ struct ForgeCardModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let opacity = reduceTransparency ? 1 : surfaceOpacity ?? max(0.35, Double(opacityPercent) / 100)
+        let opacity = reduceTransparency ? 1 : surfaceOpacity ?? Double(opacityPercent) / 100
         let light = colorScheme == .light
         content
             .padding(padding)

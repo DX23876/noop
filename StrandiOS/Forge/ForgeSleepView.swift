@@ -271,7 +271,7 @@ struct ForgeSleepView: View {
                         Hypnogram(intervals: night.intervals, height: 170, showsStageAxis: true, showsHover: false,
                                   nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
                             .padding(10)
-                            .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
+                            .background(ForgeCardSurface(radius: ForgeRadius.inner))
                         let parts: [(String, Double, Color)] = [
                             (String(localized: "Deep"), night.stages.deep, StrandPalette.sleepStageColor(.deep, palette: palette)),
                             (String(localized: "REM"), night.stages.rem, StrandPalette.sleepStageColor(.rem, palette: palette)),

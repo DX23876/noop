@@ -1951,13 +1951,17 @@ private struct ForgeHeroChamber: ViewModifier {
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
-        let opacity = reduceTransparency ? 1 : surfaceOpacity ?? max(0.35, Double(opacityPercent) / 100)
+        let opacity = reduceTransparency ? 1 : surfaceOpacity ?? Double(opacityPercent) / 100
+        // Down to a third the chamber keeps its readable floor; below that it fades out with the setting, so a
+        // fully clear Today leaves the rings on the page itself.
+        let presence = reduceTransparency ? 1 : min(1, max(0, opacity) / 0.35)
         content
             .frame(maxWidth: .infinity)
             .background {
                 if colorScheme == .light {
                     shape.fill(StrandPalette.surfaceRaised.opacity(reduceTransparency ? 1 : max(0.72, min(1, opacity))))
                         .shadow(color: .black.opacity(0.08), radius: 14, y: 5)
+                        .opacity(presence)
                 } else {
                     ZStack {
                         shape.fill(StrandPalette.organicHeroChamber.opacity(0.78 + opacity * 0.22))
@@ -1968,6 +1972,7 @@ private struct ForgeHeroChamber: ViewModifier {
                         }
                     }
                     .shadow(color: .black.opacity(0.34), radius: 18, y: 8)
+                    .opacity(presence)
                 }
             }
     }

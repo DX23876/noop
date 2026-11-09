@@ -238,7 +238,7 @@ struct ForgeTrainingView: View {
                     .buttonStyle(.plain)
                 }
                 .padding(12)
-                .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
+                .background(ForgeCardSurface(radius: ForgeRadius.inner))
                 if coachFeatureEnabled {
                     FlowRows(spacing: 8) {
                         ForgeChip(title: String(localized: "Shorter, please")) {
@@ -334,7 +334,7 @@ struct ForgeTrainingView: View {
         }
         .padding(14)
         .frame(width: 150, height: 140, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: ForgeRadius.inner, style: .continuous).fill(ForgeColor.card))
+        .background(ForgeCardSurface(radius: ForgeRadius.inner))
     }
 
     // MARK: Recent

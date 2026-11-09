@@ -2024,7 +2024,7 @@ private struct SettingsPageContent: View, Equatable {
                             get: { Double(100 - todaySurfacePercent) },
                             set: { todaySurfacePercent = 100 - Int($0.rounded()) }
                         ),
-                        in: 0...80, step: 5
+                        in: 0...100, step: 5
                     )
                     .appleInspiredTint("settings.controls")
                     Text("How much of the day's picture shows through the tiles and notes on Today. Left = solid, right = clear.")

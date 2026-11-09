@@ -1214,6 +1214,6 @@ struct ForgePictureTile<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         // The colour stays in the picture: Today holds many tiles side by side, and a wash on each
         // card in its own colour turned the board into a rainbow.
-        .background(RoundedRectangle(cornerRadius: ForgeRadius.card, style: .continuous).fill(ForgeColor.card))
+        .background(ForgeCardSurface(radius: ForgeRadius.card))
     }
 }
