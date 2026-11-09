@@ -230,11 +230,11 @@ private fun CheckRow(title: String, on: Boolean, onToggle: () -> Unit) {
 }
 
 @Composable
-private fun ExplainCard(title: String, text: String) {
+private fun ExplainCard(title: String, text: String, art: String = "diet_explain_path") {
     val context = LocalContext.current
     var sources by remember { mutableStateOf(false) }
     ForgeCard(Modifier.fillMaxWidth()) {
-        Image(painterResource(dietArt(context, "diet_explain_path", R.drawable.food_score_hero)), null, contentScale = ContentScale.Crop,
+        Image(painterResource(dietArt(context, art, R.drawable.food_score_hero)), null, contentScale = ContentScale.Crop,
               modifier = Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(16.dp)))
         Spacer(Modifier.height(ForgeMetrics.space2))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -404,7 +404,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                         }
                     }
                     r?.notes?.filter { it == "paceAboveRecommended" }?.forEach { n -> noteText(n)?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary) } }
-                    if (draft.goal == "lose") ExplainCard(stringResource(R.string.diet_explain_pace_title), stringResource(R.string.diet_explain_pace))
+                    if (draft.goal == "lose") ExplainCard(stringResource(R.string.diet_explain_pace_title), stringResource(R.string.diet_explain_pace), "diet_explain_pace")
                 }
                 4 -> {
                     title(R.string.diet_q_keep)()
@@ -426,7 +426,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                         "closestToYourLog" -> R.string.diet_reason_log; "keepsWhatYouLove" -> R.string.diet_reason_keeps
                         "likesRules" -> R.string.diet_reason_rules; "strength" -> R.string.diet_reason_strength; else -> R.string.diet_reason_easy
                     })) { draft = it } }
-                    ExplainCard(stringResource(R.string.diet_explain_forms_title), stringResource(R.string.diet_explain_forms))
+                    ExplainCard(stringResource(R.string.diet_explain_forms_title), stringResource(R.string.diet_explain_forms), "diet_form_mediterranean")
                     Text(stringResource(R.string.diet_all_forms), style = Forge.type.subhead, color = colors.textSecondary)
                     FORMS.filter { (draft.mode == "advanced" || it !in ADVANCED_FORMS) && suggestions.none { s -> s.form == it } }
                         .forEach { f -> FormCard(f, draft, null) { draft = it } }
@@ -435,7 +435,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                     title(R.string.diet_q_addon)()
                     listOf(null, "pescatarian", "vegetarian", "vegan").forEach { a ->
                         val blocked = a == "vegan" && draft.form == "keto"
-                        ChoiceCard(if (a == null) R.drawable.food_motif_dishes else if (a == "pescatarian") R.drawable.food_motif_fish else R.drawable.food_motif_legumes,
+                        ChoiceCard(dietArt(context, "diet_form_" + (a ?: "balanced"), if (a == null) R.drawable.food_motif_dishes else if (a == "pescatarian") R.drawable.food_motif_fish else R.drawable.food_motif_legumes),
                                    addonName(a), if (blocked) stringResource(R.string.diet_addon_blocked) else stringResource(when (a) {
                                        "pescatarian" -> R.string.diet_addon_pescatarian_detail; "vegetarian" -> R.string.diet_addon_vegetarian_detail
                                        "vegan" -> R.string.diet_addon_vegan_detail; else -> R.string.diet_addon_none_detail }),
@@ -475,7 +475,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                         res.notes.forEach { n -> noteText(n)?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary) } }
                     }
                     CheckRow(stringResource(R.string.diet_hide_numbers), draft.hideNumbers) { draft = draft.copy(hideNumbers = !draft.hideNumbers) }
-                    ExplainCard(stringResource(R.string.diet_explain_hold_title), stringResource(R.string.diet_explain_hold))
+                    ExplainCard(stringResource(R.string.diet_explain_hold_title), stringResource(R.string.diet_explain_hold), "diet_explain_hold")
                 }
             }
             Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space3), verticalAlignment = Alignment.CenterVertically) {
