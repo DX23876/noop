@@ -28,7 +28,7 @@ enum ForgeRoute: Hashable {
     case cycle
     /// The food log for a day (decision 2026-11-08).
     case food
-    /// The food log with its add sheet open: the Home Screen's "Log food" and the Health card's button.
+    /// The food log with its add sheet open: Today's Log sheet and the Health card's button.
     case foodAdd
 }
 

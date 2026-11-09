@@ -579,23 +579,22 @@ struct RootTabView: View {
         guard homeScreenQuickActionsEnabled,
               let action = homeScreenQuickActions.pendingAction else { return }
 
-        if action == .logFood {
-            // A push on the Today stack, like the battery row, not a sheet: the food log with its add sheet open.
+        if action == .goals {
+            // A push on the Today stack, like the battery row, not a sheet.
             homeScreenQuickActions.consume(action)
             showDevices = false
             routedPillar = nil
             quickAction = nil
             selectedTab = 0
             tabPaths[0] = NavigationPath()
-            tabPaths[0].append(ForgeRoute.foodAdd)
+            tabPaths[0].append(TabRoute.goals)
             return
         }
-        let destination: QuickAction
-        switch action {
-        case .liveHeartRate: destination = .live
-        case .startWorkout: destination = .workout
-        case .logJournal: destination = .journal
-        case .logFood: return  // Pushed above.
+        let destination: QuickAction = switch action {
+        case .liveHeartRate: .live
+        case .startWorkout: .workout
+        case .logJournal: .journal
+        case .goals: .goals
         }
         homeScreenQuickActions.consume(action)
         withAnimation(Self.sheetEase) {
@@ -950,7 +949,8 @@ struct RootTabView: View {
             case .liveHeartRate: withAnimation(Self.sheetEase) { quickAction = .live }
             case .weight: pushOnToday(TabRoute.weight)
             case .drink: pushOnToday(TabRoute.hydration)
-            case .energy: pushOnToday(ForgeRoute.food)
+            // Straight to adding, as the Health card's button; the page itself is one tap back.
+            case .energy: pushOnToday(ForgeRoute.foodAdd)
             case .sleep:
                 // The full Sleep screen, where marks are logged and a night is edited.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }

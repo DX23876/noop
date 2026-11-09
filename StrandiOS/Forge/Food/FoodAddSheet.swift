@@ -105,6 +105,8 @@ struct FoodAddSheet: View {
             }
             .sheet(isPresented: $showProductData) { FoodDataSettingsView() }
         }
+        // One tint wherever the sheet is opened from: Today's stack and Health's tint their bars differently.
+        .tint(ForgeColor.accent)
     }
 
     private var listItems: [FoodItem] {

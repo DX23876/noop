@@ -12,9 +12,9 @@ enum HomeScreenQuickAction: String, CaseIterable {
     case liveHeartRate = "com.noop.quick-action.live-heart-rate"
     case startWorkout = "com.noop.quick-action.start-workout"
     case logJournal = "com.noop.quick-action.log-journal"
-    /// The food log with its add sheet open. iOS shows at most four app actions, so it took the goals
-    /// overview's place (owner, 2026-11-09), as goals had taken Breathe's; goals stay on the Training tab.
-    case logFood = "com.noop.quick-action.log-food"
+    /// The goals overview (goals plan Q10). iOS shows at most four app actions, so it took Breathe's
+    /// place; Breathe stays one tap away in Today's quick-action menu and in More.
+    case goals = "com.noop.quick-action.goals"
 
     init?(shortcutItem: UIApplicationShortcutItem) {
         self.init(rawValue: shortcutItem.type)
@@ -25,7 +25,7 @@ enum HomeScreenQuickAction: String, CaseIterable {
         case .liveHeartRate: String(localized: "Live HR")
         case .startWorkout: String(localized: "Start workout")
         case .logJournal: String(localized: "Log journal")
-        case .logFood: String(localized: "Log food")
+        case .goals: String(localized: "Goals")
         }
     }
 
@@ -34,7 +34,7 @@ enum HomeScreenQuickAction: String, CaseIterable {
         case .liveHeartRate: "waveform.path.ecg"
         case .startWorkout: "figure.run"
         case .logJournal: "square.and.pencil"
-        case .logFood: "fork.knife"
+        case .goals: "target"
         }
     }
 
