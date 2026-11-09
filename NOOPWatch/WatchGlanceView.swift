@@ -54,7 +54,8 @@ struct WatchGlanceView: View {
                        color: snap.charge.map { StrandPalette.chargeRingColor($0) } ?? StrandPalette.chargeColor),
             WatchScore(label: String(localized: "Effort"), value: snap.effort,
                        calibrating: snap.effortCalibrating || stale,
-                       color: store.forgeDesign ? ForgeWatchColor.effort : StrandPalette.effortColor),
+                       color: store.forgeDesign ? ForgeWatchColor.effort : StrandPalette.effortColor,
+                       shown: snap.effortShown),
             WatchScore(label: String(localized: "Rest"), value: snap.rest,
                        calibrating: snap.restCalibrating || stale,
                        color: store.forgeDesign ? ForgeWatchColor.rest : StrandPalette.restColor),
@@ -170,8 +171,15 @@ private struct WatchScore: Identifiable {
     let value: Double?
     let calibrating: Bool
     let color: Color
+    /// The figure to print when it is not `value` rounded, e.g. Effort on the 0 to 21 axis.
+    var shown: String? = nil
 
     var id: String { label }
+    /// The printed number, or nil when there is none we are allowed to show.
+    var numberText: String? {
+        guard let value, !calibrating else { return nil }
+        return shown ?? "\(Int(value.rounded()))"
+    }
     /// The ring fill, or nil when there is no number we are allowed to show (calibrating, stale, missing).
     var fraction: Double? {
         guard let value, !calibrating else { return nil }
@@ -234,8 +242,8 @@ private struct ScoreLegendRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            if let value = score.value, !score.calibrating {
-                Text("\(Int(value.rounded()))")
+            if let number = score.numberText {
+                Text(number)
                     .font(StrandFont.rounded(17, weight: .semibold))
                     .foregroundStyle(score.color)
                     .monospacedDigit()
@@ -259,7 +267,7 @@ private struct ScoreLegendRow: View {
     }
 
     private var accessibilityValue: String {
-        if let value = score.value, !score.calibrating { return "\(Int(value.rounded()))" }
+        if let number = score.numberText { return number }
         return String(localized: "Calibrating")
     }
 }

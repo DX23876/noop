@@ -332,7 +332,8 @@ struct NOOPChargeView: View {
             // The three scores, equal-width.
             HStack(alignment: .top, spacing: 0) {
                 scoreCell(String(localized: "Charge"), readout: charge, tint: chargeTint)
-                scoreCell(String(localized: "Effort"), readout: effort, tint: effortTint)
+                scoreCell(String(localized: "Effort"), readout: effort, tint: effortTint,
+                          shown: entry.snapshot?.effortShown)
                 scoreCell(String(localized: "Rest"), readout: rest, tint: restTint)
             }
         }
@@ -351,10 +352,11 @@ struct NOOPChargeView: View {
 
     /// One labelled score in the rectangular card. A real value tints to its colour world; a
     /// calibrating score shows a dash plus a tiny "cal" marker; missing shows a neutral dash.
-    private func scoreCell(_ label: String, readout: ScoreReadout, tint: Color) -> some View {
+    private func scoreCell(_ label: String, readout: ScoreReadout, tint: Color,
+                           shown: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(readout.numberText)
+                Text(readoutIsValue(readout) ? (shown ?? readout.numberText) : readout.numberText)
                     .font(StrandFont.rounded(18, weight: .semibold))
                     .foregroundStyle(readoutIsValue(readout) ? tint : StrandPalette.textTertiary)
                     .minimumScaleFactor(0.7)
@@ -433,7 +435,12 @@ struct NOOPChargeView: View {
             }
         }
         let chargePhrase = phrase(String(localized: "Charge"), charge)
-        let effortPhrase = phrase(String(localized: "Effort"), effort)
+        let effortPhrase: String
+        if case .value = effort, let shown = entry.snapshot?.effortShown {
+            effortPhrase = String(localized: "Effort \(shown) out of 21")
+        } else {
+            effortPhrase = phrase(String(localized: "Effort"), effort)
+        }
         let restPhrase = phrase(String(localized: "Rest"), rest)
         return String(localized: "NOOP. \(chargePhrase), \(effortPhrase), \(restPhrase).")
     }

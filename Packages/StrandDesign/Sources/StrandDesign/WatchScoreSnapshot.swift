@@ -37,6 +37,10 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
     public var effort: Double?
     /// True when Effort is still calibrating. `effort` is `nil` while this is true.
     public var effortCalibrating: Bool
+    /// Effort as the phone shows it on the wearer's chosen axis ("13.9" on 0 to 21), since the watch
+    /// cannot read the phone's `effort.scale` setting. nil (older payloads, or 0 to 100) prints `effort`.
+    /// Ring fills always stay `effort / 100`.
+    public var effortShown: String?
 
     /// Rest (sleep) composite, 0 to 100. `nil` when there is no matched in-bed session for the day.
     public var rest: Double?
@@ -91,7 +95,7 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
                 effort: Double?, effortCalibrating: Bool,
                 rest: Double?, restCalibrating: Bool,
                 hr: Int?, sleepSummary: String, asOf: Date,
-                scoreDay: String? = nil, goals: [Goal]? = nil) {
+                scoreDay: String? = nil, goals: [Goal]? = nil, effortShown: String? = nil) {
         self.charge = charge
         self.chargeCalibrating = chargeCalibrating
         self.effort = effort
@@ -103,6 +107,7 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
         self.asOf = asOf
         self.scoreDay = scoreDay
         self.goals = goals
+        self.effortShown = effortShown
     }
 
     // MARK: - Shared app group transport

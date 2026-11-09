@@ -129,6 +129,7 @@ final class WatchSessionBridge: NSObject, ObservableObject {
             || last.chargeCalibrating != next.chargeCalibrating
             || last.effort != next.effort
             || last.effortCalibrating != next.effortCalibrating
+            || last.effortShown != next.effortShown
             || last.rest != next.rest
             || last.restCalibrating != next.restCalibrating
             || last.sleepSummary != next.sleepSummary
@@ -194,7 +195,11 @@ final class WatchSessionBridge: NSObject, ObservableObject {
             // The day the scores are ABOUT (not when we built this), so the watch can label recency
             // honestly ("Yesterday") even when the build is fresh. nil when there's no anchor day at all.
             scoreDay: day?.day,
-            goals: Self.watchGoals()
+            goals: Self.watchGoals(),
+            effortShown: effort.flatMap { stored in
+                UnitPrefs.currentEffortScale() == .whoop
+                    ? String(format: "%.1f", UnitFormatter.effortValue(stored, scale: .whoop)) : nil
+            }
         )
         return snap
     }

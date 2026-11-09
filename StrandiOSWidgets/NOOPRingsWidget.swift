@@ -14,6 +14,9 @@ private struct RingGauge: View {
     let tint: Color
     let label: String
     var decimals: Int = 0
+    /// The figure printed inside the ring when it differs from `value`, e.g. Effort on the 0 to 21 axis;
+    /// the fill always stays `value / maxValue`.
+    var shown: String? = nil
 
     private var fraction: Double {
         guard let value else { return 0 }
@@ -29,7 +32,7 @@ private struct RingGauge: View {
                     .trim(from: 0, to: fraction)
                     .stroke(tint, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text(value.map(String.init) ?? "–")
+                Text(shown ?? value.map(String.init) ?? "–")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(value == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
                     .minimumScaleFactor(0.7)
@@ -62,7 +65,8 @@ struct NOOPRingsWidgetView: View {
             HStack(spacing: 0) {
                 RingGauge(value: snap.recovery, maxValue: 100, tint: chargeTint, label: "Charge")
                     .frame(maxWidth: .infinity)
-                RingGauge(value: snap.effort, maxValue: 100, tint: StrandPalette.effortColor, label: "Effort")
+                RingGauge(value: snap.effort, maxValue: 100, tint: StrandPalette.effortColor, label: "Effort",
+                          shown: snap.effort == nil ? nil : snap.effortDisplay)
                     .frame(maxWidth: .infinity)
                 RingGauge(value: snap.rest, maxValue: 100, tint: StrandPalette.restColor, label: "Rest")
                     .frame(maxWidth: .infinity)

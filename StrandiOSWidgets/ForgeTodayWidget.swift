@@ -60,6 +60,9 @@ private struct ForgeWidgetRing: View {
     let value: Int?
     let tint: Color
     let label: String
+    /// The figure printed inside the ring when it differs from `value`, e.g. Effort on the 0 to 21 axis;
+    /// the fill always stays `value / 100`.
+    var shown: String? = nil
     var size: CGFloat = 58
 
     var body: some View {
@@ -71,7 +74,7 @@ private struct ForgeWidgetRing: View {
                     .stroke(tint, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .shadow(color: tint.opacity(0.55), radius: 5)
-                Text(value.map(String.init) ?? "–")
+                Text(shown ?? value.map(String.init) ?? "–")
                     .font(.system(size: size * 0.34, weight: .bold, design: .rounded))
                     .foregroundStyle(ForgeWidgetColor.text)
                     .minimumScaleFactor(0.6)
@@ -104,7 +107,8 @@ struct ForgeTodayWidgetView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 0) {
                     ForgeWidgetRing(value: snap.recovery, tint: chargeTint, label: "Charge").frame(maxWidth: .infinity)
-                    ForgeWidgetRing(value: snap.effort, tint: ForgeWidgetColor.effort, label: "Effort").frame(maxWidth: .infinity)
+                    ForgeWidgetRing(value: snap.effort, tint: ForgeWidgetColor.effort, label: "Effort",
+                                    shown: snap.effort == nil ? nil : snap.effortDisplay).frame(maxWidth: .infinity)
                     ForgeWidgetRing(value: snap.rest, tint: ForgeWidgetColor.rest, label: "Rest").frame(maxWidth: .infinity)
                 }
                 if let brief = entry.brief {
