@@ -390,7 +390,7 @@ struct WorkoutDetailView: View {
             // hand-entered session never records kcal, and the screen said nothing rather than
             // saying what it could work out. The tilde and the caption keep it an estimate.
             StatTile(label: "Calories",
-                     value: WorkoutEnergyDisplay.text(energy) ?? (energyPending ? "…" : "–"),
+                     value: WorkoutEnergyDisplay.text(energy, marksEstimate: NoopVisualStyle.skin != .forge) ?? (energyPending ? "…" : "–"),
                      caption: energyCaption,
                      accent: energy != nil ? StrandPalette.metricAmber : StrandPalette.textTertiary) {
                 if energyPending && energy == nil { pendingIndicator }
@@ -910,7 +910,7 @@ extension WorkoutDetailView {
             out.append(ForgeStat(label: String(localized: "Effort"), value: shown,
                                  tint: StrandPalette.effortColor))
         }
-        out.append(ForgeStat(label: String(localized: "kcal"), value: WorkoutEnergyDisplay.text(energy) ?? (energyPending ? "…" : "–"),
+        out.append(ForgeStat(label: String(localized: "kcal"), value: WorkoutEnergyDisplay.text(energy, marksEstimate: NoopVisualStyle.skin != .forge) ?? (energyPending ? "…" : "–"),
                              pending: energyPending && energy == nil))
         if WorkoutCatalog.isOnFoot(row.sport) {
             out.append(ForgeStat(label: String(localized: "steps"), value: steps.map { grouped(Double($0.count)) } ?? "–",

@@ -1,5 +1,4 @@
 import Foundation
-import StrandDesign
 import StrandAnalytics
 import StrandCore
 import WhoopStore
@@ -60,11 +59,12 @@ enum WorkoutEnergyDisplay {
 
     /// "529 kcal" when it was recorded, "~529 kcal" when it was not. The tilde is the same marker
     /// `EnergyDisplay` uses for a modelled daily total, so one habit reads both.
-    static func text(_ resolved: WorkoutEnergyEstimate.Resolved?) -> String? {
+    /// `marksEstimate` false drops the "~": the new design treats every calorie figure as an estimate.
+    /// The caller decides, so this file stays free of the design package the Android core lacks.
+    static func text(_ resolved: WorkoutEnergyEstimate.Resolved?, marksEstimate: Bool = true) -> String? {
         guard let resolved else { return nil }
         let number = Int(resolved.kcal.rounded()).formatted(.number.grouping(.automatic))
-        // Every calorie figure is an estimate; the new design states it without the "~" mark.
-        return resolved.isEstimated && NoopVisualStyle.skin != .forge ? "~\(number)" : number
+        return resolved.isEstimated && marksEstimate ? "~\(number)" : number
     }
 
     /// The line under the figure that says what it is. Nil for a recorded one: a caption on every

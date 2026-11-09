@@ -152,7 +152,7 @@ struct StrengthSessionDetailView: View {
             (durationText, String(localized: "time")),
         ]
         if let hr = matchedRow?.avgHr { stats.append(("\(hr)", String(localized: "avg heart"))) }
-        if let kcal = WorkoutEnergyDisplay.text(energy) { stats.append((kcal, String(localized: "kcal"))) }
+        if let kcal = WorkoutEnergyDisplay.text(energy, marksEstimate: NoopVisualStyle.skin != .forge) { stats.append((kcal, String(localized: "kcal"))) }
         if let rpe = breakdown.summary.meanRpe {
             stats.append((rpe.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale)),
                           String(localized: "mean RPE")))
@@ -247,7 +247,7 @@ struct StrengthSessionDetailView: View {
                          caption: String(localized: "\(breakdown.summary.rpeSetCount)/\(breakdown.summary.workingSetCount) rated"),
                          accent: StrandPalette.metricRose)
             }
-            if let kcal = WorkoutEnergyDisplay.text(energy) {
+            if let kcal = WorkoutEnergyDisplay.text(energy, marksEstimate: NoopVisualStyle.skin != .forge) {
                 StatTile(label: "Calories",
                          value: kcal,
                          caption: WorkoutEnergyDisplay.caption(energy) ?? String(localized: "kcal"),

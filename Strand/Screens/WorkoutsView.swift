@@ -1693,7 +1693,7 @@ struct WorkoutsView: View {
             // Estimated where nothing recorded it, marked with the same tilde the detail tile uses.
             // A dash here beside a figure on the detail screen was the reported confusion.
             let energy = resolvedEnergy(row)
-            cell(WorkoutEnergyDisplay.text(energy) ?? "–", width: ColWidth.kcal,
+            cell(WorkoutEnergyDisplay.text(energy, marksEstimate: NoopVisualStyle.skin != .forge) ?? "–", width: ColWidth.kcal,
                  color: energy != nil ? StrandPalette.metricAmber : nil)
             cell(distanceLabel(row.distanceM), width: ColWidth.dist)
             // #796 - per-session Effort, on the user's scale, tinted the Effort colour when present.
@@ -1839,7 +1839,7 @@ struct WorkoutsView: View {
         if let d = durationLabelOrNil(row.durationS) { parts.append(d) }
         // Estimated where nothing recorded it, with the same tilde the table column and the detail
         // tile use — this subtitle IS the calorie readout on a phone, and it was the empty one.
-        if let kcal = WorkoutEnergyDisplay.text(resolvedEnergy(row)) { parts.append("\(kcal) kcal") }
+        if let kcal = WorkoutEnergyDisplay.text(resolvedEnergy(row), marksEstimate: NoopVisualStyle.skin != .forge) { parts.append("\(kcal) kcal") }
         if let d = row.distanceM, d > 0 { parts.append(distanceLabel(row.distanceM)) }
         if let hr = row.avgHr { parts.append(String(localized: "\(hr) bpm")) }
         return parts.joined(separator: " · ")
