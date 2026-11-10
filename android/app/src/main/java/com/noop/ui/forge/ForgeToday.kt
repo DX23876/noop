@@ -54,6 +54,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -259,8 +260,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         if (ForgeDesign.preview) {
             // The new design's Today, as iOS's `ForgeTodayView`: the header, the rings, a detected activity and the
             // morning's suggestion, the widgets, then the day as a time rail. One Today, whatever the dashboard style.
-            Header(shown, isToday = shown == today, backfilling = viewModel.live.collectAsState().value.backfilling,
-                   onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { quickActions = true })
+            NewDesignHeader(shown, isToday = shown == today, backfilling = viewModel.live.collectAsState().value.backfilling,
+                            onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { quickActions = true })
             // Holding a ring arranges the tiles, as on iOS. The rings' own tap claims the touch, so the hold rides
             // on the same click (a long-press detector around them never saw the press).
             Hero(model?.day, width, onHold = { editingWidgets = true })
@@ -300,6 +301,38 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         sections.forEach { drawSection(it) }
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
+    }
+}
+
+/**
+ * The new design's Today header, as iOS's `ForgeLargeHeader(title: "Today")`: the title and its date on one line,
+ * as every tab heads itself, the buttons at the end, and the strap's sync line under it while it runs. No
+ * wordmark: the new design's headers carry none.
+ */
+@Composable
+private fun NewDesignHeader(date: LocalDate, isToday: Boolean, backfilling: Boolean, onProfile: () -> Unit,
+                            onQuickActions: () -> Unit) {
+    val locale = Locale.getDefault()
+    val sceneShadow = if (Forge.sceneInk.dark) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1f), 8f) else null
+    Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                androidx.compose.ui.text.buildAnnotatedString {
+                    withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(if (isToday) stringResource(R.string.nav_today)
+                               else date.format(DateTimeFormatter.ofPattern(WEEKDAY_PATTERN, locale)).replaceFirstChar { it.titlecase(locale) })
+                    }
+                    withStyle(Forge.type.subhead.toSpanStyle().copy(color = Forge.sceneInk.secondary)) {
+                        append("  ")
+                        append(date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "EEEMMMd"), locale)))
+                    }
+                },
+                style = Forge.type.title2.copy(shadow = sceneShadow), color = Forge.sceneInk.text, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+            )
+            TodayHeaderButtons(onProfile, onQuickActions)
+        }
+        ForgeSyncLine(backfilling)
     }
 }
 
