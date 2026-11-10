@@ -296,7 +296,7 @@ private fun NumbersCard(r: CoreDietPlan.Resolved, hide: Boolean) {
                         Box(Modifier.size(8.dp).background(tint, CircleShape)); Spacer(Modifier.width(4.dp))
                         Text(stringResource(name), style = Forge.type.footnote, color = colors.textSecondary)
                     }
-                    Text("${gramsText(g)} g", style = Forge.type.title2, color = colors.text)
+                    Text(stringResource(R.string.food_grams_value, gramsText(g)), style = Forge.type.title2, color = colors.text)
                 }
             }
         }
@@ -362,7 +362,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                     title(R.string.diet_q_start)()
                     ForgeCard(Modifier.fillMaxWidth()) {
                         Row { Text(stringResource(R.string.diet_today), Modifier.weight(1f), color = colors.text); Text(kg(person.weightKg), color = colors.textSecondary) }
-                        Row { Text(stringResource(R.string.diet_usual_burn), Modifier.weight(1f), color = colors.text); Text("${kcalText(r?.burnKcal)} kcal", color = colors.textSecondary) }
+                        Row { Text(stringResource(R.string.diet_usual_burn), Modifier.weight(1f), color = colors.text); Text(stringResource(R.string.forge_ed_kcal, kcalText(r?.burnKcal)), color = colors.textSecondary) }
                         Text(stringResource(R.string.diet_start_note), style = Forge.type.footnote, color = colors.textSecondary)
                     }
                     if (draft.goal != "maintain") {
@@ -465,7 +465,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                 else -> {
                     title(R.string.diet_q_summary)()
                     r?.let { res ->
-                        Text("${goalName(res.goal)} · ${formName(draft.form)}" + (draft.addon?.let { " · ${addonName(it)}" } ?: ""), style = Forge.type.headline, color = Forge.sceneInk.text)
+                        Text(listOfNotNull(goalName(res.goal), formName(draft.form), draft.addon?.let { addonName(it) }).joinToString(" · "), style = Forge.type.headline, color = Forge.sceneInk.text)
                         if (res.goal != "maintain") ForgeCard(Modifier.fillMaxWidth()) {
                             ForecastChart(res.weeks, res.goalWeightKg)
                             Text(forecastLine(res), style = Forge.type.body, color = colors.text)
@@ -480,7 +480,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
             }
             Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space3), verticalAlignment = Alignment.CenterVertically) {
                 if (step in 3..7 && r != null) Column(Modifier.weight(1f)) {
-                    Text("${kcalText(r.averageKcal)} kcal", style = Forge.type.headline, color = colors.text)
+                    Text(stringResource(R.string.forge_ed_kcal, kcalText(r.averageKcal)), style = Forge.type.headline, color = colors.text)
                     Text(effortName(r.effort), style = Forge.type.caption, color = effortTint(r.effortScore))
                 } else Spacer(Modifier.weight(1f))
                 Box(Modifier.clip(CircleShape).background(colors.accent).clickable(role = Role.Button) {
@@ -544,7 +544,7 @@ internal fun DietPlanLine(plan: CoreDietPlan.Plan?, resolved: CoreDietPlan.Resol
         Column(Modifier.weight(1f)) {
             Text(if (plan == null || resolved == null) stringResource(R.string.diet_plan_your_diet)
                  else if (resolved.goal == "maintain" || plan.hideNumbers) goalName(resolved.goal)
-                 else "${goalName(resolved.goal)} · ${stringResource(R.string.diet_pace_a_week, pct(resolved.pacePercent))}",
+                 else listOf(goalName(resolved.goal), stringResource(R.string.diet_pace_a_week, pct(resolved.pacePercent))).joinToString(" · "),
                  style = Forge.type.subhead, color = colors.text)
             Text(plan?.let { formName(it.form) } ?: stringResource(R.string.diet_plan_line_empty), style = Forge.type.footnote, color = colors.textSecondary, maxLines = 1)
         }
@@ -566,7 +566,7 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
             Image(painterResource(dietFormArt(context, plan.form)), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
             Column(Modifier.padding(16.dp)) {
                 Text(goalName(resolved?.goal ?: plan.goal), style = Forge.type.title1, color = Color.White)
-                Text(formName(plan.form) + (plan.addon?.let { " · ${addonName(it)}" } ?: ""), style = Forge.type.body, color = Color.White.copy(alpha = 0.8f))
+                Text(listOfNotNull(formName(plan.form), plan.addon?.let { addonName(it) }).joinToString(" · "), style = Forge.type.body, color = Color.White.copy(alpha = 0.8f))
             }
         }
         week?.let { w ->

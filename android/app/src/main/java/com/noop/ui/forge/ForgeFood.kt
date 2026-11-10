@@ -471,7 +471,7 @@ private fun FoodHero(day: LocalDate, totals: Map<String, Double>, goals: CoreFoo
                     }
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(gramsText(m.grams), style = Forge.type.title2, color = colors.text)
-                        Text(m.goal?.let { " / ${gramsText(it)} g" } ?: " g", style = Forge.type.footnote, color = colors.textSecondary,
+                        Text(m.goal?.let { " " + stringResource(R.string.food_slash_grams, gramsText(it)) } ?: " " + stringResource(R.string.food_grams_unit), style = Forge.type.footnote, color = colors.textSecondary,
                              modifier = Modifier.padding(bottom = 2.dp))
                     }
                 }
@@ -547,7 +547,7 @@ private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onCo
             Text(mealName(meal.kind), style = Forge.type.headline, color = Forge.colors.text)
             Spacer(Modifier.width(ForgeMetrics.space2))
             Text(time, style = Forge.type.footnote, color = Forge.colors.textSecondary, modifier = Modifier.weight(1f))
-            Text("${kcalText(meal.totals["energy_kcal"])} kcal", style = Forge.type.body, color = Forge.colors.textSecondary)
+            Text(stringResource(R.string.forge_ed_kcal, kcalText(meal.totals["energy_kcal"])), style = Forge.type.body, color = Forge.colors.textSecondary)
             Box {
                 TextButton(onClick = { menu = true }) { Text("···", color = Forge.colors.textSecondary) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -727,7 +727,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
                     scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) } }
                 }) }
                 if (prefs.mode == FoodDataPrefs.ONLINE) {
-                    Text("Open Food Facts", style = Forge.type.overline, color = Forge.colors.textSecondary)
+                    Text(stringResource(R.string.food_off_name), style = Forge.type.overline, color = Forge.colors.textSecondary)
                     if (onlineFailed) Text(stringResource(R.string.food_online_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
                     online.forEach { item -> ItemRow(item, onAdd = { portionFor = item }, onFavourite = {}) }
                 }
@@ -737,7 +737,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 cart.toList().forEach { line ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${line.item.name} · ${gramsText(line.grams)} g", style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                        Text(stringResource(R.string.food_item_grams, line.item.name, gramsText(line.grams)), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
                         IconButton(onClick = { cart.remove(line) }) { Icon(Icons.Rounded.Close, stringResource(R.string.food_remove)) }
                     }
                 }
@@ -784,7 +784,7 @@ private fun ItemRow(item: CoreFood.Item, onAdd: () -> Unit, onFavourite: (Boolea
             Column(Modifier.weight(1f)) {
                 Text(item.name, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text, maxLines = 2)
                 val source = when (item.source) { "bls" -> "BLS"; "off", "online" -> "Open Food Facts"; "recipe" -> stringResource(R.string.food_recipe); else -> stringResource(R.string.food_yours) }
-                Text(listOfNotNull(item.brand, "${kcalText(item.per100g["energy_kcal"])} kcal / 100 g", source).joinToString(" · "),
+                Text(listOfNotNull(item.brand, stringResource(R.string.food_kcal_per_100g, kcalText(item.per100g["energy_kcal"])), source).joinToString(" · "),
                      style = Forge.type.footnote, color = Forge.colors.textSecondary, maxLines = 1)
             }
             Icon(Icons.Rounded.AddCircle, stringResource(R.string.food_add), tint = Forge.colors.food)
@@ -814,7 +814,7 @@ private fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismiss
                 }
             }
             val totals = item.scaled(grams)
-            Text("${kcalText(totals["energy_kcal"])} kcal · ${gramsText(totals["protein_g"])} g ${stringResource(R.string.food_protein)}",
+            Text(stringResource(R.string.food_kcal_protein, kcalText(totals["energy_kcal"]), gramsText(totals["protein_g"]), stringResource(R.string.food_protein)),
                  style = Forge.type.body, color = Forge.colors.textSecondary)
             if (item.estimatedFrom != null) Text(
                 if (item.estimatedFrom == "ai") stringResource(R.string.food_estimated_ai_note, item.estimatedCount)
@@ -893,7 +893,7 @@ private fun FoodDescribeDialog(readsPhotos: Boolean, onDismiss: () -> Unit, onAd
             Text(stringResource(R.string.food_describe_note), style = Forge.type.caption, color = Forge.colors.textSecondary)
             if (failed) Text(stringResource(R.string.food_coach_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
             lines.forEach { line ->
-                Text("${line.item.name} · ${gramsText(line.grams)} g · ${kcalText(line.item.scaled(line.grams)["energy_kcal"])} kcal",
+                Text(stringResource(R.string.food_item_grams_kcal, line.item.name, gramsText(line.grams), kcalText(line.item.scaled(line.grams)["energy_kcal"])),
                      style = Forge.type.body, color = Forge.colors.text)
             }
             if (unmatched.isNotEmpty()) Text(stringResource(R.string.food_not_found_list, unmatched.joinToString(", ")),

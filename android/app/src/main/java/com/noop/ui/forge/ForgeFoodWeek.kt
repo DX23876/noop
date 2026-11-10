@@ -337,7 +337,7 @@ internal fun FoodHabitCard(habit: CoreFood.Habit, onAdd: () -> Unit, onDismiss: 
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.food_as_usual, mealName(habit.kind)), style = Forge.type.footnote, color = colors.textSecondary)
                 Text(habit.entries.joinToString(", ") { it.name.substringBefore(", ") }, style = Forge.type.body, color = colors.text, maxLines = 2)
-                Text("${kcalText(habit.entries.sumOf { it.totals["energy_kcal"] ?: 0.0 })} kcal", style = Forge.type.footnote, color = colors.textSecondary)
+                Text(stringResource(R.string.forge_ed_kcal, kcalText(habit.entries.sumOf { it.totals["energy_kcal"] ?: 0.0 })), style = Forge.type.footnote, color = colors.textSecondary)
             }
             IconButton(onClick = onAdd) { Icon(Icons.Rounded.AddCircle, stringResource(R.string.food_add), tint = colors.food) }
             IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, stringResource(R.string.food_not_today), tint = colors.textSecondary) }

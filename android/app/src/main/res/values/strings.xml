@@ -5469,4 +5469,12 @@
     <string name="diet_change_plan">Change plan</string>
     <string name="diet_end_plan">End plan</string>
     <string name="diet_goal_from_plan">Set by your diet plan. Tap the plan at the top to change it.</string>
+    <string name="food_grams_unit">g</string>
+    <string name="food_slash_grams">/ %1$s g</string>
+    <string name="food_grams_value">%1$s g</string>
+    <string name="food_item_grams">%1$s · %2$s g</string>
+    <string name="food_kcal_per_100g">%1$s kcal / 100 g</string>
+    <string name="food_kcal_protein">%1$s kcal · %2$s g %3$s</string>
+    <string name="food_item_grams_kcal">%1$s · %2$s g · %3$s kcal</string>
+    <string name="food_off_name" translatable="false">Open Food Facts</string>
 </resources>
