@@ -328,7 +328,9 @@ private fun NightNavigator(night: CoreRead.Night?, isLatest: Boolean, zone: Zone
             Instant.ofEpochSecond(night.endTs).atZone(zone).format(f)
         }
     }
-    val label = night?.let { "$which · ${clock(it.startTs, zone, clockFormat)} – ${clock(it.endTs, zone, clockFormat)}" } ?: which
+    val span = night?.let { stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027,
+                                           clock(it.startTs, zone, clockFormat), clock(it.endTs, zone, clockFormat)) }
+    val label = span?.let { "$which · $it" } ?: which
     Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack, enabled = canBack) {
             Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.forge_previous_night),
@@ -402,7 +404,8 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
                     Icon(Icons.Rounded.Bedtime, contentDescription = null, tint = Forge.colors.rest)
                     Spacer(Modifier.width(ForgeMetrics.space3))
                     Column {
-                        Text("${clock(nap.startTs, zone, clockFormat)} – ${clock(nap.endTs, zone, clockFormat)}",
+                        Text(stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027,
+                                            clock(nap.startTs, zone, clockFormat), clock(nap.endTs, zone, clockFormat)),
                              style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
                         Text(TodayTimeline.hoursMinutes(nap.asleepMinutes), style = Forge.type.caption,
                              color = Forge.colors.textSecondary)
