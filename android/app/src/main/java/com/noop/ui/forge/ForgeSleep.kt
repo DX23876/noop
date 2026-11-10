@@ -189,7 +189,12 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                 TabHeader(stringResource(R.string.nav_sleep), onProfile = openMore)
             }
         }
-        Header(night, isLatest = i == nights.lastIndex, zone,
+        // The new design pages the nights in one line under the tab header, as iOS's `nightNavigator`; the shipped
+        // design keeps its own titled header over the scene.
+        if (LocalForgeOpenMore.current != null) NightNavigator(night, isLatest = i == nights.lastIndex, zone,
+               canBack = i > 0, canForward = i in 0 until nights.lastIndex,
+               onBack = { index = i - 1 }, onForward = { index = i + 1 })
+        else Header(night, isLatest = i == nights.lastIndex, zone,
                canBack = i > 0, canForward = i in 0 until nights.lastIndex,
                onBack = { index = i - 1 }, onForward = { index = i + 1 })
         Spacer(Modifier.height(ForgeMetrics.space4))
@@ -306,6 +311,36 @@ object RestWord {
         score < 70 -> R.string.forge_rest_fair
         score < 85 -> R.string.forge_rest_good
         else -> R.string.forge_rest_optimal
+    }
+}
+
+/** Which night, and when it ran, between the arrows that page the nights. */
+@Composable
+private fun NightNavigator(night: CoreRead.Night?, isLatest: Boolean, zone: ZoneId, canBack: Boolean, canForward: Boolean,
+                           onBack: () -> Unit, onForward: () -> Unit) {
+    val locale = Locale.getDefault()
+    val clockFormat = rememberClockFormatter()
+    val which = when {
+        night == null || isLatest -> stringResource(R.string.forge_last_night)
+        else -> {
+            // The wake day alone: the clock span beside it already says the night began the evening before.
+            val f = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, DAY_MONTH_SKELETON), locale)
+            Instant.ofEpochSecond(night.endTs).atZone(zone).format(f)
+        }
+    }
+    val label = night?.let { "$which · ${clock(it.startTs, zone, clockFormat)} – ${clock(it.endTs, zone, clockFormat)}" } ?: which
+    Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onBack, enabled = canBack) {
+            Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.forge_previous_night),
+                 tint = if (canBack) Forge.sceneInk.text else Forge.sceneInk.tertiary)
+        }
+        Text(label, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.sceneInk.text,
+             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+             modifier = Modifier.weight(1f))
+        IconButton(onClick = onForward, enabled = canForward) {
+            Icon(Icons.Rounded.ChevronRight, stringResource(R.string.forge_next_night),
+                 tint = if (canForward) Forge.sceneInk.text else Forge.sceneInk.tertiary)
+        }
     }
 }
 
