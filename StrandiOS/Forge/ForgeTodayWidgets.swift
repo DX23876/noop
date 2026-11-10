@@ -492,7 +492,8 @@ struct ForgeDietGoalWidget: View {
     var body: some View {
         NavigationLink(value: ForgeRoute.food) {
             if let progress {
-                DietProgressCard(progress: progress, compact: true)
+                DietProgressCard(progress: progress, compact: true,
+                                 male: profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil)
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Way to your goal").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

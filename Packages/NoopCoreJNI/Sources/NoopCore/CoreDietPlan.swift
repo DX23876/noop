@@ -31,7 +31,7 @@ enum CoreDietPlan {
             let day = args["day"] as? String ?? today
             let forecast = DietForecast.project(startKg: person.weightKg, goalKg: result.goalWeightKg, intakeKcal: result.averageKcal,
                                                 burnKcal: result.burnKcal, kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg,
-                                                dietBreakEveryWeeks: plan.dietBreakEveryWeeks)
+                                                dietBreakEveryWeeks: DietProgram.dietBreakEveryWeeks(plan))
             return CoreRead.json(Resolved(result: result, forecast: forecast,
                                           dayKcal: DietTargets.kcal(on: day, plan: plan, result: result),
                                           dayMacros: FoodTargets.macros(plan: plan, result: result, day: day)))

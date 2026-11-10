@@ -16,11 +16,12 @@ public enum DietActiveDay {
     /// `usualStrapKcal` the strap's usual burn for a whole day, `elapsedFraction` how much of the day has passed
     /// (1 for a past day), `realToStrap` the real burn divided by the strap's when it is known.
     public static func bonusKcal(plan: DietPlan, day: String, burnedKcal: Double?, usualStrapKcal: Double,
-                                 elapsedFraction: Double, realToStrap: Double? = nil, strengthDays: Set<String> = [],
+                                 elapsedFraction: Double, realToStrap: Double? = nil, training: DietTrainingDays = .init(),
                                  calendar: Calendar = .current) -> Double {
         // A training day with the plan's shift already carries its extra; the same burn must not count twice.
-        if plan.effectiveDayShift > 0, !(plan.trainingWeekdays ?? []).isEmpty,
-           DietTargets.isTrainingDay(day, plan: plan, strengthDays: strengthDays, calendar: calendar) { return 0 }
+        if plan.effectiveDayShift > 0,
+           (1...6).contains(DietTargets.weekTrainingCount(day, plan: plan, training: training, calendar: calendar)),
+           DietTargets.isTrainingDay(day, plan: plan, training: training, calendar: calendar) { return 0 }
         guard plan.activeDays == true, plan.steering != .manual,
               let burned = burnedKcal, burned.isFinite, usualStrapKcal.isFinite, usualStrapKcal > 0 else { return 0 }
         if plan.form.fasting != nil, DietTargets.isFastingDay(day, plan: plan, calendar: calendar) { return 0 }

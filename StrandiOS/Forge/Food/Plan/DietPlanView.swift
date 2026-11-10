@@ -7,9 +7,13 @@ import StrandCore
 /// stays one tap deeper.
 struct DietPlanView: View {
     let model: ForgeFoodModel
+    var onAsk: (String) -> Void = { _ in }
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
+    @AppStorage(DietPlanChange.storageKey) private var proposalRaw = ""
     @EnvironmentObject private var repo: Repository
     @State private var editing = false
     @State private var confirmEnd = false
+    @State private var showProteinFoods = false
 
     var body: some View {
         ScrollView {
@@ -18,9 +22,21 @@ struct DietPlanView: View {
                     header(plan, r)
                     if !plan.hideNumbers, let progress = model.progress {
                         DietProgressCard(progress: progress,
-                                         forecastLine: model.forecast().flatMap { DietForecastText.goal($0, hasGoal: r.goalWeightKg != nil) })
+                                         forecastLine: model.forecast().flatMap { DietForecastText.goal($0, hasGoal: r.goalWeightKg != nil) },
+                                         male: model.person?.male)
                     }
                     DietWeekCard(model: model)
+                    if let change = DietPlanChange.decode(proposalRaw), !change.isEmpty {
+                        DietChangeCard(model: model, change: change, onDone: { proposalRaw = "" })
+                    }
+                    DietAdviceCard(model: model, proteinFoods: { showProteinFoods = true })
+                    if coachFeatureEnabled {
+                        Button { onAsk(coachPrompt(plan, r)) } label: {
+                            Label("Talk it through with your coach", systemImage: "bubble.left.and.text.bubble.right.fill")
+                                .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered).tint(ForgeColor.accent)
+                    }
                     if !plan.hideNumbers, r.goal != .maintain, r.goal != .recomp, let forecast = model.forecast() {
                         FoodSectionHeader(title: String(localized: "Where it is heading"))
                         VStack(alignment: .leading, spacing: 8) {
@@ -51,6 +67,9 @@ struct DietPlanView: View {
         .background(ForgeBackground(tab: .today))
         .navigationTitle("Plan")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showProteinFoods) {
+            if let week = model.nutrients { FoodRecommendationsSheet(report: week) }
+        }
         .sheet(isPresented: $editing) { DietPlannerView(model: model, start: model.plan).environmentObject(repo) }
         .confirmationDialog("End the plan?", isPresented: $confirmEnd, titleVisibility: .visible) {
             Button("End plan", role: .destructive) { model.savePlan(nil) }
@@ -63,7 +82,7 @@ struct DietPlanView: View {
         // The picture stands without a veil and the words sit under it, so the daylight picture keeps them
         // readable as well as the night one does.
         VStack(alignment: .leading, spacing: 12) {
-            Image(DietArt.form(plan.form)).resizable().scaledToFill()
+            Image(DietArt.goal(r.goal, male: model.person?.male)).resizable().scaledToFill()
                 .frame(maxWidth: .infinity).frame(height: 190).clipped()
                 .clipShape(.rect(cornerRadius: ForgeRadius.card))
                 .accessibilityHidden(true)
@@ -74,6 +93,19 @@ struct DietPlanView: View {
             .padding(.horizontal, 4)
         }
         .padding(.top, 8)
+    }
+
+    /// The plan in plain words for the coach, so it answers about this plan and can propose a change to it.
+    private func coachPrompt(_ plan: DietPlan, _ r: DietTargets.Result) -> String {
+        var lines = [String(localized: "Look at my diet plan and tell me how it is going and what you would change.")]
+        lines.append("Goal: \(r.goal.rawValue), way of eating: \(plan.form.rawValue), mode: \(plan.mode.rawValue).")
+        lines.append("Average \(Int(r.averageKcal)) kcal a day, protein \(Int(r.proteinG)) g, carbs \(Int(r.carbsG)) g, fat \(Int(r.fatG)) g; usual burn \(Int(r.burnKcal)) kcal.")
+        if r.goal == .lose || r.goal == .gain { lines.append("Pace \(r.pacePercent) % of body weight a week; goal weight \(r.goalWeightKg.map { String(Int($0)) } ?? "none").") }
+        lines.append("Phase today: \(model.phase(for: Repository.localDayKey(.now)).rawValue). Adjustments so far: \(Int(r.adjustmentKcal)) kcal.")
+        if let week = model.planWeek { lines.append("This week's check: \(week.hold?.rawValue ?? "changed \(Int(week.changeKcal)) kcal"), trend \(week.trendKgPerWeek.map { String(format: "%.2f", $0) } ?? "unknown") kg a week.") }
+        if !model.advice.isEmpty { lines.append("Forge's suggestions this week: \(model.advice.map(\.kind.rawValue).joined(separator: ", ")).") }
+        lines.append("If a change makes sense, propose it with propose_diet_change.")
+        return lines.joined(separator: "\n")
     }
 
     private func subtitle(_ plan: DietPlan, _ r: DietTargets.Result) -> String {
@@ -100,7 +132,7 @@ struct DietPlanView: View {
                     Text("Eating days \(FoodText.kcal(r.eatingDayKcal)) kcal, fasting days \(FoodText.kcal(fast)) kcal")
                         .font(.footnote).foregroundStyle(ForgeColor.secondary)
                 }
-                if let split = DietTargets.trainingAndRestKcal(plan: plan, result: r) {
+                if let split = DietTargets.trainingAndRestKcal(plan: plan, result: r, training: model.training, day: Repository.localDayKey(.now)) {
                     Text("Training days \(FoodText.kcal(split.training)) kcal · rest days \(FoodText.kcal(split.rest)) kcal")
                         .font(.footnote).foregroundStyle(ForgeColor.secondary)
                     Text((plan.trainingWeekdays ?? []).map(DietText.weekday).joined(separator: ", "))
@@ -252,7 +284,7 @@ struct DietPlanLine: View {
     var body: some View {
         Button(action: open) {
             HStack(spacing: 12) {
-                Image(model.plan.map { DietArt.form($0.form) } ?? DietArt.explain("path")).resizable().scaledToFill()
+                Image(model.planResult.map { DietArt.goal($0.goal, male: model.person?.male) } ?? DietArt.explain("path")).resizable().scaledToFill()
                     .frame(width: 40, height: 40).clipShape(.circle).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.text)

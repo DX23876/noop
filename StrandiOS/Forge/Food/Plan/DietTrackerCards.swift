@@ -9,6 +9,8 @@ struct DietProgressCard: View {
     let progress: DietProgress.Progress
     var forecastLine: String?
     var compact = false
+    /// The profile's sex, for recomposition's fitness photo; nil keeps the statue.
+    var male: Bool?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -43,7 +45,7 @@ struct DietProgressCard: View {
         switch progress {
         case .way(let w): DietArt.stage(w.stage)
         case .hold: DietArt.holding
-        case .recomp: DietArt.recomp
+        case .recomp: male == nil ? DietArt.recomp : DietArt.goal(.gain, male: male)
         }
     }
 
@@ -299,5 +301,56 @@ struct DietBurnCard: View {
 }
 private extension Double {
     var clamped01: Double { Swift.min(1, Swift.max(0, self)) }
+}
+#endif
+
+#if os(iOS)
+/// This week's suggestions for the plan (owner, 2026-11-10), each with its reason and one action. Taking one that
+/// changes the plan goes through the same plan save as the planner; the others open where the habit is kept up.
+struct DietAdviceCard: View {
+    let model: ForgeFoodModel
+    var proteinFoods: () -> Void = {}
+
+    var body: some View {
+        if !model.advice.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Suggestions this week", systemImage: "lightbulb.fill")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.secondary)
+                ForEach(model.advice) { s in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(DietText.adviceTitle(s.kind)).font(.headline).foregroundStyle(ForgeColor.text)
+                        Text(DietText.adviceReason(s.kind)).font(.subheadline).foregroundStyle(ForgeColor.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 10) {
+                            action(s)
+                            Button("Not this week") { withAnimation(.smooth) { model.dismissAdvice(s) } }
+                                .buttonStyle(.borderless).foregroundStyle(ForgeColor.secondary)
+                        }
+                        .font(.subheadline.weight(.semibold))
+                    }
+                    if s.id != model.advice.last?.id { Divider() }
+                }
+            }
+            .forgeCard(padding: 14)
+            .transition(.opacity)
+        }
+    }
+
+    @ViewBuilder private func action(_ s: DietAdvice.Suggestion) -> some View {
+        switch s.action {
+        case .addKcal, .takeBreakWeek:
+            Button(DietText.adviceAction(s.action)) { withAnimation(.smooth) { model.takeAdvice(s) } }
+                .buttonStyle(.borderedProminent).tint(ForgeColor.accent)
+        case .showProteinFoods:
+            Button(DietText.adviceAction(s.action), action: proteinFoods)
+                .buttonStyle(.borderedProminent).tint(ForgeColor.accent)
+        case .openWeight:
+            NavigationLink(value: TabRoute.weight) { Text(DietText.adviceAction(s.action)) }
+                .buttonStyle(.borderedProminent).tint(ForgeColor.accent)
+        case .openLog:
+            NavigationLink(value: ForgeRoute.foodAdd) { Text(DietText.adviceAction(s.action)) }
+                .buttonStyle(.borderedProminent).tint(ForgeColor.accent)
+        }
+    }
 }
 #endif

@@ -62,8 +62,10 @@ public enum DietTargets {
         public var notes: [Note]
     }
 
+    /// `phase` is the program's phase of the day (`DietProgram`): a break or holding eats the burn, the step after the
+    /// goal half the change.
     public static func resolve(_ plan: DietPlan, person: DietPerson, burnKcal: Double,
-                               kcalPerKg: Double? = nil) -> Result {
+                               kcalPerKg: Double? = nil, phase: DietProgram.Phase = .main) -> Result {
         var notes: [Note] = []
         var goal = plan.goal
         if goal == .lose {
@@ -92,7 +94,7 @@ public enum DietTargets {
         let kgPerWeek = person.weightKg * pace / 100
         let sign: Double = goal == .lose ? -1 : goal == .gain ? 1 : 0
         // Recomposition: a few percent under the burn instead of a pace in kilograms.
-        let delta = goal == .recomp ? -burnKcal * plan.recompDeficit / 100 : sign * kgPerWeek * perKg / 7
+        let delta = (goal == .recomp ? -burnKcal * plan.recompDeficit / 100 : sign * kgPerWeek * perKg / 7) * phase.deltaFactor
         let adjustment = plan.steering == .manual ? 0 : plan.adjustmentKcal
         var average = plan.steering == .manual ? (plan.fixedKcal ?? burnKcal + delta) : burnKcal + delta + adjustment
         if average < weeklyFloorKcal { average = weeklyFloorKcal; notes.append(.floorApplied) }
@@ -182,44 +184,66 @@ public enum DietTargets {
     }
 
     /// Calories for one day of the plan: the eating day, or the fasting day on a fasting form's fasting days, moved
-    /// up on a training day and down on a rest day when the plan shifts calories (`dayShift`). Fasting days follow a
-    /// fixed rhythm from the plan's start: every other day for alternate-day forms, Monday and Thursday for 5:2.
-    /// `strengthDays` are the days with logged strength training, which count as training days too.
-    public static func kcal(on day: String, plan: DietPlan, result: Result, strengthDays: Set<String> = [],
+    /// up on a training day and down on a rest day when the plan shifts calories. Fasting days follow a fixed rhythm
+    /// from the plan's start: every other day for alternate-day forms, Monday and Thursday for 5:2.
+    public static func kcal(on day: String, plan: DietPlan, result: Result, training: DietTrainingDays = .init(),
                             calendar: Calendar = .current) -> Double {
         if let fastKcal = result.fastingDayKcal, isFastingDay(day, plan: plan, calendar: calendar) { return fastKcal }
-        return result.eatingDayKcal + shiftKcal(on: day, plan: plan, result: result, strengthDays: strengthDays, calendar: calendar)
+        return result.eatingDayKcal + shiftKcal(on: day, plan: plan, result: result, training: training, calendar: calendar)
     }
 
-    /// What the day shift adds (a training day) or takes away (a rest day). Planned training days get the share of
-    /// the eating day; rest days give back the same amount spread over them, so the week's average holds. A logged
-    /// strength day outside the plan gets the extra without a give-back. Zero without a shift or planned days.
-    public static func shiftKcal(on day: String, plan: DietPlan, result: Result, strengthDays: Set<String> = [],
+    /// What the training-day shift adds (a training day) or takes away (a rest day). Training days get the share of
+    /// the eating day; rest days give back the same amount spread over them, so the week's average holds, counted
+    /// from the training days of that week. A logged strength day outside them gets the extra without a give-back.
+    public static func shiftKcal(on day: String, plan: DietPlan, result: Result, training: DietTrainingDays = .init(),
                                  calendar: Calendar = .current) -> Double {
         let share = plan.effectiveDayShift
-        let planned = Set(plan.trainingWeekdays ?? []).filter { (1...7).contains($0) }
-        guard share > 0, !planned.isEmpty, planned.count < 7 else { return 0 }
+        let count = weekTrainingCount(day, plan: plan, training: training, calendar: calendar)
+        guard share > 0, (1...6).contains(count) else { return 0 }
         let extra = result.eatingDayKcal * share
-        if isTrainingDay(day, plan: plan, strengthDays: strengthDays, calendar: calendar) { return extra }
-        return -extra * Double(planned.count) / Double(7 - planned.count)
+        if isTrainingDay(day, plan: plan, training: training, calendar: calendar) { return extra }
+        return -extra * Double(count) / Double(7 - count)
     }
 
-    /// A planned training day's and a rest day's calories, for the planner and the plan page; nil without a shift.
-    public static func trainingAndRestKcal(plan: DietPlan, result: Result) -> (training: Double, rest: Double)? {
+    /// A training day's and a rest day's calories in the week of `day`, for the planner and the plan page; nil
+    /// without a shift.
+    public static func trainingAndRestKcal(plan: DietPlan, result: Result, training: DietTrainingDays = .init(),
+                                           day: String, calendar: Calendar = .current) -> (training: Double, rest: Double)? {
         let share = plan.effectiveDayShift
-        let planned = Set(plan.trainingWeekdays ?? []).filter { (1...7).contains($0) }
-        guard share > 0, !planned.isEmpty, planned.count < 7 else { return nil }
+        let count = weekTrainingCount(day, plan: plan, training: training, calendar: calendar)
+        guard share > 0, (1...6).contains(count) else { return nil }
         let extra = result.eatingDayKcal * share
-        return (result.eatingDayKcal + extra, result.eatingDayKcal - extra * Double(planned.count) / Double(7 - planned.count))
+        return (result.eatingDayKcal + extra, result.eatingDayKcal - extra * Double(count) / Double(7 - count))
     }
 
-    /// A training day: one of the planned weekdays, or a day with logged strength training. The one resolver the
-    /// calories, the macros, the plate's line and the active-day rule all read.
-    public static func isTrainingDay(_ day: String, plan: DietPlan, strengthDays: Set<String> = [],
+    /// A training day: a day the training planner has a session on, a day with logged strength training, or, in a
+    /// week the training planner leaves empty, one of the plan's weekdays. The one resolver the calories, the
+    /// macros, the plate's line and the active-day rule all read.
+    public static func isTrainingDay(_ day: String, plan: DietPlan, training: DietTrainingDays = .init(),
                                      calendar: Calendar = .current) -> Bool {
-        if strengthDays.contains(day) { return true }
-        guard let date = WeightSeries.date(forDay: day) else { return false }
+        if training.logged.contains(day) || training.planned.contains(day) { return true }
+        guard plannedInWeek(day, training: training, calendar: calendar).isEmpty,
+              let date = WeightSeries.date(forDay: day) else { return false }
         return (plan.trainingWeekdays ?? []).contains(calendar.component(.weekday, from: date))
+    }
+
+    /// How many training days the week of `day` plans: the training planner's, else the plan's weekdays.
+    public static func weekTrainingCount(_ day: String, plan: DietPlan, training: DietTrainingDays = .init(),
+                                         calendar: Calendar = .current) -> Int {
+        let planned = plannedInWeek(day, training: training, calendar: calendar)
+        if !planned.isEmpty { return planned.count }
+        return Set(plan.trainingWeekdays ?? []).filter { (1...7).contains($0) }.count
+    }
+
+    /// The training planner's days in the Monday-to-Sunday week of `day`.
+    static func plannedInWeek(_ day: String, training: DietTrainingDays, calendar: Calendar) -> Set<String> {
+        guard !training.planned.isEmpty, let date = WeightSeries.date(forDay: day) else { return [] }
+        var monday = calendar
+        monday.firstWeekday = 2
+        guard let week = monday.dateInterval(of: .weekOfYear, for: date) else { return [] }
+        return training.planned.filter { d in
+            WeightSeries.date(forDay: d).map { week.contains($0) } ?? false
+        }
     }
 
     public static func isFastingDay(_ day: String, plan: DietPlan, calendar: Calendar = .current) -> Bool {

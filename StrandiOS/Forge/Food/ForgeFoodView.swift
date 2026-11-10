@@ -129,7 +129,7 @@ struct ForgeFoodView: View {
             case .score:
                 if let score = model.score { FoodScoreView(score: score, male: model.male == true) }
             case .plan:
-                DietPlanView(model: model)
+                DietPlanView(model: model, onAsk: onAsk)
             case .nutrients:
                 if let week = model.nutrients, let day = model.dayNutrients { FoodNutrientsView(week: week, day: day, model: model) }
             }
@@ -157,7 +157,12 @@ struct ForgeFoodView: View {
             .gesture(DragGesture(minimumDistance: 30).onEnded(swipeDay))
             FoodPlateLegend(macros: plate.macros)
             FoodDayFigures(eaten: model.eatenKcal, calories: model.calories, burned: model.burned, isToday: model.isToday)
-            if let plan = model.plan, plan.effectiveDayShift > 0, !(plan.trainingWeekdays ?? []).isEmpty {
+            if model.plan != nil, model.phase(for: model.day) != .main {
+                Label(FoodText.phase(model.phase(for: model.day)), systemImage: model.phase(for: model.day) == .dietBreak ? "pause.circle.fill" : "flag.checkered")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.chargeInk)
+            }
+            if let plan = model.plan, plan.effectiveDayShift > 0,
+               (1...6).contains(DietTargets.weekTrainingCount(model.day, plan: plan, training: model.training)) {
                 Label(model.isTrainingDay(model.day) ? String(localized: "Training day: more carbohydrate") : String(localized: "Rest day"),
                       systemImage: model.isTrainingDay(model.day) ? "dumbbell.fill" : "bed.double.fill")
                     .font(.subheadline.weight(.semibold))

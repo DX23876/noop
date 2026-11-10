@@ -70,12 +70,14 @@ public struct DietPlan: Codable, Equatable, Sendable {
     /// Recomposition always shifts; the other goals only in the advanced mode.
     public var dayShift: Double?
     public var experience: Experience?
+    /// A diet break the wearer took on Forge's suggestion: a week at maintenance from this day.
+    public var breakFromDay: String?
 
     /// The share of the calories that moves to training days, as the plan has it: recomposition 10 % unless set.
     public var effectiveDayShift: Double {
         if form.fasting != nil { return 0 }
-        if goal == .recomp { return (dayShift ?? 0.10).clamped(0, 0.25) }
-        return mode == .advanced ? (dayShift ?? 0).clamped(0, 0.25) : 0
+        let program = DietProgram.defaultDayShift(goal)
+        return (mode == .advanced || goal == .recomp ? (dayShift ?? program) : program).clamped(0, 0.25)
     }
 
     public init(goal: Goal = .lose, mode: Mode = .simple, pacePercent: Double = 0.5, form: DietForm = .balanced,

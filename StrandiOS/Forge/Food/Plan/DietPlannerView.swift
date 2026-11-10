@@ -17,12 +17,16 @@ struct DietPlannerView: View {
     @State private var suggestions: [DietSuggest.Suggestion] = []
     @State private var recent: [FoodLogEntryLite] = []
 
-    private enum Step: Int, CaseIterable { case welcome, goal, weight, pace, life, form, addon, training, numbers, summary }
+    private enum Step: Int, CaseIterable { case welcome, goal, weight, pace, life, form, addon, training, numbers, journey, summary }
 
     /// The training-day step is for recomposition, and for anyone in the advanced mode; the simple mode skips it.
-    private func skipped(_ s: Step) -> Bool { s == .training && draft.goal != .recomp && draft.mode == .simple }
+    /// Holding in the simple mode has no training-day shift, so it skips that step.
+    private func skipped(_ s: Step) -> Bool { s == .training && draft.goal == .maintain && draft.mode == .simple }
     /// Recomposition needs at least two planned training days before the planner goes on.
-    private var blocked: Bool { current == .training && draft.goal == .recomp && (draft.trainingWeekdays ?? []).count < 2 }
+    private var blocked: Bool {
+        current == .training && draft.goal == .recomp
+            && (draft.trainingWeekdays ?? []).count < 2 && model.plannedTrainingDaysThisWeek.count < 2
+    }
 
     init(model: ForgeFoodModel, start: DietPlan? = nil) {
         self.model = model
@@ -101,6 +105,7 @@ struct DietPlannerView: View {
         case .addon: addonStep
         case .training: trainingStep
         case .numbers: numbersStep
+        case .journey: journeyStep
         case .summary: summaryStep
         }
     }
@@ -110,7 +115,7 @@ struct DietPlannerView: View {
             DietExplainCard(image: DietArt.explain("path"), title: DietText.explainStartTitle, text: DietText.explainStart)
             title("How much do you want to set yourself?")
             HStack(spacing: 12) {
-                DietChoiceCard(image: DietArt.goal(.maintain), title: String(localized: "Simple"),
+                DietChoiceCard(image: DietArt.goal(.maintain, male: person.male), title: String(localized: "Simple"),
                                detail: String(localized: "A few questions. Forge sets calories and macros and adjusts them every week."),
                                selected: draft.mode == .simple) { draft.mode = .simple }
                 DietChoiceCard(image: DietArt.form(.highProtein), title: String(localized: "Advanced"),
@@ -124,14 +129,17 @@ struct DietPlannerView: View {
         VStack(alignment: .leading, spacing: 12) {
             title("What is your goal?")
             ForEach(DietPlan.Goal.allCases, id: \.self) { g in
-                DietChoiceCard(image: DietArt.goal(g), title: DietText.goal(g), detail: DietText.goalDetail(g),
+                DietChoiceCard(image: DietArt.goal(g, male: person.male), title: DietText.goal(g), detail: DietText.goalDetail(g),
                                selected: draft.goal == g) {
                     draft.goal = g
-                    if g == .recomp {
-                        // Recomposition has no goal weight or pace, and it needs strength training.
-                        draft.goalWeightKg = nil
+                    if g == .recomp || g == .gain {
+                        // Gaining and recomposition build muscle: they need strength training.
                         draft.strength = true
                         if draft.trainingWeekdays == nil, !model.usualTrainingWeekdays.isEmpty { draft.trainingWeekdays = model.usualTrainingWeekdays }
+                    }
+                    if g == .recomp {
+                        // Recomposition has no goal weight or pace.
+                        draft.goalWeightKg = nil
                     } else if draft.pacePercent == 0 || g == .gain {
                         draft.pacePercent = DietPlan.Pace.normal.percent(for: g)
                     }
@@ -145,6 +153,7 @@ struct DietPlannerView: View {
 
     private var weightStep: some View {
         VStack(alignment: .leading, spacing: 12) {
+            header(DietArt.goal(draft.goal, male: person.male), why: String(localized: "Your weight and your burn set every number that follows."))
             title("Where do you start?")
             VStack(alignment: .leading, spacing: 6) {
                 LabeledContent("Today", value: DietText.kg(person.weightKg))
@@ -197,7 +206,7 @@ struct DietPlannerView: View {
                 if draft.mode == .simple {
                     ForEach(DietPlan.Pace.allCases, id: \.self) { p in
                         let pct = p.percent(for: draft.goal)
-                        DietChoiceCard(image: DietArt.goal(draft.goal), title: DietText.pace(p),
+                        DietChoiceCard(image: DietArt.goal(draft.goal, male: person.male), title: DietText.pace(p),
                                        detail: String(localized: "\(DietText.percent(pct)) of your weight a week, for you about \(DietText.kg(person.weightKg * pct / 100))."),
                                        selected: abs(draft.pacePercent - pct) < 0.01) { draft.pacePercent = pct }
                     }
@@ -224,13 +233,14 @@ struct DietPlannerView: View {
 
     private var lifeStep: some View {
         VStack(alignment: .leading, spacing: 12) {
+            header(DietArt.explain("hold"), why: String(localized: "The plan you keep up beats the strictest one. Forge suggests ways of eating around your life."))
             title("What would you not give up?")
             Text("Forge suggests ways of eating that keep these.").font(.footnote).foregroundStyle(ForgeColor.secondary)
             DietChips(items: DietPlan.Keep.allCases, label: DietText.keep, isOn: { draft.keep.contains($0) }) { k in
                 if let i = draft.keep.firstIndex(of: k) { draft.keep.remove(at: i) } else { draft.keep.append(k) }
             }
             DietCheckRow(title: String(localized: "Clear rules are easier for me than moderation"), isOn: $likesRules)
-            if draft.goal != .recomp {
+            if draft.goal == .lose || draft.goal == .maintain {
                 DietCheckRow(title: String(localized: "I do strength training"), isOn: $draft.strength)
             }
         }
@@ -275,6 +285,7 @@ struct DietPlannerView: View {
 
     private var numbersStep: some View {
         VStack(alignment: .leading, spacing: 12) {
+            header(DietArt.form(draft.form), why: String(localized: "Forge works these out from your burn, your goal and your way of eating."))
             title("Your numbers")
             numbersCard
             if draft.mode == .advanced { advancedDials }
@@ -295,7 +306,7 @@ struct DietPlannerView: View {
                     Text(DietText.effort(r.effort)).font(.caption).foregroundStyle(DietText.effortTint(r.effortScore))
                 }
             }
-            if let split = DietTargets.trainingAndRestKcal(plan: draft, result: r) {
+            if let split = DietTargets.trainingAndRestKcal(plan: draft, result: r, training: model.training, day: Repository.localDayKey(.now)) {
                 Text("Training days \(FoodText.kcal(split.training)) kcal · rest days \(FoodText.kcal(split.rest)) kcal")
                     .font(.footnote).foregroundStyle(ForgeColor.secondary)
             }
@@ -369,7 +380,7 @@ struct DietPlannerView: View {
         let r = result
         let forecast = DietForecast.project(startKg: person.weightKg, goalKg: r.goalWeightKg, intakeKcal: r.averageKcal,
                                             burnKcal: r.burnKcal, kcalPerKg: model.kcalPerKg ?? DietTargets.defaultKcalPerKg,
-                                            dietBreakEveryWeeks: draft.dietBreakEveryWeeks)
+                                            dietBreakEveryWeeks: DietProgram.dietBreakEveryWeeks(draft))
         return VStack(alignment: .leading, spacing: 12) {
             title("Your plan")
             Text("\(DietText.goal(r.goal)) · \(DietText.form(draft.form))\(draft.addon.map { " · " + DietText.addon($0) } ?? "")")
@@ -389,8 +400,7 @@ struct DietPlannerView: View {
             ForEach(r.notes, id: \.self) { notice(DietText.note($0)) }
             DietCheckRow(title: String(localized: "Hide weight and numbers"), isOn: $draft.hideNumbers)
             if r.goal == .recomp {
-                DietExplainCard(image: DietArt.recomp, title: DietText.explainRecompTitle, text: DietText.explainRecomp)
-                Text(DietText.recompSources).font(.caption).foregroundStyle(ForgeColor.secondary)
+                DietExplainCard(image: DietArt.recomp, title: DietText.explainRecompTitle, text: DietText.explainRecomp, sources: DietText.recompSources)
             } else {
                 DietExplainCard(image: DietArt.explain("hold"), title: DietText.explainHoldTitle, text: DietText.explainHold)
             }
@@ -440,6 +450,76 @@ struct DietPlannerView: View {
         while skipped(current), step > 0 { step -= 1 }
     }
 
+    // MARK: Journey
+
+    /// A step's picture and the one sentence on why Forge asks, above the question.
+    private func header(_ image: String, why: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(image).resizable().scaledToFill()
+                .frame(maxWidth: .infinity).frame(height: 140).clipped()
+                .clipShape(.rect(cornerRadius: ForgeRadius.inner))
+                .accessibilityHidden(true)
+            Label(why, systemImage: "questionmark.circle").font(.footnote).foregroundStyle(ForgeColor.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// How the plan runs through the weeks, before the numbers are confirmed: the same weeks the forecast and the
+    /// program use.
+    private var journeyStep: some View {
+        let r = result
+        let breaks = DietProgram.dietBreakEveryWeeks(draft)
+        let forecast = DietForecast.project(startKg: person.weightKg, goalKg: r.goalWeightKg, intakeKcal: r.averageKcal,
+                                            burnKcal: r.burnKcal, kcalPerKg: model.kcalPerKg ?? DietTargets.defaultKcalPerKg,
+                                            dietBreakEveryWeeks: breaks)
+        var stops: [(icon: String, when: String, what: String)] = []
+        stops.append(("flag.fill", String(localized: "Today"), String(localized: "You start with your numbers and log what you eat.")))
+        if r.goal != .maintain {
+            stops.append(("drop.fill", String(localized: "Weeks 1 and 2"), String(localized: "Water moves your weight up and down. Forge does not judge these weeks yet.")))
+        }
+        stops.append(("checkmark.circle.fill", String(localized: "From week 3, every week"),
+                      r.goal == .maintain || r.goal == .recomp
+                      ? String(localized: "Forge checks that your weight stays in its band and moves your calories a little when it does not.")
+                      : String(localized: "Forge compares your trend with the plan and moves your calories by at most 150 kcal.")))
+        if draft.effectiveDayShift > 0 {
+            stops.append(("dumbbell.fill", String(localized: "Every training day"), String(localized: "More carbohydrate on training days, a little less on rest days.")))
+        }
+        if let every = breaks, r.goal == .lose {
+            stops.append(("pause.circle.fill", String(localized: "Every \(every + 1) weeks"), String(localized: "A week at maintenance: you eat what you burn, your body and head get a rest.")))
+        }
+        if r.goal == .recomp {
+            stops.append(("chart.line.uptrend.xyaxis", String(localized: "Over months"), String(localized: "Body fat or your waist goes down, your lifts go up, the scale barely moves.")))
+        } else if r.goalWeightKg != nil, let weeks = forecast.goalWeeks {
+            stops.append(("mountain.2.fill", String(localized: "In about \(weeks.lowerBound) to \(weeks.upperBound) weeks"),
+                          String(localized: "You reach your goal. Forge steps down to holding over a week instead of simply lifting your calories.")))
+        }
+        return VStack(alignment: .leading, spacing: 16) {
+            header(DietArt.goal(r.goal, male: person.male), why: String(localized: "So you know what to expect, and when."))
+            title("How your plan runs")
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(stops.enumerated()), id: \.offset) { index, stop in
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(spacing: 0) {
+                            Image(systemName: stop.icon).font(.body).foregroundStyle(ForgeColor.accent)
+                                .frame(width: 32, height: 32).background(ForgeColor.fill, in: .circle)
+                            if index < stops.count - 1 {
+                                Rectangle().fill(ForgeColor.separator).frame(width: 2).frame(minHeight: 24)
+                            }
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(stop.when).font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.text)
+                            Text(stop.what).font(.subheadline).foregroundStyle(ForgeColor.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.bottom, 14)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .forgeCard(padding: 14)
+        }
+    }
+
     // MARK: Recomposition and training days
 
     /// Recomposition in place of the pace: how long the wearer has trained, their body fat, how well it fits.
@@ -465,18 +545,34 @@ struct DietPlannerView: View {
                  range: 0...15, step: 1, text: { "\(Int($0)) %" })
                 .forgeCard(padding: 12)
         }
-        DietExplainCard(image: DietArt.recomp, title: DietText.explainRecompTitle, text: DietText.explainRecomp)
+        DietExplainCard(image: DietArt.recomp, title: DietText.explainRecompTitle, text: DietText.explainRecomp, sources: DietText.recompSources)
     }
 
     /// The planned training days, proposed from the log, and (advanced) how much moves to them.
     private var trainingStep: some View {
         let order = (0..<7).map { (Calendar.current.firstWeekday - 1 + $0) % 7 + 1 }
         return VStack(alignment: .leading, spacing: 12) {
+            header(DietArt.goal(draft.goal == .maintain ? .recomp : draft.goal, male: person.male),
+                   why: String(localized: "Training days use more energy. Forge puts more carbohydrate where your body needs it."))
             title("When do you train?")
             Text(draft.goal == .recomp
                  ? String(localized: "At least two days a week. Training days get more carbohydrate, rest days a little less; the week stays the same.")
                  : String(localized: "Training days can get more carbohydrate and rest days a little less; the week stays the same."))
                 .font(.footnote).foregroundStyle(ForgeColor.secondary)
+            let fromPlanner = model.plannedTrainingDaysThisWeek
+            if !fromPlanner.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("From your training plan", systemImage: "calendar").font(.subheadline.weight(.semibold))
+                    Text(fromPlanner.compactMap(WeightSeries.date(forDay:)).map { DietText.weekday(Calendar.current.component(.weekday, from: $0)) }
+                            .joined(separator: ", "))
+                        .font(ForgeFont.rounded(20, .bold)).foregroundStyle(ForgeColor.text)
+                    Text("Forge follows your training plan week by week. Move a session there, and the extra calories move with it.")
+                        .font(.footnote).foregroundStyle(ForgeColor.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .forgeCard(padding: 12)
+                Text("For weeks without a training plan:").font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.secondary)
+            }
             DietChips(items: order, label: DietText.weekday, isOn: { (draft.trainingWeekdays ?? []).contains($0) }) { w in
                 var days = draft.trainingWeekdays ?? []
                 if let i = days.firstIndex(of: w) { days.remove(at: i) } else { days.append(w) }

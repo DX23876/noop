@@ -21,9 +21,9 @@ final class ForgeFoodModel {
 
     /// Any day's calorie goal: the plan's for that day (its fasting figure, its active-day extra), or the base goal.
     func calories(for day: String) -> FoodTargets.Calories? {
-        if let plan, let planResult {
-            return FoodTargets.calories(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal(for: day),
-                                        strengthDays: strengthDays)
+        if let plan, let result = result(for: day) {
+            return FoodTargets.calories(plan: plan, result: result, day: day, activeBonusKcal: activeBonusKcal(for: day),
+                                        training: training)
         }
         return baseCalories
     }
@@ -35,9 +35,9 @@ final class ForgeFoodModel {
 
     /// Any day's macro goals, from the same resolver as `calories(for:)`.
     func macroGoals(for day: String) -> FoodTargets.Macros? {
-        if let plan, let planResult {
-            return FoodTargets.macros(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal(for: day),
-                                      strengthDays: strengthDays)
+        if let plan, let result = result(for: day) {
+            return FoodTargets.macros(plan: plan, result: result, day: day, activeBonusKcal: activeBonusKcal(for: day),
+                                      training: training)
         }
         guard let kcal = calories(for: day)?.kcal else { return nil }
         let d = UserDefaults.standard, split = FoodTargets.defaultSplit
@@ -121,14 +121,38 @@ final class ForgeFoodModel {
         guard let plan, let strap = strapBurnKcal else { return 0 }
         return DietActiveDay.bonusKcal(plan: plan, day: day, burnedKcal: burnedByDay[day], usualStrapKcal: strap,
                                        elapsedFraction: DietActiveDay.elapsedFraction(day: day, now: .now),
-                                       realToStrap: realToStrap, strengthDays: strengthDays)
+                                       realToStrap: realToStrap, training: training)
     }
     @ObservationIgnored private(set) var kcalPerKg: Double?
 
     /// Today's weight for the planner's starting point.
     var currentWeightKg: Double? { person?.weightKg }
 
+    /// The program's phase of `day`: a break week, the step after the goal, holding, or the plan itself.
+    func phase(for day: String) -> DietProgram.Phase {
+        guard let plan else { return .main }
+        return DietProgram.phase(on: day, plan: plan, goalReachedDay: goalReachedDay)
+    }
+    @ObservationIgnored private var goalReachedDay: String?
+    @ObservationIgnored private var resultByPhase: [DietProgram.Phase: DietTargets.Result] = [:]
+
+    /// The plan's numbers for `day`: the main result, or the same plan resolved for the day's phase.
+    func result(for day: String) -> DietTargets.Result? {
+        let p = phase(for: day)
+        if p == .main { return planResult }
+        if let cached = resultByPhase[p] { return cached }
+        guard let plan, let person, let burn = planBurnKcal else { return planResult }
+        let r = DietTargets.resolve(plan, person: person, burnKcal: burn, kcalPerKg: kcalPerKg, phase: p)
+        resultByPhase[p] = r
+        return r
+    }
+
     private func resolvePlan() {
+        resultByPhase = [:]
+        goalReachedDay = plan.flatMap { p in
+            DietProgram.goalReachedDay(plan: p, goalWeightKg: person.flatMap { DietTargets.plannedGoalWeight(p, person: $0) },
+                                       weighIns: recentWeights)
+        }
         defer { updateProgress() }
         guard let plan, let person, let burn = planBurnKcal else { planResult = nil; return }
         planResult = DietTargets.resolve(plan, person: person, burnKcal: burn, kcalPerKg: kcalPerKg)
@@ -140,7 +164,7 @@ final class ForgeFoodModel {
         return DietForecast.project(startKg: person?.weightKg ?? plan.startWeightKg, goalKg: planResult.goalWeightKg,
                                     intakeKcal: planResult.averageKcal, burnKcal: planResult.burnKcal,
                                     kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg,
-                                    dietBreakEveryWeeks: plan.dietBreakEveryWeeks)
+                                    dietBreakEveryWeeks: DietProgram.dietBreakEveryWeeks(plan))
     }
 
     /// Saves a plan from the planner or the plan page and recomputes every goal from it.
@@ -165,7 +189,7 @@ final class ForgeFoodModel {
         guard let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: .now) else { return }
         let logged = Set(((try? await store.foodLogEntries(from: Repository.localDayKey(weekStart), to: today)) ?? []).map(\.day)).count
         let outcome = DietAdjust.weekly(plan: current, result: planResult, weighIns: weights, loggedDays: logged,
-                                        today: today, kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg)
+                                        today: today, kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg, phase: phase(for: today))
         planWeek = outcome
         planWeekApplied = false
         guard outcome.hold == nil else { return }
@@ -238,6 +262,7 @@ final class ForgeFoodModel {
         #endif
         resolvePlan()
         await weeklyCheck(repo: repo, store: store)
+        await loadAdvice(store: store)
         burnRevision += 1
         male = profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil
         references = FoodReference.values(profileSex: profile.sex, age: Int(profile.age), weightKg: profile.weightKg,
@@ -276,11 +301,22 @@ final class ForgeFoodModel {
     @ObservationIgnored private var strengthChangePercent: Double?
     /// Days with logged strength training over the last months: training days for the plan's shift.
     private(set) var strengthDays: Set<String> = []
+    /// Training days: the training planner's sessions and logged strength training.
+    var training: DietTrainingDays { DietTrainingDays(planned: plannedTrainingDays, logged: strengthDays) }
+    /// Days the training planner has a strength or hard session on, from four weeks back to two ahead.
+    private(set) var plannedTrainingDays: Set<String> = []
 
-    /// Whether `day` is a training day for the plan (planned weekday or logged strength training).
+    /// Whether `day` is a training day for the plan.
     func isTrainingDay(_ day: String) -> Bool {
         guard let plan else { return false }
-        return DietTargets.isTrainingDay(day, plan: plan, strengthDays: strengthDays)
+        return DietTargets.isTrainingDay(day, plan: plan, training: training)
+    }
+
+    /// The training planner's training days in the coming week, for the planner's training step.
+    var plannedTrainingDaysThisWeek: [String] {
+        let today = Repository.localDayKey(.now)
+        let until = Repository.localDayKey(Calendar.current.date(byAdding: .day, value: 6, to: .now) ?? .now)
+        return plannedTrainingDays.filter { $0 >= today && $0 <= until }.sorted()
     }
 
     /// Weekdays the wearer trained strength on at least twice in the last four weeks, at most the five most frequent
@@ -295,18 +331,72 @@ final class ForgeFoodModel {
             .prefix(5).map(\.key).sorted()
     }
 
+    // MARK: Suggestions (owner, 2026-11-10)
+
+    /// This week's suggestions for the plan, at most three.
+    private(set) var advice: [DietAdvice.Suggestion] = []
+    @ObservationIgnored private var strengthChange4Weeks: Double?
+    private static let adviceDismissedKey = "food.advice.dismissed"
+
+    /// Monday of this week, so a dismissed suggestion comes back the week after.
+    private static var adviceWeek: String {
+        var c = Calendar.current; c.firstWeekday = 2
+        return Repository.localDayKey(c.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now)
+    }
+
+    private func loadAdvice(store: WhoopStore) async {
+        guard let plan, let planResult else { advice = []; return }
+        let cal = Calendar.current
+        func key(_ back: Int) -> String { Repository.localDayKey(cal.date(byAdding: .day, value: -back, to: .now) ?? .now) }
+        let today = key(0)
+        let days21 = await FoodLog.totals(store: store, from: key(20), to: today).filter { !$0.totals.isEmpty }
+        let last7 = days21.filter { $0.day >= key(6) }
+        let proteins = last7.compactMap { $0.totals[.proteinG] }
+        let weights7 = recentWeights.filter { $0.day >= key(6) }.count
+        let trend = DietAdjust.slopePerWeek(recentWeights.filter { $0.day >= key(20) })
+        let age = WeightSeries.date(forDay: plan.startDay).flatMap { cal.dateComponents([.day], from: $0, to: .now).day } ?? 0
+        let p = phase(for: today)
+        let inputs = DietAdvice.Inputs(goal: planResult.goal, proteinMeanG: proteins.isEmpty ? nil : proteins.reduce(0, +) / Double(proteins.count),
+                                       proteinGoalG: planResult.proteinG, weighInsLast7: weights7, loggedDaysLast7: last7.count,
+                                       strengthChange4WeeksPercent: strengthChange4Weeks, trend3WeeksKgPerWeek: trend,
+                                       loggedDaysLast21: days21.count, inBreakOrHolding: p != .main, planAgeDays: age)
+        let dismissed = Set((UserDefaults.standard.stringArray(forKey: Self.adviceDismissedKey) ?? [])
+            .filter { $0.hasPrefix(Self.adviceWeek + ":") }
+            .compactMap { DietAdvice.Kind(rawValue: String($0.dropFirst(Self.adviceWeek.count + 1))) })
+        advice = DietAdvice.suggestions(inputs, dismissed: dismissed)
+    }
+
+    /// Takes a suggestion that changes the plan; one that opens a page is handled by the page.
+    func takeAdvice(_ s: DietAdvice.Suggestion) {
+        guard let plan, let next = DietAdvice.applying(s, to: plan, today: Repository.localDayKey(.now)) else { return }
+        savePlan(next)
+        dismissAdvice(s)
+    }
+
+    /// Hides a suggestion for the rest of this week.
+    func dismissAdvice(_ s: DietAdvice.Suggestion) {
+        var list = (UserDefaults.standard.stringArray(forKey: Self.adviceDismissedKey) ?? []).filter { $0.hasPrefix(Self.adviceWeek + ":") }
+        list.append(Self.adviceWeek + ":" + s.kind.rawValue)
+        UserDefaults.standard.set(list, forKey: Self.adviceDismissedKey)
+        advice.removeAll { $0.kind == s.kind }
+    }
+
     /// Body fat, waist and strength for recomposition, read once per load.
     private func loadBody(repo: Repository) async {
         let metrics = await repo.bodyMetrics(days: 365)
         bodyFatReadings = metrics.series("body_fat").map { ($0.day, $0.value) }
         waistReadings = metrics.series("waist").map { ($0.day, $0.value) }
         person?.bodyFatPercent = metrics.latest("body_fat")?.value
+        plannedTrainingDays = DietTrainingPlan.days(from: CoachPlanStore.shared.proposals)
         let history = await repo.resolvedStrengthHistory(days: 365)
         let offset = TimeZone.current.secondsFromGMT()
         strengthDays = Set(TrainingLoadLanes.strengthByDay(history.workouts, tzOffsetSeconds: offset).filter { $0.value > 0 }.keys)
         strengthChangePercent = plan.flatMap { p in
             Self.strengthChange(workouts: history.workouts, templates: history.templates, since: p.startDay, offset: offset)
         }
+        strengthChange4Weeks = Self.strengthChange(workouts: history.workouts, templates: history.templates,
+                                                   since: Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -28, to: .now) ?? .now),
+                                                   offset: offset)
     }
 
     /// The main lifts' change since `since`, in percent: the three most-trained exercises, each from its first best

@@ -140,7 +140,21 @@ struct DietExplainCard: View {
     let image: String
     let title: String
     let text: String
-    @State private var showsSources = false
+    var sources: String = DietText.sources
+    @State private var expanded = false
+
+    /// The first two sentences, shown before "Read more"; a short text shows whole.
+    private var lead: String {
+        var count = 0
+        for i in text.indices {
+            let c = text[i]
+            if c == "。" || c == "！" || c == "？" || ((c == "." || c == "!" || c == "?") && text.index(after: i) < text.endIndex && text[text.index(after: i)] == " ") {
+                count += 1
+                if count == 2 { return String(text[...i]) }
+            }
+        }
+        return text
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -148,17 +162,17 @@ struct DietExplainCard: View {
                 .frame(maxWidth: .infinity).frame(height: 150).clipped()
                 .clipShape(.rect(cornerRadius: ForgeRadius.inner))
                 .accessibilityHidden(true)
-            HStack {
-                Text(title).font(.headline).foregroundStyle(ForgeColor.text)
-                Spacer()
-                Button("Sources", systemImage: "info.circle") { showsSources.toggle() }
-                    .labelStyle(.iconOnly).foregroundStyle(ForgeColor.secondary)
-                    .frame(minWidth: 44, minHeight: 44)
+            Text(title).font(.headline).foregroundStyle(ForgeColor.text)
+            Text(expanded ? text : lead).font(.subheadline).foregroundStyle(ForgeColor.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if expanded {
+                Text(sources).font(.caption).foregroundStyle(ForgeColor.secondary)
             }
-            Text(text).font(.subheadline).foregroundStyle(ForgeColor.secondary).fixedSize(horizontal: false, vertical: true)
-            if showsSources {
-                Text(DietText.sources).font(.caption).foregroundStyle(ForgeColor.secondary)
+            Button(expanded ? String(localized: "Show less") : String(localized: "Read more")) {
+                withAnimation(.smooth) { expanded.toggle() }
             }
+            .font(.subheadline.weight(.semibold)).tint(ForgeColor.accent)
+            .frame(minHeight: 44)
         }
         .forgeCard(padding: 12)
     }

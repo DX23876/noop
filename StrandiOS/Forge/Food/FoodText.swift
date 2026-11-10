@@ -15,6 +15,16 @@ enum FoodText {
         return value.formatted(.number.precision(.fractionLength(0...(value < 10 ? 1 : 0))).locale(AppLanguage.activeLocale))
     }
 
+    /// The plan's phase of a day, on the plate.
+    static func phase(_ p: DietProgram.Phase) -> String {
+        switch p {
+        case .main: ""
+        case .dietBreak: String(localized: "Break week: eat what you burn")
+        case .transition: String(localized: "Goal reached: stepping down to holding")
+        case .holding: String(localized: "Holding your goal weight")
+        }
+    }
+
     static func percent(_ share: Double) -> String {
         share.formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale))
     }

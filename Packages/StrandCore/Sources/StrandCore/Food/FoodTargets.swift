@@ -74,11 +74,11 @@ extension FoodTargets {
     /// The calorie goal for `day` from the wearer's diet plan (decision 2026-11-09), which outranks the older fixed
     /// goal and the energy plan's rate. On a fasting form's fasting day it is that day's own figure.
     /// `activeBonusKcal` is the day's extra from `DietActiveDay`, added on top.
-    /// `strengthDays` are the days with logged strength training, for the plan's training-day shift.
+    /// `training` are the plan's training days (training planner and logged strength), for the training-day shift.
     public static func calories(plan: DietPlan, result: DietTargets.Result, day: String,
-                                activeBonusKcal: Double = 0, strengthDays: Set<String> = []) -> Calories {
+                                activeBonusKcal: Double = 0, training: DietTrainingDays = .init()) -> Calories {
         let bonus = max(0, activeBonusKcal)
-        return Calories(kcal: DietTargets.kcal(on: day, plan: plan, result: result, strengthDays: strengthDays) + bonus,
+        return Calories(kcal: DietTargets.kcal(on: day, plan: plan, result: result, training: training) + bonus,
                         burnKcal: result.burnKcal,
                         planDeltaKcal: result.averageKcal - result.burnKcal, basis: .plan,
                         activeBonusKcal: bonus > 0 ? bonus : nil)
@@ -88,9 +88,9 @@ extension FoodTargets {
     /// An active day's extra goes to carbohydrate alone: protein and fat stay what the plan set.
     /// The training-day shift goes the same way: carbohydrate moves, protein and fat stay.
     public static func macros(plan: DietPlan, result: DietTargets.Result, day: String,
-                              activeBonusKcal: Double = 0, strengthDays: Set<String> = []) -> Macros {
+                              activeBonusKcal: Double = 0, training: DietTrainingDays = .init()) -> Macros {
         var macros = planMacros(plan: plan, result: result, day: day)
-        let shift = DietTargets.shiftKcal(on: day, plan: plan, result: result, strengthDays: strengthDays)
+        let shift = DietTargets.shiftKcal(on: day, plan: plan, result: result, training: training)
         macros.carbsG = max(0, macros.carbsG + (max(0, activeBonusKcal) + shift) / 4)
         return macros
     }

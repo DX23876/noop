@@ -167,6 +167,7 @@ enum DietText {
         case .fewLoggedDays: String(localized: "Too few logged days this week to judge. Forge keeps your goal.")
         case .fewWeighIns: String(localized: "Too few weigh-ins this week to see a trend. Forge keeps your goal.")
         case .onPlan: String(localized: "Your weight follows the plan. Nothing to change.")
+        case .dietBreak: String(localized: "This is a break week at maintenance. Forge looks again after it.")
         }
     }
 
@@ -183,6 +184,38 @@ enum DietText {
     static let explainRecompTitle = String(localized: "What is recomposition?")
     static let explainRecomp = String(localized: "Your weight stays about where it is while fat goes down and muscle builds up. It works best for people new to strength training, coming back to it, or carrying more body fat; for lean people who have trained for years it is slow, and alternating a light surplus with a light deficit usually works better. It needs regular strength training, plenty of protein and enough sleep, and it takes months, not weeks. The scale barely moves, so Forge watches body fat or your waist and your strength instead.")
     static let recompSources = String(localized: "Sources: a review of body recomposition in trained people (Barakat and others, 2020) and a review of protein needs in a calorie deficit (Helms and others, 2014), which puts them at 2.3 to 3.1 g per kilogram of fat-free mass.")
+
+    // MARK: Suggestions
+
+    static func adviceTitle(_ k: DietAdvice.Kind) -> String {
+        switch k {
+        case .proteinLow: String(localized: "More protein")
+        case .weighMore: String(localized: "Weigh in more often")
+        case .logMore: String(localized: "Log a few more days")
+        case .strengthStalled: String(localized: "Your lifts stand still")
+        case .lossStalled: String(localized: "Your weight stands still")
+        }
+    }
+
+    static func adviceReason(_ k: DietAdvice.Kind) -> String {
+        switch k {
+        case .proteinLow: String(localized: "This week you reached less than four fifths of your protein. It protects muscle, above all in a deficit.")
+        case .weighMore: String(localized: "With fewer than three weigh-ins a week Forge cannot see a trend, so the weekly check waits.")
+        case .logMore: String(localized: "With fewer than five logged days the weekly check holds your goal as it is.")
+        case .strengthStalled: String(localized: "Your main lifts have not moved for four weeks. A little more food often gets them going again.")
+        case .lossStalled: String(localized: "Your trend has hardly moved for three weeks although you logged well. A week at maintenance often helps more than cutting further.")
+        }
+    }
+
+    static func adviceAction(_ a: DietAdvice.Action) -> String {
+        switch a {
+        case .showProteinFoods: String(localized: "Show protein foods")
+        case .openWeight: String(localized: "Weigh in")
+        case .openLog: String(localized: "Log food")
+        case .addKcal: String(localized: "Add 100 kcal")
+        case .takeBreakWeek: String(localized: "Take a break week")
+        }
+    }
 
     /// How well recomposition fits, from experience and body fat.
     static func recompFit(_ e: DietPlan.Experience?, bodyFat: Double?, male: Bool?) -> String {
@@ -221,6 +254,12 @@ enum DietText {
 enum DietArt {
     static func goal(_ g: DietPlan.Goal) -> String {
         named("dietGoal_\(g.rawValue)", fallback: g == .gain ? "foodMotif_poultry" : g == .lose ? "foodMotif_vegetables" : "foodScoreHero")
+    }
+
+    /// The goal as a fitness photo of a woman or a man, by the profile; the meal still life without a sex set.
+    static func goal(_ g: DietPlan.Goal, male: Bool?) -> String {
+        guard let male else { return goal(g) }
+        return named("dietGoal_\(g.rawValue)_\(male ? "m" : "f")", fallback: goal(g))
     }
 
     static func form(_ f: DietForm) -> String {

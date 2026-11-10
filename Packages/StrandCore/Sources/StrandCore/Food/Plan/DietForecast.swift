@@ -71,7 +71,7 @@ public enum DietForecast {
 /// week since the last change has not passed.
 public enum DietAdjust {
     public enum Hold: String, Sendable, Codable {
-        case manualSteering, tooEarly, notAWeekYet, fewLoggedDays, fewWeighIns, onPlan
+        case manualSteering, tooEarly, notAWeekYet, fewLoggedDays, fewWeighIns, onPlan, dietBreak
     }
 
     public struct Outcome: Equatable, Sendable, Codable {
@@ -89,12 +89,15 @@ public enum DietAdjust {
 
     /// `weighIns` are (day, kg) of the last 21 days; `loggedDays` counts days with a food log in the last 7.
     public static func weekly(plan: DietPlan, result: DietTargets.Result, weighIns: [(day: String, kg: Double)],
-                              loggedDays: Int, today: String, kcalPerKg: Double = DietTargets.defaultKcalPerKg) -> Outcome {
+                              loggedDays: Int, today: String, kcalPerKg: Double = DietTargets.defaultKcalPerKg,
+                              phase: DietProgram.Phase = .main) -> Outcome {
         let planned = result.paceKgPerWeek
         func hold(_ h: Hold, trend: Double? = nil) -> Outcome {
             Outcome(changeKcal: 0, hold: h, trendKgPerWeek: trend, plannedKgPerWeek: planned)
         }
         guard plan.steering != .manual else { return hold(.manualSteering) }
+        // A break week eats the burn on purpose; judging its trend against the deficit would cut calories wrongly.
+        guard phase != .dietBreak else { return hold(.dietBreak) }
         guard let todayDate = WeightSeries.date(forDay: today), let start = WeightSeries.date(forDay: plan.startDay),
               todayDate.timeIntervalSince(start) >= 14 * 86_400 else { return hold(.tooEarly) }
         if let last = plan.lastAdjustedDay.flatMap(WeightSeries.date(forDay:)), todayDate.timeIntervalSince(last) < 7 * 86_400 {
@@ -105,8 +108,9 @@ public enum DietAdjust {
             WeightSeries.date(forDay: w.day).map { todayDate.timeIntervalSince($0) < 7 * 86_400 } ?? false
         }
         guard lastWeek.count >= 3, weighIns.count >= 5, let trend = slopePerWeek(weighIns) else { return hold(.fewWeighIns) }
-        // Recomposition holds the weight in a band (0 ± 0.25 % a week) and steps 100 kcal when the trend leaves it.
-        if result.goal == .recomp {
+        // Recomposition and holding (also after the goal is reached) keep the weight in a band (0 ± 0.25 % a week)
+        // and step 100 kcal when the trend leaves it.
+        if result.goal == .recomp || result.goal == .maintain || phase == .holding || phase == .transition {
             let band = (weighIns.last?.kg ?? 0) * 0.0025
             guard abs(trend) > band else { return hold(.onPlan, trend: trend) }
             return Outcome(changeKcal: trend < 0 ? recompStepKcal : -recompStepKcal, hold: nil, trendKgPerWeek: trend,
@@ -120,7 +124,7 @@ public enum DietAdjust {
     }
 
     /// Least-squares slope of the weigh-ins, in kilograms a week: the trend, never one reading.
-    static func slopePerWeek(_ points: [(day: String, kg: Double)]) -> Double? {
+    public static func slopePerWeek(_ points: [(day: String, kg: Double)]) -> Double? {
         let xy = points.compactMap { p in WeightSeries.date(forDay: p.day).map { ($0.timeIntervalSince1970 / 86_400, p.kg) } }
         guard xy.count >= 2 else { return nil }
         let mx = xy.map(\.0).reduce(0, +) / Double(xy.count), my = xy.map(\.1).reduce(0, +) / Double(xy.count)
