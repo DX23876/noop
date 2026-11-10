@@ -1881,9 +1881,6 @@ enum ForgeRecentSleep {
         let awake: Double
     }
 
-    /// Below this a block off the main night is a detector crumb, not a nap.
-    private static let napMinutes = 10.0
-
     static func load(repo: Repository, days: Int) async -> (nights: [Night], naps: [ForgeTimeline.Nap]) {
         let sessions = await repo.allSleepSessions(days: days)
         let habitual = await repo.habitualMidsleepSec()
@@ -1902,13 +1899,10 @@ enum ForgeRecentSleep {
                                 asleepMinutes: asleep,
                                 deep: stages.reduce(0) { $0 + $1.deep }, rem: stages.reduce(0) { $0 + $1.rem },
                                 light: stages.reduce(0) { $0 + $1.light }, awake: stages.reduce(0) { $0 + $1.awake }))
-            let mainStarts = Set(main.map(\.startTs))
-            for block in group where !mainStarts.contains(block.startTs) {
-                let minutes = SleepNight.asleepMinutes(block.stagesJSON, effectiveStartTs: block.effectiveStartTs)
-                if minutes >= napMinutes {
-                    naps.append(.init(start: Date(timeIntervalSince1970: TimeInterval(block.effectiveStartTs)),
-                                      end: Date(timeIntervalSince1970: TimeInterval(block.endTs)), minutesAsleep: minutes))
-                }
+            for block in SleepNight.naps(group, mainGroup: main) {
+                naps.append(.init(start: Date(timeIntervalSince1970: TimeInterval(block.effectiveStartTs)),
+                                  end: Date(timeIntervalSince1970: TimeInterval(block.endTs)),
+                                  minutesAsleep: SleepNight.asleepMinutes(block.stagesJSON, effectiveStartTs: block.effectiveStartTs)))
             }
         }
         return (nights, naps)

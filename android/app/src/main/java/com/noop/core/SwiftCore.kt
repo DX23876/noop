@@ -71,6 +71,7 @@ object SwiftCore {
     // Reads for the screens (CoreRead): JSON, or null; they block until the store answers.
     external fun readDay(day: String): String?
     external fun readNights(from: Long, to: Long): String?
+    external fun readNaps(from: Long, to: Long): String?
     external fun readSeries(metric: String, from: String, to: String): String?
     external fun readHeartRate(from: Long, to: Long): String?
     // Backups (CoreBackup): one result line, "done", "imported", "tooLarge:<entry>" or "failed:<why>".

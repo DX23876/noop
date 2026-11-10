@@ -28,6 +28,22 @@ final class SleepNightTests: XCTestCase {
         XCTAssertEqual(night?.minutes.deep, 51.5)
     }
 
+    /// The naps are the blocks off the main group, whatever their length: the evening block of 2026-10-24 is one,
+    /// the split night's two blocks are not, and a five-minute crumb is too small to count.
+    func testNapsAreTheBlocksOffTheMainNight() throws {
+        let d = 1_761_264_000
+        let first = block(d - 10_200, d + 3_000, [("light", d - 10_200, d - 3_000), ("deep", d - 3_000, d + 3_000)])
+        let second = block(d + 4_620, d + 21_780, [("light", d + 4_620, d + 14_000), ("rem", d + 14_000, d + 21_780)])
+        let nap = block(d + 62_640, d + 70_020, [("light", d + 62_640, d + 70_020)])
+        let crumb = block(d + 50_000, d + 50_300, [("light", d + 50_000, d + 50_300)])
+        let day = try XCTUnwrap(SleepNight.days([first, second, nap, crumb], calendar: utcCalendar()).first)
+        let group = SleepNight.mainGroup(day, offsetSec: utc)
+        XCTAssertEqual(SleepNight.naps(day, mainGroup: group).map(\.startTs), [nap.startTs])
+        // A day with only a short night has no nap: two hours of sleep is still the night.
+        let short = block(d + 14_400, d + 21_600, [("light", d + 14_400, d + 21_600)])
+        XCTAssertTrue(SleepNight.naps([short], mainGroup: SleepNight.mainGroup([short], offsetSec: utc)).isEmpty)
+    }
+
     func testASplitNightIsOneNightAndTheEveningNapIsNot() throws {
         let d = 1_761_264_000   // 2026-10-24 00:00 UTC
         let first = block(d - 10_200, d + 3_000, [("light", d - 10_200, d - 3_000), ("deep", d - 3_000, d + 3_000)])

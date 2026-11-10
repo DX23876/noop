@@ -65,6 +65,10 @@ public enum Bridge {
         blocking { reader in CoreRead.json(await CoreRead.nights(from: from, to: to, reader: reader)) }
     }
 
+    public static func readNaps(from: Int, to: Int) -> String? {
+        blocking { reader in CoreRead.json(await CoreRead.naps(from: from, to: to, reader: reader)) }
+    }
+
     public static func readHeartRate(from: Int, to: Int) -> String? {
         blocking { reader in CoreRead.json(await CoreRead.heartRate(from: from, to: to, reader: reader)) }
     }

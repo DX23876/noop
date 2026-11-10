@@ -42,6 +42,9 @@ object CoreRead {
         data class Stage(val stage: String, val start: Long, val end: Long)
     }
 
+    /** A sleep block off a day's main night (Swift `SleepNight.naps`); times are epoch seconds. */
+    data class Nap(val startTs: Long, val endTs: Long, val asleepMinutes: Double)
+
     /** The mean heart rate of one five-minute stretch starting at [ts] (unix seconds). */
     data class HeartPoint(val ts: Long, val bpm: Double)
 
@@ -74,6 +77,8 @@ object CoreRead {
     fun day(day: String): Day? = read { SwiftCore.readDay(day) }?.let(::parseDay)
 
     fun nights(from: Long, to: Long): List<Night> = read { SwiftCore.readNights(from, to) }?.let(::parseNights).orEmpty()
+
+    fun naps(from: Long, to: Long): List<Nap> = read { SwiftCore.readNaps(from, to) }?.let(::parseNaps).orEmpty()
 
     fun series(metric: Metric, from: String, to: String): List<Point> =
         read { SwiftCore.readSeries(metric.key, from, to) }?.let(::parseSeries).orEmpty()
@@ -117,6 +122,13 @@ object CoreRead {
             }
             Night(o.getLong("startTs"), o.getLong("endTs"), o.double("efficiency"), o.int("restingHr"),
                   o.double("hrv"), o.getBoolean("edited"), stages, minutes)
+        }
+    }
+
+    internal fun parseNaps(json: String): List<Nap> {
+        val a = JSONArray(json)
+        return (0 until a.length()).map { i ->
+            a.getJSONObject(i).let { Nap(it.getLong("startTs"), it.getLong("endTs"), it.getDouble("asleepMinutes")) }
         }
     }
 

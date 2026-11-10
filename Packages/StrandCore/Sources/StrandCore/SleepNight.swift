@@ -158,6 +158,21 @@ public enum SleepNight {
         return idx.map { sessions[$0] }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
     }
 
+    /// Below this many asleep minutes a block off the main night is a detector crumb, not a nap.
+    public static let napMinAsleepMinutes = 10.0
+
+    /// The day's naps: blocks outside its main-night group (`mainGroup`) with at least `napMinAsleepMinutes`
+    /// asleep, oldest first. A nap is "not the main night", never a duration gate, so a short night stays the
+    /// night and the label cannot contradict the pick (#518). The Apple timeline and the Android core read both use
+    /// this one rule.
+    public static func naps(_ day: [CachedSleepSession], mainGroup: [CachedSleepSession]) -> [CachedSleepSession] {
+        let mainStarts = Set(mainGroup.map(\.startTs))
+        return day.filter {
+            !mainStarts.contains($0.startTs)
+                && asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs) >= napMinAsleepMinutes
+        }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+    }
+
     /// The night's DISPLAYED onset (bedtime): the first fragment that is not a spurious leading pre-onset awake
     /// stub, falling back to the earliest onset when the whole group is stub-like. (#736, #259)
     public static func onsetTs(_ group: [CachedSleepSession]) -> Int {

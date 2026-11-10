@@ -43,6 +43,11 @@ public enum CoreRead {
         public var minutes: Minutes?
     }
 
+    /// A sleep block off a day's main night (`SleepNight.naps`), with its asleep minutes.
+    public struct Nap: Codable, Equatable, Sendable {
+        public var startTs: Int, endTs: Int, asleepMinutes: Double
+    }
+
     /// One value of a metric on one day.
     public struct Point: Codable, Equatable, Sendable {
         public var day: String, value: Double
@@ -121,6 +126,23 @@ public enum CoreRead {
                          edited: main.group.contains { $0.userEdited }, stages: stages,
                          minutes: Night.Minutes(wake: main.minutes.awake, light: main.minutes.light,
                                                 deep: main.minutes.deep, rem: main.minutes.rem))
+        }.sorted { $0.startTs < $1.startTs }
+    }
+
+    /// The naps between `from` and `to` (unix seconds), oldest first: every day's blocks outside the main night
+    /// `nights` picks, by the one rule the Apple timeline reads too (`SleepNight.naps`).
+    public static func naps(from: Int, to: Int, reader: StoreReader,
+                            offsetSec: Int = TimeZone.current.secondsFromGMT()) async -> [Nap] {
+        let sessions = await reader.allSleepSessions(from: from, to: to)
+        let now = Int(Date().timeIntervalSince1970)
+        let habitual = await reader.habitualMidsleepSec(from: now - 4000 * 86_400, to: now + 86_400,
+                                                        offsetSec: offsetSec)
+        return SleepNight.days(sessions).flatMap { day -> [Nap] in
+            let group = SleepNight.mainGroup(day, offsetSec: offsetSec, habitualMidsleepSec: habitual)
+            return SleepNight.naps(day, mainGroup: group).map {
+                Nap(startTs: $0.effectiveStartTs, endTs: $0.endTs,
+                    asleepMinutes: SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs))
+            }
         }.sorted { $0.startTs < $1.startTs }
     }
 

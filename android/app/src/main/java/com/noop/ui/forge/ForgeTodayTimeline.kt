@@ -78,14 +78,14 @@ internal object TodayTimeline {
                         val nap: Boolean) : Entry
     }
 
-    /** Below this a sleep block is a nap rather than the night. */
-    private const val NAP_SECONDS = 3 * 3600L
-
     /**
      * Today's and yesterday's entries, newest first, by the day each one ended on. Nothing that ends after [now]
-     * (a running workout belongs to the live screen). Pure, so the order and the split are tested without a store.
+     * (a running workout belongs to the live screen, as on iOS). [nights] are the core's main nights and [naps] the
+     * blocks off them (`SleepNight.naps`), so a short night stays the night. Pure, so the order and the split are
+     * tested without a store.
      */
-    fun entries(workouts: List<WorkoutRow>, nights: List<CoreRead.Night>, now: Long, zone: ZoneId): List<Entry> {
+    fun entries(workouts: List<WorkoutRow>, nights: List<CoreRead.Night>, naps: List<CoreRead.Nap>, now: Long,
+                zone: ZoneId): List<Entry> {
         val today = Instant.ofEpochSecond(now).atZone(zone).toLocalDate()
         fun inRange(ts: Long): Boolean {
             val day = Instant.ofEpochSecond(ts).atZone(zone).toLocalDate()
@@ -102,8 +102,10 @@ internal object TodayTimeline {
             val staged = deep + rem + light
             val asleep = if (staged > 0) staged else (n.endTs - n.startTs) / 60.0 - awake
             if (asleep <= 0) return@forEach
-            out += Entry.Wake(n.endTs, n.startTs, asleep, deep, rem, light, awake,
-                              nap = n.endTs - n.startTs < NAP_SECONDS)
+            out += Entry.Wake(n.endTs, n.startTs, asleep, deep, rem, light, awake, nap = false)
+        }
+        naps.filter { inRange(it.endTs) && it.asleepMinutes > 0 }.forEach { n ->
+            out += Entry.Wake(n.endTs, n.startTs, n.asleepMinutes, 0.0, 0.0, 0.0, 0.0, nap = true)
         }
         return out.sortedByDescending { it.endTs }
     }
@@ -120,15 +122,17 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     val context = LocalContext.current
     val workouts by viewModel.workouts.collectAsState()
     var nights by remember { mutableStateOf<List<CoreRead.Night>>(emptyList()) }
+    var naps by remember { mutableStateOf<List<CoreRead.Nap>>(emptyList()) }
     val now = remember { System.currentTimeMillis() / 1000 }
     LaunchedEffect(Unit) {
-        nights = withContext(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             CoreRead.open(context)
-            CoreRead.nights(now - 3 * 86_400, now)
+            nights = CoreRead.nights(now - 3 * 86_400, now)
+            naps = CoreRead.naps(now - 3 * 86_400, now)
         }
     }
     val zone = ZoneId.systemDefault()
-    val entries = remember(workouts, nights) { TodayTimeline.entries(workouts, nights, now, zone) }
+    val entries = remember(workouts, nights, naps) { TodayTimeline.entries(workouts, nights, naps, now, zone) }
     val today = LocalDate.now(zone)
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(stringResource(R.string.forge_timeline_title), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),

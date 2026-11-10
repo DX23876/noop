@@ -152,6 +152,13 @@ public func jniReadNights(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?,
     return json(env, Bridge.readNights(from: Int(from), to: Int(to)))
 }
 
+@_cdecl("Java_com_noop_core_SwiftCore_readNaps")
+public func jniReadNaps(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ from: jlong,
+                        _ to: jlong) -> jstring? {
+    guard let env else { return nil }
+    return json(env, Bridge.readNaps(from: Int(from), to: Int(to)))
+}
+
 @_cdecl("Java_com_noop_core_SwiftCore_readSeries")
 public func jniReadSeries(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ metric: jstring?,
                           _ from: jstring?, _ to: jstring?) -> jstring? {

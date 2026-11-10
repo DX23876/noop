@@ -24,23 +24,35 @@ class TodayTimelineTest {
         val entries = TodayTimeline.entries(
             workouts = listOf(workout(ts(9, 18), ts(9, 19)), workout(ts(8, 7), ts(8, 8)), workout(ts(7, 7), ts(7, 8))),
             nights = listOf(night(ts(8, 23), ts(9, 7), mapOf("deep" to 90.0, "rem" to 100.0, "light" to 250.0, "wake" to 20.0))),
-            now = now, zone = zone)
+            naps = emptyList(), now = now, zone = zone)
         assertEquals(listOf(ts(9, 19), ts(9, 7), ts(8, 8)), entries.map { it.endTs })
         val wake = entries[1] as TodayTimeline.Entry.Wake
         assertEquals(440.0, wake.asleepMinutes, 0.001)
         assertTrue(!wake.nap)
     }
 
-    @Test fun leavesOutWhatEndsLaterAndMarksShortSleepAsNap() {
+    @Test fun leavesOutWhatEndsLaterAndTakesNapsFromTheCore() {
         val now = ts(9, 15)
         val entries = TodayTimeline.entries(
             workouts = listOf(workout(ts(9, 14), ts(9, 16))),
-            nights = listOf(night(ts(9, 13), ts(9, 14))),
+            nights = emptyList(),
+            naps = listOf(CoreRead.Nap(ts(9, 13), ts(9, 14), 55.0), CoreRead.Nap(ts(9, 15, 30), ts(9, 16), 25.0)),
             now = now, zone = zone)
         assertEquals(1, entries.size)
         val nap = entries.single() as TodayTimeline.Entry.Wake
         assertTrue(nap.nap)
-        assertEquals(60.0, nap.asleepMinutes, 0.001)
+        assertEquals(55.0, nap.asleepMinutes, 0.001)
+    }
+
+    @Test fun aShortMainNightStaysTheNight() {
+        // Two hours of sleep is a bad night, not a nap: only the core's pick decides (SleepNight.naps).
+        val entries = TodayTimeline.entries(
+            workouts = emptyList(),
+            nights = listOf(night(ts(9, 4), ts(9, 6), mapOf("light" to 110.0))),
+            naps = emptyList(), now = ts(9, 12), zone = zone)
+        val wake = entries.single() as TodayTimeline.Entry.Wake
+        assertTrue(!wake.nap)
+        assertEquals(110.0, wake.asleepMinutes, 0.001)
     }
 
     @Test fun writesHoursAndMinutes() {
