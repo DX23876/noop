@@ -34,7 +34,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 | Screen | iOS | Android | Gap |
 |---|---|---|---|
 | Training | This week, Start, Planned today, Your week (goals, routines), Recent activities, Key metrics, Tools | `ForgeTraining*`: start, goals, This week, Routines, Recent, Consistency, Muscle analytics, the analysis list, and in the new design the Tools group with the interval timer and Breathe, Key metrics (Effort this week, VO₂max, last 30 days) (2026-11-10) | the week summary hero, Planned today and the pace tile missing; Android keeps Consistency and Muscle analytics, which iOS shows deeper |
-| Sleep | night navigator, Rest and duration tiles, the coach button, Tonight, This night, Naps, stages, goals, Highlights, night facts, History | `ForgeSleep`, `ForgeSleepCards`: in the new design the night navigator in one line as on iOS (2026-11-10), the Rest ring, times, Alarms, goals, the arrangeable cards; in the new design the day's naps from the core (2026-11-10) | the Rest ring is the shipped hero, iOS shows tiles; Tonight, Highlights, night facts and History missing |
+| Sleep | night navigator (weekdays and clock span), Rest and duration tiles, the coach button, Tonight, This night, Naps, stages, goals, Highlights, night facts, History | `ForgeSleep`, `ForgeSleepCards`: in the new design the night navigator as on iOS and the Rest and duration tiles (2026-11-11), in the shipped design the Rest ring, times, Alarms, goals, the arrangeable cards; in the new design the day's naps from the core (2026-11-10) | the Rest ring is the shipped hero, iOS shows tiles; Tonight, Highlights, night facts and History missing |
 | Health | Vitals in range, the off-range card, editable Vitals tiles, Focus areas, Heart and stress, Body and energy, Long term and patterns | `ForgeHealthTab` (2026-11-09): vitals in range, tiles, the three groups, Trends | the off-range card is in (2026-11-10, not seen on screen: the demo data has every vital in range); tile editing and Focus areas missing; a vital tile opens the Health page because Android has no single-metric page yet (iOS opens `TabRoute.metric`) |
 | Coach | the coach inside its tab | own tab button (2026-11-09) | close |
 
@@ -70,6 +70,13 @@ Fixed:
   Today and every part of it read the logical day now; seen on the emulator at 00:04.
 
 Seen, not changed:
+- Rest's word differs between the platforms: iOS says Good, Fair or Low at 80 and 60 (`ForgeToday.restWord`),
+  Android Poor, Fair, Good or Optimal at 50, 70 and 85 (`RestWord`); 94 reads "Good" on iOS, "Optimal" on
+  Android. The owner's call which words and thresholds both should use.
+- iOS at 00:09 (simulator, demo data): the Today header names the calendar day ("Wed, Nov 11") while the
+  values follow the logical day until four; Effort showed a dash and steps "No data yet". The header date
+  comes from `ForgeLargeHeader` (`Date()`), the values from `logicalDayKey`, partly through `repo.today`.
+  Not changed on iOS without a closer look; Android shows the logical day in its header too.
 - iOS Sleep lists every block outside the main night as a nap, the timeline only those with 10 min asleep
   (`SleepNight.naps`). Hiding the short ones on Sleep would also hide their delete button, and the classic
   Sleep view counts them in the day's total, so the rule for that list is the owner's call.
