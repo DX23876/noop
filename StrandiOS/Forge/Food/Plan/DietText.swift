@@ -212,6 +212,10 @@ enum DietArt {
 
     static func explain(_ name: String) -> String { named("dietExplain_\(name)", fallback: "foodScoreHero") }
 
+    /// The way to the goal's pictures, one per stage, and the ridge for holding.
+    static func stage(_ s: DietProgress.Stage) -> String { named("dietStage_\(s.rawValue)", fallback: explain("path")) }
+    static var holding: String { named("dietStage_hold", fallback: explain("hold")) }
+
     private static func named(_ name: String, fallback: String) -> String {
         UIImage(named: name) == nil ? fallback : name
     }

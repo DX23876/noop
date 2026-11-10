@@ -16,6 +16,10 @@ struct DietPlanView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if let plan = model.plan, let r = model.planResult {
                     header(plan, r)
+                    if !plan.hideNumbers, let progress = model.progress {
+                        DietProgressCard(progress: progress,
+                                         forecastLine: model.forecast().flatMap { DietForecastText.goal($0, hasGoal: r.goalWeightKg != nil) })
+                    }
                     DietWeekCard(model: model)
                     if !plan.hideNumbers, r.goal != .maintain, let forecast = model.forecast() {
                         FoodSectionHeader(title: String(localized: "Where it is heading"))
@@ -27,6 +31,7 @@ struct DietPlanView: View {
                         }
                         .forgeCard(padding: 14)
                     }
+                    if !plan.hideNumbers, plan.steering != .manual { DietBurnCard(model: model) }
                     FoodSectionHeader(title: String(localized: "Every day"))
                     numbers(plan, r)
                     FoodSectionHeader(title: String(localized: "Foods that suit it"))
@@ -156,6 +161,14 @@ struct DietPlanView: View {
 
     private func actions(_ plan: DietPlan) -> some View {
         VStack(spacing: 10) {
+            if plan.steering != .manual {
+                DietCheckRow(title: String(localized: "More on active days"), isOn: Binding(get: { plan.activeDays == true }, set: { on in
+                    model.setActiveDays(on)
+                }))
+                Text("When your strap measures more than your usual burn, half of the extra is added to the day, as carbohydrate.")
+                    .font(.footnote).foregroundStyle(ForgeColor.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
+            }
             DietCheckRow(title: String(localized: "Hide weight and numbers"), isOn: Binding(get: { plan.hideNumbers }, set: { on in
                 var next = plan; next.hideNumbers = on; model.savePlan(next)
             }))

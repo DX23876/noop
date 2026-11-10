@@ -15,6 +15,8 @@ public enum FoodTargets {
         /// The plan's daily deficit (negative) or surplus (positive); zero when the wearer holds weight.
         public var planDeltaKcal: Double
         public var basis: CalorieBasis
+        /// The part of `kcal` an active day added (`DietActiveDay`); nil or zero on an ordinary day.
+        public var activeBonusKcal: Double?
     }
 
     /// The calorie goal: the measured usual burn of the last weeks (strap and Health), else the formula's,
@@ -71,13 +73,25 @@ extension FoodTargets {
 
     /// The calorie goal for `day` from the wearer's diet plan (decision 2026-11-09), which outranks the older fixed
     /// goal and the energy plan's rate. On a fasting form's fasting day it is that day's own figure.
-    public static func calories(plan: DietPlan, result: DietTargets.Result, day: String) -> Calories {
-        Calories(kcal: DietTargets.kcal(on: day, plan: plan, result: result), burnKcal: result.burnKcal,
-                 planDeltaKcal: result.averageKcal - result.burnKcal, basis: .plan)
+    /// `activeBonusKcal` is the day's extra from `DietActiveDay`, added on top.
+    public static func calories(plan: DietPlan, result: DietTargets.Result, day: String,
+                                activeBonusKcal: Double = 0) -> Calories {
+        let bonus = max(0, activeBonusKcal)
+        return Calories(kcal: DietTargets.kcal(on: day, plan: plan, result: result) + bonus, burnKcal: result.burnKcal,
+                        planDeltaKcal: result.averageKcal - result.burnKcal, basis: .plan,
+                        activeBonusKcal: bonus > 0 ? bonus : nil)
     }
 
     /// Macro goals from the diet plan; on a fasting day scaled to that day's calories.
-    public static func macros(plan: DietPlan, result: DietTargets.Result, day: String) -> Macros {
+    /// An active day's extra goes to carbohydrate alone: protein and fat stay what the plan set.
+    public static func macros(plan: DietPlan, result: DietTargets.Result, day: String,
+                              activeBonusKcal: Double = 0) -> Macros {
+        var macros = planMacros(plan: plan, result: result, day: day)
+        macros.carbsG += max(0, activeBonusKcal) / 4
+        return macros
+    }
+
+    static func planMacros(plan: DietPlan, result: DietTargets.Result, day: String) -> Macros {
         let kcal = DietTargets.kcal(on: day, plan: plan, result: result)
         let scale = result.averageKcal > 0 ? kcal / result.averageKcal : 1
         // Protein holds on eating days (it protects muscle); carbohydrate and fat take the difference.

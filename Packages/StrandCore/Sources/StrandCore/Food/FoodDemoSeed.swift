@@ -86,6 +86,14 @@ public enum FoodDemoSeed {
         }
         guard !entries.isEmpty, await FoodLog.save(store: store, entries) else { return 0 }
 
+        // Most past days marked as completely logged, so the real burn has days to work from; every sixth is
+        // left unmarked, as a wearer forgets now and then.
+        for offset in 0..<(days - 1) where offset % 6 != 5 {
+            if let day = calendar.date(byAdding: .day, value: offset, to: start) {
+                try? await store.setFoodDayComplete(StoreReader.localDayKey(day), true, at: Int(now.timeIntervalSince1970))
+            }
+        }
+
         // A recipe and two favourites, so "My foods" and "Favourites" are not empty.
         if let recipe = FoodLog.recipe(name: english ? "Porridge with berries" : "Porridge mit Beeren", from: entries.filter { $0.day == StoreReader.localDayKey(start) && $0.loggedAt == entries[0].loggedAt },
                                        servings: 1) {

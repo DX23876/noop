@@ -18,7 +18,9 @@ final class ForgeFoodModel {
     /// The shown day's calorie goal: the diet plan's for that day when there is one (a fasting day has its own),
     /// otherwise the base goal. One resolver for the plate, the figures and the week strip.
     var calories: FoodTargets.Calories? {
-        if let plan, let planResult { return FoodTargets.calories(plan: plan, result: planResult, day: day) }
+        if let plan, let planResult {
+            return FoodTargets.calories(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal)
+        }
         return baseCalories
     }
     private(set) var nutrients: FoodNutrientReport.Report?
@@ -26,7 +28,9 @@ final class ForgeFoodModel {
     private(set) var dayNutrients: FoodNutrientReport.Report?
     /// Gram goals for protein, carbohydrate and fat, from the calorie goal and the wearer's split.
     var macroGoals: FoodTargets.Macros? {
-        if let plan, let planResult { return FoodTargets.macros(plan: plan, result: planResult, day: day) }
+        if let plan, let planResult {
+            return FoodTargets.macros(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal)
+        }
         guard let kcal = calories?.kcal else { return nil }
         let d = UserDefaults.standard, split = FoodTargets.defaultSplit
         func share(_ key: String, _ fallback: Double) -> Double { d.object(forKey: key) as? Double ?? fallback }
@@ -88,12 +92,36 @@ final class ForgeFoodModel {
     private(set) var planWeekApplied = false
     @ObservationIgnored private(set) var person: DietPerson?
     @ObservationIgnored private(set) var planBurnKcal: Double?
+    /// The strap's usual burn for a whole day, whatever the plan starts from; active days are measured against it.
+    @ObservationIgnored private var strapBurnKcal: Double?
+    /// The real burn from completely logged days and the weight trend, or what it still needs (owner, 2026-11-10).
+    private(set) var expenditure: DietExpenditure.Outcome?
+    /// The shown day is marked as completely logged.
+    private(set) var dayComplete = false
+    /// The way to the goal weight, or holding, from the weight trend.
+    private(set) var progress: DietProgress.Progress?
+
+    /// The real burn divided by the strap's, when both are known.
+    var realToStrap: Double? {
+        if case .estimate(let e) = expenditure { return e.realToStrap }
+        return nil
+    }
+
+    /// The extra calories an active day brings for the shown day; zero when the plan has it off.
+    var activeBonusKcal: Double {
+        _ = burnRevision
+        guard let plan, let strap = strapBurnKcal else { return 0 }
+        return DietActiveDay.bonusKcal(plan: plan, day: day, burnedKcal: burnedByDay[day], usualStrapKcal: strap,
+                                       elapsedFraction: DietActiveDay.elapsedFraction(day: day, now: .now),
+                                       realToStrap: realToStrap)
+    }
     @ObservationIgnored private(set) var kcalPerKg: Double?
 
     /// Today's weight for the planner's starting point.
     var currentWeightKg: Double? { person?.weightKg }
 
     private func resolvePlan() {
+        defer { updateProgress() }
         guard let plan, let person, let burn = planBurnKcal else { planResult = nil; return }
         planResult = DietTargets.resolve(plan, person: person, burnKcal: burn, kcalPerKg: kcalPerKg)
     }
@@ -192,11 +220,15 @@ final class ForgeFoodModel {
         person = DietPerson(weightKg: profile.weightKg, heightCm: profile.heightCm > 0 ? profile.heightCm : nil,
                             age: profile.age > 0 ? Int(profile.age) : nil,
                             male: profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil)
-        planBurnKcal = energy.burn.measuredMeanKcal ?? energy.burn.allDaysMeanKcal ?? energy.formulaTdee(profile: profile)
+        strapBurnKcal = energy.burn.measuredMeanKcal ?? energy.burn.allDaysMeanKcal ?? energy.formulaTdee(profile: profile)
         kcalPerKg = energy.observedKcalPerKg
+        burnedByDay = energy.burnedByDay
+        await loadTracker(repo: repo, store: store)
+        #if DEBUG
+        seedDemoPlanIfRequested()
+        #endif
         resolvePlan()
         await weeklyCheck(repo: repo, store: store)
-        burnedByDay = energy.burnedByDay
         burnRevision += 1
         male = profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil
         references = FoodReference.values(profileSex: profile.sex, age: Int(profile.age), weightKg: profile.weightKg,
@@ -209,6 +241,72 @@ final class ForgeFoodModel {
         }
     }
 
+    /// The real burn and the way to the goal: completely logged days, intake and weigh-ins of the last weeks.
+    /// The plan starts from the real burn when the wearer chose it and it is known, otherwise from the strap.
+    private func loadTracker(repo: Repository, store: WhoopStore) async {
+        let today = Repository.localDayKey(.now)
+        let from = Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -(DietExpenditure.windowDays - 1),
+                                                                to: .now) ?? .now)
+        let complete = (try? await store.foodCompleteDays(from: from, to: today)) ?? []
+        let intake = Dictionary(await FoodLog.totals(store: store, from: from, to: today)
+            .compactMap { pair in pair.totals[.energyKcal].map { (pair.day, $0) } }, uniquingKeysWith: { a, _ in a })
+        let weights = await repo.weightDailyValues(days: 120).map { (day: $0.day, kg: $0.value) }
+        expenditure = DietExpenditure.estimate(intakeByDay: intake, completeDays: complete, weighIns: weights,
+                                               strapByDay: burnedByDay, today: today,
+                                               kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg)
+        if plan?.burnSource == .scale, case .estimate(let e) = expenditure { planBurnKcal = e.burnKcal }
+        else { planBurnKcal = strapBurnKcal }
+        recentWeights = weights
+    }
+
+    @ObservationIgnored private var recentWeights: [(day: String, kg: Double)] = []
+
+    #if DEBUG
+    /// `--demo-seed`: a plan that started four weeks ago at that day's weight, ten kilograms to lose, active days
+    /// on, so the way to the goal, the real burn and the active-day extra show on the demo store.
+    private func seedDemoPlanIfRequested() {
+        guard CommandLine.arguments.contains("--demo-seed"), plan == nil,
+              let cutoff = Calendar.current.date(byAdding: .day, value: -28, to: .now) else { return }
+        let window = recentWeights.filter { (WeightSeries.date(forDay: $0.day) ?? .distantPast) >= cutoff }
+        guard let first = window.first ?? recentWeights.first else { return }
+        savePlan(DietPlan(goal: .lose, pacePercent: 0.5, form: .balanced, goalWeightKg: (first.kg - 10).rounded(),
+                          startDay: first.day, startWeightKg: first.kg, activeDays: true))
+    }
+    #endif
+
+    /// The way to the goal from the plan as resolved (its goal weight may have been raised to a healthy one).
+    private func updateProgress() {
+        progress = plan.flatMap { DietProgress.resolve(plan: $0, goalWeightKg: planResult?.goalWeightKg, weighIns: recentWeights) }
+    }
+
+    /// Marks the shown day as completely logged, or takes it back; only marked days count toward the real burn.
+    func setDayComplete(_ complete: Bool, repo: Repository) async {
+        guard let store = await repo.storeHandle() else { return }
+        try? await store.setFoodDayComplete(day, complete)
+        dayComplete = complete
+        await loadTracker(repo: repo, store: store)
+        resolvePlan()
+    }
+
+    /// Switches what the plan's usual burn comes from. The weekly adjustments so far start again at zero, since
+    /// they corrected a gap the new figure already contains.
+    func setBurnSource(_ source: DietPlan.BurnSource, repo: Repository) async {
+        guard var current = plan, current.burnSource != source else { return }
+        current.burnSource = source
+        current.adjustmentKcal = 0
+        savePlan(current)
+        guard let store = await repo.storeHandle() else { return }
+        await loadTracker(repo: repo, store: store)
+        resolvePlan()
+    }
+
+    /// Turns active days on or off.
+    func setActiveDays(_ on: Bool) {
+        guard var current = plan else { return }
+        current.activeDays = on
+        savePlan(current)
+    }
+
     /// After the goal settings changed.
     func reloadGoals(repo: Repository, profile: UserProfile) async { await load(repo: repo, profile: profile) }
 
@@ -219,6 +317,7 @@ final class ForgeFoodModel {
 
     private func reload(store: WhoopStore) async {
         summary = await FoodLog.day(store: store, day)
+        dayComplete = ((try? await store.foodCompleteDays(from: day, to: day)) ?? []).contains(day)
         await resolveGroups(store: store)
         await findHabit(store: store)
         await loadWeek(store: store)

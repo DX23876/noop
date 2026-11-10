@@ -70,6 +70,7 @@ struct ForgeFoodView: View {
                                      onRecipe: { recipeFrom = FoodEntryBatch(entries: $0) }, onDelete: delete)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
+                    FoodCompleteDayRow(complete: model.dayComplete, asks: asksComplete, toggle: toggleComplete)
                 } else if model.summary != nil {
                     ContentUnavailableView {
                         Label("Nothing logged yet", systemImage: "fork.knife")
@@ -156,6 +157,11 @@ struct ForgeFoodView: View {
             .gesture(DragGesture(minimumDistance: 30).onEnded(swipeDay))
             FoodPlateLegend(macros: plate.macros)
             FoodDayFigures(eaten: model.eatenKcal, calories: model.calories, burned: model.burned, isToday: model.isToday)
+            if let bonus = model.calories?.activeBonusKcal, bonus >= DietActiveDay.shownFromKcal {
+                Label("+\(FoodText.kcal(bonus)) kcal for your active day", systemImage: "flame.fill")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.effortInk)
+                    .contentTransition(.numericText())
+            }
             let sentence = [FoodText.sentence(model.sentence()), model.offPlanSentence() ?? ""]
                 .filter { !$0.isEmpty }.joined(separator: " ")
             if !sentence.isEmpty {
@@ -178,6 +184,11 @@ struct ForgeFoodView: View {
     }
 
     private func openAdd() { showAdd = true }
+    /// From the evening on, an unmarked today with meals asks whether everything is logged.
+    private var asksComplete: Bool {
+        model.isToday && !model.dayComplete && Calendar.current.component(.hour, from: .now) >= FoodDaySentence.fromHour
+    }
+    private func toggleComplete() { Task { await model.setDayComplete(!model.dayComplete, repo: repo) } }
     /// The add sheet a route asked for, once: after the setup when that came first.
     private func openAddOnArrival() {
         guard opensAdd, !openedAdd else { return }

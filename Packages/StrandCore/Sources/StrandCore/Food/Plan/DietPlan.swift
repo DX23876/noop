@@ -50,13 +50,22 @@ public struct DietPlan: Codable, Equatable, Sendable {
     /// The wearer asked Forge to hide weight and numbers (a gentler view, for anyone who wants it).
     public var hideNumbers: Bool
     public var pregnantOrNursing: Bool
+    /// Active days bring more calories (owner, 2026-11-10): part of what the strap measured above the usual
+    /// burn is added to the day's goal (`DietActiveDay`). Nil or false is off; optional so older plans decode.
+    public var activeDays: Bool?
+    /// What the plan's usual burn comes from: the strap's measurement, or the real burn worked out from completely
+    /// logged days and the weight trend (`DietExpenditure`). Nil is the strap.
+    public var burnSource: BurnSource?
+
+    public enum BurnSource: String, Codable, CaseIterable, Sendable { case strap, scale }
 
     public init(goal: Goal = .lose, mode: Mode = .simple, pacePercent: Double = 0.5, form: DietForm = .balanced,
                 addon: DietAddon? = nil, strength: Bool = false, goalWeightKg: Double? = nil, steering: Steering = .coached,
                 proteinPerKg: Double? = nil, carbShareOfRest: Double? = nil, fixedKcal: Double? = nil,
                 dietBreakEveryWeeks: Int? = nil, keep: [Keep] = [], startDay: String, startWeightKg: Double,
                 adjustmentKcal: Double = 0, lastAdjustedDay: String? = nil, hideNumbers: Bool = false,
-                pregnantOrNursing: Bool = false) {
+                pregnantOrNursing: Bool = false, activeDays: Bool? = nil, burnSource: BurnSource? = nil) {
+        self.activeDays = activeDays; self.burnSource = burnSource
         self.goal = goal; self.mode = mode; self.pacePercent = pacePercent; self.form = form; self.addon = addon
         self.strength = strength; self.goalWeightKg = goalWeightKg; self.steering = steering
         self.proteinPerKg = proteinPerKg; self.carbShareOfRest = carbShareOfRest; self.fixedKcal = fixedKcal

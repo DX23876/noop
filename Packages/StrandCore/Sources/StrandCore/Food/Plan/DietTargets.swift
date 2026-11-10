@@ -80,11 +80,8 @@ public enum DietTargets {
         if pace > limit { pace = limit; notes.append(.paceCapped) }
         if goal == .lose, pace > 1.0 { notes.append(.paceAboveRecommended) }
 
-        var goalWeight = plan.goalWeightKg
-        if let g = goalWeight, let lowest = person.lowestGoalWeightKg, g < lowest {
-            goalWeight = (lowest * 10).rounded(.up) / 10
-            notes.append(.goalWeightRaised)
-        }
+        let goalWeight = plannedGoalWeight(plan, person: person)
+        if goalWeight != plan.goalWeightKg { notes.append(.goalWeightRaised) }
 
         let perKg = (kcalPerKg ?? defaultKcalPerKg).clamped(5_000, 9_500)
         let kgPerWeek = person.weightKg * pace / 100
@@ -125,6 +122,14 @@ public enum DietTargets {
                       fastingDaysPerWeek: fastingDays, proteinG: proteinG, carbsG: carbsG, fatG: fatG, burnKcal: burnKcal,
                       dailyDeltaKcal: delta, pacePercent: pace, paceKgPerWeek: kgPerWeek * sign, adjustmentKcal: adjustment,
                       effortScore: score, effort: effort(score), goalWeightKg: goalWeight, notes: notes)
+    }
+
+    /// The goal weight the plan works toward: the wearer's, raised to the lowest healthy weight for their height
+    /// (BMI 18.5) when it was below. The plan page, the way to the goal and Today's card all read this one.
+    public static func plannedGoalWeight(_ plan: DietPlan, person: DietPerson) -> Double? {
+        guard let g = plan.goalWeightKg else { return nil }
+        if let lowest = person.lowestGoalWeightKg, g < lowest { return (lowest * 10).rounded(.up) / 10 }
+        return g
     }
 
     /// Grams of protein per kilogram of reference weight: 1.6 in a deficit (2.0 with strength training), 1.2 when
