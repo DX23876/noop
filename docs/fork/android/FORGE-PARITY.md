@@ -13,7 +13,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 
 | | iOS (new design) | Android (Forge) | Gap |
 |---|---|---|---|
-| Tabs | Today, Training, Sleep, Health, Coach (search-role tab, only with the coach on) | the same, behind the Lab switch (`ForgeDesign.tabs`); the coach as a round button beside the bar | close |
+| Tabs | Today, Training, Sleep, Health, Coach (search-role tab, only with the coach on) | the same, behind the Lab switch (`ForgeDesign.tabs`), with iOS's symbols (2026-11-11); the coach as a round button beside the bar | Android's bar floats as a capsule, iOS's spans the width |
 | Settings | the profile picture in each tab's header | the profile in the Today, Training, Sleep and Health headers opens the More page over the tabs, with Settings, the strap and every page | iOS opens a profile hub, Android the More page |
 | Search | magnifier in each tab's header (`ForgeSearchView`) | a magnifier in the Training, Sleep and Health headers opens the More page with its search focused (2026-11-11) | iOS's search is a sheet of its own; Android's is the More page's field |
 
@@ -21,7 +21,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 
 | Part | iOS | Android | Gap |
 |---|---|---|---|
-| Header | "Today" with the date, strap, plus, profile | header with profile and quick actions | close |
+| Header | "Today" with the date, strap, plus, profile | in the new design "Today" and its date on one line, profile and quick actions, no wordmark (2026-11-11) | no strap button of its own (the battery sits in the quick actions) |
 | Rings | three organic rings in one chamber with the day's answer under them; holding them arranges the tiles | `Hero` with organic rings; holding a ring arranges the tiles (2026-11-10) | the answer line, which iOS shows only while Charge is carried from an earlier day; Android's Forge hero has no carried state yet |
 | Hint | one most-pressing hint (`ForgeTodayHint`) | the activity prompt and the morning suggestion; pills and Momentum are gone from the new Today (Momentum is a tile) | the hint card, which needs the timeline's notices and coach notes |
 | Tiles | a free grid of measure and picture tiles, three sizes, moved by drag in edit mode, two or three to a row (`ForgeTodayWidgets`) | `ForgeTodayWidgets.kt` (2026-11-10; tiles per row and iOS's tile look 2026-11-11): measures from the Key Metrics reading, sleep from the latest night, and the cards Training load, Goals, Energy, Latest workout, Cycle, Momentum, Live heart rate; three sizes, moved by arrows and accessibility actions, gallery | no drag; no water, last night, week plan, coach note, AgeLess, tonight, next session, what changed, what works, breathe, strap or stress tiles |
