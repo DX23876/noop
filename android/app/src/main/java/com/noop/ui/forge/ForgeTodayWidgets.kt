@@ -229,6 +229,12 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
         }
     }
 
+    // The cards' own headings (Training load, Goals, Momentum, Cycle) were written for the shipped Today, where they
+    // sit on the scene; here they sit below the hero on the canvas, so they take the canvas ink, as iOS's section
+    // titles take the text colour. Scene-white headings all but vanished on a light canvas.
+    val colors = Forge.colors
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalSceneInk provides SceneInk(colors.text, colors.textSecondary, colors.textTertiary, colors.dark)) {
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         if (editing) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -278,6 +284,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                      color = Forge.colors.accent)
             }
         }
+    }
     }
     ForgeMetricDetail(open) { open = null }
     if (gallery) {
