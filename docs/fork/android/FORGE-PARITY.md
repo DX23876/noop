@@ -58,6 +58,9 @@ Fixed:
 - The tile edit controls covered each tile's name and were 32 dp; they sit in the corners at 44 dp now.
 - The timeline and the sleep tile never read again after a sync while Today stayed open, and "Now" kept the
   minute the page opened.
+- The same one-time read on Today's Energy ("so far" never grew), Training load and coach cards, and on the
+  Training tab: all read again on the core's data revision now. These were in the shipped design too.
+- The older nights' line in Sleep's navigator ran past the width; it names the wake day only.
 
 Seen, not changed:
 - iOS Sleep lists every block outside the main night as a nap, the timeline only those with 10 min asleep
