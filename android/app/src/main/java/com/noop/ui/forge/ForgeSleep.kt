@@ -211,6 +211,9 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
         }
         if (night != null) {
             val rest = wakeDay?.let { model?.restByDay?.get(it.toString()) }
+            // The new design's summary, as iOS's `summaryTiles`: Rest and the night's sleep, each with its week; the
+            // navigator above already carries the clock span, so the asleep and woke card stays in the shipped design.
+            if (LocalForgeOpenMore.current != null) SleepSummaryTiles(night, rest, model) else {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 260.dp else 280.dp, OrganicMetric.Rest)
                 if (rest != null) {
@@ -231,6 +234,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                 }
             }
             Times(night, zone)
+            }
             // Customize sits at the end of the hero, as on iOS (`sleepArrangeAffordance`).
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Row(Modifier.clickable(role = Role.Button) { customizing = true }.padding(ForgeMetrics.space2),
@@ -311,6 +315,24 @@ object RestWord {
         score < 70 -> R.string.forge_rest_fair
         score < 85 -> R.string.forge_rest_good
         else -> R.string.forge_rest_optimal
+    }
+}
+
+/** Rest with its word and the night's sleep, each over its last seven days, side by side. */
+@Composable
+private fun SleepSummaryTiles(night: CoreRead.Night, rest: Double?, model: SleepModel?) {
+    val colors = Forge.colors
+    val noData = stringResource(R.string.forge_no_data)
+    val restWeek = model?.restByDay?.toSortedMap()?.values?.toList()?.takeLast(7).orEmpty()
+    val asleepWeek = model?.days?.takeLast(7)?.map { (it.totalSleepMin ?: 0.0) / 60 }.orEmpty()
+    val asleep = SleepSummary.of(night).asleepMin
+    Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+        MetricTile(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_rest), rest?.roundToInt()?.toString(), "%",
+                   noData, Modifier.weight(1f), delta = rest?.let { stringResource(RestWord.of(it)) },
+                   below = restWeek.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, colors.rest) } })
+        MetricTile(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_sleep_duration_tile),
+                   asleep.takeIf { it > 0 }?.let { TodayTimeline.hoursMinutes(it.toDouble()) }, "h", noData, Modifier.weight(1f),
+                   below = asleepWeek.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, colors.rest) } })
     }
 }
 

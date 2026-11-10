@@ -4955,4 +4955,5 @@
     <string name="forge_h_badge_estimated">Оцененный</string>
     <string name="forge_sleep_nav">%1$s · %2$s–%3$s</string>
     <string name="forge_sleep_days">с %1$s по %2$s</string>
+    <string name="forge_sleep_duration_tile">Длительность сна</string>
 </resources>

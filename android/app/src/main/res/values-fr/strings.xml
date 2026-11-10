@@ -5053,4 +5053,5 @@
     <string name="forge_h_badge_estimated">Estimé</string>
     <string name="forge_sleep_nav">%1$s · %2$s à %3$s</string>
     <string name="forge_sleep_days">du %1$s au %2$s</string>
+    <string name="forge_sleep_duration_tile">Durée du sommeil</string>
 </resources>

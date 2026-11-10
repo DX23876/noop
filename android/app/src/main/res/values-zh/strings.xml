@@ -5024,4 +5024,5 @@
     <string name="forge_h_badge_estimated">估计的</string>
     <string name="forge_sleep_nav">%1$s · %2$s 至 %3$s</string>
     <string name="forge_sleep_days">%1$s 至 %2$s</string>
+    <string name="forge_sleep_duration_tile">睡眠时长</string>
 </resources>

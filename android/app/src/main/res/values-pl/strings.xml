@@ -5070,4 +5070,5 @@
     <string name="forge_h_badge_estimated">Szacowany</string>
     <string name="forge_sleep_nav">%1$s · %2$s–%3$s</string>
     <string name="forge_sleep_days">%1$s do %2$s</string>
+    <string name="forge_sleep_duration_tile">Długość snu</string>
 </resources>
