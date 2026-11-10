@@ -102,11 +102,16 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         // block now carries only one line per lane; a question about volume, overload or whether
         // training is working needs the screen's own bands, verdicts and coverage, and without them the
         // model rebuilt a verdict from raw workouts that the Training Load screen would contradict.
-        XCTAssertEqual(engine.coachTools.count, 36,
+        //
+        // 36 → 37: `propose_diet_change` (diet planner, 2026-11-10). Reviewed and intended. It is the
+        // write side of the plan page: without it the coach could only describe a change in chat and
+        // the wearer had to rebuild it in the planner by hand. Like the other proposals it drafts for
+        // review, and the app, not the model, works out every number from the plan.
+        XCTAssertEqual(engine.coachTools.count, 37,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 38,
+        XCTAssertEqual(engine.coachTools.count, 39,
                        "the second opt-in adds personal patterns and training preferences")
     }
 
