@@ -61,6 +61,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -182,7 +183,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     var showAll by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf<Sport?>(null) }
     val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
-    LaunchedEffect(revision) {
+    // Also after each analysis pass, so a session synced while the tab stays open reaches Recent and the year.
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(revision, coreRevision) {
         val dismissed = withContext(Dispatchers.IO) { dismissedTrainingWorkouts(context) }
         snapshot = core(context) { CoreTraining.snapshot(dismissed) }
         withContext(Dispatchers.IO) { com.noop.notif.SessionRatingReminderWorker.synchronize(context) }
