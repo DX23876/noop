@@ -31,6 +31,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -60,17 +64,20 @@ import com.noop.R
  * The Forge app's top-level destinations, in the iOS tab bar's order, with
  * the backdrop each one draws on iOS.
  */
-enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: ForgeBackdrop) {
+enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: ForgeBackdrop, private val newIcon: ImageVector = icon) {
     // Which of these the bar shows, and in which order, is [ForgeDesign.tabs]: the shipped set keeps Trends and More,
     // the new design (preview) has Health and the coach instead, as on iOS.
-    Today(R.string.nav_today, Icons.Rounded.GridView, ForgeBackdrop.Scene),
+    Today(R.string.nav_today, Icons.Rounded.GridView, ForgeBackdrop.Scene, Icons.Rounded.WbSunny),
     Trends(R.string.nav_trends, Icons.Rounded.ShowChart, ForgeBackdrop.Sky),
-    Training(R.string.forge_training, Icons.Rounded.FitnessCenter, ForgeBackdrop.Canvas),
-    Sleep(R.string.nav_sleep, Icons.Rounded.KingBed, ForgeBackdrop.Night),
-    Health(R.string.nav_health, Icons.Rounded.FavoriteBorder, ForgeBackdrop.Canvas),
+    Training(R.string.forge_training, Icons.Rounded.FitnessCenter, ForgeBackdrop.Canvas, Icons.Rounded.DirectionsRun),
+    Sleep(R.string.nav_sleep, Icons.Rounded.KingBed, ForgeBackdrop.Night, Icons.Rounded.Bedtime),
+    Health(R.string.nav_health, Icons.Rounded.FavoriteBorder, ForgeBackdrop.Canvas, Icons.Rounded.Favorite),
     More(R.string.nav_more, Icons.Rounded.MoreHoriz, ForgeBackdrop.Sky),
     /** The coach in its own place, as iOS's search-role tab: a round button beside the bar, only while it is on. */
-    Coach(R.string.nav_coach, Icons.Rounded.AutoAwesome, ForgeBackdrop.Sky),
+    Coach(R.string.nav_coach, Icons.Rounded.AutoAwesome, ForgeBackdrop.Sky);
+
+    /** The bar's glyph: the new design takes iOS's tab symbols (sun, runner, moon, heart). */
+    val glyph: ImageVector get() = if (ForgeDesign.preview) newIcon else icon
 }
 
 /** How wide the window is, by the Compose window size class breakpoints (600 and 840 dp). */
@@ -211,7 +218,7 @@ private fun TabItem(tab: ForgeTab, selected: Boolean, modifier: Modifier, onClic
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // SF Symbols' dumbbell lies flat; Material's stands at an angle, so it turns back by 45° to match.
-        Icon(tab.icon, contentDescription = null, tint = tint,
+        Icon(tab.glyph, contentDescription = null, tint = tint,
              modifier = Modifier.size(26.dp).then(if (tab == ForgeTab.Training) Modifier.rotate(-45f) else Modifier))
         Spacer(Modifier.height(2.dp))
         Text(stringResource(tab.labelRes), style = Forge.type.caption.copy(fontWeight = FontWeight.Medium), color = tint,
