@@ -186,7 +186,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
         // The new design's header over the night, as iOS's `ForgeLargeHeader(title: "Sleep")`.
         LocalForgeOpenMore.current?.let { openMore ->
             Box(Modifier.padding(horizontal = ForgeMetrics.screenPadding)) {
-                TabHeader(stringResource(R.string.nav_sleep), onProfile = openMore)
+                TabHeader(stringResource(R.string.nav_sleep), onProfile = openMore, onSearch = rememberOpenSearch())
             }
         }
         // The new design pages the nights in one line under the tab header, as iOS's `nightNavigator`; the shipped

@@ -214,7 +214,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     ) {
         val openMore = LocalForgeOpenMore.current
         // The new design's header, as iOS's `ForgeLargeHeader`: the title with today's date, the profile at the end.
-        if (openMore != null) TabHeader(stringResource(R.string.forge_training), onProfile = openMore)
+        if (openMore != null) TabHeader(stringResource(R.string.forge_training), onProfile = openMore, onSearch = rememberOpenSearch())
         else Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.forge_training_overline).uppercase(), style = Forge.type.overline,

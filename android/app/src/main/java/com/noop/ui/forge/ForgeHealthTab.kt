@@ -24,8 +24,10 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -95,7 +97,8 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3),
     ) {
         val openMore = LocalForgeOpenMore.current
-        TabHeader(stringResource(R.string.nav_health), onProfile = { openMore?.invoke() ?: run { settingsOpen = true } })
+        TabHeader(stringResource(R.string.nav_health), onProfile = { openMore?.invoke() ?: run { settingsOpen = true } },
+                  onSearch = rememberOpenSearch())
 
         // The tab's answer: how many of last night's vitals sat in the wearer's own range, then each by name.
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
@@ -151,7 +154,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
 
 /** A tab's own header row, as iOS's `ForgeLargeHeader`: the title with today's date, the profile at the end. */
 @Composable
-internal fun TabHeader(title: String, onProfile: () -> Unit) {
+internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Unit)? = null) {
     val locale = Locale.getDefault()
     Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -165,9 +168,25 @@ internal fun TabHeader(title: String, onProfile: () -> Unit) {
             },
             style = Forge.type.title2, color = Forge.sceneInk.text, maxLines = 1, modifier = Modifier.weight(1f),
         )
+        // The magnifier before the profile, as iOS's `ForgeSearchButton` in each tab's header.
+        if (onSearch != null) {
+            Box(Modifier.size(ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClick = onSearch),
+                contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.forge_more_search),
+                     tint = Forge.sceneInk.text, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.size(ForgeMetrics.space1))
+        }
         ProfileAvatar(size = 36.dp, contentDescription = stringResource(R.string.forge_qa_profile_settings),
                       modifier = Modifier.clickable(role = Role.Button, onClick = onProfile))
     }
+}
+
+/** The magnifier's action in the new design: the More page, its search focused. Null in the shipped design. */
+@Composable
+internal fun rememberOpenSearch(): (() -> Unit)? {
+    val openMore = LocalForgeOpenMore.current ?: return null
+    return { ForgeDesign.focusSearch = true; openMore() }
 }
 
 /** A section's title above its card, as iOS's `ForgeSectionHeading`: bold, sentence case. */

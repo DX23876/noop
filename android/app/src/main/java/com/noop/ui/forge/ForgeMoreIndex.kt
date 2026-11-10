@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -53,6 +54,7 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -250,7 +252,12 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
         dismissKeyboard()
         if (dest == MoreDest.Settings) onOpenSettings() else nav.push(MoreRoute.Dest(dest))
     }
-    SearchField(query) { query = it }
+    // A tab header's magnifier asked for the search: the cursor goes in the field once (`ForgeDesign.focusSearch`).
+    val searchFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(ForgeDesign.focusSearch) {
+        if (ForgeDesign.focusSearch) { ForgeDesign.focusSearch = false; runCatching { searchFocus.requestFocus() } }
+    }
+    SearchField(query, Modifier.focusRequester(searchFocus)) { query = it }
     if (query.isNotBlank()) {
         val hits = MoreDest.entries.filter { it.shown(context) }.filter { d ->
             (listOf(context.getString(d.titleRes)) + d.keywords).any { it.contains(query.trim(), ignoreCase = true) }
@@ -371,7 +378,7 @@ internal fun DestCard(dests: List<MoreDest>, onOpen: (MoreDest) -> Unit) {
 }
 
 @Composable
-private fun SearchField(query: String, onChange: (String) -> Unit) {
+private fun SearchField(query: String, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
     val colors = Forge.colors
     OutlinedTextField(
         value = query, onValueChange = onChange, singleLine = true,
@@ -383,7 +390,7 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
             focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent,
             focusedTextColor = colors.text, unfocusedTextColor = colors.text,
         ),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
