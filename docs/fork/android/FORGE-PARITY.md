@@ -33,7 +33,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 
 | Screen | iOS | Android | Gap |
 |---|---|---|---|
-| Training | This week, Start, Planned today, Your week (goals, routines), Recent activities, Key metrics, Tools | `ForgeTraining*`: start, goals, This week, Routines, Recent, Consistency, Muscle analytics, the analysis list, and in the new design the Tools group with the interval timer and Breathe (2026-11-10) | the week summary hero, Planned today and the Key metrics tiles (Effort this week, VO₂max, Training load, Strength) missing; Android keeps Consistency and Muscle analytics, which iOS shows deeper |
+| Training | This week, Start, Planned today, Your week (goals, routines), Recent activities, Key metrics, Tools | `ForgeTraining*`: start, goals, This week, Routines, Recent, Consistency, Muscle analytics, the analysis list, and in the new design the Tools group with the interval timer and Breathe, Key metrics (Effort this week, VO₂max, last 30 days) (2026-11-10) | the week summary hero, Planned today and the pace tile missing; Android keeps Consistency and Muscle analytics, which iOS shows deeper |
 | Sleep | night navigator, Rest and duration tiles, the coach button, Tonight, This night, Naps, stages, goals, Highlights, night facts, History | `ForgeSleep`, `ForgeSleepCards`: in the new design the night navigator in one line as on iOS (2026-11-10), the Rest ring, times, Alarms, goals, the arrangeable cards; in the new design the day's naps from the core (2026-11-10) | the Rest ring is the shipped hero, iOS shows tiles; Tonight, Highlights, night facts and History missing |
 | Health | Vitals in range, the off-range card, editable Vitals tiles, Focus areas, Heart and stress, Body and energy, Long term and patterns | `ForgeHealthTab` (2026-11-09): vitals in range, tiles, the three groups, Trends | off-range card, tile editing and Focus areas missing; a vital tile opens the Health page because Android has no single-metric page yet (iOS opens `TabRoute.metric`) |
 | Coach | the coach inside its tab | own tab button (2026-11-09) | close |
@@ -67,3 +67,8 @@ Seen, not changed:
   thread was waiting for the render thread and spent most of the minute waiting for the CPU, in both designs,
   with software rendering and also with the host GPU and 4 GB. No NOOP code was on the stack; the first
   start's load is worth measuring on a real low-end phone.
+- Optimisation, measured on the debug build: a cold start takes about 10.5 s to the first frame on this
+  emulator. A simpleperf profile shows no single hotspot (the scene picture decode and loading the Swift
+  library about 1 % each, the rest ordinary composition, which a debug build runs interpreted). Idle on Today
+  the main thread still uses about a third of a core and the render thread a sixth, from the rings' constant
+  animation, in both designs. Worth a release-build measurement on a phone before changing anything.
