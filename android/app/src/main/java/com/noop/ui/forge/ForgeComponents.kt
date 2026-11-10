@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
@@ -141,6 +142,7 @@ fun ForgeColors.chargeRing(score: Double): Color = recoveryStops[ChargeBand.of(s
 fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, unit: String?, noData: String,
                modifier: Modifier = Modifier, delta: String? = null, below: (@Composable () -> Unit)? = null) {
     val colors = Forge.colors
+    val newDesignTile = ForgeDesign.preview
     ForgeCard(modifier, contentPadding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // iOS's `TodayMetricTile`: a round plate at 13 % of the tint.
@@ -151,8 +153,12 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
             Spacer(Modifier.width(ForgeMetrics.space2 + ForgeMetrics.space1))
             // Two lines before it gives way: a longer name ("Effort this week", German "Blutsauerstoff") reads whole
             // instead of ending in an ellipsis in a half-width tile.
-            Text(label.uppercase(), style = Forge.type.overline, color = colors.textSecondary, maxLines = 2,
-                 overflow = TextOverflow.Ellipsis)
+            // The new design names the tile in sentence case in the text colour, as iOS's `ForgeMetricTile`; the
+            // shipped design keeps its small caps.
+            if (newDesignTile) Text(label, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+            else Text(label.uppercase(), style = Forge.type.overline, color = colors.textSecondary, maxLines = 2,
+                      overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.padding(top = ForgeMetrics.space2 + ForgeMetrics.space1))
         if (value == null) {
@@ -183,7 +189,7 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
                     style = title, maxLines = 1, softWrap = false, modifier = Modifier.weight(1f),
                     onTextLayout = { if (it.hasVisualOverflow && scale > MIN_TILE_SCALE) scale *= 0.92f },
                 )
-                if (delta != null) {
+                if (delta != null && !newDesignTile) {
                     Text(delta, style = Forge.type.captionNumber, color = colors.textSecondary, maxLines = 1,
                          softWrap = false,
                          modifier = Modifier.padding(bottom = 4.dp)
@@ -191,6 +197,14 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
                              .padding(horizontal = 5.dp, vertical = 2.dp))
                 }
             }
+        }
+        // In the new design the change sits under the figure on its own line, as iOS draws it, so the figure keeps
+        // the tile's width in three columns.
+        if (delta != null && newDesignTile && value != null) {
+            Spacer(Modifier.padding(top = ForgeMetrics.space1))
+            Text(delta, style = Forge.type.captionNumber, color = colors.textSecondary, maxLines = 1, softWrap = false,
+                 modifier = Modifier.background(colors.inset.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                     .padding(horizontal = 6.dp, vertical = 2.dp))
         }
         if (below != null) {
             Spacer(Modifier.padding(top = ForgeMetrics.space2))
