@@ -160,7 +160,9 @@ internal fun TodayAddedCardsForge(viewModel: AppViewModel, onOpenMetric: (String
 internal fun TodayTrainingLoadForge(onOpenAll: () -> Unit) {
     val context = LocalContext.current
     var output by remember { mutableStateOf<CoreTrainingLoad.Output?>(null) }
-    LaunchedEffect(Unit) {
+    // Read again after each analysis pass, so a workout synced while Today stays open shows in the lanes.
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(coreRevision) {
         output = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             val profile = ProfileStore.from(context)

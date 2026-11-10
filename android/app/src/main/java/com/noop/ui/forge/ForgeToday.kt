@@ -504,7 +504,9 @@ internal fun TodayEnergy() {
     val context = LocalContext.current
     var summary by remember { mutableStateOf<com.noop.core.CoreEnergyDetail.Summary?>(null) }
     var open by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    // "So far" grows with the day: read again after each analysis pass instead of once when Today opened.
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(coreRevision) {
         summary = withContext(Dispatchers.IO) {
             CoreRead.open(context); com.noop.core.CoreEnergyDetail.today(context, dismissedTrainingWorkouts(context))
         }

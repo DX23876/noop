@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,7 +59,9 @@ internal fun ForgeTodayCoach(viewModel: com.noop.ui.AppViewModel) {
     var card by remember { mutableStateOf<CoreCoach.TodayCard?>(null) }
     // The portrait follows the coach's identity, as the name in the overline does.
     var identity by remember { mutableStateOf<CoreCoach.Identity?>(null) }
-    LaunchedEffect(Unit) {
+    // Read again after each analysis pass, as the rest of Today does.
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(coreRevision) {
         withContext(Dispatchers.IO) { CoreRead.open(context); card = CoreCoach.todayCard(); identity = CoreCoach.identity() }
     }
     var page by rememberSaveable { mutableStateOf<String?>(null) }
