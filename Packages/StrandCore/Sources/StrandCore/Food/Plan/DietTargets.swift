@@ -73,9 +73,14 @@ public enum DietTargets {
         } else if goal == .gain, plan.pregnantOrNursing {
             // Gaining in pregnancy is the doctor's plan, not ours; hold instead.
             goal = .maintain; notes.append(.pregnancyNoDeficit)
+        } else if goal == .recomp {
+            // Recomposition runs a small deficit: the same people as above hold instead.
+            if let age = person.age, age < 18 { goal = .maintain; notes.append(.youngNoDeficit) }
+            else if plan.pregnantOrNursing { goal = .maintain; notes.append(.pregnancyNoDeficit) }
+            else if let bmi = person.bmi, bmi < 18.5 { goal = .maintain; notes.append(.underweightNoDeficit) }
         }
 
-        var pace = goal == .maintain ? 0 : max(0, plan.pacePercent)
+        var pace = goal == .maintain || goal == .recomp ? 0 : max(0, plan.pacePercent)
         let limit = DietPlan.paceLimit(goal: goal, mode: plan.mode)
         if pace > limit { pace = limit; notes.append(.paceCapped) }
         if goal == .lose, pace > 1.0 { notes.append(.paceAboveRecommended) }
@@ -86,7 +91,8 @@ public enum DietTargets {
         let perKg = (kcalPerKg ?? defaultKcalPerKg).clamped(5_000, 9_500)
         let kgPerWeek = person.weightKg * pace / 100
         let sign: Double = goal == .lose ? -1 : goal == .gain ? 1 : 0
-        let delta = sign * kgPerWeek * perKg / 7
+        // Recomposition: a few percent under the burn instead of a pace in kilograms.
+        let delta = goal == .recomp ? -burnKcal * plan.recompDeficit / 100 : sign * kgPerWeek * perKg / 7
         let adjustment = plan.steering == .manual ? 0 : plan.adjustmentKcal
         var average = plan.steering == .manual ? (plan.fixedKcal ?? burnKcal + delta) : burnKcal + delta + adjustment
         if average < weeklyFloorKcal { average = weeklyFloorKcal; notes.append(.floorApplied) }
@@ -105,8 +111,10 @@ public enum DietTargets {
         let defaultProtein = proteinPerKg(goal: goal, strength: plan.strength) + plan.form.proteinBonusPerKg
         let perKgProtein = plan.mode == .advanced ? (plan.proteinPerKg ?? defaultProtein) : defaultProtein
         if perKgProtein + 0.01 < proteinPerKg(goal: goal, strength: plan.strength) { notes.append(.proteinLow) }
-        // Protein on an eating day; with fasting days the week's average carries the macros below.
-        let proteinG = min(reference * perKgProtein, 300)
+        // Protein on an eating day; with fasting days the week's average carries the macros below. Recomposition
+        // with a known body fat share reckons on lean mass (`recompProteinG`) unless the wearer set their own.
+        let leanProtein = goal == .recomp && plan.proteinPerKg == nil ? recompProteinG(person: person, deficitPercent: plan.recompDeficit) : nil
+        let proteinG = min(leanProtein ?? reference * perKgProtein, 300)
         let restKcal = max(0, average - proteinG * 4)
         let carbsG: Double
         if let cap = plan.form.carbCapG {
@@ -133,12 +141,22 @@ public enum DietTargets {
     }
 
     /// Grams of protein per kilogram of reference weight: 1.6 in a deficit (2.0 with strength training), 1.2 when
-    /// holding or gaining without it (1.6 with it).
+    /// holding or gaining without it (1.6 with it). Recomposition 2.0 whatever the answer, since it needs training.
     public static func proteinPerKg(goal: DietPlan.Goal, strength: Bool) -> Double {
         switch goal {
         case .lose: strength ? 2.0 : 1.6
         case .maintain, .gain: strength ? 1.6 : 1.2
+        case .recomp: 2.0
         }
+    }
+
+    /// Recomposition's protein from lean mass, when the body fat share is known: 2.3 g per kilogram of fat-free mass
+    /// at a small deficit, rising toward 3.1 as the deficit deepens (Helms and others 2014, 2.3 to 3.1 g/kg FFM
+    /// for resistance-trained people in a deficit, scaled up with the deficit). Nil without a usable body fat value.
+    public static func recompProteinG(person: DietPerson, deficitPercent: Double) -> Double? {
+        guard let lean = person.leanMassKg else { return nil }
+        let perKgLean = (2.3 + 0.8 * (deficitPercent.clamped(0, 15) / 15)).clamped(2.3, 3.1)
+        return lean * perKgLean
     }
 
     static func effortScore(form: DietForm, addon: DietAddon?, goal: DietPlan.Goal, pace: Double) -> Double {
@@ -147,6 +165,9 @@ public enum DietTargets {
             score += pace <= 0.5 ? 0 : pace <= 0.75 ? 0.5 : pace <= 1.0 ? 1 : 2
         } else if goal == .gain {
             score += pace <= 0.25 ? 0 : 0.5
+        } else if goal == .recomp {
+            // It asks for regular strength training and plenty of protein.
+            score += 1
         }
         return min(5, max(1, score))
     }
@@ -160,14 +181,45 @@ public enum DietTargets {
         }
     }
 
-    /// Calories for one day of the plan: the eating day, or the fasting day on a fasting form's fasting days.
-    /// Fasting days follow a fixed rhythm from the plan's start: every other day for alternate-day forms, Monday
-    /// and Thursday for 5:2.
-    public static func kcal(on day: String, plan: DietPlan, result: Result, calendar: Calendar = .current) -> Double {
-        guard let fastKcal = result.fastingDayKcal, isFastingDay(day, plan: plan, calendar: calendar) else {
-            return result.eatingDayKcal
-        }
-        return fastKcal
+    /// Calories for one day of the plan: the eating day, or the fasting day on a fasting form's fasting days, moved
+    /// up on a training day and down on a rest day when the plan shifts calories (`dayShift`). Fasting days follow a
+    /// fixed rhythm from the plan's start: every other day for alternate-day forms, Monday and Thursday for 5:2.
+    /// `strengthDays` are the days with logged strength training, which count as training days too.
+    public static func kcal(on day: String, plan: DietPlan, result: Result, strengthDays: Set<String> = [],
+                            calendar: Calendar = .current) -> Double {
+        if let fastKcal = result.fastingDayKcal, isFastingDay(day, plan: plan, calendar: calendar) { return fastKcal }
+        return result.eatingDayKcal + shiftKcal(on: day, plan: plan, result: result, strengthDays: strengthDays, calendar: calendar)
+    }
+
+    /// What the day shift adds (a training day) or takes away (a rest day). Planned training days get the share of
+    /// the eating day; rest days give back the same amount spread over them, so the week's average holds. A logged
+    /// strength day outside the plan gets the extra without a give-back. Zero without a shift or planned days.
+    public static func shiftKcal(on day: String, plan: DietPlan, result: Result, strengthDays: Set<String> = [],
+                                 calendar: Calendar = .current) -> Double {
+        let share = plan.effectiveDayShift
+        let planned = Set(plan.trainingWeekdays ?? []).filter { (1...7).contains($0) }
+        guard share > 0, !planned.isEmpty, planned.count < 7 else { return 0 }
+        let extra = result.eatingDayKcal * share
+        if isTrainingDay(day, plan: plan, strengthDays: strengthDays, calendar: calendar) { return extra }
+        return -extra * Double(planned.count) / Double(7 - planned.count)
+    }
+
+    /// A planned training day's and a rest day's calories, for the planner and the plan page; nil without a shift.
+    public static func trainingAndRestKcal(plan: DietPlan, result: Result) -> (training: Double, rest: Double)? {
+        let share = plan.effectiveDayShift
+        let planned = Set(plan.trainingWeekdays ?? []).filter { (1...7).contains($0) }
+        guard share > 0, !planned.isEmpty, planned.count < 7 else { return nil }
+        let extra = result.eatingDayKcal * share
+        return (result.eatingDayKcal + extra, result.eatingDayKcal - extra * Double(planned.count) / Double(7 - planned.count))
+    }
+
+    /// A training day: one of the planned weekdays, or a day with logged strength training. The one resolver the
+    /// calories, the macros, the plate's line and the active-day rule all read.
+    public static func isTrainingDay(_ day: String, plan: DietPlan, strengthDays: Set<String> = [],
+                                     calendar: Calendar = .current) -> Bool {
+        if strengthDays.contains(day) { return true }
+        guard let date = WeightSeries.date(forDay: day) else { return false }
+        return (plan.trainingWeekdays ?? []).contains(calendar.component(.weekday, from: date))
     }
 
     public static func isFastingDay(_ day: String, plan: DietPlan, calendar: Calendar = .current) -> Bool {

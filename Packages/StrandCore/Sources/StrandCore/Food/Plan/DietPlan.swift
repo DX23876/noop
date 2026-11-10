@@ -3,7 +3,11 @@ import Foundation
 /// The wearer's diet plan (decision 2026-11-09): what they chose in the planner, stored as JSON under one key on
 /// both platforms. Every number a screen shows is worked out from it by `DietTargets`; nothing derived is stored.
 public struct DietPlan: Codable, Equatable, Sendable {
-    public enum Goal: String, Codable, CaseIterable, Sendable { case lose, maintain, gain }
+    /// `recomp`: body recomposition (owner, 2026-11-10), losing fat while building muscle at about the usual burn,
+    /// with strength training and plenty of protein.
+    public enum Goal: String, Codable, CaseIterable, Sendable { case lose, maintain, gain, recomp }
+    /// How long the wearer has trained for strength; it says how well recomposition fits.
+    public enum Experience: String, Codable, CaseIterable, Sendable { case new, returning, someYears, manyYears }
     public enum Mode: String, Codable, CaseIterable, Sendable { case simple, advanced }
     /// How much Forge steers: everything, the calories only (macros stay the wearer's), or nothing.
     public enum Steering: String, Codable, CaseIterable, Sendable { case coached, caloriesOnly, manual }
@@ -17,7 +21,7 @@ public struct DietPlan: Codable, Equatable, Sendable {
             case (.lose, .ambitious): 1.0
             case (.gain, .gentle): 0.25
             case (.gain, _): 0.5
-            case (.maintain, _): 0
+            case (.maintain, _), (.recomp, _): 0
             }
         }
     }
@@ -58,6 +62,21 @@ public struct DietPlan: Codable, Equatable, Sendable {
     public var burnSource: BurnSource?
 
     public enum BurnSource: String, Codable, CaseIterable, Sendable { case strap, scale }
+    /// Recomposition, advanced: the deficit in percent of the burn (0 to 15); nil is the simple mode's 5 %.
+    public var recompDeficitPercent: Double?
+    /// Weekdays the wearer plans to train strength (1 Sunday … 7 Saturday, as `Calendar` counts them).
+    public var trainingWeekdays: [Int]?
+    /// Share of the day's calories moved from rest days to training days (0 to 0.25); nil or 0 is even days.
+    /// Recomposition always shifts; the other goals only in the advanced mode.
+    public var dayShift: Double?
+    public var experience: Experience?
+
+    /// The share of the calories that moves to training days, as the plan has it: recomposition 10 % unless set.
+    public var effectiveDayShift: Double {
+        if form.fasting != nil { return 0 }
+        if goal == .recomp { return (dayShift ?? 0.10).clamped(0, 0.25) }
+        return mode == .advanced ? (dayShift ?? 0).clamped(0, 0.25) : 0
+    }
 
     public init(goal: Goal = .lose, mode: Mode = .simple, pacePercent: Double = 0.5, form: DietForm = .balanced,
                 addon: DietAddon? = nil, strength: Bool = false, goalWeightKg: Double? = nil, steering: Steering = .coached,
@@ -92,8 +111,13 @@ public struct DietPlan: Codable, Equatable, Sendable {
         switch goal {
         case .lose: mode == .simple ? 1.0 : 1.5
         case .gain: mode == .simple ? 0.5 : 1.0
-        case .maintain: 0
+        case .maintain, .recomp: 0
         }
+    }
+
+    /// Recomposition's deficit in percent of the burn: 5 in the simple mode, the wearer's 0 to 15 in the advanced one.
+    public var recompDeficit: Double {
+        mode == .advanced ? (recompDeficitPercent ?? 5).clamped(0, 15) : 5
     }
 }
 
@@ -103,9 +127,18 @@ public struct DietPerson: Equatable, Sendable {
     public var heightCm: Double?
     public var age: Int?
     public var male: Bool?
+    /// The latest body fat measurement in percent (Apple Health, Health Connect or the tape method), when known.
+    public var bodyFatPercent: Double?
 
-    public init(weightKg: Double, heightCm: Double?, age: Int?, male: Bool?) {
+    public init(weightKg: Double, heightCm: Double?, age: Int?, male: Bool?, bodyFatPercent: Double? = nil) {
         self.weightKg = weightKg; self.heightCm = heightCm; self.age = age; self.male = male
+        self.bodyFatPercent = bodyFatPercent
+    }
+
+    /// Weight without fat, when the body fat share is known and plausible (3 to 60 %).
+    public var leanMassKg: Double? {
+        guard let bf = bodyFatPercent, bf >= 3, bf <= 60 else { return nil }
+        return weightKg * (1 - bf / 100)
     }
 
     public var bmi: Double? {

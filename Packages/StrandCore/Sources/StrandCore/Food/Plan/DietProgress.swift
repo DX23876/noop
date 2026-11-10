@@ -42,22 +42,63 @@ public enum DietProgress {
         public var weeksInRange: Int
     }
 
+    /// Recomposition (owner, 2026-11-10): the weight should stay about where it was while fat goes down and
+    /// strength goes up. Each line is nil when there is nothing to read it from.
+    public struct Recomp: Equatable, Sendable {
+        public var startKg: Double
+        public var trendKg: Double
+        /// The trend sits within `recompBandKg` of the start.
+        public var weightSteady: Bool
+        /// Change of body fat in percentage points since the plan began (negative is down).
+        public var bodyFatChange: Double?
+        /// Change of the waist in centimetres since the plan began, used when there is no body fat measurement.
+        public var waistChangeCm: Double?
+        /// Change of strength in percent since the plan began, from the main lifts' estimated maximum.
+        public var strengthChangePercent: Double?
+
+        /// Fat (or the waist) going down and strength going up: the two signs recomposition is working.
+        public var working: Bool {
+            let fatDown = (bodyFatChange.map { $0 < -0.3 } ?? waistChangeCm.map { $0 < -0.5 }) ?? false
+            let stronger = strengthChangePercent.map { $0 > 1 } ?? false
+            return weightSteady && fatDown && stronger
+        }
+    }
+
     public enum Progress: Equatable, Sendable {
         case way(Way)
         case hold(Hold)
+        case recomp(Recomp)
+    }
+
+    /// Kilograms either side of the starting weight that still count as steady during recomposition.
+    public static let recompBandKg: Double = 1.5
+
+    /// Change from the first reading on or after the plan's start to the latest one; nil with fewer than two.
+    static func change(_ series: [(day: String, value: Double)], since startDay: String) -> Double? {
+        let inPlan = series.filter { $0.day >= startDay && $0.value.isFinite }.sorted { $0.day < $1.day }
+        guard let first = inPlan.first, let last = inPlan.last, inPlan.count >= 2 else { return nil }
+        return last.value - first.value
     }
 
     /// Kilograms either side of the starting weight that still count as holding.
     public static let holdBandKg: Double = 1
 
     /// Nil without weigh-ins, or for losing or gaining without a goal weight (there is no way to draw then).
-    public static func resolve(plan: DietPlan, goalWeightKg: Double?, weighIns: [(day: String, kg: Double)]) -> Progress? {
+    /// `bodyFat` and `waist` are (day, value) readings; `strengthChangePercent` comes from the training history.
+    public static func resolve(plan: DietPlan, goalWeightKg: Double?, weighIns: [(day: String, kg: Double)],
+                               bodyFat: [(day: String, value: Double)] = [], waist: [(day: String, value: Double)] = [],
+                               strengthChangePercent: Double? = nil) -> Progress? {
         let samples = weighIns.compactMap { w in WeightSeries.date(forDay: w.day).map { (date: $0, value: w.kg) } }
             .filter { $0.value.isFinite && $0.value > 0 }.sorted { $0.date < $1.date }
         let smoothed = WeightTrendSummary.smoothedSeries(samples)
         guard let trend = smoothed.last?.value else { return nil }
         let start = plan.startWeightKg
         switch plan.goal {
+        case .recomp:
+            return .recomp(Recomp(startKg: start, trendKg: trend, weightSteady: abs(trend - start) <= recompBandKg,
+                                  bodyFatChange: change(bodyFat, since: plan.startDay),
+                                  waistChangeCm: change(waist, since: plan.startDay),
+                                  strengthChangePercent: strengthChangePercent))
         case .maintain:
             let inRange = abs(trend - start) <= holdBandKg
             var weeks = 0

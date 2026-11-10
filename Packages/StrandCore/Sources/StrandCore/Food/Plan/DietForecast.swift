@@ -84,6 +84,8 @@ public enum DietAdjust {
     }
 
     public static let maxChangeKcal: Double = 150
+    /// Recomposition's weekly step when the weight trend leaves its band.
+    public static let recompStepKcal: Double = 100
 
     /// `weighIns` are (day, kg) of the last 21 days; `loggedDays` counts days with a food log in the last 7.
     public static func weekly(plan: DietPlan, result: DietTargets.Result, weighIns: [(day: String, kg: Double)],
@@ -103,6 +105,13 @@ public enum DietAdjust {
             WeightSeries.date(forDay: w.day).map { todayDate.timeIntervalSince($0) < 7 * 86_400 } ?? false
         }
         guard lastWeek.count >= 3, weighIns.count >= 5, let trend = slopePerWeek(weighIns) else { return hold(.fewWeighIns) }
+        // Recomposition holds the weight in a band (0 ± 0.25 % a week) and steps 100 kcal when the trend leaves it.
+        if result.goal == .recomp {
+            let band = (weighIns.last?.kg ?? 0) * 0.0025
+            guard abs(trend) > band else { return hold(.onPlan, trend: trend) }
+            return Outcome(changeKcal: trend < 0 ? recompStepKcal : -recompStepKcal, hold: nil, trendKgPerWeek: trend,
+                           plannedKgPerWeek: 0)
+        }
         // Positive gap: the body moves less (or the wrong way) than planned in the plan's own direction.
         let gap = trend - planned
         let change = (-gap * kcalPerKg / 7).clamped(-maxChangeKcal, maxChangeKcal)
