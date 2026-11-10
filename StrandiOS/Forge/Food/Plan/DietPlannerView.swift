@@ -17,7 +17,12 @@ struct DietPlannerView: View {
     @State private var suggestions: [DietSuggest.Suggestion] = []
     @State private var recent: [FoodLogEntryLite] = []
 
-    private enum Step: Int, CaseIterable { case welcome, goal, weight, pace, life, form, addon, numbers, summary }
+    private enum Step: Int, CaseIterable { case welcome, goal, weight, pace, life, form, addon, training, numbers, summary }
+
+    /// The training-day step is for recomposition, and for anyone in the advanced mode; the simple mode skips it.
+    private func skipped(_ s: Step) -> Bool { s == .training && draft.goal != .recomp && draft.mode == .simple }
+    /// Recomposition needs at least two planned training days before the planner goes on.
+    private var blocked: Bool { current == .training && draft.goal == .recomp && (draft.trainingWeekdays ?? []).count < 2 }
 
     init(model: ForgeFoodModel, start: DietPlan? = nil) {
         self.model = model
@@ -71,7 +76,7 @@ struct DietPlannerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() } }
                 if step > 0 {
-                    ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.left") { step -= 1 }.labelStyle(.iconOnly) }
+                    ToolbarItem(placement: .topBarLeading) { Button("Back", systemImage: "chevron.left", action: back).labelStyle(.iconOnly) }
                 }
             }
             .task { await loadRecent() }
@@ -94,6 +99,7 @@ struct DietPlannerView: View {
         case .life: lifeStep
         case .form: formStep
         case .addon: addonStep
+        case .training: trainingStep
         case .numbers: numbersStep
         case .summary: summaryStep
         }
@@ -121,7 +127,14 @@ struct DietPlannerView: View {
                 DietChoiceCard(image: DietArt.goal(g), title: DietText.goal(g), detail: DietText.goalDetail(g),
                                selected: draft.goal == g) {
                     draft.goal = g
-                    if draft.pacePercent == 0 || g == .gain { draft.pacePercent = DietPlan.Pace.normal.percent(for: g) }
+                    if g == .recomp {
+                        // Recomposition has no goal weight or pace, and it needs strength training.
+                        draft.goalWeightKg = nil
+                        draft.strength = true
+                        if draft.trainingWeekdays == nil, !model.usualTrainingWeekdays.isEmpty { draft.trainingWeekdays = model.usualTrainingWeekdays }
+                    } else if draft.pacePercent == 0 || g == .gain {
+                        draft.pacePercent = DietPlan.Pace.normal.percent(for: g)
+                    }
                 }
             }
             if person.male != true {
@@ -140,7 +153,7 @@ struct DietPlannerView: View {
                     .font(.footnote).foregroundStyle(ForgeColor.secondary)
             }
             .forgeCard(padding: 12)
-            if draft.goal != .maintain {
+            if draft.goal != .maintain && draft.goal != .recomp {
                 title("A goal weight? It is optional.")
                 VStack(alignment: .leading, spacing: 10) {
                     // Two plain choices rather than a switch: which one is on reads at a glance.
@@ -173,7 +186,9 @@ struct DietPlannerView: View {
 
     private var paceStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if draft.goal == .maintain {
+            if draft.goal == .recomp {
+                recompStep
+            } else if draft.goal == .maintain {
                 title("No pace needed")
                 Text("Holding your weight means eating about as much as you burn. Forge keeps an eye on the trend.")
                     .foregroundStyle(ForgeColor.secondary)
@@ -215,7 +230,9 @@ struct DietPlannerView: View {
                 if let i = draft.keep.firstIndex(of: k) { draft.keep.remove(at: i) } else { draft.keep.append(k) }
             }
             DietCheckRow(title: String(localized: "Clear rules are easier for me than moderation"), isOn: $likesRules)
-            DietCheckRow(title: String(localized: "I do strength training"), isOn: $draft.strength)
+            if draft.goal != .recomp {
+                DietCheckRow(title: String(localized: "I do strength training"), isOn: $draft.strength)
+            }
         }
     }
 
@@ -277,6 +294,10 @@ struct DietPlannerView: View {
                     DietEffortDots(effort: Int(r.effortScore.rounded()))
                     Text(DietText.effort(r.effort)).font(.caption).foregroundStyle(DietText.effortTint(r.effortScore))
                 }
+            }
+            if let split = DietTargets.trainingAndRestKcal(plan: draft, result: r) {
+                Text("Training days \(FoodText.kcal(split.training)) kcal · rest days \(FoodText.kcal(split.rest)) kcal")
+                    .font(.footnote).foregroundStyle(ForgeColor.secondary)
             }
             if let fast = r.fastingDayKcal, let days = r.fastingDaysPerWeek {
                 Text("Eating days \(FoodText.kcal(r.eatingDayKcal)) kcal · \(days.formatted(.number.precision(.fractionLength(0...1)))) fasting days a week at \(FoodText.kcal(fast)) kcal")
@@ -353,7 +374,7 @@ struct DietPlannerView: View {
             title("Your plan")
             Text("\(DietText.goal(r.goal)) · \(DietText.form(draft.form))\(draft.addon.map { " · " + DietText.addon($0) } ?? "")")
                 .font(.headline)
-            if r.goal != .maintain {
+            if r.goal != .maintain && r.goal != .recomp {
                 VStack(alignment: .leading, spacing: 8) {
                     DietForecastChart(forecast: forecast, goalKg: r.goalWeightKg)
                     if let line = DietForecastText.goal(forecast, hasGoal: r.goalWeightKg != nil) {
@@ -367,7 +388,12 @@ struct DietPlannerView: View {
             numbersCard
             ForEach(r.notes, id: \.self) { notice(DietText.note($0)) }
             DietCheckRow(title: String(localized: "Hide weight and numbers"), isOn: $draft.hideNumbers)
-            DietExplainCard(image: DietArt.explain("hold"), title: DietText.explainHoldTitle, text: DietText.explainHold)
+            if r.goal == .recomp {
+                DietExplainCard(image: DietArt.recomp, title: DietText.explainRecompTitle, text: DietText.explainRecomp)
+                Text(DietText.recompSources).font(.caption).foregroundStyle(ForgeColor.secondary)
+            } else {
+                DietExplainCard(image: DietArt.explain("hold"), title: DietText.explainHoldTitle, text: DietText.explainHold)
+            }
         }
     }
 
@@ -389,6 +415,8 @@ struct DietPlannerView: View {
                     .background(ForgeColor.accent, in: .capsule)
             }
             .buttonStyle(.plain)
+            .disabled(blocked)
+            .opacity(blocked ? 0.4 : 1)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
         .background(.regularMaterial)
@@ -403,6 +431,77 @@ struct DietPlannerView: View {
             dismiss()
         } else {
             step += 1
+            while skipped(current), step < Step.allCases.count - 1 { step += 1 }
+        }
+    }
+
+    private func back() {
+        step -= 1
+        while skipped(current), step > 0 { step -= 1 }
+    }
+
+    // MARK: Recomposition and training days
+
+    /// Recomposition in place of the pace: how long the wearer has trained, their body fat, how well it fits.
+    @ViewBuilder private var recompStep: some View {
+        title("How long have you trained?")
+        DietChips(items: DietPlan.Experience.allCases, label: DietText.experience, isOn: { draft.experience == $0 }) { e in
+            draft.experience = e
+        }
+        VStack(alignment: .leading, spacing: 6) {
+            if let bf = person.bodyFatPercent {
+                LabeledContent("Body fat", value: "\(bf.formatted(.number.precision(.fractionLength(0...1)).locale(AppLanguage.activeLocale))) %")
+                Text("Forge reckons your protein on your weight without fat.").font(.footnote).foregroundStyle(ForgeColor.secondary)
+            } else {
+                Text("No body fat measurement yet. Forge reckons protein on your weight; a reading from Apple Health or the tape measure on the Body page makes it more precise.")
+                    .font(.footnote).foregroundStyle(ForgeColor.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeCard(padding: 12)
+        notice(DietText.recompFit(draft.experience, bodyFat: person.bodyFatPercent, male: person.male))
+        if draft.mode == .advanced {
+            dial(String(localized: "Under your burn"), value: Binding(get: { draft.recompDeficitPercent ?? 5 }, set: { draft.recompDeficitPercent = $0 }),
+                 range: 0...15, step: 1, text: { "\(Int($0)) %" })
+                .forgeCard(padding: 12)
+        }
+        DietExplainCard(image: DietArt.recomp, title: DietText.explainRecompTitle, text: DietText.explainRecomp)
+    }
+
+    /// The planned training days, proposed from the log, and (advanced) how much moves to them.
+    private var trainingStep: some View {
+        let order = (0..<7).map { (Calendar.current.firstWeekday - 1 + $0) % 7 + 1 }
+        return VStack(alignment: .leading, spacing: 12) {
+            title("When do you train?")
+            Text(draft.goal == .recomp
+                 ? String(localized: "At least two days a week. Training days get more carbohydrate, rest days a little less; the week stays the same.")
+                 : String(localized: "Training days can get more carbohydrate and rest days a little less; the week stays the same."))
+                .font(.footnote).foregroundStyle(ForgeColor.secondary)
+            DietChips(items: order, label: DietText.weekday, isOn: { (draft.trainingWeekdays ?? []).contains($0) }) { w in
+                var days = draft.trainingWeekdays ?? []
+                if let i = days.firstIndex(of: w) { days.remove(at: i) } else { days.append(w) }
+                draft.trainingWeekdays = days.sorted()
+            }
+            let usual = model.usualTrainingWeekdays
+            if !usual.isEmpty, usual != (draft.trainingWeekdays ?? []) {
+                Button(String(localized: "Use the days from your log: \(usual.map(DietText.weekday).joined(separator: ", "))")) {
+                    draft.trainingWeekdays = usual
+                }
+                .font(.subheadline)
+            }
+            Text("A day with logged strength training counts as a training day too.")
+                .font(.footnote).foregroundStyle(ForgeColor.secondary)
+            if (draft.trainingWeekdays ?? []).count == 7 {
+                notice(String(localized: "With every day a training day there is no rest day to move calories from, so all days stay the same."))
+            }
+            if draft.mode == .advanced, draft.form.fasting == nil {
+                dial(String(localized: "Moved to training days"),
+                     value: Binding(get: { draft.dayShift ?? (draft.goal == .recomp ? 0.10 : 0) }, set: { draft.dayShift = $0 }),
+                     range: 0...0.25, step: 0.01, text: { DietText.percent($0 * 100) })
+                    .forgeCard(padding: 12)
+            } else if draft.form.fasting != nil {
+                notice(String(localized: "A fasting form keeps its own days, so nothing moves between training and rest days."))
+            }
         }
     }
 

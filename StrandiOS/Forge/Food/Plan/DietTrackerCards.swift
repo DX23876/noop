@@ -31,6 +31,9 @@ struct DietProgressCard: View {
                     .padding(.horizontal, 4)
                     .accessibilityHidden(true)
             }
+            if case .recomp(let r) = progress {
+                DietRecompLines(recomp: r, compact: compact)
+            }
         }
         .forgeCard(padding: 14)
         .accessibilityElement(children: .combine)
@@ -40,6 +43,7 @@ struct DietProgressCard: View {
         switch progress {
         case .way(let w): DietArt.stage(w.stage)
         case .hold: DietArt.holding
+        case .recomp: DietArt.recomp
         }
     }
 
@@ -54,6 +58,7 @@ struct DietProgressCard: View {
             case .goal: String(localized: "Goal reached")
             }
         case .hold(let h): h.inRange ? String(localized: "Holding steady") : String(localized: "Off your usual weight")
+        case .recomp(let r): r.working ? String(localized: "Reshaping") : String(localized: "Recomposition")
         }
     }
 
@@ -62,6 +67,10 @@ struct DietProgressCard: View {
         case .way(let w):
             if w.stage == .goal { return String(localized: "Your trend is at \(DietText.kg(w.trendKg)). Forge now plans for holding it.") }
             return String(localized: "\(DietText.kg(w.doneKg)) done, \(DietText.kg(w.leftKg)) to go.")
+        case .recomp(let r):
+            if r.working { return String(localized: "Fat is going down and strength up, at about the same weight.") }
+            if !r.weightSteady { return String(localized: "Your weight has moved more than planned; Forge adjusts the calories.") }
+            return String(localized: "Recomposition takes months. These three lines show whether it is working.")
         case .hold(let h):
             if h.inRange {
                 return h.weeksInRange >= 1
@@ -70,6 +79,54 @@ struct DietProgressCard: View {
             }
             return String(localized: "Your trend is at \(DietText.kg(h.trendKg)), \(DietText.kg(abs(h.trendKg - h.startKg))) from where you started.")
         }
+    }
+}
+
+/// Recomposition's three signs, each in words with an arrow: weight steady, fat (or the waist) down, strength up.
+/// A line without readings says how to get them instead of showing nothing.
+struct DietRecompLines: View {
+    let recomp: DietProgress.Recomp
+    var compact = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            line(String(localized: "Weight"), ok: recomp.weightSteady, symbol: recomp.weightSteady ? "equal.circle.fill" : "exclamationmark.circle.fill",
+                 value: String(localized: "\(DietText.kg(recomp.trendKg)), started at \(DietText.kg(recomp.startKg))"))
+            if let bf = recomp.bodyFatChange {
+                line(String(localized: "Body fat"), ok: bf < -0.3, symbol: bf < 0 ? "arrow.down.circle.fill" : "arrow.up.circle.fill",
+                     value: String(localized: "\(signed(bf, decimals: 1)) percentage points"))
+            } else if let waist = recomp.waistChangeCm {
+                line(String(localized: "Waist"), ok: waist < -0.5, symbol: waist < 0 ? "arrow.down.circle.fill" : "arrow.up.circle.fill",
+                     value: "\(signed(waist, decimals: 1)) cm")
+            } else if !compact {
+                line(String(localized: "Body fat"), ok: nil, symbol: "ruler",
+                     value: String(localized: "Measure body fat or your waist on the Body page now and then."))
+            }
+            if let strength = recomp.strengthChangePercent {
+                line(String(localized: "Strength"), ok: strength > 1, symbol: strength >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill",
+                     value: "\(signed(strength, decimals: 0)) %")
+            } else if !compact {
+                line(String(localized: "Strength"), ok: nil, symbol: "dumbbell",
+                     value: String(localized: "Log your strength sessions, and your main lifts show here."))
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private func signed(_ value: Double, decimals: Int) -> String {
+        let text = abs(value).formatted(.number.precision(.fractionLength(0...decimals)).locale(AppLanguage.activeLocale))
+        return (value < 0 ? "−" : "+") + text
+    }
+
+    private func line(_ name: String, ok: Bool?, symbol: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol)
+                .foregroundStyle(ok == nil ? ForgeColor.tertiary : ok == true ? ForgeColor.chargeInk : ForgeColor.effortInk)
+            Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.text)
+            Spacer(minLength: 8)
+            Text(value).font(.subheadline).foregroundStyle(ForgeColor.secondary).multilineTextAlignment(.trailing)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

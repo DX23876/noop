@@ -21,7 +21,7 @@ struct DietPlanView: View {
                                          forecastLine: model.forecast().flatMap { DietForecastText.goal($0, hasGoal: r.goalWeightKg != nil) })
                     }
                     DietWeekCard(model: model)
-                    if !plan.hideNumbers, r.goal != .maintain, let forecast = model.forecast() {
+                    if !plan.hideNumbers, r.goal != .maintain, r.goal != .recomp, let forecast = model.forecast() {
                         FoodSectionHeader(title: String(localized: "Where it is heading"))
                         VStack(alignment: .leading, spacing: 8) {
                             DietForecastChart(forecast: forecast, goalKg: r.goalWeightKg)
@@ -79,7 +79,7 @@ struct DietPlanView: View {
     private func subtitle(_ plan: DietPlan, _ r: DietTargets.Result) -> String {
         var parts = [DietText.form(plan.form)]
         if let a = plan.addon { parts.append(DietText.addon(a)) }
-        if r.goal != .maintain && !plan.hideNumbers { parts.append(String(localized: "\(DietText.percent(r.pacePercent)) a week")) }
+        if r.goal != .maintain && r.goal != .recomp && !plan.hideNumbers { parts.append(String(localized: "\(DietText.percent(r.pacePercent)) a week")) }
         parts.append(plan.mode == .simple ? String(localized: "Simple") : String(localized: "Advanced"))
         return parts.joined(separator: " · ")
     }
@@ -99,6 +99,12 @@ struct DietPlanView: View {
                 if let fast = r.fastingDayKcal {
                     Text("Eating days \(FoodText.kcal(r.eatingDayKcal)) kcal, fasting days \(FoodText.kcal(fast)) kcal")
                         .font(.footnote).foregroundStyle(ForgeColor.secondary)
+                }
+                if let split = DietTargets.trainingAndRestKcal(plan: plan, result: r) {
+                    Text("Training days \(FoodText.kcal(split.training)) kcal · rest days \(FoodText.kcal(split.rest)) kcal")
+                        .font(.footnote).foregroundStyle(ForgeColor.secondary)
+                    Text((plan.trainingWeekdays ?? []).map(DietText.weekday).joined(separator: ", "))
+                        .font(.footnote.weight(.semibold)).foregroundStyle(ForgeColor.effortInk)
                 }
                 if r.adjustmentKcal != 0 {
                     Text(r.adjustmentKcal < 0 ? String(localized: "Forge has lowered it by \(FoodText.kcal(-r.adjustmentKcal)) kcal so far, from your trend.")
@@ -264,7 +270,7 @@ struct DietPlanLine: View {
 
     private var title: String {
         guard let plan = model.plan, let r = model.planResult else { return String(localized: "Plan your diet") }
-        if r.goal == .maintain || plan.hideNumbers { return DietText.goal(r.goal) }
+        if r.goal == .maintain || r.goal == .recomp || plan.hideNumbers { return DietText.goal(r.goal) }
         return String(localized: "\(DietText.goal(r.goal)) · \(DietText.percent(r.pacePercent)) a week")
     }
 

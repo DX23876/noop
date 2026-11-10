@@ -157,6 +157,12 @@ struct ForgeFoodView: View {
             .gesture(DragGesture(minimumDistance: 30).onEnded(swipeDay))
             FoodPlateLegend(macros: plate.macros)
             FoodDayFigures(eaten: model.eatenKcal, calories: model.calories, burned: model.burned, isToday: model.isToday)
+            if let plan = model.plan, plan.effectiveDayShift > 0, !(plan.trainingWeekdays ?? []).isEmpty {
+                Label(model.isTrainingDay(model.day) ? String(localized: "Training day: more carbohydrate") : String(localized: "Rest day"),
+                      systemImage: model.isTrainingDay(model.day) ? "dumbbell.fill" : "bed.double.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(model.isTrainingDay(model.day) ? ForgeColor.effortInk : ForgeColor.secondary)
+            }
             if let bonus = model.calories?.activeBonusKcal, bonus >= DietActiveDay.shownFromKcal {
                 Label("+\(FoodText.kcal(bonus)) kcal for your active day", systemImage: "flame.fill")
                     .font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.effortInk)

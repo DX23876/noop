@@ -12,6 +12,7 @@ enum DietText {
         case .lose: String(localized: "Lose weight")
         case .maintain: String(localized: "Hold my weight")
         case .gain: String(localized: "Build muscle")
+        case .recomp: String(localized: "Recomposition")
         }
     }
 
@@ -20,6 +21,7 @@ enum DietText {
         case .lose: String(localized: "A steady deficit you can keep, with enough protein to protect your muscles.")
         case .maintain: String(localized: "Eat as much as you burn and eat better along the way.")
         case .gain: String(localized: "A small surplus and plenty of protein, so the gain is mostly muscle.")
+        case .recomp: String(localized: "Lose fat and build muscle at about the same weight, with strength training and plenty of protein.")
         }
     }
 
@@ -36,7 +38,9 @@ enum DietText {
     }
 
     static func kg(_ value: Double) -> String {
-        value.formatted(.number.precision(.fractionLength(0...1)).locale(AppLanguage.activeLocale)) + " kg"
+        // Rounded first, so a trend of -0.04 reads "0 kg" rather than "-0 kg".
+        let rounded = (value * 10).rounded() / 10
+        return (rounded == 0 ? 0 : rounded).formatted(.number.precision(.fractionLength(0...1)).locale(AppLanguage.activeLocale)) + " kg"
     }
 
     // MARK: Forms
@@ -176,6 +180,39 @@ enum DietText {
     static let explainHold = String(localized: "People who keep their weight for years often share the same habits: they weigh themselves regularly, move a lot, eat similarly across the week and notice setbacks early. Forge helps: it shows your trend every week, and when you reach your goal it plans the step to holding instead of simply lifting the calories.")
     static let explainFormsTitle = String(localized: "Which way of eating works best?")
     static let explainForms = String(localized: "At the same calories and enough protein, people lose about the same on all of them. What counts is whether you keep it up. Pick the one that suits your life, not the one that sounds strictest.")
+    static let explainRecompTitle = String(localized: "What is recomposition?")
+    static let explainRecomp = String(localized: "Your weight stays about where it is while fat goes down and muscle builds up. It works best for people new to strength training, coming back to it, or carrying more body fat; for lean people who have trained for years it is slow, and alternating a light surplus with a light deficit usually works better. It needs regular strength training, plenty of protein and enough sleep, and it takes months, not weeks. The scale barely moves, so Forge watches body fat or your waist and your strength instead.")
+    static let recompSources = String(localized: "Sources: a review of body recomposition in trained people (Barakat and others, 2020) and a review of protein needs in a calorie deficit (Helms and others, 2014), which puts them at 2.3 to 3.1 g per kilogram of fat-free mass.")
+
+    /// How well recomposition fits, from experience and body fat.
+    static func recompFit(_ e: DietPlan.Experience?, bodyFat: Double?, male: Bool?) -> String {
+        let lean = bodyFat.map { $0 < (male == false ? 24 : 15) } ?? false
+        switch e {
+        case .new, .returning: return String(localized: "A good fit: new and returning lifters gain muscle fastest, even at about the same weight.")
+        case .someYears: return lean ? String(localized: "It can work, but slowly. Expect small changes over months.")
+                                     : String(localized: "A good fit while you still carry some body fat.")
+        case .manyYears: return lean ? String(localized: "For lean, long-trained people recomposition is slow. A light surplus, then a light deficit, usually brings more.")
+                                     : String(localized: "It can work, but slowly. Expect small changes over months.")
+        case nil: return String(localized: "Tell Forge how long you have trained, and it says how well this fits.")
+        }
+    }
+
+    static func experience(_ e: DietPlan.Experience) -> String {
+        switch e {
+        case .new: String(localized: "New to it")
+        case .returning: String(localized: "Coming back")
+        case .someYears: String(localized: "1 to 3 years")
+        case .manyYears: String(localized: "Longer")
+        }
+    }
+
+    static func weekday(_ w: Int) -> String {
+        var calendar = Calendar.current
+        calendar.locale = AppLanguage.activeLocale
+        let symbols = calendar.shortWeekdaySymbols
+        return (1...7).contains(w) ? symbols[w - 1] : ""
+    }
+
     static let sources = String(localized: "Sources: a review of 29 long-term studies of weight loss (Anderson and others, 2001), a review of keeping lost weight off (Hall and Kahan, 2018), and the US National Weight Control Registry of people who kept their weight off.")
 }
 
@@ -211,6 +248,8 @@ enum DietArt {
     }
 
     static func explain(_ name: String) -> String { named("dietExplain_\(name)", fallback: "foodScoreHero") }
+    /// Recomposition's own picture: the half-carved stone.
+    static var recomp: String { named("dietStage_recomp", fallback: explain("path")) }
 
     /// The way to the goal's pictures, one per stage, and the ridge for holding.
     static func stage(_ s: DietProgress.Stage) -> String { named("dietStage_\(s.rawValue)", fallback: explain("path")) }

@@ -301458,6 +301458,2036 @@
         }
       }
     },
+    "A day with logged strength training counts as a training day too." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Tag mit geloggtem Krafttraining zählt auch als Trainingstag."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un día con entrenamiento de fuerza registrado también cuenta como día de entrenamiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un jour avec une séance de musculation enregistrée compte aussi comme jour d'entraînement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un giorno con allenamento di forza registrato conta anch'esso come giorno di allenamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dzień z zapisanym treningiem siłowym też liczy się jako dzień treningowy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um dia com treino de força registado também conta como dia de treino."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "День с записанной силовой тренировкой тоже считается тренировочным."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录了力量训练的日子也算训练日。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記錄了重量訓練的日子也算訓練日。"
+          }
+        }
+      }
+    },
+    "A fasting form keeps its own days, so nothing moves between training and rest days." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Fastenform hat ihre eigenen Tage, darum verschiebt sich nichts zwischen Trainings- und Ruhetagen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una forma de ayuno tiene sus propios días, así que nada se mueve entre días de entrenamiento y de descanso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une forme de jeûne a ses propres jours, rien ne bouge donc entre jours d'entraînement et de repos."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una forma di digiuno ha i suoi giorni, quindi nulla si sposta tra giorni di allenamento e di riposo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forma postu ma własne dni, więc nic nie przesuwa się między dniami treningowymi a odpoczynku."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma forma de jejum tem os seus próprios dias, por isso nada muda entre dias de treino e de descanso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У поста свои дни, поэтому ничего не переносится между тренировочными днями и днями отдыха."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "断食方式有自己的日程，所以训练日和休息日之间不做调整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斷食方式有自己的日程，所以訓練日和休息日之間不做調整。"
+          }
+        }
+      }
+    },
+    "At least two days a week. Training days get more carbohydrate, rest days a little less; the week stays the same." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mindestens zwei Tage pro Woche. Trainingstage bekommen mehr Kohlenhydrate, Ruhetage etwas weniger; die Woche bleibt gleich."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al menos dos días a la semana. Los días de entrenamiento reciben más carbohidratos y los de descanso algo menos; la semana se mantiene igual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au moins deux jours par semaine. Les jours d'entraînement reçoivent plus de glucides, les jours de repos un peu moins ; la semaine reste la même."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almeno due giorni a settimana. I giorni di allenamento ricevono più carboidrati, quelli di riposo un po' meno; la settimana resta uguale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co najmniej dwa dni w tygodniu. Dni treningowe dostają więcej węglowodanów, dni odpoczynku trochę mniej; tydzień zostaje taki sam."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pelo menos dois dias por semana. Os dias de treino recebem mais hidratos e os de descanso um pouco menos; a semana fica igual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Минимум два дня в неделю. В тренировочные дни больше углеводов, в дни отдыха чуть меньше; неделя в целом та же."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每周至少两天。训练日多吃碳水，休息日稍少；一周总量不变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每週至少兩天。訓練日多吃碳水，休息日稍少；一週總量不變。"
+          }
+        }
+      }
+    },
+    "Forge reckons your protein on your weight without fat." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge rechnet dein Protein nach deinem Gewicht ohne Fett."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge calcula tu proteína según tu peso sin grasa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge calcule tes protéines sur ton poids sans graisse."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge calcola le proteine sul tuo peso senza grasso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge liczy białko według masy ciała bez tłuszczu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Forge calcula a proteína pelo teu peso sem gordura."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge считает белок по весу без жира."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge 按去脂体重计算你的蛋白质。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forge 按去脂體重計算你的蛋白質。"
+          }
+        }
+      }
+    },
+    "How long have you trained?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie lange trainierst du schon?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cuánto tiempo llevas entrenando?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis combien de temps t'entraînes-tu ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da quanto tempo ti alleni?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak długo trenujesz?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há quanto tempo treinas?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как долго ты тренируешься?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你训练多久了？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你訓練多久了？"
+          }
+        }
+      }
+    },
+    "Moved to training days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu Trainingstagen verschoben"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movido a días de entrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacé vers les jours d'entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spostato ai giorni di allenamento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przeniesione na dni treningowe"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movido para dias de treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перенесено на тренировочные дни"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移到训练日"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移到訓練日"
+          }
+        }
+      }
+    },
+    "No body fat measurement yet. Forge reckons protein on your weight; a reading from Apple Health or the tape measure on the Body page makes it more precise." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Körperfettmessung. Forge rechnet Protein nach deinem Gewicht; ein Wert aus Apple Health oder vom Maßband auf der Körperseite macht es genauer."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay medición de grasa corporal. Forge calcula la proteína según tu peso; un dato de Apple Health o de la cinta métrica en la página Cuerpo lo hace más preciso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de mesure de masse grasse. Forge calcule les protéines sur ton poids ; une valeur d'Apple Santé ou du mètre ruban sur la page Corps rend le calcul plus précis."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessuna misura del grasso corporeo. Forge calcola le proteine sul peso; un valore da Apple Salute o dal metro sulla pagina Corpo lo rende più preciso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak pomiaru tkanki tłuszczowej. Forge liczy białko według wagi; wynik z Apple Zdrowie lub z taśmy na stronie Ciało zwiększy dokładność."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda sem medição de gordura corporal. O Forge calcula a proteína pelo teu peso; um valor da app Saúde ou da fita métrica na página Corpo torna-o mais preciso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет замера жира. Forge считает белок по весу; значение из Apple Здоровья или замер лентой на странице «Тело» сделают расчёт точнее."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚无体脂测量。Forge 按体重计算蛋白质；来自 Apple 健康或身体页卷尺测量的数值会更精确。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚無體脂測量。Forge 按體重計算蛋白質；來自 Apple 健康或身體頁捲尺測量的數值會更精確。"
+          }
+        }
+      }
+    },
+    "Training days %@ kcal · rest days %@ kcal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingstage %@ kcal · Ruhetage %@ kcal"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Días de entrenamiento %@ kcal · días de descanso %@ kcal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jours d'entraînement %@ kcal · jours de repos %@ kcal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giorni di allenamento %@ kcal · giorni di riposo %@ kcal"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dni treningowe %@ kcal · dni odpoczynku %@ kcal"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dias de treino %@ kcal · dias de descanso %@ kcal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировочные дни %@ ккал · дни отдыха %@ ккал"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练日 %@ 大卡 · 休息日 %@ 大卡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練日 %@ 大卡 · 休息日 %@ 大卡"
+          }
+        }
+      }
+    },
+    "Training days can get more carbohydrate and rest days a little less; the week stays the same." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingstage können mehr Kohlenhydrate bekommen und Ruhetage etwas weniger; die Woche bleibt gleich."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los días de entrenamiento pueden recibir más carbohidratos y los de descanso algo menos; la semana se mantiene igual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les jours d'entraînement peuvent recevoir plus de glucides et les jours de repos un peu moins ; la semaine reste la même."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I giorni di allenamento possono ricevere più carboidrati e quelli di riposo un po' meno; la settimana resta uguale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dni treningowe mogą dostać więcej węglowodanów, a dni odpoczynku trochę mniej; tydzień zostaje taki sam."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os dias de treino podem receber mais hidratos e os de descanso um pouco menos; a semana fica igual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В тренировочные дни можно больше углеводов, в дни отдыха чуть меньше; неделя в целом та же."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练日可以多吃碳水，休息日稍少；一周总量不变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練日可以多吃碳水，休息日稍少；一週總量不變。"
+          }
+        }
+      }
+    },
+    "Under your burn" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter deinem Verbrauch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por debajo de tu gasto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sous ta dépense"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sotto il tuo consumo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poniżej spalania"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abaixo do teu gasto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниже расхода"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低于你的消耗"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低於你的消耗"
+          }
+        }
+      }
+    },
+    "Use the days from your log: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tage aus deinem Log übernehmen: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar los días de tu registro: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprendre les jours de ton journal : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa i giorni del tuo registro: %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj dni z dziennika: %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar os dias do teu registo: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Взять дни из журнала: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用记录中的日子：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用記錄中的日子：%@"
+          }
+        }
+      }
+    },
+    "When do you train?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wann trainierst du?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cuándo entrenas?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand t'entraînes-tu ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando ti alleni?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiedy trenujesz?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando treinas?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Когда ты тренируешься?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你哪天训练？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你哪天訓練？"
+          }
+        }
+      }
+    },
+    "1 to 3 years" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 bis 3 Jahre"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 a 3 años"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 à 3 ans"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da 1 a 3 anni"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 do 3 lat"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 a 3 anos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1–3 года"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 到 3 年"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 到 3 年"
+          }
+        }
+      }
+    },
+    "A good fit while you still carry some body fat." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passt gut, solange du noch etwas Körperfett hast."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encaja bien mientras aún tengas algo de grasa corporal."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ça convient bien tant que tu as encore un peu de masse grasse."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adatto finché hai ancora un po' di grasso corporeo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dobrze pasuje, dopóki masz jeszcze trochę tkanki tłuszczowej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encaixa bem enquanto ainda tens alguma gordura corporal."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Хорошо подходит, пока есть запас жира."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只要你还有一些体脂，就很合适。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只要你還有一些體脂，就很合適。"
+          }
+        }
+      }
+    },
+    "A good fit: new and returning lifters gain muscle fastest, even at about the same weight." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passt gut: Einsteiger und Wiedereinsteiger bauen am schnellsten Muskeln auf, selbst bei fast gleichem Gewicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encaja bien: quienes empiezan o vuelven ganan músculo más rápido, incluso con un peso casi igual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ça convient bien : débutants et personnes qui reprennent gagnent du muscle le plus vite, même à poids presque égal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adatto: chi inizia o riprende guadagna muscoli più in fretta, anche a peso quasi uguale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dobrze pasuje: początkujący i wracający budują mięśnie najszybciej, nawet przy prawie tej samej wadze."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encaixa bem: quem começa ou regressa ganha músculo mais depressa, mesmo com quase o mesmo peso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Хорошо подходит: новички и те, кто возвращается, быстрее всего набирают мышцы даже при почти том же весе."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "很合适：新手和重新开始训练的人增肌最快，即使体重几乎不变。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "很合適：新手和重新開始訓練的人增肌最快，即使體重幾乎不變。"
+          }
+        }
+      }
+    },
+    "Coming back" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedereinstieg"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelvo a empezar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprise"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riprendo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wracam"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regresso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Возвращаюсь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新开始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新開始"
+          }
+        }
+      }
+    },
+    "For lean, long-trained people recomposition is slow. A light surplus, then a light deficit, usually brings more." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für schlanke, lange Trainierte ist Rekomposition langsam. Ein leichter Überschuss, danach ein leichtes Defizit, bringt meist mehr."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para personas delgadas y con años de entrenamiento la recomposición es lenta. Un pequeño superávit y luego un pequeño déficit suelen dar más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour les personnes minces entraînées depuis longtemps, la recomposition est lente. Un léger surplus, puis un léger déficit, apporte généralement plus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per chi è magro e si allena da anni la ricomposizione è lenta. Un leggero surplus e poi un leggero deficit di solito rendono di più."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dla szczupłych, długo trenujących osób rekompozycja jest powolna. Lekka nadwyżka, potem lekki deficyt zwykle daje więcej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para pessoas magras e treinadas há muito, a recomposição é lenta. Um ligeiro excedente e depois um ligeiro défice costumam dar mais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для худых и давно тренирующихся рекомпозиция идёт медленно. Небольшой профицит, затем небольшой дефицит обычно дают больше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对于偏瘦且训练多年的人，体成分重组很慢。先小幅盈余再小幅缺口通常效果更好。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對於偏瘦且訓練多年的人，體組成重組很慢。先小幅盈餘再小幅缺口通常效果更好。"
+          }
+        }
+      }
+    },
+    "It can work, but slowly. Expect small changes over months." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es kann klappen, aber langsam. Rechne mit kleinen Veränderungen über Monate."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puede funcionar, pero despacio. Espera pequeños cambios a lo largo de meses."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ça peut marcher, mais lentement. Attends-toi à de petits changements sur des mois."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Può funzionare, ma lentamente. Aspettati piccoli cambiamenti nell'arco di mesi."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Może zadziałać, ale powoli. Spodziewaj się małych zmian w ciągu miesięcy."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pode funcionar, mas devagar. Espera pequenas mudanças ao longo de meses."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Может сработать, но медленно. Жди небольших изменений за месяцы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可能有效，但很慢。预计几个月内只有小变化。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可能有效，但很慢。預計幾個月內只有小變化。"
+          }
+        }
+      }
+    },
+    "Lose fat and build muscle at about the same weight, with strength training and plenty of protein." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fett abbauen und Muskeln aufbauen bei fast gleichem Gewicht, mit Krafttraining und viel Protein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perder grasa y ganar músculo con un peso casi igual, con entrenamiento de fuerza y mucha proteína."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perdre de la graisse et gagner du muscle à poids presque égal, avec de la musculation et beaucoup de protéines."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perdere grasso e costruire muscoli a peso quasi uguale, con allenamento di forza e tante proteine."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracić tłuszcz i budować mięśnie przy prawie tej samej wadze, z treningiem siłowym i dużą ilością białka."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perder gordura e ganhar músculo com quase o mesmo peso, com treino de força e muita proteína."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сбрасывать жир и наращивать мышцы почти при том же весе, с силовыми тренировками и большим количеством белка."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在体重几乎不变的情况下减脂增肌，配合力量训练和充足蛋白质。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在體重幾乎不變的情況下減脂增肌，配合重量訓練和充足蛋白質。"
+          }
+        }
+      }
+    },
+    "New to it" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu dabei"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soy nuevo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Débutant"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sono all'inizio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dopiero zaczynam"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estou a começar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новичок"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刚开始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剛開始"
+          }
+        }
+      }
+    },
+    "Sources: a review of body recomposition in trained people (Barakat and others, 2020) and a review of protein needs in a calorie deficit (Helms and others, 2014), which puts them at 2.3 to 3.1 g per kilogram of fat-free mass." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quellen: eine Übersicht zur Rekomposition bei Trainierten (Barakat und andere, 2020) und eine Übersicht zum Proteinbedarf im Kaloriendefizit (Helms und andere, 2014), die ihn bei 2,3 bis 3,1 g pro Kilogramm fettfreier Masse sieht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuentes: una revisión sobre recomposición corporal en personas entrenadas (Barakat y otros, 2020) y una revisión sobre necesidades de proteína en déficit calórico (Helms y otros, 2014), que las sitúa en 2,3 a 3,1 g por kilo de masa libre de grasa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sources : une synthèse sur la recomposition chez les personnes entraînées (Barakat et al., 2020) et une synthèse sur les besoins en protéines en déficit calorique (Helms et al., 2014), qui les situe entre 2,3 et 3,1 g par kilo de masse maigre."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fonti: una revisione sulla ricomposizione corporea in persone allenate (Barakat e altri, 2020) e una revisione sul fabbisogno proteico in deficit calorico (Helms e altri, 2014), che lo pone tra 2,3 e 3,1 g per chilo di massa magra."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Źródła: przegląd rekompozycji ciała u osób trenujących (Barakat i inni, 2020) oraz przegląd zapotrzebowania na białko przy deficycie (Helms i inni, 2014), który określa je na 2,3–3,1 g na kilogram beztłuszczowej masy ciała."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fontes: uma revisão sobre recomposição corporal em pessoas treinadas (Barakat e outros, 2020) e uma revisão sobre necessidades proteicas em défice calórico (Helms e outros, 2014), que as coloca entre 2,3 e 3,1 g por quilo de massa magra."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Источники: обзор рекомпозиции у тренированных людей (Barakat и др., 2020) и обзор потребности в белке при дефиците (Helms и др., 2014), где она указана как 2,3–3,1 г на килограмм безжировой массы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来源：一篇关于训练人群体成分重组的综述（Barakat 等，2020）和一篇关于热量缺口下蛋白质需求的综述（Helms 等，2014），后者给出每公斤去脂体重 2.3 至 3.1 克。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "來源：一篇關於訓練人群體組成重組的綜述（Barakat 等，2020）和一篇關於熱量缺口下蛋白質需求的綜述（Helms 等，2014），後者給出每公斤去脂體重 2.3 至 3.1 克。"
+          }
+        }
+      }
+    },
+    "Tell Forge how long you have trained, and it says how well this fits." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sag Forge, wie lange du trainierst, dann sagt es dir, wie gut das passt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dile a Forge cuánto llevas entrenando y te dirá si encaja."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dis à Forge depuis quand tu t'entraînes, et il te dira si ça convient."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Di' a Forge da quanto ti alleni e ti dirà se è adatto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiedz Forge, jak długo trenujesz, a powie, czy to pasuje."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diz ao Forge há quanto tempo treinas e ele diz se encaixa."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скажи Forge, сколько ты тренируешься, и он скажет, насколько это подходит."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "告诉 Forge 你训练了多久，它会告诉你是否合适。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "告訴 Forge 你訓練了多久，它會告訴你是否合適。"
+          }
+        }
+      }
+    },
+    "What is recomposition?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was ist Rekomposition?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Qué es la recomposición?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qu'est-ce que la recomposition ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Che cos'è la ricomposizione?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czym jest rekompozycja?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que é a recomposição?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что такое рекомпозиция?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "什么是体成分重组？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "什麼是體組成重組？"
+          }
+        }
+      }
+    },
+    "Your weight stays about where it is while fat goes down and muscle builds up. It works best for people new to strength training, coming back to it, or carrying more body fat; for lean people who have trained for years it is slow, and alternating a light surplus with a light deficit usually works better. It needs regular strength training, plenty of protein and enough sleep, and it takes months, not weeks. The scale barely moves, so Forge watches body fat or your waist and your strength instead." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gewicht bleibt etwa gleich, während Fett weniger wird und Muskeln wachsen. Am besten klappt das für Einsteiger, Wiedereinsteiger und bei mehr Körperfett; für Schlanke, die seit Jahren trainieren, ist es langsam, und ein Wechsel aus leichtem Überschuss und leichtem Defizit bringt meist mehr. Es braucht regelmäßiges Krafttraining, viel Protein und genug Schlaf, und es dauert Monate, nicht Wochen. Die Waage bewegt sich kaum, darum schaut Forge auf Körperfett oder Taille und auf deine Kraft."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu peso se mantiene más o menos igual mientras baja la grasa y crece el músculo. Funciona mejor en quienes empiezan, vuelven a entrenar o tienen más grasa; en personas delgadas con años de entrenamiento es lento, y alternar un pequeño superávit con un pequeño déficit suele ir mejor. Requiere fuerza regular, mucha proteína y dormir bien, y lleva meses, no semanas. La báscula apenas se mueve, por eso Forge mira la grasa corporal o la cintura y tu fuerza."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton poids reste à peu près le même pendant que la graisse diminue et que le muscle se construit. Cela marche le mieux pour les débutants, ceux qui reprennent ou qui ont plus de masse grasse ; pour les personnes minces entraînées depuis des années, c'est lent, et alterner léger surplus et léger déficit marche généralement mieux. Il faut de la musculation régulière, beaucoup de protéines et assez de sommeil, et cela prend des mois, pas des semaines. La balance bouge à peine, alors Forge suit la masse grasse ou le tour de taille et ta force."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo peso resta più o meno lo stesso mentre il grasso cala e i muscoli crescono. Funziona meglio per chi inizia, riprende o ha più grasso; per chi è magro e si allena da anni è lento, e alternare un leggero surplus con un leggero deficit di solito rende di più. Servono allenamento di forza regolare, tante proteine e sonno sufficiente, e ci vogliono mesi, non settimane. La bilancia si muove appena, quindi Forge guarda grasso corporeo o vita e la tua forza."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waga zostaje mniej więcej taka sama, a tłuszczu ubywa i mięśni przybywa. Najlepiej działa u początkujących, wracających i osób z większą ilością tłuszczu; u szczupłych, wieloletnio trenujących jest powolna i zwykle lepiej sprawdza się naprzemienna lekka nadwyżka i lekki deficyt. Wymaga regularnego treningu siłowego, dużo białka i snu oraz trwa miesiące, nie tygodnie. Waga prawie się nie zmienia, więc Forge patrzy na tkankę tłuszczową lub talię i na siłę."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu peso fica mais ou menos igual enquanto a gordura desce e o músculo cresce. Funciona melhor para quem começa, regressa ou tem mais gordura corporal; para pessoas magras treinadas há anos é lento, e alternar um ligeiro excedente com um ligeiro défice costuma resultar melhor. Exige treino de força regular, muita proteína e sono suficiente, e leva meses, não semanas. A balança quase não mexe, por isso o Forge acompanha a gordura corporal ou a cintura e a tua força."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вес остаётся примерно прежним, жира становится меньше, мышц больше. Лучше всего это работает у новичков, у тех, кто возвращается, и при большем запасе жира; у худых, давно тренирующихся людей идёт медленно, и чередование небольшого профицита и небольшого дефицита обычно даёт больше. Нужны регулярные силовые, много белка и достаточный сон, и это занимает месяцы, а не недели. Весы почти не меняются, поэтому Forge следит за жиром или талией и за силой."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体重大致不变，同时脂肪减少、肌肉增加。最适合新手、重新开始训练的人或体脂较多的人；对偏瘦且训练多年的人来说进展很慢，交替进行小幅盈余和小幅缺口通常更好。它需要规律的力量训练、充足的蛋白质和睡眠，需要几个月而不是几周。体重几乎不变，所以 Forge 关注的是体脂或腰围以及你的力量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體重大致不變，同時脂肪減少、肌肉增加。最適合新手、重新開始訓練的人或體脂較多的人；對偏瘦且訓練多年的人來說進展很慢，交替進行小幅盈餘和小幅缺口通常更好。它需要規律的重量訓練、充足的蛋白質和睡眠，需要幾個月而不是幾週。體重幾乎不變，所以 Forge 關注的是體脂或腰圍以及你的力量。"
+          }
+        }
+      }
+    },
+    "%@ percentage points" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Prozentpunkte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ puntos porcentuales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ points de pourcentage"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ punti percentuali"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pkt proc."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pontos percentuais"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ п. п."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 个百分点"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 個百分點"
+          }
+        }
+      }
+    },
+    "%@, started at %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, Start bei %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, empezó en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, départ à %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, partito da %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, start od %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, começou em %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, старт %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，起点 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，起點 %@"
+          }
+        }
+      }
+    },
+    "Fat is going down and strength up, at about the same weight." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fett geht runter, Kraft rauf, bei fast gleichem Gewicht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La grasa baja y la fuerza sube, con un peso casi igual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La graisse baisse et la force monte, à poids presque égal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il grasso scende e la forza sale, a peso quasi uguale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tłuszczu ubywa, siły przybywa, przy prawie tej samej wadze."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A gordura desce e a força sobe, com quase o mesmo peso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Жир уходит, сила растёт, вес почти тот же."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体重几乎不变，脂肪在减少，力量在增长。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體重幾乎不變，脂肪在減少，力量在增長。"
+          }
+        }
+      }
+    },
+    "Log your strength sessions, and your main lifts show here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logge dein Krafttraining, dann erscheinen hier deine Hauptübungen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra tus entrenamientos de fuerza y aquí aparecerán tus ejercicios principales."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistre tes séances de musculation et tes exercices principaux apparaîtront ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registra gli allenamenti di forza e qui compariranno i tuoi esercizi principali."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapisuj treningi siłowe, a tu pojawią się twoje główne ćwiczenia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regista os teus treinos de força e os exercícios principais aparecem aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Записывай силовые тренировки, и здесь появятся основные упражнения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记录你的力量训练，这里就会显示你的主要动作。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記錄你的重量訓練，這裡就會顯示你的主要動作。"
+          }
+        }
+      }
+    },
+    "Measure body fat or your waist on the Body page now and then." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Miss ab und zu Körperfett oder Taille auf der Körperseite."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mide de vez en cuando la grasa corporal o la cintura en la página Cuerpo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesure de temps en temps ta masse grasse ou ton tour de taille sur la page Corps."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Misura ogni tanto grasso corporeo o vita nella pagina Corpo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mierz od czasu do czasu tkankę tłuszczową lub talię na stronie Ciało."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mede de vez em quando a gordura corporal ou a cintura na página Corpo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Время от времени измеряй жир или талию на странице «Тело»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时不时在身体页测量体脂或腰围。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時不時在身體頁測量體脂或腰圍。"
+          }
+        }
+      }
+    },
+    "Recomposition" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rekomposition"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recomposición"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recomposition"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricomposizione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rekompozycja"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recomposição"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рекомпозиция"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体成分重组"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體組成重組"
+          }
+        }
+      }
+    },
+    "Recomposition takes months. These three lines show whether it is working." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rekomposition dauert Monate. Diese drei Zeilen zeigen, ob sie wirkt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La recomposición lleva meses. Estas tres líneas muestran si funciona."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La recomposition prend des mois. Ces trois lignes montrent si elle fonctionne."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La ricomposizione richiede mesi. Queste tre righe mostrano se funziona."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rekompozycja trwa miesiące. Te trzy wiersze pokazują, czy działa."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A recomposição leva meses. Estas três linhas mostram se está a resultar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рекомпозиция занимает месяцы. Эти три строки показывают, работает ли она."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体成分重组需要几个月。这三行显示是否见效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體組成重組需要幾個月。這三行顯示是否見效。"
+          }
+        }
+      }
+    },
+    "Reshaping" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Umbau"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En transformación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En transformation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In trasformazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W przebudowie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em transformação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тело меняется"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重塑"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重塑"
+          }
+        }
+      }
+    },
+    "Your weight has moved more than planned; Forge adjusts the calories." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gewicht hat sich mehr bewegt als geplant; Forge passt die Kalorien an."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu peso se ha movido más de lo previsto; Forge ajusta las calorías."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton poids a bougé plus que prévu ; Forge ajuste les calories."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo peso si è mosso più del previsto; Forge adatta le calorie."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja waga zmieniła się bardziej niż w planie; Forge dopasowuje kalorie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu peso mexeu mais do que o previsto; o Forge ajusta as calorias."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вес изменился сильнее плана; Forge корректирует калории."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的体重变化超出计划；Forge 会调整热量。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的體重變化超出計畫；Forge 會調整熱量。"
+          }
+        }
+      }
+    },
+    "Training day: more carbohydrate" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingstag: mehr Kohlenhydrate"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Día de entrenamiento: más carbohidratos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jour d'entraînement : plus de glucides"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giorno di allenamento: più carboidrati"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dzień treningowy: więcej węglowodanów"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dia de treino: mais hidratos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренировочный день: больше углеводов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练日：多吃碳水"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練日：多吃碳水"
+          }
+        }
+      }
+    },
+    "With every day a training day there is no rest day to move calories from, so all days stay the same." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn jeder Tag ein Trainingstag ist, gibt es keinen Ruhetag, von dem Kalorien kommen könnten; alle Tage bleiben gleich."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si todos los días son de entrenamiento, no hay día de descanso del que mover calorías; todos los días quedan iguales."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si chaque jour est un jour d'entraînement, il n'y a pas de jour de repos d'où déplacer des calories ; tous les jours restent pareils."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ogni giorno è di allenamento, non c'è un giorno di riposo da cui spostare calorie; tutti i giorni restano uguali."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdy każdy dzień jest treningowy, nie ma dnia odpoczynku, z którego można przenieść kalorie; wszystkie dni zostają takie same."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se todos os dias forem de treino, não há dia de descanso de onde mover calorias; todos os dias ficam iguais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если каждый день тренировочный, нет дня отдыха, откуда переносить калории; все дни остаются одинаковыми."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果每天都是训练日，就没有休息日可以挪出热量，所有日子保持一样。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果每天都是訓練日，就沒有休息日可以挪出熱量，所有日子保持一樣。"
+          }
+        }
+      }
+    },
     "Log journal" : {
       "localizations" : {
         "de" : {
