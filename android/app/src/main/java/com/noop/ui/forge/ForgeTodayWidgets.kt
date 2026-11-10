@@ -230,8 +230,12 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         if (editing) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.forge_w_edit_today), style = Forge.type.headline, color = Forge.colors.text,
-                     modifier = Modifier.weight(1f))
+                // On its own plate: the bar sits on the scene picture or the canvas, depending on what is above it.
+                Box(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.forge_w_edit_today), style = Forge.type.headline, color = Forge.colors.text,
+                         modifier = Modifier.background(Forge.colors.surface, CircleShape)
+                             .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space2))
+                }
                 Text(stringResource(R.string.forge_w_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                      color = Forge.colors.onDark,
                      modifier = Modifier.background(Forge.colors.accent, CircleShape)
@@ -297,23 +301,27 @@ private fun WidgetCell(w: TodayWidget, editing: Boolean, modifier: Modifier, onR
     }) {
         content()
         if (editing) {
-            Row(Modifier.align(Alignment.TopEnd).padding(ForgeMetrics.space1),
-                horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
+            // As iOS places them: remove in the top corner, the order and the size at the bottom, so the tile's name
+            // stays readable. Each control keeps the full hit target around its small plate.
+            EditButton(Icons.Rounded.RemoveCircle, removeLabel, onRemove, tint = Forge.colors.effort,
+                       modifier = Modifier.align(Alignment.TopStart))
+            Row(Modifier.align(Alignment.BottomEnd)) {
                 EditButton(Icons.Rounded.ChevronLeft, earlier, onClick = { onShift(-1) })
                 EditButton(Icons.Rounded.ChevronRight, later, onClick = { onShift(1) })
                 if (w.resizable) EditButton(Icons.Rounded.OpenInFull, sizeLabel, onSize)
-                EditButton(Icons.Rounded.RemoveCircle, removeLabel, onRemove, tint = Forge.colors.effort)
             }
         }
     }
 }
 
 @Composable
-private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit, tint: androidx.compose.ui.graphics.Color = Forge.colors.text) {
-    Box(Modifier.size(32.dp).background(Forge.colors.surface, CircleShape)
-            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick),
+private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
+                       tint: androidx.compose.ui.graphics.Color = Forge.colors.text, modifier: Modifier = Modifier) {
+    Box(modifier.size(ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClickLabel = label, onClick = onClick),
         contentAlignment = Alignment.Center) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(18.dp))
+        Box(Modifier.size(32.dp).background(Forge.colors.surface, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(18.dp))
+        }
     }
 }
 

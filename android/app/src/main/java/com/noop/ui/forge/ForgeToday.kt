@@ -30,7 +30,7 @@ import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -259,9 +259,9 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             // morning's suggestion, the widgets, then the day as a time rail. One Today, whatever the dashboard style.
             Header(shown, isToday = shown == today, backfilling = viewModel.live.collectAsState().value.backfilling,
                    onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { quickActions = true })
-            Box(Modifier.pointerInput(Unit) { detectTapGestures(onLongPress = { editingWidgets = true }) }) {
-                Hero(model?.day, width)
-            }
+            // Holding a ring arranges the tiles, as on iOS. The rings' own tap claims the touch, so the hold rides
+            // on the same click (a long-press detector around them never saw the press).
+            Hero(model?.day, width, onHold = { editingWidgets = true })
             if (shown == today) ForgeActivityPrompt()
             if (shown == today) ForgeMorningSuggestion()
             ForgeTodayWidgetArea(model, viewModel, width, editing = editingWidgets, onEditing = { editingWidgets = it },
@@ -334,7 +334,7 @@ private fun Header(date: LocalDate, isToday: Boolean, backfilling: Boolean, onPr
 }
 
 @Composable
-private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
+private fun Hero(day: CoreRead.Day?, width: ForgeWidth, onHold: (() -> Unit)? = null) {
     val colors = Forge.colors
     // Each ring opens its trend, as iOS's `HeroScoreCell` pushes its `detailRoute`.
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
@@ -345,10 +345,10 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth) {
                 val diameter = HeroRingLayout.diameter(maxWidth)
                 Row(Modifier.fillMaxWidth()) {
                     ScoreSlot(R.string.forge_charge, day?.charge, day?.charge?.let { colors.chargeRing(it) } ?: colors.charge,
-                              diameter, OrganicMetric.Charge, Modifier.weight(1f)) { open = CoreRead.Metric.Charge }
+                              diameter, OrganicMetric.Charge, Modifier.weight(1f), onHold = onHold) { open = CoreRead.Metric.Charge }
                     ScoreSlot(R.string.forge_effort, day?.effort, colors.effort, diameter, OrganicMetric.Effort, Modifier.weight(1f),
-                          format = rememberEffortFormat()) { open = CoreRead.Metric.Effort }
-                    ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f)) { open = CoreRead.Metric.Rest }
+                          format = rememberEffortFormat(), onHold = onHold) { open = CoreRead.Metric.Effort }
+                    ScoreSlot(R.string.forge_rest, day?.rest, colors.rest, diameter, OrganicMetric.Rest, Modifier.weight(1f), onHold = onHold) { open = CoreRead.Metric.Rest }
                 }
             }
             // The hero's provenance, a quiet caption in its top corner as on iOS: who supplied the inputs, from the
@@ -381,12 +381,15 @@ internal fun heroSourceLabel(tokens: List<String>): String? {
 @Composable
 private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: androidx.compose.ui.unit.Dp,
                       metric: OrganicMetric, modifier: Modifier = Modifier, format: (Double) -> String = WHOLE_NUMBER,
-                      onOpen: () -> Unit) {
+                      onHold: (() -> Unit)? = null, onOpen: () -> Unit) {
     val label = stringResource(labelRes)
     val spoken = if (score == null) stringResource(R.string.forge_score_missing, label, stringResource(R.string.forge_no_data))
                  else stringResource(R.string.forge_score_spoken, label, score.roundToInt())
     Column(horizontalAlignment = Alignment.CenterHorizontally,
-           modifier = modifier.clickable(role = Role.Button, onClick = onOpen)
+           modifier = modifier.then(
+               if (onHold == null) Modifier.clickable(role = Role.Button, onClick = onOpen)
+               else @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+                    Modifier.combinedClickable(role = Role.Button, onClick = onOpen, onLongClick = onHold))
                .semantics(mergeDescendants = true) { contentDescription = spoken }) {
         // The drawn ring may be a little wider than its slot; its glow overlaps the neighbour's, as on iOS.
         Box(Modifier.fillMaxWidth().height(diameter), contentAlignment = Alignment.Center) {
