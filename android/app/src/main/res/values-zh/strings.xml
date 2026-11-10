@@ -5012,4 +5012,9 @@
     <string name="forge_th_vo2max">最大摄氧量</string>
     <string name="forge_th_last30">最近 30 天</string>
     <string name="forge_th_workouts_unit">次训练</string>
+    <string name="forge_h_off_label">超出常规范围</string>
+    <string name="forge_h_off_title">%1$s 超出了你的常规范围</string>
+    <string name="forge_h_off_last_night">昨晚 %1$s %2$s。%3$s。</string>
+    <string name="forge_h_off_baseline">偏离基线</string>
+    <string name="forge_h_off_typical">超出范围</string>
 </resources>

@@ -4943,4 +4943,9 @@
     <string name="forge_th_vo2max">VO₂max</string>
     <string name="forge_th_last30">Последние 30 дней</string>
     <string name="forge_th_workouts_unit">тренировок</string>
+    <string name="forge_h_off_label">Вне твоего обычного диапазона</string>
+    <string name="forge_h_off_title">%1$s вне твоего обычного диапазона</string>
+    <string name="forge_h_off_last_night">%1$s %2$s прошлой ночью. %3$s.</string>
+    <string name="forge_h_off_baseline">Отклонение от нормы</string>
+    <string name="forge_h_off_typical">Вне диапазона</string>
 </resources>

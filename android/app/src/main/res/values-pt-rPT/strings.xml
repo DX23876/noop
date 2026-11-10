@@ -5034,4 +5034,9 @@
     <string name="forge_th_vo2max">VO₂máx.</string>
     <string name="forge_th_last30">Últimos 30 dias</string>
     <string name="forge_th_workouts_unit">treinos</string>
+    <string name="forge_h_off_label">Fora do teu intervalo habitual</string>
+    <string name="forge_h_off_title">%1$s está fora do teu intervalo habitual</string>
+    <string name="forge_h_off_last_night">%1$s %2$s na noite passada. %3$s.</string>
+    <string name="forge_h_off_baseline">Fora da linha de base</string>
+    <string name="forge_h_off_typical">Fora do alcance</string>
 </resources>

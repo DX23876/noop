@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -107,6 +108,8 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
                 scored.forEach { v -> RangeChip(v) }
             }
         }
+        // The first vital outside the range, told in a card of its own under the chips, as iOS's `offRangeCard`.
+        scored.firstOrNull { it.banding.band == VitalBands.Band.OUT_OF_RANGE }?.let { OffRangeCard(it) }
 
         Heading(stringResource(R.string.forge_health_vitals))
         vitals.chunked(if (width == ForgeWidth.Compact) 2 else 3).forEach { row ->
@@ -187,6 +190,41 @@ private fun RangeChip(v: Vital) {
         Spacer(Modifier.size(6.dp))
         Text(v.label, style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
              color = if (ok) colors.text else colors.effort)
+    }
+}
+
+/** A vital outside the wearer's range: which, last night's figure with the yardstick's word, and its course. */
+@Composable
+private fun OffRangeCard(v: Vital) {
+    val colors = Forge.colors
+    val state = stringResource(if (v.banding.basis == VitalBands.Basis.PERSONAL) R.string.forge_h_off_baseline
+                               else R.string.forge_h_off_typical)
+    ForgeCard(Modifier.fillMaxWidth(), contentPadding = 16.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.MonitorHeart, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(6.dp))
+            Text(stringResource(R.string.forge_h_off_label), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = colors.accent)
+        }
+        Spacer(Modifier.height(ForgeMetrics.space2))
+        Text(stringResource(R.string.forge_h_off_title, v.label), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),
+             color = colors.text)
+        v.value?.let { value ->
+            val figure = v.format(value)
+            val sentence = stringResource(R.string.forge_h_off_last_night, figure, v.unit, state)
+            // The figure and its unit bold, wherever the language puts them in the sentence.
+            val bold = "$figure ${v.unit}".trim()
+            val at = sentence.indexOf(bold)
+            Spacer(Modifier.height(ForgeMetrics.space1))
+            Text(buildAnnotatedString {
+                append(sentence)
+                if (at >= 0) addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.text), at, at + bold.length)
+            }, style = Forge.type.body, color = colors.textSecondary)
+        }
+        if (v.sparkline.size > 1) {
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            Sparkline(v.sparkline, color = colors.effort)
+        }
     }
 }
 

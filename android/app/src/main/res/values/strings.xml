@@ -5077,4 +5077,9 @@
     <string name="forge_th_vo2max">VO₂max</string>
     <string name="forge_th_last30">Last 30 days</string>
     <string name="forge_th_workouts_unit">workouts</string>
+    <string name="forge_h_off_label">Outside your usual range</string>
+    <string name="forge_h_off_title">%1$s is outside your usual range</string>
+    <string name="forge_h_off_last_night">%1$s %2$s last night. %3$s.</string>
+    <string name="forge_h_off_baseline">Off baseline</string>
+    <string name="forge_h_off_typical">Outside range</string>
 </resources>
