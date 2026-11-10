@@ -123,16 +123,22 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     val workouts by viewModel.workouts.collectAsState()
     var nights by remember { mutableStateOf<List<CoreRead.Night>>(emptyList()) }
     var naps by remember { mutableStateOf<List<CoreRead.Nap>>(emptyList()) }
-    val now = remember { System.currentTimeMillis() / 1000 }
-    LaunchedEffect(Unit) {
+    // "Now" moves on by the minute and the rail reads again when the core has new data (a night synced while
+    // Today stays open), as the Sleep tab does; read once, both stayed where the page was opened.
+    val now by androidx.compose.runtime.produceState(System.currentTimeMillis() / 1000) {
+        while (true) { kotlinx.coroutines.delay(60_000); value = System.currentTimeMillis() / 1000 }
+    }
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(coreRevision) {
+        val end = System.currentTimeMillis() / 1000
         withContext(Dispatchers.IO) {
             CoreRead.open(context)
-            nights = CoreRead.nights(now - 3 * 86_400, now)
-            naps = CoreRead.naps(now - 3 * 86_400, now)
+            nights = CoreRead.nights(end - 3 * 86_400, end)
+            naps = CoreRead.naps(end - 3 * 86_400, end)
         }
     }
     val zone = ZoneId.systemDefault()
-    val entries = remember(workouts, nights, naps) { TodayTimeline.entries(workouts, nights, naps, now, zone) }
+    val entries = remember(workouts, nights, naps, now) { TodayTimeline.entries(workouts, nights, naps, now, zone) }
     val today = LocalDate.now(zone)
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(stringResource(R.string.forge_timeline_title), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),

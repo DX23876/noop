@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -219,7 +220,8 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val noData = stringResource(R.string.forge_no_data)
     val date = model?.date ?: LocalDate.now()
     // The latest night as the Sleep tab shows it, read only while a sleep tile is placed (iOS `withLatestNight`).
-    val sleepMinutes by produceState<Double?>(null, date, widgets.any { it.key == TodayWidget.SLEEP_KEY }) {
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val sleepMinutes by produceState<Double?>(null, date, widgets.any { it.key == TodayWidget.SLEEP_KEY }, coreRevision) {
         value = if (widgets.none { it.key == TodayWidget.SLEEP_KEY }) null else withContext(Dispatchers.IO) {
             val end = date.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toEpochSecond()
             CoreRead.nights(end - 3 * 86_400, end).maxByOrNull { it.endTs }?.minutes
