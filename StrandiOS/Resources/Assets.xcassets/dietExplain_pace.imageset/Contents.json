@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "dietExplain_pace_light.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "dietExplain_pace.heic",
       "idiom" : "universal"
     }

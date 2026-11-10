@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "dietForm_lowCarb_light.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "dietForm_lowCarb.heic",
       "idiom" : "universal"
     }

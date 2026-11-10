@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "dietGoal_lose_light.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "dietGoal_lose.heic",
       "idiom" : "universal"
     }

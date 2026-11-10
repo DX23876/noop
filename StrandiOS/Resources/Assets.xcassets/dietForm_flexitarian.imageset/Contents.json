@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "dietForm_flexitarian_light.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "dietForm_flexitarian.heic",
       "idiom" : "universal"
     }

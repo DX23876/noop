@@ -1,6 +1,16 @@
 {
   "images" : [
     {
+      "filename" : "dietExplain_path_light.heic",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "dietExplain_path.heic",
       "idiom" : "universal"
     }
