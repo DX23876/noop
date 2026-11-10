@@ -79,7 +79,7 @@ internal fun windowedSpark(points: List<Pair<String, Double>>, cutoff: String, m
 }
 
 /** One tile's figures: the value, its unit, the change against the week before and where a tap goes. */
-private class KeyTile(val value: String?, val unit: String?, val delta: String? = null, val opens: CoreRead.Metric? = null,
+internal class KeyTile(val value: String?, val unit: String?, val delta: String? = null, val opens: CoreRead.Metric? = null,
                       val opensEnergy: Boolean = false)
 
 /**
@@ -99,31 +99,98 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
         remember(revision) { KeyMetricPrefs.storedColumns(context) },
         largeText = LocalDensity.current.fontScale >= LARGE_TEXT_SCALE,
     )
+    val keyTiles = rememberKeyTiles(model, selection.metrics, detailed, windowDays)
+    val tiles = keyTiles.tiles
+    val sparks = keyTiles.sparks
+    val ordered = TodayLayoutDefaults.arrangedKeyMetrics(selection) { tiles.getValue(it).value != null }
+
+    var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
+    var energyOpen by remember { mutableStateOf(false) }
+    val noData = stringResource(R.string.forge_no_data)
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+        val editLabel = stringResource(R.string.forge_lay_edit_key_metrics)
+        Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_key_metrics).uppercase(), style = Forge.type.overline, color = colors.textSecondary,
+                 modifier = Modifier.weight(1f))
+            // The window label only while detailed tiles draw a trend; otherwise nothing here shows one.
+            if (detailed) {
+                Text(stringResource(when (windowDays) {
+                    7 -> R.string.forge_lay_7_day_trend
+                    30 -> R.string.forge_lay_30_day_trend
+                    else -> R.string.forge_lay_14_day_trend
+                }), style = Forge.type.caption, color = colors.textTertiary, modifier = Modifier.padding(end = ForgeMetrics.space3))
+            }
+            Text(stringResource(R.string.forge_lay_edit).uppercase(), style = Forge.type.overline, color = colors.accent,
+                 modifier = Modifier.clickable(role = Role.Button, onClick = onEdit).padding(ForgeMetrics.space2)
+                     .semantics { contentDescription = editLabel })
+        }
+        val spansLast = columns == 2 && ordered.size % 2 == 1
+        val gridded = if (spansLast) ordered.dropLast(1) else ordered
+        @Composable
+        fun Tile(metric: KeyMetric, modifier: Modifier) {
+            val t = tiles.getValue(metric)
+            val tint = metric.tileTint()
+            val tap = when {
+                t.opens != null -> Modifier.clickable { open = t.opens }
+                t.opensEnergy && t.value != null -> Modifier.clickable { energyOpen = true }
+                else -> Modifier
+            }
+            MetricTile(metric.icon, tint, metric.tileLabel(), t.value, t.unit, noData, modifier.then(tap), t.delta,
+                       below = sparks[metric]?.let { values -> @Composable { KeyTileSpark(values, tint) } })
+        }
+        gridded.chunked(columns).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+                row.forEach { Tile(it, Modifier.weight(1f)) }
+                repeat(columns - row.size) { Box(Modifier.weight(1f)) }
+            }
+        }
+        if (spansLast) Tile(ordered.last(), Modifier.fillMaxWidth())
+    }
+    ForgeMetricDetail(open) { open = null }
+    if (energyOpen) {
+        ForgeOverlayPage(onDismiss = { energyOpen = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { energyOpen = false }) }
+        }
+    }
+}
+
+/** The tiles' figures and, for detailed tiles, their trend lines: one reading for Key Metrics and Today's widgets. */
+internal class KeyTiles(val tiles: Map<KeyMetric, KeyTile>, val sparks: Map<KeyMetric, List<Double>>)
+
+/**
+ * Reads every [KeyMetric]'s tile for [model]'s day: the value, unit, change against the week before and where a tap
+ * goes, plus the trend over [windowDays] for the [metrics] chosen while [detailed]. Weight and today's burn come from
+ * their own stores, read only while their tile is among [metrics].
+ */
+@Composable
+internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>, detailed: Boolean,
+                              windowDays: Int): KeyTiles {
+    val context = LocalContext.current
     val date = model?.date ?: LocalDate.now()
     val isToday = date == LocalDate.now()
     // Weight and today's burn come from their own stores, read only while their tile is chosen.
-    val weightKg by produceState<Double?>(null, date, selection) {
-        value = if (KeyMetric.WEIGHT !in selection.metrics) null else withContext(Dispatchers.IO) {
+    val weightKg by produceState<Double?>(null, date, metrics) {
+        value = if (KeyMetric.WEIGHT !in metrics) null else withContext(Dispatchers.IO) {
             CoreBody.snapshot(context)?.weight?.lastOrNull { it.day <= date.toString() }?.value
         }
     }
-    val energyTotal by produceState<Double?>(null, date, selection) {
-        value = if (KeyMetric.CALORIES !in selection.metrics || !isToday) null else withContext(Dispatchers.IO) {
+    val energyTotal by produceState<Double?>(null, date, metrics) {
+        value = if (KeyMetric.CALORIES !in metrics || !isToday) null else withContext(Dispatchers.IO) {
             CoreEnergyDetail.today(context, dismissedTrainingWorkouts(context))?.total
         }
     }
-    val sparks by produceState<Map<KeyMetric, List<Double>>>(emptyMap(), date, selection, detailed, windowDays) {
+    val sparks by produceState<Map<KeyMetric, List<Double>>>(emptyMap(), date, metrics, detailed, windowDays) {
         value = if (!detailed) emptyMap() else withContext(Dispatchers.IO) {
             val cutoff = date.minusDays(windowDays - 1L).toString(); val to = date.toString()
             // The whole history up to the day, so a sparse series can fall back to its latest measurements.
-            val dismissed = if (KeyMetric.CALORIES in selection.metrics) dismissedTrainingWorkouts(context) else emptyList()
+            val dismissed = if (KeyMetric.CALORIES in metrics) dismissedTrainingWorkouts(context) else emptyList()
             fun history(metric: KeyMetric): List<Pair<String, Double>>? = when (metric) {
                 KeyMetric.WEIGHT -> CoreBody.snapshot(context)?.weight?.filter { it.day <= to }?.map { it.day to it.value }
                 KeyMetric.CALORIES -> CoreEnergyDetail.read(context, to, "sevenDay", dismissed)
                     ?.summaries?.mapNotNull { s -> s.total?.let { s.day to it } }
                 else -> metric.series?.let { s -> CoreRead.series(s, "1970-01-01", to).map { it.day to it.value } }
             }
-            selection.metrics.mapNotNull { m -> history(m)?.let { m to windowedSpark(it, cutoff, windowDays) } }
+            metrics.mapNotNull { m -> history(m)?.let { m to windowedSpark(it, cutoff, windowDays) } }
                 .filter { it.second.size >= 2 }.toMap()
         }
     }
@@ -159,56 +226,7 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
             }, null)
         }
     }
-    val ordered = TodayLayoutDefaults.arrangedKeyMetrics(selection) { tiles.getValue(it).value != null }
-
-    var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
-    var energyOpen by remember { mutableStateOf(false) }
-    val noData = stringResource(R.string.forge_no_data)
-    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        val editLabel = stringResource(R.string.forge_lay_edit_key_metrics)
-        Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.forge_key_metrics).uppercase(), style = Forge.type.overline, color = colors.textSecondary,
-                 modifier = Modifier.weight(1f))
-            // The window label only while detailed tiles draw a trend; otherwise nothing here shows one.
-            if (detailed) {
-                Text(stringResource(when (windowDays) {
-                    7 -> R.string.forge_lay_7_day_trend
-                    30 -> R.string.forge_lay_30_day_trend
-                    else -> R.string.forge_lay_14_day_trend
-                }), style = Forge.type.caption, color = colors.textTertiary, modifier = Modifier.padding(end = ForgeMetrics.space3))
-            }
-            Text(stringResource(R.string.forge_lay_edit).uppercase(), style = Forge.type.overline, color = colors.accent,
-                 modifier = Modifier.clickable(role = Role.Button, onClick = onEdit).padding(ForgeMetrics.space2)
-                     .semantics { contentDescription = editLabel })
-        }
-        val spansLast = columns == 2 && ordered.size % 2 == 1
-        val gridded = if (spansLast) ordered.dropLast(1) else ordered
-        @Composable
-        fun Tile(metric: KeyMetric, modifier: Modifier) {
-            val t = tiles.getValue(metric)
-            val tint = metric.tileTint()
-            val tap = when {
-                t.opens != null -> Modifier.clickable { open = t.opens }
-                t.opensEnergy && t.value != null -> Modifier.clickable { energyOpen = true }
-                else -> Modifier
-            }
-            MetricTile(metric.icon, tint, metric.tileLabel(), t.value, t.unit, noData, modifier.then(tap), t.delta,
-                       below = sparks[metric]?.let { values -> @Composable { Spark(values, tint) } })
-        }
-        gridded.chunked(columns).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-                row.forEach { Tile(it, Modifier.weight(1f)) }
-                repeat(columns - row.size) { Box(Modifier.weight(1f)) }
-            }
-        }
-        if (spansLast) Tile(ordered.last(), Modifier.fillMaxWidth())
-    }
-    ForgeMetricDetail(open) { open = null }
-    if (energyOpen) {
-        ForgeOverlayPage(onDismiss = { energyOpen = false }) {
-            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { energyOpen = false }) }
-        }
-    }
+    return KeyTiles(tiles, sparks)
 }
 
 /**
@@ -265,7 +283,7 @@ internal fun ForgeMetricDetail(metric: CoreRead.Metric?, onDismiss: () -> Unit) 
 
 /** The tile's own short label, as iOS's `ktileFor` writes it ("Rest HR", "SpO₂"); the editor keeps the long names. */
 @Composable
-private fun KeyMetric.tileLabel(): String = when (this) {
+internal fun KeyMetric.tileLabel(): String = when (this) {
     KeyMetric.RESTING_HR -> stringResource(R.string.forge_tile_rest_hr)
     KeyMetric.BLOOD_OXYGEN -> "SpO₂"
     else -> stringResource(titleRes)
@@ -273,7 +291,7 @@ private fun KeyMetric.tileLabel(): String = when (this) {
 
 /** The tile's tint as iOS's `ktileFor` gives it: colour on the icon and the bar only. */
 @Composable
-private fun KeyMetric.tileTint(): Color = when (this) {
+internal fun KeyMetric.tileTint(): Color = when (this) {
     KeyMetric.HRV, KeyMetric.BLOOD_OXYGEN -> ForgeTokens.StrandPalette.metricCyan.resolve()
     KeyMetric.RESTING_HR -> ForgeTokens.StrandPalette.metricRose.resolve()
     KeyMetric.STEPS -> Forge.colors.charge
@@ -284,7 +302,7 @@ private fun KeyMetric.tileTint(): Color = when (this) {
 
 /** A detailed tile's trend: the window's values as one line, scaled to their own range. */
 @Composable
-private fun Spark(values: List<Double>, tint: Color) {
+internal fun KeyTileSpark(values: List<Double>, tint: Color) {
     Canvas(Modifier.fillMaxWidth().height(28.dp)) {
         val lo = values.min(); val hi = values.max()
         val span = (hi - lo).takeIf { it > 0 } ?: 1.0

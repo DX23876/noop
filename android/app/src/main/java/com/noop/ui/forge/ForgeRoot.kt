@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.padding
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.noop.ui.AppViewModel
 
@@ -42,13 +44,18 @@ object ForgeUi {
 fun ForgeRoot(viewModel: AppViewModel) {
     val context = LocalContext.current
     remember { ForgeBackground.load(context) }
+    remember { ForgeDesign.load(context, (context as? android.app.Activity)?.intent) }
     // Settings and pairing open over the tabs in the same window (`ForgeOverlayHost`).
+    var moreOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     ForgeOverlayHost {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalForgeOpenMore provides (if (ForgeDesign.preview) ({ moreOpen = true }) else null)) {
         ForgeShell { tab, padding, width ->
             when (tab) {
                 ForgeTab.Today ->
                     if (DashboardStylePrefs.style(context) == "classic") ForgeClassicToday(padding, viewModel)
                     else ForgeTodayScreen(padding, width, viewModel)
+                ForgeTab.Trends -> ForgeTrendsScreen(padding, width, viewModel)
                 ForgeTab.Health -> ForgeHealthTab(padding, width, viewModel)
                 ForgeTab.Training -> ForgeTrainingScreen(padding, viewModel)
                 ForgeTab.Sleep -> ForgeSleepScreen(padding, width, viewModel)
@@ -63,8 +70,10 @@ fun ForgeRoot(viewModel: AppViewModel) {
                 }
             }
         }
-        // While the coach is on it has its own place (`ForgeTab.Coach`: a button beside the bar, a rail entry on wide
-        // windows), as on iOS; the floating button is for nothing then.
-        if (!com.noop.ui.BottomBarStyleStore.coachEnabled) ForgeCoachButton(viewModel)
+        }
+        if (moreOpen && ForgeDesign.preview) ForgeMoreOverlay(viewModel, onDismiss = { moreOpen = false })
+        // In the new design the coach has its own place while it is on (`ForgeTab.Coach`: a button beside the bar, a
+        // rail entry on wide windows), as on iOS; the floating button is for the shipped tabs and a coach that is off.
+        if (!(ForgeDesign.preview && com.noop.ui.BottomBarStyleStore.coachEnabled)) ForgeCoachButton(viewModel)
     }
 }

@@ -71,9 +71,11 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     val days by viewModel.recentDays.collectAsStateWithLifecycle()
     val spo2CandidateByDay by viewModel.spo2CandidateByDay.collectAsStateWithLifecycle()
     val hrvOverCountByDay by viewModel.hrvOverCountByDay.collectAsStateWithLifecycle()
-    val tempUnit = remember { UnitPrefs.temperature(context) }
-    val spo2Toggle = remember { NoopPrefs.spo2CandidateDisplay(context) }
-    val vitals = remember(days, spo2CandidateByDay, hrvOverCountByDay) {
+    var settingsOpen by remember { mutableStateOf(false) }
+    // Read again when Settings closes, so a unit or SpO₂ choice made there shows without a restart.
+    val tempUnit = remember(settingsOpen) { UnitPrefs.temperature(context) }
+    val spo2Toggle = remember(settingsOpen) { NoopPrefs.spo2CandidateDisplay(context) }
+    val vitals = remember(days, spo2CandidateByDay, hrvOverCountByDay, tempUnit, spo2Toggle) {
         latestVitals(days, tempUnit, spo2CandidateByDay, spo2Toggle, hrvOverCountByDay = hrvOverCountByDay)
             // The raw optical reading is an experimental instrument; an empty one is noise on this tab.
             .filter { !(it.key == "spo2raw" && it.value == null) }
@@ -83,7 +85,6 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     val inRange = scored.count { it.banding.band == VitalBands.Band.IN_RANGE }
 
     val more = rememberMoreNavigator()
-    var settingsOpen by remember { mutableStateOf(false) }
     var trendsOpen by remember { mutableStateOf(false) }
     fun open(dest: MoreDest) = more.push(MoreRoute.Dest(dest))
 
@@ -92,7 +93,8 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
             .padding(horizontal = ForgeMetrics.screenPadding),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3),
     ) {
-        TabHeader(stringResource(R.string.nav_health), onProfile = { settingsOpen = true })
+        val openMore = LocalForgeOpenMore.current
+        TabHeader(stringResource(R.string.nav_health), onProfile = { openMore?.invoke() ?: run { settingsOpen = true } })
 
         // The tab's answer: how many of last night's vitals sat in the wearer's own range, then each by name.
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {

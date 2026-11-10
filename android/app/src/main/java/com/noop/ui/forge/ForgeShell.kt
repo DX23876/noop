@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
@@ -60,9 +61,10 @@ import com.noop.R
  * the backdrop each one draws on iOS.
  */
 enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: ForgeBackdrop) {
-    // The new iOS design's order (2026-11): Today, Training, Sleep, Health. Trends lives in Health, as on iOS;
-    // More stays last until its pages have their places in Health and Settings (docs/fork/android/FORGE-PARITY.md).
+    // Which of these the bar shows, and in which order, is [ForgeDesign.tabs]: the shipped set keeps Trends and More,
+    // the new design (preview) has Health and the coach instead, as on iOS.
     Today(R.string.nav_today, Icons.Rounded.GridView, ForgeBackdrop.Scene),
+    Trends(R.string.nav_trends, Icons.Rounded.ShowChart, ForgeBackdrop.Sky),
     Training(R.string.forge_training, Icons.Rounded.FitnessCenter, ForgeBackdrop.Canvas),
     Sleep(R.string.nav_sleep, Icons.Rounded.KingBed, ForgeBackdrop.Night),
     Health(R.string.nav_health, Icons.Rounded.FavoriteBorder, ForgeBackdrop.Canvas),
@@ -90,21 +92,24 @@ enum class ForgeWidth { Compact, Medium, Expanded;
  */
 @Composable
 fun ForgeShell(screen: @Composable (tab: ForgeTab, padding: PaddingValues, width: ForgeWidth) -> Unit) {
-    var tab by rememberSaveable { mutableStateOf(ForgeTab.Today) }
-    androidx.compose.runtime.CompositionLocalProvider(LocalForgeTabSelect provides { tab = it }) {
+    var chosen by rememberSaveable { mutableStateOf(ForgeTab.Today) }
+    // A tab the other design does not have (Health, Trends, More, Coach) reads as Today when the switch flips.
+    val shown = ForgeDesign.tabs(ForgeDesign.preview, com.noop.ui.BottomBarStyleStore.coachEnabled)
+    val tab = if (chosen in shown) chosen else ForgeTab.Today
+    androidx.compose.runtime.CompositionLocalProvider(LocalForgeTabSelect provides { chosen = it }) {
     ForgeSceneBackdrop(tab.backdrop) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val width = ForgeWidth.of(maxWidth)
             if (width == ForgeWidth.Compact) {
                 Box(Modifier.fillMaxSize()) {
                     Content(tab, width, PaddingValues(bottom = ForgeMetrics.tabBarClearance + 16.dp), screen)
-                    ForgeTabBar(tab, onSelect = { tab = it },
+                    ForgeTabBar(tab, onSelect = { chosen = it },
                                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
                                     .padding(horizontal = ForgeMetrics.screenPadding, vertical = 8.dp))
                 }
             } else {
                 Row(Modifier.fillMaxSize()) {
-                    ForgeRail(tab, onSelect = { tab = it })
+                    ForgeRail(tab, onSelect = { chosen = it })
                     Box(Modifier.weight(1f).fillMaxHeight()) {
                         Content(tab, width, PaddingValues(bottom = ForgeMetrics.space4), screen)
                     }
@@ -133,7 +138,8 @@ private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifie
     // Opaque with a hairline and a soft shadow: Android cannot blur the scrolling content behind the bar as iOS glass does,
     // and a see-through or outline-less bar fused with the white cards scrolling under it.
     // A real shadow, so the bar stays apart from the white cards that scroll under it (as iOS's glass bar does).
-    val coach = com.noop.ui.BottomBarStyleStore.coachEnabled
+    val tabs = ForgeDesign.tabs(ForgeDesign.preview, com.noop.ui.BottomBarStyleStore.coachEnabled)
+    val coach = ForgeTab.Coach in tabs
     Row(modifier.widthIn(max = 480.dp + 72.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
     ForgeCard(Modifier.weight(1f)
@@ -143,7 +149,7 @@ private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifie
               fill = Forge.colors.surface, contentPadding = 6.dp) {
         Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
-            ForgeTab.entries.filter { it != ForgeTab.Coach }.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
+            tabs.filter { it != ForgeTab.Coach }.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
         }
     }
     if (coach) CoachTabButton(selected = current == ForgeTab.Coach) { onSelect(ForgeTab.Coach) }
@@ -178,7 +184,7 @@ private fun ForgeRail(current: ForgeTab, onSelect: (ForgeTab) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ForgeTab.entries.filter { it != ForgeTab.Coach || com.noop.ui.BottomBarStyleStore.coachEnabled }
+        ForgeDesign.tabs(ForgeDesign.preview, com.noop.ui.BottomBarStyleStore.coachEnabled)
             .forEach { t -> TabItem(t, t == current, Modifier.fillMaxWidth()) { onSelect(t) } }
     }
 }

@@ -205,7 +205,10 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             .padding(horizontal = ForgeMetrics.screenPadding).widthIn(max = ForgeMetrics.maxContentWidth),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
     ) {
-        Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
+        val openMore = LocalForgeOpenMore.current
+        // The new design's header, as iOS's `ForgeLargeHeader`: the title with today's date, the profile at the end.
+        if (openMore != null) TabHeader(stringResource(R.string.forge_training), onProfile = openMore)
+        else Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.forge_training_overline).uppercase(), style = Forge.type.overline,
                  color = Forge.sceneInk.secondary)

@@ -1083,7 +1083,11 @@ object NoopPrefs {
 
     fun setCardOpacityPercent(context: Context, percent: Int) {
         of(context).edit().putInt(KEY_CARD_OPACITY, percent.coerceIn(0, 100)).apply()
+        CardAppearance.chosen = true
     }
+
+    /** True once the wearer has set a Card transparency; the new design keeps its own glass until then. */
+    fun cardOpacityChosen(context: Context): Boolean = of(context).contains(KEY_CARD_OPACITY)
 
     /** "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE Today scroll
      *  (not just the top band) so the Card-transparency slider reveals it under every card. Pairs with

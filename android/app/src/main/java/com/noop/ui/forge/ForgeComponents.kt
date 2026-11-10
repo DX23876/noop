@@ -74,8 +74,15 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
     val position = remember { mutableStateOf(Offset.Zero) }
     // "Card transparency" (`StrandCard`): the whole surface fades by the wearer's opacity, fill, rim and shadow
     // alike, while the content stays solid. A see-through card gets the hairline rim back (`NoopCardChrome`).
-    val opacity = if (glass) 1f else CardAppearance.opacity
-    val transparent = opacity < 1f
+    // The new design (preview) draws its cards as iOS's `ForgeCardModifier`: its own glass until a transparency is
+    // chosen, no rim at any transparency, and the shadow fading with the fill.
+    val newDesign = ForgeDesign.preview
+    val opacity = when {
+        glass -> 1f
+        newDesign && !CardAppearance.chosen -> NEW_DESIGN_GLASS
+        else -> CardAppearance.opacity
+    }
+    val transparent = opacity < 1f && !newDesign
     val surface = when {
         !glass -> (fill ?: colors.surface).let { it.copy(alpha = it.alpha * opacity) }
         blur -> fill ?: colors.heroFill
@@ -109,6 +116,9 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
 }
 
 private val CARD_SHADOW = Color.Black.copy(alpha = 0.06f)
+
+/** The new design's card fill when no Card transparency was chosen (iOS `ForgeCardModifier.defaultGlassPercent`). */
+private const val NEW_DESIGN_GLASS = 0.78f
 
 /** The Charge band a score falls in (`ChargeBand.of`): below 25, 50, 70 and 88. */
 enum class ChargeBand { Depleted, Low, Moderate, Primed, Peak;

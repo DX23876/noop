@@ -1,0 +1,64 @@
+package com.noop.ui.forge
+
+import android.content.Context
+import android.content.Intent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.noop.ui.NoopPrefs
+
+/**
+ * Fork (DX23876), Forge parity 2026-11: the "New design (preview)" switch, the twin of iOS's `ForgeDesignPrefs`.
+ * Off by default, as on iOS: the shipped Forge tabs (Today, Trends, Training, Sleep, More) stay until the owner
+ * decides otherwise. On, the shell shows the new design's tabs (Today with its timeline, Training, Sleep, Health,
+ * and the coach in its own place). Same key as iOS, so the choice reads the same on both.
+ *
+ * `--ez new_design true|false` on the launch intent sets it for emulator checks, as `--new-design` does on iOS.
+ */
+object ForgeDesign {
+    const val KEY = "noop.forgeDesign.preview"
+    const val DEFAULT = false
+    const val EXTRA = "new_design"
+
+    /** Observed by the shell, so flipping the switch in Lab redraws the tabs at once. */
+    var preview by mutableStateOf(DEFAULT)
+        private set
+
+    fun load(context: Context, intent: Intent? = null) {
+        val prefs = context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
+        if (intent?.hasExtra(EXTRA) == true) prefs.edit().putBoolean(KEY, intent.getBooleanExtra(EXTRA, DEFAULT)).apply()
+        preview = prefs.getBoolean(KEY, DEFAULT)
+    }
+
+    fun set(context: Context, on: Boolean) {
+        context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY, on).apply()
+        preview = on
+    }
+
+    /**
+     * The tabs in the bar, in order. The new design follows iOS's `RootTabView` (Today, Training, Sleep, Health, and
+     * Coach while the coach is on); the shipped one keeps Trends and More. Pure, so the two rosters are tested.
+     */
+    fun tabs(newDesign: Boolean, coachEnabled: Boolean): List<ForgeTab> =
+        if (newDesign) listOfNotNull(ForgeTab.Today, ForgeTab.Training, ForgeTab.Sleep, ForgeTab.Health,
+                                     ForgeTab.Coach.takeIf { coachEnabled })
+        else listOf(ForgeTab.Today, ForgeTab.Trends, ForgeTab.Training, ForgeTab.Sleep, ForgeTab.More)
+}
+
+/**
+ * In the new design everything the More tab held lives behind the profile button, as iOS's `RootTabView` puts it:
+ * a tab header's profile (and Today's strap battery) open the More page over the tabs. Null in the shipped design,
+ * where the profile opens Settings and More is a tab.
+ */
+val LocalForgeOpenMore = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
+
+/** The More page over the tabs, with its own search, profile, strap and every page it lists. */
+@androidx.compose.runtime.Composable
+internal fun ForgeMoreOverlay(viewModel: com.noop.ui.AppViewModel, onDismiss: () -> Unit) {
+    ForgeOverlayPage(onDismiss = onDismiss) {
+        ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+            androidx.activity.compose.BackHandler(onBack = onDismiss)
+            ForgeMoreScreen(androidx.compose.foundation.layout.PaddingValues(), viewModel)
+        }
+    }
+}

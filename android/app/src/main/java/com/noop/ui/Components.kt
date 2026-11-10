@@ -122,8 +122,11 @@ import kotlin.math.sin
  *  above and stays fully readable over the background. */
 object CardAppearance {
     var opacity by mutableStateOf(1f)
+    /** Whether a transparency was ever chosen; the Forge new design draws its own glass until then (iOS 78 %). */
+    var chosen by mutableStateOf(false)
     fun init(context: Context) {
         opacity = (NoopPrefs.cardOpacityPercent(context) / 100f).coerceIn(0f, 1f)
+        chosen = NoopPrefs.cardOpacityChosen(context)
     }
 }
 

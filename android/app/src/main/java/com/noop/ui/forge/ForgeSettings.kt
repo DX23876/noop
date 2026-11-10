@@ -1235,6 +1235,10 @@ private fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> U
 private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
     SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = null) {
+        // The 2026-11 redesign preview, as iOS's first Lab switch: off by default, the tabs redraw at once.
+        ToggleRow(stringResource(R.string.forge_lab_new_design), stringResource(R.string.forge_lab_new_design_detail),
+                  ForgeDesign.preview) { ForgeDesign.set(context, it) }
+        RowDivider()
         // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
         var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
         ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {

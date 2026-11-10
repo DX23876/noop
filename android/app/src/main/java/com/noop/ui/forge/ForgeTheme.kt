@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.noop.R
@@ -107,8 +108,11 @@ val forgeType = ForgeType(
 object ForgeMetrics {
     val screenPadding = ForgeTokens.NoopMetrics.screenPadding.dp
     val cardPadding = ForgeTokens.NoopMetrics.cardPadding.dp
-    val cardRadius = ForgeTokens.NoopMetrics.cardRadius.dp
-    val groupedRadius = ForgeTokens.NoopMetrics.groupedRadius.dp
+    // The new design (preview) uses Apple's tight grouped corners, as iOS's `ForgeRadius.card` (14): 22 and 17 read
+    // as soft and bubbly beside it. The shipped Forge keeps its tokens.
+    val cardRadius: Dp get() = if (ForgeDesign.preview) NEW_DESIGN_CARD_RADIUS else ForgeTokens.NoopMetrics.cardRadius.dp
+    val groupedRadius: Dp get() = if (ForgeDesign.preview) NEW_DESIGN_CARD_RADIUS else ForgeTokens.NoopMetrics.groupedRadius.dp
+    private val NEW_DESIGN_CARD_RADIUS = 14.dp
     val heroRadius = ForgeTokens.NoopMetrics.heroRadius.dp
     val gap = ForgeTokens.NoopMetrics.gap.dp
     val sectionGap = ForgeTokens.NoopMetrics.sectionGap.dp

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -134,20 +135,23 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var arranging by remember { mutableStateOf<String?>(null) }
     var updatesOpen by remember { mutableStateOf(false) }
     var dayPicker by remember { mutableStateOf(false) }
+    var editingWidgets by remember { mutableStateOf(false) }
     val more = rememberMoreNavigator()
     val selectTab = LocalForgeTabSelect.current
+    val openMore = LocalForgeOpenMore.current
     if (quickActions) {
         ForgeQuickActionSheet(viewModel, onDismiss = { quickActions = false }) { action ->
             quickActions = false
             when (action) {
-                QuickAction.Battery -> selectTab(ForgeTab.More)
+                QuickAction.Battery -> openMore?.invoke() ?: selectTab(ForgeTab.More)
                 QuickAction.Live -> more.push(MoreRoute.Dest(MoreDest.Live))
                 QuickAction.Workout -> startWorkout = true
                 QuickAction.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
                 QuickAction.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
                 QuickAction.Goals -> more.push(MoreRoute.Dest(MoreDest.Goals))
                 QuickAction.LiveSession -> liveSession = true
-                QuickAction.CustomizeToday -> customizing = TodayCustomizationDestination.Today
+                QuickAction.CustomizeToday ->
+                    if (ForgeDesign.preview) editingWidgets = true else customizing = TodayCustomizationDestination.Today
             }
         }
     }
@@ -250,7 +254,20 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
     ) {
         val style = remember(layoutRevision) { DashboardStylePrefs.style(context) }
-        if (style != "liquid") {
+        if (ForgeDesign.preview) {
+            // The new design's Today, as iOS's `ForgeTodayView`: the header, the rings, a detected activity and the
+            // morning's suggestion, the widgets, then the day as a time rail. One Today, whatever the dashboard style.
+            Header(shown, isToday = shown == today, backfilling = viewModel.live.collectAsState().value.backfilling,
+                   onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { quickActions = true })
+            Box(Modifier.pointerInput(Unit) { detectTapGestures(onLongPress = { editingWidgets = true }) }) {
+                Hero(model?.day, width)
+            }
+            if (shown == today) ForgeActivityPrompt()
+            if (shown == today) ForgeMorningSuggestion()
+            ForgeTodayWidgetArea(model, viewModel, width, editing = editingWidgets, onEditing = { editingWidgets = it },
+                                 onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) })
+            if (shown == today) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
+        } else if (style != "liquid") {
             // The Trends and Overview styles (Settings › Dashboard) draw their own header and blocks.
             val live by viewModel.live.collectAsState()
             val updateStore = remember { com.noop.ui.UpdateStore.from(context) }
@@ -279,8 +296,6 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         if (shown == today) ForgeMorningSuggestion()
         // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
         sections.forEach { drawSection(it) }
-        // The day as a time rail under the arranged sections, as the new iOS Today ends (`dayList`).
-        if (shown == today) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
     }
@@ -390,7 +405,7 @@ private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: andr
  * day has neither.
  */
 @Composable
-private fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
+internal fun HeartCard(viewModel: AppViewModel, date: LocalDate, live: Boolean) {
     val colors = Forge.colors
     val context = LocalContext.current
     val bpm by viewModel.bpm.collectAsState()

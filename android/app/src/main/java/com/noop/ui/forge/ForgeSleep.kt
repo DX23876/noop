@@ -183,6 +183,12 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     // The heading sits on the night band; everything below it on one canvas sheet with a rounded top, as on iOS
     // (`restHero` over `sleepNightTopBackground`, then `canvasSheet`).
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding)) {
+        // The new design's header over the night, as iOS's `ForgeLargeHeader(title: "Sleep")`.
+        LocalForgeOpenMore.current?.let { openMore ->
+            Box(Modifier.padding(horizontal = ForgeMetrics.screenPadding)) {
+                TabHeader(stringResource(R.string.nav_sleep), onProfile = openMore)
+            }
+        }
         Header(night, isLatest = i == nights.lastIndex, zone,
                canBack = i > 0, canForward = i in 0 until nights.lastIndex,
                onBack = { index = i - 1 }, onForward = { index = i + 1 })
