@@ -64,5 +64,6 @@ Seen, not changed:
   (`SleepNight.naps`). Hiding the short ones on Sleep would also hide their delete button, and the classic
   Sleep view counts them in the day's total, so the rule for that list is the owner's call.
 - The demo app answered slowly at first start on the emulator (an ANR while WorkManager waited). The main
-  thread was waiting for the render thread and the CPU in both designs, with 2 GB and software rendering;
-  with the host GPU and 4 GB it did not recur. To watch on a real low-end phone.
+  thread was waiting for the render thread and spent most of the minute waiting for the CPU, in both designs,
+  with software rendering and also with the host GPU and 4 GB. No NOOP code was on the stack; the first
+  start's load is worth measuring on a real low-end phone.
