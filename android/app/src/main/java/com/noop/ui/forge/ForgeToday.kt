@@ -389,7 +389,8 @@ private fun ScoreSlot(labelRes: Int, score: Double?, tint: Color, diameter: andr
            modifier = modifier.then(
                if (onHold == null) Modifier.clickable(role = Role.Button, onClick = onOpen)
                else @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-                    Modifier.combinedClickable(role = Role.Button, onClick = onOpen, onLongClick = onHold))
+                    Modifier.combinedClickable(role = Role.Button, onClick = onOpen, onLongClick = onHold,
+                                               onLongClickLabel = stringResource(R.string.forge_w_edit_today)))
                .semantics(mergeDescendants = true) { contentDescription = spoken }) {
         // The drawn ring may be a little wider than its slot; its glow overlaps the neighbour's, as on iOS.
         Box(Modifier.fillMaxWidth().height(diameter), contentAlignment = Alignment.Center) {
