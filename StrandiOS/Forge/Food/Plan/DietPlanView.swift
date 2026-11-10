@@ -55,18 +55,19 @@ struct DietPlanView: View {
     }
 
     private func header(_ plan: DietPlan, _ r: DietTargets.Result) -> some View {
-        ZStack(alignment: .bottomLeading) {
+        // The picture stands without a veil and the words sit under it, so the daylight picture keeps them
+        // readable as well as the night one does.
+        VStack(alignment: .leading, spacing: 12) {
             Image(DietArt.form(plan.form)).resizable().scaledToFill()
                 .frame(maxWidth: .infinity).frame(height: 190).clipped()
-                .overlay { LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .center, endPoint: .bottom) }
+                .clipShape(.rect(cornerRadius: ForgeRadius.card))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text(DietText.goal(r.goal)).font(ForgeFont.rounded(28, .bold)).foregroundStyle(ForgeColor.onDarkPhoto)
-                Text(subtitle(plan, r)).font(.subheadline).foregroundStyle(ForgeColor.onDarkPhotoSecondary)
+                Text(DietText.goal(r.goal)).font(ForgeFont.rounded(28, .bold)).foregroundStyle(ForgeColor.text)
+                Text(subtitle(plan, r)).font(.subheadline).foregroundStyle(ForgeColor.secondary)
             }
-            .padding(16)
+            .padding(.horizontal, 4)
         }
-        .clipShape(.rect(cornerRadius: ForgeRadius.card))
         .padding(.top, 8)
     }
 

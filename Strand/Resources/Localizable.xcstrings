@@ -274951,7 +274951,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "KW %lld"
+            "value" : "Wo. %lld"
           }
         },
         "es" : {
@@ -284579,43 +284579,43 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Meine Lebensmittel"
+            "value" : "Eigene"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mis alimentos"
+            "value" : "Míos"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mes aliments"
+            "value" : "Les miens"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "I miei alimenti"
+            "value" : "Miei"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Moje produkty"
+            "value" : "Moje"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Os meus alimentos"
+            "value" : "Meus"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Мои продукты"
+            "value" : "Мои"
           }
         },
         "zh-Hans" : {
