@@ -61,6 +61,10 @@ Fixed:
 - The same one-time read on Today's Energy ("so far" never grew), Training load and coach cards, and on the
   Training tab: all read again on the core's data revision now. These were in the shipped design too.
 - The older nights' line in Sleep's navigator ran past the width; it names the wake day only.
+- With the Classic dashboard style chosen the new design drew the classic Today, whose battery and devices
+  jumps went to the More tab the new design lacks. The new design keeps its own Today and any jump to More
+  opens the More page (read in the code and compiled, not run on screen).
+- The emulator launch extra wrote the switch in every build; it is now a debug-only override, as on iOS.
 
 Seen, not changed:
 - iOS Sleep lists every block outside the main night as a nap, the timeline only those with 10 min asleep
