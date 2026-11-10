@@ -15,10 +15,11 @@ final class HabitualSleepFinishedNightsTests: XCTestCase {
         }
         _ = try await store.upsertSleepSessions(nights, deviceId: "my-whoop-noop")
         func learn() async -> (Int?, [Double]) {
-            await IntelligenceEngine.computeHabitualSleep(
+            let learned = await IntelligenceEngine.computeHabitualSleep(
                 store: store, importedId: "my-whoop", computedId: "my-whoop-noop",
                 windowStart: midnight - 30 * 86_400, windowEnd: midnight + 86_400,
                 finishedBefore: midnight, offsetSec: 0)
+            return (learned.midsleepSec, learned.nights.map(\.tstHours))
         }
         let before = await learn()
 

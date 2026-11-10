@@ -2,6 +2,7 @@ import SwiftUI
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 /// Data identity includes corrections to existing rows, source switches and profile changes.
 struct DashboardLoadKey: Hashable {
@@ -24,10 +25,12 @@ struct DashboardLoadKey: Hashable {
 /// series point during the interim.
 enum DashboardRestScore {
     static func value(day: String, days: [DailyMetric],
-                      importedSleep: [String: ImportedSleepFigures]) -> Double? {
+                      importedSleep: [String: ImportedSleepFigures],
+                      restTraits: RestTraitLookup) -> Double? {
         if let imported = importedSleep[day]?.performancePct { return imported }
         guard let daily = days.last(where: { $0.day == day }) else { return nil }
-        return AnalyticsEngine.Rest.composite(daily: daily)
+        // The night's own stored need and regularity (AI-34), the ones the pass scored its Rest with.
+        return AnalyticsEngine.Rest.composite(daily: daily, inputs: restTraits.inputs(forDay: day))
     }
 }
 

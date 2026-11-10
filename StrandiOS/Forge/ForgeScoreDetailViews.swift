@@ -200,7 +200,7 @@ struct ForgeRestDetailView: View {
                 // Dated points, so every mark gets its weekday as on Charge and Effort.
                 ForgeDailyChart(title: String(localized: "Last 14 days"),
                                 points: Array(repo.days.compactMap { d in
-                                    SleepModel.performanceValue(d, importedSleep: repo.importedSleep)
+                                    SleepModel.performanceValue(d, importedSleep: repo.importedSleep, restTraits: repo.restTraits)
                                         .flatMap { $0.isFinite ? (d.day, $0) : nil }
                                 }.suffix(14)),
                                 maxValue: 100, tint: ForgeColor.rest, bars: false,

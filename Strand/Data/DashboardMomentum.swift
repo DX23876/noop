@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 
 /// Assembles and publishes the Momentum feed for the two reference-matched dashboards.
@@ -55,6 +56,7 @@ enum DashboardMomentum {
     static func context(displayDay: DailyMetric?,
                         allDays: [DailyMetric],
                         hrvBaseline: BaselineState?,
+                        restTraits: RestTraitLookup,
                         dayKey: String,
                         isToday: Bool,
                         steps: DailyStepsReading?,
@@ -64,6 +66,7 @@ enum DashboardMomentum {
         c.displayDay = displayDay
         c.allDays = allDays
         c.hrvBaseline = hrvBaseline
+        c.restTraits = restTraits
         c.dayKey = dayKey
         c.isToday = isToday
 

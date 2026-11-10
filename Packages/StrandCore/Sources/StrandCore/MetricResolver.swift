@@ -128,8 +128,15 @@ public enum MetricResolver {
         var byDay = Dictionary(metricRows.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         if let dailyRows = try? await store.dailyMetrics(deviceId: candidate.source,
                                                          from: from, to: Self.dayAfter(to)) {
+            let traits = candidate.key == "sleep_performance"
+                ? await RestTraitLookup.read(store: store, deviceIds: [candidate.source], from: from,
+                                             to: Self.dayAfter(to))
+                : RestTraitLookup.empty
             for row in dailyRows where byDay[row.day] == nil {
-                if let value = Self.dailyColumn(key: candidate.key, day: row) { byDay[row.day] = value }
+                if let value = Self.dailyColumn(key: candidate.key, day: row,
+                                                restInputs: traits.inputs(forDay: row.day)) {
+                    byDay[row.day] = value
+                }
             }
         }
         return byDay.keys.sorted().compactMap { day in byDay[day].map { (day, $0) } }
@@ -235,11 +242,17 @@ public enum MetricResolver {
     /// banked on the DailyMetric row while the metricSeries point is still missing. Without this case the
     /// resolver returned no Rest for that day and Today borrowed the latest historical value (#614). Derive
     /// it on the fly from the same banked totals via the single source of truth
-    /// `AnalyticsEngine.Rest.composite(daily:)` , the SAME composite the series carries (what
-    /// IntelligenceEngine projects) , so the day resolves to its own Rest. Consistency is left to the
-    /// scorer's neutral default here (the daily row carries no regularity term). Mirrors Android
+    /// `AnalyticsEngine.Rest.composite(daily:inputs:)` , the SAME composite the series carries (what
+    /// IntelligenceEngine projects) , so the day resolves to its own Rest. `restInputs` are that night's
+    /// stored traits (`RestTraitLookup`, AI-34); before AI-34 this path used a fixed 8 h need and a neutral
+    /// regularity, so a just-synced night read a different Rest than the pass later stored. Mirrors Android
     /// WhoopRepository.dailyColumn / RestScorer.restFromDaily.
-    public static func dailyColumn(key: String, day d: DailyMetric) -> Double? {
+    ///
+    /// `active_kcal` / `energy_kcal` have no daily column any more (AI-34): `activeKcalEst` is the retired
+    /// whole-day Keytel estimate, which on an active day read about twice the Energy screen's figure. A
+    /// calorie readout resolves through the energy model (`Repository.energySummaries`, `CoreEnergyPlan`).
+    public static func dailyColumn(key: String, day d: DailyMetric,
+                                   restInputs: AnalyticsEngine.Rest.Inputs) -> Double? {
         switch key {
         case "recovery":         return d.recovery
         case "hrv":              return d.avgHrv
@@ -253,9 +266,8 @@ public enum MetricResolver {
         case "sleep_deep_min", "deep_min": return d.deepMin
         case "sleep_rem_min", "rem_min":   return d.remMin
         case "sleep_light_min", "core_min": return d.lightMin
-        case "sleep_performance": return AnalyticsEngine.Rest.composite(daily: d)
+        case "sleep_performance": return AnalyticsEngine.Rest.composite(daily: d, inputs: restInputs)
         case "steps":            return d.steps.map(Double.init)
-        case "active_kcal", "energy_kcal": return d.activeKcalEst
         default:                 return nil
         }
     }

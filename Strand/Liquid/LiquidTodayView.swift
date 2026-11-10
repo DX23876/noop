@@ -561,7 +561,7 @@ struct LiquidTodayView: View {
     /// The Charge breakdown (drivers + confidence), computed from the same row + rest-score the ring
     /// reads. Uses the shared pure `ChargeBreakdownFormat.compute` so classic Today and Liquid can't drift.
     private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, baselines: repo.chargeBaselines, restScore: restScore)
+        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, baselines: repo.chargeBaselines(forDay: chargeBreakdownRow?.day), restScore: restScore)
     }
     /// The night's relative skin-temp marker, surfaced verbatim from `RecoveryScorer.skinTempRelative`.
     private var chargeSkinTempRel: SkinTempRelative? {
@@ -2039,7 +2039,8 @@ struct LiquidTodayView: View {
         c.displayDay = d
         c.lastScoredDay = cachedPriorScored
         c.allDays = repo.days
-        c.hrvBaseline = repo.chargeBaselines?.hrv
+        c.hrvBaseline = repo.chargeBaselines(forDay: selectedDayKey)?.hrv
+        c.restTraits = repo.restTraits
         c.dayKey = selectedDayKey
         c.isToday = selectedDayOffset == 0
         // The carried provenance the Charge hero already resolved, so both read the same date.
@@ -2549,12 +2550,12 @@ struct LiquidTodayView: View {
             // say how they stand against the wearer's own normal instead (`PersonalNormal`).
             ktile("HRV", icon: metric.customizationIcon, intText(hrv), "ms", StrandPalette.metricCyan, nil, key: "hrv",
                   comparison: vitalComparison("hrv", today: hrv, polarity: .higherIsBetter,
-                                              baseline: repo.chargeBaselines?.hrv,
+                                              baseline: repo.chargeBaselines(forDay: selectedDayKey)?.hrv,
                                               epoch: Baselines.hrvBaselineEpoch()))
         case .restingHr:
             ktile(String(localized: "Rest HR"), icon: metric.customizationIcon, intText(rhr), "bpm", StrandPalette.metricRose, nil, key: "rhr",
                   comparison: vitalComparison("rhr", today: rhr, polarity: .lowerIsBetter,
-                                              baseline: repo.chargeBaselines?.restingHR,
+                                              baseline: repo.chargeBaselines(forDay: selectedDayKey)?.restingHR,
                                               epoch: Baselines.recoveryBaselineEpoch()))
         case .bloodOxygen:
             // Same order as the card above — see `Spo2Display`.
@@ -2576,7 +2577,7 @@ struct LiquidTodayView: View {
                   resp.map { String(format: "%.1f", locale: AppLanguage.activeLocale, $0) } ?? "—",
                   "rpm", StrandPalette.accent, nil, key: "resp_rate",
                   comparison: vitalComparison("resp_rate", today: resp, polarity: .neutral,
-                                              baseline: repo.chargeBaselines?.resp,
+                                              baseline: repo.chargeBaselines(forDay: selectedDayKey)?.resp,
                                               epoch: Baselines.recoveryBaselineEpoch()),
                   comparisonDecimals: 1)
         case .steps:
@@ -3028,7 +3029,7 @@ struct LiquidTodayView: View {
         // forever while Charge advanced; freshness-gate the tail-fallback so a stale tail falls through to
         // the Rest hero's No-Data/calibrating state (same empty treatment Effort uses) instead of freezing.
         let correctedRest = DashboardRestScore.value(
-            day: selectedDayKey, days: allDays, importedSleep: repo.importedSleep)
+            day: selectedDayKey, days: allDays, importedSleep: repo.importedSleep, restTraits: repo.restTraits)
         next.restScore = correctedRest ?? TodayView.freshRestScore(
             todayValue: restByDay[selectedDayKey], lastDay: restSeries.last?.day,
             lastValue: restSeries.last?.value, isTodaySelected: selectedDayOffset == 0,

@@ -2380,7 +2380,9 @@ final class AICoachEngine: ObservableObject {
         var text = Self.formatSleepDetail(recentDays: recent, sessions: sessions, habitualMidsleepSec: habitual)
 
         // Rolling sleep-debt ledger over the last 30 nights (14-night window inside the engine).
-        let ledger = SleepDebt.ledger(series: all.suffix(30).map { ($0.day, $0.totalSleepMin) })
+        // Measured against the same need the Sleep screen's ledger uses (AI-34: the newest night's stored one).
+        let ledger = SleepDebt.ledger(series: all.suffix(30).map { ($0.day, $0.totalSleepMin) },
+                                      needHours: repo.restTraits.currentNeedMin(days: all.map(\.day)) / 60.0)
         if !ledger.nights.isEmpty {
             let bal = ledger.balanceMin / 60
             let need = ledger.needMin / 60
@@ -3629,8 +3631,10 @@ final class AICoachEngine: ObservableObject {
     /// It isn't: `Rest.composite(daily:)` is pure and row-local. Passing nil silently DROPPED the rest
     /// row from the coach's breakdown, so the coach explained a Charge the Today screen explained
     /// differently — the one thing the "never contradict Today" rule exists to prevent.
-    static func restQualityTerm(_ daily: DailyMetric) -> Double? {
-        AnalyticsEngine.Rest.composite(daily: daily).map { $0 / 100.0 } ?? daily.efficiency
+    /// AI-34: with the night's own stored traits, as the pass scored it.
+    static func restQualityTerm(_ daily: DailyMetric, restTraits: RestTraitLookup) -> Double? {
+        AnalyticsEngine.Rest.composite(daily: daily, inputs: restTraits.inputs(forDay: daily.day)).map { $0 / 100.0 }
+            ?? daily.efficiency
     }
 
     /// The row the breakdown describes, mirroring `TodayView.chargeBreakdownRow`: today's own row once
@@ -3655,19 +3659,20 @@ final class AICoachEngine: ObservableObject {
               let hrv = today.avgHrv, let rhr = today.restingHr else {
             return "Not enough data yet to break down today's Charge."
         }
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
-                                            cfg: Baselines.hrvCfg,
-                                            baselineEpoch: Baselines.hrvBaselineEpoch())
-        guard hrvBase.usable else { return "Still calibrating the HRV baseline — no Charge breakdown yet." }
-        let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
-                                            cfg: Baselines.restingHRCfg)
-        let respBase = Baselines.foldHistory(days.map(\.respRateBpm), cfg: Baselines.respCfg)
+        // The baselines this row's Charge was scored against (AI-34: the nights before it), from the same
+        // funnel the Today sheet reads, so the coach cannot explain a baseline the score never used.
+        guard let baselines = repo.chargeBaselines(forDay: today.day), baselines.hrv.usable else {
+            return "Still calibrating the HRV baseline — no Charge breakdown yet."
+        }
+        let hrvBase = baselines.hrv
+        let rhrBase = baselines.restingHR
+        let respBase = baselines.resp
         let drivers = RecoveryScorer.chargeDrivers(
             hrv: hrv, rhr: Double(rhr), resp: today.respRateBpm,
             hrvBaseline: hrvBase,
             rhrBaseline: rhrBase.usable ? rhrBase : nil,
             respBaseline: respBase.usable ? respBase : nil,
-            sleepPerf: Self.restQualityTerm(today), skinTempDev: today.skinTempDevC)
+            sleepPerf: Self.restQualityTerm(today, restTraits: repo.restTraits), skinTempDev: today.skinTempDevC)
         guard !drivers.isEmpty else { return "No Charge breakdown available yet." }
         var lines = ["WHY TODAY'S CHARGE IS WHAT IT IS (signed points, biggest mover first):"]
         for d in drivers {
@@ -3768,10 +3773,8 @@ final class AICoachEngine: ObservableObject {
         let days = repo.days
         let todayKey = LogicalDay.key(Date())
         guard let today = days.last(where: { $0.day == todayKey }) ?? days.last else { return nil }
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), dayKeys: days.map(\.day),
-                                            cfg: Baselines.hrvCfg,
-                                            baselineEpoch: Baselines.hrvBaselineEpoch())
-        let confidence = ScoreConfidence.charge(recovery: today.recovery, hrvBaseline: hrvBase)
+        let confidence = ScoreConfidence.charge(recovery: today.recovery,
+                                                hrvBaseline: repo.chargeBaselines(forDay: today.day)?.hrv)
         var line = "Charge confidence today: \(confidence.rawValue)"
         if confidence == .calibrating {
             line += " (not a real score yet — the HRV baseline is still building; do not state progress, "
@@ -3985,12 +3988,10 @@ final class AICoachEngine: ObservableObject {
         guard endIndex > 0 else { return nil }
         let window = sorted[max(0, endIndex - days)..<endIndex]
         guard !window.isEmpty else { return nil }
-        let hrvBase = Baselines.foldHistory(sorted.map(\.avgHrv), dayKeys: sorted.map(\.day),
-                                            cfg: Baselines.hrvCfg,
-                                            baselineEpoch: Baselines.hrvBaselineEpoch())
         let trusted = window.compactMap { row -> Double? in
             guard let r = row.recovery,
-                  ScoreConfidence.charge(recovery: r, hrvBaseline: hrvBase) != .calibrating else { return nil }
+                  ScoreConfidence.charge(recovery: r, hrvBaseline: repo.chargeBaselines(forDay: row.day)?.hrv)
+                    != .calibrating else { return nil }
             return r
         }
         guard !trusted.isEmpty else { return nil }
@@ -4045,9 +4046,6 @@ final class AICoachEngine: ObservableObject {
             return "PLAN: nothing has been proposed or agreed in the last \(days) days."
         }
 
-        let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), dayKeys: repo.days.map(\.day),
-                                            cfg: Baselines.hrvCfg,
-                                            baselineEpoch: Baselines.hrvBaselineEpoch())
         let byDay = Dictionary(repo.days.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
         let unresolved = Set(store.reconciliationResolutions.map(\.proposalId))
 
@@ -4068,7 +4066,8 @@ final class AICoachEngine: ObservableObject {
             }
             // Only quote the day's real Effort when the app actually trusts that day's numbers.
             if let row = byDay[p.day] {
-                let confidence = ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase)
+                let confidence = ScoreConfidence.charge(recovery: row.recovery,
+                                                        hrvBaseline: repo.chargeBaselines(forDay: row.day)?.hrv)
                 if confidence == .calibrating {
                     line += " — that day's data is still calibrating, so don't read progress into it"
                 } else if let effort = row.strain {

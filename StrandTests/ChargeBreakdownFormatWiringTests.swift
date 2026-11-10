@@ -29,7 +29,8 @@ final class ChargeBreakdownFormatWiringTests: XCTestCase {
     /// The breakdown for `row` against own nights `days` (plus `imported`), anchored on `row`'s day.
     private func breakdown(_ days: [DailyMetric], imported: [DailyMetric] = [], row: DailyMetric,
                            hrvEpoch: Double = 0) -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        let baselines = ChargeBaselines.resolve(imported: imported, own: days, anchorDay: row.day,
+        // AI-35: the row's Charge reads the nights BEFORE it, so the row's own night is not in its baseline.
+        let baselines = ChargeBaselines.resolve(imported: imported, own: days, scoredDay: row.day,
                                                 hrvEpoch: hrvEpoch, recoveryEpoch: 0)
         return ChargeBreakdownWiring.breakdown(baselines: baselines, row: row, sleepPerfPercent: 85)
     }

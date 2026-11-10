@@ -62,6 +62,7 @@ internal fun recoveryCalibrationNights(
 internal fun recoveryChargeDrivers(
     baselines: ChargeBaselines.Resolved?,
     displayDay: DailyMetric?,
+    restTraits: com.noop.analytics.RestTraitLookup,
 ): List<ChargeDriver> {
     val resolved = baselines ?: return emptyList()
     val day = displayDay ?: return emptyList()
@@ -78,7 +79,7 @@ internal fun recoveryChargeDrivers(
 
     // sleepPerf: the Rest COMPOSITE (/100) when stages exist, else raw efficiency, the SAME derivation
     // recomputeRecovery uses, so the Sleep driver scores against the headline's own input.
-    val sleepPerf = RestScorer.restFromDaily(day)?.let { it / 100.0 } ?: day.efficiency
+    val sleepPerf = RestScorer.restFromDaily(day, restTraits)?.let { it / 100.0 } ?: day.efficiency
 
     return RecoveryDrivers.chargeDrivers(
         hrv = hrv,

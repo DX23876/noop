@@ -101,7 +101,9 @@ struct TrendsMetricStrip: View {
         case .sleep:
             guard let m = day?.totalSleepMin else { return "—" }
             return String(localized: "\(Int(m) / 60)h \(Int(m) % 60)m")
-        case .calories:    return day?.activeKcalEst.map { "\(Int($0.rounded()))" } ?? "—"
+        // The calorie figure is the energy model's (`resolvedValue`, as the Energy screen shows it). The row's
+        // `activeKcalEst` is the retired Keytel whole-day estimate, so without a resolved value: no figure.
+        case .calories:    return "—"
         case .stress:      return day?.strain.map { "\(Int($0.rounded()))" } ?? "—"
         case .stepsAverage30, .fitnessAge, .vo2max, .vitality, .hydration, .weight, .coupled:
             // These need state this lightweight strip does not load (profile age, a hydration goal, a

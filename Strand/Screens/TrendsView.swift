@@ -381,7 +381,7 @@ struct TrendsView: View {
     /// self-hides only when there's no data in ANY week (an all-empty history), matching the old card.
     @ViewBuilder
     private var weeklyDigestNav: some View {
-        let digest = WeeklyDigestSource.digest(from: repo.days, anchorDay: weekAnchorDay)
+        let digest = WeeklyDigestSource.digest(from: repo.days, anchorDay: weekAnchorDay, restTraits: repo.restTraits)
         // Only hide the navigation entirely when the WHOLE history is empty — an empty PAST week still
         // shows the header + chevrons so the user can step to a week that does hold data.
         if repo.days.isEmpty {
@@ -407,6 +407,7 @@ struct TrendsView: View {
                     if NoopVisualStyle.skin == .forge {
                         TrendsWeekByDay(days: repo.days, weekStart: digest.weekStart,
                                         importedSleep: repo.importedSleep,
+                                        restTraits: repo.restTraits,
                                         effortScale: UnitPrefs.currentEffortScale())
                     }
                     // Share this week's recap as an image. Renders the digest card (with its header) to a

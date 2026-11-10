@@ -187,7 +187,7 @@ final class EditMergePrecedenceTests: XCTestCase {
         let d = full(day: "2026-06-12", totalSleepMin: 480, deepMin: 90, remMin: 110,
                      lightMin: 280, efficiency: 0.92, recovery: 80, strain: 9.0)
         // Matches IntelligenceEngine's persisted sleep_performance projection (same composite).
-        let expected = AnalyticsEngine.Rest.composite(daily: d)
+        let expected = AnalyticsEngine.Rest.composite(daily: d, inputs: .coldStart)
         XCTAssertNotNil(expected)
         XCTAssertEqual(Repository.dailyColumn(key: "sleep_performance", day: d), expected)
     }

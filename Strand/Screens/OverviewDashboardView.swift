@@ -376,7 +376,7 @@ struct OverviewDashboardView: View {
         let restSeries = await restSeriesA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         let correctedRest = DashboardRestScore.value(
-            day: selectedDayKey, days: allDays, importedSleep: repo.importedSleep)
+            day: selectedDayKey, days: allDays, importedSleep: repo.importedSleep, restTraits: repo.restTraits)
         next.restScore = correctedRest ?? TodayView.freshRestScore(
             todayValue: next.displayDay.flatMap { restByDay[$0.day] },
             lastDay: restSeries.last?.day, lastValue: restSeries.last?.value,
@@ -436,7 +436,7 @@ struct OverviewDashboardView: View {
         lastLoadedAt = Date()
         DashboardMomentum.publish(
             context: DashboardMomentum.context(displayDay: next.displayDay, allDays: allDays,
-                                               hrvBaseline: repo.chargeBaselines?.hrv,
+                                               hrvBaseline: repo.chargeBaselines(forDay: selectedDayKey)?.hrv, restTraits: repo.restTraits,
                                                dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
                                                steps: DailyStepsReading.resolve(strapSteps: next.displayDay?.steps, appleSteps: next.appleDays.last(where: { $0.day == selectedDayKey })?.steps, estimatedSteps: next.stepsEstToday), stepGoal: stepGoal, live: liveInput),
             allDays: allDays,

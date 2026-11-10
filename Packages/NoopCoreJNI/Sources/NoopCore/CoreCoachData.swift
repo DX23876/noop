@@ -23,6 +23,9 @@ final class CoreCoachData: CoachDataReading {
     private(set) var sleeps: [CachedSleepSession] = []
     var deviceId: String { reader.activeDeviceId }
     private(set) var readinessLoadContext: ReadinessLoadContext?
+    private(set) var restTraits: RestTraitLookup = .empty
+    /// The rows `chargeBaselines(forDay:)` resolves from, reaching `ChargeBaselines.windowDays` before `days`.
+    private var chargeRows: (imported: [DailyMetric], computed: [DailyMetric]) = ([], [])
     /// The cardio lane's daily loads behind the readiness context, kept for `cardioRoomToday`.
     private var cardioLanes: (byDay: [String: Double], unknownDays: Set<String>, activity: LaneActivity)?
 
@@ -37,7 +40,22 @@ final class CoreCoachData: CoachDataReading {
         days = await goals.goalDays()
         let t = Int(now.timeIntervalSince1970)
         sleeps = await reader.unionSleepSessions(from: t - 14 * 86_400, to: t + 86_400, limit: 100)
+        let today = StoreReader.localDayKey(now)
+        let first = days.map(\.day).min() ?? today
+        let to = StoreReader.localDayKey(now.addingTimeInterval(86_400))
+        restTraits = await reader.restTraits(from: first, to: to)
+        let chargeFrom = HealthspanWindow.dayKey(first, plus: -ChargeBaselines.windowDays)
+        chargeRows = (await reader.unionDailyMetrics(from: chargeFrom, to: to),
+                      await reader.unionComputedDailyMetrics(from: chargeFrom, to: to))
         await loadLanes()
+    }
+
+    /// `Repository.chargeBaselines(forDay:)`: the engine's rule over the stored rows, the nights before `day`.
+    func chargeBaselines(forDay day: String?) -> ChargeBaselines.Resolved? {
+        guard let day else { return nil }
+        return ChargeBaselines.resolve(imported: chargeRows.imported, own: chargeRows.computed, scoredDay: day,
+                                       hrvEpoch: Baselines.hrvBaselineEpoch(),
+                                       recoveryEpoch: Baselines.recoveryBaselineEpoch())
     }
 
     /// `Repository.refreshReadinessLoadContext`: the strength and cardio lanes over exactly the history a reading

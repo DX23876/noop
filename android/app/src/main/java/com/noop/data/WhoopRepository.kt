@@ -2015,6 +2015,27 @@ class WhoopRepository(
     }
 
     /**
+     * AI-35: the stored Rest traits of the wearer's nights ([RestTraitLookup]), from the computed union, so a
+     * Rest rebuilt from a daily row uses the night's own need and regularity. Swift twin: `StoreReader.restTraits`.
+     */
+    suspend fun restTraits(activeStrapId: String, from: String = "0000-01-01", to: String = "9999-12-31"):
+        com.noop.analytics.RestTraitLookup = com.noop.analytics.RestTraitLookup(
+        metricSeriesComputedUnion(activeStrapId, com.noop.analytics.RestTraitLookup.NEED_KEY, from, to)
+            .associate { it.day to it.value },
+        metricSeriesComputedUnion(activeStrapId, com.noop.analytics.RestTraitLookup.CONSISTENCY_KEY, from, to)
+            .associate { it.day to it.value },
+    )
+
+    /** [restTraits] as a flow over the computed union. */
+    fun restTraitsFlow(activeStrapId: String, from: String = "0000-01-01", to: String = "9999-12-31"):
+        Flow<com.noop.analytics.RestTraitLookup> = combine(
+        metricSeriesComputedUnionFlow(activeStrapId, com.noop.analytics.RestTraitLookup.NEED_KEY, from, to),
+        metricSeriesComputedUnionFlow(activeStrapId, com.noop.analytics.RestTraitLookup.CONSISTENCY_KEY, from, to),
+    ) { need, cons ->
+        com.noop.analytics.RestTraitLookup(need.associate { it.day to it.value }, cons.associate { it.day to it.value })
+    }
+
+    /**
      * Computed ("-noop") [key] series across the active-strap UNION (the active strap's own computed
      * sibling + the canonical "my-whoop-noop"), deduped per day with the active strap winning. This is
      * how the weekly computed scores (fitness_age / vo2max_est / vitality / body_age) MUST be read:
@@ -2578,9 +2599,16 @@ class WhoopRepository(
         // candidate's real scored night can supersede it in [resolveFirstWins]. metricSeries points
         // and every other daily column stay strong , byte-identical precedence.
         val sleepTotalKey = candidate.key == "sleep_total_min" || candidate.key == "asleep_min"
+        // AI-35: a Rest rebuilt from the row uses the night's stored traits (under the candidate's own id).
+        val traits = if (candidate.key == "sleep_performance") com.noop.analytics.RestTraitLookup(
+            dao.metricSeries(candidate.source, com.noop.analytics.RestTraitLookup.NEED_KEY, "0000-01-01", "9999-12-31")
+                .associate { it.day to it.value },
+            dao.metricSeries(candidate.source, com.noop.analytics.RestTraitLookup.CONSISTENCY_KEY, "0000-01-01", "9999-12-31")
+                .associate { it.day to it.value },
+        ) else com.noop.analytics.RestTraitLookup.EMPTY
         for (row in dao.dailyMetricsRange(candidate.source, from, bufferDayAfter(to))) {
             if (!byDay.containsKey(row.day)) {
-                dailyColumn(candidate.key, row)?.let {
+                dailyColumn(candidate.key, row, traits)?.let {
                     byDay[row.day] = CandidateRow(row.day, it, sleepTotalKey && bareSleepAggregate(row))
                 }
             }
@@ -3051,7 +3079,7 @@ class WhoopRepository(
          * carries), so the day resolves to its own Rest. Consistency is left to the scorer's neutral
          * default here (the daily row carries no regularity term).
          */
-        internal fun dailyColumn(key: String, d: DailyMetric): Double? = when (key) {
+        internal fun dailyColumn(key: String, d: DailyMetric, traits: com.noop.analytics.RestTraitLookup): Double? = when (key) {
             "recovery" -> d.recovery
             "hrv" -> d.avgHrv
             "rhr", "resting_hr" -> d.restingHr?.toDouble()
@@ -3064,9 +3092,10 @@ class WhoopRepository(
             "sleep_deep_min", "deep_min" -> d.deepMin
             "sleep_rem_min", "rem_min" -> d.remMin
             "sleep_light_min", "core_min" -> d.lightMin
-            "sleep_performance" -> com.noop.analytics.RestScorer.restFromDaily(d)
+            "sleep_performance" -> com.noop.analytics.RestScorer.restFromDaily(d, traits)
             "steps" -> d.steps?.toDouble()
-            "active_kcal", "energy_kcal" -> d.activeKcalEst
+            // AI-35: no calorie column; `activeKcalEst` is the retired Keytel whole-day estimate. Calories
+            // resolve through the energy model, as the Energy screen shows them.
             else -> null
         }
 

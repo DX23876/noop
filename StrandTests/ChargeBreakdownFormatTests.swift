@@ -13,8 +13,9 @@ final class ChargeBreakdownFormatTests: XCTestCase {
     /// and anchored on the newest of them, the way `Repository.chargeBaselines` resolves them.
     private func compute(row: DailyMetric?, days: [DailyMetric], restScore: Double?)
         -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
-        let anchor = (days.map(\.day) + [row?.day].compactMap { $0 }).max() ?? "2026-01-01"
-        let baselines = ChargeBaselines.resolve(imported: [], own: days, anchorDay: anchor,
+        // The row's day is the scored day (AI-35: its baseline reads the nights before it).
+        let scored = row?.day ?? (days.map(\.day).max() ?? "2026-01-01")
+        let baselines = ChargeBaselines.resolve(imported: [], own: days, scoredDay: scored,
                                                 hrvEpoch: 0, recoveryEpoch: 0)
         return ChargeBreakdownFormat.compute(row: row, baselines: baselines, restScore: restScore)
     }
@@ -194,11 +195,13 @@ final class ChargeBreakdownFormatTests: XCTestCase {
             return XCTFail("a scored night with a usable HRV baseline must yield a breakdown")
         }
 
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        // AI-35: the row is scored against the nights before it, folded with the Charge configs.
+        let before = days.filter { $0.day < row.day }
+        let hrvBase = Baselines.foldHistory(before.map(\.avgHrv), cfg: ChargeBaselines.hrvCfg)
         XCTAssertTrue(hrvBase.usable, "fixture must fold to a usable HRV baseline")
-        let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
-                                            cfg: Baselines.restingHRCfg)
-        let respBase = Baselines.foldHistory(days.map(\.respRateBpm), cfg: Baselines.respCfg)
+        let rhrBase = Baselines.foldHistory(before.map { $0.restingHr.map(Double.init) },
+                                            cfg: ChargeBaselines.restingHRCfg)
+        let respBase = Baselines.foldHistory(before.map(\.respRateBpm), cfg: ChargeBaselines.respCfg)
         let expected = RecoveryScorer.chargeDrivers(
             hrv: 72, rhr: 58, resp: 14.2,
             hrvBaseline: hrvBase,

@@ -64,6 +64,8 @@ internal data class ImportedSleepSeries(
     val consistency: Map<String, Double> = emptyMap(), // sleep_consistency, 0–100
     val needMin: Map<String, Double> = emptyMap(),     // sleep_need_min, minutes
     val debtMin: Map<String, Double> = emptyMap(),     // sleep_debt_min, minutes
+    /** The wearer's stored Rest traits (AI-35), for a Rest rebuilt from a daily row. */
+    val traits: com.noop.analytics.RestTraitLookup = com.noop.analytics.RestTraitLookup.EMPTY,
 )
 
 /** Everything the screen renders, derived once per data change. */

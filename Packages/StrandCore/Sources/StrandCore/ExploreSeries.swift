@@ -19,8 +19,12 @@ extension StoreReader {
 
         // Layer 3 (lowest): merged daily column for keys that have one. `self.days` is the published
         // imported ∪ computed daily cache (parameter `days` is the lookback window, not this).
+        // A Rest rebuilt from a daily row uses that night's stored traits (AI-34), never a fixed 8 h need.
+        let traits = key == "sleep_performance" ? await restTraits(from: from, to: to) : .empty
         for d in dailyRows where byDay[d.day] == nil {
-            if let v = MetricResolver.dailyColumn(key: key, day: d) { byDay[d.day] = v }
+            if let v = MetricResolver.dailyColumn(key: key, day: d, restInputs: traits.inputs(forDay: d.day)) {
+                byDay[d.day] = v
+            }
         }
         // Layer 2: computed metricSeries (covers sleep_performance, which has no daily column). UNION the
         // active strap's computed sibling + the canonical computed sibling (canonical first so the active

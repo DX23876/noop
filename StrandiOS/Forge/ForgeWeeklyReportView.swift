@@ -274,7 +274,7 @@ struct ForgeWeeklyReportView: View {
     }
 
     private func sleepBars(_ week: ForgeWeekly.Week) -> some View {
-        let need = SleepModel.debtNeedMin(days: repo.days) / 60
+        let need = SleepModel.currentNeedMin(days: repo.days, restTraits: repo.restTraits) / 60
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Sleep").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)

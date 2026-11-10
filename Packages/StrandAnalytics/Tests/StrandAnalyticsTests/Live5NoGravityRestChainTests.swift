@@ -115,7 +115,7 @@ final class Live5NoGravityRestChainTests: XCTestCase {
         let daily = chargeableButUnsleptDaily(day: "2026-07-02")
         // This is the exact guard at AnalyticsEngine.Rest.composite(daily:) line 696:
         //   guard let tstMin = d.totalSleepMin, tstMin > 0, let eff = d.efficiency else { return nil }
-        XCTAssertNil(AnalyticsEngine.Rest.composite(daily: daily),
+        XCTAssertNil(AnalyticsEngine.Rest.composite(daily: daily, inputs: .coldStart),
                      "No sleep aggregates ⇒ Rest.composite(daily:) is nil ⇒ no sleep_performance point written")
     }
 

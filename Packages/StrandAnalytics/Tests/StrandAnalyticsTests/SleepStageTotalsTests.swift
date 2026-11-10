@@ -139,8 +139,8 @@ final class SleepStageTotalsTests: XCTestCase {
         let edited = try XCTUnwrap(SleepStageTotals.dailyAggregate(
             [#"{"awake":0,"light":118,"deep":82,"rem":96}"#]))                // woke ~2h earlier
 
-        let before = try XCTUnwrap(AnalyticsEngine.Rest.composite(daily: daily(detected)))
-        let after = try XCTUnwrap(AnalyticsEngine.Rest.composite(daily: daily(edited)))
+        let before = try XCTUnwrap(AnalyticsEngine.Rest.composite(daily: daily(detected), inputs: .coldStart))
+        let after = try XCTUnwrap(AnalyticsEngine.Rest.composite(daily: daily(edited), inputs: .coldStart))
         XCTAssertLessThan(after, before, "trimming sleep must lower the Rest composite")
     }
 

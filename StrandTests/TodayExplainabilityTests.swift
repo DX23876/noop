@@ -101,9 +101,9 @@ final class TodayExplainabilityTests: XCTestCase {
         // remaining" with the same expression the TodayView call site uses, so the nil that lets the
         // carry through is the production one.
         // Twin of the Kotlin `scoreState_gapLongerThanTheChargeWindow_calibratesRatherThanCarrying`.
-        let anchor = "2026-02-11"
-        // 2026-01-01..2026-01-14 are 41..28 days before the anchor: fourteen nights, every one of them
-        // outside the 21-day window (which opens 2026-01-22).
+        let anchor = "2026-04-25"
+        // 2026-01-01..2026-01-14 are 114..101 days before the anchor: fourteen nights, every one of them
+        // outside the 90-day window (AI-35; it opens 2026-01-25).
         let oldNights: [(day: String, value: Double?)] = (1...14).map {
             (day: String(format: "2026-01-%02d", $0), value: 70)
         }

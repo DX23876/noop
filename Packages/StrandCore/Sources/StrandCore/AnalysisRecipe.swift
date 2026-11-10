@@ -230,7 +230,19 @@ public enum AnalysisRecipe {
     // although AI-33 is in no release: the owner's iPhone and the testing builds already ran AI-33
     // (decisions, 2026-10-28: a testing build counts as shipped). The full rebuild detects every raw-backed
     // night again, so each one leaves only its current blocks.
-    public static let currentVersion = 34
+    // AI-35 (2026-11-10, fork) applies the algorithm review of 2026-11-10. Its own number because the owner's
+    // iPhone already runs a build carrying AI-34 (775037e4c, 2026-11-07). Four changes, one full rebuild:
+    //   • Charge: every day is scored against the baselines of the nights BEFORE it
+    //     (`ChargeBaselines.anchorDay(forScoredDay:)`), no longer against one baseline folded from the 21
+    //     nights ending today; the window is 90 days and the spread learns faster while young
+    //     (`MetricCfg.earlyHalfLifeS`). The skin-temperature deviation follows the same baselines.
+    //   • Rest: each night is scored with its own need and regularity, learned from the nights before it
+    //     (`Rest.inputs(forDay:nights:age:)`), and both are stored beside it (`sleep_need_min`,
+    //     `sleep_consistency`); before, the stored Rest used a fixed 8 h and a neutral regularity.
+    //   • Day windows: each day of a pass is cut at its own local midnight with its own UTC offset
+    //     (`DailyAnalysis.localDay`), so a summer day scored in winter no longer starts at 01:00.
+    // The full rebuild re-derives every day; no stored input is rewritten.
+    public static let currentVersion = 35
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).

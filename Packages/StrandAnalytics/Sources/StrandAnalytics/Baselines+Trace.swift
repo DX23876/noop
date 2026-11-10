@@ -93,9 +93,11 @@ extension Baselines {
         // `update` floors the spread with max(cfg.floorSpread, ...); report when that floor is what won,
         // since a spread sitting on its floor is indistinguishable from a settled one in every other log.
         let atFloor = next.spread <= cfg.floorSpread
+        // Named only for a config that has an early spread half-life, so every other fold's line is unchanged.
+        let spreadHalfLife = cfg.earlyHalfLifeS.map { early in " halfLifeS=\(r2(isYoung ? early : cfg.halfLifeS))" } ?? ""
 
         return (next, ["\(head) night=folded value=\(r2(value)) young=\(yn(isYoung)) "
-                       + "effSpread=\(r2(effSpread)) halfLifeB=\(r2(effHalfLifeB)) "
+                       + "effSpread=\(r2(effSpread)) halfLifeB=\(r2(effHalfLifeB))\(spreadHalfLife) "
                        + "winsor=\(r2(lo))..\(r2(hi)) clamped=\(yn(wasClamped))"
                        + (wasClamped ? " to=\(r2(clamped))" : "")
                        + " spread \(r2(state.spread))->\(r2(next.spread)) atFloor=\(yn(atFloor)) \(stateSuffix)"])

@@ -1313,6 +1313,57 @@ public enum AnalyticsEngine {
             return min(max(q, floor), maxNeedHours)
         }
 
+        /// Calendar days of nights a night's personal need reads, counted back from the day before it (AI-34).
+        public static let needWindowDays: Int = 90
+        /// Nights the sleep regularity reads, the last ones before the night itself (AI-34).
+        public static let consistencyNights: Int = 28
+
+        /// One night's main-sleep total, keyed by its local day (`yyyy-MM-dd`), in hours asleep.
+        public struct Night: Equatable, Sendable {
+            public let day: String
+            public let tstHours: Double
+            public init(day: String, tstHours: Double) { self.day = day; self.tstHours = tstHours }
+        }
+
+        /// The two learned traits a night's Rest is scored with. ONE value per night, stored beside the Rest
+        /// score (`sleep_need_min`, `sleep_consistency`) so every readout of that night uses the same need
+        /// (AI-34). Before AI-34 the pass learned one need and one regularity for the whole run and stored
+        /// neither, and every screen rebuilt Rest with a fixed 8 h need and a neutral regularity.
+        public struct Inputs: Equatable, Sendable {
+            public let needHours: Double
+            /// 0…1, nil while there are too few nights (the composite then uses `neutralConsistency`).
+            public let consistency: Double?
+            public init(needHours: Double, consistency: Double?) {
+                self.needHours = needHours; self.consistency = consistency
+            }
+
+            /// The cold-start inputs: the population need and no regularity signal. What a night with no
+            /// stored traits reads (an imported night, or one the pass has not reached yet).
+            public static let coldStart = Inputs(needHours: defaultNeedHours, consistency: nil)
+
+            /// The traits as stored: `sleep_need_min` in minutes, `sleep_consistency` in percent. A missing
+            /// need is the cold start's, a missing regularity stays nil.
+            public static func stored(needMin: Double?, consistencyPct: Double?) -> Inputs {
+                Inputs(needHours: needMin.flatMap { $0 > 0 ? $0 / 60.0 : nil } ?? defaultNeedHours,
+                       consistency: consistencyPct.map { max(0, min(1, $0 / 100.0)) })
+            }
+        }
+
+        /// The traits `day`'s Rest is scored with, from the nights BEFORE that night only: the need from the
+        /// last `needWindowDays`, the regularity from the last `consistencyNights` of them. So a short night
+        /// cannot lower its own target, a night's score never changes once a later night arrives, and both
+        /// depend on fixed calendar windows rather than on how many days a pass scores. (Before AI-34 the pass
+        /// learned both once from whatever its read window held, so a full rebuild and a 21-day pass gave the
+        /// same night different needs.)
+        public static func inputs(forDay day: String, nights: [Night], age: Int?) -> Inputs {
+            let from = HealthspanWindow.dayKey(day, plus: -needWindowDays)
+            let before = nights.filter { $0.day >= from && $0.day < day }.sorted { $0.day < $1.day }
+            let hours = before.map(\.tstHours)
+            return Inputs(needHours: personalizedNeedHours(nightlyHours: hours, age: age),
+                          consistency: VitalityEngine.sleepConsistency(
+                            nightlyHours: Array(hours.suffix(consistencyNights))))
+        }
+
         /// Build the composite. `tstSeconds` = total sleep time, `restorativeSeconds` = deep+REM
         /// seconds, `deepSeconds` = deep-stage seconds (nil → no deep-adequacy adjustment, pooled
         /// behaviour). Returns a value in [0,100].
@@ -1351,16 +1402,17 @@ public enum AnalyticsEngine {
         /// Rest composite [0,100] derived from a persisted `DailyMetric` (the pass-2 / display path —
         /// the raw streams are gone, but the night's totals remain). nil when there's no sleep.
         /// Single source of truth so the persisted `sleep_performance` series and the Charge
-        /// "Rest quality" term agree. `consistency` is the caller's regularity signal (nil → neutral).
-        public static func composite(daily d: DailyMetric, needHours: Double = defaultNeedHours,
-                                     consistency: Double? = nil) -> Double? {
+        /// "Rest quality" term agree. `inputs` are that night's traits: the pass passes what it scored with
+        /// (`inputs(forDay:nights:age:)`), a screen the stored ones (`Inputs.stored`). No default on purpose:
+        /// the old default (8 h, neutral regularity) is how every screen used to drop the personal need.
+        public static func composite(daily d: DailyMetric, inputs: Inputs) -> Double? {
             guard let tstMin = d.totalSleepMin, tstMin > 0, let eff = d.efficiency else { return nil }
             let tstSec = tstMin * 60.0
             let deepSec = (d.deepMin ?? 0) * 60.0
             let restorativeSec = (d.deepMin ?? 0) * 60.0 + (d.remMin ?? 0) * 60.0
             return composite(tstSeconds: tstSec, inBedSeconds: tstSec / max(eff, 0.01),
                              efficiency: eff, restorativeSeconds: restorativeSec,
-                             needHours: needHours, consistency: consistency,
+                             needHours: inputs.needHours, consistency: inputs.consistency,
                              deepSeconds: deepSec)
         }
     }

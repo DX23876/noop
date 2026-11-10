@@ -2,6 +2,7 @@ import SwiftUI
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
+import StrandCore
 
 // Analysis migration required: no. A display of stored daily scores; nothing is derived or written.
 
@@ -14,6 +15,8 @@ struct TrendsWeekByDay: View {
     /// The week's first day, "yyyy-MM-dd".
     let weekStart: String
     let importedSleep: [String: ImportedSleepFigures]
+    /// The stored traits each night's Rest was scored with (`Repository.restTraits`, AI-34).
+    let restTraits: RestTraitLookup
     let effortScale: EffortScale
 
     @State private var grown = false
@@ -47,7 +50,7 @@ struct TrendsWeekByDay: View {
                 row(DomainTheme.effort.productName, color: StrandPalette.effortColor, max: effortMax,
                     values: keys.map { key in byDay[key]?.strain.map { UnitFormatter.effortValue($0, scale: effortScale) } })
                 row(DomainTheme.rest.productName, color: StrandPalette.restColor, max: 100,
-                    values: keys.map { key in byDay[key].flatMap { SleepModel.performanceValue($0, importedSleep: importedSleep) } })
+                    values: keys.map { key in byDay[key].flatMap { SleepModel.performanceValue($0, importedSleep: importedSleep, restTraits: restTraits) } })
                 weekdayAxis(keys)
             }
         }

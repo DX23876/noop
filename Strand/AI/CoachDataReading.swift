@@ -19,6 +19,11 @@ protocol CoachDataReading: AnyObject {
     var cardioLoadMaxHR: Double { get }
     var strainProfileSex: String { get }
     var readinessLoadContext: ReadinessLoadContext? { get }
+    /// The baselines `day`'s Charge was scored against (AI-34: the nights before it, `ChargeBaselines`), the
+    /// one funnel every Charge explanation reads. nil for a nil day or before the first load.
+    func chargeBaselines(forDay day: String?) -> ChargeBaselines.Resolved?
+    /// The stored traits each night's Rest was scored with (`RestTraitLookup`, AI-34).
+    var restTraits: RestTraitLookup { get }
 
     func storeHandle() async -> WhoopStore?
     func refresh(days nDays: Int) async

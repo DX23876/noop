@@ -400,7 +400,7 @@ class RecoveryDriversTest {
         RecoveryScorer.recovery(
             hrv = 48.0, rhr = 58.0, resp = 15.0, hrvBaseline = baselines.hrv!!, rhrBaseline = null,
             respBaseline = null,
-            sleepPerf = RestScorer.restFromDaily(daily)?.let { it / 100.0 } ?: daily.efficiency,
+            sleepPerf = RestScorer.restFromDaily(daily, com.noop.analytics.RestTraitLookup.EMPTY)?.let { it / 100.0 } ?: daily.efficiency,
             skinTempDev = skinDev,
         )
 

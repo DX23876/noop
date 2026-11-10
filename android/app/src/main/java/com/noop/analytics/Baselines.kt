@@ -407,9 +407,11 @@ object Baselines {
         val clamped = max(lo, min(hi, value))
         val newBaseline = effLb * clamped + (1.0 - effLb) * state.baseline
 
-        // Spread uses the UNCLAMPED value so true deviations are tracked.
+        // Spread uses the UNCLAMPED value so true deviations are tracked. A config with `earlyHalfLifeS`
+        // learns it faster while young, as the center does above; null keeps `halfLifeS` (byte-identical).
+        val effLs = if (isYoung) cfg.earlyHalfLifeS?.let { lambda(it) } ?: ls else ls
         val absDev = abs(value - newBaseline)
-        val newSpread = max(cfg.floorSpread, ls * absDev + (1.0 - ls) * state.spread)
+        val newSpread = max(cfg.floorSpread, effLs * absDev + (1.0 - effLs) * state.spread)
         val newN = state.nValid + 1
 
         return BaselineState(

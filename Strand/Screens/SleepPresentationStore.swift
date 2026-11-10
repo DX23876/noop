@@ -101,13 +101,14 @@ final class SleepPresentationStore: ObservableObject {
         guard key == SleepPresentationRevision(repo: repo) else { throw CancellationError() }
         adopt(key)
         return try await histories.value(for: key) {
-            let days = repo.days, sleeps = repo.sleeps, imported = repo.importedSleep
+            let days = repo.days, sleeps = repo.sleeps, imported = repo.importedSleep, traits = repo.restTraits
             let sessions = await repo.allSleepSessions()
             try Task.checkCancellation()
             let habitual = await repo.habitualMidsleepSec()
             try Task.checkCancellation()
             let inputs = SleepModelInputs(days: days, sleeps: sleeps, allSessions: sessions,
-                importedSleep: imported, habitualMidsleepSec: habitual, motionByStart: [:])
+                importedSleep: imported, habitualMidsleepSec: habitual, motionByStart: [:],
+                restTraits: traits)
             let result = await runUnescalated {
                 var model = SleepModel.build(inputs)
                 if let night = model?.night { model?.night = night.preparingForDisplay() }

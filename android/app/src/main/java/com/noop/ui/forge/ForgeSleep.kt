@@ -528,7 +528,8 @@ private suspend fun nightDetailModel(viewModel: com.noop.ui.AppViewModel,
         repo.resolvedSeries(key, "my-whoop", "0000-00-00", "9999-99-99", strapDeviceId = strap).points
     }.getOrDefault(emptyList()).associate { it.day to it.value }
     val imported = com.noop.ui.ImportedSleepSeries(performance = load("sleep_performance"),
-        consistency = load("sleep_consistency"), needMin = load("sleep_need_min"), debtMin = load("sleep_debt_min"))
+        consistency = load("sleep_consistency"), needMin = load("sleep_need_min"), debtMin = load("sleep_debt_min"),
+        traits = runCatching { repo.restTraits(strap) }.getOrDefault(com.noop.analytics.RestTraitLookup.EMPTY))
     val habitual = runCatching { repo.habitualMidsleepSec(strap) }.getOrNull()
     return com.noop.ui.fallbackSleepModel(days, imported, com.noop.ui.napSleepMinutesByDay(sleeps, habitual), sessions = sleeps)
 }

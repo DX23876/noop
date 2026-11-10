@@ -3,6 +3,7 @@ import StrandDesign
 import StrandAnalytics
 import WhoopStore
 import Foundation
+import StrandCore
 
 // MARK: - Weekly Digest (#208)
 //
@@ -29,6 +30,7 @@ enum WeeklyDigestSource {
     /// it to the pure engine.
     static func digest(from days: [DailyMetric],
                        anchorDay: String,
+                       restTraits: RestTraitLookup,
                        effortDisplayFactor: Double = UnitPrefs.currentEffortDisplayFactor()) -> WeeklyDigest {
         var charge: [String: Double] = [:]
         var effort: [String: Double] = [:]
@@ -39,7 +41,7 @@ enum WeeklyDigestSource {
             if let v = d.recovery { charge[d.day] = v }
             if let v = d.strain   { effort[d.day] = v }
             // Rest = the sleep-performance composite, recomputed on the persisted day.
-            if let r = restScore(for: d) { rest[d.day] = r }
+            if let r = restScore(for: d, restTraits: restTraits) { rest[d.day] = r }
             if let v = d.restingHr { rhr[d.day] = Double(v) }
             if let v = d.avgHrv    { hrv[d.day] = v }
         }
@@ -55,8 +57,8 @@ enum WeeklyDigestSource {
     /// helper (duration-vs-need / efficiency / restorative / consistency). Returns nil
     /// for a day with no in-bed sleep / missing efficiency, so non-sleep days are simply
     /// absent from the Rest series.
-    private static func restScore(for d: DailyMetric) -> Double? {
-        AnalyticsEngine.Rest.composite(daily: d)
+    private static func restScore(for d: DailyMetric, restTraits: RestTraitLookup) -> Double? {
+        AnalyticsEngine.Rest.composite(daily: d, inputs: restTraits.inputs(forDay: d.day))
     }
 }
 
@@ -68,7 +70,8 @@ struct WeeklyDigestCard: View {
     @EnvironmentObject var repo: Repository
 
     var body: some View {
-        let digest = WeeklyDigestSource.digest(from: repo.days, anchorDay: Repository.localDayKey(Date()))
+        let digest = WeeklyDigestSource.digest(from: repo.days, anchorDay: Repository.localDayKey(Date()),
+                                                restTraits: repo.restTraits)
         if digest.isEmpty {
             EmptyView()
         } else {
@@ -106,7 +109,8 @@ struct WeeklyDigestView: View {
                     ComingSoon.loading("Loading your history…", title: "Reading your history")
                 }
             } else {
-                let digest = WeeklyDigestSource.digest(from: repo.days, anchorDay: Repository.localDayKey(Date()))
+                let digest = WeeklyDigestSource.digest(from: repo.days, anchorDay: Repository.localDayKey(Date()),
+                                                restTraits: repo.restTraits)
                 if digest.isEmpty {
                     DataPendingNote(
                         title: "No readings this week yet",

@@ -212,6 +212,18 @@ score = 100 / (1 + exp(−logisticK · (z − logisticZ0)))
 
 The `58%` anchor matches WHOOP's published population-average recovery (`populationMean = 58.0`).
 
+### Which nights a day is scored against (AI-35)
+
+Each day is scored against the baselines of the nights **before** it: the wearer's own nights of the last
+`ChargeBaselines.windowDays = 90` days up to the day before (`ChargeBaselines.anchorDay(forScoredDay:)`), with
+imported vendor nights seeding only until the own nights alone are trusted (#2525). The night being scored and
+every later night stay out, so a past day keeps its score when new nights arrive and a rebuild scores July
+against July's normal, not November's. The Charge configs add a 3-night spread half-life while the baseline is
+young (`MetricCfg.earlyHalfLifeS`), so the spread reaches the wearer's real night-to-night spread instead of
+staying near its floor. Every readout of a day's Charge (the driver rows, the calibration count, the confidence
+tier, the vitals' usual value, the coach) resolves that day's baselines through the same rule
+(`Repository.chargeBaselines(forDay:)`).
+
 ### Cold-start ("Calibrating")
 
 HRV is the dominant driver, and NOOP needs a few nights to learn your personal baseline first. If that baseline isn't usable yet (`BaselineState.usable == false`, i.e. fewer than `minNightsSeed` valid nights), `recovery(...)` returns `nil` and the UI shows **"Calibrating"** — more honest than fabricating a number. Callers may fall back to `populationMean` but should flag it.
@@ -450,7 +462,13 @@ Source: assembled in `AnalyticsEngine` from the `SleepStager` outputs above. Res
 | Restorative share (deep + REM) / asleep | 0.20 | how much of the night was restorative |
 | Consistency (sleep/wake regularity) | 0.10 | how consistent your sleep and wake timing is |
 
-- **Personal sleep need:** 8 h default, refined by your recent average; the hours-vs-need term clamps at 100.
+- **Personal sleep need and regularity, per night (AI-35):** each night is scored with traits learned from the
+  nights **before** it (`Rest.inputs(forDay:nights:age:)`): the need is the upper quartile of the last 90 days'
+  nights, floored at the age's population target (8 h for adults) and capped at 9.5 h; the regularity is
+  `1 − CV` of the last 28 nights' durations. Both are stored beside the score (`sleep_need_min` in minutes,
+  `sleep_consistency` in percent), and every Rest rebuilt from a daily row and every sleep need on screen reads
+  them (`RestTraitLookup`). A night not yet scored carries the newest earlier night's traits; with none stored it
+  is 8 h and a neutral regularity. The hours-vs-need term clamps at 100.
 - Rest consumes whatever stages each device provides (v25 motion on 4.0; PPG/IMU on 5/MG as it unlocks) — the sleep-staging algorithm itself is unchanged.
 - The `sleep_performance` key now stores this 0–100 composite. The **Charge** "Rest quality" driver reads it (÷100) instead of raw efficiency.
 
@@ -466,7 +484,7 @@ Source: `Baselines.swift`. Per-metric personal baselines that `RecoveryScorer` c
 
 A robust, recency-weighted center with an EWMA-of-absolute-deviation spread tracker:
 
-- **Half-life → smoothing factor:** `λ = 1 − 0.5^(1/halfLife)`. Center half-life 14 nights; spread half-life 21 (slower).
+- **Half-life → smoothing factor:** `λ = 1 − 0.5^(1/halfLife)`. Center half-life 14 nights; spread half-life 21 (slower). While young (fewer than `earlyAdaptNights = 8` valid nights) the center uses 3 nights, and a config with `earlyHalfLifeS` (only Charge's) uses it for the spread too.
 - **Sanity gate:** values outside `[minVal, maxVal]` (per-metric) → skip-and-hold.
 - **Hard outlier rejection:** once seeded, a value > `hardOutlierK = 5 ×` spread away is seen but not folded.
 - **Winsor clamp:** fold only within `± winsorK = 3 ×` spread of the current baseline, so a single big night can't yank the center; the **spread** uses the unclamped deviation so real change is still tracked.

@@ -187,6 +187,11 @@ data class MetricCfg(
     val halfLifeB: Double,
     /** Spread half-life (nights, slower than center). */
     val halfLifeS: Double,
+    /**
+     * Spread half-life while the baseline is young ([Baselines.earlyAdaptNights]); null keeps [halfLifeS]
+     * throughout. Set only in Charge's configs ([ChargeBaselines.cfg], AI-35). Swift twin: `MetricCfg.earlyHalfLifeS`.
+     */
+    val earlyHalfLifeS: Double? = null,
 )
 
 /**
