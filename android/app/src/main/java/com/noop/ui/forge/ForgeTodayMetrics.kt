@@ -166,8 +166,9 @@ internal class KeyTiles(val tiles: Map<KeyMetric, KeyTile>, val sparks: Map<KeyM
 internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>, detailed: Boolean,
                               windowDays: Int): KeyTiles {
     val context = LocalContext.current
-    val date = model?.date ?: LocalDate.now()
-    val isToday = date == LocalDate.now()
+    // The logical day, as Today's own date (#144): past midnight the evening's row is still today's.
+    val date = model?.date ?: com.noop.ui.logicalDayNow()
+    val isToday = date == com.noop.ui.logicalDayNow()
     // Weight and today's burn come from their own stores, read only while their tile is chosen.
     val weightKg by produceState<Double?>(null, date, metrics) {
         value = if (KeyMetric.WEIGHT !in metrics) null else withContext(Dispatchers.IO) {

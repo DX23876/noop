@@ -69,7 +69,7 @@ internal fun TodayWorkoutsForge(viewModel: AppViewModel) {
 @Composable
 internal fun TodayRecoveryVitalsForge(viewModel: AppViewModel, onOpenMetric: (String) -> Unit) {
     val days by viewModel.recentDays.collectAsState()
-    val today = LocalDate.now().toString()
+    val today = com.noop.ui.logicalDayKeyNow()
     Classic {
         com.noop.ui.HeroMetricRows(day = days.lastOrNull { it.day == today }, carriedDay = latest(days) { it.recovery },
                                    vitalsDay = latest(days) { it.avgHrv }, onOpenMetric = onOpenMetric)
@@ -93,7 +93,7 @@ internal fun TodayYourCardsForge(viewModel: AppViewModel, onOpenMetric: (String)
     LaunchedEffect(days, hydrationSeq) {
         hydrationMl = if (hydrationEnabled) runCatching { HydrationStore.total(viewModel.repo) }.getOrDefault(0.0) else 0.0
     }
-    val today = LocalDate.now().toString()
+    val today = com.noop.ui.logicalDayKeyNow()
     val day = days.lastOrNull { it.day == today } ?: days.lastOrNull()
     val steps = days.takeLast(30).mapNotNull { it.steps }.filter { it > 0 }
     val profile = remember { ProfileStore.from(context) }

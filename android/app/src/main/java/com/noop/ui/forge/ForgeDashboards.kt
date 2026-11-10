@@ -664,7 +664,7 @@ internal fun ForgeStyledDashboard(
     onHealth: () -> Unit, onSleep: () -> Unit, onStress: () -> Unit, onCoach: () -> Unit, onActivity: () -> Unit,
 ) {
     val context = LocalContext.current
-    val isToday = date == LocalDate.now()
+    val isToday = date == com.noop.ui.logicalDayNow()
     val sections = remember(revision, style) { DashboardLayoutPrefs.visible(context, style) }
     val effortFormat = rememberEffortFormat()
     val effortMax = if (UnitPrefs.effortScale(context) == EffortScale.WHOOP) "21" else "100"
@@ -857,7 +857,8 @@ internal fun ForgeClassicToday(padding: androidx.compose.foundation.layout.Paddi
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun ForgeDayPicker(selected: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
-    val today = LocalDate.now()
+    // The logical day, as Today pages: no empty calendar day to pick between midnight and four.
+    val today = com.noop.ui.logicalDayNow()
     val zone = java.time.ZoneOffset.UTC
     val state = androidx.compose.material3.rememberDatePickerState(
         initialSelectedDateMillis = selected.atStartOfDay(zone).toInstant().toEpochMilli(),
