@@ -5047,4 +5047,9 @@
     <string name="forge_w_momentum_sub">Szeroki · co teraz najważniejsze</string>
     <string name="forge_w_live_heart">Tętno na żywo</string>
     <string name="forge_w_live_heart_sub">Mały · serce bijące z twoim pulsem</string>
+    <string name="forge_th_tools">Narzędzia</string>
+    <string name="forge_th_interval_timer">Minutnik interwałowy</string>
+    <string name="forge_th_interval_timer_sub">Rundy i przerwy</string>
+    <string name="forge_th_breathe_sub">Oddychanie z przewodnikiem</string>
+    <string name="forge_sleep_naps">Drzemki</string>
 </resources>

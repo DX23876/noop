@@ -5023,4 +5023,9 @@
     <string name="forge_w_momentum_sub">Largo · o mais importante agora</string>
     <string name="forge_w_live_heart">Frequência cardíaca em direto</string>
     <string name="forge_w_live_heart_sub">Pequeno · um coração que bate com o teu pulso</string>
+    <string name="forge_th_tools">Ferramentas</string>
+    <string name="forge_th_interval_timer">Interval timer</string>
+    <string name="forge_th_interval_timer_sub">Rondas e pausas</string>
+    <string name="forge_th_breathe_sub">Respiração guiada</string>
+    <string name="forge_sleep_naps">Cochilos</string>
 </resources>

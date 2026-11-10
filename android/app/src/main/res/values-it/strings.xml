@@ -4999,4 +4999,9 @@
     <string name="forge_w_momentum_sub">Largo · ciò che conta di più ora</string>
     <string name="forge_w_live_heart">Frequenza cardiaca in diretta</string>
     <string name="forge_w_live_heart_sub">Piccolo · un cuore che batte col tuo polso</string>
+    <string name="forge_th_tools">Strumenti</string>
+    <string name="forge_th_interval_timer">Interval timer</string>
+    <string name="forge_th_interval_timer_sub">Round e pause</string>
+    <string name="forge_th_breathe_sub">Respirazione guidata</string>
+    <string name="forge_sleep_naps">Sonnellini</string>
 </resources>

@@ -5030,4 +5030,9 @@
     <string name="forge_w_momentum_sub">Large · ce qui compte le plus maintenant</string>
     <string name="forge_w_live_heart">Fréquence cardiaque en direct</string>
     <string name="forge_w_live_heart_sub">Petit · un cœur qui bat à votre rythme</string>
+    <string name="forge_th_tools">Outils</string>
+    <string name="forge_th_interval_timer">Interval timer</string>
+    <string name="forge_th_interval_timer_sub">Tours et pauses</string>
+    <string name="forge_th_breathe_sub">Respiration guidée</string>
+    <string name="forge_sleep_naps">Siestes</string>
 </resources>

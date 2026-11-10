@@ -4932,4 +4932,9 @@
     <string name="forge_w_momentum_sub">Широкий · самое важное сейчас</string>
     <string name="forge_w_live_heart">Пульс в реальном времени</string>
     <string name="forge_w_live_heart_sub">Маленький · сердце бьётся с вашим пульсом</string>
+    <string name="forge_th_tools">Инструменты</string>
+    <string name="forge_th_interval_timer">Interval timer</string>
+    <string name="forge_th_interval_timer_sub">Раунды и перерывы</string>
+    <string name="forge_th_breathe_sub">Дыхание с подсказками</string>
+    <string name="forge_sleep_naps">Дневные сны</string>
 </resources>

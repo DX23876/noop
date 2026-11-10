@@ -244,6 +244,9 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                  leading = { Icon(Icons.Rounded.Alarm, contentDescription = null, tint = Forge.colors.rest,
                                   modifier = Modifier.size(24.dp)) },
                  detail = {}) { alarms = true }
+        // The new design lists the day's naps under the night, as iOS does (`ForgeSleepView.naps`), by the core's one
+        // nap rule (`SleepNight.naps`), the same the Today timeline reads.
+        if (ForgeDesign.preview && night != null && wakeDay != null) DayNaps(night, wakeDay, zone)
         // Where this night stands in the week's sleep goals (iOS `SleepGoalNightLine`), then the week's sleep goal
         // itself, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); neither draws without a goal.
         if (wakeDay != null) {
@@ -342,6 +345,38 @@ private fun Header(night: CoreRead.Night?, isLatest: Boolean, zone: ZoneId, canB
 
 private fun clock(ts: Long, zone: ZoneId, format: DateTimeFormatter): String =
     Instant.ofEpochSecond(ts).atZone(zone).format(format)
+
+/** The naps of [wakeDay] after this night, one row each with its clock span and length; nothing without one. */
+@Composable
+private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: ZoneId) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val naps by produceState(emptyList<CoreRead.Nap>(), night.endTs, wakeDay) {
+        val end = wakeDay.plusDays(1).atStartOfDay(zone).toEpochSecond()
+        value = withContext(Dispatchers.IO) { CoreRead.open(context); CoreRead.naps(night.endTs, end) }
+    }
+    if (naps.isEmpty()) return
+    val clockFormat = rememberClockFormatter()
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+        Text(stringResource(R.string.forge_sleep_naps), style = Forge.type.headline, color = Forge.sceneInk.text,
+             modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
+        ForgeCard(Modifier.fillMaxWidth()) {
+            naps.forEachIndexed { i, nap ->
+                if (i > 0) Box(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2)
+                                   .height(ForgeMetrics.hairline).background(Forge.colors.divider))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Bedtime, contentDescription = null, tint = Forge.colors.rest)
+                    Spacer(Modifier.width(ForgeMetrics.space3))
+                    Column {
+                        Text("${clock(nap.startTs, zone, clockFormat)} – ${clock(nap.endTs, zone, clockFormat)}",
+                             style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
+                        Text(TodayTimeline.hoursMinutes(nap.asleepMinutes), style = Forge.type.caption,
+                             color = Forge.colors.textSecondary)
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun Times(night: CoreRead.Night, zone: ZoneId) {

@@ -33,8 +33,8 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 
 | Screen | iOS | Android | Gap |
 |---|---|---|---|
-| Training | week strip, quick actions, Your week, Routines, Recent activities, Key metrics, Tools | `ForgeTraining*` with history, reports, muscles, lift logger | close; check the order and the headings |
-| Sleep | night navigator, Rest and duration tiles, Tonight, Last night stages, Highlights, This night, History, Alarm and naps | `ForgeSleep`, `ForgeSleepCards` | compare card by card |
+| Training | This week, Start, Planned today, Your week (goals, routines), Recent activities, Key metrics, Tools | `ForgeTraining*`: start, goals, This week, Routines, Recent, Consistency, Muscle analytics, the analysis list, and in the new design the Tools group with the interval timer and Breathe (2026-11-10) | the week summary hero, Planned today and the Key metrics tiles (Effort this week, VO₂max, Training load, Strength) missing; Android keeps Consistency and Muscle analytics, which iOS shows deeper |
+| Sleep | night navigator, Rest and duration tiles, the coach button, Tonight, This night, Naps, stages, goals, Highlights, night facts, History | `ForgeSleep`, `ForgeSleepCards`: night pager, the Rest ring, times, Alarms, goals, the arrangeable cards; in the new design the day's naps from the core (2026-11-10) | the Rest ring is the shipped hero, iOS shows tiles; Tonight, Highlights, night facts and History missing |
 | Health | Vitals in range, the off-range card, editable Vitals tiles, Focus areas, Heart and stress, Body and energy, Long term and patterns | `ForgeHealthTab` (2026-11-09): vitals in range, tiles, the three groups, Trends | off-range card, tile editing and Focus areas missing; a vital tile opens the Health page because Android has no single-metric page yet (iOS opens `TabRoute.metric`) |
 | Coach | the coach inside its tab | own tab button (2026-11-09) | close |
 

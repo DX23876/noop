@@ -5066,4 +5066,9 @@
     <string name="forge_w_momentum_sub">Wide · what matters most right now</string>
     <string name="forge_w_live_heart">Live heart rate</string>
     <string name="forge_w_live_heart_sub">Small · a heart beating with your pulse</string>
+    <string name="forge_th_tools">Tools</string>
+    <string name="forge_th_interval_timer">Interval timer</string>
+    <string name="forge_th_interval_timer_sub">Rounds and breaks</string>
+    <string name="forge_th_breathe_sub">Guided breathing</string>
+    <string name="forge_sleep_naps">Naps</string>
 </resources>

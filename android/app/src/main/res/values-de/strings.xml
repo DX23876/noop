@@ -5044,4 +5044,9 @@
     <string name="forge_w_momentum_sub">Breit · was gerade am wichtigsten ist</string>
     <string name="forge_w_live_heart">Live-Herzfrequenz</string>
     <string name="forge_w_live_heart_sub">Klein · ein Herz, das mit deinem Puls schlägt</string>
+    <string name="forge_th_tools">Werkzeuge</string>
+    <string name="forge_th_interval_timer">Intervall-Timer</string>
+    <string name="forge_th_interval_timer_sub">Runden und Pausen</string>
+    <string name="forge_th_breathe_sub">Geführtes Atmen</string>
+    <string name="forge_sleep_naps">Nickerchen</string>
 </resources>

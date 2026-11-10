@@ -42,6 +42,8 @@ import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import com.noop.core.CoreGoals
@@ -147,6 +149,8 @@ private sealed interface TrainingPage {
     data object HevyRoutines : TrainingPage
     data object Import : TrainingPage
     data object Library : TrainingPage
+    data object Intervals : TrainingPage
+    data object Breathe : TrainingPage
 }
 
 /** Activities offered before the wearer's own recents fill the list (`WorkoutQuickStart.starterNames`). */
@@ -327,6 +331,16 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                             Icons.Rounded.Speed) { page = TrainingPage.Load }
             }
         }
+        // The new design ends on iOS's Tools group (`ForgeTrainingView.tools`): the timer and breathing, which the
+        // shipped design keeps under More only.
+        if (ForgeDesign.preview) Section(stringResource(R.string.forge_th_tools), overline = null) {
+            ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+                AnalysisRow(stringResource(R.string.forge_th_interval_timer), stringResource(R.string.forge_th_interval_timer_sub),
+                            Icons.Rounded.Timer) { page = TrainingPage.Intervals }
+                AnalysisRow(stringResource(R.string.nav_breathe), stringResource(R.string.forge_th_breathe_sub),
+                            Icons.Rounded.Air) { page = TrainingPage.Breathe }
+            }
+        }
         Spacer(Modifier.height(ForgeMetrics.space4))
     }
 
@@ -351,6 +365,12 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.HevyRoutines -> ForgeHevyRoutines(onClose = close, onConnect = { page = TrainingPage.Import })
                     TrainingPage.Import -> ForgeLiftingImport(onClose = close)
                     TrainingPage.History -> ForgeTrainingHistoryPage(onClose = close)
+                    TrainingPage.Intervals -> Hosted(stringResource(R.string.forge_th_interval_timer), close) {
+                        com.noop.ui.IntervalsScreen(viewModel)
+                    }
+                    TrainingPage.Breathe -> Hosted(stringResource(R.string.nav_breathe), close) {
+                        com.noop.ui.BreatheScreen(viewModel)
+                    }
                     TrainingPage.Library -> ForgeExerciseLibrary(onClose = close, onAdded = {
                         scope.launch {
                             val dismissed = withContext(Dispatchers.IO) { dismissedTrainingWorkouts(context) }
@@ -419,13 +439,13 @@ private object QuickStartPrefs {
 
 /** A section as iOS heads it (`SectionHeader(title, overline:)`): small caps over a title, an action on the right. */
 @Composable
-private fun Section(title: String, overline: String, trailing: (@Composable () -> Unit)? = null,
+private fun Section(title: String, overline: String?, trailing: (@Composable () -> Unit)? = null,
                     content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f).padding(horizontal = ForgeMetrics.space1),
                    verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(overline.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
+                if (overline != null) Text(overline.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
                 Text(title, style = Forge.type.title2, color = Forge.sceneInk.text)
             }
             trailing?.invoke()

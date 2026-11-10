@@ -5001,4 +5001,9 @@
     <string name="forge_w_momentum_sub">宽 · 当前最重要的事</string>
     <string name="forge_w_live_heart">实时心率</string>
     <string name="forge_w_live_heart_sub">小 · 随脉搏跳动的心形</string>
+    <string name="forge_th_tools">工具</string>
+    <string name="forge_th_interval_timer">Interval timer</string>
+    <string name="forge_th_interval_timer_sub">回合与休息</string>
+    <string name="forge_th_breathe_sub">引导式呼吸</string>
+    <string name="forge_sleep_naps">小睡</string>
 </resources>
