@@ -34,6 +34,17 @@ public struct FoodItem: Equatable, Sendable, Identifiable, Codable {
     }
 }
 
+extension FoodItem {
+    /// The name to show in `language` (an ISO language code): BLS rows carry an English name beside the German
+    /// one, and every language but German reads the English one, since it is closer than German to all of them.
+    /// Every other source has a single name.
+    public static func displayName(name: String, nameEn: String?, source: Source, language: String) -> String {
+        guard source == .bls, language != "de",
+              let english = nameEn?.trimmingCharacters(in: .whitespaces), !english.isEmpty else { return name }
+        return english
+    }
+}
+
 /// An installed country pack of Open Food Facts products.
 public struct InstalledFoodPack: Equatable, Sendable, Codable {
     public var country: String
@@ -58,6 +69,9 @@ public actor FoodCatalog {
     /// Folder holding `food-bls.tsv` and `food-bls.json`. Android ships them as assets and sets this before the
     /// first read; nil on Apple, where the package bundle has them.
     nonisolated(unsafe) public static var resourceDirectory: URL?
+    /// The app language the catalogue names its foods in (`FoodItem.displayName`). Set once at launch, before the
+    /// first read; German until then, which is also what Android shows.
+    nonisolated(unsafe) public static var nameLanguage = "de"
 
     public enum Failure: String, Error {
         case bundledTableMissing, invalidArchive, unsafeArchive, checksumMismatch, unknownFormat, packTooLarge,
@@ -375,7 +389,10 @@ public actor FoodCatalog {
             if let value: Double = row["n_\(nutrient.rawValue)"] { amounts[nutrient] = value }
         }
         func text(_ column: String) -> String? { (row[column] as String?).flatMap { $0.isEmpty ? nil : $0 } }
-        return FoodItem(id: id, source: source, name: name, nameEn: text("name_en"), brand: text("brand"),
+        let nameEn = text("name_en")
+        return FoodItem(id: id, source: source,
+                        name: FoodItem.displayName(name: name, nameEn: nameEn, source: source, language: nameLanguage),
+                        nameEn: nameEn, brand: text("brand"),
                         group: text("grp"), nova: row["nova"], servingG: row["serving_g"],
                         servingLabel: text("serving_label"), per100g: NutrientAmounts(amounts),
                         barcode: source == .off ? String(id.dropFirst(4)) : nil)

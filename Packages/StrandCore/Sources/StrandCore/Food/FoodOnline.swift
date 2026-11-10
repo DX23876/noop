@@ -17,6 +17,14 @@ public enum FoodOnline {
     static let fields = "code,product_name,product_name_de,product_name_en,generic_name,brands,serving_size,"
         + "serving_quantity,nova_group,pnns_groups_2,nutriments"
 
+    /// The fields to ask for, with the product name in the app language when that is neither German nor English,
+    /// so a Spanish app reads `product_name_es` where a product has one.
+    static func fields(language: String) -> String {
+        let code = language.lowercased().filter(\.isLetter)
+        guard !code.isEmpty, code != "de", code != "en" else { return fields }
+        return fields + ",product_name_\(code)"
+    }
+
     /// Products matching `query`, sold in one of `countries` (Open Food Facts tags such as "germany").
     public static func search(_ query: String, countries: [String], language: String,
                               session: URLSession = .shared) async throws -> [FoodItem] {
@@ -25,7 +33,7 @@ public enum FoodOnline {
         var items: [URLQueryItem] = [
             .init(name: "search_terms", value: trimmed), .init(name: "search_simple", value: "1"),
             .init(name: "action", value: "process"), .init(name: "json", value: "1"),
-            .init(name: "page_size", value: "25"), .init(name: "fields", value: fields),
+            .init(name: "page_size", value: "25"), .init(name: "fields", value: fields(language: language)),
             .init(name: "lc", value: language),
         ]
         for (index, country) in countries.prefix(3).enumerated() {
@@ -44,7 +52,7 @@ public enum FoodOnline {
     public static func product(barcode: String, language: String, session: URLSession = .shared) async throws -> FoodItem? {
         guard let code = FoodCatalog.barcodeVariants(barcode).first else { return nil }
         var components = URLComponents(string: host + "/api/v2/product/\(code).json")!
-        components.queryItems = [.init(name: "fields", value: fields), .init(name: "lc", value: language)]
+        components.queryItems = [.init(name: "fields", value: fields(language: language)), .init(name: "lc", value: language)]
         let object = try await get(components.url!, session: session)
         guard (object["status"] as? NSNumber)?.intValue == 1, let product = object["product"] as? [String: Any] else { return nil }
         var withCode = product

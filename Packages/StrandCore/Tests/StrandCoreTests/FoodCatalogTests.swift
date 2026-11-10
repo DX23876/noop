@@ -53,6 +53,44 @@ final class FoodCatalogTests: XCTestCase {
 
     // MARK: Bundled BLS
 
+    func testBlsNamesFollowTheAppLanguage() {
+        func name(_ en: String?, _ language: String, source: FoodItem.Source = .bls) -> String {
+            FoodItem.displayName(name: "Haferflocken", nameEn: en, source: source, language: language)
+        }
+        XCTAssertEqual(name("Oat flakes", "de"), "Haferflocken")
+        XCTAssertEqual(name("Oat flakes", "en"), "Oat flakes")
+        XCTAssertEqual(name("Oat flakes", "es"), "Oat flakes", "every language but German reads the English name")
+        XCTAssertEqual(name(nil, "en"), "Haferflocken")
+        XCTAssertEqual(name("  ", "fr"), "Haferflocken")
+        XCTAssertEqual(name("Oat flakes", "en", source: .off), "Haferflocken", "a product has one name")
+    }
+
+    func testOnlineProductsAskForTheAppLanguagesName() {
+        XCTAssertEqual(FoodOnline.fields(language: "de"), FoodOnline.fields)
+        XCTAssertEqual(FoodOnline.fields(language: "en"), FoodOnline.fields)
+        XCTAssertTrue(FoodOnline.fields(language: "es").hasSuffix(",product_name_es"))
+        XCTAssertFalse(FoodOnline.fields(language: "pt-PT").contains("-"), "only letters reach the field name")
+    }
+
+    func testLoggedBlsFoodsAreNamedInTheAppLanguage() async throws {
+        let catalog = FoodCatalog(directory: directory)
+        try await catalog.prepareBundled()
+        let saved = FoodCatalog.nameLanguage
+        defer { FoodCatalog.nameLanguage = saved }
+        func logged(_ id: String, _ foodId: String, _ name: String) -> FoodLogEntry {
+            FoodLogEntry(id: id, loggedAt: 0, day: "2026-11-09", foodId: foodId, name: name, grams: 50, per100g: nil,
+                         totals: [:], origin: .search, createdAt: 0, updatedAt: 0)
+        }
+        let entry = logged("e1", "bls:C133000", "Hafer Flocken")
+        let own = logged("e2", "own:1", "Mein Müsli")
+        FoodCatalog.nameLanguage = "en"
+        let english = await FoodLog.named([entry, own], catalog: catalog)
+        XCTAssertEqual(english.map(\.name), ["Oat flakes", "Mein Müsli"])
+        FoodCatalog.nameLanguage = "de"
+        let german = await FoodLog.named(english, catalog: catalog)
+        XCTAssertEqual(german.map(\.name), ["Hafer Flocken", "Mein Müsli"], "a food logged in English reads German again")
+    }
+
     func testBundledBlsBuildsAndFindsFoodsAndCompounds() async throws {
         let meta = try XCTUnwrap(FoodCatalog.bundledMeta())
         XCTAssertEqual(meta.rows, 7140)
