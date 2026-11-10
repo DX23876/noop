@@ -2090,6 +2090,12 @@ extension WhoopStore {
         migrator.registerMigration("v87-food-photo") { db in
             try db.alter(table: "foodLogEntry") { t in t.add(column: "photoId", .text) }
         }
+        // Days the wearer marked as completely logged (owner, 2026-11-10): only those count when Forge works out the
+        // real burn from food and weight, since a day with forgotten snacks would make the burn look too low.
+        // Wearer input, additive, and nothing derived is stored.
+        migrator.registerMigration("v88-food-day-complete") { db in
+            try WhoopStore.createFoodDayCompleteTable(db)
+        }
         return migrator
     }
 }

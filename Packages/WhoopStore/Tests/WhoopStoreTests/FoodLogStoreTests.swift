@@ -114,6 +114,20 @@ final class FoodLogStoreTests: XCTestCase {
         XCTAssertTrue(none.isEmpty)
     }
 
+    func testCompletelyLoggedDaysAreMarkedAndUnmarked() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.setFoodDayComplete("2026-11-08", true, at: 10)
+        try await store.setFoodDayComplete("2026-11-09", true, at: 11)
+        try await store.setFoodDayComplete("2026-11-08", true, at: 12)
+        let both = try await store.foodCompleteDays(from: "2026-11-01", to: "2026-11-30")
+        XCTAssertEqual(both, ["2026-11-08", "2026-11-09"], "marking twice keeps one row")
+        let one = try await store.foodCompleteDays(from: "2026-11-09", to: "2026-11-09")
+        XCTAssertEqual(one, ["2026-11-09"])
+        try await store.setFoodDayComplete("2026-11-09", false)
+        let left = try await store.foodCompleteDays(from: "2026-11-01", to: "2026-11-30")
+        XCTAssertEqual(left, ["2026-11-08"])
+    }
+
     func testNutrientJsonIsStable() {
         let json = WhoopStore.encodeNutrients(["protein_g": 1.5, "energy_kcal": 100, "bad": .nan])
         XCTAssertEqual(json, #"{"energy_kcal":100,"protein_g":1.5}"#)

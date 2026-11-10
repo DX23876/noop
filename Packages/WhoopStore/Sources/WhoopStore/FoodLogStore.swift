@@ -519,6 +519,33 @@ extension WhoopStore {
         }
     }
 
+    // MARK: - Completely logged days
+
+    static func createFoodDayCompleteTable(_ db: Database) throws {
+        try db.create(table: "foodDayComplete") { t in
+            t.column("day", .text).notNull().primaryKey()
+            t.column("markedAt", .integer).notNull()
+        }
+    }
+
+    /// Marks `day` (yyyy-MM-dd) as completely logged, or takes the mark back.
+    public func setFoodDayComplete(_ day: String, _ complete: Bool, at: Int = Int(Date().timeIntervalSince1970)) async throws {
+        try syncWrite { db in
+            if complete {
+                try db.execute(sql: "INSERT OR REPLACE INTO foodDayComplete (day, markedAt) VALUES (?, ?)", arguments: [day, at])
+            } else {
+                try db.execute(sql: "DELETE FROM foodDayComplete WHERE day = ?", arguments: [day])
+            }
+        }
+    }
+
+    /// The completely logged days from `from` to `to`, both included.
+    public func foodCompleteDays(from: String, to: String) async throws -> Set<String> {
+        try syncRead { db in
+            Set(try String.fetchAll(db, sql: "SELECT day FROM foodDayComplete WHERE day >= ? AND day <= ?", arguments: [from, to]))
+        }
+    }
+
     // MARK: - Nutrient JSON
 
     /// Sorted keys and plain numbers, so the same values always encode to the same text.
