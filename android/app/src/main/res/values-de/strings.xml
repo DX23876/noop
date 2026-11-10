@@ -5049,4 +5049,10 @@
     <string name="forge_th_interval_timer_sub">Runden und Pausen</string>
     <string name="forge_th_breathe_sub">Geführtes Atmen</string>
     <string name="forge_sleep_naps">Nickerchen</string>
+    <string name="forge_th_key_metrics">Wichtige Werte</string>
+    <string name="forge_th_effort_week">Effort diese Woche</string>
+    <string name="forge_th_avg">im Schnitt</string>
+    <string name="forge_th_vo2max">VO₂max</string>
+    <string name="forge_th_last30">Letzte 30 Tage</string>
+    <string name="forge_th_workouts_unit">Workouts</string>
 </resources>

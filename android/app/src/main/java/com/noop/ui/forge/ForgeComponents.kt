@@ -149,7 +149,9 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
             }
             Spacer(Modifier.width(ForgeMetrics.space2 + ForgeMetrics.space1))
-            Text(label.uppercase(), style = Forge.type.overline, color = colors.textSecondary, maxLines = 1,
+            // Two lines before it gives way: a longer name ("Effort this week", German "Blutsauerstoff") reads whole
+            // instead of ending in an ellipsis in a half-width tile.
+            Text(label.uppercase(), style = Forge.type.overline, color = colors.textSecondary, maxLines = 2,
                  overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.padding(top = ForgeMetrics.space2 + ForgeMetrics.space1))

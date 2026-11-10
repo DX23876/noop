@@ -296,6 +296,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             }
         }
 
+        // The new design's Key metrics after the recent sessions, as iOS orders them.
+        if (ForgeDesign.preview) TrainingKeyMetrics(s.week, viewModel, onWorkouts = { page = TrainingPage.History })
+
         Section(stringResource(R.string.forge_th_consistency), stringResource(R.string.forge_th_past_year)) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 ActivityHeatmap(s.activity)

@@ -5006,4 +5006,10 @@
     <string name="forge_th_interval_timer_sub">回合与休息</string>
     <string name="forge_th_breathe_sub">引导式呼吸</string>
     <string name="forge_sleep_naps">小睡</string>
+    <string name="forge_th_key_metrics">关键指标</string>
+    <string name="forge_th_effort_week">本周 Effort</string>
+    <string name="forge_th_avg">平均</string>
+    <string name="forge_th_vo2max">最大摄氧量</string>
+    <string name="forge_th_last30">最近 30 天</string>
+    <string name="forge_th_workouts_unit">次训练</string>
 </resources>

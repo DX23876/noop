@@ -5036,4 +5036,10 @@
     <string name="forge_th_interval_timer_sub">Rondas y descansos</string>
     <string name="forge_th_breathe_sub">Respiración guiada</string>
     <string name="forge_sleep_naps">Siestas</string>
+    <string name="forge_th_key_metrics">Métricas clave</string>
+    <string name="forge_th_effort_week">Effort esta semana</string>
+    <string name="forge_th_avg">de media</string>
+    <string name="forge_th_vo2max">VO₂max</string>
+    <string name="forge_th_last30">Últimos 30 días</string>
+    <string name="forge_th_workouts_unit">entrenos</string>
 </resources>

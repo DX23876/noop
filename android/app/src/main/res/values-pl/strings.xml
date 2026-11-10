@@ -5052,4 +5052,10 @@
     <string name="forge_th_interval_timer_sub">Rundy i przerwy</string>
     <string name="forge_th_breathe_sub">Oddychanie z przewodnikiem</string>
     <string name="forge_sleep_naps">Drzemki</string>
+    <string name="forge_th_key_metrics">Kluczowe wskaźniki</string>
+    <string name="forge_th_effort_week">Effort w tym tygodniu</string>
+    <string name="forge_th_avg">średnio</string>
+    <string name="forge_th_vo2max">VO₂maks</string>
+    <string name="forge_th_last30">Ostatnie 30 dni</string>
+    <string name="forge_th_workouts_unit">treningi</string>
 </resources>

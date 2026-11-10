@@ -5004,4 +5004,10 @@
     <string name="forge_th_interval_timer_sub">Round e pause</string>
     <string name="forge_th_breathe_sub">Respirazione guidata</string>
     <string name="forge_sleep_naps">Sonnellini</string>
+    <string name="forge_th_key_metrics">Metriche chiave</string>
+    <string name="forge_th_effort_week">Effort questa settimana</string>
+    <string name="forge_th_avg">in media</string>
+    <string name="forge_th_vo2max">VO₂max</string>
+    <string name="forge_th_last30">Ultimi 30 giorni</string>
+    <string name="forge_th_workouts_unit">allenamenti</string>
 </resources>

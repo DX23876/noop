@@ -4937,4 +4937,10 @@
     <string name="forge_th_interval_timer_sub">Раунды и перерывы</string>
     <string name="forge_th_breathe_sub">Дыхание с подсказками</string>
     <string name="forge_sleep_naps">Дневные сны</string>
+    <string name="forge_th_key_metrics">Ключевые показатели</string>
+    <string name="forge_th_effort_week">Effort за эту неделю</string>
+    <string name="forge_th_avg">в среднем</string>
+    <string name="forge_th_vo2max">VO₂max</string>
+    <string name="forge_th_last30">Последние 30 дней</string>
+    <string name="forge_th_workouts_unit">тренировок</string>
 </resources>
