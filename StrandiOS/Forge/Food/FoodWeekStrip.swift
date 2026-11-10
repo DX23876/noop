@@ -7,8 +7,9 @@ import StrandCore
 struct FoodWeekStrip: View {
     let week: [ForgeFoodModel.WeekDay]
     let shownDay: String
-    let calorieGoal: Double?
-    let macroGoals: FoodTargets.Macros?
+    /// Each day's own goals: a fasting day or an active day has its own, so no plate is measured against another day's.
+    let calorieGoal: (String) -> Double?
+    let macroGoals: (String) -> FoodTargets.Macros?
     let select: (String) -> Void
 
     var body: some View {
@@ -25,11 +26,12 @@ struct FoodWeekStrip: View {
 
     private func column(_ day: ForgeFoodModel.WeekDay) -> some View {
         let shown = day.day == shownDay
+        let kcalGoal = calorieGoal(day.day), macros = macroGoals(day.day)
         return VStack(spacing: 6) {
-            FoodMiniPlate(kcal: share(day.totals[.energyKcal], calorieGoal),
-                          macros: [share(day.totals[.proteinG], macroGoals?.proteinG),
-                                   share(day.totals[.carbsG], macroGoals?.carbsG),
-                                   share(day.totals[.fatG], macroGoals?.fatG)])
+            FoodMiniPlate(kcal: share(day.totals[.energyKcal], kcalGoal),
+                          macros: [share(day.totals[.proteinG], macros?.proteinG),
+                                   share(day.totals[.carbsG], macros?.carbsG),
+                                   share(day.totals[.fatG], macros?.fatG)])
                 .opacity(day.logged ? 1 : 0.45)
             Text(weekday(day.day)).font(.caption.weight(shown ? .bold : .regular))
                 .foregroundStyle(shown ? ForgeColor.text : ForgeColor.secondary)

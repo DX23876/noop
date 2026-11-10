@@ -263,6 +263,17 @@ public actor FoodCatalog {
         return rows
     }
 
+    /// A catalogue food's name in the app language, remembered per id: logged meals and recent foods ask for it on
+    /// every read, and a name never changes while the app runs.
+    public func name(id: String) -> String? {
+        let key = Self.nameLanguage + "|" + id
+        if let known = nameCache[key] { return known }
+        let found = item(id: id)?.name
+        if let found { nameCache[key] = found }
+        return found
+    }
+    private var nameCache: [String: String] = [:]
+
     public func item(id: String) -> FoodItem? {
         for key in catalogKeys() {
             guard let queue = try? queue(for: key),

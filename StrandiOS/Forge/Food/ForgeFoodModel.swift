@@ -17,9 +17,12 @@ final class ForgeFoodModel {
     private(set) var baseCalories: FoodTargets.Calories?
     /// The shown day's calorie goal: the diet plan's for that day when there is one (a fasting day has its own),
     /// otherwise the base goal. One resolver for the plate, the figures and the week strip.
-    var calories: FoodTargets.Calories? {
+    var calories: FoodTargets.Calories? { calories(for: day) }
+
+    /// Any day's calorie goal: the plan's for that day (its fasting figure, its active-day extra), or the base goal.
+    func calories(for day: String) -> FoodTargets.Calories? {
         if let plan, let planResult {
-            return FoodTargets.calories(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal)
+            return FoodTargets.calories(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal(for: day))
         }
         return baseCalories
     }
@@ -27,11 +30,14 @@ final class ForgeFoodModel {
     /// The shown day alone, for its nutrition facts and the pinned nutrients.
     private(set) var dayNutrients: FoodNutrientReport.Report?
     /// Gram goals for protein, carbohydrate and fat, from the calorie goal and the wearer's split.
-    var macroGoals: FoodTargets.Macros? {
+    var macroGoals: FoodTargets.Macros? { macroGoals(for: day) }
+
+    /// Any day's macro goals, from the same resolver as `calories(for:)`.
+    func macroGoals(for day: String) -> FoodTargets.Macros? {
         if let plan, let planResult {
-            return FoodTargets.macros(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal)
+            return FoodTargets.macros(plan: plan, result: planResult, day: day, activeBonusKcal: activeBonusKcal(for: day))
         }
-        guard let kcal = calories?.kcal else { return nil }
+        guard let kcal = calories(for: day)?.kcal else { return nil }
         let d = UserDefaults.standard, split = FoodTargets.defaultSplit
         func share(_ key: String, _ fallback: Double) -> Double { d.object(forKey: key) as? Double ?? fallback }
         return FoodTargets.macros(kcal: kcal, protein: share(FoodTargets.Keys.proteinPercent, split.protein),
@@ -107,8 +113,8 @@ final class ForgeFoodModel {
         return nil
     }
 
-    /// The extra calories an active day brings for the shown day; zero when the plan has it off.
-    var activeBonusKcal: Double {
+    /// The extra calories an active day brings for `day`; zero when the plan has it off.
+    func activeBonusKcal(for day: String) -> Double {
         _ = burnRevision
         guard let plan, let strap = strapBurnKcal else { return 0 }
         return DietActiveDay.bonusKcal(plan: plan, day: day, burnedKcal: burnedByDay[day], usualStrapKcal: strap,
@@ -248,8 +254,10 @@ final class ForgeFoodModel {
         let from = Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -(DietExpenditure.windowDays - 1),
                                                                 to: .now) ?? .now)
         let complete = (try? await store.foodCompleteDays(from: from, to: today)) ?? []
-        let intake = Dictionary(await FoodLog.totals(store: store, from: from, to: today)
-            .compactMap { pair in pair.totals[.energyKcal].map { (pair.day, $0) } }, uniquingKeysWith: { a, _ in a })
+        // What the energy plan counts per day: a typed day value or an import wins over the food log there, so it
+        // does here too (one intake per day, wherever it is read).
+        let intake = (await NutritionReads.nutritionByDay(store: store, from: from, to: today))
+            .compactMapValues { $0.calories }
         let weights = await repo.weightDailyValues(days: 120).map { (day: $0.day, kg: $0.value) }
         expenditure = DietExpenditure.estimate(intakeByDay: intake, completeDays: complete, weighIns: weights,
                                                strapByDay: burnedByDay, today: today,
@@ -361,8 +369,9 @@ final class ForgeFoodModel {
         guard isToday, let date = WeightSeries.date(forDay: day),
               let start = Calendar.current.date(byAdding: .day, value: -FoodRepeat.window, to: date),
               let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date) else { habit = nil; return }
-        let history = (try? await store.foodLogEntries(from: Repository.localDayKey(start),
-                                                       to: Repository.localDayKey(yesterday))) ?? []
+        // Named in the app language, like the day's meals, so the offer reads as the plate does.
+        let history = await FoodLog.named((try? await store.foodLogEntries(from: Repository.localDayKey(start),
+                                                                          to: Repository.localDayKey(yesterday))) ?? [])
         let found = FoodRepeat.suggestion(history: history, todayEntries: summary?.entries ?? [], today: day, now: .now)
         habit = found.flatMap { UserDefaults.standard.string(forKey: Self.habitDismissedKey) == Self.habitKey(day, $0.kind) ? nil : $0 }
     }

@@ -112,11 +112,21 @@ final class DietTrackerTests: XCTestCase {
                        .missing(completeDays: 10, weighIns: h.weights.count))
     }
 
+    func testTodayIsLeftOutWhileItIsNotOver() {
+        let h = history(burn: 2_600, intake: 2_100, marked: 28)
+        var intake = h.intake; intake[day(0)] = 600   // breakfast so far
+        guard case .estimate(let e) = DietExpenditure.estimate(intakeByDay: intake, completeDays: h.complete,
+                                                                weighIns: h.weights, strapByDay: [:], today: day(0))
+        else { return XCTFail("expected an estimate") }
+        XCTAssertEqual(e.completeDays, 27)
+        XCTAssertEqual(e.burnKcal, 2_600, accuracy: 1)
+    }
+
     func testTooFewWeighInsGiveNoFigure() {
         let h = history(burn: 2_600, intake: 2_100, marked: 28)
         let outcome = DietExpenditure.estimate(intakeByDay: h.intake, completeDays: h.complete,
                                                weighIns: Array(h.weights.prefix(4)), strapByDay: [:], today: day(0))
-        XCTAssertEqual(outcome, .missing(completeDays: 28, weighIns: 4))
+        XCTAssertEqual(outcome, .missing(completeDays: 27, weighIns: 4), "today is not counted yet")
     }
 
     func testScatteredWeighInsWidenTheRange() throws {
@@ -174,6 +184,11 @@ final class DietTrackerTests: XCTestCase {
         else { return XCTFail("expected holding") }
         XCTAssertTrue(h.inRange)
         XCTAssertGreaterThanOrEqual(h.weeksInRange, 3)
+        var fresh = plan(.maintain, start: 80, goal: nil); fresh.startDay = day(0)
+        guard case .hold(let new) = DietProgress.resolve(plan: fresh, goalWeightKg: nil,
+                                                          weighIns: weighIns(Array(repeating: 80.4, count: 30)))
+        else { return XCTFail("expected holding") }
+        XCTAssertEqual(new.weeksInRange, 0, "a plan that starts today has held for no weeks")
         XCTAssertNil(DietProgress.resolve(plan: plan(goal: nil), goalWeightKg: nil, weighIns: weighIns([88, 87.5])))
         XCTAssertNil(DietProgress.resolve(plan: plan(), goalWeightKg: 80, weighIns: []))
     }

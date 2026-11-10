@@ -8,9 +8,11 @@ struct FoodCompleteDayRow: View {
     let complete: Bool
     let asks: Bool
     let toggle: () -> Void
+    /// Bumped by a tap only, so moving to another day (and its mark) does not tick.
+    @State private var taps = 0
 
     var body: some View {
-        Button(action: toggle) {
+        Button { taps += 1; toggle() } label: {
             HStack(spacing: 12) {
                 Image(systemName: complete ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
@@ -33,7 +35,7 @@ struct FoodCompleteDayRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(complete ? [.isButton, .isSelected] : .isButton)
-        .sensoryFeedback(.selection, trigger: complete)
+        .sensoryFeedback(.selection, trigger: taps)
     }
 }
 #endif

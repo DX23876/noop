@@ -85,7 +85,7 @@ struct DietWayPath: View {
                 WayCurve().trim(from: 0, to: max(0.001, fraction))
                     .stroke(ForgeColor.chargeInk, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                 ForEach(DietProgress.Stage.allCases, id: \.self) { stage in
-                    let point = WayCurve.point(at: stage.threshold, in: CGRect(origin: .zero, size: size))
+                    let point = WayCurve.point(atLength: stage.threshold, in: CGRect(origin: .zero, size: size))
                     let reached = fraction + 1e-9 >= stage.threshold
                     Circle()
                         .fill(reached ? ForgeColor.chargeInk : ForgeColor.card)
@@ -112,8 +112,23 @@ private struct WayCurve: Shape {
 
     static func inset(_ rect: CGRect) -> CGRect { rect.insetBy(dx: 8, dy: 8) }
 
-    /// The point at `t` of the curve (0 start, 1 end), for placing the stones on it.
-    static func point(at t: Double, in rect: CGRect) -> CGPoint {
+    /// The point at `share` of the curve's length, the same measure `trim` uses, so the walked line ends exactly on
+    /// the stone it reached.
+    static func point(atLength share: Double, in rect: CGRect) -> CGPoint {
+        let steps = 200
+        let points = (0...steps).map { point(at: Double($0) / Double(steps), in: rect) }
+        var lengths = [0.0]
+        for i in 1...steps { lengths.append(lengths[i - 1] + hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)) }
+        let target = share.clamped01 * (lengths.last ?? 0)
+        guard let i = lengths.firstIndex(where: { $0 >= target }), i > 0 else { return points[0] }
+        let span = lengths[i] - lengths[i - 1]
+        let f = span > 0 ? (target - lengths[i - 1]) / span : 0
+        return CGPoint(x: points[i - 1].x + (points[i].x - points[i - 1].x) * f,
+                       y: points[i - 1].y + (points[i].y - points[i - 1].y) * f)
+    }
+
+    /// The point at Bezier parameter `t` (0 start, 1 end).
+    private static func point(at t: Double, in rect: CGRect) -> CGPoint {
         let r = inset(rect)
         let p0 = CGPoint(x: r.minX, y: r.maxY), p1 = CGPoint(x: r.midX, y: r.maxY)
         let p2 = CGPoint(x: r.midX, y: r.minY), p3 = CGPoint(x: r.maxX, y: r.minY)
@@ -158,6 +173,16 @@ struct DietBurnCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Under a day's meals, mark it once you have logged everything.")
                     .font(.footnote).foregroundStyle(ForgeColor.secondary)
+                // The plan was set to stand on the scale, but the figure is gone for now: say so, and let it go back.
+                if model.plan?.burnSource == .scale {
+                    Text("Until then your plan uses what your strap measures.")
+                        .font(.subheadline).foregroundStyle(ForgeColor.text)
+                    Button(String(localized: "Back to the strap")) {
+                        Task { await model.setBurnSource(.strap, repo: repo) }
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(ForgeColor.accent)
+                }
             case nil:
                 EmptyView()
             }
@@ -214,5 +239,8 @@ struct DietBurnCard: View {
             ? String(localized: "Your strap reads about \(amount) above what your scale shows.")
             : String(localized: "Your strap reads about \(amount) below what your scale shows.")
     }
+}
+private extension Double {
+    var clamped01: Double { Swift.min(1, Swift.max(0, self)) }
 }
 #endif

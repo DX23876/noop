@@ -78,12 +78,12 @@ public enum FoodLog {
 
     /// BLS entries under the catalogue's name in the app language, whichever language they were logged in; an
     /// entry the catalogue cannot find (not prepared yet, or an id it no longer has) keeps its stored name.
-    static func named(_ entries: [FoodLogEntry], catalog: FoodCatalog) async -> [FoodLogEntry] {
+    public static func named(_ entries: [FoodLogEntry], catalog: FoodCatalog = .shared) async -> [FoodLogEntry] {
         var names: [String: String] = [:]
         var out = entries
         for index in out.indices {
             guard let id = out[index].foodId, id.hasPrefix("bls:") else { continue }
-            if names[id] == nil { names[id] = await catalog.item(id: id)?.name }
+            if names[id] == nil { names[id] = await catalog.name(id: id) }
             if let name = names[id] { out[index].name = name }
         }
         return out
@@ -241,7 +241,7 @@ public enum FoodLibrary {
             let source: FoodItem.Source = recent.foodId.hasPrefix("bls:") ? .bls
                 : recent.foodId.hasPrefix("off:") ? .off : recent.foodId.hasPrefix("recipe:") ? .recipe : .own
             // A BLS food under its name in the app language, as search and the day's meals show it.
-            let name = source == .bls ? (await catalog.item(id: recent.foodId)?.name ?? recent.name) : recent.name
+            let name = source == .bls ? (await catalog.name(id: recent.foodId) ?? recent.name) : recent.name
             out.append((FoodItem(id: recent.foodId, source: source, name: name, brand: recent.brand,
                                  per100g: NutrientAmounts(stored: per100g)), recent.grams))
         }

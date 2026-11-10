@@ -301400,6 +301400,64 @@
         }
       }
     },
+    "Until then your plan uses what your strap measures." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bis dahin nutzt dein Plan, was dein Strap misst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hasta entonces, tu plan usa lo que mide tu pulsera."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D'ici là, ton plan utilise ce que mesure ton bracelet."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fino ad allora il tuo piano usa ciò che misura il bracciale."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Do tego czasu plan korzysta z pomiarów opaski."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Até lá, o teu plano usa o que a pulseira mede."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "До тех пор план опирается на данные браслета."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此之前，你的计划使用手环测得的数值。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此之前，你的計畫使用手環測得的數值。"
+          }
+        }
+      }
+    },
     "Log journal" : {
       "localizations" : {
         "de" : {

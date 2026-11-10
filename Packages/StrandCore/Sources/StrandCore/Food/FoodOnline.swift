@@ -20,7 +20,9 @@ public enum FoodOnline {
     /// The fields to ask for, with the product name in the app language when that is neither German nor English,
     /// so a Spanish app reads `product_name_es` where a product has one.
     static func fields(language: String) -> String {
-        let code = language.lowercased().filter(\.isLetter)
+        // The language part alone: "pt-PT" asks for product_name_pt.
+        let code = (language.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map(String.init) ?? "")
+            .filter(\.isLetter)
         guard !code.isEmpty, code != "de", code != "en" else { return fields }
         return fields + ",product_name_\(code)"
     }

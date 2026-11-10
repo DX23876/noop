@@ -32,8 +32,9 @@ public enum DietExpenditure {
         case missing(completeDays: Int, weighIns: Int)
     }
 
-    /// `intakeByDay` is kcal per day from the food log, `completeDays` the days marked as completely logged,
-    /// `weighIns` (day, kg), `strapByDay` the measured burn per day. Days after `today` are ignored.
+    /// `intakeByDay` is the kcal the energy plan counts per day (a typed day value wins over the food log, as
+    /// everywhere), `completeDays` the days marked as completely logged, `weighIns` (day, kg), `strapByDay` the
+    /// measured burn per day. Today and later days are left out: today's burn and log are not finished yet.
     public static func estimate(intakeByDay: [String: Double], completeDays: Set<String>,
                                 weighIns: [(day: String, kg: Double)], strapByDay: [String: Double], today: String,
                                 kcalPerKg: Double = DietTargets.defaultKcalPerKg) -> Outcome {
@@ -45,7 +46,7 @@ public enum DietExpenditure {
             guard let date = WeightSeries.date(forDay: day) else { return false }
             return date >= start && date <= end
         }
-        let days = completeDays.filter { inWindow($0) && (intakeByDay[$0] ?? 0) > 0 }.sorted()
+        let days = completeDays.filter { inWindow($0) && $0 < today && (intakeByDay[$0] ?? 0) > 0 }.sorted()
         let weights = weighIns.filter { inWindow($0.day) && $0.kg.isFinite && $0.kg > 0 }
         let dates = weights.compactMap { WeightSeries.date(forDay: $0.day) }
         let span = dates.isEmpty ? 0 : (dates.max()!.timeIntervalSince(dates.min()!) / 86_400)

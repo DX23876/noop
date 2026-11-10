@@ -63,7 +63,9 @@ public enum DietProgress {
             var weeks = 0
             if inRange, let last = smoothed.last?.date {
                 let outside = smoothed.last { abs($0.value - start) > holdBandKg }?.date
-                let since = outside ?? smoothed.first?.date ?? last
+                // Counted from the plan's start at the earliest: weeks before the plan were not holding it.
+                let planStart = WeightSeries.date(forDay: plan.startDay) ?? .distantPast
+                let since = max(outside ?? smoothed.first?.date ?? last, planStart)
                 weeks = Int(last.timeIntervalSince(since) / (7 * 86_400))
             }
             return .hold(Hold(startKg: start, trendKg: trend, inRange: inRange, weeksInRange: weeks))

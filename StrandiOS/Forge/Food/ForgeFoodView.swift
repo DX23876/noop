@@ -46,8 +46,8 @@ struct ForgeFoodView: View {
                 if !model.week.isEmpty {
                     FoodSectionHeader(title: String(localized: "Week"))
                         .padding(.top, 16)
-                    FoodWeekStrip(week: model.week, shownDay: model.day, calorieGoal: model.calories?.kcal,
-                                  macroGoals: model.macroGoals, select: showDay)
+                    FoodWeekStrip(week: model.week, shownDay: model.day, calorieGoal: { model.calories(for: $0)?.kcal },
+                                  macroGoals: { model.macroGoals(for: $0) }, select: showDay)
                     if model.scoreEnabled {
                         FoodScoreRow(score: model.score, loggedDays: model.scoreLoggedDays, open: openScore)
                             .disabled(model.score == nil)

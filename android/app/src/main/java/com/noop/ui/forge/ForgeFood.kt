@@ -123,8 +123,10 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     // The first-visit setup (owner, 2026-11-09) comes first; a request to add (Today's Log sheet, the Health & body
     // card) is kept and opens the add page once the setup closes.
     var setup by remember { mutableStateOf(foodSetupNeeded(context)) }
-    var addAfterSetup by remember { mutableStateOf(FoodArrival.consume()) }
-    var adding by remember { mutableStateOf(addAfterSetup && !setup) }
+    val arrivedToAdd = remember { FoodArrival.consume() }
+    // Held only while the setup stands in front; an add page opened at once is not opened again later.
+    var addAfterSetup by remember { mutableStateOf(arrivedToAdd && setup) }
+    var adding by remember { mutableStateOf(arrivedToAdd && !setup) }
     var settings by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<CoreFood.Entry?>(null) }
     var nutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }

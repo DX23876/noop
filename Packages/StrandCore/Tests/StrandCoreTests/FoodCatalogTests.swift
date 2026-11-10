@@ -69,7 +69,8 @@ final class FoodCatalogTests: XCTestCase {
         XCTAssertEqual(FoodOnline.fields(language: "de"), FoodOnline.fields)
         XCTAssertEqual(FoodOnline.fields(language: "en"), FoodOnline.fields)
         XCTAssertTrue(FoodOnline.fields(language: "es").hasSuffix(",product_name_es"))
-        XCTAssertFalse(FoodOnline.fields(language: "pt-PT").contains("-"), "only letters reach the field name")
+        XCTAssertTrue(FoodOnline.fields(language: "pt-PT").hasSuffix(",product_name_pt"), "the language part alone")
+        XCTAssertEqual(FoodOnline.fields(language: "de-DE"), FoodOnline.fields)
     }
 
     func testLoggedBlsFoodsAreNamedInTheAppLanguage() async throws {
