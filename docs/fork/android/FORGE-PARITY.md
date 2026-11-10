@@ -22,7 +22,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 | Part | iOS | Android | Gap |
 |---|---|---|---|
 | Header | "Today" with the date, strap, plus, profile | header with profile and quick actions | close |
-| Rings | three organic rings in one chamber with the day's answer under them | `Hero` with organic rings | answer line under the rings missing |
+| Rings | three organic rings in one chamber with the day's answer under them; holding them arranges the tiles | `Hero` with organic rings; holding a ring arranges the tiles (2026-11-10) | the answer line, which iOS shows only while Charge is carried from an earlier day; Android's Forge hero has no carried state yet |
 | Hint | one most-pressing hint (`ForgeTodayHint`) | the activity prompt and the morning suggestion; pills and Momentum are gone from the new Today (Momentum is a tile) | the hint card, which needs the timeline's notices and coach notes |
 | Tiles | a free grid of measure and picture tiles, three sizes, moved by drag in edit mode (`ForgeTodayWidgets`) | `ForgeTodayWidgets.kt` (2026-11-10): measures from the Key Metrics reading, sleep from the latest night, and the cards Training load, Goals, Energy, Latest workout, Cycle, Momentum, Live heart rate; three sizes, moved by arrows and accessibility actions, gallery | no drag; no water, last night, week plan, coach note, AgeLess, tonight, next session, what changed, what works, breathe, strap or stress tiles |
 | Timeline | the day as a time rail: coach notes, workouts, walks bundled, wake, naps, weigh-ins, logs, ECG, notices, the day's close, with a "Now" marker (`ForgeTimeline`) | time rail with Now, workouts, waking up with stages, naps, Yesterday (2026-11-09, `ForgeTodayTimeline`); naps come from the core's `SleepNight.naps`, the same rule iOS reads (2026-11-10) | coach notes, walk bundles, weigh-ins, logs, ECG, notices, the day's close and "Show all" missing |
@@ -34,7 +34,7 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 | Screen | iOS | Android | Gap |
 |---|---|---|---|
 | Training | This week, Start, Planned today, Your week (goals, routines), Recent activities, Key metrics, Tools | `ForgeTraining*`: start, goals, This week, Routines, Recent, Consistency, Muscle analytics, the analysis list, and in the new design the Tools group with the interval timer and Breathe (2026-11-10) | the week summary hero, Planned today and the Key metrics tiles (Effort this week, VO₂max, Training load, Strength) missing; Android keeps Consistency and Muscle analytics, which iOS shows deeper |
-| Sleep | night navigator, Rest and duration tiles, the coach button, Tonight, This night, Naps, stages, goals, Highlights, night facts, History | `ForgeSleep`, `ForgeSleepCards`: night pager, the Rest ring, times, Alarms, goals, the arrangeable cards; in the new design the day's naps from the core (2026-11-10) | the Rest ring is the shipped hero, iOS shows tiles; Tonight, Highlights, night facts and History missing |
+| Sleep | night navigator, Rest and duration tiles, the coach button, Tonight, This night, Naps, stages, goals, Highlights, night facts, History | `ForgeSleep`, `ForgeSleepCards`: in the new design the night navigator in one line as on iOS (2026-11-10), the Rest ring, times, Alarms, goals, the arrangeable cards; in the new design the day's naps from the core (2026-11-10) | the Rest ring is the shipped hero, iOS shows tiles; Tonight, Highlights, night facts and History missing |
 | Health | Vitals in range, the off-range card, editable Vitals tiles, Focus areas, Heart and stress, Body and energy, Long term and patterns | `ForgeHealthTab` (2026-11-09): vitals in range, tiles, the three groups, Trends | off-range card, tile editing and Focus areas missing; a vital tile opens the Health page because Android has no single-metric page yet (iOS opens `TabRoute.metric`) |
 | Coach | the coach inside its tab | own tab button (2026-11-09) | close |
 
@@ -46,3 +46,23 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 4. Card by card on Training and Sleep.
 
 Each step is checked side by side with iOS screenshots of the same demo data.
+
+## Emulator review 2026-11-10
+
+The new design checked on the `noop-spike` emulator (demo data, light and dark), then the code read again.
+
+Fixed:
+- The More page opened from a profile drew its title under the status bar (empty insets).
+- The Timeline and Naps headings used the scene's white ink on the light canvas and all but vanished.
+- Holding the rings opened Effort instead of arranging the tiles: each ring's click claimed the press first.
+- The tile edit controls covered each tile's name and were 32 dp; they sit in the corners at 44 dp now.
+- The timeline and the sleep tile never read again after a sync while Today stayed open, and "Now" kept the
+  minute the page opened.
+
+Seen, not changed:
+- iOS Sleep lists every block outside the main night as a nap, the timeline only those with 10 min asleep
+  (`SleepNight.naps`). Hiding the short ones on Sleep would also hide their delete button, and the classic
+  Sleep view counts them in the day's total, so the rule for that list is the owner's call.
+- The demo app answered slowly at first start on the emulator (an ANR while WorkManager waited). The main
+  thread was waiting for the render thread and the CPU in both designs, with 2 GB and software rendering;
+  with the host GPU and 4 GB it did not recur. To watch on a real low-end phone.
