@@ -65,6 +65,9 @@ Fixed:
   jumps went to the More tab the new design lacks. The new design keeps its own Today and any jump to More
   opens the More page (read in the code and compiled, not run on screen).
 - The emulator launch extra wrote the switch in every build; it is now a debug-only override, as on iOS.
+- Forge's Today (both designs) took the calendar date: opened between midnight and four it showed an empty new
+  day, and kept open past midnight its title fell to the weekday (#144, solved long ago on the classic Today).
+  Today and every part of it read the logical day now; seen on the emulator at 00:04.
 
 Seen, not changed:
 - iOS Sleep lists every block outside the main night as a nap, the timeline only those with 10 min asleep
