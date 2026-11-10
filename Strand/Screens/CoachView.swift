@@ -1052,6 +1052,7 @@ struct CoachView: View {
         case .chargeDrivers:           Text("What moved your Charge up or down")
         case .proposePlan:             Text("A session proposed for you to accept or change")
         case .proposeGoalSetup:        Text("A goal and routines prepared for your review")
+        case .proposeDietChange:       Text("A change to your diet plan, waiting on the plan page")
         case .showCard:                Text("One of your own figures, shown as a card")
         case .findHevyExercises:       Text("The exercises in your Hevy catalogue")
         case .hevyRoutines:            Text("The routines saved in your Hevy account")
