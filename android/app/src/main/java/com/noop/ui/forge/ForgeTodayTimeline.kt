@@ -139,7 +139,9 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     }
     val zone = ZoneId.systemDefault()
     val entries = remember(workouts, nights, naps, now) { TodayTimeline.entries(workouts, nights, naps, now, zone) }
-    val today = LocalDate.now(zone)
+    // "Yesterday" by the logical day, as iOS's rail (`logicalDayKey`): an evening workout seen after midnight
+    // still belongs to today.
+    val today = com.noop.ui.logicalDayNow(zone)
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(stringResource(R.string.forge_timeline_title), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),
              // The canvas text colour, as iOS's `ForgeSectionTitle`: the rail sits below the scene, where scene ink

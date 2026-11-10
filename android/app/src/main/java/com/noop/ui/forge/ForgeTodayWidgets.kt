@@ -218,7 +218,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val keyTiles = rememberKeyTiles(model, metrics, detailed = true, windowDays = 30)
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
     val noData = stringResource(R.string.forge_no_data)
-    val date = model?.date ?: LocalDate.now()
+    val date = model?.date ?: com.noop.ui.logicalDayNow()
     // The latest night as the Sleep tab shows it, read only while a sleep tile is placed (iOS `withLatestNight`).
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
     val sleepMinutes by produceState<Double?>(null, date, widgets.any { it.key == TodayWidget.SLEEP_KEY }, coreRevision) {
@@ -264,7 +264,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy()
-                            TodayWidget.Kind.LiveHeart -> HeartCard(viewModel, date, live = date == LocalDate.now())
+                            TodayWidget.Kind.LiveHeart -> HeartCard(viewModel, date, live = date == com.noop.ui.logicalDayNow())
                             TodayWidget.Kind.Momentum -> ForgeTodayMomentum(viewModel)
                             TodayWidget.Kind.LastWorkout -> TodayWorkoutsForge(viewModel)
                             TodayWidget.Kind.Cycle -> TodayCycleForge(viewModel)

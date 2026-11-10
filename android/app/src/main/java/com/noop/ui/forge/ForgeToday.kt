@@ -107,7 +107,9 @@ fun deltaText(value: Double?, baseline: Double?, decimals: Int): String? {
 @Composable
 fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppViewModel) {
     val context = LocalContext.current
-    var date by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
+    // The logical day, as the classic Today and iOS: past midnight the night still belongs to the evening before,
+    // and a calendar date would open an empty new day until morning (#144).
+    var date by rememberSaveable { mutableStateOf(com.noop.ui.logicalDayNow().toEpochDay()) }
     var model by remember { mutableStateOf<TodayModel?>(null) }
     LaunchedEffect(date) {
         val d = LocalDate.ofEpochDay(date)
@@ -120,7 +122,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             TodayModel(d, CoreRead.day(d.toString()), baselines)
         }
     }
-    val today = LocalDate.now()
+    val today = com.noop.ui.logicalDayNow()
     val shown = LocalDate.ofEpochDay(date)
     var customizing by remember { mutableStateOf<TodayCustomizationDestination?>(null) }
     var layoutRevision by remember { mutableIntStateOf(0) }
@@ -236,7 +238,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                     onDragStart = { drag = 0f },
                     onDragEnd = {
                         if (drag > 120f) date -= 1
-                        else if (drag < -120f && date < LocalDate.now().toEpochDay()) date += 1
+                        else if (drag < -120f && date < com.noop.ui.logicalDayNow().toEpochDay()) date += 1
                     },
                     onHorizontalDrag = { _, amount -> drag += amount },
                 )
@@ -245,7 +247,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 customActions = listOf(
                     CustomAccessibilityAction(previousLabel) { date -= 1; true },
                     CustomAccessibilityAction(nextLabel) {
-                        if (date < LocalDate.now().toEpochDay()) { date += 1; true } else false
+                        if (date < com.noop.ui.logicalDayNow().toEpochDay()) { date += 1; true } else false
                     },
                 )
             }
