@@ -135,9 +135,16 @@ public enum DietTargets {
     }
 
     /// The goal weight the plan works toward: the wearer's, raised to the lowest healthy weight for their height
-    /// (BMI 18.5) when it was below. The plan page, the way to the goal and Today's card all read this one.
+    /// (BMI 18.5) when it was below; none for holding or recomposition, or for a goal on the wrong side of the start
+    /// weight (measured from the start, so a reached goal stays the goal). The plan page, the way to the goal and Today's card all read this one.
     public static func plannedGoalWeight(_ plan: DietPlan, person: DietPerson) -> Double? {
         guard let g = plan.goalWeightKg else { return nil }
+        // Only losing and gaining have a goal weight, and only one in their own direction.
+        switch plan.goal {
+        case .maintain, .recomp: return nil
+        case .gain: if g <= plan.startWeightKg { return nil }
+        case .lose: if g >= plan.startWeightKg { return nil }
+        }
         if let lowest = person.lowestGoalWeightKg, g < lowest { return (lowest * 10).rounded(.up) / 10 }
         return g
     }

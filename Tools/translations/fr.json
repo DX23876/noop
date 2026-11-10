@@ -4435,5 +4435,21 @@
   "Suggestions this week": "Suggestions de la semaine",
   "Break week: eat what you burn": "Semaine de pause : mange ce que tu dépenses",
   "Goal reached: stepping down to holding": "Objectif atteint : passage au maintien",
-  "Holding your goal weight": "Tu maintiens ton poids cible"
+  "Holding your goal weight": "Tu maintiens ton poids cible",
+  "Today: %@ kcal → %@ kcal": "Aujourd'hui : %@ kcal → %@ kcal",
+  "A slower pace is easier to keep and keeps more muscle.": "Un rythme plus doux se tient plus facilement et préserve plus de muscle.",
+  "In about %lld weeks": "Dans environ %lld semaines",
+  "Within a week": "D'ici une semaine",
+  "A chicken or turkey breast, 150 g": "Un blanc de poulet ou de dinde, 150 g",
+  "A fillet of fish, 150 g": "Un filet de poisson, 150 g",
+  "About %lld more portions from this list a day close it.": "Environ %lld portions de plus de cette liste par jour le comblent.",
+  "Cooked lentils, beans or chickpeas, 200 g": "Lentilles, haricots ou pois chiches cuits, 200 g",
+  "Last week on average %lld g, about %lld g short.": "La semaine dernière, en moyenne %lld g, environ %lld g en dessous.",
+  "Lean beef or pork, 150 g": "Bœuf ou porc maigre, 150 g",
+  "One more portion from this list a day closes it.": "Une portion de plus de cette liste par jour le comble.",
+  "Protein per everyday portion, rounded from common food tables.": "Protéines par portion courante, arrondies d'après les tables alimentaires usuelles.",
+  "Skyr, quark or cottage cheese, 250 g": "Skyr, fromage blanc ou cottage cheese, 250 g",
+  "Two eggs": "Deux œufs",
+  "Your plan: %lld g a day": "Ton plan : %lld g par jour",
+  "A plan works when you can keep it. Forge starts from what you eat and burn today, asks a few questions and then checks every week how your body answers. Whether you lose, hold or build muscle, slow and steady beats short and hard, because the body pushes back against quick changes. After losing weight, for example, you get noticeably hungrier and burn a little less, and in large reviews more than half of the weight lost comes back within two years. So Forge plans with you slowly and honestly, with habits you will still live in a year.": "Un plan fonctionne quand tu peux le tenir. Forge part de ce que tu manges et dépenses aujourd'hui, pose quelques questions puis vérifie chaque semaine comment ton corps répond. Que tu perdes, maintiennes ou prennes du muscle, lent et régulier vaut mieux que court et dur, car le corps résiste aux changements rapides. Après une perte de poids, par exemple, tu as nettement plus faim et dépenses un peu moins, et dans de grandes revues plus de la moitié du poids perdu revient en deux ans. Alors Forge planifie avec toi lentement et honnêtement, avec des habitudes que tu vivras encore dans un an."
 }

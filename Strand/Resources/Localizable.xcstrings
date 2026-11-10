@@ -306562,6 +306562,934 @@
         }
       }
     },
+    "Today: %@ kcal → %@ kcal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heute: %@ kcal → %@ kcal"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoy: %@ kcal → %@ kcal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aujourd'hui : %@ kcal → %@ kcal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oggi: %@ kcal → %@ kcal"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dziś: %@ kcal → %@ kcal"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoje: %@ kcal → %@ kcal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодня: %@ ккал → %@ ккал"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天：%@ 大卡 → %@ 大卡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天：%@ 大卡 → %@ 大卡"
+          }
+        }
+      }
+    },
+    "A slower pace is easier to keep and keeps more muscle." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein ruhigeres Tempo hältst du leichter durch und es erhält mehr Muskeln."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un ritmo más lento es más fácil de mantener y conserva más músculo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un rythme plus doux se tient plus facilement et préserve plus de muscle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un ritmo più lento è più facile da mantenere e conserva più muscoli."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wolniejsze tempo łatwiej utrzymać i chroni więcej mięśni."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um ritmo mais lento é mais fácil de manter e preserva mais músculo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Медленный темп легче выдержать, и он сохраняет больше мышц."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "慢一点的速度更容易坚持，也能保留更多肌肉。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "慢一點的速度更容易堅持，也能保留更多肌肉。"
+          }
+        }
+      }
+    },
+    "In about %lld weeks" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In etwa %lld Wochen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En unas %lld semanas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans environ %lld semaines"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tra circa %lld settimane"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Za około %lld tygodni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dentro de cerca de %lld semanas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Примерно через %lld нед."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大约 %lld 周后"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大約 %lld 週後"
+          }
+        }
+      }
+    },
+    "Within a week" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Innerhalb einer Woche"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En una semana"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D'ici une semaine"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entro una settimana"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W ciągu tygodnia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dentro de uma semana"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В течение недели"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一周内"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一週內"
+          }
+        }
+      }
+    },
+    "A chicken or turkey breast, 150 g" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Hähnchen- oder Putenbrust, 150 g"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una pechuga de pollo o pavo, 150 g"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un blanc de poulet ou de dinde, 150 g"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un petto di pollo o tacchino, 150 g"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierś z kurczaka lub indyka, 150 g"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um peito de frango ou peru, 150 g"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Куриная или индюшиная грудка, 150 г"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一块鸡胸或火鸡胸，150 克"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一塊雞胸或火雞胸，150 克"
+          }
+        }
+      }
+    },
+    "A fillet of fish, 150 g" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Fischfilet, 150 g"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un filete de pescado, 150 g"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un filet de poisson, 150 g"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un filetto di pesce, 150 g"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filet z ryby, 150 g"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um filete de peixe, 150 g"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рыбное филе, 150 г"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一块鱼排，150 克"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一塊魚排，150 克"
+          }
+        }
+      }
+    },
+    "About %lld more portions from this list a day close it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etwa %lld Portionen mehr aus dieser Liste am Tag schließen sie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unas %lld raciones más de esta lista al día la cierran."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environ %lld portions de plus de cette liste par jour le comblent."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Circa %lld porzioni in più di questa lista al giorno lo colmano."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Około %lld porcji więcej z tej listy dziennie ją zamyka."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca de %lld porções a mais desta lista por dia fecham-na."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Примерно %lld порции из этого списка в день закроют её."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天从这个列表多吃大约 %lld 份就能补上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天從這個列表多吃大約 %lld 份就能補上。"
+          }
+        }
+      }
+    },
+    "Cooked lentils, beans or chickpeas, 200 g" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekochte Linsen, Bohnen oder Kichererbsen, 200 g"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lentejas, alubias o garbanzos cocidos, 200 g"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lentilles, haricots ou pois chiches cuits, 200 g"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lenticchie, fagioli o ceci cotti, 200 g"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gotowana soczewica, fasola lub ciecierzyca, 200 g"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lentilhas, feijão ou grão cozidos, 200 g"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Варёная чечевица, фасоль или нут, 200 г"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "煮熟的扁豆、豆子或鹰嘴豆，200 克"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "煮熟的扁豆、豆子或鷹嘴豆，200 克"
+          }
+        }
+      }
+    },
+    "Last week on average %lld g, about %lld g short." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte Woche im Schnitt %lld g, etwa %lld g zu wenig."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La semana pasada, de media %lld g, unos %lld g por debajo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La semaine dernière, en moyenne %lld g, environ %lld g en dessous."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La settimana scorsa in media %lld g, circa %lld g in meno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W zeszłym tygodniu średnio %lld g, około %lld g za mało."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na semana passada, em média %lld g, cerca de %lld g abaixo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На прошлой неделе в среднем %lld г, примерно на %lld г меньше."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上周平均 %lld 克，大约少了 %lld 克。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上週平均 %lld 克，大約少了 %lld 克。"
+          }
+        }
+      }
+    },
+    "Lean beef or pork, 150 g" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mageres Rind- oder Schweinefleisch, 150 g"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ternera o cerdo magro, 150 g"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bœuf ou porc maigre, 150 g"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manzo o maiale magro, 150 g"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chuda wołowina lub wieprzowina, 150 g"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carne de vaca ou porco magra, 150 g"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Постная говядина или свинина, 150 г"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "瘦牛肉或猪肉，150 克"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "瘦牛肉或豬肉，150 克"
+          }
+        }
+      }
+    },
+    "One more portion from this list a day closes it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Portion mehr aus dieser Liste am Tag schließt sie."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una ración más de esta lista al día la cierra."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une portion de plus de cette liste par jour le comble."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una porzione in più di questa lista al giorno lo colma."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jedna porcja więcej z tej listy dziennie ją zamyka."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma porção a mais desta lista por dia fecha-a."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одна порция из этого списка в день закроет её."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天从这个列表多吃一份就能补上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天從這個列表多吃一份就能補上。"
+          }
+        }
+      }
+    },
+    "Protein per everyday portion, rounded from common food tables." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protein pro üblicher Portion, gerundet nach gängigen Nährwerttabellen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proteína por ración habitual, redondeada a partir de tablas de alimentos comunes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protéines par portion courante, arrondies d'après les tables alimentaires usuelles."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proteine per porzione abituale, arrotondate dalle comuni tabelle alimentari."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Białko w zwykłej porcji, zaokrąglone według popularnych tabel żywności."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proteína por porção habitual, arredondada a partir de tabelas de alimentos comuns."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Белок в обычной порции, округлён по распространённым таблицам продуктов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每份常见分量的蛋白质，按常用食物成分表取整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每份常見分量的蛋白質，按常用食物成分表取整。"
+          }
+        }
+      }
+    },
+    "Skyr, quark or cottage cheese, 250 g" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skyr, Quark oder Hüttenkäse, 250 g"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skyr, quark o requesón, 250 g"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skyr, fromage blanc ou cottage cheese, 250 g"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skyr, quark o fiocchi di latte, 250 g"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skyr, twaróg lub serek wiejski, 250 g"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skyr, quark ou queijo cottage, 250 g"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скир, творог или зернёный творог, 250 г"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冰岛酸奶、夸克或茅屋奶酪，250 克"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冰島優格、夸克或茅屋起司，250 克"
+          }
+        }
+      }
+    },
+    "Two eggs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zwei Eier"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dos huevos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deux œufs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Due uova"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dwa jajka"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dois ovos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Два яйца"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "两个鸡蛋"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兩顆雞蛋"
+          }
+        }
+      }
+    },
+    "Your plan: %lld g a day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Plan: %lld g am Tag"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu plan: %lld g al día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ton plan : %lld g par jour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo piano: %lld g al giorno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twój plan: %lld g dziennie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu plano: %lld g por dia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Твой план: %lld г в день"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的计划：每天 %lld 克"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的計畫：每天 %lld 克"
+          }
+        }
+      }
+    },
+    "A plan works when you can keep it. Forge starts from what you eat and burn today, asks a few questions and then checks every week how your body answers. Whether you lose, hold or build muscle, slow and steady beats short and hard, because the body pushes back against quick changes. After losing weight, for example, you get noticeably hungrier and burn a little less, and in large reviews more than half of the weight lost comes back within two years. So Forge plans with you slowly and honestly, with habits you will still live in a year." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Plan wirkt, wenn du ihn durchhältst. Forge startet mit dem, was du heute isst und verbrauchst, stellt ein paar Fragen und prüft dann jede Woche, wie dein Körper antwortet. Ob du abnimmst, hältst oder Muskeln aufbaust: Ruhig und stetig schlägt kurz und hart, weil der Körper sich gegen schnelle Änderungen wehrt. Nach dem Abnehmen zum Beispiel hast du spürbar mehr Hunger und verbrauchst etwas weniger, und in großen Übersichtsarbeiten kommt mehr als die Hälfte des verlorenen Gewichts binnen zwei Jahren zurück. Darum plant Forge mit dir langsam und ehrlich, mit Gewohnheiten, die du auch in einem Jahr noch lebst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un plan funciona cuando puedes mantenerlo. Forge parte de lo que comes y gastas hoy, hace unas preguntas y luego comprueba cada semana cómo responde tu cuerpo. Tanto si pierdes, mantienes o ganas músculo, lo lento y constante gana a lo corto y duro, porque el cuerpo se resiste a los cambios rápidos. Tras perder peso, por ejemplo, tienes bastante más hambre y gastas algo menos, y en grandes revisiones más de la mitad del peso perdido vuelve en dos años. Por eso Forge planifica contigo despacio y con honestidad, con hábitos que seguirás teniendo dentro de un año."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un plan fonctionne quand tu peux le tenir. Forge part de ce que tu manges et dépenses aujourd'hui, pose quelques questions puis vérifie chaque semaine comment ton corps répond. Que tu perdes, maintiennes ou prennes du muscle, lent et régulier vaut mieux que court et dur, car le corps résiste aux changements rapides. Après une perte de poids, par exemple, tu as nettement plus faim et dépenses un peu moins, et dans de grandes revues plus de la moitié du poids perdu revient en deux ans. Alors Forge planifie avec toi lentement et honnêtement, avec des habitudes que tu vivras encore dans un an."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un piano funziona quando riesci a seguirlo. Forge parte da ciò che mangi e consumi oggi, fa qualche domanda e poi controlla ogni settimana come risponde il tuo corpo. Che tu perda peso, lo mantenga o costruisca muscoli, lento e costante batte breve e duro, perché il corpo si oppone ai cambiamenti rapidi. Dopo aver perso peso, per esempio, hai molta più fame e consumi un po' meno, e in grandi revisioni più della metà del peso perso torna entro due anni. Per questo Forge pianifica con te lentamente e onestamente, con abitudini che vivrai ancora tra un anno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plan działa, gdy da się go utrzymać. Forge zaczyna od tego, co dziś jesz i spalasz, zadaje kilka pytań, a potem co tydzień sprawdza, jak odpowiada twoje ciało. Czy chudniesz, utrzymujesz wagę, czy budujesz mięśnie, powoli i stale wygrywa z krótko i ostro, bo ciało broni się przed szybkimi zmianami. Po schudnięciu na przykład jesteś wyraźnie bardziej głodny i spalasz trochę mniej, a w dużych przeglądach ponad połowa utraconej wagi wraca w ciągu dwóch lat. Dlatego Forge planuje z tobą powoli i uczciwie, z nawykami, które utrzymasz także za rok."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um plano funciona quando o consegues manter. O Forge parte do que comes e gastas hoje, faz algumas perguntas e depois verifica todas as semanas como o teu corpo responde. Quer percas peso, o mantenhas ou ganhes músculo, devagar e constante vence curto e duro, porque o corpo resiste a mudanças rápidas. Depois de perder peso, por exemplo, tens bastante mais fome e gastas um pouco menos, e em grandes revisões mais de metade do peso perdido volta em dois anos. Por isso o Forge planeia contigo devagar e com honestidade, com hábitos que ainda vais viver daqui a um ano."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "План работает, когда его можно выдержать. Forge начинает с того, что ты ешь и тратишь сегодня, задаёт несколько вопросов и затем каждую неделю проверяет, как отвечает тело. Худеешь ли ты, держишь вес или набираешь мышцы, медленно и стабильно лучше, чем быстро и жёстко, потому что тело сопротивляется резким переменам. После похудения, например, ты заметно сильнее голоден и тратишь чуть меньше, а в крупных обзорах больше половины сброшенного веса возвращается за два года. Поэтому Forge планирует с тобой медленно и честно, с привычками, которые ты сохранишь и через год."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能坚持的计划才有效。Forge 从你今天的饮食和消耗出发，问几个问题，然后每周检查身体的反应。无论减重、保持还是增肌，慢而稳都胜过短而猛，因为身体会抵抗快速的变化。比如减重后，你会明显更饿，消耗也略少；在大型综述中，减掉的体重有一半以上会在两年内回来。所以 Forge 和你一起慢慢、诚实地计划，养成一年后依然保持的习惯。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能堅持的計畫才有效。Forge 從你今天的飲食和消耗出發，問幾個問題，然後每週檢查身體的反應。無論減重、保持還是增肌，慢而穩都勝過短而猛，因為身體會抵抗快速的變化。比如減重後，你會明顯更餓，消耗也略少；在大型綜述中，減掉的體重有一半以上會在兩年內回來。所以 Forge 和你一起慢慢、誠實地計畫，養成一年後依然保持的習慣。"
+          }
+        }
+      }
+    },
     "Log journal" : {
       "localizations" : {
         "de" : {

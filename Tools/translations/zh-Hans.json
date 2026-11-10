@@ -4535,5 +4535,21 @@
   "Suggestions this week": "本周建议",
   "Break week: eat what you burn": "休整周：吃多少消耗多少",
   "Goal reached: stepping down to holding": "已达成目标：过渡到保持",
-  "Holding your goal weight": "保持目标体重"
+  "Holding your goal weight": "保持目标体重",
+  "Today: %@ kcal → %@ kcal": "今天：%@ 大卡 → %@ 大卡",
+  "A slower pace is easier to keep and keeps more muscle.": "慢一点的速度更容易坚持，也能保留更多肌肉。",
+  "In about %lld weeks": "大约 %lld 周后",
+  "Within a week": "一周内",
+  "A chicken or turkey breast, 150 g": "一块鸡胸或火鸡胸，150 克",
+  "A fillet of fish, 150 g": "一块鱼排，150 克",
+  "About %lld more portions from this list a day close it.": "每天从这个列表多吃大约 %lld 份就能补上。",
+  "Cooked lentils, beans or chickpeas, 200 g": "煮熟的扁豆、豆子或鹰嘴豆，200 克",
+  "Last week on average %lld g, about %lld g short.": "上周平均 %lld 克，大约少了 %lld 克。",
+  "Lean beef or pork, 150 g": "瘦牛肉或猪肉，150 克",
+  "One more portion from this list a day closes it.": "每天从这个列表多吃一份就能补上。",
+  "Protein per everyday portion, rounded from common food tables.": "每份常见分量的蛋白质，按常用食物成分表取整。",
+  "Skyr, quark or cottage cheese, 250 g": "冰岛酸奶、夸克或茅屋奶酪，250 克",
+  "Two eggs": "两个鸡蛋",
+  "Your plan: %lld g a day": "你的计划：每天 %lld 克",
+  "A plan works when you can keep it. Forge starts from what you eat and burn today, asks a few questions and then checks every week how your body answers. Whether you lose, hold or build muscle, slow and steady beats short and hard, because the body pushes back against quick changes. After losing weight, for example, you get noticeably hungrier and burn a little less, and in large reviews more than half of the weight lost comes back within two years. So Forge plans with you slowly and honestly, with habits you will still live in a year.": "能坚持的计划才有效。Forge 从你今天的饮食和消耗出发，问几个问题，然后每周检查身体的反应。无论减重、保持还是增肌，慢而稳都胜过短而猛，因为身体会抵抗快速的变化。比如减重后，你会明显更饿，消耗也略少；在大型综述中，减掉的体重有一半以上会在两年内回来。所以 Forge 和你一起慢慢、诚实地计划，养成一年后依然保持的习惯。"
 }

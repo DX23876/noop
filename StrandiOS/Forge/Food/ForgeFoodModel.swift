@@ -147,6 +147,15 @@ final class ForgeFoodModel {
         return r
     }
 
+    /// A plan's calories on `day` with that day's phase and training share, without the active-day extra: the same
+    /// basis for the plan in force and for a proposed one, so a before and after compare like with like.
+    func plannedKcal(on day: String, plan candidate: DietPlan) -> Double? {
+        guard let person, let burn = planBurnKcal else { return nil }
+        let p = DietProgram.phase(on: day, plan: candidate, goalReachedDay: goalReachedDay)
+        let r = DietTargets.resolve(candidate, person: person, burnKcal: burn, kcalPerKg: kcalPerKg, phase: p)
+        return DietTargets.kcal(on: day, plan: candidate, result: r, training: training)
+    }
+
     private func resolvePlan() {
         resultByPhase = [:]
         goalReachedDay = plan.flatMap { p in
@@ -335,6 +344,8 @@ final class ForgeFoodModel {
 
     /// This week's suggestions for the plan, at most three.
     private(set) var advice: [DietAdvice.Suggestion] = []
+    /// Mean protein on the logged days of the last seven, the figure the protein suggestion is about.
+    private(set) var proteinMean7: Double?
     @ObservationIgnored private var strengthChange4Weeks: Double?
     private static let adviceDismissedKey = "food.advice.dismissed"
 
@@ -356,7 +367,8 @@ final class ForgeFoodModel {
         let trend = DietAdjust.slopePerWeek(recentWeights.filter { $0.day >= key(20) })
         let age = WeightSeries.date(forDay: plan.startDay).flatMap { cal.dateComponents([.day], from: $0, to: .now).day } ?? 0
         let p = phase(for: today)
-        let inputs = DietAdvice.Inputs(goal: planResult.goal, proteinMeanG: proteins.isEmpty ? nil : proteins.reduce(0, +) / Double(proteins.count),
+        proteinMean7 = proteins.isEmpty ? nil : proteins.reduce(0, +) / Double(proteins.count)
+        let inputs = DietAdvice.Inputs(goal: planResult.goal, proteinMeanG: proteinMean7,
                                        proteinGoalG: planResult.proteinG, weighInsLast7: weights7, loggedDaysLast7: last7.count,
                                        strengthChange4WeeksPercent: strengthChange4Weeks, trend3WeeksKgPerWeek: trend,
                                        loggedDaysLast21: days21.count, inBreakOrHolding: p != .main, planAgeDays: age)

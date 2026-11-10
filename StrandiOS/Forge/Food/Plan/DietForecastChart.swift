@@ -81,7 +81,8 @@ enum DietForecastText {
 
 /// A picture card for a choice: still life on top, the words under it, a check when chosen.
 struct DietChoiceCard: View {
-    let image: String
+    /// Nil for a card that only differs in its words, so one picture is not repeated down a list.
+    let image: String?
     let title: String
     let detail: String
     var badge: String? = nil
@@ -92,10 +93,12 @@ struct DietChoiceCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                Image(image).resizable().scaledToFill()
-                    .frame(maxWidth: .infinity).frame(height: 96).clipped()
-                    .clipShape(.rect(cornerRadius: ForgeRadius.inner))
-                    .accessibilityHidden(true)
+                if let image {
+                    Image(image).resizable().scaledToFill()
+                        .frame(maxWidth: .infinity).frame(height: 96).clipped()
+                        .clipShape(.rect(cornerRadius: ForgeRadius.inner))
+                        .accessibilityHidden(true)
+                }
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(.headline).foregroundStyle(ForgeColor.text)
                     Spacer(minLength: 4)

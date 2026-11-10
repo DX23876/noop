@@ -49,7 +49,8 @@ struct DietPlanView: View {
                     }
                     if !plan.hideNumbers, plan.steering != .manual { DietBurnCard(model: model) }
                     FoodSectionHeader(title: String(localized: "Every day"))
-                    numbers(plan, r)
+                    // The numbers in force today: a break week or the step down to holding changes them for a while.
+                    numbers(plan, model.result(for: Repository.localDayKey(.now)) ?? r)
                     FoodSectionHeader(title: String(localized: "Foods that suit it"))
                     fits(plan)
                     ForEach(r.notes, id: \.self) { n in
@@ -65,10 +66,22 @@ struct DietPlanView: View {
             .padding(.bottom, 32)
         }
         .background(ForgeBackground(tab: .today))
+        #if DEBUG
+        // `--demo-coach-proposal` puts a sample coach change on the page, for screenshots.
+        .onAppear {
+            if CommandLine.arguments.contains("--demo-coach-proposal"), proposalRaw.isEmpty {
+                proposalRaw = DietPlanChange(dayShift: 0.15, breakWeekNow: true,
+                                             rationale: "Your lifts went up 12 % while your waist moved only a little. A week at maintenance and a bit more on training days should help.",
+                                             createdAt: Int(Date.now.timeIntervalSince1970)).encoded() ?? ""
+            }
+        }
+        #endif
         .navigationTitle("Plan")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showProteinFoods) {
-            if let week = model.nutrients { FoodRecommendationsSheet(report: week) }
+            if let plan = model.plan, let r = model.planResult {
+                DietProteinSheet(goalG: r.proteinG, meanG: model.proteinMean7, addon: plan.addon)
+            }
         }
         .sheet(isPresented: $editing) { DietPlannerView(model: model, start: model.plan).environmentObject(repo) }
         .confirmationDialog("End the plan?", isPresented: $confirmEnd, titleVisibility: .visible) {
@@ -118,6 +131,9 @@ struct DietPlanView: View {
 
     private func numbers(_ plan: DietPlan, _ r: DietTargets.Result) -> some View {
         VStack(alignment: .leading, spacing: 10) {
+            if case let phase = model.phase(for: Repository.localDayKey(.now)), phase != .main {
+                Label(FoodText.phase(phase), systemImage: "pause.circle.fill").font(.subheadline.weight(.semibold)).foregroundStyle(ForgeColor.accent)
+            }
             if !plan.hideNumbers {
                 HStack(alignment: .firstTextBaseline) {
                     Text(FoodText.kcal(r.averageKcal)).font(ForgeFont.rounded(34, .bold)).monospacedDigit()

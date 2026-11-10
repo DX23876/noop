@@ -4411,5 +4411,21 @@
   "Suggestions this week": "Предложения на эту неделю",
   "Break week: eat what you burn": "Неделя паузы: ешь столько, сколько тратишь",
   "Goal reached: stepping down to holding": "Цель достигнута: переход к удержанию",
-  "Holding your goal weight": "Удерживаешь целевой вес"
+  "Holding your goal weight": "Удерживаешь целевой вес",
+  "Today: %@ kcal → %@ kcal": "Сегодня: %@ ккал → %@ ккал",
+  "A slower pace is easier to keep and keeps more muscle.": "Медленный темп легче выдержать, и он сохраняет больше мышц.",
+  "In about %lld weeks": "Примерно через %lld нед.",
+  "Within a week": "В течение недели",
+  "A chicken or turkey breast, 150 g": "Куриная или индюшиная грудка, 150 г",
+  "A fillet of fish, 150 g": "Рыбное филе, 150 г",
+  "About %lld more portions from this list a day close it.": "Примерно %lld порции из этого списка в день закроют её.",
+  "Cooked lentils, beans or chickpeas, 200 g": "Варёная чечевица, фасоль или нут, 200 г",
+  "Last week on average %lld g, about %lld g short.": "На прошлой неделе в среднем %lld г, примерно на %lld г меньше.",
+  "Lean beef or pork, 150 g": "Постная говядина или свинина, 150 г",
+  "One more portion from this list a day closes it.": "Одна порция из этого списка в день закроет её.",
+  "Protein per everyday portion, rounded from common food tables.": "Белок в обычной порции, округлён по распространённым таблицам продуктов.",
+  "Skyr, quark or cottage cheese, 250 g": "Скир, творог или зернёный творог, 250 г",
+  "Two eggs": "Два яйца",
+  "Your plan: %lld g a day": "Твой план: %lld г в день",
+  "A plan works when you can keep it. Forge starts from what you eat and burn today, asks a few questions and then checks every week how your body answers. Whether you lose, hold or build muscle, slow and steady beats short and hard, because the body pushes back against quick changes. After losing weight, for example, you get noticeably hungrier and burn a little less, and in large reviews more than half of the weight lost comes back within two years. So Forge plans with you slowly and honestly, with habits you will still live in a year.": "План работает, когда его можно выдержать. Forge начинает с того, что ты ешь и тратишь сегодня, задаёт несколько вопросов и затем каждую неделю проверяет, как отвечает тело. Худеешь ли ты, держишь вес или набираешь мышцы, медленно и стабильно лучше, чем быстро и жёстко, потому что тело сопротивляется резким переменам. После похудения, например, ты заметно сильнее голоден и тратишь чуть меньше, а в крупных обзорах больше половины сброшенного веса возвращается за два года. Поэтому Forge планирует с тобой медленно и честно, с привычками, которые ты сохранишь и через год."
 }

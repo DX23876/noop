@@ -174,7 +174,7 @@ enum DietText {
     // MARK: Explainer cards
 
     static let explainStartTitle = String(localized: "Before we plan")
-    static let explainStart = String(localized: "Most diets do not fail at losing weight, they fail afterwards. In large reviews, more than half of the weight lost comes back within two years, and often most of it within five. The reason is rarely a lack of will: the body pushes back. After losing weight you get noticeably hungrier and burn a little less. Staying lighter needs habits you will still live in a year, not a short hard diet. So Forge plans with you slowly and honestly.")
+    static let explainStart = String(localized: "A plan works when you can keep it. Forge starts from what you eat and burn today, asks a few questions and then checks every week how your body answers. Whether you lose, hold or build muscle, slow and steady beats short and hard, because the body pushes back against quick changes. After losing weight, for example, you get noticeably hungrier and burn a little less, and in large reviews more than half of the weight lost comes back within two years. So Forge plans with you slowly and honestly, with habits you will still live in a year.")
     static let explainPaceTitle = String(localized: "Why not faster?")
     static let explainPace = String(localized: "Losing fast feels good, but it often costs muscle and makes you hungrier. Up to about 1 % of your weight a week stays doable, above all with enough protein and some strength training. Slower is not worse: it is the pace you keep up for longer.")
     static let explainHoldTitle = String(localized: "After the goal comes holding")

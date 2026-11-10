@@ -14,10 +14,12 @@ struct DietProgressCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Image(picture).resizable().scaledToFill()
-                .frame(maxWidth: .infinity).frame(height: compact ? 110 : 160).clipped()
-                .clipShape(.rect(cornerRadius: ForgeRadius.inner))
-                .accessibilityHidden(true)
+            if showsPicture {
+                Image(picture).resizable().scaledToFill()
+                    .frame(maxWidth: .infinity).frame(height: compact ? 110 : 160).clipped()
+                    .clipShape(.rect(cornerRadius: ForgeRadius.inner))
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(ForgeFont.rounded(compact ? 20 : 24, .bold)).foregroundStyle(ForgeColor.text)
                 Text(detail).font(.subheadline).foregroundStyle(ForgeColor.secondary)
@@ -39,6 +41,13 @@ struct DietProgressCard: View {
         }
         .forgeCard(padding: 14)
         .accessibilityElement(children: .combine)
+    }
+
+    /// The plan page already opens with recomposition's photo; a second one under it adds nothing. Today shows it.
+    private var showsPicture: Bool {
+        if compact { return true }
+        if case .recomp = progress { return false }
+        return true
     }
 
     private var picture: String {

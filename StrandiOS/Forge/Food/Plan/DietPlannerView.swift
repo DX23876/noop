@@ -39,7 +39,15 @@ struct DietPlannerView: View {
         if let i = args.firstIndex(of: "--demo-planner"), i + 1 < args.count, let s = Int(args[i + 1]) {
             _step = State(initialValue: s)
             if args.contains("advanced") { initial.mode = .advanced }
+            if let g = args.firstIndex(of: "--demo-goal"), g + 1 < args.count,
+               let goal = DietPlan.Goal(rawValue: args[g + 1]) {
+                initial.goal = goal
+                if goal == .gain || goal == .recomp { initial.strength = true }
+            }
             if s >= 3, initial.goalWeightKg == nil { initial.goalWeightKg = (weight * 0.9).rounded() }
+            if let g = args.firstIndex(of: "--demo-goal"), g + 1 < args.count, let goal = DietPlan.Goal(rawValue: args[g + 1]) {
+                initial.goalWeightKg = goal == .gain ? (initial.startWeightKg * 1.06).rounded() : goal == .lose ? initial.goalWeightKg : nil
+            }
         }
         #endif
         _draft = State(initialValue: initial)
@@ -132,6 +140,10 @@ struct DietPlannerView: View {
                 DietChoiceCard(image: DietArt.goal(g, male: person.male), title: DietText.goal(g), detail: DietText.goalDetail(g),
                                selected: draft.goal == g) {
                     draft.goal = g
+                    // A goal weight from the other direction (losing to 85 kg, then switching to gaining) is dropped.
+                    if let gw = draft.goalWeightKg, (g == .gain && gw <= person.weightKg) || (g == .lose && gw >= person.weightKg) {
+                        draft.goalWeightKg = nil
+                    }
                     if g == .recomp || g == .gain {
                         // Gaining and recomposition build muscle: they need strength training.
                         draft.strength = true
@@ -153,7 +165,7 @@ struct DietPlannerView: View {
 
     private var weightStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header(DietArt.goal(draft.goal, male: person.male), why: String(localized: "Your weight and your burn set every number that follows."))
+            header(DietArt.stage(.start), why: String(localized: "Your weight and your burn set every number that follows."))
             title("Where do you start?")
             VStack(alignment: .leading, spacing: 6) {
                 LabeledContent("Today", value: DietText.kg(person.weightKg))
@@ -202,11 +214,12 @@ struct DietPlannerView: View {
                 Text("Holding your weight means eating about as much as you burn. Forge keeps an eye on the trend.")
                     .foregroundStyle(ForgeColor.secondary)
             } else {
+                header(DietArt.goal(draft.goal, male: person.male), why: String(localized: "A slower pace is easier to keep and keeps more muscle."))
                 title("How fast?")
                 if draft.mode == .simple {
-                    ForEach(DietPlan.Pace.allCases, id: \.self) { p in
+                    ForEach(paceOptions, id: \.self) { p in
                         let pct = p.percent(for: draft.goal)
-                        DietChoiceCard(image: DietArt.goal(draft.goal, male: person.male), title: DietText.pace(p),
+                        DietChoiceCard(image: nil, title: DietText.pace(p),
                                        detail: String(localized: "\(DietText.percent(pct)) of your weight a week, for you about \(DietText.kg(person.weightKg * pct / 100))."),
                                        selected: abs(draft.pacePercent - pct) < 0.01) { draft.pacePercent = pct }
                     }
@@ -228,6 +241,16 @@ struct DietPlannerView: View {
                     DietExplainCard(image: DietArt.explain("pace"), title: DietText.explainPaceTitle, text: DietText.explainPace)
                 }
             }
+        }
+    }
+
+    /// The simple mode's paces, without one that would repeat the one before it (gaining tops out at the normal pace).
+    private var paceOptions: [DietPlan.Pace] {
+        var seen: [Double] = []
+        return DietPlan.Pace.allCases.filter { p in
+            let pct = p.percent(for: draft.goal)
+            guard !seen.contains(pct) else { return false }
+            seen.append(pct); return true
         }
     }
 
@@ -411,7 +434,7 @@ struct DietPlannerView: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
-            if current == .pace || current == .form || current == .addon || current == .numbers {
+            if current == .pace || current == .form || current == .addon {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("\(FoodText.kcal(result.averageKcal)) kcal").font(.headline).monospacedDigit()
                     Text(DietText.effort(result.effort)).font(.caption).foregroundStyle(DietText.effortTint(result.effortScore))
@@ -489,8 +512,11 @@ struct DietPlannerView: View {
         }
         if r.goal == .recomp {
             stops.append(("chart.line.uptrend.xyaxis", String(localized: "Over months"), String(localized: "Body fat or your waist goes down, your lifts go up, the scale barely moves.")))
-        } else if r.goalWeightKg != nil, let weeks = forecast.goalWeeks {
-            stops.append(("mountain.2.fill", String(localized: "In about \(weeks.lowerBound) to \(weeks.upperBound) weeks"),
+        } else if r.goal == .lose || r.goal == .gain, r.goalWeightKg != nil, let weeks = forecast.goalWeeks {
+            let when = weeks.upperBound <= 1 ? String(localized: "Within a week")
+                : weeks.lowerBound == weeks.upperBound ? String(localized: "In about \(weeks.upperBound) weeks")
+                : String(localized: "In about \(weeks.lowerBound) to \(weeks.upperBound) weeks")
+            stops.append(("mountain.2.fill", when,
                           String(localized: "You reach your goal. Forge steps down to holding over a week instead of simply lifting your calories.")))
         }
         return VStack(alignment: .leading, spacing: 16) {
@@ -552,7 +578,7 @@ struct DietPlannerView: View {
     private var trainingStep: some View {
         let order = (0..<7).map { (Calendar.current.firstWeekday - 1 + $0) % 7 + 1 }
         return VStack(alignment: .leading, spacing: 12) {
-            header(DietArt.goal(draft.goal == .maintain ? .recomp : draft.goal, male: person.male),
+            header(DietArt.goal(draft.goal == .gain || draft.goal == .maintain ? .recomp : .gain, male: person.male),
                    why: String(localized: "Training days use more energy. Forge puts more carbohydrate where your body needs it."))
             title("When do you train?")
             Text(draft.goal == .recomp

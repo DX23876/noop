@@ -297,3 +297,22 @@ final class DietPlanChangeTests: XCTestCase {
         XCTAssertEqual(round.form, .keto)
     }
 }
+
+final class DietGoalWeightTests: XCTestCase {
+    func testGoalWeightOnTheWrongSideIsDropped() {
+        let person = DietPerson(weightKg: 95, heightCm: 180, age: 35, male: true)
+        var plan = DietPlan(startDay: "2026-11-10", startWeightKg: 95)
+        plan.goal = .gain; plan.goalWeightKg = 85
+        XCTAssertNil(DietTargets.plannedGoalWeight(plan, person: person))
+        plan.goalWeightKg = 100
+        XCTAssertEqual(DietTargets.plannedGoalWeight(plan, person: person), 100)
+        plan.goal = .lose
+        XCTAssertNil(DietTargets.plannedGoalWeight(plan, person: person))
+        plan.goalWeightKg = 85
+        XCTAssertEqual(DietTargets.plannedGoalWeight(plan, person: person), 85)
+        // Reached and passed: the goal stays, so the plan can step down to holding.
+        XCTAssertEqual(DietTargets.plannedGoalWeight(plan, person: DietPerson(weightKg: 84, heightCm: 180, age: 35, male: true)), 85)
+        plan.goal = .maintain
+        XCTAssertNil(DietTargets.plannedGoalWeight(plan, person: person))
+    }
+}
