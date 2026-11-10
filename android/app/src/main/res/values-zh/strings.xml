@@ -5019,4 +5019,9 @@
     <string name="forge_h_off_typical">超出范围</string>
     <string name="forge_health_trends_sub">数月的 Charge、Effort 和 Rest</string>
     <string name="forge_health_all_metrics_sub">每项指标，自由比较</string>
+    <string name="forge_h_badge_in_range">在你的范围内</string>
+    <string name="forge_h_badge_typical">典型范围</string>
+    <string name="forge_h_badge_estimated">估计的</string>
+    <string name="forge_sleep_nav">%1$s · %2$s 至 %3$s</string>
+    <string name="forge_sleep_days">%1$s 至 %2$s</string>
 </resources>

@@ -5062,4 +5062,9 @@
     <string name="forge_h_off_typical">Außerhalb des Bereichs</string>
     <string name="forge_health_trends_sub">Charge, Effort und Rest über Monate</string>
     <string name="forge_health_all_metrics_sub">Jeder Messwert, frei vergleichbar</string>
+    <string name="forge_h_badge_in_range">In deinem Bereich</string>
+    <string name="forge_h_badge_typical">Typischer Bereich</string>
+    <string name="forge_h_badge_estimated">Geschätzt</string>
+    <string name="forge_sleep_nav">%1$s · %2$s bis %3$s</string>
+    <string name="forge_sleep_days">%1$s bis %2$s</string>
 </resources>

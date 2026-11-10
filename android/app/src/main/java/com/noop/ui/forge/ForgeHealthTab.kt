@@ -248,5 +248,26 @@ private fun VitalTile(v: Vital, modifier: Modifier, onClick: () -> Unit) {
         )
         Spacer(Modifier.height(ForgeMetrics.space2))
         if (v.sparkline.size > 1) Sparkline(v.sparkline, color = v.metricColor)
+        VitalBadge(v)
     }
+}
+
+/**
+ * The judgement under a vital tile, as iOS's `ForgeBadge`: in the wearer's range or the typical one, off it,
+ * or "Estimated" for the strap's blood-oxygen figure. Nothing for an empty tile or the raw optical reading.
+ */
+@Composable
+private fun VitalBadge(v: Vital) {
+    if (v.banding.band == VitalBands.Band.NO_DATA || v.key == "spo2raw") return
+    val colors = Forge.colors
+    val personal = v.banding.basis == VitalBands.Basis.PERSONAL
+    val inRange = v.banding.band == VitalBands.Band.IN_RANGE
+    val (text, tint) = when {
+        v.isEstimate -> stringResource(R.string.forge_h_badge_estimated) to colors.textSecondary
+        inRange -> stringResource(if (personal) R.string.forge_h_badge_in_range else R.string.forge_h_badge_typical) to colors.charge
+        else -> stringResource(if (personal) R.string.forge_h_off_baseline else R.string.forge_h_off_typical) to colors.effort
+    }
+    Spacer(Modifier.height(ForgeMetrics.space2))
+    Text(text, style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = tint, maxLines = 1,
+         modifier = Modifier.background(tint.copy(alpha = 0.14f), CircleShape).padding(horizontal = 10.dp, vertical = 3.dp))
 }

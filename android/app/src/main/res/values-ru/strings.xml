@@ -4950,4 +4950,9 @@
     <string name="forge_h_off_typical">Вне диапазона</string>
     <string name="forge_health_trends_sub">Charge, Effort и Rest за месяцы</string>
     <string name="forge_health_all_metrics_sub">Каждый показатель, сравнивай свободно</string>
+    <string name="forge_h_badge_in_range">В вашем диапазоне</string>
+    <string name="forge_h_badge_typical">Типичный диапазон</string>
+    <string name="forge_h_badge_estimated">Оцененный</string>
+    <string name="forge_sleep_nav">%1$s · %2$s–%3$s</string>
+    <string name="forge_sleep_days">с %1$s по %2$s</string>
 </resources>

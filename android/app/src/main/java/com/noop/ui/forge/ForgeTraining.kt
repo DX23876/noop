@@ -223,6 +223,13 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             }
         }
         if (s == null) return@Column
+        // The new design opens on the week, then starting, as iOS's `weekHero` over `startRow`.
+        if (ForgeDesign.preview) {
+            Section(stringResource(R.string.forge_th_this_week), stringResource(R.string.forge_th_schedule),
+                    trailing = { TintButton(stringResource(R.string.forge_th_edit)) { page = TrainingPage.Schedule } }) {
+                WeekStrip(s.week) { page = TrainingPage.Schedule }
+            }
+        }
         val live = activeWorkout
         if (s.hasDraft || live != null) {
             InProgressCard(subtitle = live?.sport?.name, onResume = {
@@ -239,9 +246,11 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         }
         ForgeGoalsContextCard("training")
 
-        Section(stringResource(R.string.forge_th_this_week), stringResource(R.string.forge_th_schedule),
-                trailing = { TintButton(stringResource(R.string.forge_th_edit)) { page = TrainingPage.Schedule } }) {
-            WeekStrip(s.week) { page = TrainingPage.Schedule }
+        if (!ForgeDesign.preview) {
+            Section(stringResource(R.string.forge_th_this_week), stringResource(R.string.forge_th_schedule),
+                    trailing = { TintButton(stringResource(R.string.forge_th_edit)) { page = TrainingPage.Schedule } }) {
+                WeekStrip(s.week) { page = TrainingPage.Schedule }
+            }
         }
 
         Section(stringResource(R.string.forge_th_routines), stringResource(R.string.forge_th_your_training), trailing = {

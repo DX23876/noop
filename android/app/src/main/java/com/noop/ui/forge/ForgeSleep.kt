@@ -320,17 +320,14 @@ private fun NightNavigator(night: CoreRead.Night?, isLatest: Boolean, zone: Zone
                            onBack: () -> Unit, onForward: () -> Unit) {
     val locale = Locale.getDefault()
     val clockFormat = rememberClockFormatter()
-    val which = when {
-        night == null || isLatest -> stringResource(R.string.forge_last_night)
-        else -> {
-            // The wake day alone: the clock span beside it already says the night began the evening before.
-            val f = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, DAY_MONTH_SKELETON), locale)
-            Instant.ofEpochSecond(night.endTs).atZone(zone).format(f)
-        }
-    }
-    val span = night?.let { stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027,
-                                           clock(it.startTs, zone, clockFormat), clock(it.endTs, zone, clockFormat)) }
-    val label = span?.let { "$which · $it" } ?: which
+    // As iOS's navigator: the two weekdays the night spans, then its clock span ("Tue to Wed · 23:13 to 06:04").
+    val weekday = DateTimeFormatter.ofPattern("EEE", locale)
+    val label = night?.let {
+        stringResource(R.string.forge_sleep_nav,
+                       stringResource(R.string.forge_sleep_days, Instant.ofEpochSecond(it.startTs).atZone(zone).format(weekday),
+                                      Instant.ofEpochSecond(it.endTs).atZone(zone).format(weekday)),
+                       clock(it.startTs, zone, clockFormat), clock(it.endTs, zone, clockFormat))
+    } ?: stringResource(R.string.forge_last_night)
     Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack, enabled = canBack) {
             Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.forge_previous_night),

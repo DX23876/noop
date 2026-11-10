@@ -5048,4 +5048,9 @@
     <string name="forge_h_off_typical">Hors plage</string>
     <string name="forge_health_trends_sub">Charge, Effort et Rest sur des mois</string>
     <string name="forge_health_all_metrics_sub">Chaque mesure, à comparer librement</string>
+    <string name="forge_h_badge_in_range">Dans votre plage</string>
+    <string name="forge_h_badge_typical">Plage typique</string>
+    <string name="forge_h_badge_estimated">Estimé</string>
+    <string name="forge_sleep_nav">%1$s · %2$s à %3$s</string>
+    <string name="forge_sleep_days">du %1$s au %2$s</string>
 </resources>

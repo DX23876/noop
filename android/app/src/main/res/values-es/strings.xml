@@ -5049,4 +5049,9 @@
     <string name="forge_h_off_typical">Fuera de rango</string>
     <string name="forge_health_trends_sub">Charge, Effort y Rest durante meses</string>
     <string name="forge_health_all_metrics_sub">Cada métrica, compara libremente</string>
+    <string name="forge_h_badge_in_range">En tu rango</string>
+    <string name="forge_h_badge_typical">Rango típico</string>
+    <string name="forge_h_badge_estimated">Estimado</string>
+    <string name="forge_sleep_nav">%1$s · %2$s a %3$s</string>
+    <string name="forge_sleep_days">del %1$s al %2$s</string>
 </resources>

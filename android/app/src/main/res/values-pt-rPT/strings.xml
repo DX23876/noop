@@ -5041,4 +5041,9 @@
     <string name="forge_h_off_typical">Fora do alcance</string>
     <string name="forge_health_trends_sub">Charge, Effort e Rest ao longo de meses</string>
     <string name="forge_health_all_metrics_sub">Cada métrica, compara livremente</string>
+    <string name="forge_h_badge_in_range">No teu alcance</string>
+    <string name="forge_h_badge_typical">Faixa típica</string>
+    <string name="forge_h_badge_estimated">Estimado</string>
+    <string name="forge_sleep_nav">%1$s · %2$s às %3$s</string>
+    <string name="forge_sleep_days">de %1$s a %2$s</string>
 </resources>
