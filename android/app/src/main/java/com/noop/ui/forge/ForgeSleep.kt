@@ -357,7 +357,7 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
     if (naps.isEmpty()) return
     val clockFormat = rememberClockFormatter()
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        Text(stringResource(R.string.forge_sleep_naps), style = Forge.type.headline, color = Forge.sceneInk.text,
+        Text(stringResource(R.string.forge_sleep_naps), style = Forge.type.headline, color = Forge.colors.text,
              modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         ForgeCard(Modifier.fillMaxWidth()) {
             naps.forEachIndexed { i, nap ->

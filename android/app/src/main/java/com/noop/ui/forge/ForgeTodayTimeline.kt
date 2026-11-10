@@ -136,7 +136,9 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     val today = LocalDate.now(zone)
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Text(stringResource(R.string.forge_timeline_title), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),
-             color = Forge.sceneInk.text, modifier = Modifier.padding(top = ForgeMetrics.space3, bottom = ForgeMetrics.space3))
+             // The canvas text colour, as iOS's `ForgeSectionTitle`: the rail sits below the scene, where scene ink
+             // (white over the picture) all but vanished on the light canvas.
+             color = Forge.colors.text, modifier = Modifier.padding(top = ForgeMetrics.space3, bottom = ForgeMetrics.space3))
         RailRow(time = time(context, now), dot = Forge.colors.effort, last = entries.isEmpty()) {
             Text(stringResource(R.string.forge_timeline_now), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
                  color = Color.White,

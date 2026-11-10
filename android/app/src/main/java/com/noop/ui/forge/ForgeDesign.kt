@@ -2,6 +2,9 @@ package com.noop.ui.forge
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -58,7 +61,8 @@ internal fun ForgeMoreOverlay(viewModel: com.noop.ui.AppViewModel, onDismiss: ()
     ForgeOverlayPage(onDismiss = onDismiss) {
         ForgeSceneBackdrop(ForgeBackdrop.Sky) {
             androidx.activity.compose.BackHandler(onBack = onDismiss)
-            ForgeMoreScreen(androidx.compose.foundation.layout.PaddingValues(), viewModel)
+            // The system bars' insets, as the tab's Scaffold supplied them: empty padding drew the title under the clock.
+            ForgeMoreScreen(WindowInsets.systemBars.asPaddingValues(), viewModel)
         }
     }
 }
