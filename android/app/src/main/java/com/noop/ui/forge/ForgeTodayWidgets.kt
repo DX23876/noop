@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -211,7 +212,13 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
     var gallery by remember { mutableStateOf(false) }
-    val columns = if (width == ForgeWidth.Compact) 2 else 3
+    // Tiles per row as iOS: the choice shared with Key Metrics (`KeyMetricPrefs`, three until chosen), two at the
+    // largest text sizes where three cut their figures off.
+    var columnsChoice by remember {
+        androidx.compose.runtime.mutableIntStateOf(com.noop.ui.KeyMetricPrefs.columns(com.noop.ui.KeyMetricPrefs.storedColumns(context) ?: 3))
+    }
+    val largeText = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f
+    val columns = if (largeText) minOf(columnsChoice, 2) else columnsChoice
     val metrics = remember(widgets.toList()) {
         widgets.mapNotNull { w -> w.key?.let { KeyMetric.fromRaw(it) } }.toSet()
     }
@@ -249,6 +256,19 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                      modifier = Modifier.background(Forge.colors.accent, CircleShape)
                          .clickable(role = Role.Button) { onEditing(false) }
                          .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space2))
+            }
+        }
+        if (editing) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.forge_lay_tiles_per_row), style = Forge.type.subhead, color = Forge.colors.text,
+                     modifier = Modifier.weight(1f).background(Forge.colors.surface, CircleShape)
+                         .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space2))
+                Spacer(Modifier.size(ForgeMetrics.space2))
+                val choices = com.noop.ui.KeyMetricPrefs.columnChoices
+                ForgeSegmented(choices.map { it.toString() }, choices.indexOf(columnsChoice).coerceAtLeast(0),
+                               Modifier.width(140.dp)) { i ->
+                    columnsChoice = choices[i]; com.noop.ui.KeyMetricPrefs.setColumns(context, choices[i])
+                }
             }
         }
         TodayWidgets.rows(widgets, columns).forEach { row ->
