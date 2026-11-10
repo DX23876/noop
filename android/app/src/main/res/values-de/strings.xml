@@ -5060,4 +5060,6 @@
     <string name="forge_h_off_last_night">Letzte Nacht %1$s %2$s. %3$s.</string>
     <string name="forge_h_off_baseline">Abseits der Basislinie</string>
     <string name="forge_h_off_typical">Außerhalb des Bereichs</string>
+    <string name="forge_health_trends_sub">Charge, Effort und Rest über Monate</string>
+    <string name="forge_health_all_metrics_sub">Jeder Messwert, frei vergleichbar</string>
 </resources>

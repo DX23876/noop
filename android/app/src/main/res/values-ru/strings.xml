@@ -4948,4 +4948,6 @@
     <string name="forge_h_off_last_night">%1$s %2$s прошлой ночью. %3$s.</string>
     <string name="forge_h_off_baseline">Отклонение от нормы</string>
     <string name="forge_h_off_typical">Вне диапазона</string>
+    <string name="forge_health_trends_sub">Charge, Effort и Rest за месяцы</string>
+    <string name="forge_health_all_metrics_sub">Каждый показатель, сравнивай свободно</string>
 </resources>

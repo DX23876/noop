@@ -5017,4 +5017,6 @@
     <string name="forge_h_off_last_night">昨晚 %1$s %2$s。%3$s。</string>
     <string name="forge_h_off_baseline">偏离基线</string>
     <string name="forge_h_off_typical">超出范围</string>
+    <string name="forge_health_trends_sub">数月的 Charge、Effort 和 Rest</string>
+    <string name="forge_health_all_metrics_sub">每项指标，自由比较</string>
 </resources>

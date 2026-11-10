@@ -127,9 +127,11 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
 
         Heading(stringResource(R.string.forge_health_long_term))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-            HubRow(Icons.Rounded.ShowChart, colors.charge, stringResource(R.string.nav_trends), "") { trendsOpen = true }
+            HubRow(Icons.Rounded.ShowChart, colors.charge, stringResource(R.string.nav_trends),
+                   stringResource(R.string.forge_health_trends_sub)) { trendsOpen = true }
             HubDivider()
-            HubRow(Icons.Rounded.GridView, colors.accent, stringResource(R.string.forge_health_all_metrics), "") {
+            HubRow(Icons.Rounded.GridView, colors.accent, stringResource(R.string.forge_health_all_metrics),
+                   stringResource(R.string.forge_health_all_metrics_sub)) {
                 open(MoreDest.Explore)
             }
         }
