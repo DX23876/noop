@@ -16,7 +16,8 @@ import com.noop.ui.NoopPrefs
  * decides otherwise. On, the shell shows the new design's tabs (Today with its timeline, Training, Sleep, Health,
  * and the coach in its own place). Same key as iOS, so the choice reads the same on both.
  *
- * `--ez new_design true|false` on the launch intent sets it for emulator checks, as `--new-design` does on iOS.
+ * `--ez new_design true|false` on the launch intent overrides it for emulator checks in a debug build, without
+ * writing the switch, as `--new-design` does on iOS.
  */
 object ForgeDesign {
     const val KEY = "noop.forgeDesign.preview"
@@ -29,8 +30,10 @@ object ForgeDesign {
 
     fun load(context: Context, intent: Intent? = null) {
         val prefs = context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
-        if (intent?.hasExtra(EXTRA) == true) prefs.edit().putBoolean(KEY, intent.getBooleanExtra(EXTRA, DEFAULT)).apply()
-        preview = prefs.getBoolean(KEY, DEFAULT)
+        // The launch extra is a debug-build override that leaves the stored switch alone, as iOS's `--new-design`:
+        // a release build ignores it, so no other app can flip the wearer's choice through the launcher.
+        val override = intent?.takeIf { com.noop.BuildConfig.DEBUG && it.hasExtra(EXTRA) }?.getBooleanExtra(EXTRA, DEFAULT)
+        preview = override ?: prefs.getBoolean(KEY, DEFAULT)
     }
 
     fun set(context: Context, on: Boolean) {

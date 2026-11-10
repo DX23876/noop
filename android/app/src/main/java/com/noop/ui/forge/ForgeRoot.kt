@@ -52,8 +52,10 @@ fun ForgeRoot(viewModel: AppViewModel) {
             LocalForgeOpenMore provides (if (ForgeDesign.preview) ({ moreOpen = true }) else null)) {
         ForgeShell { tab, padding, width ->
             when (tab) {
+                // The new design has one Today whatever the dashboard style, as iOS; the classic page jumps to tabs
+                // the new design does not have.
                 ForgeTab.Today ->
-                    if (DashboardStylePrefs.style(context) == "classic") ForgeClassicToday(padding, viewModel)
+                    if (!ForgeDesign.preview && DashboardStylePrefs.style(context) == "classic") ForgeClassicToday(padding, viewModel)
                     else ForgeTodayScreen(padding, width, viewModel)
                 ForgeTab.Trends -> ForgeTrendsScreen(padding, width, viewModel)
                 ForgeTab.Health -> ForgeHealthTab(padding, width, viewModel)

@@ -96,7 +96,16 @@ fun ForgeShell(screen: @Composable (tab: ForgeTab, padding: PaddingValues, width
     // A tab the other design does not have (Health, Trends, More, Coach) reads as Today when the switch flips.
     val shown = ForgeDesign.tabs(ForgeDesign.preview, com.noop.ui.BottomBarStyleStore.coachEnabled)
     val tab = if (chosen in shown) chosen else ForgeTab.Today
-    androidx.compose.runtime.CompositionLocalProvider(LocalForgeTabSelect provides { chosen = it }) {
+    // A jump to More (the battery, the devices) opens the More page in the new design, which has no More tab;
+    // any other tab the bar does not show leaves the selection as it is instead of falling back to Today.
+    val openMore = LocalForgeOpenMore.current
+    val select: (ForgeTab) -> Unit = { t ->
+        when {
+            t in shown -> chosen = t
+            t == ForgeTab.More -> openMore?.invoke()
+        }
+    }
+    androidx.compose.runtime.CompositionLocalProvider(LocalForgeTabSelect provides select) {
     ForgeSceneBackdrop(tab.backdrop) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val width = ForgeWidth.of(maxWidth)
