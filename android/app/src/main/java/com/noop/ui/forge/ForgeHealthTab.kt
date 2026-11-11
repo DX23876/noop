@@ -28,6 +28,9 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -145,7 +148,13 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
 
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
     if (trendsOpen) {
-        ForgeOverlayPage(onDismiss = { trendsOpen = false }) { ForgeTrendsScreen(PaddingValues(), width, viewModel) }
+        // On a backdrop of its own, clear of the system bars, with a way back: drawn bare, the Health tab and the
+        // tab bar showed through it.
+        ForgeOverlayPage(onDismiss = { trendsOpen = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                ForgeTrendsScreen(WindowInsets.systemBars.asPaddingValues(), width, viewModel, onBack = { trendsOpen = false })
+            }
+        }
     }
     if (settingsOpen) {
         ForgeOverlayPage(onDismiss = { settingsOpen = false }) { ForgeSettings(viewModel, onClose = { settingsOpen = false }) }

@@ -119,7 +119,8 @@ private enum class TrendRange(val days: Int?, val labelRes: Int, val nameRes: In
  * Every series comes from the shared core; the digest is the same `WeeklyDigestEngine` the classic card used.
  */
 @Composable
-fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.noop.ui.AppViewModel) {
+fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.noop.ui.AppViewModel,
+                      onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
     var rangeName by rememberSaveable { mutableStateOf(TrendRange.Quarter.name) }
     val range = TrendRange.valueOf(rangeName)
@@ -143,7 +144,9 @@ fun ForgeTrendsScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
     ) {
         Column(Modifier.padding(top = ForgeMetrics.space4)) {
-            Text(stringResource(R.string.nav_trends), style = Forge.type.title1, color = Forge.sceneInk.text)
+            // Opened as a page (from Health) it heads itself with a back arrow, as every page does; as a tab, plainly.
+            if (onBack != null) PageTitle(stringResource(R.string.nav_trends), onBack)
+            else Text(stringResource(R.string.nav_trends), style = Forge.type.title1, color = Forge.sceneInk.text)
             Text(stringResource(R.string.forge_trends_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
         }
         val all = series ?: return@Column
