@@ -25,6 +25,11 @@ OUT = DATA / "CoreWhoopDao.kt"
 
 PRIMITIVES = {"Int", "Long", "Double", "Float", "String", "Boolean", "ByteArray"}
 
+# Entity columns the shared store does not have: Room's per-row `synced` flag on the raw strap samples never moved to
+# the core (its sync state is the core's own). Writing them fails the whole statement, so they are left out of every
+# write; reads fall back to the field's default. `AndroidDaoColumnsTests` checks the written columns against the store.
+CORE_ABSENT = {("stepSample", "synced"), ("ppgHrSample", "synced")}
+
 
 def matching(text: str, start: int, open_ch: str = "(", close_ch: str = ")") -> int:
     """Index just past the bracket closing the one at `start`, skipping string literals."""
@@ -323,8 +328,9 @@ def write_body(m: Method, classes: dict[str, KClass], used: set[str]) -> str:
     many = ptype.startswith("List<") or ptype.startswith("Collection<")
     el = ptype[ptype.index("<") + 1:-1] if many else ptype
     cls = classes[el]
-    cols = [p.column for p in cls.params]
-    vals = ", ".join(f"row.{p.name}" for p in cls.params)
+    written = [p for p in cls.params if (cls.table, p.column) not in CORE_ABSENT]
+    cols = [p.column for p in written]
+    vals = ", ".join(f"row.{p.name}" for p in written)
     col_list = ", ".join(f"`{c}`" for c in cols)
     marks = ", ".join("?" for _ in cols)
     if m.kind == "insert":
