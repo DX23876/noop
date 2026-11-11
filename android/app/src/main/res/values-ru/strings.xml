@@ -6014,4 +6014,10 @@
     <string name="forge_cy_more">Ещё</string>
     <string name="forge_cy_save">Сохранить</string>
     <string name="forge_cy_none">Нет</string>
+    <string name="forge_w_waiting_pulse">Ожидание пульса</string>
+    <string name="forge_w_strap_not_connected">Браслет не подключён</string>
+    <string name="forge_w_show_timeline">Показывать ленту</string>
+    <string name="forge_w_tiles_start">Плитки начинаются</string>
+    <string name="forge_w_under_rings">Под кольцами</string>
+    <string name="forge_w_after_timeline">После ленты дня</string>
 </resources>

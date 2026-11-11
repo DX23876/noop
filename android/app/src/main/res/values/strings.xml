@@ -6080,4 +6080,10 @@
     <string name="forge_cy_more">More</string>
     <string name="forge_cy_save">Save</string>
     <string name="forge_cy_none">None</string>
+    <string name="forge_w_waiting_pulse">Waiting for a pulse</string>
+    <string name="forge_w_strap_not_connected">Strap not connected</string>
+    <string name="forge_w_show_timeline">Show the timeline</string>
+    <string name="forge_w_tiles_start">Tiles start</string>
+    <string name="forge_w_under_rings">Under the rings</string>
+    <string name="forge_w_after_timeline">After the timeline</string>
 </resources>

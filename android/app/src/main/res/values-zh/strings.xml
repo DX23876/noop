@@ -6010,4 +6010,10 @@
     <string name="forge_cy_more">更多</string>
     <string name="forge_cy_save">保存</string>
     <string name="forge_cy_none">无</string>
+    <string name="forge_w_waiting_pulse">等待脉搏</string>
+    <string name="forge_w_strap_not_connected">手环未连接</string>
+    <string name="forge_w_show_timeline">显示时间线</string>
+    <string name="forge_w_tiles_start">卡片起始位置</string>
+    <string name="forge_w_under_rings">圆环下方</string>
+    <string name="forge_w_after_timeline">当日动态之后</string>
 </resources>

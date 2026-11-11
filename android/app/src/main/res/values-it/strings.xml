@@ -6009,4 +6009,10 @@
     <string name="forge_cy_more">Altro</string>
     <string name="forge_cy_save">Salva</string>
     <string name="forge_cy_none">Nessuno</string>
+    <string name="forge_w_waiting_pulse">In attesa del battito</string>
+    <string name="forge_w_strap_not_connected">Fascia non collegata</string>
+    <string name="forge_w_show_timeline">Mostra la cronologia</string>
+    <string name="forge_w_tiles_start">I riquadri iniziano</string>
+    <string name="forge_w_under_rings">Sotto gli anelli</string>
+    <string name="forge_w_after_timeline">Dopo la giornata</string>
 </resources>

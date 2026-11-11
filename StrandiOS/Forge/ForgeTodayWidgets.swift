@@ -859,52 +859,14 @@ struct ForgeMeasureWidget: View {
         .task(id: repo.refreshSeq) { await load() }
     }
 
-    /// The latest value against the median of the 30 before it, as a signed whole step ("↗ +3", "±0"):
-    /// the plain "against your usual" Liquid Today's tiles carry. Kilograms and degrees keep one decimal.
-    /// None for measures read as words or totals (stress, steps, sleep), or with under a week of history.
-    static func delta(key: String, values: [Double]) -> String? {
-        guard let (last, usual) = lastAndUsual(key: key, values: values) else { return nil }
-        let decimals = ["weight", "skin_temp"].contains(key) ? 1 : 0
-        let step = decimals == 1 ? 0.1 : 1.0
-        let diff = ((last - usual) / step).rounded() * step
-        if diff == 0 { return "±0" }
-        let number = diff.magnitude.formatted(.number.precision(.fractionLength(decimals)).locale(AppLanguage.activeLocale))
-        return diff > 0 ? "↗ +\(number)" : "↘ −\(number)"
-    }
+    /// The change against the wearer's usual and its colour, from the reading Android shares (`MeasureTileReading`).
+    static func delta(key: String, values: [Double]) -> String? { MeasureTileReading.delta(key: key, values: values) }
 
-    /// The latest value and the median of the 30 before it; nil for measures read as words or totals, or
-    /// with under a week of history. The one reading both the figure and its colour come from.
-    private static func lastAndUsual(key: String, values: [Double]) -> (last: Double, usual: Double)? {
-        guard !["stress", "steps", "sleep_total_min", "active_kcal", "calories_in"].contains(key),
-              let last = values.last, values.count >= 8 else { return nil }
-        let before = values.dropLast().suffix(30).sorted()
-        return (last, before[before.count / 2])
-    }
-
-    /// How today's move reads for the body: green when it went the good way or held, yellow for a small
-    /// move the wrong way, red for a large one. Resting heart rate: up 1 to 4 beats yellow, 5 or more red.
-    /// HRV: down up to 15 % yellow, more red. Breathing: up half a breath yellow, a whole one red. Blood
-    /// oxygen: down a point yellow, three red. Skin temperature, either way: 0.3 °C yellow, 0.6 red.
-    /// Weight has no colour: whether up or down is good depends on the wearer's goal.
     static func deltaTone(key: String, values: [Double]) -> Color? {
-        guard let (last, usual) = lastAndUsual(key: key, values: values) else { return nil }
-        let diff = last - usual
-        enum Tone { case good, small, large }
-        let tone: Tone? = switch key {
-        case "rhr": diff < 0.5 ? .good : diff < 4.5 ? .small : .large
-        case "hrv":
-            usual > 0 ? (diff / usual > -0.05 ? .good : diff / usual > -0.15 ? .small : .large) : nil
-        case "resp_rate": diff < 0.5 ? .good : diff < 1 ? .small : .large
-        case "spo2": diff > -1 ? .good : diff > -3 ? .small : .large
-        case "skin_temp": abs(diff) < 0.3 ? .good : abs(diff) < 0.6 ? .small : .large
-        case "vo2max_est": diff > -1 ? .good : diff > -3 ? .small : .large
-        case "fitness_age": diff < 1 ? .good : diff < 3 ? .small : .large
-        default: nil
-        }
-        switch tone {
-        case .good: return ForgeColor.chargeInk
-        case .small: return StrandPalette.statusWarningForeground
-        case .large: return StrandPalette.statusCritical
+        switch MeasureTileReading.tone(key: key, values: values) {
+        case .good?: return ForgeColor.chargeInk
+        case .small?: return StrandPalette.statusWarningForeground
+        case .large?: return StrandPalette.statusCritical
         case nil: return nil
         }
     }

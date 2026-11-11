@@ -6041,4 +6041,10 @@
     <string name="forge_cy_more">Más</string>
     <string name="forge_cy_save">Guardar</string>
     <string name="forge_cy_none">Ninguno</string>
+    <string name="forge_w_waiting_pulse">Esperando el pulso</string>
+    <string name="forge_w_strap_not_connected">Pulsera no conectada</string>
+    <string name="forge_w_show_timeline">Mostrar la cronología</string>
+    <string name="forge_w_tiles_start">Los mosaicos empiezan</string>
+    <string name="forge_w_under_rings">Bajo los anillos</string>
+    <string name="forge_w_after_timeline">Tras el día</string>
 </resources>

@@ -26,6 +26,15 @@ public enum CoreCall {
             return CoreRead.json(Wire(platesPerSideKg: loading.platesPerSideKg,
                                       achievableTotalKg: loading.achievableTotalKg, remainderKg: loading.remainderKg))
         }
+        if op == "tile.delta" {
+            // A Today measure tile's change against the wearer's usual and its colour (`MeasureTileReading`).
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            let key = args["key"] as? String ?? ""
+            let values = (args["values"] as? [NSNumber])?.map(\.doubleValue) ?? []
+            struct Wire: Encodable { let delta: String?; let tone: String? }
+            return CoreRead.json(Wire(delta: MeasureTileReading.delta(key: key, values: values),
+                                      tone: MeasureTileReading.tone(key: key, values: values)?.rawValue))
+        }
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
         }

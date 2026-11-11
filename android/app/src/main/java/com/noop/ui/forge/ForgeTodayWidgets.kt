@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -21,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.BatteryFull
@@ -34,11 +38,12 @@ import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.OpenInFull
-import androidx.compose.material.icons.rounded.RemoveCircle
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -56,6 +61,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -109,14 +116,16 @@ internal data class TodayWidget(
     enum class Size { Small, Medium, Wide }
 
     val size: Size get() = when {
-        kind == Kind.Breathe || kind == Kind.Strap -> Size.Small
-        kind != Kind.Measure && kind != Kind.LiveHeart -> Size.Wide
+        kind != Kind.Measure && kind != Kind.LiveHeart && kind != Kind.Breathe && kind != Kind.Strap -> Size.Wide
         kind == Kind.LiveHeart && wide -> Size.Wide
         span == 2 -> Size.Medium
         else -> Size.Small
     }
 
-    val resizable: Boolean get() = kind == Kind.Measure || kind == Kind.LiveHeart
+    val resizable: Boolean get() = kind == Kind.Measure || kind == Kind.LiveHeart || kind == Kind.Breathe || kind == Kind.Strap
+
+    /** Drawn as a tile in a row (iOS's non-wide kinds), so its row takes the tallest tile's height. */
+    val isTile: Boolean get() = size != Size.Wide
 
     /** One tap on the size control: small, two columns, the whole row where the kind has a card for it, small. */
     fun nextSize(): TodayWidget = when (size) {
@@ -246,6 +255,28 @@ internal object TodayWidgets {
             .putBoolean(SEEDED_KEY, true).putString(KEY, encode(demoSet)).apply()
     }
 
+    /** iOS's `showsTimelineKey` and `belowTimelineKey`: whether Today shows its timeline, and the tiles after it. */
+    val showsTimeline = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+    val belowTimeline = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+    private const val SHOWS_TIMELINE_KEY = "forge.today.showsTimeline"
+    private const val BELOW_TIMELINE_KEY = "forge.today.tilesBelowTimeline"
+
+    internal fun loadLayout(context: Context) {
+        val prefs = context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
+        if (showsTimeline.value == null) showsTimeline.value = prefs.getBoolean(SHOWS_TIMELINE_KEY, true)
+        if (belowTimeline.value == null) belowTimeline.value = prefs.getBoolean(BELOW_TIMELINE_KEY, false)
+    }
+
+    internal fun setShowsTimeline(context: Context, on: Boolean) {
+        showsTimeline.value = on
+        context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(SHOWS_TIMELINE_KEY, on).apply()
+    }
+
+    internal fun setBelowTimeline(context: Context, below: Boolean) {
+        belowTimeline.value = below
+        context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(BELOW_TIMELINE_KEY, below).apply()
+    }
+
     internal fun save(context: Context, list: List<TodayWidget>) {
         context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE).edit().putString(KEY, encode(list)).apply()
     }
@@ -269,6 +300,18 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val bounds = remember { androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
     var dragging by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    // As iOS's drop delegate: a tile carried over another takes its place at once, so the board rearranges under the
+    // finger. The lifted tile keeps following the finger: its offset moves by the distance its slot just moved.
+    fun swapUnder() {
+        val id = dragging ?: return
+        val own = bounds[id] ?: return
+        val center = own.center + dragOffset
+        val placed = widgets.map { it.id }.toSet()
+        val target = bounds.entries.firstOrNull { (k, r) -> k != id && k in placed && r.contains(center) } ?: return
+        update(TodayWidgets.move(widgets, id, target.key))
+        dragOffset -= target.value.topLeft - own.topLeft
+        bounds[id] = target.value
+    }
     fun drop() {
         val id = dragging ?: return
         val center = bounds[id]?.center?.plus(dragOffset)
@@ -314,32 +357,77 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val colors = Forge.colors
     androidx.compose.runtime.CompositionLocalProvider(
         LocalSceneInk provides SceneInk(colors.text, colors.textSecondary, colors.textTertiary, colors.dark)) {
-    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+    // Arranging is watched on the whole area, not on one tile: a tile that trades places mid-drag moves to another
+    // slot (or row), and a gesture on the tile itself would end there.
+    var areaOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    Column(Modifier.onGloballyPositioned { areaOrigin = it.positionInRoot() }
+            .then(if (!editing) Modifier else Modifier.pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val at = down.position + areaOrigin
+                    val placed = widgets.map { it.id }.toSet()
+                    val id = bounds.entries.firstOrNull { (k, r) -> k in placed && r.contains(at) }?.key
+                    if (id == null) return@awaitEachGesture
+                    // A hold lifts the tile, and from then on every move is the drag's; a tap or a move before the hold
+                    // stays the tile's (its remove and size controls).
+                    val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val e = awaitPointerEvent(PointerEventPass.Initial)
+                            val c = e.changes.firstOrNull { it.id == down.id } ?: break
+                            // A move after the hold time still counts as held, by the events' own clock.
+                            if (c.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis) return@withTimeoutOrNull null
+                            if (!c.pressed || (c.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+                        }
+                    } == null
+                    if (!held) return@awaitEachGesture
+                    dragging = id; dragOffset = androidx.compose.ui.geometry.Offset.Zero
+                    while (true) {
+                        val e = awaitPointerEvent(PointerEventPass.Initial)
+                        val c = e.changes.firstOrNull { it.id == down.id } ?: break
+                        // Read before consuming: a consumed change reports no movement.
+                        dragOffset += c.positionChange()
+                        c.consume()
+                        if (!c.pressed) break
+                        swapUnder()
+                    }
+                    drop()
+                }
+            }), verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         if (editing) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // On its own plate: the bar sits on the scene picture or the canvas, depending on what is above it.
-                Box(Modifier.weight(1f)) {
+            // iOS's editor: one card with the title and Done, tiles per row, whether the timeline shows and where the
+            // tiles start.
+            val showsTimeline by TodayWidgets.showsTimeline.collectAsState()
+            val belowTimeline by TodayWidgets.belowTimeline.collectAsState()
+            ForgeCard(Modifier.fillMaxWidth(), radius = 14.dp, contentPadding = ForgeMetrics.space4) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.forge_w_edit_today), style = Forge.type.headline, color = Forge.colors.text,
-                         modifier = Modifier.background(Forge.colors.surface, CircleShape)
+                         modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.forge_w_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                         color = Forge.colors.onDark,
+                         modifier = Modifier.heightIn(min = 36.dp).background(Forge.colors.accent, CircleShape)
+                             .clickable(role = Role.Button) { onEditing(false) }
                              .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space2))
                 }
-                Text(stringResource(R.string.forge_w_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                     color = Forge.colors.onDark,
-                     modifier = Modifier.background(Forge.colors.accent, CircleShape)
-                         .clickable(role = Role.Button) { onEditing(false) }
-                         .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space2))
-            }
-        }
-        if (editing) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.forge_lay_tiles_per_row), style = Forge.type.subhead, color = Forge.colors.text,
-                     modifier = Modifier.weight(1f).background(Forge.colors.surface, CircleShape)
-                         .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space2))
-                Spacer(Modifier.size(ForgeMetrics.space2))
+                Spacer(Modifier.height(ForgeMetrics.space3))
+                Text(stringResource(R.string.forge_lay_tiles_per_row), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
+                     color = Forge.colors.textSecondary)
+                Spacer(Modifier.height(ForgeMetrics.space1))
                 val choices = com.noop.ui.KeyMetricPrefs.columnChoices
-                ForgeSegmented(choices.map { it.toString() }, choices.indexOf(columnsChoice).coerceAtLeast(0),
-                               Modifier.width(140.dp)) { i ->
+                ForgeSegmented(choices.map { it.toString() }, choices.indexOf(columnsChoice).coerceAtLeast(0), Modifier.fillMaxWidth()) { i ->
                     columnsChoice = choices[i]; com.noop.ui.KeyMetricPrefs.setColumns(context, choices[i])
+                }
+                Spacer(Modifier.height(ForgeMetrics.space2))
+                ToggleRow(stringResource(R.string.forge_w_show_timeline), null, showsTimeline != false) {
+                    TodayWidgets.setShowsTimeline(context, it)
+                }
+                if (showsTimeline != false) {
+                    Text(stringResource(R.string.forge_w_tiles_start), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
+                         color = Forge.colors.textSecondary)
+                    Spacer(Modifier.height(ForgeMetrics.space1))
+                    ForgeSegmented(listOf(stringResource(R.string.forge_w_under_rings), stringResource(R.string.forge_w_after_timeline)),
+                                   if (belowTimeline == true) 1 else 0, Modifier.fillMaxWidth()) { i ->
+                        TodayWidgets.setBelowTimeline(context, i == 1)
+                    }
                 }
             }
         }
@@ -353,68 +441,75 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                     }
         TodayWidgets.rows(shown, columns).forEach { row ->
             // The row holding the dragged tile draws over the others, so the tile stays on top wherever it goes.
-            Row(Modifier.fillMaxWidth().zIndex(if (row.any { it.id == dragging }) 1f else 0f),
+            // A row of tiles is as tall as its tallest tile, as iOS draws it: every tile's surface fills the row.
+            val tileRow = row.all { it.isTile }
+            Row(Modifier.fillMaxWidth().then(if (tileRow) Modifier.height(IntrinsicSize.Max) else Modifier)
+                    .zIndex(if (row.any { it.id == dragging }) 1f else 0f),
                 horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-                row.forEach { w ->
+                row.forEach { w -> androidx.compose.runtime.key(w.id) {
                     val span = TodayWidgets.columnsOf(w, columns)
                     val lifted = dragging == w.id
-                    WidgetCell(w, editing, Modifier.weight(span.toFloat()).zIndex(if (lifted) 1f else 0f)
-                        .onGloballyPositioned { bounds[w.id] = it.boundsInRoot() }
+                    WidgetCell(w, editing, Modifier.weight(span.toFloat()).then(if (tileRow) Modifier.fillMaxHeight() else Modifier)
+                        .zIndex(if (lifted) 1f else 0f)
+                        .onGloballyPositioned {
+                            // Unclipped: a tile scrolled half out of view keeps its true place, as the finger reads it.
+                            bounds[w.id] = androidx.compose.ui.geometry.Rect(it.positionInRoot(), it.size.toSize())
+                        }
                         .graphicsLayer {
                             if (lifted) { translationX = dragOffset.x; translationY = dragOffset.y; scaleX = 1.04f; scaleY = 1.04f }
                         }
-                        .then(if (!editing) Modifier else Modifier.pointerInput(w.id) {
-                            // Watched in the initial pass, ahead of the tile's own tap: a hold lifts the tile, and
-                            // from then on every move is the drag's; a tap or a move before the hold stays the tile's.
+                        .then(if (!editing) Modifier.pointerInput(w.id) {
+                            // Held, a tile starts the editor, as on iOS; a plain tap still opens its page.
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                                 val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                                     while (true) {
                                         val e = awaitPointerEvent(PointerEventPass.Initial)
                                         val c = e.changes.firstOrNull { it.id == down.id } ?: break
-                                        // A move after the hold time still counts as held, by the events' own clock.
-                                        if (c.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis) return@withTimeoutOrNull null
                                         if (!c.pressed || (c.position - down.position).getDistance() > viewConfiguration.touchSlop) break
                                     }
                                 } == null
                                 if (!held) return@awaitEachGesture
-                                dragging = w.id; dragOffset = androidx.compose.ui.geometry.Offset.Zero
+                                onEditing(true)
+                                // The finger's lift belongs to the hold, not to a tap on the tile.
                                 while (true) {
                                     val e = awaitPointerEvent(PointerEventPass.Initial)
                                     val c = e.changes.firstOrNull { it.id == down.id } ?: break
-                                    // Read before consuming: a consumed change reports no movement.
-                                    dragOffset += c.positionChange()
                                     c.consume()
                                     if (!c.pressed) break
                                 }
-                                drop()
                             }
-                        }),
+                        } else Modifier),
                                onRemove = { bounds.remove(w.id); update(widgets.filter { it.id != w.id }) },
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
-                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, noData, dense = columns > 2) { open = it }
+                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, noData, dense = columns > 2, Modifier.fillMaxSize()) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy()
-                            TodayWidget.Kind.LiveHeart -> HeartCard(viewModel, date, live = date == com.noop.ui.logicalDayNow())
+                            TodayWidget.Kind.LiveHeart ->
+                                if (w.size == TodayWidget.Size.Wide) HeartCard(viewModel, date, live = date == com.noop.ui.logicalDayNow())
+                                else LiveHeartTile(viewModel, showsCurve = w.size == TodayWidget.Size.Medium, dense = columns > 2,
+                                                   modifier = Modifier.fillMaxSize(), onOpen = { open = CoreRead.Metric.RestingHr })
                             TodayWidget.Kind.Momentum -> ForgeTodayMomentum(viewModel)
                             TodayWidget.Kind.LastWorkout -> TodayWorkoutsForge(viewModel)
                             TodayWidget.Kind.Cycle -> TodayCycleForge(viewModel)
                             TodayWidget.Kind.LastNight -> TodayLastNightForge(onOpenSleep)
                             TodayWidget.Kind.Tonight -> TodayTonightForge(viewModel, onOpenAlarms)
                             TodayWidget.Kind.WeekPlan -> TodayWeekPlanForge(viewModel, onOpenTraining)
-                            TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe)
+                            TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe, dense = columns > 2, modifier = Modifier.fillMaxSize())
                             TodayWidget.Kind.NextSession -> TodayNextSessionForge(onOpenTraining)
                             TodayWidget.Kind.WhatWorks -> TodayWhatWorksForge(viewModel, onOpenInsights)
                             TodayWidget.Kind.Changes -> TodayChangesForge(onOpenTrends, viewModel.activeStrapId)
-                            TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap)
+                            TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap, dense = columns > 2, modifier = Modifier.fillMaxSize())
                         }
                     }
-                }
+                } }
+                // As iOS: a short last row shares the width by span instead of leaving a hole; while arranging every row
+                // keeps to the column grid, so a tile lines up with the slot it is carried to.
                 val used = row.sumOf { TodayWidgets.columnsOf(it, columns) }
-                if (used < columns) Spacer(Modifier.weight((columns - used).toFloat()))
+                if (used < columns && editing) Spacer(Modifier.weight((columns - used).toFloat()))
             }
         }
         if (editing) {
@@ -456,7 +551,7 @@ private fun WidgetCell(w: TodayWidget, editing: Boolean, modifier: Modifier, onR
             // stays readable. Each control keeps the full hit target around its small plate.
             // As iOS: remove in the top corner, size in the other; moving is by drag, and earlier and later stay as
             // the screen reader's actions above. Nothing sits on the figure or the curve.
-            EditButton(Icons.Rounded.RemoveCircle, removeLabel, onRemove, tint = Forge.colors.effort,
+            EditButton(Icons.Rounded.Remove, removeLabel, onRemove, tint = Forge.colors.textSecondary,
                        modifier = Modifier.align(Alignment.TopStart).offset((-10).dp, (-10).dp))
             if (w.resizable) EditButton(Icons.Rounded.OpenInFull, sizeLabel, onSize,
                                         modifier = Modifier.align(Alignment.TopEnd).offset(10.dp, (-10).dp))
@@ -466,34 +561,37 @@ private fun WidgetCell(w: TodayWidget, editing: Boolean, modifier: Modifier, onR
 
 @Composable
 private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
-                       tint: androidx.compose.ui.graphics.Color = Forge.colors.text, modifier: Modifier = Modifier) {
+                       tint: androidx.compose.ui.graphics.Color = Forge.colors.accent, modifier: Modifier = Modifier) {
+    // As iOS draws them: a white glyph on a filled disc, grey to remove, the accent to resize.
     Box(modifier.size(ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClickLabel = label, onClick = onClick),
         contentAlignment = Alignment.Center) {
-        Box(Modifier.size(32.dp).background(Forge.colors.surface, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(18.dp))
+        Box(Modifier.size(26.dp).background(tint, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(16.dp))
         }
     }
 }
 
-/** A measure's tile, from the same reading as Key Metrics; sleep reads the latest night as the Sleep tab does. */
+/**
+ * A measure's tile, drawn as iOS's `ForgeMeasureWidget`: the figure from the same reading as Key Metrics, the change
+ * against the wearer's usual and its colour from the shared core, the last 30 values as the trend. Sleep reads the
+ * latest night as the Sleep tab does.
+ */
 @Composable
 private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>, noData: String,
-                        dense: Boolean, onOpen: (CoreRead.Metric) -> Unit) {
-    val sparkHeight = if (dense) 22.dp else 28.dp
+                        dense: Boolean, modifier: Modifier, onOpen: (CoreRead.Metric) -> Unit) {
     if (key == TodayWidget.SLEEP_KEY) {
-        val rest = Forge.colors.rest
-        MetricTile(Icons.Rounded.Bedtime, rest, stringResource(R.string.forge_sleep),
-                   sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, "h", noData,
-                   Modifier.fillMaxWidth().clickable { onOpen(CoreRead.Metric.SleepMinutes) },
-                   below = sleepTrend.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, rest, sparkHeight) } })
+        ForgeTodayTile(Icons.Rounded.Bedtime, Forge.colors.rest, stringResource(R.string.forge_sleep),
+                       sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, "h", null, noData, dense,
+                       modifier.clickable { onOpen(CoreRead.Metric.SleepMinutes) }, trend = sleepTrend.takeLast(30))
         return
     }
     val metric = KeyMetric.fromRaw(key) ?: return
     val t = keyTiles.tiles[metric] ?: return
-    val tint = metric.tileTint()
-    MetricTile(metric.icon, tint, metric.tileLabel(), t.value, t.unit, noData,
-               Modifier.fillMaxWidth().then(t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier), t.delta,
-               below = keyTiles.sparks[metric]?.let { values -> @Composable { KeyTileSpark(values, tint, sparkHeight) } })
+    val spark = keyTiles.sparks[metric]
+    val change = rememberTileDelta(metric.catalogKey(), spark)
+    ForgeTodayTile(metric.icon, metric.tileTint(), metric.tileLabel(), t.value, t.unit.orEmpty(), null, noData, dense,
+                   modifier.then(t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier),
+                   delta = change?.text, deltaTone = change?.tone, trend = spark?.takeLast(30))
 }
 
 /** "Add a widget": the measures not placed yet, then the cards, each with its size and what it shows. */
@@ -565,4 +663,33 @@ private fun WidgetGallery(placed: List<TodayWidget>, onAdd: (TodayWidget) -> Uni
 private fun GalleryHeading(text: String) {
     Text(text, style = Forge.type.headline.copy(fontWeight = FontWeight.Bold), color = Forge.colors.text,
          modifier = Modifier.padding(top = ForgeMetrics.space2))
+}
+
+/**
+ * iOS's `ForgeLiveHeartWidget`: the heart rate right now while a strap streams one, else why there is none; over two
+ * columns it also draws the pulse, the last minutes while streaming, today's banked trace otherwise.
+ */
+@Composable
+private fun LiveHeartTile(viewModel: AppViewModel, showsCurve: Boolean, dense: Boolean, modifier: Modifier, onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val live by viewModel.live.collectAsState()
+    val bpm = live.heartRate?.takeIf { live.connected && it > 0 }
+    val samples = remember { androidx.compose.runtime.mutableStateListOf<Double>() }
+    LaunchedEffect(bpm, showsCurve) {
+        if (!showsCurve || bpm == null) { samples.clear(); return@LaunchedEffect }
+        samples.add(bpm.toDouble()); if (samples.size > 90) samples.removeAt(0)
+    }
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val banked by produceState(emptyList<Double>(), showsCurve, coreRevision) {
+        value = if (!showsCurve) emptyList() else withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            val from = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toEpochSecond()
+            CoreRead.heartRate(from, System.currentTimeMillis() / 1000).map { it.bpm }
+        }
+    }
+    val curve = if (!showsCurve) null else (if (samples.size >= 2) samples.toList() else banked).takeIf { it.size >= 2 }
+    val rose = ForgeTokens.StrandPalette.metricRose.resolve()
+    ForgeTodayTile(Icons.Rounded.MonitorHeart, rose, stringResource(R.string.forge_live), bpm?.toString(), "bpm",
+                   if (bpm == null) stringResource(if (live.connected) R.string.forge_w_waiting_pulse else R.string.forge_w_strap_not_connected) else null,
+                   "", dense, modifier.clickable(onClick = onOpen), trend = curve)
 }

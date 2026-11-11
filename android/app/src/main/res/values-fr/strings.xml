@@ -6040,4 +6040,10 @@
     <string name="forge_cy_more">Plus</string>
     <string name="forge_cy_save">Enregistrer</string>
     <string name="forge_cy_none">Aucun</string>
+    <string name="forge_w_waiting_pulse">En attente du pouls</string>
+    <string name="forge_w_strap_not_connected">Bracelet non connecté</string>
+    <string name="forge_w_show_timeline">Afficher la chronologie</string>
+    <string name="forge_w_tiles_start">Les tuiles commencent</string>
+    <string name="forge_w_under_rings">Sous les anneaux</string>
+    <string name="forge_w_after_timeline">Après la journée</string>
 </resources>

@@ -311,6 +311,12 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 if (hintCharge) ChargeBreakdownHost(viewModel, onDismiss = { hintCharge = false })
             }
             if (shown == today) ForgeMorningSuggestion()
+            // iOS's layout choices: the timeline can be hidden, and the tiles can follow it instead of the rings.
+            TodayWidgets.loadLayout(context)
+            val showsTimeline by TodayWidgets.showsTimeline.collectAsState()
+            val belowTimeline by TodayWidgets.belowTimeline.collectAsState()
+            val timelineFirst = showsTimeline != false && belowTimeline == true && !editingWidgets
+            if (shown == today && timelineFirst) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
             ForgeTodayWidgetArea(model, viewModel, width, editing = editingWidgets, onEditing = { editingWidgets = it },
                                  onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) },
                                  onOpenSleep = { selectTab(ForgeTab.Sleep) },
@@ -320,7 +326,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                                  onOpenStrap = { more.push(MoreRoute.Dest(MoreDest.Settings)) },
                                  onOpenInsights = { more.push(MoreRoute.Dest(MoreDest.Insights)) },
                                  onOpenTrends = { ForgeDesign.openTrends = true; selectTab(ForgeTab.Health) })
-            if (shown == today) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
+            if (shown == today && showsTimeline != false && !timelineFirst) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
         } else if (style != "liquid") {
             // The Trends and Overview styles (Settings › Dashboard) draw their own header and blocks.
             val live by viewModel.live.collectAsState()

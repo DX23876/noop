@@ -6057,4 +6057,10 @@
     <string name="forge_cy_more">Mehr</string>
     <string name="forge_cy_save">Sichern</string>
     <string name="forge_cy_none">Keine</string>
+    <string name="forge_w_waiting_pulse">Warte auf den Puls</string>
+    <string name="forge_w_strap_not_connected">Strap nicht verbunden</string>
+    <string name="forge_w_show_timeline">Timeline anzeigen</string>
+    <string name="forge_w_tiles_start">Kacheln beginnen</string>
+    <string name="forge_w_under_rings">Unter den Ringen</string>
+    <string name="forge_w_after_timeline">Nach dem Tagesverlauf</string>
 </resources>

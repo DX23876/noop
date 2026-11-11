@@ -6061,4 +6061,10 @@
     <string name="forge_cy_more">Więcej</string>
     <string name="forge_cy_save">Zapisz</string>
     <string name="forge_cy_none">Brak</string>
+    <string name="forge_w_waiting_pulse">Czekam na tętno</string>
+    <string name="forge_w_strap_not_connected">Pasek nie jest podłączony</string>
+    <string name="forge_w_show_timeline">Pokaż oś czasu</string>
+    <string name="forge_w_tiles_start">Kafelki zaczynają się</string>
+    <string name="forge_w_under_rings">Pod pierścieniami</string>
+    <string name="forge_w_after_timeline">Po przebiegu dnia</string>
 </resources>

@@ -185,10 +185,11 @@ internal fun TodayWeekPlanForge(viewModel: AppViewModel, onOpen: () -> Unit) {
 
 /** Two calm minutes as a small tile beside the measures, as iOS's `ForgeBreatheWidget`. Opens the breathing exercise. */
 @Composable
-internal fun TodayBreatheTile(onOpen: () -> Unit) {
-    MetricTile(Icons.Rounded.Air, Forge.colors.charge, stringResource(R.string.forge_w_breathe),
-               "2", stringResource(R.string.forge_goals_u_min), "", Modifier.fillMaxWidth().clickable(onClick = onOpen),
-               delta = stringResource(R.string.forge_br_tap))
+internal fun TodayBreatheTile(onOpen: () -> Unit, dense: Boolean = false, modifier: Modifier = Modifier.fillMaxWidth()) {
+    // iOS's `ForgeBreatheWidget`: two minutes, and how to start, as a Today tile.
+    ForgeTodayTile(Icons.Rounded.Air, Forge.colors.charge, stringResource(R.string.forge_w_breathe), "2",
+                   stringResource(R.string.forge_goals_u_min), stringResource(R.string.forge_br_tap), "", dense,
+                   modifier.clickable(onClick = onOpen))
 }
 
 /**
@@ -197,7 +198,8 @@ internal fun TodayBreatheTile(onOpen: () -> Unit) {
  * out rather than guessed. Opens Settings, where the strap page sits (Android has no battery page of its own).
  */
 @Composable
-internal fun TodayStrapTile(viewModel: AppViewModel, onOpen: () -> Unit) {
+internal fun TodayStrapTile(viewModel: AppViewModel, onOpen: () -> Unit, dense: Boolean = false,
+                            modifier: Modifier = Modifier.fillMaxWidth()) {
     val live by viewModel.live.collectAsState()
     val synced = live.lastSyncAt?.takeIf { it > 0 }
     val caption = when {
@@ -208,11 +210,10 @@ internal fun TodayStrapTile(viewModel: AppViewModel, onOpen: () -> Unit) {
         else -> stringResource(R.string.forge_st_synced, android.text.format.DateUtils.getRelativeTimeSpanString(
             synced * 1000, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString())
     }
-    MetricTile(if (live.charging == true) Icons.Rounded.BatteryChargingFull
-               else Icons.Rounded.Battery5Bar,
-               if (live.connected) Forge.colors.charge else Forge.colors.textSecondary, stringResource(R.string.forge_w_strap),
-               live.batteryPct?.let { Math.round(it).toString() }, "%", caption, Modifier.fillMaxWidth().clickable(onClick = onOpen),
-               delta = caption.takeIf { live.batteryPct != null })
+    // iOS's `ForgeStrapWidget`: the battery as the figure, the wrist, charge or last sync as its line.
+    ForgeTodayTile(if (live.charging == true) Icons.Rounded.BatteryChargingFull else Icons.Rounded.Battery5Bar,
+                   if (live.connected) Forge.colors.charge else Forge.colors.textSecondary, stringResource(R.string.forge_w_strap),
+                   live.batteryPct?.let { Math.round(it).toString() }, "%", caption, "", dense, modifier.clickable(onClick = onOpen))
 }
 
 /** One of the coming seven days and the first routine planned on it, if any. */
