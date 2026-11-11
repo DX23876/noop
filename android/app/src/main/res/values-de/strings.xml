@@ -5068,4 +5068,6 @@
     <string name="forge_sleep_nav">%1$s · %2$s bis %3$s</string>
     <string name="forge_sleep_days">%1$s bis %2$s</string>
     <string name="forge_sleep_duration_tile">Schlafdauer</string>
+    <string name="forge_sleep_discuss">Letzte Nacht mit dem Coach besprechen</string>
+    <string name="forge_sleep_discuss_prompt">Schau dir meinen Schlaf letzte Nacht an und sag mir, was auffiel und was ich heute Nacht ändern könnte.</string>
 </resources>

@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -213,7 +216,24 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             val rest = wakeDay?.let { model?.restByDay?.get(it.toString()) }
             // The new design's summary, as iOS's `summaryTiles`: Rest and the night's sleep, each with its week; the
             // navigator above already carries the clock span, so the asleep and woke card stays in the shipped design.
-            if (LocalForgeOpenMore.current != null) SleepSummaryTiles(night, rest, model) else {
+            if (LocalForgeOpenMore.current != null) {
+                SleepSummaryTiles(night, rest, model)
+                // While the coach is on, the night goes to it in one tap, as iOS's button under the tiles.
+                if (com.noop.ui.BottomBarStyleStore.coachEnabled) {
+                    val select = LocalForgeTabSelect.current
+                    val prompt = stringResource(R.string.forge_sleep_discuss_prompt)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 46.dp)
+                            .background(Forge.colors.surface.copy(alpha = 0.6f), CircleShape)
+                            .clickable(role = Role.Button) { com.noop.ui.CoachHandoff.pendingPrompt = prompt; select(ForgeTab.Coach) },
+                        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.ChatBubbleOutline, contentDescription = null, tint = Forge.colors.accent,
+                             modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(ForgeMetrics.space2))
+                        Text(stringResource(R.string.forge_sleep_discuss), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                             color = Forge.colors.accent)
+                    }
+                }
+            } else {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 260.dp else 280.dp, OrganicMetric.Rest)
                 if (rest != null) {

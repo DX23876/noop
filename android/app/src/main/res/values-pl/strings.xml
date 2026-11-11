@@ -5071,4 +5071,6 @@
     <string name="forge_sleep_nav">%1$s · %2$s–%3$s</string>
     <string name="forge_sleep_days">%1$s do %2$s</string>
     <string name="forge_sleep_duration_tile">Długość snu</string>
+    <string name="forge_sleep_discuss">Omów ostatnią noc z coachem</string>
+    <string name="forge_sleep_discuss_prompt">Spójrz na mój sen z ostatniej nocy i powiedz, co się wyróżniło i co mogę zmienić dzisiaj.</string>
 </resources>

@@ -5023,4 +5023,6 @@
     <string name="forge_sleep_nav">%1$s · dalle %2$s alle %3$s</string>
     <string name="forge_sleep_days">dal %1$s al %2$s</string>
     <string name="forge_sleep_duration_tile">Durata del sonno</string>
+    <string name="forge_sleep_discuss">Parla della notte con il coach</string>
+    <string name="forge_sleep_discuss_prompt">Guarda il mio sonno di stanotte e dimmi cosa è emerso e cosa potrei cambiare stasera.</string>
 </resources>

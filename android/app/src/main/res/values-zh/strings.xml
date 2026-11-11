@@ -5025,4 +5025,6 @@
     <string name="forge_sleep_nav">%1$s · %2$s 至 %3$s</string>
     <string name="forge_sleep_days">%1$s 至 %2$s</string>
     <string name="forge_sleep_duration_tile">睡眠时长</string>
+    <string name="forge_sleep_discuss">和教练聊聊昨晚</string>
+    <string name="forge_sleep_discuss_prompt">看看我昨晚的睡眠，告诉我有什么突出之处，今晚可以改变什么。</string>
 </resources>

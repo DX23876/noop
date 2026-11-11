@@ -4956,4 +4956,6 @@
     <string name="forge_sleep_nav">%1$s · %2$s–%3$s</string>
     <string name="forge_sleep_days">с %1$s по %2$s</string>
     <string name="forge_sleep_duration_tile">Длительность сна</string>
+    <string name="forge_sleep_discuss">Обсудить ночь с коучем</string>
+    <string name="forge_sleep_discuss_prompt">Посмотри на мой сон прошлой ночью и скажи, что выделялось и что изменить сегодня вечером.</string>
 </resources>
