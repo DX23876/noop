@@ -82,10 +82,10 @@ Seen, not changed:
 - Rest's word differs between the platforms: iOS says Good, Fair or Low at 80 and 60 (`ForgeToday.restWord`),
   Android Poor, Fair, Good or Optimal at 50, 70 and 85 (`RestWord`); 94 reads "Good" on iOS, "Optimal" on
   Android. The owner's call which words and thresholds both should use.
-- iOS at 00:09 (simulator, demo data): the Today header names the calendar day ("Wed, Nov 11") while the
-  values follow the logical day until four; Effort showed a dash and steps "No data yet". The header date
-  comes from `ForgeLargeHeader` (`Date()`), the values from `logicalDayKey`, partly through `repo.today`.
-  Not changed on iOS without a closer look; Android shows the logical day in its header too.
+- iOS (simulator, demo data): the new design's Today header named the calendar day past midnight while its
+  values and Liquid Today's header follow the logical day. Fixed 2026-11-11 (Today passes the logical day to
+  `ForgeLargeHeader`). The empty steps tile and Effort dash seen at 00:09 came with the demo's analysis still
+  running and are not counted as a bug.
 - iOS Sleep lists every block outside the main night as a nap, the timeline only those with 10 min asleep
   (`SleepNight.naps`). Hiding the short ones on Sleep would also hide their delete button, and the classic
   Sleep view counts them in the day's total, so the rule for that list is the owner's call.
