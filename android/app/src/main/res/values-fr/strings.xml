@@ -5077,4 +5077,5 @@
     <string name="forge_health_what_works_sub">Ce qui t\'aide, ce qui te nuit</string>
     <string name="forge_lw_title">Dernier entraînement</string>
     <string name="forge_lw_none">Les séances que tu enregistres ou importes apparaissent ici.</string>
+    <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

@@ -5091,4 +5091,5 @@
     <string name="forge_health_what_works_sub">Was dir hilft, was dir schadet</string>
     <string name="forge_lw_title">Letztes Workout</string>
     <string name="forge_lw_none">Trainings, die du aufzeichnest oder importierst, erscheinen hier.</string>
+    <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

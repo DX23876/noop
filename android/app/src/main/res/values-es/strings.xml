@@ -5078,4 +5078,5 @@
     <string name="forge_health_what_works_sub">Lo que te ayuda y lo que te perjudica</string>
     <string name="forge_lw_title">Último entrenamiento</string>
     <string name="forge_lw_none">Los entrenos que registres o importes aparecen aquí.</string>
+    <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>
