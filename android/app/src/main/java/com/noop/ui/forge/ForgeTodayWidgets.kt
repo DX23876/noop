@@ -299,7 +299,12 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                 }
             }
         }
-        TodayWidgets.rows(widgets, columns).forEach { row ->
+        // As iOS's `shown`: outside editing, a widget with nothing to draw holds no row (the latest workout before
+        // the first one); while editing it stays, so it can be moved or removed.
+        val workouts by viewModel.workouts.collectAsState()
+        val shown = if (editing) widgets.toList()
+                    else widgets.filter { it.kind != TodayWidget.Kind.LastWorkout || com.noop.ui.lastWorkoutsFeed(workouts).isNotEmpty() }
+        TodayWidgets.rows(shown, columns).forEach { row ->
             // The row holding the dragged tile draws over the others, so the tile stays on top wherever it goes.
             Row(Modifier.fillMaxWidth().zIndex(if (row.any { it.id == dragging }) 1f else 0f),
                 horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
