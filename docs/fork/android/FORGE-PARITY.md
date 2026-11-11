@@ -121,28 +121,26 @@ Card by card where Android's new design still differs from iOS's. The rule: Andr
 draws it, reading the same core data; the shipped Android cards are not reused in the new design.
 
 Whole app
-- iOS's Training, Sleep and Health sit on the plain canvas; Android draws the night sky on Sleep.
+- Done 2026-11-11: Sleep on the plain canvas; section titles bold in sentence case.
 - iOS's tab bar spans the width at the bottom; Android's floats as a capsule.
 
 Today
 - Done 2026-11-11: tiles show the latest value, curves whole with an end dot, rings carry Charge and Rest,
   edit controls in the corners.
 - The hint card under the rings ("You slept less today", "1 more").
-- Widgets drawn as iOS's: Tonight (bedtime bar), Next up (routine), What changed (better and worse), What
-  helps your Charge (bars), Energy, Latest workout, Momentum, Last night, This week's plan, Goals (journeys),
-  Training load (empty state as a sentence), Breathe, Strap. Android draws the shipped cards for its kinds and
-  lacks the rest.
+- Done 2026-11-11: Energy, Momentum and Training load drawn as iOS's; the cycle card only while tracking is on.
+- Still to draw as iOS's: Tonight (bedtime bar), Next up (routine), What changed (better and worse), What helps
+  your Charge (bars), Latest workout, Last night, This week's plan, Goals (journeys), Breathe, Strap.
 - The timeline's head "Tagesverlauf" with "Show all".
 
 Training
-- Done 2026-11-11: the week head.
-- Starting as two buttons, "Start workout" and "Add workout", instead of the quick-start list.
+- Done 2026-11-11: the week head; the start capsules; the year grid and the muscle map off the tab (both still
+  reachable).
 - "Your week" card with the week's goals as progress bars.
 - Routines as a sideways row of cards.
 - Recent activities as one grouped list with Effort on the right.
 - Key metrics with the pace tile, then the grouped rows (Training load, Strength, Cardio, Goals).
 - Tools: This week's plan and Plan and library besides Intervals and Breathe.
-- Consistency and Muscle analytics are not on iOS's tab.
 
 Sleep
 - Phases as bars against the typical night; "What shaped the night" with three rings, Regularity and
@@ -150,5 +148,6 @@ Sleep
   tiles with 14 nights' bars; the history chart with Week, Month, Year; Alarms rows; Sleep marks last.
 
 Health
-- Focus areas as six tiles; "Your week in rings"; the Long term group (Weekly report, Trends, What works,
-  All metrics); Vitals with "Edit".
+- Done 2026-11-11: the Long term group with Trends, What works and All metrics.
+- Still missing: Focus areas as six tiles (iOS opens focus pages Android lacks, so the Heart and Body groups
+  stay until those pages exist); "Your week in rings"; Weekly report; Vitals with "Edit".
