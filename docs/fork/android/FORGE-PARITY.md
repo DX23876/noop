@@ -122,12 +122,15 @@ draws it, reading the same core data; the shipped Android cards are not reused i
 
 Whole app
 - Done 2026-11-11: Sleep on the plain canvas; section titles bold in sentence case.
-- iOS's tab bar spans the width at the bottom; Android's floats as a capsule.
+- Tab bar: iOS uses the system tab bar, which on iOS 26 floats as a glass capsule with the coach apart, as Android
+  draws it; on iOS 17 and 18 it spans the width. Android keeps the iOS 26 look.
 
 Today
 - Done 2026-11-11: tiles show the latest value, curves whole with an end dot, rings carry Charge and Rest,
   edit controls in the corners.
-- The hint card under the rings ("You slept less today", "1 more").
+- The hint card under the rings ("You slept less today", "1 more"). Open: iOS chooses it from its timeline notices
+  (Momentum messages through `TimelineFeed.admit`, a topic at most once a week), which Android does not have yet;
+  the hint waits for that feed rather than a shortcut over Momentum.
 - Done 2026-11-11: Energy, Momentum and Training load drawn as iOS's; the cycle card only while tracking is on.
 - Done 2026-11-11: Latest workout, Last night, Tonight (bedtime from the phone alarm's wake time and the
   wind-down sleep need), This week's plan (agreed coach sessions ringed), Next session, Breathe and Strap.
@@ -145,18 +148,25 @@ Today
 Training
 - Done 2026-11-11: the week head; the start capsules; the year grid and the muscle map off the tab (both still
   reachable).
-- "Your week" card with the week's goals as progress bars.
-- Routines as a sideways row of cards.
-- Recent activities as one grouped list with Effort on the right.
-- Key metrics with the pace tile, then the grouped rows (Training load, Strength, Cardio, Goals).
-- Tools: This week's plan and Plan and library besides Intervals and Breathe.
+- Done 2026-11-11: Planned today with Start; "Your week" over the training goals with a Goals link (Goals open over
+  the tab); routines as a sideways row of cards (tap starts, long press edits); recent activities of every kind as
+  one grouped list with Effort; the Training load, Strength, Cardio and Goals rows under Key metrics; Tools with
+  This week's plan, Plan and library, Intervals and Breathe. The week strip and the Understand list left the tab;
+  muscles, past sessions and lifting imports sit under Tools.
+- Still missing: the pace tile under Key metrics. "Plan and library" opens the exercise library (iOS opens its
+  full training page). Unseen on screen: the routine row and the recent list with data (the demo has neither).
 
 Sleep
-- Phases as bars against the typical night; "What shaped the night" with three rings, Regularity and
-  Breathing; Sleep debt with its bars; Inner clock dial; this week's sleep goal; Highlights; "This night"
-  tiles with 14 nights' bars; the history chart with Week, Month, Year; Alarms rows; Sleep marks last.
+- Done 2026-11-11 (`ForgeSleepNewDesign`): Tonight, the night with stage lanes, make-up bar and totals, naps,
+  stages against the typical night, what shaped the night (rings with the usual as a tick, steadiness from the
+  stored AI-35 regularity, breathing), sleep debt, body clock, the week's sleep goal, highlights as pages, "This
+  night" with 14 nights' bars, history with Week, Month and Year, the alarms and the sleep marks. The need is the
+  stored Rest trait, as on iOS. A night stored only as stage minutes keeps its breakdown without lanes.
+- Still missing: the in-place night editor, the deleted nights list. The body clock was not on screen (the demo's
+  rhythm is unreadable).
 
 Health
 - Done 2026-11-11: the Long term group with Trends, What works and All metrics.
-- Still missing: Focus areas as six tiles (iOS opens focus pages Android lacks, so the Heart and Body groups
-  stay until those pages exist); "Your week in rings"; Weekly report; Vitals with "Edit".
+- Done 2026-11-11: the food log card; Focus areas as six tiles, each opening a list of that area's Android pages
+  (Sleep opens the Sleep tab), which replaces the Heart and Body groups; "Your week in rings" opening Trends.
+- Still missing: iOS's own focus pages, the Weekly report row, the cycle summary and Vitals with "Edit".
