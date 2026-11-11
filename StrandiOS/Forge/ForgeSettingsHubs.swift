@@ -1,6 +1,7 @@
 #if os(iOS)
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 // The redesign's grouped Settings pages (navigation proposal, 2026-11): one entry where there used to be
 // several. Each row opens the page that already holds those controls, so no setting moves or disappears;
@@ -51,6 +52,10 @@ struct ForgeStrapSettingsView<DeviceRow: View>: View {
 /// Devices and data sources: everything that feeds NOOP, and which source each of today's values uses
 /// (the former "Your Data, Fused").
 struct ForgeDevicesSourcesView: View {
+    @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var intelligence: IntelligenceEngine
+    @AppStorage(StepsSource.defaultsKey) private var stepsSourceRaw = StepsSource.automatic.rawValue
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -69,6 +74,7 @@ struct ForgeDevicesSourcesView: View {
                     link(.fusedRecord, "square.stack.3d.up.fill", .purple, String(localized: "Values by source"),
                          String(localized: "Which device each of today's values comes from"))
                 }
+                stepsSourcePicker
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
@@ -77,6 +83,35 @@ struct ForgeDevicesSourcesView: View {
         .navigationTitle(Text("Devices and data sources"))
         // Inline: the German title ("Geräte und Datenquellen") does not fit as a large title.
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Where the daily steps come from (`StepsSource`), read by the one steps resolver. A new choice rebuilds the
+    /// AgeLess weeks, the only stored values that read steps, and refreshes the screens.
+    private var stepsSourcePicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForgeGroup {
+                Picker(selection: $stepsSourceRaw) {
+                    Text("Automatic").tag(StepsSource.automatic.rawValue)
+                    Text("Strap").tag(StepsSource.strap.rawValue)
+                    Text(verbatim: "Apple Health").tag(StepsSource.phone.rawValue)
+                } label: {
+                    Label { Text("Steps from") } icon: { Image(systemName: "figure.walk").foregroundStyle(ForgeColor.charge) }
+                }
+                .tint(ForgeColor.accent)
+                .padding(.horizontal, 16).padding(.vertical, 8)
+            }
+            Text("Automatic takes the strap's count first, then the phone's.")
+                .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).padding(.horizontal, 4)
+        }
+        .onChange(of: stepsSourceRaw) { _, _ in
+            Task {
+                if let store = await repo.storeHandle() {
+                    try? await DailyAnalysis.deleteHealthspanWeeks(store: store, deviceId: repo.deviceId)
+                }
+                await intelligence.analyzeRecent(allowDayReuse: false)
+                await repo.refresh()
+            }
+        }
     }
 
     private func link(_ destination: MoreDestination, _ image: String, _ tint: Color, _ title: String, _ subtitle: String) -> some View {

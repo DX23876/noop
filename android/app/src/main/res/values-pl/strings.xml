@@ -6234,4 +6234,8 @@
     <string name="forge_wk_h_min">%1$d godz. %2$s min</string>
     <string name="forge_wk_cal_label">Dni treningowe w ostatnich 13 tygodniach</string>
     <string name="forge_wk_cal_value">Dni z treningiem: %1$d</string>
+    <string name="forge_steps_from">Kroki z</string>
+    <string name="forge_steps_auto">Automatyczny</string>
+    <string name="forge_steps_strap">Pasek</string>
+    <string name="forge_steps_auto_note">Automatycznie najpierw liczba z paska, potem z telefonu.</string>
 </resources>

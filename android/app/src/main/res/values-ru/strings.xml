@@ -6187,4 +6187,8 @@
     <string name="forge_wk_h_min">%1$d ч %2$s мин</string>
     <string name="forge_wk_cal_label">Дни тренировок за последние 13 недель</string>
     <string name="forge_wk_cal_value">Дней с тренировкой: %1$d</string>
+    <string name="forge_steps_from">Шаги из</string>
+    <string name="forge_steps_auto">Автоматически</string>
+    <string name="forge_steps_strap">Браслет</string>
+    <string name="forge_steps_auto_note">Автоматически сначала берётся счёт браслета, затем телефона.</string>
 </resources>

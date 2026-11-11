@@ -416,6 +416,22 @@ public enum CoreCall {
         case "energy.recordIntake":
             guard let kcal = (args["kcal"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
             return ok(await CoreEnergyPlan.recordIntake(store: store, kcal: kcal))
+        case "healthConnect.workoutHeartRate":
+            // Health Connect sessions' heart rate, filed by the minute beside each session, then their Effort from
+            // the shared fill (`WorkoutHeartRateFills.fillHealthConnect`), as iOS fills Apple Health's workouts.
+            let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
+            var starts: [Int] = []
+            for w in args["workouts"] as? [[String: Any]] ?? [] {
+                guard let start = (w["startTs"] as? NSNumber)?.intValue, let sport = w["sport"] as? String else { continue }
+                starts.append(start)
+                let samples = (w["samples"] as? [[NSNumber]] ?? []).compactMap { p in
+                    p.count == 2 ? (ts: p[0].intValue, bpm: p[1].doubleValue) : nil
+                }
+                try? await WorkoutHeartRateFills.fileHealthConnectMinutes(store: store, startTs: start, sport: sport, samples: samples)
+            }
+            guard let lo = starts.min(), let hi = starts.max() else { return #"{"filled":0}"# }
+            let outcome = (try? await WorkoutHeartRateFills.fillHealthConnect(reader: reader, from: lo, to: hi, maxHR: maxHR)) ?? .untouched
+            return #"{"filled":\#(outcome.filled)}"#
         case "cycle.read":
             // The cycle page from the reading the iPhone runs (`CycleReading.swift`): phase, snapshot, pattern, log.
             return CoreRead.json(await CoreCycle.read(reader: reader, showFertile: (args["showFertile"] as? Bool) ?? true,
@@ -437,6 +453,13 @@ public enum CoreCall {
             return CoreRead.json(["ok": true, "startLogged": started])
         case "rhythm.snapshot":
             return CoreRead.json(await CoreRhythmAge.snapshot(reader: reader))
+        case "steps.setSource":
+            // Where daily steps come from (`StepsSource`): the choice, and the AgeLess weeks, the only stored values
+            // that read steps, rebuilt by the next pass as on the iPhone.
+            guard let source = StepsSource(rawValue: string("source")) else { return #"{"error":"invalid"}"# }
+            UserDefaults.standard.set(source.rawValue, forKey: StepsSource.defaultsKey)
+            try? await DailyAnalysis.deleteHealthspanWeeks(store: store, deviceId: reader.activeDeviceId)
+            return ok(true)
         case "ageless.snapshot":
             return CoreRead.json(await CoreAgeLess.snapshot(reader: reader, age: int("age", 0), sex: string("sex")))
         case "momentum.feed":

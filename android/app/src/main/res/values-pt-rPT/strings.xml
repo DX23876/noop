@@ -6206,4 +6206,8 @@
     <string name="forge_wk_h_min">%1$d h %2$s min</string>
     <string name="forge_wk_cal_label">Dias de treino nas últimas 13 semanas</string>
     <string name="forge_wk_cal_value">%1$d dias com treino</string>
+    <string name="forge_steps_from">Passos de</string>
+    <string name="forge_steps_auto">Automático</string>
+    <string name="forge_steps_strap">Alça</string>
+    <string name="forge_steps_auto_note">Automático usa primeiro a contagem da alça e depois a do telefone.</string>
 </resources>

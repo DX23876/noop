@@ -88,4 +88,33 @@ final class CoreReadTests: XCTestCase {
         let spo2 = await CoreRead.series(.spo2, from: "2026-10-01", to: "2026-10-05", reader: r)
         XCTAssertEqual(spo2, [CoreRead.Point(day: "2026-10-03", value: 96)])
     }
+
+    /// The wearer chooses where steps come from (`StepsSource`): automatically the strap's count wins a day the phone
+    /// also counted, the strap alone leaves the phone's days out, the phone alone leaves the strap's out.
+    func testTheChosenStepsSourceDecidesTheCount() async throws {
+        let r = try await reader()
+        defer { UserDefaults.standard.removeObject(forKey: StepsSource.defaultsKey) }
+        _ = try await r.store.upsertAppleDaily([
+            AppleDaily(day: "2026-10-02", steps: 7_000, activeKcal: nil, basalKcal: nil, vo2max: nil, avgHr: nil, maxHr: nil,
+                       walkingHr: nil, weightKg: nil),
+            AppleDaily(day: "2026-10-03", steps: 6_000, activeKcal: nil, basalKcal: nil, vo2max: nil, avgHr: nil, maxHr: nil,
+                       walkingHr: nil, weightKg: nil),
+        ], deviceId: MetricResolver.healthConnectSource)
+        _ = try await r.store.upsertDailyMetrics([DailyMetric(day: "2026-10-03", totalSleepMin: nil, efficiency: nil, deepMin: nil,
+                                                              remMin: nil, lightMin: nil, disturbances: nil, restingHr: nil,
+                                                              avgHrv: nil, recovery: nil, strain: nil, exerciseCount: nil,
+                                                              steps: 9_000)], deviceId: r.activeDeviceId)
+        func counts() async -> [String: Double] {
+            Dictionary(uniqueKeysWithValues: await CoreRead.series(.steps, from: "2026-10-01", to: "2026-10-05", reader: r)
+                .map { ($0.day, $0.value) })
+        }
+        let automatic = await counts()
+        XCTAssertEqual(automatic, ["2026-10-02": 7_000, "2026-10-03": 9_000])
+        UserDefaults.standard.set(StepsSource.strap.rawValue, forKey: StepsSource.defaultsKey)
+        let strap = await counts()
+        XCTAssertEqual(strap, ["2026-10-03": 9_000])
+        UserDefaults.standard.set(StepsSource.phone.rawValue, forKey: StepsSource.defaultsKey)
+        let phone = await counts()
+        XCTAssertEqual(phone, ["2026-10-02": 7_000, "2026-10-03": 6_000])
+    }
 }

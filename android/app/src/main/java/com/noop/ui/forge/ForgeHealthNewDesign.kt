@@ -225,8 +225,11 @@ internal fun FocusAreaPage(area: FocusArea, viewModel: com.noop.ui.AppViewModel,
             val seen = mutableSetOf<String>()
             area.measures().mapNotNull { m ->
                 if (m.key in seen) return@mapNotNull null
-                val points = runCatching { viewModel.repo.resolvedSeries(m.key, m.source, from, to, strapDeviceId = viewModel.activeStrapId).points }
-                    .getOrDefault(emptyList()).map { it.value }.filter { it.isFinite() }
+                // Steps from the core's one steps reader and the wearer's chosen source (`StepsSource`), as Today reads.
+                val points = if (m.key == "steps") runCatching { CoreRead.open(context); CoreRead.series(CoreRead.Metric.Steps, from, to).map { it.value } }
+                        .getOrDefault(emptyList())
+                    else runCatching { viewModel.repo.resolvedSeries(m.key, m.source, from, to, strapDeviceId = viewModel.activeStrapId).points }
+                        .getOrDefault(emptyList()).map { it.value }.filter { it.isFinite() }
                 if (points.isEmpty()) null else { seen += m.key; m to points }
             }
         }

@@ -73,17 +73,11 @@ public enum CoreRead {
             return nil
         }
         let rest = await restSeries(from: day, to: day, reader: reader).last?.value
-        // A day the strap measured no steps or SpO2 for takes them from the phone's health store, as the iPhone's
-        // Today falls back to Apple Health: Apple Health first, then Health Connect (Android's equivalent).
-        var steps = row.steps
-        if steps == nil {
-            for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
-                if let s = ((try? await reader.store.appleDaily(deviceId: source, from: day, to: day)) ?? [])
-                    .first(where: { $0.day == day })?.steps, s > 0 {
-                    steps = s; break
-                }
-            }
-        }
+        // The day's steps from the one steps resolver and the source the wearer chose (`StepsSource`), as the
+        // iPhone reads them; SpO2 the strap measured none for comes from the phone's health store.
+        let steps = await MetricResolver.resolvedSteps(store: reader.store, actualWhoopSource: reader.activeDeviceId,
+                                                        from: day, to: day).points.first { $0.day == day }
+            .map { Int($0.value.rounded()) }
         var spo2 = row.spo2Pct
         if spo2 == nil {
             for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
@@ -148,22 +142,19 @@ public enum CoreRead {
 
     public static func series(_ metric: Metric, from: String, to: String, reader: StoreReader) async -> [Point] {
         if metric == .rest { return await restSeries(from: from, to: to, reader: reader) }
+        if metric == .steps {
+            // The one steps resolver, from the source the wearer chose (`StepsSource`), as the iPhone's tile reads.
+            return await MetricResolver.resolvedSteps(store: reader.store, actualWhoopSource: reader.activeDeviceId,
+                                                      from: from, to: to).points.map { Point(day: $0.day, value: $0.value) }
+        }
         let own = await strapSeries(metric, from: from, to: to, reader: reader)
-        guard metric == .steps || metric == .spo2 else { return own }
-        // Steps and SpO2 a day's row lacks come from the phone's health store, as `day` fills them: Apple Health
-        // first, then Health Connect. A WHOOP 4.0 counts no steps, so without this the steps tile and trend of a
-        // Health Connect wearer stayed empty although the day itself showed the phone's count.
+        guard metric == .spo2 else { return own }
+        // SpO2 a day's row lacks comes from the phone's health store: Apple Health first, then Health Connect.
         var byDay = Dictionary(own.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
         for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
-            if metric == .steps {
-                for row in (try? await reader.store.appleDaily(deviceId: source, from: from, to: to)) ?? [] {
-                    if byDay[row.day] == nil, let s = row.steps, s > 0 { byDay[row.day] = Point(day: row.day, value: Double(s)) }
-                }
-            } else {
-                for p in (try? await reader.store.metricSeries(deviceId: source, key: "spo2", from: from, to: to)) ?? []
-                where byDay[p.day] == nil {
-                    byDay[p.day] = Point(day: p.day, value: p.value)
-                }
+            for p in (try? await reader.store.metricSeries(deviceId: source, key: "spo2", from: from, to: to)) ?? []
+            where byDay[p.day] == nil {
+                byDay[p.day] = Point(day: p.day, value: p.value)
             }
         }
         return byDay.values.sorted { $0.day < $1.day }

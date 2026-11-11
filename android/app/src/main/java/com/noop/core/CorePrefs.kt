@@ -25,12 +25,20 @@ object CorePrefs {
     const val WEIGHT_UNIT = "training.weightUnit"
     /** Per-set effort entry: `off`, `rir` or `rpe` (`TrainingPreferences.effortKey`, iOS default `rpe`). */
     const val EFFORT_SCALE = "training.effortScale"
+    /** Where daily steps come from: `automatic`, `strap` or `phone` (`StepsSource`, iOS Devices and data sources). */
+    const val STEPS_SOURCE = "steps.source"
     private val MIRRORED = setOf(DEFAULT_REST, WARMUP_REST, WEIGHT_UNIT, EFFORT_SCALE)
 
     fun read(context: Context): JSONObject = runCatching {
         CoreRead.open(context)
         JSONObject(SwiftCore.call("prefs.read", "{}") ?: "{}")
     }.getOrDefault(JSONObject())
+
+    /** Sets where daily steps come from; the core rebuilds the AgeLess weeks, which read steps. True when it took it. */
+    fun setStepsSource(context: Context, source: String): Boolean = runCatching {
+        CoreRead.open(context)
+        SwiftCore.call("steps.setSource", JSONObject().put("source", source).toString())?.contains("\"ok\":true") == true
+    }.getOrDefault(false).also { if (it) CoreShadow.noteDataChanged() }
 
     /** True when the core took the value. */
     fun write(context: Context, key: String, value: Any): Boolean {

@@ -160,6 +160,13 @@ struct ForgeFocusView: View {
         var out: [String: [(day: String, value: Double)]] = [:]
         for m in area.metrics {
             guard let d = MetricCatalog.metric(key: m.key, source: m.source) else { continue }
+            if m.key == "steps" {
+                // The one steps resolver and the wearer's chosen source (`StepsSource`), as Today's tile reads.
+                let now = Date()
+                out[d.id] = await repo.resolvedSteps(from: Repository.localDayKey(now.addingTimeInterval(-90 * 86_400)),
+                                                     to: Repository.localDayKey(now)).points.map { (day: $0.day, value: $0.value) }
+                continue
+            }
             out[d.id] = await repo.exploreSeries(key: m.key, source: m.source, days: 90)
         }
         series = out

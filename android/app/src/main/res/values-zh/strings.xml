@@ -6183,4 +6183,8 @@
     <string name="forge_wk_h_min">%1$d 小时 %2$s 分钟</string>
     <string name="forge_wk_cal_label">最近 13 周的训练日</string>
     <string name="forge_wk_cal_value">%1$d 天有训练</string>
+    <string name="forge_steps_from">步数来源</string>
+    <string name="forge_steps_auto">自动</string>
+    <string name="forge_steps_strap">手环</string>
+    <string name="forge_steps_auto_note">自动：先用手环的计数，再用手机的。</string>
 </resources>

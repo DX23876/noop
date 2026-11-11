@@ -87,26 +87,52 @@ public enum MetricResolver {
         return MetricSeriesResolution(requestedSource: preferredSource, candidates: candidates, points: points)
     }
 
-    /// The app's one daily-steps reading, shared by the steps detail, the rolling tile and AgeLess: the
-    /// strap's measured count, then the phone's import, then the strap's motion estimate, first per day.
-    public static func resolvedSteps(store: WhoopStore?, actualWhoopSource: String,
-                                     from: String, to: String) async -> MetricSeriesResolution {
+    /// The app's one daily-steps reading, shared by the Today tile, the steps detail, the rolling tile and AgeLess,
+    /// from the source the wearer chose (`StepsSource`, owner 2026-11-11): automatically the strap's measured count,
+    /// then the phone's import, then the strap's motion estimate, first per day; or the strap alone (its count, then
+    /// its estimate); or the phone alone.
+    public static func resolvedSteps(store: WhoopStore?, actualWhoopSource: String, from: String, to: String,
+                                     source: StepsSource = .current) async -> MetricSeriesResolution {
         async let strap = resolve(store: store, key: "steps", preferredSource: whoopSource,
                                   actualWhoopSource: actualWhoopSource, from: from, to: to,
                                   suppressedSleepWakeDays: [])
-        async let phone = resolve(store: store, key: "steps", preferredSource: appleHealthSource,
-                                  actualWhoopSource: actualWhoopSource, from: from, to: to,
-                                  suppressedSleepWakeDays: [])
+        async let phone = phoneSteps(store: store, actualWhoopSource: actualWhoopSource, from: from, to: to)
         async let estimate = resolve(store: store, key: "steps_est", preferredSource: whoopSource,
                                      actualWhoopSource: actualWhoopSource, from: from, to: to,
                                      suppressedSleepWakeDays: [])
-        let resolutions = await [strap, phone, estimate]
+        let resolutions: [MetricSeriesResolution]
+        switch source {
+        case .automatic: resolutions = await [strap, phone, estimate]
+        case .strap: resolutions = await [strap, estimate]
+        case .phone: resolutions = await [phone]
+        }
         var byDay: [String: ResolvedMetricPoint] = [:]
         for resolution in resolutions {
             for point in resolution.points where byDay[point.day] == nil { byDay[point.day] = point }
         }
-        return MetricSeriesResolution(requestedSource: whoopSource,
+        return MetricSeriesResolution(requestedSource: source == .phone ? appleHealthSource : whoopSource,
                                       candidates: resolutions.flatMap(\.candidates),
+                                      points: byDay.values.sorted { $0.day < $1.day })
+    }
+
+    /// The phone's daily steps: Apple Health's series (and Health Connect's, which `sourceCandidates` adds), then the
+    /// day totals each phone store keeps beside it (`appleDaily`), where Android's Health Connect import files its
+    /// steps. Without the second read the phone's count of a Health Connect wearer never reached this resolver.
+    static func phoneSteps(store: WhoopStore?, actualWhoopSource: String, from: String, to: String) async
+        -> MetricSeriesResolution {
+        let series = await resolve(store: store, key: "steps", preferredSource: appleHealthSource,
+                                   actualWhoopSource: actualWhoopSource, from: from, to: to, suppressedSleepWakeDays: [])
+        guard let store else { return series }
+        var byDay = Dictionary(series.points.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
+        for source in [appleHealthSource, healthConnectSource] {
+            for row in (try? await store.appleDaily(deviceId: source, from: from, to: to)) ?? []
+            where byDay[row.day] == nil {
+                if let steps = row.steps, steps > 0 {
+                    byDay[row.day] = ResolvedMetricPoint(day: row.day, value: Double(steps), source: source, sourceKey: "steps")
+                }
+            }
+        }
+        return MetricSeriesResolution(requestedSource: appleHealthSource, candidates: series.candidates,
                                       points: byDay.values.sorted { $0.day < $1.day })
     }
 

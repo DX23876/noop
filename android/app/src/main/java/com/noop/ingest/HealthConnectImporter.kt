@@ -401,6 +401,8 @@ object HealthConnectImporter {
         var hydrationReadOk: Boolean
 
         val workouts = ArrayList<WorkoutRow>()
+        // Each session's heart-rate samples, by index into [workouts], for its Effort in the core (`fileWorkoutHeartRate`).
+        val workoutSamples = HashMap<Int, List<Pair<Long, Long>>>()
         // #1002: each workout's day key, computed at READ time while the record's own zone offset is
         // still in hand. WorkoutRow carries only epoch seconds, so re-deriving the key later would
         // silently fall back to the phone's zone and undo the fix for exactly the travelled sessions
@@ -627,6 +629,7 @@ object HealthConnectImporter {
                 val w = workouts[i]
                 if (w.endTs <= w.startTs) continue
                 val samples = mutableListOf<Pair<Long, Long>>()
+                workoutSamples[i] = samples
                 readSelected(
                     HeartRateRecord::class,
                     TimeRangeFilter.between(
@@ -874,6 +877,7 @@ object HealthConnectImporter {
                                             workouts)
                 stale.forEach { repo.deleteWorkout(it) }
                 repo.upsertWorkouts(workouts)
+                fileWorkoutHeartRate(context, workouts, workoutSamples)
             }
         } catch (e: Exception) {
             return ImportSummary.failure(SOURCE, "Saving Health Connect data failed: ${e.message}")
@@ -1427,6 +1431,26 @@ object HealthConnectImporter {
      */
     internal fun exerciseName(exerciseType: Int, title: String?): String =
         EXERCISE_TYPE_NAMES[exerciseType] ?: title?.trim()?.takeIf { it.isNotEmpty() } ?: "Workout"
+
+    /**
+     * Hands each session's heart rate to the shared core, which files it by the minute and works out the session's
+     * Effort from it (or from the strap's trace when the strap was worn), as iOS does for Apple Health's workouts
+     * (`WorkoutHeartRateFills.fillHealthConnect`, AI-35). Best effort: a failure leaves the sessions without Effort.
+     */
+    private fun fileWorkoutHeartRate(context: Context, workouts: List<WorkoutRow>, samples: Map<Int, List<Pair<Long, Long>>>) {
+        if (!com.noop.core.SwiftCore.available || workouts.isEmpty()) return
+        runCatching {
+            val list = org.json.JSONArray()
+            workouts.forEachIndexed { i, w ->
+                val pts = org.json.JSONArray()
+                samples[i].orEmpty().forEach { (ts, bpm) -> pts.put(org.json.JSONArray().put(ts).put(bpm)) }
+                list.put(org.json.JSONObject().put("startTs", w.startTs).put("sport", w.sport).put("samples", pts))
+            }
+            val args = org.json.JSONObject().put("workouts", list)
+                .put("maxHR", com.noop.ui.ProfileStore.from(context).hrMax.toDouble())
+            com.noop.core.SwiftCore.call("healthConnect.workoutHeartRate", args.toString())
+        }
+    }
 
     /**
      * The stored Health Connect rows the corrected [fresh] ones replace: same start, a sport that is not the fresh

@@ -6230,4 +6230,8 @@
     <string name="forge_wk_h_min">%1$d Std. %2$s Min.</string>
     <string name="forge_wk_cal_label">Trainingstage der letzten 13 Wochen</string>
     <string name="forge_wk_cal_value">%1$d Tage mit Training</string>
+    <string name="forge_steps_from">Schritte von</string>
+    <string name="forge_steps_auto">Automatisch</string>
+    <string name="forge_steps_strap">Strap</string>
+    <string name="forge_steps_auto_note">Automatisch nimmt zuerst die Zahl vom Strap, dann die vom Telefon.</string>
 </resources>

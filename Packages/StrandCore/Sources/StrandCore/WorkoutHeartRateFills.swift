@@ -41,6 +41,92 @@ public enum WorkoutHeartRateFills {
     /// strap as empty; its raw history spans only the recent weeks, which every sync fills again.
     public static func fillApple(reader: StoreReader, from: Int, to: Int, maxHR: Double,
                                  sex: String) async throws -> Outcome {
+        let apple = try await fillAppleOnly(reader: reader, from: from, to: to, maxHR: maxHR)
+        // The phone's health store on Android: the same fill over Health Connect's sessions (2026-11-11, AI-35).
+        let phone = try await fillHealthConnect(reader: reader, from: from, to: to, maxHR: maxHR)
+        return Outcome(filled: apple.filled + phone.filled, wrote: apple.wrote || phone.wrote)
+    }
+
+    /// Where Android files a Health Connect session's minute heart rate (`workoutHeartRateBucket`), keyed by the
+    /// session's start and sport as the import stored it.
+    public static func healthConnectBucketKey(startTs: Int, sport: String) -> String {
+        "\(WorkoutSource.healthConnectSource)|\(startTs)|\(sport)"
+    }
+
+    /// Files one Health Connect session's heart rate by the minute (each minute's mean of the (epoch second, bpm)
+    /// samples) under `healthConnectBucketKey`, with the session's source row the minutes hang on, replacing what was
+    /// filed for it before. Android's import calls it for every session it brings in.
+    public static func fileHealthConnectMinutes(store: WhoopStore, startTs: Int, sport: String,
+                                                samples: [(ts: Int, bpm: Double)]) async throws {
+        let key = healthConnectBucketKey(startTs: startTs, sport: sport)
+        var byMinute: [Int: (sum: Double, n: Double)] = [:]
+        for sample in samples where sample.bpm.isFinite && sample.bpm > 0 {
+            let minute = sample.ts / 60 * 60
+            byMinute[minute, default: (0, 0)].sum += sample.bpm
+            byMinute[minute, default: (0, 0)].n += 1
+        }
+        try await store.upsertWorkoutSourceMetadata([WorkoutSourceMetadataRow(
+            componentKey: key, source: WorkoutSource.healthConnectSource, startTs: startTs, sport: sport,
+            externalId: nil, sourceBundleId: nil, rawActivityType: nil, activitiesJSON: nil,
+            updatedAtTs: Int(Date().timeIntervalSince1970), steps: nil)])
+        try await store.replaceWorkoutHeartRateBuckets(componentKey: key, rows: byMinute.keys.sorted().map {
+            WorkoutHeartRateBucketRow(componentKey: key, bucketStart: $0, bpm: byMinute[$0]!.sum / byMinute[$0]!.n,
+                                      sourceBundleId: nil)
+        })
+    }
+
+    /// Effort, average and peak for Health Connect sessions starting in `[from, to]` that have no Effort yet: from
+    /// the strap's trace when the strap was worn, else from the minute heart rate the import filed beside the
+    /// session (`healthConnectBucketKey`), as `fillApple` does with the Watch's minutes. Stored under the
+    /// `health-connect` namespace and laid over the row when the list is read.
+    public static func fillHealthConnect(reader: StoreReader, from: Int, to: Int, maxHR: Double) async throws -> Outcome {
+        let store = reader.store
+        var rows: [WorkoutRow] = []
+        var offset = 0
+        while true {
+            let page = try await store.workouts(deviceId: WorkoutSource.healthConnectSource, from: from, to: to,
+                                                limit: 500, offset: offset)
+            rows += page
+            if page.count < 500 { break }
+            offset += page.count
+        }
+        let candidates = rows.filter { $0.strain == nil && $0.endTs > $0.startTs }
+        guard let first = candidates.map(\.startTs).min(),
+              let last = candidates.map(\.startTs).max() else { return .untouched }
+        let firstDay = WeeklyDigestEngine.addDays(StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(first))),
+                                                  -WorkoutHeartRateFill.appleRestingWindowDays)
+        let lastDay = WeeklyDigestEngine.addDays(StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(last))),
+                                                 WorkoutHeartRateFill.appleRestingWindowDays)
+        // Health Connect's resting heart rate reaches the daily rows of days the strap does not cover, so the same
+        // read finds it there.
+        let own = await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay)
+        let now = Int(Date().timeIntervalSince1970)
+        var keys: [WorkoutKey] = []
+        var fills: [WorkoutHeartRateFillRow] = []
+        for row in candidates {
+            let key = WorkoutKey(deviceId: WorkoutSource.healthConnectSource, startTs: row.startTs, sport: row.sport)
+            keys.append(key)
+            let band = await reader.hrSamples(from: row.startTs, to: row.endTs, limit: 20_000)
+            let minutes = try await store.workoutHeartRateBuckets(
+                componentKey: healthConnectBucketKey(startTs: row.startTs, sport: row.sport))
+                .map { (start: $0.bucketStart, bpm: $0.bpm) }
+            let day = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+            let resting = WorkoutHeartRateFill.restingHR(on: day, own: own, apple: [:])
+            guard let result = WorkoutHeartRateFill.resolve(
+                band: band, watchMinutes: minutes, start: row.startTs, end: row.endTs,
+                maxHR: maxHR, restingHR: resting) else { continue }
+            fills.append(WorkoutHeartRateFillRow(
+                key: key, avgHr: result.averageHR, maxHr: result.maxHR, strain: result.strain,
+                hrSource: result.source.rawValue, restingHrUsed: result.restingHR,
+                coveredMinutes: result.coveredMinutes, possibleMinutes: result.possibleMinutes,
+                updatedAtTs: now))
+        }
+        guard !keys.isEmpty else { return .untouched }
+        try await store.replaceWorkoutHeartRateFills(fills, keys: keys)
+        return Outcome(filled: fills.count, wrote: true)
+    }
+
+    private static func fillAppleOnly(reader: StoreReader, from: Int, to: Int, maxHR: Double) async throws -> Outcome {
         let store = reader.store
         var rows: [WorkoutRow] = []
         var offset = 0
@@ -161,6 +247,7 @@ public enum WorkoutHeartRateFills {
     /// The fill namespace a row's stored fill lives in, or nil for a source that is never filled.
     public static func fillNamespace(for row: WorkoutRow) -> String? {
         if WorkoutSource.isAppleHealth(row.source) { return MetricResolver.appleHealthSource }
+        if row.source.lowercased() == WorkoutSource.healthConnectSource { return WorkoutSource.healthConnectSource }
         if WorkoutSource.classify(row.source).isWearerLogged { return recordedWorkoutFillNamespace }
         return nil
     }
@@ -174,9 +261,10 @@ public enum WorkoutHeartRateFills {
         guard let lo = fillable.map(\.startTs).min(), let hi = fillable.map(\.startTs).max() else { return rows }
         var fills = (try? await store.workoutHeartRateFills(deviceId: MetricResolver.appleHealthSource,
                                                             from: lo, to: hi)) ?? [:]
-        for (key, fill) in (try? await store.workoutHeartRateFills(deviceId: Self.recordedWorkoutFillNamespace,
-                                                                   from: lo, to: hi)) ?? [:] {
-            fills[key] = fill
+        for namespace in [Self.recordedWorkoutFillNamespace, WorkoutSource.healthConnectSource] {
+            for (key, fill) in (try? await store.workoutHeartRateFills(deviceId: namespace, from: lo, to: hi)) ?? [:] {
+                fills[key] = fill
+            }
         }
         var steps: [String: Int] = [:]
         for meta in apple.isEmpty ? [] : ((try? await store.workoutSourceMetadata(from: lo, to: hi)) ?? [])

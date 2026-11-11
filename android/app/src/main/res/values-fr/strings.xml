@@ -6213,4 +6213,8 @@
     <string name="forge_wk_h_min">%1$d h %2$s min</string>
     <string name="forge_wk_cal_label">Jours d\'entraînement des 13 dernières semaines</string>
     <string name="forge_wk_cal_value">%1$d jours avec entraînement</string>
+    <string name="forge_steps_from">Pas depuis</string>
+    <string name="forge_steps_auto">Automatique</string>
+    <string name="forge_steps_strap">Bracelet</string>
+    <string name="forge_steps_auto_note">Automatique prend d\'abord le compte du bracelet, puis celui du téléphone.</string>
 </resources>

@@ -241,6 +241,10 @@ public enum AnalysisRecipe {
     //     `sleep_consistency`); before, the stored Rest used a fixed 8 h and a neutral regularity.
     //   • Day windows: each day of a pass is cut at its own local midnight with its own UTC offset
     //     (`DailyAnalysis.localDay`), so a summer day scored in winter no longer starts at 01:00.
+    // AI-35 also fills Health Connect's workouts (2026-11-11, owner): their Effort, average and peak come from the
+    // strap's trace or the minute heart rate Android's import files beside each session
+    // (`WorkoutHeartRateFills.fillHealthConnect`), as Apple Health's workouts get theirs; the `.workoutHeartRate` step
+    // runs it over the whole history. It rides on AI-35, which is in no release or testing build yet.
     // The full rebuild re-derives every day; no stored input is rewritten.
     public static let currentVersion = 35
 

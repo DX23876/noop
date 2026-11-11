@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// The settings the Android Settings pages share with the core's own UserDefaults (Android parity plan 2.3): goal
 /// limits, rest days and the step goal that goals and Momentum read, and the training defaults a new session takes.
@@ -19,6 +20,7 @@ enum CorePrefs {
         "training.warmupRestSeconds": .int(0...300),
         "training.weightUnit": .string(["kilograms", "pounds"]),
         "training.effortScale": .string(["off", "rir", "rpe"]),
+        StepsSource.defaultsKey: .string(Set(StepsSource.allCases.map(\.rawValue))),
     ]
 
     /// The stored values of the known keys; a key never set is left out, so the caller keeps its default.

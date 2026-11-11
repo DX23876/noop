@@ -86,6 +86,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -1193,6 +1195,37 @@ private fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub
         RowDivider()
         LinkRow(stringResource(R.string.nav_self_hosted_push), stringResource(R.string.push_settings_row_detail)) {
             onOpen(ForgeSettingsSub.SelfHostedPush)
+        }
+    }
+    StepsSourceCard()
+}
+
+/**
+ * Where daily steps come from, as iOS's Devices and data sources picker (`StepsSource`): automatically (the strap's
+ * count, then the phone's, then the 4.0's estimate), the strap alone, or Health Connect alone. The one steps reader
+ * in the core follows it, so the Today tile, the steps page and AgeLess show the same count.
+ */
+@Composable
+private fun StepsSourceCard() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var chosen by remember { mutableStateOf("automatic") }
+    LaunchedEffect(Unit) {
+        chosen = withContext(Dispatchers.IO) { com.noop.core.CorePrefs.read(context).optString(com.noop.core.CorePrefs.STEPS_SOURCE, "automatic") }
+            .ifEmpty { "automatic" }
+    }
+    SettingsCard(title = stringResource(R.string.forge_steps_from), blurb = stringResource(R.string.forge_steps_auto_note)) {
+        listOf("automatic" to stringResource(R.string.forge_steps_auto), "strap" to stringResource(R.string.forge_steps_strap),
+               "phone" to stringResource(R.string.today_source_health_connect)).forEachIndexed { i, (key, label) ->
+            if (i > 0) RowDivider()
+            Row(Modifier.fillMaxWidth().selectable(selected = chosen == key, role = androidx.compose.ui.semantics.Role.RadioButton) {
+                    if (chosen == key) return@selectable
+                    chosen = key
+                    scope.launch { withContext(Dispatchers.IO) { com.noop.core.CorePrefs.setStepsSource(context, key) } }
+                }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                if (chosen == key) Icon(Icons.Rounded.Check, contentDescription = null, tint = Forge.colors.accent)
+            }
         }
     }
 }

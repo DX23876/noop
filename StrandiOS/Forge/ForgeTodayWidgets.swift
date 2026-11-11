@@ -942,6 +942,15 @@ struct ForgeMeasureWidget: View {
     }
 
     private func load() async {
+        if key == "steps" {
+            // Steps from the one resolver and the source the wearer chose (`StepsSource`), as the steps page reads.
+            let now = Date()
+            let points = await repo.resolvedSteps(from: Repository.localDayKey(now.addingTimeInterval(-60 * 86_400)),
+                                                  to: Repository.localDayKey(now)).points
+            metric = ForgeWidgetMeasures.descriptor(key, source)
+            values = points.map(\.value)
+            return
+        }
         var candidates: [MetricDescriptor] = []
         if let d = ForgeWidgetMeasures.descriptor(key, source) { candidates.append(d) }
         candidates += MetricCatalog.all.filter { $0.key == key && !candidates.contains($0) }

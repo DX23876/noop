@@ -6253,4 +6253,8 @@
     <string name="forge_wk_h_min">%1$d h %2$s min</string>
     <string name="forge_wk_cal_label">Training days in the last 13 weeks</string>
     <string name="forge_wk_cal_value">%1$d days with a workout</string>
+    <string name="forge_steps_from">Steps from</string>
+    <string name="forge_steps_auto">Automatic</string>
+    <string name="forge_steps_strap">Strap</string>
+    <string name="forge_steps_auto_note">Automatic takes the strap\'s count first, then the phone\'s.</string>
 </resources>
