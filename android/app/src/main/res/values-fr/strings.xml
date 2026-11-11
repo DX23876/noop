@@ -5627,4 +5627,19 @@
     <string name="forge_sl_sleep_debt">Dette de sommeil</string>
     <string name="forge_sl_body_clock">Horloge biologique</string>
     <string name="forge_sl_hours_night">Heures de sommeil nuit après nuit</string>
+    <string name="forge_tr_planned_today">Prévu aujourd\'hui</string>
+    <string name="forge_tr_your_week">Ta semaine</string>
+    <string name="forge_tr_goals">Objectifs</string>
+    <string name="forge_tr_recent">Activités récentes</string>
+    <string name="forge_tr_recent_empty">Les séances que tu enregistres ou importes apparaissent ici.</string>
+    <string name="forge_tr_start_named">Démarrer %1$s</string>
+    <string name="forge_tr_load_sub">Les deux volets face à ton habitude</string>
+    <string name="forge_tr_strength_sub">Exercices, volume et groupes musculaires</string>
+    <string name="forge_tr_cardio_sub">Courses, sorties vélo, nages et rameur</string>
+    <string name="forge_tr_goals_sub">Cette semaine, ce mois-ci, à long terme</string>
+    <string name="forge_tr_week_plan">Plan de la semaine</string>
+    <string name="forge_tr_week_plan_sub">Fait et prévu, jour par jour</string>
+    <string name="forge_tr_plan_library">Plan et bibliothèque</string>
+    <string name="forge_tr_plan_library_sub">Calendrier, routines, imports, séances passées</string>
+    <string name="forge_tr_all_link">Tout</string>
 </resources>

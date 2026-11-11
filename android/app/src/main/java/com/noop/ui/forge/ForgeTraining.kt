@@ -211,6 +211,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     }
 
     val s = snapshot
+    // Goals and the other pages behind More, opened over the tab as Today opens them (new design).
+    val more = rememberMoreNavigator()
+    val workouts by viewModel.workouts.collectAsState()
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding)
             .padding(horizontal = ForgeMetrics.screenPadding).widthIn(max = ForgeMetrics.maxContentWidth),
@@ -245,6 +248,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 StartChip(stringResource(R.string.nav_live), Icons.Rounded.Favorite) { page = TrainingPage.Live }
                 StartChip(stringResource(R.string.nav_breathe), Icons.Rounded.Air) { page = TrainingPage.Breathe }
             }
+            // Today's routine from the plan, ready to start, as iOS's `todayPlan`.
+            val todayIds = s.week.firstOrNull { it.isToday }?.routineIds.orEmpty()
+            s.routines.firstOrNull { it.id in todayIds }?.let { routine -> TrainingPlannedToday(routine) { start(listOf(routine.id)) } }
         } else {
             val today = s.week.firstOrNull { it.isToday }?.routineIds.orEmpty()
             QuickStartCard(
@@ -254,10 +260,18 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 onSettings = { configuring = it },
                 onAll = { showAll = true })
         }
-        ForgeGoalsContextCard("training")
+        // The new design heads the week's goals as iOS's "Your week", with a link to every goal.
+        if (ForgeDesign.preview) {
+            Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+                TrainingSectionHead(stringResource(R.string.forge_tr_your_week), stringResource(R.string.forge_tr_goals)) {
+                    more.push(MoreRoute.Dest(MoreDest.Goals))
+                }
+                ForgeGoalsContextCard("training")
+            }
+        } else ForgeGoalsContextCard("training")
 
-        // The planned week (the schedule), after starting in both designs.
-        Section(stringResource(R.string.forge_th_this_week), stringResource(R.string.forge_th_schedule),
+        // The planned week (the schedule), after starting; the new design opens it from Tools, as iOS does.
+        if (!ForgeDesign.preview) Section(stringResource(R.string.forge_th_this_week), stringResource(R.string.forge_th_schedule),
                 trailing = { TintButton(stringResource(R.string.forge_th_edit)) { page = TrainingPage.Schedule } }) {
             WeekStrip(s.week) { page = TrainingPage.Schedule }
         }
@@ -288,6 +302,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                          modifier = Modifier.background(Forge.colors.accent.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                              .clickable { page = TrainingPage.Starters }.padding(horizontal = 12.dp, vertical = 7.dp))
                 }
+            } else if (ForgeDesign.preview) {
+                TrainingRoutineRow(s.routines, onStart = { start(listOf(it.id)) }, onEdit = { page = TrainingPage.Routine(it) })
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
                     s.routines.forEach { routine ->
@@ -302,7 +318,13 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             }
         }
 
-        Section(stringResource(R.string.forge_th_recent), stringResource(R.string.forge_th_logged_in_noop)) {
+        // The new design lists every recent activity with its Effort, as iOS's `recentActivities`.
+        if (ForgeDesign.preview) Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+            TrainingSectionHead(stringResource(R.string.forge_tr_recent), stringResource(R.string.forge_tr_all_link)) {
+                page = TrainingPage.History
+            }
+            TrainingRecentList(workouts) { page = TrainingPage.History }
+        } else Section(stringResource(R.string.forge_th_recent), stringResource(R.string.forge_th_logged_in_noop)) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 if (s.sessions.isEmpty()) {
                     Text(stringResource(R.string.forge_th_no_recent), style = Forge.type.subhead,
@@ -318,7 +340,11 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         }
 
         // The new design's Key metrics after the recent sessions, as iOS orders them.
-        if (ForgeDesign.preview) TrainingKeyMetrics(s.week, viewModel, onWorkouts = { page = TrainingPage.History })
+        if (ForgeDesign.preview) {
+            TrainingKeyMetrics(s.week, viewModel, onWorkouts = { page = TrainingPage.History })
+            TrainingAnalysisGroup(onLoad = { page = TrainingPage.Load }, onStrength = { page = TrainingPage.Strength },
+                                  onCardio = { page = TrainingPage.Cardio }, onGoals = { more.push(MoreRoute.Dest(MoreDest.Goals)) })
+        }
 
         // iOS's Training tab has no year grid; in the new design it stays in the reports (ForgeTrainingReports).
         if (!ForgeDesign.preview) Section(stringResource(R.string.forge_th_consistency), stringResource(R.string.forge_th_past_year)) {
@@ -341,7 +367,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             }
         }
 
-        Section(stringResource(R.string.forge_th_understand), stringResource(R.string.forge_th_noop_analysis)) {
+        if (!ForgeDesign.preview) Section(stringResource(R.string.forge_th_understand), stringResource(R.string.forge_th_noop_analysis)) {
             ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                 AnalysisRow(stringResource(R.string.forge_th_strength), stringResource(R.string.forge_th_strength_detail),
                             Icons.Rounded.FitnessCenter) { page = TrainingPage.Strength }
@@ -364,15 +390,25 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         // shipped design keeps under More only.
         if (ForgeDesign.preview) Section(stringResource(R.string.forge_th_tools), overline = null) {
             ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-                AnalysisRow(stringResource(R.string.forge_th_interval_timer), stringResource(R.string.forge_th_interval_timer_sub),
-                            Icons.Rounded.Timer) { page = TrainingPage.Intervals }
-                AnalysisRow(stringResource(R.string.nav_breathe), stringResource(R.string.forge_th_breathe_sub),
-                            Icons.Rounded.Air) { page = TrainingPage.Breathe }
+                TrainingPlanRows(onWeekPlan = { page = TrainingPage.Schedule }, onLibrary = { page = TrainingPage.Library })
+                TrainingGroupRow(Icons.Rounded.Timer, ForgeTokens.Color.systemOrange.resolve(),
+                                 stringResource(R.string.forge_th_interval_timer), stringResource(R.string.forge_th_interval_timer_sub),
+                                 true) { page = TrainingPage.Intervals }
+                TrainingGroupRow(Icons.Rounded.Air, ForgeTokens.Color.systemTeal.resolve(), stringResource(R.string.nav_breathe),
+                                 stringResource(R.string.forge_th_breathe_sub), true) { page = TrainingPage.Breathe }
+                // What iOS keeps on its plan page, reachable here: muscles, past sessions and lifting imports.
+                TrainingGroupRow(Icons.Rounded.FitnessCenter, Forge.colors.effort, stringResource(R.string.forge_th_muscle_analytics),
+                                 stringResource(R.string.forge_th_explore_muscles), true) { page = TrainingPage.Muscles }
+                TrainingGroupRow(Icons.Rounded.History, Forge.colors.effort, stringResource(R.string.forge_history_title),
+                                 stringResource(R.string.forge_history_subtitle), true) { page = TrainingPage.History }
+                TrainingGroupRow(Icons.Rounded.Add, Forge.colors.effort, stringResource(R.string.forge_lifting_title),
+                                 stringResource(R.string.forge_lifting_detail), true) { page = TrainingPage.Import }
             }
         }
         Spacer(Modifier.height(ForgeMetrics.space4))
     }
 
+    MoreOverlay(more, viewModel, onOpenSettings = {})
     page?.let { open ->
         val close: () -> Unit = { page = null; reload() }
         ForgeOverlayPage(onDismiss = close) {

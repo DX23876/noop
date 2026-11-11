@@ -5597,4 +5597,19 @@
     <string name="forge_sl_sleep_debt">睡眠债</string>
     <string name="forge_sl_body_clock">生物钟</string>
     <string name="forge_sl_hours_night">每晚的睡眠小时数</string>
+    <string name="forge_tr_planned_today">今天的计划</string>
+    <string name="forge_tr_your_week">你的一周</string>
+    <string name="forge_tr_goals">目标</string>
+    <string name="forge_tr_recent">最近活动</string>
+    <string name="forge_tr_recent_empty">你记录或导入的训练会显示在这里。</string>
+    <string name="forge_tr_start_named">开始 %1$s</string>
+    <string name="forge_tr_load_sub">两条通道与你的常态对比</string>
+    <string name="forge_tr_strength_sub">动作、训练量与肌群</string>
+    <string name="forge_tr_cardio_sub">跑步、骑行、游泳与划船</string>
+    <string name="forge_tr_goals_sub">本周、本月、长期</string>
+    <string name="forge_tr_week_plan">本周计划</string>
+    <string name="forge_tr_week_plan_sub">已完成与已计划，逐日查看</string>
+    <string name="forge_tr_plan_library">计划与动作库</string>
+    <string name="forge_tr_plan_library_sub">日程、训练计划、导入、过往训练</string>
+    <string name="forge_tr_all_link">全部</string>
 </resources>

@@ -5644,4 +5644,19 @@
     <string name="forge_sl_sleep_debt">Schlafschuld</string>
     <string name="forge_sl_body_clock">Innere Uhr</string>
     <string name="forge_sl_hours_night">Schlafstunden Nacht für Nacht</string>
+    <string name="forge_tr_planned_today">Heute geplant</string>
+    <string name="forge_tr_your_week">Deine Woche</string>
+    <string name="forge_tr_goals">Ziele</string>
+    <string name="forge_tr_recent">Letzte Aktivitäten</string>
+    <string name="forge_tr_recent_empty">Trainings, die du aufzeichnest oder importierst, erscheinen hier.</string>
+    <string name="forge_tr_start_named">%1$s starten</string>
+    <string name="forge_tr_load_sub">Beide Bahnen im Vergleich zu deinem Üblichen</string>
+    <string name="forge_tr_strength_sub">Übungen, Volumen und Muskelgruppen</string>
+    <string name="forge_tr_cardio_sub">Läufe, Radfahrten, Schwimmen und Rudern</string>
+    <string name="forge_tr_goals_sub">Diese Woche, diesen Monat, langfristig</string>
+    <string name="forge_tr_week_plan">Plan dieser Woche</string>
+    <string name="forge_tr_week_plan_sub">Erledigt und geplant, Tag für Tag</string>
+    <string name="forge_tr_plan_library">Plan und Bibliothek</string>
+    <string name="forge_tr_plan_library_sub">Zeitplan, Routinen, Importe, vergangene Einheiten</string>
+    <string name="forge_tr_all_link">Alle</string>
 </resources>

@@ -5601,4 +5601,19 @@
     <string name="forge_sl_sleep_debt">Недосып</string>
     <string name="forge_sl_body_clock">Биологические часы</string>
     <string name="forge_sl_hours_night">Часы сна по ночам</string>
+    <string name="forge_tr_planned_today">Запланировано на сегодня</string>
+    <string name="forge_tr_your_week">Ваша неделя</string>
+    <string name="forge_tr_goals">Цели</string>
+    <string name="forge_tr_recent">Недавние активности</string>
+    <string name="forge_tr_recent_empty">Здесь появятся записанные или импортированные тренировки.</string>
+    <string name="forge_tr_start_named">Начать %1$s</string>
+    <string name="forge_tr_load_sub">Обе линии относительно твоей нормы</string>
+    <string name="forge_tr_strength_sub">Упражнения, объём и группы мышц</string>
+    <string name="forge_tr_cardio_sub">Бег, велосипед, плавание и гребля</string>
+    <string name="forge_tr_goals_sub">Эта неделя, этот месяц, надолго</string>
+    <string name="forge_tr_week_plan">План на эту неделю</string>
+    <string name="forge_tr_week_plan_sub">Сделано и запланировано, по дням</string>
+    <string name="forge_tr_plan_library">План и библиотека</string>
+    <string name="forge_tr_plan_library_sub">Расписание, программы, импорт, прошлые занятия</string>
+    <string name="forge_tr_all_link">Все</string>
 </resources>
