@@ -63,7 +63,7 @@
     <string name="today_customize_edit_added_cards">Editar cartões adicionados</string>
     <string name="today_hosted_editor_title">Cartões adicionados</string>
     <string name="today_hosted_editor_desc">Escolhe que cartões de Tendências e Sono aparecem em Hoje. Também permanecem nos seus próprios separadores.</string>
-    <string name="sleep_customize_title">Personalizar Sono</string>
+    <string name="sleep_customize_title">Personalizar a página Sono</string>
     <string name="sleep_customize_description">Reordena o que é mostrado ou move uma secção para Ocultos sem a apagar.</string>
     <string name="today_customize_shown">MOSTRADOS</string>
     <string name="today_customize_hidden">OCULTOS</string>
@@ -4526,7 +4526,7 @@
     <string name="forge_lay_14_day_trend">Tendência de 14 dias</string>
     <string name="forge_lay_30_day_trend">Tendência de 30 dias</string>
     <string name="forge_lay_nothing_hidden">Nada oculto</string>
-    <string name="forge_lay_customize_sleep">Personalizar Sono</string>
+    <string name="forge_lay_customize_sleep">Personalizar a página Sono</string>
     <string name="forge_lay_drag_hint">Arrasta para reordenar. Move um item para Ocultos para o remover de Hoje sem o apagar.</string>
     <string name="forge_lay_hidden_hint">Os itens ocultos continuam disponíveis aqui e podem ser restaurados a qualquer momento.</string>
     <string name="forge_lay_edit">Editar</string>

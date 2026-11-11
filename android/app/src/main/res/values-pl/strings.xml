@@ -61,7 +61,7 @@
     <string name="today_customize_edit_added_cards">Edytuj dodane karty</string>
     <string name="today_hosted_editor_title">Dodano karty</string>
     <string name="today_hosted_editor_desc">Wybierz, które karty Trendy i Sen mają być wyświetlane w Dzisiaj. Pozostają również w swoich własnych zakładkach.</string>
-    <string name="sleep_customize_title">Dostosuj sen</string>
+    <string name="sleep_customize_title">Dostosuj stronę Sen</string>
     <string name="sleep_customize_description">Zmień kolejność pokazywanych elementów lub przenieś sekcję do Ukrytej bez jej usuwania.</string>
     <string name="today_customize_shown">POKAZANE</string>
     <string name="today_customize_hidden">UKRYTY</string>
@@ -4550,7 +4550,7 @@
     <string name="forge_lay_14_day_trend">Trend 14-dniowy</string>
     <string name="forge_lay_30_day_trend">Trend 30-dniowy</string>
     <string name="forge_lay_nothing_hidden">Nic ukrytego</string>
-    <string name="forge_lay_customize_sleep">Dostosuj sen</string>
+    <string name="forge_lay_customize_sleep">Dostosuj stronę Sen</string>
     <string name="forge_lay_drag_hint">Przeciągnij, aby zmienić kolejność. Przenieś element do Ukrytego, aby usunąć go z Dzisiaj bez usuwania.</string>
     <string name="forge_lay_hidden_hint">Ukryte przedmioty pozostają tutaj dostępne i można je przywrócić w dowolnym momencie.</string>
     <string name="forge_lay_edit">Redagować</string>

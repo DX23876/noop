@@ -99,7 +99,9 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
         remember(revision) { KeyMetricPrefs.storedColumns(context) },
         largeText = LocalDensity.current.fontScale >= LARGE_TEXT_SCALE,
     )
-    val keyTiles = rememberKeyTiles(model, selection.metrics, detailed, windowDays)
+    // The shipped design's tiles also carry the latest value past the day's rollover (owner, 2026-11-11), as the new
+    // design's do, instead of a dash and "No data yet" until the morning's sync.
+    val keyTiles = rememberKeyTiles(model, selection.metrics, detailed, windowDays, latestFallback = true)
     val tiles = keyTiles.tiles
     val sparks = keyTiles.sparks
     val ordered = TodayLayoutDefaults.arrangedKeyMetrics(selection) { tiles.getValue(it).value != null }

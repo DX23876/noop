@@ -94,8 +94,14 @@ enum ForgeToday {
 
     /// Rest in one word, with the same thresholds and words the Overview dashboard uses for its Rest tile,
     /// so the two designs never describe the same night differently.
+    /// Rest's word, in the bands the Sleep screen and Android use (owner, 2026-11-11: the top band is "Optimal").
     static func restWord(_ score: Double) -> String {
-        score >= 80 ? String(localized: "Good") : score >= 60 ? String(localized: "Fair") : String(localized: "Low")
+        switch score {
+        case ..<50: return String(localized: "Poor")
+        case ..<70: return String(localized: "Fair")
+        case ..<85: return String(localized: "Good")
+        default: return String(localized: "Optimal")
+        }
     }
 
     /// Tonight's bedtime from the wind-down planner's own inputs: tomorrow's wake time minus the sleep

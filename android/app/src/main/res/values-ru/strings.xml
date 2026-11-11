@@ -147,7 +147,7 @@
     <string name="today_customize_edit_added_cards">Изменить добавленные карточки</string>
     <string name="today_hosted_editor_title">Добавленные карточки</string>
     <string name="today_hosted_editor_desc">Выберите, какие карточки «Тренды» и «Сон» показывать на «Сегодня». Они остаются и на своих вкладках.</string>
-    <string name="sleep_customize_title">Настроить сон</string>
+    <string name="sleep_customize_title">Настроить страницу «Сон»</string>
     <string name="sleep_customize_description">Измените порядок отображаемого или переместите раздел в «Скрытые», не удаляя его.</string>
     <string name="today_customize_shown">Показано</string>
     <string name="today_customize_hidden">Скрыто</string>
@@ -4429,7 +4429,7 @@
     <string name="forge_lay_14_day_trend">Тренд за 14 дней</string>
     <string name="forge_lay_30_day_trend">Тренд за 30 дней</string>
     <string name="forge_lay_nothing_hidden">Нет скрытых элементов</string>
-    <string name="forge_lay_customize_sleep">Настроить сон</string>
+    <string name="forge_lay_customize_sleep">Настроить страницу «Сон»</string>
     <string name="forge_lay_drag_hint">Перетаскивайте элементы, чтобы изменить порядок. Переместите элемент в раздел «Скрыто», чтобы убрать его из «Сегодня», не удаляя.</string>
     <string name="forge_lay_hidden_hint">Скрытые элементы остаются здесь и могут быть восстановлены в любое время.</string>
     <string name="forge_lay_edit">Изменить</string>

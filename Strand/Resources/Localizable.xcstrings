@@ -170469,55 +170469,55 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schlaf anpassen"
+            "value" : "Schlafseite anpassen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personalizar Sueño"
+            "value" : "Personalizar la página Sueño"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personnaliser le sommeil"
+            "value" : "Personnaliser la page Sommeil"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personalizza Sonno"
+            "value" : "Personalizza la pagina Sonno"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dostosuj sen"
+            "value" : "Dostosuj stronę Sen"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Personalizar Sono"
+            "value" : "Personalizar a página Sono"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Настроить сон"
+            "value" : "Настроить страницу «Сон»"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自定义睡眠"
+            "value" : "自定义睡眠页面"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自訂睡眠"
+            "value" : "自訂睡眠頁面"
           }
         }
       }

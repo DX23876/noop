@@ -149,7 +149,7 @@
     <string name="today_customize_edit_added_cards">Modifica schede aggiunte</string>
     <string name="today_hosted_editor_title">Schede aggiunte</string>
     <string name="today_hosted_editor_desc">Scegli quali schede di Andamenti e Sonno mostrare in Oggi. Restano anche nelle rispettive sezioni.</string>
-    <string name="sleep_customize_title">Personalizza Sonno</string>
+    <string name="sleep_customize_title">Personalizza la pagina Sonno</string>
     <string name="sleep_customize_description">Riordina ciò che viene mostrato o sposta una sezione in Nascosti senza eliminarla.</string>
     <string name="today_customize_shown">MOSTRATI</string>
     <string name="today_customize_hidden">NASCOSTI</string>
@@ -4502,7 +4502,7 @@
     <string name="forge_lay_14_day_trend">Andamento di 14 giorni</string>
     <string name="forge_lay_30_day_trend">Tendenza a 30 giorni</string>
     <string name="forge_lay_nothing_hidden">Nessun elemento nascosto</string>
-    <string name="forge_lay_customize_sleep">Personalizza Sonno</string>
+    <string name="forge_lay_customize_sleep">Personalizza la pagina Sonno</string>
     <string name="forge_lay_drag_hint">Trascina per riordinare. Sposta un elemento in Nascosti per rimuoverlo da Oggi senza eliminarlo.</string>
     <string name="forge_lay_hidden_hint">Gli elementi nascosti restano disponibili qui e possono essere ripristinati in qualsiasi momento.</string>
     <string name="forge_lay_edit">Modifica</string>

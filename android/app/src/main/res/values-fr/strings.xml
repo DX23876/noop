@@ -1650,7 +1650,7 @@
     <string name="today_customize_edit_added_cards">Modifier les cartes ajoutées</string>
     <string name="today_hosted_editor_title">Cartes ajoutées</string>
     <string name="today_hosted_editor_desc">Choisissez les cartes Tendances et Sommeil affichées dans Aujourd\'hui. Elles restent aussi dans leurs propres onglets.</string>
-    <string name="sleep_customize_title">Personnaliser le sommeil</string>
+    <string name="sleep_customize_title">Personnaliser la page Sommeil</string>
     <string name="sleep_customize_description">Réorganisez les éléments affichés ou déplacez une section dans Masqués sans la supprimer.</string>
     <string name="today_customize_shown">AFFICHÉS</string>
     <string name="today_customize_hidden">MASQUÉS</string>
@@ -4533,7 +4533,7 @@
     <string name="forge_lay_14_day_trend">Tendance sur 14 jours</string>
     <string name="forge_lay_30_day_trend">tendance sur 30 jours</string>
     <string name="forge_lay_nothing_hidden">Aucun élément masqué</string>
-    <string name="forge_lay_customize_sleep">Personnaliser le sommeil</string>
+    <string name="forge_lay_customize_sleep">Personnaliser la page Sommeil</string>
     <string name="forge_lay_drag_hint">Faites glisser pour réorganiser. Déplacez un élément dans Masqués pour le retirer d’Aujourd’hui sans le supprimer.</string>
     <string name="forge_lay_hidden_hint">Les éléments masqués restent disponibles ici et peuvent être restaurés à tout moment.</string>
     <string name="forge_lay_edit">Modifier</string>

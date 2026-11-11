@@ -452,14 +452,8 @@ struct SleepView: View {
     }
 
     /// A short Rest state word for the hero gauge — same banding the synthesis hero uses.
-    private func sleepScoreWord(_ score: Double) -> String {
-        switch score {
-        case ..<50:  return String(localized: "Poor")
-        case ..<70:  return String(localized: "Fair")
-        case ..<85:  return String(localized: "Good")
-        default:     return String(localized: "Optimal")
-        }
-    }
+    /// The one Rest word every screen names (`ForgeToday.restWord`).
+    private func sleepScoreWord(_ score: Double) -> String { ForgeToday.restWord(score) }
 
     /// Whether a SPECIFIC night's sleep-performance score is WHOOP's own imported figure, an Oura
     /// ring-provided figure, or NOOP's on-device approximation — so the hero is honest about provenance,
