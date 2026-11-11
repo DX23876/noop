@@ -133,7 +133,12 @@ struct ForgeTodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForgeLargeHeader(title: "Today", onProfile: onProfile) { addMenu }
+                        // The logical day, as the page's values and Liquid Today's header (#144): past midnight the
+                        // evening's day is still "Today", not the new calendar date.
+                        ForgeLargeHeader(title: "Today",
+                                         subtitle: Repository.logicalDay(Date()).formatted(
+                                             .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)),
+                                         onProfile: onProfile) { addMenu }
                             .id("forge-today-top")
                         VStack(alignment: .leading, spacing: 14) {
                             HealthAlertBanner()
