@@ -5651,4 +5651,12 @@
     <string name="forge_se_recomputing">Ricalcolo…</string>
     <string name="forge_se_import_note">Se questo sonno proveniva solo da un\'importazione e non ci sono campioni grezzi salvati, potrebbe non ricomparire.</string>
     <string name="forge_se_delete_nap">Elimina pisolino</string>
+    <string name="forge_hv_edit">Modifica</string>
+    <string name="forge_hv_edit_vitals">Modifica parametri vitali</string>
+    <string name="forge_hv_done">Fatto</string>
+    <string name="forge_hv_per_row">Piastrelle per riga</string>
+    <string name="forge_hv_add">Aggiungi un riquadro</string>
+    <string name="forge_hv_remove">Rimuovi riquadro</string>
+    <string name="forge_hv_weekly">Report settimanale</string>
+    <string name="forge_hv_weekly_sub">La tua settimana in sintesi</string>
 </resources>

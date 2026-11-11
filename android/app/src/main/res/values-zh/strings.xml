@@ -5652,4 +5652,12 @@
     <string name="forge_se_recomputing">正在重新计算…</string>
     <string name="forge_se_import_note">如果这段睡眠仅仅来源于外部导入，且手机内没有留存原始心率样本，它被删除后可能就无法恢复了。</string>
     <string name="forge_se_delete_nap">删除小睡</string>
+    <string name="forge_hv_edit">编辑</string>
+    <string name="forge_hv_edit_vitals">编辑生命体征</string>
+    <string name="forge_hv_done">完成</string>
+    <string name="forge_hv_per_row">每行瓷砖</string>
+    <string name="forge_hv_add">添加磁贴</string>
+    <string name="forge_hv_remove">移除磁贴</string>
+    <string name="forge_hv_weekly">周报</string>
+    <string name="forge_hv_weekly_sub">回顾你的一周</string>
 </resources>

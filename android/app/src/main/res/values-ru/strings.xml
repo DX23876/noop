@@ -5656,4 +5656,12 @@
     <string name="forge_se_recomputing">Пересчёт…</string>
     <string name="forge_se_import_note">Если этот сон получен только из импорта и сырые данные не сохранены, он может не появиться снова.</string>
     <string name="forge_se_delete_nap">Удалить дневной сон</string>
+    <string name="forge_hv_edit">Изменить</string>
+    <string name="forge_hv_edit_vitals">Изменить показатели</string>
+    <string name="forge_hv_done">Готово</string>
+    <string name="forge_hv_per_row">Плитки в ряду</string>
+    <string name="forge_hv_add">Добавить плитку</string>
+    <string name="forge_hv_remove">Убрать плитку</string>
+    <string name="forge_hv_weekly">Недельный отчёт</string>
+    <string name="forge_hv_weekly_sub">Ваша неделя в обзоре</string>
 </resources>

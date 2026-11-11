@@ -5722,4 +5722,12 @@
     <string name="forge_se_recomputing">Recomputing…</string>
     <string name="forge_se_import_note">If this sleep came only from an import and no raw samples are stored, it may not reappear.</string>
     <string name="forge_se_delete_nap">Delete nap</string>
+    <string name="forge_hv_edit">Edit</string>
+    <string name="forge_hv_edit_vitals">Edit Vitals</string>
+    <string name="forge_hv_done">Done</string>
+    <string name="forge_hv_per_row">Tiles per row</string>
+    <string name="forge_hv_add">Add a tile</string>
+    <string name="forge_hv_remove">Remove tile</string>
+    <string name="forge_hv_weekly">Weekly report</string>
+    <string name="forge_hv_weekly_sub">Your week read back</string>
 </resources>

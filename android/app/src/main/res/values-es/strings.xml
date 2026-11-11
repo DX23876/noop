@@ -5683,4 +5683,12 @@
     <string name="forge_se_recomputing">Recalculando…</string>
     <string name="forge_se_import_note">Si este sueño procede únicamente de una importación y no hay muestras sin procesar guardadas, es posible que no vuelva a aparecer.</string>
     <string name="forge_se_delete_nap">Eliminar siesta</string>
+    <string name="forge_hv_edit">Editar</string>
+    <string name="forge_hv_edit_vitals">Editar constantes vitales</string>
+    <string name="forge_hv_done">Listo</string>
+    <string name="forge_hv_per_row">Azulejos por fila</string>
+    <string name="forge_hv_add">Añadir un mosaico</string>
+    <string name="forge_hv_remove">Quitar mosaico</string>
+    <string name="forge_hv_weekly">Informe semanal</string>
+    <string name="forge_hv_weekly_sub">Tu semana en resumen</string>
 </resources>

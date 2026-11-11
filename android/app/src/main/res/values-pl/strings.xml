@@ -5703,4 +5703,12 @@
     <string name="forge_se_recomputing">Przeliczanie…</string>
     <string name="forge_se_import_note">Jeśli ten sen pochodzi wyłącznie z importu i nie zapisano surowych próbek, może się nie pojawić ponownie.</string>
     <string name="forge_se_delete_nap">Usuń drzemkę</string>
+    <string name="forge_hv_edit">Redagować</string>
+    <string name="forge_hv_edit_vitals">Edytuj parametry życiowe</string>
+    <string name="forge_hv_done">Gotowe</string>
+    <string name="forge_hv_per_row">Kafelki w rzędzie</string>
+    <string name="forge_hv_add">Dodaj kafelek</string>
+    <string name="forge_hv_remove">Usuń kafelek</string>
+    <string name="forge_hv_weekly">Raport tygodniowy</string>
+    <string name="forge_hv_weekly_sub">Twój tydzień w skrócie</string>
 </resources>

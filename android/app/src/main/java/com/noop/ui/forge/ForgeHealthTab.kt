@@ -21,6 +21,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Lightbulb
@@ -97,6 +100,10 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         if (ForgeDesign.openTrends) { ForgeDesign.openTrends = false; trendsOpen = true }
     }
     fun open(dest: MoreDest) = more.push(MoreRoute.Dest(dest))
+    var editingTiles by remember { mutableStateOf(false) }
+    var hiddenTiles by remember { mutableStateOf(VitalTilePrefs.hidden(context)) }
+    var tileColumns by remember { mutableStateOf(VitalTilePrefs.columns(context, if (width == ForgeWidth.Compact) 2 else 3)) }
+    var weeklyOpen by remember { mutableStateOf(false) }
     var focus by remember { mutableStateOf<FocusArea?>(null) }
     val selectTab = LocalForgeTabSelect.current
 
@@ -123,13 +130,44 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         // The first vital outside the range, told in a card of its own under the chips, as iOS's `offRangeCard`.
         scored.firstOrNull { it.banding.band == VitalBands.Band.OUT_OF_RANGE }?.let { OffRangeCard(it) }
 
-        Heading(stringResource(R.string.forge_health_vitals))
-        vitals.chunked(if (width == ForgeWidth.Compact) 2 else 3).forEach { row ->
+        // Vitals with "Edit", as iOS: the tiles the wearer keeps, in their order, two or three to a row.
+        Row(verticalAlignment = Alignment.Bottom) {
+            Box(Modifier.weight(1f)) { Heading(stringResource(R.string.forge_health_vitals)) }
+            if (!editingTiles) Text(stringResource(R.string.forge_hv_edit), style = Forge.type.subhead, color = colors.accent,
+                                    modifier = Modifier.clickable(role = Role.Button) { editingTiles = true }.padding(4.dp))
+        }
+        val columns = tileColumns.coerceIn(2, 3)
+        if (editingTiles) VitalsEditHeader(columns, onColumns = { tileColumns = it; VitalTilePrefs.setColumns(context, it) },
+                                           onDone = { editingTiles = false })
+        val shownVitals = vitals.filter { it.key !in hiddenTiles }
+        shownVitals.chunked(columns).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
-                row.forEach { v -> VitalTile(v, Modifier.weight(1f)) { open(MoreDest.Health) } }
-                repeat((if (width == ForgeWidth.Compact) 2 else 3) - row.size) { Spacer(Modifier.weight(1f)) }
+                row.forEach { v ->
+                    Box(Modifier.weight(1f)) {
+                        VitalTile(v, Modifier.fillMaxWidth()) { if (!editingTiles) open(MoreDest.Health) }
+                        if (editingTiles) RemoveBadge(Modifier.align(Alignment.TopEnd)) {
+                            hiddenTiles = hiddenTiles + v.key; VitalTilePrefs.setHidden(context, hiddenTiles)
+                        }
+                    }
+                }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
+        if (editingTiles) vitals.filter { it.key in hiddenTiles }.takeIf { it.isNotEmpty() }?.let { hidden ->
+            ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+                hidden.forEachIndexed { i, v ->
+                    if (i > 0) HubDivider()
+                    HubRow(Icons.Rounded.AddCircle, colors.accent, stringResource(R.string.forge_hv_add), v.label) {
+                        hiddenTiles = hiddenTiles - v.key; VitalTilePrefs.setHidden(context, hiddenTiles)
+                    }
+                }
+            }
+        }
+
+        // The cycle at a glance, only while cycle tracking is on and a period is logged (iOS `ForgeCycleSummaryCard`).
+        val cycleOn by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
+        val periodStarts by viewModel.periodStarts.collectAsStateWithLifecycle()
+        if (cycleOn && periodStarts.isNotEmpty()) TodayCycleForge(viewModel)
 
         // Today's food log, one tap from the page, as iOS's `FoodHealthCard`.
         FoodTodayCard(onOpen = { open(MoreDest.Food) }, onAdd = { FoodArrival.requestAdd(); open(MoreDest.Food) })
@@ -143,6 +181,10 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         if (longTerm.isNotEmpty()) DestCard(longTerm) { open(it) }
         HealthWeekInRings(days) { trendsOpen = true }
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+            // The week read back, as iOS's first row of the group (`ForgeRoute.weeklyReport`).
+            HubRow(Icons.Rounded.CalendarMonth, colors.accent, stringResource(R.string.forge_hv_weekly),
+                   stringResource(R.string.forge_hv_weekly_sub)) { weeklyOpen = true }
+            HubDivider()
             HubRow(Icons.Rounded.ShowChart, colors.charge, stringResource(R.string.nav_trends),
                    stringResource(R.string.forge_health_trends_sub)) { trendsOpen = true }
             HubDivider()
@@ -166,6 +208,18 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
                 androidx.activity.compose.BackHandler { focus = null }
                 FocusAreaPage(area, onBack = { focus = null }, onOpen = { focus = null; open(it) },
                               onTrends = { focus = null; trendsOpen = true })
+            }
+        }
+    }
+    if (weeklyOpen) {
+        ForgeOverlayPage(onDismiss = { weeklyOpen = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
+                androidx.activity.compose.BackHandler { weeklyOpen = false }
+                Hosted(stringResource(R.string.forge_hv_weekly), onBack = { weeklyOpen = false }) {
+                    androidx.compose.foundation.layout.Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
+                        com.noop.ui.WeeklyDigestCard(viewModel)
+                    }
+                }
             }
         }
     }
@@ -321,4 +375,51 @@ private fun VitalBadge(v: Vital) {
     Spacer(Modifier.height(ForgeMetrics.space2))
     Text(text, style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = tint, maxLines = 1,
          modifier = Modifier.background(tint.copy(alpha = 0.14f), CircleShape).padding(horizontal = 10.dp, vertical = 3.dp))
+}
+
+/** The wearer's vital tiles: the hidden ones and the tiles per row, as iOS's `ForgeVitalTileStore` keeps them. */
+internal object VitalTilePrefs {
+    private const val HIDDEN = "forge.health.hiddenVitals"
+    private const val COLUMNS = "forge.health.vitalColumns"
+    fun hidden(context: android.content.Context): Set<String> =
+        (NoopPrefs.of(context).getString(HIDDEN, "") ?: "").split(",").filter { it.isNotEmpty() }.toSet()
+    fun setHidden(context: android.content.Context, keys: Set<String>) =
+        NoopPrefs.of(context).edit().putString(HIDDEN, keys.sorted().joinToString(",")).apply()
+    fun columns(context: android.content.Context, fallback: Int): Int = NoopPrefs.of(context).getInt(COLUMNS, fallback)
+    fun setColumns(context: android.content.Context, n: Int) = NoopPrefs.of(context).edit().putInt(COLUMNS, n).apply()
+}
+
+/** "Edit Vitals" with Done and the tiles per row, as iOS's editing header. */
+@Composable
+private fun VitalsEditHeader(columns: Int, onColumns: (Int) -> Unit, onDone: () -> Unit) {
+    val colors = Forge.colors
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_hv_edit_vitals), style = Forge.type.headline, color = colors.text, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.forge_hv_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = androidx.compose.ui.graphics.Color.White,
+                 modifier = Modifier.background(colors.accent, CircleShape).clickable(role = Role.Button, onClick = onDone)
+                     .padding(horizontal = 16.dp, vertical = 8.dp))
+        }
+        Spacer(Modifier.height(ForgeMetrics.space3))
+        Text(stringResource(R.string.forge_hv_per_row), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary)
+        Spacer(Modifier.height(ForgeMetrics.space1))
+        Row(Modifier.fillMaxWidth().background(colors.inset, androidx.compose.foundation.shape.RoundedCornerShape(9.dp)).padding(2.dp)) {
+            listOf(2, 3).forEach { n ->
+                Text(n.toString(), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
+                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                     modifier = Modifier.weight(1f).background(if (n == columns) colors.surface else androidx.compose.ui.graphics.Color.Transparent,
+                                                               androidx.compose.foundation.shape.RoundedCornerShape(7.dp))
+                         .clickable(role = Role.Tab) { onColumns(n) }.padding(vertical = 6.dp))
+            }
+        }
+    }
+}
+
+/** The small cross in a tile's corner while editing. */
+@Composable
+private fun RemoveBadge(modifier: Modifier, onClick: () -> Unit) {
+    Box(modifier.padding(4.dp).size(26.dp).background(Forge.colors.textSecondary, CircleShape)
+            .clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+        Icon(Icons.Rounded.Close, stringResource(R.string.forge_hv_remove), tint = Forge.colors.surface, modifier = Modifier.size(14.dp))
+    }
 }

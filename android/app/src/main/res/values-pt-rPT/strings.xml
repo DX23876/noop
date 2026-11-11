@@ -5675,4 +5675,12 @@
     <string name="forge_se_recomputing">A recalcular…</string>
     <string name="forge_se_import_note">Se este sono veio apenas de uma importação e não houver amostras brutas guardadas, poderá não voltar a aparecer.</string>
     <string name="forge_se_delete_nap">Eliminar sesta</string>
+    <string name="forge_hv_edit">Editar</string>
+    <string name="forge_hv_edit_vitals">Editar sinais vitais</string>
+    <string name="forge_hv_done">Concluído</string>
+    <string name="forge_hv_per_row">Blocos por linha</string>
+    <string name="forge_hv_add">Adicionar um mosaico</string>
+    <string name="forge_hv_remove">Remover mosaico</string>
+    <string name="forge_hv_weekly">Relatório semanal</string>
+    <string name="forge_hv_weekly_sub">A tua semana em resumo</string>
 </resources>

@@ -5699,4 +5699,12 @@
     <string name="forge_se_recomputing">Wird neu berechnet…</string>
     <string name="forge_se_import_note">Wenn dieser Schlaf nur aus einem Import stammt und keine Rohdaten gespeichert sind, wird er möglicherweise nicht wieder angezeigt.</string>
     <string name="forge_se_delete_nap">Nickerchen löschen</string>
+    <string name="forge_hv_edit">Bearbeiten</string>
+    <string name="forge_hv_edit_vitals">Vitalwerte bearbeiten</string>
+    <string name="forge_hv_done">Fertig</string>
+    <string name="forge_hv_per_row">Kacheln pro Reihe</string>
+    <string name="forge_hv_add">Kachel hinzufügen</string>
+    <string name="forge_hv_remove">Kachel entfernen</string>
+    <string name="forge_hv_weekly">Wochenbericht</string>
+    <string name="forge_hv_weekly_sub">Deine Woche im Rückblick</string>
 </resources>

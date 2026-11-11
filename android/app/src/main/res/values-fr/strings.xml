@@ -5682,4 +5682,12 @@
     <string name="forge_se_recomputing">Recalcul en cours…</string>
     <string name="forge_se_import_note">Si ce sommeil provient uniquement d’un import et qu’aucun échantillon brut n’est enregistré, il peut ne pas réapparaître.</string>
     <string name="forge_se_delete_nap">Supprimer la sieste</string>
+    <string name="forge_hv_edit">Modifier</string>
+    <string name="forge_hv_edit_vitals">Modifier les signes vitaux</string>
+    <string name="forge_hv_done">Terminé</string>
+    <string name="forge_hv_per_row">Tuiles par rangée</string>
+    <string name="forge_hv_add">Ajouter une tuile</string>
+    <string name="forge_hv_remove">Retirer la tuile</string>
+    <string name="forge_hv_weekly">Rapport hebdomadaire</string>
+    <string name="forge_hv_weekly_sub">Votre semaine en revue</string>
 </resources>
