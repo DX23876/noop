@@ -174,3 +174,24 @@ Health
   bring back, two or three per row).
 - Still different: iOS's own focus pages (Android lists each area's pages), swapping a vital tile for a non-vital
   measure and reordering tiles by dragging.
+
+## Inventory 2026-11-11: every iOS page of the new design against Android
+
+Read from iOS's `MoreDestination`, `ForgeRoute`, `ForgeSettingsRoute` and the `StrandiOS/Forge` files. "Has" means
+Android reaches the same function; "missing" pages are the build list.
+
+| iOS page | iOS file | Android |
+|---|---|---|
+| More destinations (Momentum, Insights, Explore, Compare, Fused record, Body, Food, Energy plan, Health, AgeLess, Rhythm age, Lab book, Stress, Beat rhythm, ECG, Live, Breathe, Intervals, Workouts, Strength, Cardio, Training load, Alarms, Coach, Goals) | `RootTabView` | has (`MoreDest`) |
+| Settings, Data sources, Backup, Mi Band, Automations, Test Centre, Limitations, Power saving | `ForgeSettingsView`, hubs | has (`ForgeSettings`, hosted screens) |
+| Apple Health, Siri and Shortcuts export | | not applicable (Health Connect in Data sources) |
+| Search sheet | `ForgeSearchView` | has as the More page's search |
+| Charge page | `ForgeChargeDetailView` | has (`ForgeChargeBreakdown`) |
+| Effort page, Rest page | `ForgeScoreDetailViews` | missing |
+| Weekly report page | `ForgeWeeklyReportView` | missing (Android hosts the classic weekly digest card) |
+| This week's plan page | `ForgeWeekPlanView` | missing (Android opens the schedule editor) |
+| Focus pages, six | `ForgeFocusView` | missing (Android lists each area's pages) |
+| Cycle page, guide, fertile band | `ForgeCycleView`, `ForgeCycleGuide`, `ForgeCycleFertile` | missing (Android has the classic tracker dialog) |
+| Coach notes on the timeline, "Why" sheet | `ForgeTodayView`, `ForgeCoachWhySheet` | missing |
+| Vital tile editor (swap, reorder, up to nine) | `ForgeHealthTiles` | partly (hide and show, two or three per row) |
+| Workouts list, Strength, Muscles | `ForgeWorkoutsView`, `ForgeStrengthView` | has (History, Strength, Muscles pages) |
