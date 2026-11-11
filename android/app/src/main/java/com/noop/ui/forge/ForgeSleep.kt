@@ -162,6 +162,13 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             runCatching { nightDetailModel(viewModel, coreDays?.takeIf { it.isNotEmpty() } ?: recentDays) }.getOrNull()
         }
     }
+    // The stored Rest traits (AI-35): the need every new-design sleep card names and each night's regularity.
+    val traits by androidx.compose.runtime.produceState(com.noop.analytics.RestTraitLookup.EMPTY, recentDays, coreRevision) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { viewModel.repo.restTraits(viewModel.activeStrapId) }.getOrDefault(com.noop.analytics.RestTraitLookup.EMPTY)
+        }
+    }
+    val need = traits.needHoursFor(LocalDate.now().toString()) * 60
     var layoutRevision by remember { mutableIntStateOf(0) }
     val sections = remember(layoutRevision) {
         SleepLayoutDefaults.visible(SleepLayoutPrefs.orderRaw(context), SleepLayoutPrefs.hiddenRaw(context))
@@ -255,8 +262,8 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             }
             Times(night, zone)
             }
-            // Customize sits at the end of the hero, as on iOS (`sleepArrangeAffordance`).
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            // Customize sits at the end of the hero, as on iOS (`sleepArrangeAffordance`); the new design has no arranging.
+            if (!ForgeDesign.preview) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Row(Modifier.clickable(role = Role.Button) { customizing = true }.padding(ForgeMetrics.space2),
                     verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Tune, contentDescription = null, tint = Forge.colors.textTertiary,
@@ -267,6 +274,12 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                 }
             }
         }
+        if (ForgeDesign.preview) {
+            NewDesignSleep(viewModel, night, i == nights.lastIndex, wakeDay, zone, model?.days.orEmpty(), tiles, traits, need,
+                           onAlarms = { alarms = true }, bodyClock = v5?.bodyClock)
+            Spacer(Modifier.height(ForgeMetrics.space2))
+            return@Column
+        }
         // The alarms one tap from the night, as iOS puts its Alarms row under the Rest hero.
         // The bare alarm glyph in the Rest colour, no plate, as iOS's `alarmsEntry` draws it.
         LargeRow(null, Forge.colors.rest, stringResource(R.string.nav_alarms), "",
@@ -275,7 +288,6 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                  detail = {}) { alarms = true }
         // The new design lists the day's naps under the night, as iOS does (`ForgeSleepView.naps`), by the core's one
         // nap rule (`SleepNight.naps`), the same the Today timeline reads.
-        if (ForgeDesign.preview && night != null && wakeDay != null) DayNaps(night, wakeDay, zone)
         // Where this night stands in the week's sleep goals (iOS `SleepGoalNightLine`), then the week's sleep goal
         // itself, where sleep is read (iOS `GoalsContextCard(context: .sleep)`); neither draws without a goal.
         if (wakeDay != null) {
@@ -650,4 +662,45 @@ private suspend fun nightDetailModel(viewModel: com.noop.ui.AppViewModel,
         traits = runCatching { repo.restTraits(strap) }.getOrDefault(com.noop.analytics.RestTraitLookup.EMPTY))
     val habitual = runCatching { repo.habitualMidsleepSec(strap) }.getOrNull()
     return com.noop.ui.fallbackSleepModel(days, imported, com.noop.ui.napSleepMinutesByDay(sleeps, habitual), sessions = sleeps)
+}
+
+/**
+ * The new design's Sleep page under the summary, in iOS's order (`ForgeSleepView.body`): Tonight, the night, its naps,
+ * the breakdown (stages against the typical night, what shaped it, sleep debt, body clock), the week's sleep goals,
+ * the highlights, the body through the night, the history, the alarms and the night's marks.
+ */
+@Composable
+private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.Night?, isLatest: Boolean,
+                           wakeDay: java.time.LocalDate?, zone: ZoneId, days: List<com.noop.data.DailyMetric>,
+                           tiles: com.noop.ui.SleepModel?, traits: com.noop.analytics.RestTraitLookup, need: Double,
+                           onAlarms: () -> Unit, bodyClock: com.noop.analytics.CircadianEngine.PhaseEstimate?) {
+    SleepTonightCard(viewModel, need, onAlarms)
+    if (night != null && wakeDay != null) {
+        val key = wakeDay.toString()
+        SleepNightCard(night, isLatest, zone)
+        DayNaps(night, wakeDay, zone)
+        if (hasStageMinutes(night)) {
+            SleepStagesVsTypical(night, tiles)
+            SleepShaped(night, tiles, traits.needHoursFor(key) * 60, days.lastOrNull { it.day == key },
+                        traits.consistencyFor(key)?.times(100))
+            SleepDebtLedger()
+            if (bodyClock != null && bodyClock.confidence != com.noop.analytics.CircadianEngine.PhaseConfidence.UNREADABLE) {
+                Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                    SleepSectionTitle(stringResource(R.string.forge_sl_body_clock))
+                    val forgeColors = Forge.colors
+                    val tokens = remember(forgeColors) { hostedTokens(forgeColors) }
+                    com.noop.ui.HostedPalette(tokens, forgeColors.dark) {
+                        com.noop.ui.BodyClockDialCard(bodyClock, com.noop.ui.localClockHour(night.startTs),
+                                                      com.noop.ui.localClockHour(night.endTs))
+                    }
+                }
+            }
+        }
+        ForgeGoalsContextCard("sleep")
+        SleepHighlights(night, tiles)
+        SleepThisNight(days, key, hasStageMinutes(night))
+    }
+    SleepHistory(days, need)
+    SleepAlarms(viewModel, onAlarms)
+    ForgeSleepMarkCard(viewModel)
 }
