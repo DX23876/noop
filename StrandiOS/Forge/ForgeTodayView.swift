@@ -563,6 +563,7 @@ struct ForgeTodayView: View {
         case .coach: ForgeColor.accent
         case .workout, .walks: ForgeColor.effort
         case .wake, .nap, .dayEnd: ForgeColor.rest
+        case .meal: ForgeColor.food
         case .weight, .dayLog, .ecg, .notice: ForgeColor.tertiary
         }
     }

@@ -1,6 +1,180 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "No Apple Health readings yet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Werte aus Apple Health"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay valores de Apple Health"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de valeurs Apple Health"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun valore da Apple Salute"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak jeszcze wartości z Apple Zdrowie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda sem valores do Apple Saúde"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока нет значений из «Здоровья»"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚无来自 Apple“健康”的数值"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚無來自 Apple「健康」的數值"
+          }
+        }
+      }
+    },
+    "Open VO₂ Max (estimated)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VO₂ Max (geschätzt) öffnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir VO₂ máx. (estimado)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir VO₂ max (estimée)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri VO₂ max (stimato)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz VO₂ max (szacowane)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir VO₂ máx. (estimado)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открыть VO₂ max (оценка)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开最大摄氧量（估算）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟最大攝氧量（估算）"
+          }
+        }
+      }
+    },
+    "This page shows VO₂ Max readings from Apple Health, for example from an Apple Watch. NOOP's own estimate from your heart rate and workouts has its own page." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Seite zeigt VO₂-Max-Werte aus Apple Health, zum Beispiel von einer Apple Watch. NOOPs eigene Schätzung aus deiner Herzfrequenz und deinen Trainings hat eine eigene Seite."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta página muestra valores de VO₂ máx. de Apple Health, por ejemplo de un Apple Watch. La estimación propia de NOOP a partir de tu frecuencia cardíaca y tus entrenamientos tiene su propia página."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette page affiche les valeurs de VO₂ max issues d’Apple Health, par exemple d’une Apple Watch. L’estimation propre à NOOP, calculée à partir de ta fréquence cardiaque et de tes entraînements, a sa propre page."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa pagina mostra i valori di VO₂ max da Apple Salute, ad esempio da un Apple Watch. La stima di NOOP basata sulla tua frequenza cardiaca e sui tuoi allenamenti ha una pagina propria."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta strona pokazuje wartości VO₂ max z Apple Zdrowie, na przykład z Apple Watch. Własne oszacowanie NOOP na podstawie tętna i treningów ma osobną stronę."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta página mostra valores de VO₂ máx. do Apple Saúde, por exemplo de um Apple Watch. A estimativa própria do NOOP, a partir da tua frequência cardíaca e dos teus treinos, tem uma página própria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эта страница показывает значения МПК (VO₂ max) из «Здоровья» Apple, например с Apple Watch. Собственная оценка NOOP по вашему пульсу и тренировкам находится на отдельной странице."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此页面显示来自 Apple“健康”的最大摄氧量数值，例如来自 Apple Watch。NOOP 根据你的心率和训练得出的估算值有单独的页面。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此頁面顯示來自 Apple「健康」的最大攝氧量數值，例如來自 Apple Watch。NOOP 根據你的心率和訓練得出的估算值有獨立的頁面。"
+          }
+        }
+      }
+    },
     "Workout actions" : {
       "localizations" : {
         "de" : {
