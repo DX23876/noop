@@ -123,6 +123,8 @@ public enum Bridge {
             if let n = try? await CoreDemo.seedIfEmpty(store: reader.store, deviceId: reader.activeDeviceId) {
                 box.value = Int32(n)
             }
+            // A week of meals for the Food page, as the Apple demo has.
+            await FoodDemoSeed.seedIfEmpty(store: reader.store)
             done.signal()
         }
         done.wait()

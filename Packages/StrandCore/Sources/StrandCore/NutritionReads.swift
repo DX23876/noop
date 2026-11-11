@@ -4,7 +4,7 @@ import WhoopStore
 
 /// One day's resolved nutrition: each field from the most deliberate source that logged it.
 public struct NutritionDay: Equatable, Sendable {
-    public enum Source: String, Sendable { case appleHealth, csv, manual }
+    public enum Source: String, Sendable { case appleHealth, healthConnect, csv, foodLog, manual }
 
     public let day: String
     public var calories: Double?
@@ -40,7 +40,9 @@ public struct ManualNutritionEntry: Equatable, Sendable {
 }
 
 /// The intake lanes the energy plan and its balance estimate read, shared by the Apple app and the Android core
-/// (parity plan 2.3). Apple Health first, a CSV import over it, a typed value over both, field by field.
+/// (parity plan 2.3). Apple Health first, a CSV import over it, the food log over both, a typed day value over
+/// all of them, field by field. The food log comes after the imports because a day logged here is a day the
+/// wearer logged on purpose, and NOOP never sums two sources for the same day (decision 2026-09-30).
 public enum NutritionReads {
     public static let manualIntakeSource = "manual-intake"
     public static let csvIntakeSource = "nutrition-csv"
@@ -57,7 +59,9 @@ public enum NutritionReads {
     public static func nutritionByDay(store: WhoopStore, from: String, to: String,
                                       healthSourceNames: [String: String] = [:]) async -> [String: NutritionDay] {
         let sources: [(id: String, source: NutritionDay.Source)] = [
-            (MetricResolver.appleHealthSource, .appleHealth), (csvIntakeSource, .csv), (manualIntakeSource, .manual),
+            (MetricResolver.appleHealthSource, .appleHealth), (MetricResolver.healthConnectSource, .healthConnect),
+            (csvIntakeSource, .csv),
+            (WhoopStore.foodLogSourceId, .foodLog), (manualIntakeSource, .manual),
         ]
         var byDay: [String: NutritionDay] = [:]
         for candidate in sources {
@@ -65,7 +69,10 @@ public enum NutritionReads {
                 deviceId: candidate.id, key: loggedKey, from: from, to: to)) ?? []).map(\.day))
             for key in [caloriesKey, proteinKey, carbsKey, fatKey] {
                 let rows = (try? await store.metricSeries(deviceId: candidate.id, key: key, from: from, to: to)) ?? []
-                for row in rows where row.value > 0 || (candidate.source == .manual && markerDays.contains(row.day)) {
+                // The food log banks a day only when it has entries, so its zero is a logged zero (water, black
+                // coffee), not a gap; the other sources write zero for days nobody logged.
+                for row in rows where row.value > 0 || candidate.source == .foodLog
+                    || (candidate.source == .manual && markerDays.contains(row.day)) {
                     var entry = byDay[row.day] ?? NutritionDay(
                         day: row.day, calories: nil, proteinG: nil, carbsG: nil, fatG: nil,
                         caloriesSource: nil, macrosSource: nil,

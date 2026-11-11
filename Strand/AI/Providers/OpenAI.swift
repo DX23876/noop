@@ -5,6 +5,28 @@ import FoundationNetworking
 import StrandAnalytics
 
 struct OpenAIClient: AIProviderClient {
+    var readsImages: Bool { true }
+
+    /// The picture as a data URL inside the user turn (the chat completions vision shape).
+    func sendWithImage(key: String, model: String, systemPrompt: String, text: String, imageBase64: String,
+                       mimeType: String, session: URLSession) async throws -> String {
+        let wire: [[String: Any]] = [
+            ["role": "system", "content": systemPrompt],
+            ["role": "user", "content": [
+                ["type": "text", "text": text],
+                ["type": "image_url", "image_url": ["url": "data:\(mimeType);base64,\(imageBase64)"]],
+            ]],
+        ]
+        do {
+            return try await chat(key: key, model: model, wire: wire, modernParams: false, session: session)
+        } catch let AICoachError.server(code, detail) where code == 400 {
+            let d = detail.lowercased()
+            if d.contains("max_completion_tokens") || d.contains("max_tokens") || d.contains("temperature") {
+                return try await chat(key: key, model: model, wire: wire, modernParams: true, session: session)
+            }
+            throw AICoachError.server(code, detail)
+        }
+    }
 
     func send(
         key: String,

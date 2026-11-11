@@ -735,6 +735,7 @@ struct ForgeTodayView: View {
         case .nap: napCard(entry)
         case .weight: weightCard(entry)
         case .dayLog(let kind): dayLogCard(entry, kind: kind)
+        case .meal: mealCard(entry)
         case .ecg: ecgCard(entry)
         case .notice: if let notice = entry.notice { noticeCard(notice) }
         case .dayEnd: if let end = entry.dayEnd { dayEndCard(end) }
@@ -1529,6 +1530,22 @@ struct ForgeTodayView: View {
         }
     }
 
+    /// A logged meal at the time it was eaten, with its photo or the still life of its main food group.
+    private func mealCard(_ entry: ForgeTimeline.Entry) -> some View {
+        let picture: FoodMealPicture.Source? = entry.sourceId.flatMap { raw in
+            if raw.hasPrefix("photo:") { return .photo(String(raw.dropFirst("photo:".count))) }
+            return FoodGroupMotif(rawValue: String(raw.dropFirst("motif:".count))).map { .motif($0) }
+        }
+        let icon = picture.map { AnyView(FoodMealPicture(source: $0, height: 34).frame(width: 34).clipShape(.circle)) }
+            ?? AnyView(Image(systemName: "fork.knife").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.food))
+        return NavigationLink(value: ForgeRoute.food) {
+            factRow(icon: icon, tint: ForgeColor.food, title: entry.title, detail: entry.detail, time: time(entry),
+                    value: "\(Int((entry.value ?? 0).rounded()))", unit: "kcal")
+                .forgeEventTile()
+        }
+        .buttonStyle(LiquidPressStyle())
+    }
+
     private func ecgCard(_ entry: ForgeTimeline.Entry) -> some View {
         NavigationLink(value: MoreDestination.ecg) {
             factRow(symbol: "waveform.path.ecg.rectangle", tint: ForgeColor.accent, title: String(localized: "ECG"), detail: nil,
@@ -1643,8 +1660,26 @@ struct ForgeTodayView: View {
         return f.date(from: day).flatMap { Calendar.current.date(byAdding: .hour, value: 4, to: $0) }
     }
 
-    /// Per day, one line each for drinks, food and the journal, so a day of small entries stays one row.
-    private static func dayLogs(repo: Repository, now: Date) async -> [ForgeTimeline.DayLog] {
+    /// The food log's meals of the shown days, each at the time it was eaten, and the days they cover.
+    private static func meals(repo: Repository, now: Date) async -> (meals: [ForgeTimeline.Meal], days: Set<String>) {
+        guard let store = await repo.storeHandle(),
+              let first = Calendar.current.date(byAdding: .day, value: -(timelineDays - 1), to: now) else { return ([], []) }
+        let entries = (try? await store.foodLogEntries(from: Repository.localDayKey(first), to: Repository.localDayKey(now))) ?? []
+        var out: [ForgeTimeline.Meal] = []
+        for (_, dayEntries) in Dictionary(grouping: entries, by: \.day) {
+            for meal in FoodLog.meals(dayEntries) {
+                let picture = meal.entries.lazy.compactMap(\.photoId).first.map { "photo:\($0)" }
+                    ?? FoodGroupMotif.forMeal(meal.entries).map { "motif:\($0.rawValue)" }
+                let foods = meal.entries.map { $0.name.components(separatedBy: ", ").first ?? $0.name }.joined(separator: ", ")
+                out.append(.init(id: meal.id, date: meal.start, title: FoodText.meal(meal.kind), foods: foods,
+                                 kcal: meal.totals[.energyKcal] ?? 0, picture: picture))
+            }
+        }
+        return (out, Set(entries.map(\.day)))
+    }
+
+    /// Per day, one line each for drinks, food (on days without logged meals) and the journal, so a day of small entries stays one row.
+    private static func dayLogs(repo: Repository, now: Date, foodLogDays: Set<String> = []) async -> [ForgeTimeline.DayLog] {
         var logs: [ForgeTimeline.DayLog] = []
         let cal = Calendar.current
         let keys = (0..<timelineDays).compactMap { cal.date(byAdding: .day, value: -$0, to: now) }.map(Repository.localDayKey)
@@ -1658,7 +1693,8 @@ struct ForgeTodayView: View {
             }
         }
         if let from = keys.last, let to = keys.first {
-            for (day, nutrition) in await repo.nutritionByDay(from: from, to: to) {
+            // A day with logged meals shows the meals instead of one food line.
+            for (day, nutrition) in await repo.nutritionByDay(from: from, to: to) where !foodLogDays.contains(day) {
                 if let kcal = nutrition.calories, kcal > 0, let at = endOfTimelineDay(day) {
                     logs.append(.init(kind: .food, date: at, value: kcal, timed: false))
                 }
@@ -1746,7 +1782,9 @@ struct ForgeTodayView: View {
             .max { $0.end < $1.end }
         next.basis = ForgeNoteBasis.make(day: todayKey, charge: next.charge.pct, asleepMinutes: lastNight?.asleepMinutes)
         ForgeNoteBasis.current = next.basis
-        input.dayLogs = await Self.dayLogs(repo: repo, now: now)
+        let meals = await Self.meals(repo: repo, now: now)
+        input.meals = meals.meals
+        input.dayLogs = await Self.dayLogs(repo: repo, now: now, foodLogDays: meals.days)
         if let store = await repo.storeHandle(), let readings = try? await store.ecgReadings() {
             let cutoff = now.addingTimeInterval(-Double(Self.timelineDays + 1) * 86_400)
             input.ecgs = readings.map { .init(id: $0.id, date: Date(timeIntervalSince1970: TimeInterval($0.endTs)), averageHr: $0.averageHr) }

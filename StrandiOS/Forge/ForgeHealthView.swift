@@ -149,6 +149,9 @@ struct ForgeHealthView: View {
                         // The cycle at a glance, only while cycle tracking is on.
                         ForgeCycleSummaryCard()
 
+                        // Today's food log, one tap from the page and one more from adding.
+                        FoodHealthCard()
+
                         ForgeSectionTitle(title: "Focus areas")
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                             ForEach(ForgeFocusArea.allCases) { area in

@@ -1,0 +1,125 @@
+import Foundation
+import StrandAnalytics
+
+/// How far along the way to the goal weight the wearer is (owner, 2026-11-10), read from the smoothed weight trend,
+/// never from one weigh-in, so a heavy morning does not knock a stage off. The way has five stages: the start,
+/// a quarter, half, three quarters and the goal. Holding has no way; it says whether the trend sits within a
+/// kilogram of the starting weight, and since when.
+public enum DietProgress {
+    public enum Stage: String, CaseIterable, Sendable, Codable {
+        case start, quarter, half, threeQuarter, goal
+
+        /// The share of the way at which the stage is reached.
+        public var threshold: Double {
+            switch self {
+            case .start: 0
+            case .quarter: 0.25
+            case .half: 0.5
+            case .threeQuarter: 0.75
+            case .goal: 1
+            }
+        }
+    }
+
+    public struct Way: Equatable, Sendable {
+        public var goal: DietPlan.Goal
+        public var startKg: Double
+        public var trendKg: Double
+        public var goalKg: Double
+        /// 0 to 1 of the way done.
+        public var fraction: Double
+        public var stage: Stage
+        /// Kilograms moved toward the goal, and still to go (both never negative).
+        public var doneKg: Double
+        public var leftKg: Double
+    }
+
+    public struct Hold: Equatable, Sendable {
+        public var startKg: Double
+        public var trendKg: Double
+        public var inRange: Bool
+        /// Whole weeks the trend has stayed within range up to today; zero when out of range.
+        public var weeksInRange: Int
+    }
+
+    /// Recomposition (owner, 2026-11-10): the weight should stay about where it was while fat goes down and
+    /// strength goes up. Each line is nil when there is nothing to read it from.
+    public struct Recomp: Equatable, Sendable {
+        public var startKg: Double
+        public var trendKg: Double
+        /// The trend sits within `recompBandKg` of the start.
+        public var weightSteady: Bool
+        /// Change of body fat in percentage points since the plan began (negative is down).
+        public var bodyFatChange: Double?
+        /// Change of the waist in centimetres since the plan began, used when there is no body fat measurement.
+        public var waistChangeCm: Double?
+        /// Change of strength in percent since the plan began, from the main lifts' estimated maximum.
+        public var strengthChangePercent: Double?
+
+        /// Fat (or the waist) going down and strength going up: the two signs recomposition is working.
+        public var working: Bool {
+            let fatDown = (bodyFatChange.map { $0 < -0.3 } ?? waistChangeCm.map { $0 < -0.5 }) ?? false
+            let stronger = strengthChangePercent.map { $0 > 1 } ?? false
+            return weightSteady && fatDown && stronger
+        }
+    }
+
+    public enum Progress: Equatable, Sendable {
+        case way(Way)
+        case hold(Hold)
+        case recomp(Recomp)
+    }
+
+    /// Kilograms either side of the starting weight that still count as steady during recomposition.
+    public static let recompBandKg: Double = 1.5
+
+    /// Change from the first reading on or after the plan's start to the latest one; nil with fewer than two.
+    static func change(_ series: [(day: String, value: Double)], since startDay: String) -> Double? {
+        let inPlan = series.filter { $0.day >= startDay && $0.value.isFinite }.sorted { $0.day < $1.day }
+        guard let first = inPlan.first, let last = inPlan.last, inPlan.count >= 2 else { return nil }
+        return last.value - first.value
+    }
+
+    /// Kilograms either side of the starting weight that still count as holding.
+    public static let holdBandKg: Double = 1
+
+    /// Nil without weigh-ins, or for losing or gaining without a goal weight (there is no way to draw then).
+    /// `bodyFat` and `waist` are (day, value) readings; `strengthChangePercent` comes from the training history.
+    public static func resolve(plan: DietPlan, goalWeightKg: Double?, weighIns: [(day: String, kg: Double)],
+                               bodyFat: [(day: String, value: Double)] = [], waist: [(day: String, value: Double)] = [],
+                               strengthChangePercent: Double? = nil) -> Progress? {
+        let samples = weighIns.compactMap { w in WeightSeries.date(forDay: w.day).map { (date: $0, value: w.kg) } }
+            .filter { $0.value.isFinite && $0.value > 0 }.sorted { $0.date < $1.date }
+        let smoothed = WeightTrendSummary.smoothedSeries(samples)
+        guard let trend = smoothed.last?.value else { return nil }
+        let start = plan.startWeightKg
+        switch plan.goal {
+        case .recomp:
+            return .recomp(Recomp(startKg: start, trendKg: trend, weightSteady: abs(trend - start) <= recompBandKg,
+                                  bodyFatChange: change(bodyFat, since: plan.startDay),
+                                  waistChangeCm: change(waist, since: plan.startDay),
+                                  strengthChangePercent: strengthChangePercent))
+        case .maintain:
+            let inRange = abs(trend - start) <= holdBandKg
+            var weeks = 0
+            if inRange, let last = smoothed.last?.date {
+                let outside = smoothed.last { abs($0.value - start) > holdBandKg }?.date
+                // Counted from the plan's start at the earliest: weeks before the plan were not holding it.
+                let planStart = WeightSeries.date(forDay: plan.startDay) ?? .distantPast
+                let since = max(outside ?? smoothed.first?.date ?? last, planStart)
+                weeks = Int(last.timeIntervalSince(since) / (7 * 86_400))
+            }
+            return .hold(Hold(startKg: start, trendKg: trend, inRange: inRange, weeksInRange: weeks))
+        case .lose, .gain:
+            guard let goal = goalWeightKg, abs(goal - start) > 0.1 else { return nil }
+            let direction: Double = plan.goal == .lose ? -1 : 1
+            let total = (goal - start) * direction
+            guard total > 0 else { return nil }
+            let done = ((trend - start) * direction).clamped(0, total)
+            let fraction = done / total
+            let stage = Stage.allCases.last { fraction + 1e-9 >= $0.threshold } ?? .start
+            return .way(Way(goal: plan.goal, startKg: start, trendKg: trend, goalKg: goal, fraction: fraction,
+                            stage: stage, doneKg: done, leftKg: max(0, total - done)))
+        }
+    }
+}

@@ -51,6 +51,7 @@ public enum CoreCall {
             do {
                 try installSchema(from: directory.appendingPathComponent("whoop_protocol.json"))
                 BundledExerciseCatalog.resourceDirectory = directory
+                FoodCatalog.resourceDirectory = directory
                 // The wearer's language for the text the shared code writes; none keeps the English source.
                 CoreLocalization.load((args["l10n"] as? String).map { URL(fileURLWithPath: $0) })
                 return #"{"ok":true}"#
@@ -189,6 +190,8 @@ public enum CoreCall {
             }
         }
         if op.hasPrefix("ecg.") { return await CoreEcg.run(op, args: args, store: store) }
+        if op.hasPrefix("food.plan") { return await CoreDietPlan.run(op, args: args, store: store, reader: reader) }
+        if op.hasPrefix("food.") { return await CoreFood.run(op, args: args, store: store) }
         switch op {
         case "hevy.startSync": return CoreRead.json(await CoreHevy.shared.start(store: store, key: string("key"), routinesOnly: args["routinesOnly"] as? Bool ?? false))
         case "hevy.info":

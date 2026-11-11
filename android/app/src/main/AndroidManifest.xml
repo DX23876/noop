@@ -137,6 +137,13 @@
          bottle don't have to be entered twice. Read-only; NOOP never writes water back. MUST be
          declared or Health Connect silently drops the runtime request (same trap as #412 above). -->
     <uses-permission android:name="android.permission.health.READ_HYDRATION" />
+    <!-- The food log (decision 2026-11-08): other apps' meals read as daily totals, and each meal logged here
+         written as a NutritionRecord (FoodHealthConnect). Requested from the Food data page only. -->
+    <uses-permission android:name="android.permission.health.READ_NUTRITION" />
+    <uses-permission android:name="android.permission.health.WRITE_NUTRITION" />
+    <!-- Barcode and nutrition-label scanning on the Food page; the frames never leave the phone. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- DistanceRecord is bundled into the ACTIVITY import category alongside Steps
          (HealthConnectImporter.ImportCategory.ACTIVITY), so selecting Activity to import Steps batches this
          permission into the same runtime request. MUST be declared or Health Connect silently drops the WHOLE

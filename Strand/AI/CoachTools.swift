@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -97,6 +98,8 @@ enum CoachTool: String, CaseIterable {
     case proposeHevyRoutine = "propose_hevy_routine"
     /// Draft a completed Hevy workout or correction for explicit review.
     case proposeHevyWorkout = "propose_hevy_workout"
+    /// A change to the diet plan, waiting on the plan page until the wearer confirms it (owner, 2026-11-10).
+    case proposeDietChange = "propose_diet_change"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -241,6 +244,14 @@ enum CoachTool: String, CaseIterable {
                 + "just because they said it. Give a short rationale; they'll read it again next week. "
                 + "Only for an actual training session — never for sleep, nutrition, hydration or other "
                 + "lifestyle advice; those are simply an answer in chat, not a proposal."
+        case .proposeDietChange:
+            return "Prepare a REVIEW-ONLY change to the user's diet plan: goal (lose, maintain, gain, recomp), "
+                + "pace in percent of body weight a week, way of eating, diet breaks, the share of calories moved to "
+                + "training days, or a break week from today. Nothing changes until the user confirms it on the "
+                + "plan page; say it is waiting there, never that it was made. The app works out every number from "
+                + "the plan and keeps its safety lines (no crash diets, no deficit under 18, in pregnancy or when "
+                + "underweight), so never name calories as if you set them. Only propose what the user asked about "
+                + "or what their week shows, and give the reason in rationale."
         case .proposeGoalSetup:
             // OpenAI rejects the WHOLE request (HTTP 400 on every message) when any tool description exceeds
             // 1024 characters, so the per-template rules live in the `template` parameter's description.
@@ -725,6 +736,20 @@ enum CoachTool: String, CaseIterable {
                     "workout_start": ["type": "integer",
                                       "description": "For kind=workout: the session's start timestamp in unix seconds, copied from get_recent_workouts."]
                 ]
+            ]
+        case .proposeDietChange:
+            return [
+                "type": "object",
+                "properties": [
+                    "goal": ["type": "string", "enum": DietPlan.Goal.allCases.map(\.rawValue)],
+                    "pace_percent": ["type": "number", "description": "Percent of body weight a week, 0.1 to 1.5, for lose or gain."],
+                    "form": ["type": "string", "enum": DietForm.allCases.map(\.rawValue)],
+                    "diet_break_every_weeks": ["type": "integer", "description": "A week at maintenance after this many weeks; 0 for none."],
+                    "day_shift_percent": ["type": "number", "description": "Share of the day's calories moved to training days, 0 to 25."],
+                    "break_week_now": ["type": "boolean", "description": "Take a week at maintenance from today."],
+                    "rationale": ["type": "string", "description": "One or two sentences on why, in the user's language."],
+                ],
+                "required": ["rationale"],
             ]
         case .proposeGoalSetup:
             let goalProperties: [String: Any] = [
@@ -1344,6 +1369,8 @@ extension AICoachEngine {
                 goalIds: input["goal_ids"] as? [String])
         case .proposeGoalSetup:
             return await proposeGoalSetupTool(input: input)
+        case .proposeDietChange:
+            return proposeDietChangeTool(input: input)
         case .sessionOutlook:
             return await sessionOutlookTool(
                 sport: (input["sport"] as? String) ?? "",

@@ -25,6 +25,9 @@ enum ForgeColor {
     static let secondary = dyn(0x3C3C43, 0xEBEBF5, light: 0.62, dark: 0.62)
     /// Secondary text on a see-through surface: the picture behind it takes contrast the plain tone cannot spare.
     static let secondaryOnPicture = dyn(0x000000, 0xFFFFFF, light: 0.72, dark: 0.78)
+    /// Text over a photo that is dark in both appearances (the Food score's still life).
+    static let onDarkPhoto = Color.white
+    static let onDarkPhotoSecondary = Color.white.opacity(0.78)
     static let tertiary = dyn(0x3C3C43, 0xEBEBF5, light: 0.42, dark: 0.42)
     static let fill = dyn(0x767680, 0x767680, light: 0.13, dark: 0.26)
     static let separator = dyn(0x3C3C43, 0x545458, light: 0.18, dark: 0.55)
@@ -53,6 +56,28 @@ enum ForgeColor {
     static let cycleFollicular = dyn(0x21877B, 0x5FD3C4)
     static let cycleShift = dyn(0xB07A0C, 0xE8B64A)
     static let cycleFertile = dyn(0x4E9F2E, 0x9BDB6B)
+
+    /// Food: calories in ember red, the three macronutrients in their own luminous hues (magenta, azure, yellow), so
+    /// the four rings of the Food page never blur into each other and a ring is never mistaken for a score. Android's `ForgePalette` carries the same values.
+    static let food = dyn(0xD42A1C, 0xFF4B33)
+    static let protein = dyn(0x7C3AED, 0xB173FF)
+    static let carbs = dyn(0x0A6FD1, 0x3DB8FF)
+    static let fat = dyn(0xB58900, 0xFFD60A)
+
+    /// Nutrient marks: each nutrient its own hue, chosen by what it is found in or known for (fish in sea
+    /// blue, iron in red, vitamin D in sun yellow), so a long list can be read by colour. Android's
+    /// `ForgePalette` carries the same values.
+    static let nutrientSea = dyn(0x0E7490, 0x22D3EE)
+    static let nutrientOlive = dyn(0x4D7C0F, 0xA3E635)
+    static let nutrientLeaf = dyn(0x15803D, 0x4ADE80)
+    static let nutrientRed = dyn(0xB91C1C, 0xF87171)
+    static let nutrientSun = dyn(0xA16207, 0xFDE047)
+    static let nutrientCitrus = dyn(0xC2410C, 0xFB923C)
+    static let nutrientSlate = dyn(0x475569, 0xA5B4C8)
+    static let nutrientSky = dyn(0x0369A1, 0x7DD3FC)
+    static let nutrientIndigo = dyn(0x4338CA, 0xA5B4FC)
+    static let nutrientRose = dyn(0xBE185D, 0xFB7185)
+    static let nutrientCopper = dyn(0x9A3412, 0xF0A07A)
 
     /// The per-tab wash at the top of a plain screen. Colorful gives each area its own colour; the calm
     /// profiles stay close to their canvas and differ only slightly from tab to tab.

@@ -29,9 +29,13 @@ public struct GlowRing: View {
     /// condition of that change rather than an ornament. nil (the default) renders exactly as before,
     /// which is what the fixed-colour Effort and Rest rings pass.
     public var caption: String? = nil
+    /// Past a full turn, keep going: a second lap in a deeper shade of the colour, as Apple's activity rings do,
+    /// up to two turns. Off by default, so every score ring still stops at full.
+    public var overflow = false
 
     public init(fraction: Double, value: Double, format: @escaping (Double) -> String,
-                color: Color, diameter: CGFloat, lineWidth: CGFloat, caption: String? = nil) {
+                color: Color, diameter: CGFloat, lineWidth: CGFloat, caption: String? = nil, overflow: Bool = false) {
+        self.overflow = overflow
         self.fraction = fraction
         self.value = value
         self.format = format
@@ -62,6 +66,8 @@ public struct GlowRing: View {
 
     private var clamped: CGFloat { CGFloat(min(max(fraction, 0), 1)) }
     private var filled: CGFloat { appeared ? clamped : 0 }
+    /// The second turn's share, 0 unless `overflow` is on and the fraction is past 1.
+    private var lap: CGFloat { overflow && appeared ? CGFloat(min(max(fraction - 1, 0), 1)) : 0 }
     private var shown: Double { appeared ? value : 0 }
     private var drawSpring: Animation { .spring(response: 0.9, dampingFraction: 0.86) }
 
@@ -92,6 +98,7 @@ public struct GlowRing: View {
         }
         .frame(width: diameter, height: diameter)
         .animation(reduceMotion ? nil : drawSpring, value: filled)
+        .animation(reduceMotion ? nil : drawSpring, value: lap)
         .onAppear { appeared = true }
     }
 
@@ -121,6 +128,14 @@ public struct GlowRing: View {
             arc.stroke(sweep, style: stroke)
             tip(Circle().fill(color).frame(width: lineWidth, height: lineWidth)
                 .shadow(color: .black.opacity(colorScheme == .light ? 0.22 : 0.45), radius: lineWidth * 0.22))
+        }
+        if lap > 0 {
+            // The second turn in a deeper shade, its tip shadowed so the overlap still reads.
+            Circle().trim(from: 0, to: lap).rotation(.degrees(-90))
+                .stroke(color, style: stroke).brightness(-0.22)
+            Circle().fill(color).brightness(-0.22).frame(width: lineWidth, height: lineWidth)
+                .shadow(color: .black.opacity(colorScheme == .light ? 0.3 : 0.55), radius: lineWidth * 0.3)
+                .offset(y: -diameter / 2).rotationEffect(.degrees(360 * Double(lap)))
         }
     }
 }

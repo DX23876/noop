@@ -374,9 +374,32 @@ protocol AIProviderClient {
         session: URLSession,
         onDelta: (String) -> Void
     ) async throws
+
+    /// Whether `sendWithImage` really sends the picture (food photos, decision 2026-11-08).
+    var readsImages: Bool { get }
+
+    /// One question about one picture (base64 JPEG or PNG), answered in one reply. Gemini, OpenAI and
+    /// Anthropic send the picture; the default sends only the text, and callers check `readsImages` first.
+    func sendWithImage(
+        key: String,
+        model: String,
+        systemPrompt: String,
+        text: String,
+        imageBase64: String,
+        mimeType: String,
+        session: URLSession
+    ) async throws -> String
 }
 
 extension AIProviderClient {
+    var readsImages: Bool { false }
+
+    func sendWithImage(key: String, model: String, systemPrompt: String, text: String, imageBase64: String,
+                       mimeType: String, session: URLSession) async throws -> String {
+        try await send(key: key, model: model, systemPrompt: systemPrompt, messages: [(role: .user, content: text)],
+                       session: session)
+    }
+
     /// K11: Default — ignore the image, delegate to `stream`. Providers without multimodal support
     /// (OpenAI, Anthropic, Custom) use this; only Gemini overrides it.
     func streamWithImage(

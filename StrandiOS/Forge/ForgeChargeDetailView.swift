@@ -26,6 +26,10 @@ enum ForgeRoute: Hashable {
     case workout(startTs: Int, sport: String)
     /// The cycle page: dial, logging, phase cards, nightly temperature and calendar.
     case cycle
+    /// The food log for a day (decision 2026-11-08).
+    case food
+    /// The food log with its add sheet open: Today's Log sheet and the Health card's button.
+    case foodAdd
 }
 
 extension View {
@@ -45,6 +49,8 @@ extension View {
             case .focus(let area): ForgeFocusView(area: area)
             case .workout(let startTs, let sport): ForgeWorkoutDetailHost(startTs: startTs, sport: sport)
             case .cycle: ForgeCycleView()
+            case .food: ForgeFoodView(onAsk: onAsk)
+            case .foodAdd: ForgeFoodView(onAsk: onAsk, opensAdd: true)
             }
         }
     }

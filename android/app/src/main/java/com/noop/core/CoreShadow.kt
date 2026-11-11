@@ -116,7 +116,8 @@ object CoreShadow {
         return ready
     }
 
-    private val RESOURCES = listOf("whoop_protocol.json", "exercise-catalog.json")
+    // The BLS food table (`FoodCatalog`); the core builds its search file from it on first use.
+    private val RESOURCES = listOf("whoop_protocol.json", "exercise-catalog.json", "food-bls.tsv", "food-bls.json")
 
     /**
      * The wearer's language for the text the shared core writes (`CoreLocalization`): the app's chosen language, or

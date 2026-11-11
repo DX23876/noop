@@ -5,6 +5,32 @@ import FoundationNetworking
 import StrandAnalytics
 
 struct GeminiClient: AIProviderClient {
+    var readsImages: Bool { true }
+
+    /// The picture as `inline_data` beside the question, answered in one reply.
+    func sendWithImage(key: String, model: String, systemPrompt: String, text: String, imageBase64: String,
+                       mimeType: String, session: URLSession) async throws -> String {
+        var contents = GeminiClient.buildContents(from: [(role: .user, content: text)])
+        GeminiClient.appendImage(imageBase64, mimeType: mimeType, to: &contents)
+        let body: [String: Any] = [
+            "system_instruction": ["parts": [["text": systemPrompt]]],
+            "contents": contents,
+            "generationConfig": ["temperature": 0.2, "maxOutputTokens": 4096],
+        ]
+        guard let url = URL(string: "\(AIProvider.gemini.endpoint.absoluteString)/\(model):generateContent") else {
+            throw AICoachError.network("invalid model id")
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let json = try await performRequest(req, session: session)
+        let parts = ((json["candidates"] as? [[String: Any]])?.first?["content"] as? [String: Any])?["parts"] as? [[String: Any]] ?? []
+        let reply = parts.compactMap { $0["text"] as? String }.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !reply.isEmpty else { throw emptyReplyError(json) }
+        return reply
+    }
 
     func send(
         key: String,

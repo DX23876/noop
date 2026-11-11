@@ -1,0 +1,273 @@
+import Foundation
+import StrandCore
+import StrandImport
+import WhoopStore
+
+/// The food log on Android (decision 2026-11-08): every `food.*` operation over the shared `FoodLog`,
+/// `FoodLibrary` and `FoodCatalog`, so the Kotlin screens only lay out what arrives. Health Connect writing
+/// is Android's: operations that add or remove entries return them, and the app writes or deletes the
+/// matching records, then reports the record id with `food.setHealthId`.
+enum CoreFood {
+    struct EntryWire: Codable {
+        var id: String, loggedAt: Int, day: String, meal: String?, foodId: String?, name: String, brand: String?
+        var grams: Double?, portionLabel: String?, per100g: FoodNutrientValues?, totals: FoodNutrientValues
+        var origin: String, recipeId: String?, healthId: String?, photoId: String?
+
+        init(_ e: FoodLogEntry) {
+            id = e.id; loggedAt = e.loggedAt; day = e.day; meal = e.meal; foodId = e.foodId; name = e.name; brand = e.brand
+            grams = e.grams; portionLabel = e.portionLabel; per100g = e.per100g; totals = e.totals
+            origin = e.origin.rawValue; recipeId = e.recipeId; healthId = e.healthId; photoId = e.photoId
+        }
+    }
+    /// `motif` names the still life the meal card shows (`FoodGroupMotif`), nil without one.
+    struct MealWire: Codable { var kind: String; var start: Int; var entries: [EntryWire]; var totals: NutrientAmounts; var motif: String? }
+    struct WeekDayWire: Codable { var day: String; var totals: NutrientAmounts }
+    struct WeekWire: Encodable { var days: [WeekDayWire]; var loggedDays: Int; var score: FoodScore.Result? }
+    struct HabitWire: Encodable { var kind: String; var days: Int; var entries: [EntryWire]; var motif: String? }
+    struct PointWire: Encodable { var nutrient: String; var plenty: Bool; var watch: Bool }
+
+    /// Stored groups of foods whose id does not carry one, for the meal pictures.
+    static func groups(_ entries: [FoodLogEntry], store: WhoopStore) async -> [String: String] {
+        var out: [String: String] = [:]
+        for id in Set(entries.compactMap(\.foodId)) where FoodGroupMotif.forFoodId(id) == nil {
+            if let group = await FoodLibrary.item(store: store, id: id)?.group { out[id] = group }
+        }
+        return out
+    }
+    struct DayWire: Codable { var day: String; var meals: [MealWire]; var totals: NutrientAmounts; var otherKcal: Double?; var otherSource: String? }
+    struct RecentWire: Codable { var item: FoodItem; var lastGrams: Double? }
+
+    static func run(_ op: String, args: [String: Any], store: WhoopStore) async -> String {
+        func string(_ k: String) -> String { args[k] as? String ?? "" }
+        func double(_ k: String) -> Double? { (args[k] as? NSNumber)?.doubleValue }
+        func date(_ k: String) -> Date { Date(timeIntervalSince1970: double(k) ?? Date().timeIntervalSince1970) }
+        func meal(_ k: String) -> FoodLog.MealKind? { (args[k] as? String).flatMap(FoodLog.MealKind.init(rawValue:)) }
+        func item(_ value: Any?) -> FoodItem? {
+            guard let value, JSONSerialization.isValidJSONObject(value),
+                  let data = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+            return try? JSONDecoder().decode(FoodItem.self, from: data)
+        }
+        func entries(_ list: [FoodLogEntry]) -> String { CoreRead.json(["entries": list.map(EntryWire.init)]) }
+        let catalog = FoodCatalog.shared
+
+        switch op {
+        case "food.prepare":
+            // Builds the BLS search file on first use, or after an app update brought a newer table.
+            do { try await catalog.prepareBundled(); return #"{"ok":true}"# }
+            catch { return #"{"error":"catalogUnavailable"}"# }
+        case "food.attribution":
+            return CoreRead.json(["bls": FoodCatalog.bundledMeta()])
+        case "food.search":
+            return CoreRead.json(["items": await FoodLibrary.search(store: store, query: string("query"),
+                                                                   limit: (args["limit"] as? Int) ?? 40)])
+        case "food.recents":
+            let recents = await FoodLibrary.recents(store: store, limit: (args["limit"] as? Int) ?? 30)
+            return CoreRead.json(["items": recents.map { RecentWire(item: $0.item, lastGrams: $0.lastGrams) }])
+        case "food.favourites":
+            return CoreRead.json(["items": await FoodLibrary.favourites(store: store)])
+        case "food.setFavourite":
+            try? await store.setFoodFavourite(.init(foodId: string("foodId"), name: string("name"),
+                                                    addedAt: Int(Date().timeIntervalSince1970)),
+                                              on: args["on"] as? Bool ?? true)
+            return #"{"ok":true}"#
+        case "food.item":
+            guard let found = await FoodLibrary.item(store: store, id: string("id")) else { return "null" }
+            return CoreRead.json(found)
+        case "food.barcode":
+            guard let found = await FoodLibrary.item(store: store, barcode: string("code")) else { return "null" }
+            return CoreRead.json(found)
+        case "food.day":
+            let summary = await FoodLog.day(store: store, string("day"))
+            let other = await FoodLog.otherIntake(store: store, string("day"))
+            let groups = await groups(summary.entries, store: store)
+            return CoreRead.json(DayWire(day: summary.day, meals: summary.meals.map {
+                MealWire(kind: $0.kind.rawValue, start: Int($0.start.timeIntervalSince1970),
+                         entries: $0.entries.map(EntryWire.init), totals: $0.totals,
+                         motif: FoodGroupMotif.forMeal($0.entries, groups: groups)?.rawValue)
+            }, totals: summary.totals, otherKcal: other?.kcal, otherSource: other?.source.rawValue))
+        case "food.week":
+            // The week strip and, behind the Lab switch, the week's nutrition score (`FoodScore`).
+            let days = FoodLog.weekDays(shown: string("day"), today: string("today"))
+            guard let first = days.first, let last = days.last else { return "null" }
+            let entries = (try? await store.foodLogEntries(from: first, to: last)) ?? []
+            let byDay = Dictionary(grouping: entries, by: \.day)
+            var score: FoodScore.Result?
+            if args["score"] as? Bool == true {
+                var facts: [String: FoodScore.FoodFacts] = [:]
+                for id in Set(entries.compactMap(\.foodId)) where !id.hasPrefix("bls:") {
+                    if let found = await FoodLibrary.item(store: store, id: id) { facts[id] = .init(group: found.group, nova: found.nova) }
+                }
+                let sex = string("sex").lowercased()
+                score = FoodScore.week(entries: entries, lastDay: last, facts: facts,
+                                       male: sex == "male" ? true : sex == "female" ? false : nil)
+            }
+            return CoreRead.json(WeekWire(days: days.map { day in
+                WeekDayWire(day: day, totals: .sum((byDay[day] ?? []).map { NutrientAmounts(stored: $0.totals) }))
+            }, loggedDays: byDay.count, score: score))
+        case "food.habit":
+            // "As usual": a meal eaten on several of the last days, offered at its time of day.
+            let today = string("day")
+            guard let todayDate = WeightSeries.date(forDay: today),
+                  let start = Calendar.current.date(byAdding: .day, value: -FoodRepeat.window, to: todayDate),
+                  let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: todayDate) else { return "null" }
+            let history = (try? await store.foodLogEntries(from: StoreReader.localDayKey(start), to: StoreReader.localDayKey(yesterday))) ?? []
+            let todayEntries = (try? await store.foodLogEntries(from: today, to: today)) ?? []
+            guard let habit = FoodRepeat.suggestion(history: history, todayEntries: todayEntries, today: today, now: date("now")) else { return "null" }
+            return CoreRead.json(HabitWire(kind: habit.kind.rawValue, days: habit.days, entries: habit.entries.map(EntryWire.init),
+                                           motif: FoodGroupMotif.forMeal(habit.entries, groups: await groups(habit.entries, store: store))?.rawValue))
+        case "food.sentence":
+            // The evening sentence's observations, against the same goals the plate and the nutrient card use.
+            let entries = (try? await store.foodLogEntries(from: string("day"), to: string("day"))) ?? []
+            let references = FoodReference.values(profileSex: string("sex"), age: (args["age"] as? Int) ?? 40,
+                                                  weightKg: double("weightKg"), heightCm: double("heightCm"),
+                                                  energyKcal: double("energyKcal"))
+            let points = FoodDaySentence.points(totals: .sum(entries.map { NutrientAmounts(stored: $0.totals) }),
+                                                proteinGoalG: double("proteinGoalG"), references: references)
+            return CoreRead.json(["points": points.map { PointWire(nutrient: $0.nutrient.rawValue, plenty: $0.plenty, watch: $0.watch) }])
+        case "food.logCart":
+            // The add sheet's and the coach's cart: every line becomes an entry in one save.
+            let at = date("at")
+            let lines = (args["items"] as? [[String: Any]]) ?? []
+            let made = lines.compactMap { line -> FoodLogEntry? in
+                guard let food = item(line["item"]), let grams = (line["grams"] as? NSNumber)?.doubleValue else { return nil }
+                return FoodLog.entry(for: food, grams: grams, at: at,
+                                     origin: FoodLogEntry.Origin(rawValue: string("origin")) ?? .search,
+                                     portionLabel: line["portionLabel"] as? String, meal: meal("meal"))
+            }
+            guard !made.isEmpty, made.count == lines.count, await FoodLog.save(store: store, made) else {
+                return #"{"error":"invalid"}"#
+            }
+            return entries(made)
+        case "food.quick":
+            guard let kcal = double("kcal") else { return #"{"error":"invalid"}"# }
+            let entry = FoodLog.quickEntry(name: string("name"), kcal: kcal, proteinG: double("proteinG"),
+                                           carbsG: double("carbsG"), fatG: double("fatG"), at: date("at"), meal: meal("meal"))
+            guard await FoodLog.save(store: store, [entry]) else { return #"{"error":"invalid"}"# }
+            return entries([entry])
+        case "food.edit":
+            guard let old = try? await store.foodLogEntry(id: string("id")) else { return #"{"error":"notFound"}"# }
+            let next = FoodLog.edited(old, grams: double("grams"), at: args["at"] != nil ? date("at") : nil,
+                                      meal: args["meal"] != nil ? .some(meal("meal")) : nil)
+            guard await FoodLog.save(store: store, [next]) else { return #"{"error":"invalid"}"# }
+            return CoreRead.json(["entry": EntryWire(next), "previous": EntryWire(old)])
+        case "food.delete":
+            return CoreRead.json(["removed": await FoodLog.delete(store: store, ids: args["ids"] as? [String] ?? [])
+                .map(EntryWire.init)])
+        case "food.copy":
+            let originals = (try? await store.foodLogEntries(ids: args["ids"] as? [String] ?? [])) ?? []
+            let copies = FoodLog.copies(of: originals, toDays: args["days"] as? [String] ?? [])
+            guard !copies.isEmpty, await FoodLog.save(store: store, copies) else { return #"{"error":"invalid"}"# }
+            return entries(copies)
+        case "food.setHealthId":
+            try? await store.setFoodLogHealthId(entryId: string("id"), healthId: args["healthId"] as? String)
+            return #"{"ok":true}"#
+        case "food.own":
+            return CoreRead.json(["items": ((try? await store.customFoods()) ?? []).map(FoodLibrary.item(for:))])
+        case "food.saveOwn":
+            guard let food = item(args["item"]),
+                  let saved = await FoodLibrary.saveOwn(store: store, food,
+                                                        origin: CustomFood.Origin(rawValue: string("origin")) ?? .own)
+            else { return #"{"error":"invalid"}"# }
+            return CoreRead.json(saved)
+        case "food.deleteOwn":
+            return CoreRead.json(["ok": (try? await store.deleteCustomFood(id: string("id"))) ?? false])
+        case "food.recipes":
+            return CoreRead.json(["items": ((try? await store.foodRecipes()) ?? []).compactMap(FoodLog.item(for:))])
+        case "food.makeRecipe":
+            let chosen = (try? await store.foodLogEntries(ids: args["ids"] as? [String] ?? [])) ?? []
+            guard let recipe = FoodLog.recipe(name: string("name"), from: chosen, servings: double("servings") ?? 1),
+                  (try? await store.saveFoodRecipe(recipe)) == true, let made = FoodLog.item(for: recipe)
+            else { return #"{"error":"invalid"}"# }
+            return CoreRead.json(made)
+        case "food.deleteRecipe":
+            return CoreRead.json(["ok": (try? await store.deleteFoodRecipe(id: string("id").replacingOccurrences(of: "recipe:", with: ""))) ?? false])
+        case "food.parseLabel":
+            let reading = NutritionLabelParser.parse(lines: args["lines"] as? [String] ?? [])
+            return CoreRead.json(LabelWire(per100: reading.per100, basis: reading.basis.rawValue,
+                                           servingAmount: reading.servingAmount, complete: reading.isComplete))
+        case "food.packs":
+            return CoreRead.json(["packs": await catalog.installedPacks()])
+        case "food.installPack":
+            let path = string("path")
+            guard path.hasPrefix("/") else { return #"{"error":"invalid"}"# }
+            do {
+                return CoreRead.json(try await catalog.installPack(archive: URL(fileURLWithPath: path),
+                                                                   expectedSha256: string("sha256")))
+            } catch let failure as FoodCatalog.Failure {
+                return CoreRead.json(["error": failure.rawValue])
+            } catch {
+                return #"{"error":"invalidArchive"}"#
+            }
+        case "food.onlineSearch":
+            // Only when the wearer chose online search; Kotlin passes the countries it chose.
+            do {
+                let found = try await FoodOnline.search(string("query"), countries: args["countries"] as? [String] ?? [],
+                                                        language: string("language").isEmpty ? "de" : string("language"))
+                return CoreRead.json(["items": await FoodLibrary.preferKept(store: store, found)])
+            } catch { return #"{"error":"offline"}"# }
+        case "food.onlineBarcode":
+            do {
+                guard let found = try await FoodOnline.product(barcode: string("code"),
+                    language: string("language").isEmpty ? "de" : string("language")) else { return "null" }
+                return CoreRead.json(await FoodLibrary.preferKept(store: store, [found]).first ?? found)
+            } catch { return #"{"error":"offline"}"# }
+        case "food.importHealth":
+            // Health Connect's daily nutrition per app, as Apple's import resolves it: one app per day, the
+            // preferred one when several wrote, a day left out when several did and none is preferred.
+            let rows = (args["rows"] as? [[String: Any]]) ?? []
+            let preferred = (args["preferred"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            let from = string("from"), to = string("to")
+            guard !from.isEmpty, !to.isEmpty else { return #"{"error":"invalid"}"# }
+            var byDay: [String: [[String: Any]]] = [:]
+            for row in rows { if let day = row["day"] as? String { byDay[day, default: []].append(row) } }
+            var points: [MetricPoint] = []
+            var unresolved: [String] = []
+            for (day, candidates) in byDay {
+                let chosen = preferred.flatMap { id in candidates.first { $0["source"] as? String == id } }
+                    ?? (candidates.count == 1 ? candidates.first : nil)
+                guard let chosen else { unresolved.append(day); continue }
+                for (key, field) in [(NutritionReads.caloriesKey, "calories"), (NutritionReads.proteinKey, "protein"),
+                                     (NutritionReads.carbsKey, "carbs"), (NutritionReads.fatKey, "fat")] {
+                    if let value = (chosen[field] as? NSNumber)?.doubleValue, value.isFinite, value > 0 {
+                        points.append(MetricPoint(day: day, key: key, value: value))
+                    }
+                }
+            }
+            do {
+                try await store.replaceMetricSeriesWindow(points, deviceId: MetricResolver.healthConnectSource,
+                    keys: [NutritionReads.caloriesKey, NutritionReads.proteinKey, NutritionReads.carbsKey, NutritionReads.fatKey],
+                    from: from, to: to)
+            } catch { return #"{"error":"storeFailed"}"# }
+            struct ImportWire: Encodable { var ok: Bool; var unresolvedDays: [String] }
+            return CoreRead.json(ImportWire(ok: true, unresolvedDays: unresolved.sorted()))
+        case "food.nutrients":
+            // The nutrient card and page: seven days against the EFSA references for this person.
+            let references = FoodReference.values(profileSex: string("sex"), age: (args["age"] as? Int) ?? 40,
+                                                  weightKg: double("weightKg"), heightCm: double("heightCm"),
+                                                  energyKcal: double("energyKcal"))
+            if string("span") == "day" {
+                // One day as a nutrition label: the same rows, over that day's entries only.
+                let entries = (try? await store.foodLogEntries(from: string("day"), to: string("day"))) ?? []
+                return CoreRead.json(FoodNutrientReport.report(entries: entries, from: string("day"), to: string("day"), references: references))
+            }
+            return CoreRead.json(await FoodNutrientReport.report(store: store, to: string("day"), references: references))
+        case "food.goals":
+            // The calorie goal (plan or fixed) and its macro split, as Apple's Food page resolves them.
+            let plan = FoodTargets.calories(measuredMeanKcal: double("measuredMeanKcal"), allDaysMeanKcal: double("allDaysMeanKcal"),
+                                            formulaTdeeKcal: double("formulaTdeeKcal"), dailyDeltaKcal: double("dailyDeltaKcal"))
+            guard let calories = FoodTargets.calories(fixedKcal: double("fixedKcal"), plan: plan) else { return "null" }
+            let split = FoodTargets.defaultSplit
+            let macros = FoodTargets.macros(kcal: calories.kcal, protein: double("proteinPercent") ?? split.protein,
+                                            carbs: double("carbsPercent") ?? split.carbs, fat: double("fatPercent") ?? split.fat)
+            struct GoalsWire: Encodable { var calories: FoodTargets.Calories; var macros: FoodTargets.Macros? }
+            return CoreRead.json(GoalsWire(calories: calories, macros: macros))
+        case "food.removePack":
+            await catalog.removePack(country: string("country"))
+            return #"{"ok":true}"#
+        default:
+            return #"{"error":"unknownOp"}"#
+        }
+    }
+
+    struct LabelWire: Codable { var per100: [String: Double]; var basis: String; var servingAmount: Double?; var complete: Bool }
+}

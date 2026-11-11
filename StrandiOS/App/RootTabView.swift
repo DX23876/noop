@@ -142,7 +142,7 @@ struct RootTabView: View {
         // Same for the redesign's pushed pages and sheets, which the board comparison captures one by one.
         if let i = args.firstIndex(of: "--demo-route"), i + 1 < args.count {
             // Effort and Rest take Today's values, so they are opened from the rings instead.
-            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search, "forgeageless": .ageless, "forgecycle": .cycle]
+            let routes: [String: ForgeRoute] = ["charge": .charge, "weekly": .weeklyReport, "forgestrength": .strength, "muscles": .muscles, "forgeworkouts": .workouts, "weekplan": .weekPlan, "search": .search, "forgeageless": .ageless, "forgecycle": .cycle, "forgefood": .food, "forgefoodadd": .foodAdd]
             // The cycle demo turns cycle tracking on; the seeder adds the cycle with `--demo-cycle`.
             if args.contains("--demo-cycle"), !UserDefaults.standard.bool(forKey: AppModel.cycleAwarenessKey) {
                 UserDefaults.standard.set(true, forKey: AppModel.cycleAwarenessKey)
@@ -181,7 +181,7 @@ struct RootTabView: View {
                     "compare": (1, { $0.append(MoreDestination.compare) }), "trends": (1, { $0.append(TabRoute.trends) }), "metric-hrv": (1, { $0.append(TabRoute.metric("hrv")) }),
                     "focus-fitness": (1, { $0.append(ForgeRoute.focus(.fitness)) }), "focus-sleep": (1, { $0.append(ForgeRoute.focus(.sleep)) }),
                     "focus-vitals": (1, { $0.append(ForgeRoute.focus(.vitals)) }), "focus-body": (1, { $0.append(ForgeRoute.focus(.body)) }),
-                    "focus-mind": (1, { $0.append(ForgeRoute.focus(.mind)) }), "focus-more": (1, { $0.append(ForgeRoute.focus(.more)) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }),
+                    "focus-mind": (1, { $0.append(ForgeRoute.focus(.mind)) }), "focus-more": (1, { $0.append(ForgeRoute.focus(.more)) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }), "food": (1, { $0.append(ForgeRoute.food) }),
                     "alarms": (3, { $0.append(MoreDestination.alarms) }), "devices": (0, { $0.append(MoreDestination.devices) }), "backup": (0, { $0.append(MoreDestination.backupSync) }),
                     "datasources": (0, { $0.append(MoreDestination.dataSources) }), "automations": (0, { $0.append(MoreDestination.automations) })]
                 var paths = Array(repeating: NavigationPath(), count: 5)
@@ -970,7 +970,8 @@ struct RootTabView: View {
             case .liveHeartRate: withAnimation(Self.sheetEase) { quickAction = .live }
             case .weight: pushOnToday(TabRoute.weight)
             case .drink: pushOnToday(TabRoute.hydration)
-            case .energy: pushOnToday(TabRoute.energy)
+            // Straight to adding, as the Health card's button; the page itself is one tap back.
+            case .energy: pushOnToday(ForgeRoute.foodAdd)
             case .sleep:
                 // The full Sleep screen, where marks are logged and a night is edited.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }

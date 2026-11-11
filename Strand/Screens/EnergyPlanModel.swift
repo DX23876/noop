@@ -42,6 +42,9 @@ final class EnergyPlanModel: ObservableObject {
     /// Today's projected total burn, so the card can show the denominator even before an intake
     /// figure exists.
     @Published private(set) var todayProjectedBurnKcal: Double?
+    /// What each day of the window burned as measured, today until now. The Food page shows it beside
+    /// what was eaten, so the burn there is a measurement and never a forecast.
+    @Published private(set) var burnedByDay: [String: Double] = [:]
 
     @Published var activity: ActivityLevel = EnergyPlanStore.activityLevel {
         didSet { EnergyPlanStore.activityLevel = activity }
@@ -67,6 +70,8 @@ final class EnergyPlanModel: ObservableObject {
                            coverage: summary.coverage.energy)
         }
         burn = EnergyPlanning.measuredBurn(days: days)
+        burnedByDay = Dictionary(summaries.compactMap { s in s.totalBurnedSoFar.map { (s.day, $0) } },
+                                 uniquingKeysWith: { _, last in last })
         balance = await repo.adaptiveExpenditureEstimate()
 
         let from = Repository.localDayKey(

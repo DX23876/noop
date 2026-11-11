@@ -2079,6 +2079,23 @@ extension WhoopStore {
         migrator.registerMigration("v85-single-active-device") { db in
             try DeviceRegistryStore.keepOneActive(db)
         }
+        // Fork (DX23876), decision 2026-11-08: the food log, the wearer's own foods, recipes and favourites.
+        // Wearer input, so it travels in the `.noopbak` copy. Additive; the day totals it banks are a new
+        // source the energy plan reads at read time, so no stored score goes stale.
+        migrator.registerMigration("v86-food-log") { db in
+            try WhoopStore.createFoodLogTables(db)
+        }
+        // A meal photographed for the coach keeps its photo (decision 2026-11-08): the file lives in the app's
+        // own folder, outside the database and outside backups; the entry only names it.
+        migrator.registerMigration("v87-food-photo") { db in
+            try db.alter(table: "foodLogEntry") { t in t.add(column: "photoId", .text) }
+        }
+        // Days the wearer marked as completely logged (owner, 2026-11-10): only those count when Forge works out the
+        // real burn from food and weight, since a day with forgotten snacks would make the burn look too low.
+        // Wearer input, additive, and nothing derived is stored.
+        migrator.registerMigration("v88-food-day-complete") { db in
+            try WhoopStore.createFoodDayCompleteTable(db)
+        }
         return migrator
     }
 }

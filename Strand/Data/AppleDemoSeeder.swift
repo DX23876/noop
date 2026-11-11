@@ -5,6 +5,7 @@ import StrandImport
 import StrandTraining
 import WhoopProtocol
 import WhoopStore
+import StrandCore
 
 // MARK: - DEBUG-only demo seed (Apple parity with Android's DemoSeeder)
 // Seeds a comprehensive, self-contained synthetic dataset so a DEBUG build can walk every screen —
@@ -63,7 +64,7 @@ enum AppleDemoSeeder {
         guard requested else { return }
         seedDemoDeviceIfNeeded(into: store)
         await seedDemoGoalIfNeeded()
-        defer { Task { await seedDemoRecordedWalkIfNeeded(into: store) } }
+        defer { Task { await seedDemoRecordedWalkIfNeeded(into: store); await FoodDemoSeed.seedIfEmpty(store: store, days: 28) } }
         let existing = (try? await store.dailyMetrics(deviceId: whoop, from: "0000-00-00", to: "9999-99-99")) ?? []
         guard existing.isEmpty else {
             await topUpIfDemoStore(store, newestDay: existing.map(\.day).max())

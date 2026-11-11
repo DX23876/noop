@@ -17,7 +17,7 @@ import WhoopStore
 struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     enum Kind: String, Codable, CaseIterable {
         case measure, trainingLoad, goals, energy, water, liveHeart, momentum, lastNight, weekPlan, coachNote, ageless, lastWorkout
-        case cycle, tonight, breathe, nextSession, changes, whatWorks, strap
+        case cycle, tonight, breathe, nextSession, changes, whatWorks, strap, dietGoal
     }
 
     var id = UUID()
@@ -160,6 +160,7 @@ final class ForgeTodayWidgetStore: ObservableObject {
             .init(kind: .energy),
             .init(kind: .lastWorkout),
             .init(kind: .ageless, wide: true),
+            .init(kind: .dietGoal),
             .init(kind: .momentum),
             .init(kind: .lastNight),
             .init(kind: .weekPlan),
@@ -440,6 +441,7 @@ struct ForgeTodayWidgetView: View {
         case .momentum: ForgeMomentumWidget()
         case .lastNight: ForgeLastNightWidget()
         case .weekPlan: ForgeWeekPlanWidget()
+        case .dietGoal: ForgeDietGoalWidget()
         case .coachNote: ForgeCoachNoteWidget()
         case .ageless:
             if widget.isWide { ForgeAgeLessWideWidget() } else { ForgeAgeLessWidget() }
@@ -679,6 +681,52 @@ struct ForgeLastNightWidget: View {
             Text(verbatim: "\(name) \(ForgeTodayView.hoursMinutes(minutes))")
                 .font(ForgeFont.caption.monospacedDigit()).foregroundStyle(ForgeColor.secondary)
         }
+    }
+}
+
+/// The way to the goal weight from the diet plan (owner, 2026-11-10), the plan page's card in small. It reads the
+/// same plan, goal weight (`DietTargets.plannedGoalWeight`) and weight trend, so the two cannot disagree. Without a
+/// plan it offers to make one.
+struct ForgeDietGoalWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @EnvironmentObject private var profile: ProfileStore
+    @AppStorage(DietPlan.storageKey) private var planRaw = ""
+    @State private var progress: DietProgress.Progress?
+
+    var body: some View {
+        NavigationLink(value: ForgeRoute.food) {
+            if let progress {
+                DietProgressCard(progress: progress, compact: true,
+                                 male: profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Way to your goal").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    Text(message)
+                        .font(.subheadline).foregroundStyle(ForgeColor.text)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .forgeCard(padding: 14)
+            }
+        }
+        .buttonStyle(.plain)
+        .task(id: planRaw) { await load() }
+    }
+
+    private var message: String {
+        guard let plan = DietPlan.decode(planRaw) else { return String(localized: "Plan your diet to see your way here.") }
+        if plan.hideNumbers { return String(localized: "Your plan keeps weight and numbers hidden.") }
+        return String(localized: "Set a goal weight in your plan to see your way here.")
+    }
+
+    private func load() async {
+        // A plan that hides weight and numbers keeps them off Today too.
+        guard let plan = DietPlan.decode(planRaw), !plan.hideNumbers else { progress = nil; return }
+        let p = Repository.analyticsProfile(profile)
+        let person = DietPerson(weightKg: p.weightKg, heightCm: p.heightCm > 0 ? p.heightCm : nil, age: p.age > 0 ? Int(p.age) : nil,
+                                male: p.sex.lowercased() == "male" ? true : p.sex.lowercased() == "female" ? false : nil)
+        let weights = await repo.weightDailyValues(days: 120).map { (day: $0.day, kg: $0.value) }
+        progress = DietProgress.resolve(plan: plan, goalWeightKg: DietTargets.plannedGoalWeight(plan, person: person),
+                                        weighIns: weights)
     }
 }
 
@@ -1151,6 +1199,8 @@ struct ForgeWidgetGallery: View {
                         subtitle: String(localized: "Wide · hours asleep and bedtime")) { store.add(.init(kind: .lastNight)) }
                     row(symbol: "calendar", title: String(localized: "This week's plan"),
                         subtitle: String(localized: "Wide · done and planned days")) { store.add(.init(kind: .weekPlan)) }
+                    row(symbol: "mountain.2.fill", title: String(localized: "Way to your goal"),
+                        subtitle: String(localized: "Wide · how far your diet plan has come")) { store.add(.init(kind: .dietGoal)) }
                     if coachFeatureEnabled {
                         row(symbol: "bubble.left.fill", title: String(localized: "Coach note"),
                             subtitle: String(localized: "Wide · the coach's latest line")) { store.add(.init(kind: .coachNote)) }

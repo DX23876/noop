@@ -2,6 +2,7 @@ package com.noop.ui.forge
 
 import androidx.compose.material.icons.rounded.Accessibility
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Restaurant
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -138,6 +139,8 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
              listOf("workouts", "strength", "cardio", "training load", "sessions", "exercise")),
     Body(MoreCategory.HealthBody, R.string.forge_body_title, Icons.Rounded.Accessibility,
          listOf("weight", "body fat", "waist", "measurements", "tape", "navy", "circumference", "composition", "scale")),
+    Food(MoreCategory.HealthBody, R.string.food_title, Icons.Rounded.Restaurant,
+         listOf("food", "nutrition", "meal", "diary", "calories", "protein", "barcode", "essen", "ernahrung")),
     Energy(MoreCategory.HealthBody, R.string.forge_energy_title, Icons.Rounded.LocalFireDepartment,
            listOf("calories", "tdee", "maintenance", "deficit", "intake", "bmr", "planning", "kcal", "diet", "surplus")),
     Health(MoreCategory.HealthBody, R.string.nav_health, Icons.Rounded.Favorite,
@@ -179,7 +182,7 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
 internal val MORE_GROUPS: Map<MoreCategory, List<MoreDest>> = mapOf(
     MoreCategory.Analysis to listOf(MoreDest.Momentum, MoreDest.Insights, MoreDest.Scoring, MoreDest.Goals,
                                     MoreDest.Journal, MoreDest.Explore, MoreDest.Compare, MoreDest.Fused),
-    MoreCategory.HealthBody to listOf(MoreDest.Training, MoreDest.Body, MoreDest.Energy, MoreDest.Health,
+    MoreCategory.HealthBody to listOf(MoreDest.Training, MoreDest.Body, MoreDest.Food, MoreDest.Energy, MoreDest.Health,
                                       MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Biomarkers, MoreDest.Stress,
                                       MoreDest.BeatRhythm, MoreDest.Ecg),
     MoreCategory.Tools to listOf(MoreDest.Live, MoreDest.Breathe, MoreDest.Intervals),
@@ -362,6 +365,10 @@ private fun CategoryPage(category: MoreCategory, onBack: () -> Unit, onOpen: (Mo
     SettingsColumn {
         PageTitle(stringResource(category.titleRes), onBack)
         val context = LocalContext.current
+        // The Forge Health tab's Nutrition card on iOS (`FoodHealthCard`); on Android, Health & body is that place.
+        if (category == MoreCategory.HealthBody) {
+            FoodTodayCard(onOpen = { onOpen(MoreDest.Food) }, onAdd = { FoodArrival.requestAdd(); onOpen(MoreDest.Food) })
+        }
         DestCard(MORE_GROUPS.getValue(category).filter { it.shown(context) }, onOpen)
     }
 }
@@ -440,6 +447,10 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         ForgeCoachDestination(title, onBack, onOpen)
         return
     }
+    if (dest == MoreDest.Food) {
+        ForgeFoodPage(onBack)
+        return
+    }
     if (dest == MoreDest.Energy) {
         var detail by remember { mutableStateOf(false) }
         androidx.activity.compose.BackHandler(enabled = detail) { detail = false }
@@ -488,7 +499,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
             MoreDest.Workouts -> WorkoutsScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Body, MoreDest.Coach, MoreDest.Ecg, MoreDest.Training,
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Food, MoreDest.Body, MoreDest.Coach, MoreDest.Ecg, MoreDest.Training,
             MoreDest.Strength, MoreDest.Cardio, MoreDest.TrainingLoad -> Unit
         }
     }

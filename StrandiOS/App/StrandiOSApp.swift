@@ -60,6 +60,9 @@ struct StrandiOSApp: App {
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
 
     init() {
+        // Foods from the German Nutrient Database in the app language, before anything reads the catalogue.
+        FoodCatalog.nameLanguage = AppLanguage.activeLocale.language.languageCode?.identifier ?? "de"
+
         // One-time migration off the retired card/button/both Coach-entry picker onto the three
         // independent entry toggles (banner/header-icon/floating-button). No-op after the first launch
         // that has them. Must run before any Today/RootTabView reads its @AppStorage default.

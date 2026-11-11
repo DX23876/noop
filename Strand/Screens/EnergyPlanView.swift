@@ -656,6 +656,8 @@ struct EnergyPlanView: View {
             case .appleHealth:
                 return nutrition.healthSourceName.map { "Apple Health · \($0)" } ?? "Apple Health"
             case .csv: return "CSV import"
+            case .healthConnect: return "Health Connect"
+            case .foodLog: return String(localized: "Food log")
             case .manual: return "Manual"
             case nil: return nil
             }

@@ -160,6 +160,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 QuickAction.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
                 QuickAction.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
                 QuickAction.Goals -> more.push(MoreRoute.Dest(MoreDest.Goals))
+                QuickAction.Food -> { FoodArrival.requestAdd(); more.push(MoreRoute.Dest(MoreDest.Food)) }
                 QuickAction.LiveSession -> liveSession = true
                 QuickAction.CustomizeToday ->
                     if (ForgeDesign.preview) editingWidgets = true else customizing = TodayCustomizationDestination.Today

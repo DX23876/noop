@@ -21,6 +21,17 @@ final class ForgeTimelineTests: XCTestCase {
         XCTAssertEqual(days[0].entries.map(\.id), ["weight-\(Int(at(3).timeIntervalSince1970))", "workout-a", "coach-c"])
     }
 
+    func testMealsStandAtTheirTimeAsRowsAndFutureMealsWait() {
+        var input = ForgeTimeline.Input()
+        input.meals = [.init(id: "m1", date: at(2), title: "Breakfast", foods: "Oats", kcal: 420, picture: "motif:grains"),
+                       .init(id: "m2", date: at(12), title: "Dinner", foods: "Pasta", kcal: 700, picture: nil)]
+        let entries = ForgeTimeline.build(input, now: at(10), dayKey: key)[0].entries
+        XCTAssertEqual(entries.map(\.id), ["meal-m1"])
+        XCTAssertEqual(entries[0].kind, .meal)
+        XCTAssertEqual(entries[0].sourceId, "motif:grains")
+        XCTAssertTrue(ForgeTimeline.isRow(.meal))
+    }
+
     func testDaysAreCapped() {
         var input = ForgeTimeline.Input()
         input.weights = (0..<5).map { .init(date: at(Double($0) * 24 + 1), kg: 90) }
