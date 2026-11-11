@@ -5840,4 +5840,7 @@
     <string name="forge_wp_today">heute</string>
     <string name="forge_wp_no_effort">Noch kein Effort</string>
     <string name="forge_st_off_wrist">Nicht am Handgelenk</string>
+    <string name="forge_ch_consistency">Schlafkonsistenz</string>
+    <string name="forge_ch_stress">Tagesstress</string>
+    <string name="forge_ch_weight">Gewicht</string>
 </resources>

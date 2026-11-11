@@ -5863,4 +5863,7 @@
     <string name="forge_wp_today">today</string>
     <string name="forge_wp_no_effort">No Effort yet</string>
     <string name="forge_st_off_wrist">Off the wrist</string>
+    <string name="forge_ch_consistency">Sleep Consistency</string>
+    <string name="forge_ch_stress">Day Stress</string>
+    <string name="forge_ch_weight">Weight</string>
 </resources>

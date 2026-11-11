@@ -5797,4 +5797,7 @@
     <string name="forge_wp_today">сегодня</string>
     <string name="forge_wp_no_effort">Effort пока нет</string>
     <string name="forge_st_off_wrist">Не на запястье</string>
+    <string name="forge_ch_consistency">Постоянство сна</string>
+    <string name="forge_ch_stress">Дневной стресс</string>
+    <string name="forge_ch_weight">Вес</string>
 </resources>

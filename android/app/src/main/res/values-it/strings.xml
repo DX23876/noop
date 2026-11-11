@@ -5792,4 +5792,7 @@
     <string name="forge_wp_today">oggi</string>
     <string name="forge_wp_no_effort">Ancora nessun Effort</string>
     <string name="forge_st_off_wrist">Non al polso</string>
+    <string name="forge_ch_consistency">Regolarità del sonno</string>
+    <string name="forge_ch_stress">Stress giornaliero</string>
+    <string name="forge_ch_weight">Peso</string>
 </resources>

@@ -408,7 +408,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe)
                             TodayWidget.Kind.NextSession -> TodayNextSessionForge(onOpenTraining)
                             TodayWidget.Kind.WhatWorks -> TodayWhatWorksForge(viewModel, onOpenInsights)
-                            TodayWidget.Kind.Changes -> TodayChangesForge(onOpenTrends)
+                            TodayWidget.Kind.Changes -> TodayChangesForge(onOpenTrends, viewModel.activeStrapId)
                             TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap)
                         }
                     }

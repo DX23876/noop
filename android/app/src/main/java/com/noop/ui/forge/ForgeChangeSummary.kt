@@ -54,8 +54,13 @@ import kotlin.math.abs
 internal object ChangeSummary {
     enum class Verdict { Better, Worse, Steady, Neutral }
 
-    /** A measure, its core series and which way is good (null: neither way is better). */
-    data class Measure(val metric: CoreRead.Metric, val tile: KeyMetric?, val higherIsBetter: Boolean?)
+    /**
+     * A measure, its series and which way is good (null: neither way is better). A [metric] reads the core's day rows; a
+     * [key] reads the shared resolved series under [source] (sleep regularity, stress and weight, which have no day
+     * column), as iOS's `TrendsChangeSummary` reads every measure.
+     */
+    data class Measure(val metric: CoreRead.Metric?, val tile: KeyMetric?, val higherIsBetter: Boolean?,
+                       val key: String? = null, val source: String? = null)
 
     data class Row(val measure: Measure, val before: Double, val now: Double, val change: Double, val verdict: Verdict)
 
@@ -64,9 +69,12 @@ internal object ChangeSummary {
         Measure(CoreRead.Metric.Hrv, KeyMetric.HRV, true),
         Measure(CoreRead.Metric.RestingHr, KeyMetric.RESTING_HR, false),
         Measure(CoreRead.Metric.SleepMinutes, null, true),
+        Measure(null, null, true, key = "sleep_consistency", source = "my-whoop"),
         Measure(CoreRead.Metric.RespRate, KeyMetric.RESPIRATORY, null),
+        Measure(null, null, false, key = "stress", source = "my-whoop"),
         Measure(CoreRead.Metric.Steps, KeyMetric.STEPS, true),
         Measure(CoreRead.Metric.Effort, KeyMetric.EFFORT, null),
+        Measure(null, KeyMetric.WEIGHT, null, key = "weight", source = "noop-weight"),
     )
 
     private const val DEADBAND = 0.02
@@ -116,7 +124,7 @@ internal object ChangeSummary {
  * Trends, as iOS opens its Trends tab.
  */
 @Composable
-internal fun TodayChangesForge(onOpen: () -> Unit) {
+internal fun TodayChangesForge(onOpen: () -> Unit, strapId: String = "my-whoop") {
     val context = LocalContext.current
     val colors = Forge.colors
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
@@ -126,7 +134,11 @@ internal fun TodayChangesForge(onOpen: () -> Unit) {
             CoreRead.open(context)
             val from = today.minusDays(14).toString()
             val series = ChangeSummary.measures.associateWith { m ->
-                CoreRead.series(m.metric, from, today.toString()).associate { it.day to it.value }
+                m.metric?.let { CoreRead.series(it, from, today.toString()).associate { p -> p.day to p.value } }
+                    ?: runCatching {
+                        com.noop.core.CoreResolvedSeries.read(m.key!!, m.source!!, from, today.toString(), strapId)?.points
+                            ?.associate { it.day to it.value }
+                    }.getOrNull().orEmpty()
             }
             ChangeSummary.rows(series, today, 7)
         }
@@ -210,7 +222,12 @@ private fun Legend(count: Int, word: String, color: Color) {
 }
 
 @Composable
-private fun measureName(m: ChangeSummary.Measure): String = m.tile?.tileLabel() ?: stringResource(R.string.forge_sleep)
+private fun measureName(m: ChangeSummary.Measure): String = when (m.key) {
+    "sleep_consistency" -> stringResource(R.string.forge_ch_consistency)
+    "stress" -> stringResource(R.string.forge_ch_stress)
+    "weight" -> stringResource(R.string.forge_ch_weight)
+    else -> m.tile?.tileLabel() ?: stringResource(R.string.forge_sleep)
+}
 
 /** A mean as its tile prints it: hours and minutes for sleep, the Effort scale for Effort, units for the rest. */
 @Composable
@@ -221,5 +238,10 @@ private fun valueText(m: ChangeSummary.Measure, v: Double, effort: (Double) -> S
     CoreRead.Metric.RestingHr -> stringResource(R.string.forge_pair_words, Math.round(v).toString(), stringResource(R.string.forge_unit_bpm))
     CoreRead.Metric.RespRate -> stringResource(R.string.forge_pair_words, "%.1f".format(java.util.Locale.getDefault(), v), stringResource(R.string.forge_unit_breaths))
     CoreRead.Metric.Steps -> java.text.NumberFormat.getIntegerInstance().format(Math.round(v))
-    else -> Math.round(v).toString()
+    else -> when (m.key) {
+        "sleep_consistency" -> "${Math.round(v)} %"
+        "stress" -> "%.1f".format(java.util.Locale.getDefault(), v)
+        "weight" -> stringResource(R.string.forge_pair_words, "%.1f".format(java.util.Locale.getDefault(), v), "kg")
+        else -> Math.round(v).toString()
+    }
 }

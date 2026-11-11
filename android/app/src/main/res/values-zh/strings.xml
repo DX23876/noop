@@ -5793,4 +5793,7 @@
     <string name="forge_wp_today">今天</string>
     <string name="forge_wp_no_effort">尚无 Effort</string>
     <string name="forge_st_off_wrist">未佩戴在手腕上</string>
+    <string name="forge_ch_consistency">睡眠规律性</string>
+    <string name="forge_ch_stress">日间压力</string>
+    <string name="forge_ch_weight">体重</string>
 </resources>

@@ -5844,4 +5844,7 @@
     <string name="forge_wp_today">Dzisiaj</string>
     <string name="forge_wp_no_effort">Jeszcze bez Effort</string>
     <string name="forge_st_off_wrist">Zdjęty z nadgarstka</string>
+    <string name="forge_ch_consistency">Spójność snu</string>
+    <string name="forge_ch_stress">Stres dzienny</string>
+    <string name="forge_ch_weight">Waga</string>
 </resources>

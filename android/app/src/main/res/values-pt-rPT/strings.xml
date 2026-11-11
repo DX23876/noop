@@ -5816,4 +5816,7 @@
     <string name="forge_wp_today">today</string>
     <string name="forge_wp_no_effort">Ainda sem Effort</string>
     <string name="forge_st_off_wrist">Fora do pulso</string>
+    <string name="forge_ch_consistency">Consistência do sono</string>
+    <string name="forge_ch_stress">Estresse diurno</string>
+    <string name="forge_ch_weight">Peso</string>
 </resources>
