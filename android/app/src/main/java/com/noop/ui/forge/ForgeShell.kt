@@ -113,7 +113,8 @@ fun ForgeShell(screen: @Composable (tab: ForgeTab, padding: PaddingValues, width
         }
     }
     androidx.compose.runtime.CompositionLocalProvider(LocalForgeTabSelect provides select) {
-    ForgeSceneBackdrop(tab.backdrop) {
+    // The new design keeps the picture for Today only, as iOS: Sleep sits on the plain canvas like Training and Health.
+    ForgeSceneBackdrop(if (ForgeDesign.preview && tab == ForgeTab.Sleep) ForgeBackdrop.Canvas else tab.backdrop) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val width = ForgeWidth.of(maxWidth)
             if (width == ForgeWidth.Compact) {
