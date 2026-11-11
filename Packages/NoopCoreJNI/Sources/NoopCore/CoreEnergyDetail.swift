@@ -24,6 +24,10 @@ enum CoreEnergyDetail {
         var comparisonPoints: [Point]
         var comparisonCaption: String?
         var comparisonUnavailable: String?
+        /// Eaten per day in the window, from every source in precedence order (`NutritionReads.nutritionByDay`).
+        var intake: [String: Double] = [:]
+        /// A usual day's burn (`EnergyUsualDay`), nil before five finished days.
+        var usualTotal: Double?
     }
     struct Summary: Encodable {
         var day: String
@@ -75,9 +79,12 @@ enum CoreEnergyDetail {
         func points(_ p: [EnergyBurnRate.Point]) -> [Point] {
             p.map { Point(start: $0.startSeconds, duration: $0.durationSeconds, kcalPerMinute: $0.kcalPerMinute) }
         }
+        let oldest = summaries.map(\.day).min() ?? today
+        let intake = await NutritionReads.nutritionByDay(store: reader.store, from: oldest, to: today).compactMapValues(\.calories)
         return Output(today: today, day: day, summaries: summaries, selected: selected, points: points(rate.points),
                       bands: rate.bands, trainingKcal: training, movementKcal: movement, comparison: mode,
-                      comparisonPoints: points(compare), comparisonCaption: caption, comparisonUnavailable: unavailable)
+                      comparisonPoints: points(compare), comparisonCaption: caption, comparisonUnavailable: unavailable,
+                      intake: intake, usualTotal: EnergyUsualDay.total(summaries.map { (day: $0.day, total: $0.total) }, today: today))
     }
 
     /// Today's summary alone, for the Today card (`EnergyCard`): the same 30-day read, without the day's curve.

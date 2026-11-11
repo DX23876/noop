@@ -22,6 +22,8 @@ object CoreEnergyDetail {
         val today: String, val day: String, val summaries: List<Summary>, val selected: Summary?, val points: List<Point>,
         val bands: List<Band>, val trainingKcal: Double?, val movementKcal: Double?, val comparison: String,
         val comparisonPoints: List<Point>, val comparisonCaption: String?, val comparisonUnavailable: String?,
+        /** Eaten per day of the window (`NutritionReads.nutritionByDay`), and a usual day's burn (`EnergyUsualDay`). */
+        val intake: Map<String, Double> = emptyMap(), val usualTotal: Double? = null,
     )
 
     fun read(context: Context, day: String?, comparison: String, dismissedWorkouts: List<String>): Detail? {
@@ -65,6 +67,8 @@ object CoreEnergyDetail {
             trainingKcal = o.dbl("trainingKcal"), movementKcal = o.dbl("movementKcal"), comparison = o.optString("comparison"),
             comparisonPoints = points(o.optJSONArray("comparisonPoints")), comparisonCaption = o.str("comparisonCaption"),
             comparisonUnavailable = o.str("comparisonUnavailable"),
+            intake = o.optJSONObject("intake")?.let { m -> m.keys().asSequence().associateWith { m.getDouble(it) } }.orEmpty(),
+            usualTotal = o.dbl("usualTotal"),
         )
     }
 }

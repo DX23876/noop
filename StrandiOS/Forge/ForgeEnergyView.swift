@@ -65,10 +65,7 @@ struct ForgeEnergyView: View {
     /// A usual day: the median total of the finished days in the window, from five of them. The page and
     /// Today's Energy tile both read it here.
     static func usualTotal(_ summaries: [DailyEnergySummary], today: String) -> Double? {
-        let totals = summaries.filter { $0.day != today }.compactMap(\.totalBurnedSoFar).filter { $0 > 0 }.sorted()
-        guard totals.count >= 5 else { return nil }
-        let mid = totals.count / 2
-        return totals.count % 2 == 0 ? (totals[mid - 1] + totals[mid]) / 2 : totals[mid]
+        EnergyUsualDay.total(summaries.map { (day: $0.day, total: $0.totalBurnedSoFar) }, today: today)
     }
 
     var body: some View {
