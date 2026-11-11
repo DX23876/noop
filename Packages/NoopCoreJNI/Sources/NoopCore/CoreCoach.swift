@@ -395,6 +395,8 @@ enum CorePlan {
         var id: String, summary: String, rationale: String, day: String, dayLabel: String, status: String
         var swappedFrom: String?, statusLine: String, feedback: String?, feedbackLabel: String?
         var sport: String, intent: String, time: Double?
+        /// The session's Effort target on the stored 0 to 100 axis and its length, for the week plan's columns.
+        var targetEffort: Double? = nil, durationMin: Int? = nil
     }
     struct Choice: Encodable { var id: String, label: String }
 
@@ -477,7 +479,7 @@ enum CorePlan {
                 dayLabel: dayLabel(p.day, now: now), status: p.status.rawValue, swappedFrom: p.swappedFrom,
                 statusLine: statusLine(p, now: now), feedback: p.effectFeedback?.rawValue,
                 feedbackLabel: p.effectFeedback?.label.localizedCatalogValue, sport: p.sport, intent: p.intent.rawValue,
-                time: p.time?.timeIntervalSince1970)
+                time: p.time?.timeIntervalSince1970, targetEffort: p.targetEffort, durationMin: p.durationMin)
         }
         return Output(
             pending: store.pending.map(row),

@@ -5777,4 +5777,18 @@
     <string name="forge_wr_load">Carico di allenamento</string>
     <string name="forge_wr_range">dal %1$s al %2$s</string>
     <string name="forge_wr_pair">%1$s, %2$s</string>
+    <string name="forge_wp_effort">Sforzo</string>
+    <string name="forge_wp_legend">pieno: fatto · tratteggiato: pianificato</string>
+    <string name="forge_wp_schedule">Calendario e routine</string>
+    <string name="forge_wp_schedule_sub">Scegli quale routine va in quale giorno</string>
+    <string name="forge_wp_coach">Cambia il piano con il coach</string>
+    <string name="forge_wp_coach_prompt">Guarda il piano di questa settimana, la mia Charge e ciò che ho fatto finora, e suggerisci modifiche per il resto della settimana.</string>
+    <string name="forge_wp_rest_day">Giorno di riposo</string>
+    <string name="forge_wp_no_workout">Nessun allenamento</string>
+    <string name="forge_wp_nothing">Niente in programma</string>
+    <string name="forge_wp_done_effort">fatto · Effort %1$s</string>
+    <string name="forge_wp_target">Effort obiettivo circa %1$s</string>
+    <string name="forge_wp_done">fatto</string>
+    <string name="forge_wp_today">oggi</string>
+    <string name="forge_wp_no_effort">Ancora nessun Effort</string>
 </resources>

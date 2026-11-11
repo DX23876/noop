@@ -301,6 +301,8 @@ object CoreCoach {
         val id: String, val summary: String, val rationale: String, val day: String, val dayLabel: String,
         val status: String, val swappedFrom: String?, val statusLine: String, val feedback: String?, val feedbackLabel: String?,
         val sport: String = "", val intent: String = "", val time: Long? = null,
+        /** The Effort target on the stored 0 to 100 axis and the length, when the coach gave them. */
+        val targetEffort: Double? = null, val durationMin: Int? = null,
     )
 
     /** Reads the plan, or applies [op] (`accept`, `decline`, `complete`, `skip`, `feedback`) to one proposal first. */
@@ -336,7 +338,9 @@ object CoreCoach {
                 PlanRow(r.getString("id"), r.getString("summary"), r.optString("rationale"), r.getString("day"),
                         r.optString("dayLabel"), r.getString("status"), opt("swappedFrom"), r.optString("statusLine"),
                         opt("feedback"), opt("feedbackLabel"), r.optString("sport"), r.optString("intent"),
-                        if (r.isNull("time") || !r.has("time")) null else r.getDouble("time").toLong())
+                        if (r.isNull("time") || !r.has("time")) null else r.getDouble("time").toLong(),
+                        if (r.isNull("targetEffort") || !r.has("targetEffort")) null else r.getDouble("targetEffort"),
+                        if (r.isNull("durationMin") || !r.has("durationMin")) null else r.getInt("durationMin"))
             }
         }
         fun choices(key: String) = o.optJSONArray(key).let { a ->

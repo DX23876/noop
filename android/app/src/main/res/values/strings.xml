@@ -5848,4 +5848,18 @@
     <string name="forge_wr_load">Training load</string>
     <string name="forge_wr_range">%1$s to %2$s</string>
     <string name="forge_wr_pair">%1$s, %2$s</string>
+    <string name="forge_wp_effort">Effort</string>
+    <string name="forge_wp_legend">filled: done · dashed: planned</string>
+    <string name="forge_wp_schedule">Schedule and routines</string>
+    <string name="forge_wp_schedule_sub">Choose which routine goes on which day</string>
+    <string name="forge_wp_coach">Change the plan with the coach</string>
+    <string name="forge_wp_coach_prompt">Look at this week\'s plan, my Charge and what I have done so far, and suggest changes to the rest of the week.</string>
+    <string name="forge_wp_rest_day">Rest day</string>
+    <string name="forge_wp_no_workout">No workout</string>
+    <string name="forge_wp_nothing">Nothing planned</string>
+    <string name="forge_wp_done_effort">done · Effort %1$s</string>
+    <string name="forge_wp_target">target Effort about %1$s</string>
+    <string name="forge_wp_done">done</string>
+    <string name="forge_wp_today">today</string>
+    <string name="forge_wp_no_effort">No Effort yet</string>
 </resources>

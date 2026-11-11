@@ -5778,4 +5778,18 @@
     <string name="forge_wr_load">训练负荷</string>
     <string name="forge_wr_range">%1$s 至 %2$s</string>
     <string name="forge_wr_pair">%1$s，%2$s</string>
+    <string name="forge_wp_effort">消耗</string>
+    <string name="forge_wp_legend">实心：已完成 · 虚线：已计划</string>
+    <string name="forge_wp_schedule">日程与训练计划</string>
+    <string name="forge_wp_schedule_sub">选择哪天做哪个训练计划</string>
+    <string name="forge_wp_coach">与教练调整计划</string>
+    <string name="forge_wp_coach_prompt">看看本周计划、我的 Charge 和目前已完成的内容，并为本周剩下的时间提出调整建议。</string>
+    <string name="forge_wp_rest_day">休息日</string>
+    <string name="forge_wp_no_workout">无训练</string>
+    <string name="forge_wp_nothing">未安排</string>
+    <string name="forge_wp_done_effort">已完成 · Effort %1$s</string>
+    <string name="forge_wp_target">目标 Effort 约 %1$s</string>
+    <string name="forge_wp_done">已完成</string>
+    <string name="forge_wp_today">今天</string>
+    <string name="forge_wp_no_effort">尚无 Effort</string>
 </resources>

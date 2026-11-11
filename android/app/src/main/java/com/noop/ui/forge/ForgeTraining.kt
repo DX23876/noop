@@ -157,6 +157,8 @@ private sealed interface TrainingPage {
     data object Live : TrainingPage
     /** The new design's "Plan and library", as iOS's training page behind Tools: plan, routines, library, past sessions. */
     data object PlanLibrary : TrainingPage
+    /** The new design's "This week's plan" (iOS `ForgeWeekPlanView`). */
+    data object WeekPlan : TrainingPage
 }
 
 /** Activities offered before the wearer's own recents fill the list (`WorkoutQuickStart.starterNames`). */
@@ -394,7 +396,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         // shipped design keeps under More only.
         if (ForgeDesign.preview) Section(stringResource(R.string.forge_th_tools), overline = null) {
             ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-                TrainingPlanRows(onWeekPlan = { page = TrainingPage.Schedule }, onLibrary = { page = TrainingPage.PlanLibrary })
+                TrainingPlanRows(onWeekPlan = { page = TrainingPage.WeekPlan }, onLibrary = { page = TrainingPage.PlanLibrary })
                 TrainingGroupRow(Icons.Rounded.Timer, ForgeTokens.Color.systemOrange.resolve(),
                                  stringResource(R.string.forge_th_interval_timer), stringResource(R.string.forge_th_interval_timer_sub),
                                  true) { page = TrainingPage.Intervals }
@@ -416,6 +418,14 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
                 when (open) {
                     TrainingPage.RatingPreferences -> ForgeSessionRatingPreferences(close)
+                    TrainingPage.WeekPlan -> {
+                        androidx.activity.compose.BackHandler { page = null; reload() }
+                        val select = LocalForgeTabSelect.current
+                        ForgeWeekPlanPage(viewModel, onBack = { page = null; reload() }, onSchedule = { page = TrainingPage.Schedule },
+                            onAsk = if (com.noop.ui.BottomBarStyleStore.coachEnabled) { p ->
+                                com.noop.ui.CoachHandoff.pendingPrompt = p; page = null; select(ForgeTab.Coach)
+                            } else null)
+                    }
                     TrainingPage.PlanLibrary -> {
                         androidx.activity.compose.BackHandler { returnToPlan = false; page = null; reload() }
                         PlanAndLibrary(s, onBack = { returnToPlan = false; page = null; reload() }, onOpen = { next ->
