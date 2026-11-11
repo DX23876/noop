@@ -458,7 +458,7 @@ private fun MeasureTile(viewModel: AppViewModel, key: String, modifier: Modifier
                 val (k, src) = when (key) { "vo2max" -> "vo2max_est" to "my-whoop"; "weight" -> "weight" to "noop-weight"
                                             "stress" -> "stress" to "my-whoop"; else -> "steps" to "my-whoop" }
                 val today = LocalDate.now()
-                runCatching { viewModel.repo.resolvedSeries(k, src, today.minusDays(60).toString(), today.toString(), viewModel.activeStrapId).points.map { it.value } }
+                runCatching { viewModel.repo.resolvedSeries(k, src, today.minusDays(60).toString(), today.toString(), strapDeviceId = viewModel.activeStrapId).points.map { it.value } }
                     .getOrDefault(emptyList())
             }
         }

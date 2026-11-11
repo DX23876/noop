@@ -225,7 +225,7 @@ internal fun FocusAreaPage(area: FocusArea, viewModel: com.noop.ui.AppViewModel,
             val seen = mutableSetOf<String>()
             area.measures().mapNotNull { m ->
                 if (m.key in seen) return@mapNotNull null
-                val points = runCatching { viewModel.repo.resolvedSeries(m.key, m.source, from, to, viewModel.activeStrapId).points }
+                val points = runCatching { viewModel.repo.resolvedSeries(m.key, m.source, from, to, strapDeviceId = viewModel.activeStrapId).points }
                     .getOrDefault(emptyList()).map { it.value }.filter { it.isFinite() }
                 if (points.isEmpty()) null else { seen += m.key; m to points }
             }
