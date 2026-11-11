@@ -5075,4 +5075,6 @@
     <string name="forge_mw_none">Rien de marquant aujourd\'hui.</string>
     <string name="forge_health_what_works">Ce qui marche</string>
     <string name="forge_health_what_works_sub">Ce qui t\'aide, ce qui te nuit</string>
+    <string name="forge_lw_title">Dernier entraînement</string>
+    <string name="forge_lw_none">Les séances que tu enregistres ou importes apparaissent ici.</string>
 </resources>

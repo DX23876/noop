@@ -5089,4 +5089,6 @@
     <string name="forge_mw_none">Heute sticht nichts heraus.</string>
     <string name="forge_health_what_works">Was wirkt</string>
     <string name="forge_health_what_works_sub">Was dir hilft, was dir schadet</string>
+    <string name="forge_lw_title">Letztes Workout</string>
+    <string name="forge_lw_none">Trainings, die du aufzeichnest oder importierst, erscheinen hier.</string>
 </resources>

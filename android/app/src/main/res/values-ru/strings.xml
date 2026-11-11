@@ -4979,4 +4979,6 @@
     <string name="forge_mw_none">Сегодня ничего примечательного.</string>
     <string name="forge_health_what_works">Что работает</string>
     <string name="forge_health_what_works_sub">Что помогает, что вредит</string>
+    <string name="forge_lw_title">Последняя тренировка</string>
+    <string name="forge_lw_none">Здесь появятся записанные или импортированные тренировки.</string>
 </resources>

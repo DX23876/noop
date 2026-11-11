@@ -5094,4 +5094,6 @@
     <string name="forge_mw_none">Dziś nic się nie wyróżnia.</string>
     <string name="forge_health_what_works">Co działa</string>
     <string name="forge_health_what_works_sub">Co ci pomaga, co ci szkodzi</string>
+    <string name="forge_lw_title">Ostatni trening</string>
+    <string name="forge_lw_none">Tu pojawiają się treningi, które nagrasz lub zaimportujesz.</string>
 </resources>

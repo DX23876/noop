@@ -17,6 +17,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.background
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -60,6 +71,7 @@ private fun latest(days: List<DailyMetric>, pick: (DailyMetric) -> Any?): DailyM
 @Composable
 internal fun TodayWorkoutsForge(viewModel: AppViewModel) {
     val workouts by viewModel.workouts.collectAsState()
+    if (ForgeDesign.preview) { LatestWorkoutCard(workouts); return }
     Classic {
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
             com.noop.ui.TodayWorkoutsSection(workouts) { }
@@ -206,3 +218,55 @@ internal fun ForgeLiveSessionCover(viewModel: AppViewModel, onClose: () -> Unit)
         Classic { com.noop.ui.LiveSessionScreen(vm = viewModel, onClose = onClose) }
     }
 }
+
+/**
+ * The new design's latest-workout card, as iOS's ForgeLastWorkoutWidget: the name, then the newest session of the
+ * last 60 days with its sport's symbol, day, start and length, and its Effort on the right; before any, one quiet
+ * line saying where workouts come from.
+ */
+@Composable
+private fun LatestWorkoutCard(workouts: List<com.noop.data.WorkoutRow>) {
+    val colors = Forge.colors
+    val now = System.currentTimeMillis() / 1000
+    val row = workouts.filter { it.endTs >= now - 60 * 86_400 }.maxByOrNull { it.endTs }
+    val effortFormat = rememberEffortFormat()
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_lw_title), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = colors.text, modifier = Modifier.weight(1f))
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary)
+        }
+        Spacer(Modifier.height(ForgeMetrics.space3))
+        if (row == null) {
+            Text(stringResource(R.string.forge_lw_none), style = Forge.type.caption, color = colors.textSecondary)
+        } else {
+            val zone = java.time.ZoneId.systemDefault()
+            val start = java.time.Instant.ofEpochSecond(row.startTs).atZone(zone)
+            val minutes = ((row.durationS ?: (row.endTs - row.startTs).coerceAtLeast(0).toDouble()) / 60).toInt()
+            val locale = java.util.Locale.getDefault()
+            val day = start.format(java.time.format.DateTimeFormatter.ofPattern(
+                android.text.format.DateFormat.getBestDateTimePattern(locale, "dMMM"), locale))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).background(colors.accent, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                    Icon(com.noop.ui.sportIcon(row.sport), contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(ForgeMetrics.space3))
+                Column(Modifier.weight(1f)) {
+                    Text(com.noop.ui.WorkoutEditing.displaySport(row.sport), style = Forge.type.headline, color = colors.text, maxLines = 1)
+                    Text("$day ${clockText(row.startTs)} · ${stringResource(R.string.forge_tw_min, minutes)}",
+                         style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
+                }
+                row.strain?.let { e ->
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(effortFormat(e), style = Forge.type.title2, color = colors.text)
+                        Text(stringResource(R.string.forge_effort), style = Forge.type.caption, color = colors.textSecondary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun clockText(ts: Long): String =
+    java.time.Instant.ofEpochSecond(ts).atZone(java.time.ZoneId.systemDefault()).format(rememberClockFormatter())

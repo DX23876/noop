@@ -5068,4 +5068,6 @@
     <string name="forge_mw_none">Hoje nada se destaca.</string>
     <string name="forge_health_what_works">O que resulta</string>
     <string name="forge_health_what_works_sub">O que te ajuda e o que te prejudica</string>
+    <string name="forge_lw_title">Último treino</string>
+    <string name="forge_lw_none">Os treinos que gravares ou importares aparecem aqui.</string>
 </resources>

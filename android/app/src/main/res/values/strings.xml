@@ -5111,4 +5111,6 @@
     <string name="forge_mw_none">Nothing stands out today.</string>
     <string name="forge_health_what_works">What works</string>
     <string name="forge_health_what_works_sub">What helps you, what hurts you</string>
+    <string name="forge_lw_title">Latest workout</string>
+    <string name="forge_lw_none">Workouts you record or import appear here.</string>
 </resources>
