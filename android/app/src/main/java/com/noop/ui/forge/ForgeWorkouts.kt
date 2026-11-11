@@ -98,13 +98,14 @@ internal fun ForgeWorkoutsPage(viewModel: AppViewModel, onBack: () -> Unit) {
             ActionChip(Icons.Rounded.Add, stringResource(R.string.forge_wk_add), prominent = true) { editing = null to false }
             ActionChip(Icons.Rounded.FilterList, stringResource(R.string.forge_wk_manage), prominent = false, onClick = onManage)
         }
+        val weekOfFormat = DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), DAY_MONTH_ONLY), Locale.getDefault())
         CalendarCard(rows, first, today, ::dayOf)
         WeekNumbers(rows.filter { !dayOf(it).isBefore(thisWeek) })
         rows.groupBy { weekStart(dayOf(it)) }.toSortedMap(compareByDescending { it }).forEach { (start, week) ->
             Text(when (start) {
                 thisWeek -> stringResource(R.string.forge_wk_this_week)
                 thisWeek.minusWeeks(1) -> stringResource(R.string.forge_wk_last_week)
-                else -> stringResource(R.string.forge_wk_week_of, start.format(DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "dMMM"), Locale.getDefault())))
+                else -> stringResource(R.string.forge_wk_week_of, start.format(weekOfFormat))
             }, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.sceneInk.secondary,
                  modifier = Modifier.padding(start = ForgeMetrics.space1, top = ForgeMetrics.space1))
             ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
@@ -127,6 +128,9 @@ internal fun ForgeWorkoutsPage(viewModel: AppViewModel, onBack: () -> Unit) {
         })
     }
 }
+
+/** The day and month skeleton for "Week of …", localised by `getBestDateTimePattern`. */
+private const val DAY_MONTH_ONLY = "dMMM"
 
 /** A capsule action at the top of the page, as iOS's `ForgeWorkoutActionChip`. */
 @OptIn(ExperimentalFoundationApi::class)
