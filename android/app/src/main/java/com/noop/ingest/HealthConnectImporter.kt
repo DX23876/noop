@@ -566,7 +566,7 @@ object HealthConnectImporter {
                         deviceId = HC_DEVICE,
                         startTs = startS,
                         endTs = endS,
-                        sport = exerciseName(r),
+                        sport = exerciseName(r.exerciseType, r.title),
                         source = HC_WORKOUT_SOURCE,
                         durationS = (endS - startS).toDouble().coerceAtLeast(0.0),
                         // Filled by the #835 post-pass below, which needs the day aggregate (basal = total −
@@ -621,30 +621,22 @@ object HealthConnectImporter {
             // with its HeartRateRecord samples — a targeted per-session read, bounded by workout count
             // (the day-aggregate HeartRateRecord pass above streams the full range and must not be
             // buffered). readAll swallows a per-session failure, so one bad session can't fail the
-            // import. ≥60 samples (~1 min) required so a few strays can't fabricate an average.
+            // import. Enough samples are required so a few strays can't fabricate an average
+            // (`workoutHeartRate`): many providers write one sample a minute, not one a second.
             for (i in workouts.indices) {
                 val w = workouts[i]
                 if (w.endTs <= w.startTs) continue
-                var sum = 0L
-                var n = 0L
-                var max = 0L
+                val samples = mutableListOf<Pair<Long, Long>>()
                 readSelected(
                     HeartRateRecord::class,
                     TimeRangeFilter.between(
                         Instant.ofEpochSecond(w.startTs), Instant.ofEpochSecond(w.endTs)
                     ),
                 ) { hr ->
-                    for (s in hr.samples) {
-                        sum += s.beatsPerMinute
-                        n += 1
-                        if (s.beatsPerMinute > max) max = s.beatsPerMinute
-                    }
+                    for (s in hr.samples) samples += s.time.epochSecond to s.beatsPerMinute
                 }
-                if (n >= 60) {
-                    workouts[i] = w.copy(
-                        avgHr = round(sum.toDouble() / n).toInt(),
-                        maxHr = max.toInt(),
-                    )
+                workoutHeartRate(samples, w.startTs, w.endTs)?.let { (avg, max) ->
+                    workouts[i] = w.copy(avgHr = avg, maxHr = max)
                 }
             }
 
@@ -875,6 +867,12 @@ object HealthConnectImporter {
                 repo.upsertSleepSessions(sleepRows)
             }
             if (workouts.isNotEmpty()) {
+                // Sessions imported before 2026-11-11 stored the provider's title as their sport (`exerciseName`).
+                // The sport is part of a workout's key, so the corrected row would sit beside the old one: the
+                // old row goes first, and only where its sport is exactly that session's title.
+                val stale = legacyTitleRows(repo.workouts(HC_DEVICE, workouts.minOf { it.startTs }, workouts.maxOf { it.startTs }, limit = 100_000),
+                                            workouts)
+                stale.forEach { repo.deleteWorkout(it) }
                 repo.upsertWorkouts(workouts)
             }
         } catch (e: Exception) {
@@ -1422,13 +1420,40 @@ object HealthConnectImporter {
     }
 
     /**
-     * A short, human sport name for a Health Connect exercise session. Uses the user's title
-     * if present, else maps the EXERCISE_TYPE_* int to a readable label, else "Workout".
+     * The sport of a Health Connect exercise session: the EXERCISE_TYPE_* label first, since everything downstream
+     * (the sport's symbol, cardio or strength, walk bundling, Effort) reads the sport, and a provider's free title
+     * ("Morning Run", "Seed run") matched none of it. The title stays in the workout's notes; it names the sport only
+     * when the type has no label of its own, else "Workout". Fork (DX23876), 2026-11-11.
      */
-    private fun exerciseName(r: ExerciseSessionRecord): String {
-        val title = r.title?.trim()
-        if (!title.isNullOrEmpty()) return title
-        return EXERCISE_TYPE_NAMES[r.exerciseType] ?: "Workout"
+    internal fun exerciseName(exerciseType: Int, title: String?): String =
+        EXERCISE_TYPE_NAMES[exerciseType] ?: title?.trim()?.takeIf { it.isNotEmpty() } ?: "Workout"
+
+    /**
+     * The stored Health Connect rows the corrected [fresh] ones replace: same start, a sport that is not the fresh
+     * row's, and that sport exactly the session's title (kept in notes), so a sport the wearer chose stays.
+     */
+    internal fun legacyTitleRows(stored: List<WorkoutRow>, fresh: List<WorkoutRow>): List<WorkoutRow> {
+        val byStart = fresh.groupBy { it.startTs }
+        return stored.filter { old ->
+            old.deviceId == HC_DEVICE && byStart[old.startTs].orEmpty().any { new ->
+                new.sport != old.sport && new.notes?.trim()?.takeIf { it.isNotEmpty() } == old.sport
+            }
+        }
+    }
+
+    /**
+     * A session's average and highest heart rate from its (epoch second, bpm) samples, or null when they are too few
+     * to stand for the session: 60 or more (a minute at one a second), or at least 10 spread over half the session or
+     * more, as a provider writing one sample a minute gives. The old floor of 60 alone left a 40-minute run with
+     * per-minute samples without any heart rate. Fork (DX23876), 2026-11-11.
+     */
+    internal fun workoutHeartRate(samples: List<Pair<Long, Long>>, startTs: Long, endTs: Long): Pair<Int, Int>? {
+        val valid = samples.filter { it.second in 25..250 }
+        if (valid.isEmpty()) return null
+        val span = valid.maxOf { it.first } - valid.minOf { it.first }
+        val enough = valid.size >= 60 || (valid.size >= 10 && span * 2 >= (endTs - startTs))
+        if (!enough) return null
+        return round(valid.sumOf { it.second }.toDouble() / valid.size).toInt() to valid.maxOf { it.second }.toInt()
     }
 
     /**
