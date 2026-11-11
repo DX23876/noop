@@ -69,6 +69,9 @@ Fixed:
   opens the More page (read in the code and compiled, not run on screen).
 - The emulator launch extra wrote the switch in every build; it is now a debug-only override, as on iOS.
 - The coach page's arrow went back to Today but the system Back closed the app; Back now does what the arrow does.
+- The workout list was loaded only when the Workouts page, Insights or Data Sources opened, so Today's timeline,
+  its latest-workout card, the dashboards and Training's count showed no workout until then (both designs).
+  Forge loads it at start and after each analysis pass.
 - Forge's Today (both designs) took the calendar date: opened between midnight and four it showed an empty new
   day, and kept open past midnight its title fell to the weekday (#144, solved long ago on the classic Today).
   Today and every part of it read the logical day now; seen on the emulator at 00:04.
@@ -76,6 +79,9 @@ Fixed:
   (steps' 10940 as "1094" over "0"); the column sizes to its labels now. Both designs.
 
 Seen, not changed:
+- Demo build: a run added by hand on the Workouts page did not appear in its list, even after reopening it.
+  The save mirrors to the core and the list reads the core; whether only the demo strap's id is at fault could
+  not be told on the emulator. To check on a phone: add a workout, then look at Workouts and Today.
 - Both platforms: Customize Sleep reuses Today's editor hint, "Move an item to Hidden to remove it from Today",
   on the Sleep page (iOS `SleepCustomizationSheet` through `EditableLayoutList`, Android `ForgeEditableLayoutList`).
   The fix needs a page-neutral sentence in nine languages, which on iOS comes through the Xcode catalog build.
