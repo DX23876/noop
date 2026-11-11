@@ -682,6 +682,8 @@ internal fun TodayGoals() {
     var output by remember { mutableStateOf<CoreGoals.Output?>(null) }
     var revision by remember { mutableIntStateOf(0) }
     var open by remember { mutableStateOf(false) }
+    // A goal opened straight from the card, as "detail:<id>" or "lt:<id>"; Back returns to Today.
+    var openGoal by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(revision) {
         output = withContext(Dispatchers.IO) {
             CoreRead.open(context)
@@ -696,7 +698,12 @@ internal fun TodayGoals() {
             withContext(Dispatchers.IO) { CoreGoals.toggleAction(action.actionId, action.day) }
             revision++
         }
-    })
+    }, onOpenGoal = { openGoal = it })
+    openGoal?.let { start ->
+        ForgeOverlayPage(onDismiss = { openGoal = null; revision++ }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeGoalsPage(onBack = { openGoal = null; revision++ }, initialPage = start) }
+        }
+    }
     if (open) {
         ForgeOverlayPage(onDismiss = { open = false; revision++ }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeGoalsPage(onBack = { open = false; revision++ }) }

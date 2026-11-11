@@ -904,7 +904,8 @@ private fun slotValue(slot: String, value: Double): String = when (slot) {
  * weekly and monthly goals are on course. Nothing is drawn while there are no goals.
  */
 @Composable
-fun ForgeTodayGoalsCard(output: CoreGoals.Output?, onOpen: () -> Unit, onToggle: (CoreGoals.Action) -> Unit) {
+fun ForgeTodayGoalsCard(output: CoreGoals.Output?, onOpen: () -> Unit, onToggle: (CoreGoals.Action) -> Unit,
+                        onOpenGoal: ((String) -> Unit)? = null) {
     output ?: return
     val spot = output.spotlight
     if (spot.rows.isEmpty() && output.today.isEmpty() && spot.weekTotal + spot.monthTotal == 0) return
@@ -915,10 +916,14 @@ fun ForgeTodayGoalsCard(output: CoreGoals.Output?, onOpen: () -> Unit, onToggle:
             spot.rows.forEachIndexed { i, row ->
                 if (i > 0) RowDivider()
                 if (row.kind == "period") {
-                    output.period.firstOrNull { it.id == row.id }?.let { PeriodRow(it, onOpen) }
+                    // A goal opens its own page, as iOS's spotlight rows do (`TabRoute.periodGoal`, the goal's page
+                    // or journey); without [onOpenGoal] the card opens the goals list.
+                    output.period.firstOrNull { it.id == row.id }?.let { g ->
+                        PeriodRow(g) { onOpenGoal?.invoke("detail:${g.id}") ?: onOpen() }
+                    }
                 } else {
-                    output.longTerm.firstOrNull { it.id == row.id }?.let {
-                        Box(Modifier.clickable(role = Role.Button, onClick = onOpen)) { LongTermRow(it) }
+                    output.longTerm.firstOrNull { it.id == row.id }?.let { g ->
+                        Box(Modifier.clickable(role = Role.Button) { onOpenGoal?.invoke("lt:${g.id}") ?: onOpen() }) { LongTermRow(g) }
                     }
                 }
             }
