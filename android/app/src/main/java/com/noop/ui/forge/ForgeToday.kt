@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -178,9 +181,18 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     }
     if (dayPicker) ForgeDayPicker(shown, onPick = { date = it.toEpochDay() }, onDismiss = { dayPicker = false })
     if (updatesOpen) {
+        // On a backdrop of its own and clear of the system bars: drawn bare, Today showed through the inbox and its
+        // title sat under the clock.
         ForgeOverlayPage(onDismiss = { updatesOpen = false }) {
-            com.noop.ui.UpdatesInboxScreen(store = com.noop.ui.UpdateStore.from(context), onClose = { updatesOpen = false },
-                                           onDeepLink = { updatesOpen = false }, onRestore = {})
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                androidx.compose.foundation.layout.Box(Modifier.windowInsetsPadding(WindowInsets.systemBars)) {
+                    Column {
+                        PageTitle(null, onBack = { updatesOpen = false })
+                        com.noop.ui.UpdatesInboxScreen(store = com.noop.ui.UpdateStore.from(context), onClose = { updatesOpen = false },
+                                                       onDeepLink = { updatesOpen = false }, onRestore = {})
+                    }
+                }
+            }
         }
     }
     arranging?.let { dashboard ->
