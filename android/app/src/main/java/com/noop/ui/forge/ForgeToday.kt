@@ -301,6 +301,15 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             }
             Hero(heroDay, width, onHold = { editingWidgets = true })
             if (shown == today) ForgeActivityPrompt()
+            // The day's one hint under the rings, as iOS's `hintCard`.
+            if (shown == today) {
+                var hintCharge by remember { mutableStateOf(false) }
+                TodayHintCard(viewModel, today.toString(), onCharge = { hintCharge = true },
+                              onGoals = { more.push(MoreRoute.Dest(MoreDest.Goals)) },
+                              onPlan = { selectTab(ForgeTab.Training) },
+                              onWeight = { more.push(MoreRoute.Dest(MoreDest.Body)) })
+                if (hintCharge) ChargeBreakdownHost(viewModel, onDismiss = { hintCharge = false })
+            }
             if (shown == today) ForgeMorningSuggestion()
             ForgeTodayWidgetArea(model, viewModel, width, editing = editingWidgets, onEditing = { editingWidgets = it },
                                  onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) },

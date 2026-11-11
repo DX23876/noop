@@ -5630,4 +5630,9 @@
     <string name="forge_hf_more">Ещё</string>
     <string name="forge_hf_more_sub">Тренды, все показатели, сравнение</string>
     <string name="forge_hf_week_rings">Твоя неделя в кольцах</string>
+    <string name="forge_hint_show_less">Показать меньше</string>
+    <string name="forge_hint_more">ещё %1$d</string>
+    <string name="forge_hint_dismiss">Закрыть</string>
+    <string name="forge_hint_weigh_title">Неделю без взвешивания</string>
+    <string name="forge_hint_weigh_detail">Цели по весу иногда нужно взвешивание.</string>
 </resources>

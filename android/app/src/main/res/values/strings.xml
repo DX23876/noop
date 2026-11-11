@@ -5696,4 +5696,9 @@
     <string name="forge_hf_more">More</string>
     <string name="forge_hf_more_sub">Trends, all metrics, compare</string>
     <string name="forge_hf_week_rings">Your week in rings</string>
+    <string name="forge_hint_show_less">Show less</string>
+    <string name="forge_hint_more">%1$d more</string>
+    <string name="forge_hint_dismiss">Dismiss</string>
+    <string name="forge_hint_weigh_title">No weigh-in for a week</string>
+    <string name="forge_hint_weigh_detail">Your weight goal needs one now and then.</string>
 </resources>

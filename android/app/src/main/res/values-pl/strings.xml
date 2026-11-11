@@ -5677,4 +5677,9 @@
     <string name="forge_hf_more">Więcej</string>
     <string name="forge_hf_more_sub">Trendy, wszystkie wskaźniki, porównanie</string>
     <string name="forge_hf_week_rings">Twój tydzień w pierścieniach</string>
+    <string name="forge_hint_show_less">Pokaż mniej</string>
+    <string name="forge_hint_more">jeszcze %1$d</string>
+    <string name="forge_hint_dismiss">Odrzucać</string>
+    <string name="forge_hint_weigh_title">Brak ważenia od tygodnia</string>
+    <string name="forge_hint_weigh_detail">Twój cel wagowy potrzebuje ważenia od czasu do czasu.</string>
 </resources>

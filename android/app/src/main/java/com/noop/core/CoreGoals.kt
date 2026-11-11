@@ -38,6 +38,8 @@ object CoreGoals {
         val bestStreak: Int, val periodGoalIds: List<String>,
         /** A catalog goal's state as its page words it, with its tone; null keeps [health]. */
         val statusText: String? = null, val statusTone: String? = null,
+        /** The goal's kind (`CoachGoal.Kind` raw value), "weight" for a weight goal. */
+        val kind: String = "",
     )
     data class Action(
         val id: String, val actionId: String, val title: String, val kind: String, val day: String,
@@ -255,7 +257,7 @@ object CoreGoals {
                 LongTerm(g.getString("id"), g.getString("title"), g.getString("status"), g.str("targetDate"),
                     g.getString("health"), g.dbl("progress"), g.optString("reason"), g.optString("nextAction"),
                     g.optInt("currentStreak"), g.optInt("bestStreak"), g.optJSONArray("periodGoalIds").strings(),
-                    g.str("statusText"), g.str("statusTone"))
+                    g.str("statusText"), g.str("statusTone"), g.optString("kind"))
             },
             today = o.optJSONArray("today").objects().map(::action),
             week = o.optJSONArray("week").objects().map(::action),

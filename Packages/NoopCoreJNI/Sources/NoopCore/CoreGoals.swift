@@ -62,6 +62,8 @@ public enum CoreGoals {
         /// A catalog goal's state as its page and Apple's overview word it (`LongTermGoalContent.style`), with its
         /// `GoalTone`; nil for a goal without a catalog reading, which keeps its health.
         public var statusText: String? = nil, statusTone: String? = nil
+        /// The goal's kind (`CoachGoal.Kind`), so a screen can ask for a weight goal as Apple's Today does.
+        public var kind: String = ""
     }
 
     /// One daily goal on one day (`GoalActionOccurrence`).
@@ -458,7 +460,7 @@ public enum CoreGoals {
                         progress: s.displayProgress, reason: s.reason, nextAction: s.nextAction,
                         currentStreak: s.currentStreak, bestStreak: s.bestStreak,
                         periodGoalIds: children.map(\.id.uuidString),
-                        statusText: word?.text, statusTone: word?.tone.rawValue)
+                        statusText: word?.text, statusTone: word?.tone.rawValue, kind: s.goal.kind.rawValue)
     }
 
     @MainActor

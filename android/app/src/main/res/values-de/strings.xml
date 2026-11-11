@@ -5673,4 +5673,9 @@
     <string name="forge_hf_more">Mehr</string>
     <string name="forge_hf_more_sub">Trends, alle Messwerte, vergleichen</string>
     <string name="forge_hf_week_rings">Deine Woche in Ringen</string>
+    <string name="forge_hint_show_less">Weniger zeigen</string>
+    <string name="forge_hint_more">%1$d weitere</string>
+    <string name="forge_hint_dismiss">Schließen</string>
+    <string name="forge_hint_weigh_title">Seit einer Woche nicht gewogen</string>
+    <string name="forge_hint_weigh_detail">Dein Gewichtsziel braucht ab und zu eine Messung.</string>
 </resources>

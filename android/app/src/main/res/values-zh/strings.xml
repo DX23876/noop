@@ -5626,4 +5626,9 @@
     <string name="forge_hf_more">更多</string>
     <string name="forge_hf_more_sub">趋势、全部指标、比较</string>
     <string name="forge_hf_week_rings">你这一周的圆环</string>
+    <string name="forge_hint_show_less">收起</string>
+    <string name="forge_hint_more">还有 %1$d 个</string>
+    <string name="forge_hint_dismiss">忽略</string>
+    <string name="forge_hint_weigh_title">一周没有称重</string>
+    <string name="forge_hint_weigh_detail">你的体重目标需要不时称一次。</string>
 </resources>

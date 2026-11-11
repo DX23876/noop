@@ -5649,4 +5649,9 @@
     <string name="forge_hf_more">Mais</string>
     <string name="forge_hf_more_sub">Tendências, todas as métricas, comparar</string>
     <string name="forge_hf_week_rings">A tua semana em anéis</string>
+    <string name="forge_hint_show_less">Mostrar menos</string>
+    <string name="forge_hint_more">mais %1$d</string>
+    <string name="forge_hint_dismiss">Dispensar</string>
+    <string name="forge_hint_weigh_title">Sem pesagem há uma semana</string>
+    <string name="forge_hint_weigh_detail">O teu objetivo de peso precisa de uma de vez em quando.</string>
 </resources>

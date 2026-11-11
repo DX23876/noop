@@ -426,6 +426,25 @@ public enum CoreCall {
             } catch {
                 return #"{"error":"goalState"}"#
             }
+        case "timeline.admit":
+            // The new design's Today notices through the one admission rule Apple uses (`TimelineFeed.admit`): a
+            // topic speaks at most once a week unless it got clearly worse. The log stays opaque to the host.
+            let candidates = (args["candidates"] as? [[String: Any]] ?? []).compactMap { c -> TimelineFeed.Candidate? in
+                guard let key = c["key"] as? String, let topic = TimelineFeed.Topic(rawValue: c["topic"] as? String ?? "") else { return nil }
+                return TimelineFeed.Candidate(key: key, topic: topic, severity: (c["severity"] as? NSNumber)?.doubleValue ?? 2,
+                                              isEvent: (c["isEvent"] as? Bool) ?? false)
+            }
+            let log = string("log").data(using: .utf8).flatMap { try? JSONDecoder().decode([TimelineFeed.Shown].self, from: $0) } ?? []
+            let lessOften = Set(args["lessOften"] as? [String] ?? [])
+            let now = Date(timeIntervalSince1970: (args["now"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970)
+            let result = TimelineFeed.admit(candidates, log: log, day: string("day"), now: now) { topic in
+                lessOften.contains(topic.rawValue) ? 2 * TimelineFeed.cooldownDays : TimelineFeed.cooldownDays
+            }
+            let encoded = (try? JSONEncoder().encode(result.log)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+            struct Admitted: Encodable { let key: String; let at: Double }
+            struct Out: Encodable { let admitted: [Admitted]; let log: String }
+            return CoreRead.json(Out(admitted: result.admitted.map { Admitted(key: $0.candidate.key, at: $0.at.timeIntervalSince1970) },
+                                     log: encoded))
         case "momentum.snooze":
             return CoreRead.json(["snoozed": await CoreMomentum.snooze(kind: string("kind"), snoozedRaw: string("snoozed"))])
         case "goals.toggleAction":

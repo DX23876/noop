@@ -55,7 +55,7 @@ import kotlinx.coroutines.withContext
  * while charging or disconnected) and the cycle phase while cycle tracking is on.
  */
 @Composable
-private fun rememberMomentumLive(viewModel: com.noop.ui.AppViewModel): CoreMomentum.Live {
+internal fun rememberMomentumLive(viewModel: com.noop.ui.AppViewModel): CoreMomentum.Live {
     val alert by viewModel.healthAlert.collectAsState()
     val signals by viewModel.v5Signals.collectAsState()
     val cycleOn by viewModel.cycleTrackingEnabled.collectAsState()
