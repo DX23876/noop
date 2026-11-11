@@ -71,4 +71,21 @@ final class CoreReadTests: XCTestCase {
         let json = CoreRead.json(CoreRead.Point(day: "2026-10-02", value: 1.5))
         XCTAssertEqual(json, #"{"day":"2026-10-02","value":1.5}"#)
     }
+
+    func testStepsAndSpO2TheStrapLacksComeFromThePhonesHealthStore() async throws {
+        let r = try await reader()
+        // A WHOOP 4.0 counts no steps: Health Connect's counts fill the days, including one with no strap row.
+        _ = try await r.store.upsertAppleDaily([
+            AppleDaily(day: "2026-10-02", steps: 7_000, activeKcal: nil, basalKcal: nil, vo2max: nil, avgHr: nil, maxHr: nil,
+                       walkingHr: nil, weightKg: nil),
+            AppleDaily(day: "2026-10-04", steps: 8_000, activeKcal: nil, basalKcal: nil, vo2max: nil, avgHr: nil, maxHr: nil,
+                       walkingHr: nil, weightKg: nil),
+        ], deviceId: MetricResolver.healthConnectSource)
+        _ = try await r.store.upsertMetricSeries([MetricPoint(day: "2026-10-03", key: "spo2", value: 96)],
+                                                 deviceId: MetricResolver.healthConnectSource)
+        let steps = await CoreRead.series(.steps, from: "2026-10-01", to: "2026-10-05", reader: r)
+        XCTAssertEqual(steps, [CoreRead.Point(day: "2026-10-02", value: 7_000), CoreRead.Point(day: "2026-10-04", value: 8_000)])
+        let spo2 = await CoreRead.series(.spo2, from: "2026-10-01", to: "2026-10-05", reader: r)
+        XCTAssertEqual(spo2, [CoreRead.Point(day: "2026-10-03", value: 96)])
+    }
 }

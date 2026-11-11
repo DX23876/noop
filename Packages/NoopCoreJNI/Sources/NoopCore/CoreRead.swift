@@ -148,7 +148,29 @@ public enum CoreRead {
 
     public static func series(_ metric: Metric, from: String, to: String, reader: StoreReader) async -> [Point] {
         if metric == .rest { return await restSeries(from: from, to: to, reader: reader) }
-        return await merged(from: from, to: to, reader: reader).compactMap { row in
+        let own = await strapSeries(metric, from: from, to: to, reader: reader)
+        guard metric == .steps || metric == .spo2 else { return own }
+        // Steps and SpO2 a day's row lacks come from the phone's health store, as `day` fills them: Apple Health
+        // first, then Health Connect. A WHOOP 4.0 counts no steps, so without this the steps tile and trend of a
+        // Health Connect wearer stayed empty although the day itself showed the phone's count.
+        var byDay = Dictionary(own.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
+        for source in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
+            if metric == .steps {
+                for row in (try? await reader.store.appleDaily(deviceId: source, from: from, to: to)) ?? [] {
+                    if byDay[row.day] == nil, let s = row.steps, s > 0 { byDay[row.day] = Point(day: row.day, value: Double(s)) }
+                }
+            } else {
+                for p in (try? await reader.store.metricSeries(deviceId: source, key: "spo2", from: from, to: to)) ?? []
+                where byDay[p.day] == nil {
+                    byDay[p.day] = Point(day: p.day, value: p.value)
+                }
+            }
+        }
+        return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    private static func strapSeries(_ metric: Metric, from: String, to: String, reader: StoreReader) async -> [Point] {
+        await merged(from: from, to: to, reader: reader).compactMap { row in
             let value: Double? = switch metric {
             case .charge: row.recovery
             case .effort: row.strain
