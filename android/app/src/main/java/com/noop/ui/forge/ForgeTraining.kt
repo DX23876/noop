@@ -476,7 +476,8 @@ private fun Section(title: String, overline: String?, trailing: (@Composable () 
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f).padding(horizontal = ForgeMetrics.space1),
                    verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                if (overline != null) Text(overline.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
+                // The new design heads a section with its title alone, as iOS's Training tab.
+                if (overline != null && !ForgeDesign.preview) Text(overline.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
                 Text(title, style = Forge.type.title2, color = Forge.sceneInk.text)
             }
             trailing?.invoke()

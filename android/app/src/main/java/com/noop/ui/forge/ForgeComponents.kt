@@ -219,8 +219,11 @@ private const val MIN_TILE_SCALE = 0.6f
 /** Small caps section header, as the iOS screens title their sections. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    Text(text.uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
-         modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
+    // The new design heads its sections as iOS's ForgeSectionTitle: sentence case, bold, in the text colour.
+    if (ForgeDesign.preview) Text(text, style = Forge.type.headline.copy(fontWeight = FontWeight.Bold), color = Forge.colors.text,
+                                  modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
+    else Text(text.uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
+              modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
 }
 
 /**
