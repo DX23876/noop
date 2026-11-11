@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,6 +46,11 @@ fun ForgeRoot(viewModel: AppViewModel) {
     val context = LocalContext.current
     remember { ForgeBackground.load(context) }
     remember { ForgeDesign.load(context, (context as? android.app.Activity)?.intent) }
+    // The workout list Today's timeline, its latest-workout card, the dashboards and Training's count read: the view
+    // model filled it only when the Workouts page, Insights or Data Sources opened, so those stayed empty until then.
+    // Loaded at start and again after each analysis pass, when a synced workout can have arrived.
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(coreRevision) { viewModel.loadWorkouts() }
     // Settings and pairing open over the tabs in the same window (`ForgeOverlayHost`).
     var moreOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     ForgeOverlayHost {
