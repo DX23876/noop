@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -170,14 +171,24 @@ internal fun TodayTrainingLoadForge(onOpenAll: () -> Unit) {
         }
     }
     val o = output ?: return
+    val newDesign = ForgeDesign.preview
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.forge_tl_title).uppercase(), style = Forge.type.overline,
-                 color = Forge.sceneInk.secondary, modifier = Modifier.weight(1f))
+            // The new design heads it as iOS's section: the title in sentence case, bold.
+            if (newDesign) Text(stringResource(R.string.forge_tl_title), style = Forge.type.headline.copy(fontWeight = FontWeight.Bold),
+                                color = Forge.sceneInk.text, modifier = Modifier.weight(1f))
+            else Text(stringResource(R.string.forge_tl_title).uppercase(), style = Forge.type.overline,
+                      color = Forge.sceneInk.secondary, modifier = Modifier.weight(1f))
             Text(stringResource(R.string.forge_momentum_all), style = Forge.type.caption, color = Forge.colors.accent,
                  modifier = Modifier.clickable(role = Role.Button, onClick = onOpenAll))
         }
-        HeroLanes(o)
+        // As iOS's LiquidTrainingLoadSection: a lane with nothing logged in its window has nothing to compare and is
+        // left out; with neither, one quiet sentence says what fills the card.
+        if (newDesign && o.strength.possibleCount == 0 && o.cardio.possibleCount == 0) {
+            ForgeCard(Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.forge_tl_empty_today), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+            }
+        } else HeroLanes(o)
     }
 }
 

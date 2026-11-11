@@ -5067,4 +5067,5 @@
         <item quantity="one">%1$d entrenamiento</item>
         <item quantity="other">%1$d entrenamientos</item>
     </plurals>
+    <string name="forge_tl_empty_today">Registra un entrenamiento y NOOP comparará tu entrenamiento con tu carga habitual.</string>
 </resources>

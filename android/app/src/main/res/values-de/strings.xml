@@ -5080,4 +5080,5 @@
         <item quantity="one">%1$d Workout</item>
         <item quantity="other">%1$d Workouts</item>
     </plurals>
+    <string name="forge_tl_empty_today">Erfasse ein Training, dann vergleicht NOOP dein Training mit deiner üblichen Belastung.</string>
 </resources>

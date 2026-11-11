@@ -5085,4 +5085,5 @@
         <item quantity="many">%1$d treningów</item>
         <item quantity="other">%1$d treningu</item>
     </plurals>
+    <string name="forge_tl_empty_today">Zapisz trening, a NOOP porówna Twój trening z Twoim zwykłym obciążeniem.</string>
 </resources>

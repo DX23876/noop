@@ -4970,4 +4970,5 @@
         <item quantity="many">%1$d тренировок</item>
         <item quantity="other">%1$d тренировки</item>
     </plurals>
+    <string name="forge_tl_empty_today">Запишите тренировку, и NOOP сравнит её с вашей обычной нагрузкой.</string>
 </resources>
