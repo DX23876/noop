@@ -236,7 +236,9 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     fun drop() {
         val id = dragging ?: return
         val center = bounds[id]?.center?.plus(dragOffset)
-        val target = center?.let { c -> bounds.entries.firstOrNull { (k, r) -> k != id && r.contains(c) }?.key }
+        // Only tiles still placed: a removed tile's last bounds stay in the map and must not catch the drop.
+        val placed = widgets.map { it.id }.toSet()
+        val target = center?.let { c -> bounds.entries.firstOrNull { (k, r) -> k != id && k in placed && r.contains(c) }?.key }
         if (target != null) update(TodayWidgets.move(widgets, id, target))
         dragging = null; dragOffset = androidx.compose.ui.geometry.Offset.Zero
     }
@@ -343,7 +345,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                 drop()
                             }
                         }),
-                               onRemove = { update(widgets.filter { it.id != w.id }) },
+                               onRemove = { bounds.remove(w.id); update(widgets.filter { it.id != w.id }) },
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
