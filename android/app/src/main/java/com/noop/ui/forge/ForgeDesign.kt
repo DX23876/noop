@@ -3,6 +3,8 @@ package com.noop.ui.forge
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.runtime.getValue
@@ -61,10 +63,20 @@ object ForgeDesign {
  */
 val LocalForgeOpenMore = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
 
-/** The More page over the tabs, with its own search, profile, strap and every page it lists. */
+/**
+ * The More page over the tabs, with its own search, profile, strap and every page it lists.
+ *
+ * A layer of its own over the tabs, not a [ForgeOverlayPage]: the overlay host holds one page, and the pages More
+ * opens (Analysis, Health & Body, Tools, Settings) are overlay pages themselves. As an overlay page More was
+ * replaced by the first of them, which then lost its own caller and closed both, leaving the profile dead.
+ */
 @androidx.compose.runtime.Composable
 internal fun ForgeMoreOverlay(viewModel: com.noop.ui.AppViewModel, onDismiss: () -> Unit) {
-    ForgeOverlayPage(onDismiss = onDismiss) {
+    androidx.compose.foundation.layout.Box(
+        androidx.compose.ui.Modifier.fillMaxSize()
+            // Takes every touch, so nothing reaches the tab underneath.
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } }
+    ) {
         ForgeSceneBackdrop(ForgeBackdrop.Sky) {
             androidx.activity.compose.BackHandler(onBack = onDismiss)
             // The system bars' insets, as the tab's Scaffold supplied them: empty padding drew the title under the clock.

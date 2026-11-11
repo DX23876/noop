@@ -73,7 +73,11 @@ fun ForgeRoot(viewModel: AppViewModel) {
             }
         }
         }
-        if (moreOpen && ForgeDesign.preview) ForgeMoreOverlay(viewModel, onDismiss = { moreOpen = false })
+        androidx.compose.animation.AnimatedVisibility(moreOpen && ForgeDesign.preview,
+            enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutHorizontally { it } + androidx.compose.animation.fadeOut()) {
+            ForgeMoreOverlay(viewModel, onDismiss = { moreOpen = false })
+        }
         // In the new design the coach has its own place while it is on (`ForgeTab.Coach`: a button beside the bar, a
         // rail entry on wide windows), as on iOS; the floating button is for the shipped tabs and a coach that is off.
         if (!(ForgeDesign.preview && com.noop.ui.BottomBarStyleStore.coachEnabled)) ForgeCoachButton(viewModel)
