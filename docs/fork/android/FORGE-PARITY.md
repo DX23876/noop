@@ -24,8 +24,8 @@ Android source: `android/app/src/main/java/com/noop/ui/forge/*`.
 | Header | "Today" with the date, strap, plus, profile | in the new design "Today" and its date on one line, profile and quick actions, no wordmark (2026-11-11) | no strap button of its own (the battery sits in the quick actions) |
 | Rings | three organic rings in one chamber with the day's answer under them; holding them arranges the tiles | `Hero` with organic rings; holding a ring arranges the tiles (2026-11-10) | the answer line, which iOS shows only while Charge is carried from an earlier day; Android's Forge hero has no carried state yet |
 | Hint | one most-pressing hint (`ForgeTodayHint`) | the activity prompt and the morning suggestion; pills and Momentum are gone from the new Today (Momentum is a tile) | the hint card, which needs the timeline's notices and coach notes |
-| Tiles | a free grid of measure and picture tiles, three sizes, moved by drag in edit mode, two or three to a row (`ForgeTodayWidgets`) | `ForgeTodayWidgets.kt` (2026-11-10; tiles per row and iOS's tile look 2026-11-11): measures from the Key Metrics reading, sleep from the latest night, and the cards Training load, Goals, Energy, Latest workout, Cycle, Momentum, Live heart rate; three sizes, moved by drag in edit mode (2026-11-11), by arrows and accessibility actions, gallery | 2026-11-11: tiles drawn as iOS's `TodayMetricTile` (equal row heights, one-line names, change chip from the shared `MeasureTileReading`), editor as iOS (hold a tile, one editor card with tiles per row, timeline shown and where tiles start, tiles trade places while carried); water, coach note and AgeLess added. Missing: the diet goal widget (Android has no diet progress cards yet) and AgeLess across the row |
-| Timeline | the day as a time rail: coach notes, workouts, walks bundled, wake, naps, weigh-ins, logs, ECG, notices, the day's close, with a "Now" marker (`ForgeTimeline`) | time rail with Now, workouts, waking up with stages, naps, Yesterday (2026-11-09, `ForgeTodayTimeline`); naps come from the core's `SleepNight.naps`, the same rule iOS reads (2026-11-10) | coach notes, walk bundles, weigh-ins, logs, ECG, notices, the day's close and "Show all" missing |
+| Tiles | a free grid of measure and picture tiles, three sizes, moved by drag in edit mode, two or three to a row (`ForgeTodayWidgets`) | `ForgeTodayWidgets.kt` (2026-11-10; tiles per row and iOS's tile look 2026-11-11): measures from the Key Metrics reading, sleep from the latest night, and the cards Training load, Goals, Energy, Latest workout, Cycle, Momentum, Live heart rate; three sizes, moved by drag in edit mode (2026-11-11), by arrows and accessibility actions, gallery | 2026-11-11: tiles drawn as iOS's `TodayMetricTile` (equal row heights, one-line names, change chip from the shared `MeasureTileReading`), editor as iOS (hold a tile, one editor card with tiles per row, timeline shown and where tiles start, tiles trade places while carried); water, coach note and AgeLess added. Done 2026-11-11 later: the diet goal card (shared `DietProgress`, core call `food.planProgress`, also on the plan page), AgeLess across the row, the gallery in iOS's order and sizes; on both phones a tile over two columns shows more (a measure's usual and 30-day range from `MeasureTileReading.summary`, water's share of the goal, the strap's state with its sync, AgeLess's years against the calendar age) |
+| Timeline | the day as a time rail: coach notes, workouts, walks bundled, wake, naps, weigh-ins, logs, ECG, notices, the day's close, with a "Now" marker (`ForgeTimeline`) | time rail with Now, workouts, waking up with stages, naps, Yesterday (2026-11-09, `ForgeTodayTimeline`); naps come from the core's `SleepNight.naps`, the same rule iOS reads (2026-11-10) | done: coach notes with the Why sheet, walk bundles, timed weigh-ins, meals, ECG, notices, the day's close, "Show all" |
 | Scene | painted day-cycle scene at the top, scrolls away with the rings | scene backdrop | check the fade and the scroll |
 | Cards | 78 % glass until a Card transparency is chosen, down to fully clear (`ForgeCardModifier`) | the new design draws iOS's card: 78 % glass until a transparency is chosen, no rim, 14 dp corners | close |
 
@@ -144,7 +144,7 @@ Today
   so its counts can be smaller for the same data.
 - Done 2026-11-11: a goal on Today's card opens its own page or journey.
 - Done 2026-11-11: the timeline's head with "Show all" (closed: today's latest three), walks bundled, meals, ECG
-  readings and notices on the rail. Still missing there: coach notes, timed weigh-ins, the day's close.
+  readings and notices on the rail; coach notes, timed weigh-ins and the day's close are on it too.
 
 Training
 - Done 2026-11-11: the week head; the start capsules; the year grid and the muscle map off the tab (both still
@@ -172,8 +172,8 @@ Health
   (Sleep opens the Sleep tab), which replaces the Heart and Body groups; "Your week in rings" opening Trends.
 - Done 2026-11-11: the Weekly report row and page, the cycle card while tracking is on, Vitals with "Edit" (hide,
   bring back, two or three per row).
-- Still different: iOS's own focus pages (Android lists each area's pages), swapping a vital tile for a non-vital
-  measure and reordering tiles by dragging.
+- Done 2026-11-11: the focus pages with their measure tiles; a focus or vital tile opens Explore on its measure
+  (Android's stand-in for iOS's single-metric page); vital tiles swap with measures and reorder by drag.
 
 ## Inventory 2026-11-11: every iOS page of the new design against Android
 
@@ -187,11 +187,14 @@ Android reaches the same function; "missing" pages are the build list.
 | Apple Health, Siri and Shortcuts export | | not applicable (Health Connect in Data sources) |
 | Search sheet | `ForgeSearchView` | has as the More page's search |
 | Charge page | `ForgeChargeDetailView` | has (`ForgeChargeBreakdown`) |
-| Effort page, Rest page | `ForgeScoreDetailViews` | missing |
-| Weekly report page | `ForgeWeeklyReportView` | missing (Android hosts the classic weekly digest card) |
-| This week's plan page | `ForgeWeekPlanView` | missing (Android opens the schedule editor) |
-| Focus pages, six | `ForgeFocusView` | missing (Android lists each area's pages) |
+| Effort page, Rest page | `ForgeScoreDetailViews` | has (`ForgeScorePages`) |
+| Weekly report page | `ForgeWeeklyReportView` | has (`ForgeWeeklyReport`) |
+| This week's plan page | `ForgeWeekPlanView` | has (`ForgeWeekPlan`) |
+| Focus pages, six | `ForgeFocusView` | has (`FocusAreaPage`) |
 | Cycle page, guide, fertile band | `ForgeCycleView`, `ForgeCycleGuide`, `ForgeCycleFertile` | done 2026-11-11 (`ForgeCycle.kt`, `ForgeCycleModel.kt`): dial, fertile line and page, log sheet (flow, symptoms, mood, ovulation test under `noop-cycle`), phase cards and topic pages, temperature card, calendar, history, settings with the fertile reminder; fertile estimate and training pattern from the shared core (`cycle.fertile`, `cycle.pattern`) |
-| Coach notes on the timeline, "Why" sheet | `ForgeTodayView`, `ForgeCoachWhySheet` | missing |
-| Vital tile editor (swap, reorder, up to nine) | `ForgeHealthTiles` | partly (hide and show, two or three per row) |
+| Coach notes on the timeline, "Why" sheet | `ForgeTodayView`, `ForgeCoachWhySheet` | has |
+| Vital tile editor (swap, reorder, up to nine) | `ForgeHealthTiles` | has (drag to reorder 2026-11-11) |
+| AgeLess page | `ForgeAgeLessView` | has, rebuilt 2026-11-11 (age line, domains, over time) |
+| Single-metric page | `MetricDetailView` | Explore opened on the measure stands in |
+| Effort of an imported workout from its heart rate | `WorkoutHeartRateFills.fillApple` (AI-16) | missing for Health Connect: needs the fill extended to `health-connect` rows, an analysis change with a recipe bump |
 | Workouts list, Strength, Muscles | `ForgeWorkoutsView`, `ForgeStrengthView` | has (History, Strength, Muscles pages) |

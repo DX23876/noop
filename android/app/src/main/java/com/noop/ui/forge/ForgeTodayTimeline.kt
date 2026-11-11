@@ -72,9 +72,8 @@ import java.util.Locale
  * thin line per entry, a "Now" marker on top and a divider where yesterday starts.
  *
  * It carries workouts (two or more detected or imported walks of a day as one entry, `TimelineFeed.walkBundles`),
- * waking up, naps, logged meals, ECG readings and the data's notices (`TodayNotices`) except the one the hint under
- * the rings already says. Coach notes, timed weigh-ins and the day's close are not on Android yet
- * (docs/fork/android/FORGE-PARITY.md).
+ * waking up, naps, logged meals, ECG readings, the coach's notes, timed weigh-ins, the day's close and the data's
+ * notices (`TodayNotices`) except the one the hint under the rings already says.
  */
 internal object TodayTimeline {
     sealed interface Entry {
