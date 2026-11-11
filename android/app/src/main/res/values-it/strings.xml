@@ -5630,4 +5630,8 @@
     <string name="forge_hint_dismiss">Ignora</string>
     <string name="forge_hint_weigh_title">Nessuna pesata da una settimana</string>
     <string name="forge_hint_weigh_detail">Il tuo obiettivo di peso ne ha bisogno ogni tanto.</string>
+    <string name="forge_tl_show_all">Mostra tutto</string>
+    <string name="forge_tl_walks">%1$d camminate</string>
+    <string name="forge_tl_h_walked">h di cammino</string>
+    <string name="forge_tl_ecg">ECG</string>
 </resources>

@@ -5631,4 +5631,8 @@
     <string name="forge_hint_dismiss">忽略</string>
     <string name="forge_hint_weigh_title">一周没有称重</string>
     <string name="forge_hint_weigh_detail">你的体重目标需要不时称一次。</string>
+    <string name="forge_tl_show_all">显示全部</string>
+    <string name="forge_tl_walks">%1$d 次步行</string>
+    <string name="forge_tl_h_walked">小时步行</string>
+    <string name="forge_tl_ecg">ECG</string>
 </resources>

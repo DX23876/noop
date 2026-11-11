@@ -5678,4 +5678,8 @@
     <string name="forge_hint_dismiss">Schließen</string>
     <string name="forge_hint_weigh_title">Seit einer Woche nicht gewogen</string>
     <string name="forge_hint_weigh_detail">Dein Gewichtsziel braucht ab und zu eine Messung.</string>
+    <string name="forge_tl_show_all">Alle anzeigen</string>
+    <string name="forge_tl_walks">%1$d Spaziergänge</string>
+    <string name="forge_tl_h_walked">h gegangen</string>
+    <string name="forge_tl_ecg">ECG</string>
 </resources>

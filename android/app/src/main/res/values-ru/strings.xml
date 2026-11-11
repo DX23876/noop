@@ -5635,4 +5635,8 @@
     <string name="forge_hint_dismiss">Закрыть</string>
     <string name="forge_hint_weigh_title">Неделю без взвешивания</string>
     <string name="forge_hint_weigh_detail">Цели по весу иногда нужно взвешивание.</string>
+    <string name="forge_tl_show_all">Показать все</string>
+    <string name="forge_tl_walks">Прогулок: %1$d</string>
+    <string name="forge_tl_h_walked">ч ходьбы</string>
+    <string name="forge_tl_ecg">ECG</string>
 </resources>

@@ -5682,4 +5682,8 @@
     <string name="forge_hint_dismiss">Odrzucać</string>
     <string name="forge_hint_weigh_title">Brak ważenia od tygodnia</string>
     <string name="forge_hint_weigh_detail">Twój cel wagowy potrzebuje ważenia od czasu do czasu.</string>
+    <string name="forge_tl_show_all">Pokaż wszystko</string>
+    <string name="forge_tl_walks">Spacery: %1$d</string>
+    <string name="forge_tl_h_walked">h marszu</string>
+    <string name="forge_tl_ecg">EKG</string>
 </resources>

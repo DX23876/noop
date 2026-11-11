@@ -159,6 +159,24 @@ internal object TodayHints {
         return out.filter { it.id !in dismissed }
     }
 
+    /**
+     * The day's admitted notices and whether a weight goal misses its weigh-in (Apple's `weighInDue`), the inputs of
+     * [candidates]. Blocking; the hint card and the timeline both read it, so the timeline can leave out the hint's entry.
+     */
+    suspend fun load(context: Context, live: CoreMomentum.Live, day: String): Pair<List<TodayNotices.Notice>, Boolean> {
+        CoreRead.open(context)
+        val dismissedWorkouts = dismissedTrainingWorkouts(context)
+        val momentum = CoreMomentum.feed(context, dismissedWorkouts, live).orEmpty()
+        val notices = TodayNotices.notices(context, momentum, day, System.currentTimeMillis() / 1000)
+        val weightGoal = com.noop.core.CoreGoals.snapshot(context, dismissedWorkouts)?.longTerm.orEmpty()
+            .any { it.kind == "weight" && (it.status == "active" || it.status == "paused") }
+        val weighIn = weightGoal && run {
+            val last = com.noop.core.CoreBody.snapshot(context, days = 30)?.weighIns?.maxOfOrNull { it.day }
+            last == null || last < java.time.LocalDate.now().minusDays(7).toString()
+        }
+        return notices to weighIn
+    }
+
     /** The dismissed hints of [day] from their stored form ("day|id" lines); other days' lines are ignored. */
     fun dismissed(raw: String, day: String): Set<String> =
         raw.split("\n").mapNotNull { line ->
@@ -223,20 +241,7 @@ internal fun TodayHintCard(viewModel: AppViewModel, day: String, onCharge: () ->
     val weighTitle = stringResource(R.string.forge_hint_weigh_title)
     val weighDetail = stringResource(R.string.forge_hint_weigh_detail)
     val loaded by produceState<Pair<List<TodayNotices.Notice>, Boolean>>(emptyList<TodayNotices.Notice>() to false, revision, live, day) {
-        value = withContext(Dispatchers.IO) {
-            CoreRead.open(context)
-            val dismissedWorkouts = dismissedTrainingWorkouts(context)
-            val momentum = CoreMomentum.feed(context, dismissedWorkouts, live).orEmpty()
-            val notices = TodayNotices.notices(context, momentum, day, System.currentTimeMillis() / 1000)
-            // A weight goal with no weigh-in for a week (Apple's `weighInDue`).
-            val weightGoal = com.noop.core.CoreGoals.snapshot(context, dismissedWorkouts)?.longTerm.orEmpty()
-                .any { it.kind == "weight" && (it.status == "active" || it.status == "paused") }
-            val weighIn = weightGoal && run {
-                val last = com.noop.core.CoreBody.snapshot(context, days = 30)?.weighIns?.maxOfOrNull { it.day }
-                last == null || last < java.time.LocalDate.now().minusDays(7).toString()
-            }
-            notices to weighIn
-        }
+        value = withContext(Dispatchers.IO) { TodayHints.load(context, live, day) }
     }
     val hints = TodayHints.candidates(loaded.first, loaded.second, weighTitle, weighDetail,
                                       TodayHints.dismissed(dismissedRaw, day))

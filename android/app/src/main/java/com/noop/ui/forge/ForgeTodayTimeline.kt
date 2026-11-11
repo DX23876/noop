@@ -24,6 +24,10 @@ import androidx.compose.material.icons.rounded.WbTwilight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material.icons.rounded.DirectionsWalk
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,8 +66,10 @@ import java.util.Locale
  * `ForgeTodayView.dayList`): the day as a time rail, newest first, the time in a column on the left, a dot on a
  * thin line per entry, a "Now" marker on top and a divider where yesterday starts.
  *
- * This first Android step carries the strap's own events, workouts and waking up (naps as their own entry).
- * Coach notes, weigh-ins and logs follow (docs/fork/android/FORGE-PARITY.md).
+ * It carries workouts (two or more detected or imported walks of a day as one entry, `TimelineFeed.walkBundles`),
+ * waking up, naps, logged meals, ECG readings and the data's notices (`TodayNotices`) except the one the hint under
+ * the rings already says. Coach notes, timed weigh-ins and the day's close are not on Android yet
+ * (docs/fork/android/FORGE-PARITY.md).
  */
 internal object TodayTimeline {
     sealed interface Entry {
@@ -76,7 +82,24 @@ internal object TodayTimeline {
         data class Wake(override val endTs: Long, val startTs: Long, val asleepMinutes: Double,
                         val deep: Double, val rem: Double, val light: Double, val awake: Double,
                         val nap: Boolean) : Entry
+
+        /** Two or more walks of one day the wearer did not start themselves, as one entry at the last one's end. */
+        data class Walks(override val endTs: Long, val rows: List<WorkoutRow>) : Entry {
+            val minutes: Double get() = rows.sumOf { ((it.durationS ?: (it.endTs - it.startTs).toDouble()) / 60).coerceAtLeast(0.0) }
+        }
+
+        data class Meal(override val endTs: Long, val meal: com.noop.core.CoreFood.Meal) : Entry
+
+        data class Ecg(override val endTs: Long, val reading: com.noop.core.CoreEcg.Reading) : Entry
+
+        data class Notice(override val endTs: Long, val notice: TodayNotices.Notice) : Entry
     }
+
+    /** A walk that bundles: a walk from the strap, Health or detection, not one the wearer started or imported (iOS `bundlesAsWalk`). */
+    fun bundlesAsWalk(row: WorkoutRow): Boolean =
+        row.sport.contains("walk", ignoreCase = true) &&
+            com.noop.ui.WorkoutEditing.classify(row.source) in setOf(
+                com.noop.ui.WorkoutSource.WHOOP, com.noop.ui.WorkoutSource.APPLE, com.noop.ui.WorkoutSource.DETECTED)
 
     /**
      * Today's and yesterday's entries, newest first, by the day each one ended on. Nothing that ends after [now]
@@ -85,14 +108,25 @@ internal object TodayTimeline {
      * tested without a store.
      */
     fun entries(workouts: List<WorkoutRow>, nights: List<CoreRead.Night>, naps: List<CoreRead.Nap>, now: Long,
-                zone: ZoneId): List<Entry> {
+                zone: ZoneId, meals: List<com.noop.core.CoreFood.Meal> = emptyList(),
+                ecgs: List<com.noop.core.CoreEcg.Reading> = emptyList(),
+                notices: List<TodayNotices.Notice> = emptyList()): List<Entry> {
         val today = Instant.ofEpochSecond(now).atZone(zone).toLocalDate()
         fun inRange(ts: Long): Boolean {
             val day = Instant.ofEpochSecond(ts).atZone(zone).toLocalDate()
             return ts <= now && (day == today || day == today.minusDays(1))
         }
         val out = mutableListOf<Entry>()
-        workouts.filter { inRange(it.endTs) }.forEach { out += Entry.Workout(it) }
+        val shown = workouts.filter { inRange(it.endTs) }
+        // Two or more bundling walks of a day are one entry (`TimelineFeed.walkBundles`); a single walk stays its own.
+        val bundles = shown.filter(::bundlesAsWalk)
+            .groupBy { Instant.ofEpochSecond(it.endTs).atZone(zone).toLocalDate() }.filterValues { it.size >= 2 }
+        val inBundles = bundles.values.flatten().toSet()
+        bundles.values.forEach { walks -> val sorted = walks.sortedBy { it.endTs }; out += Entry.Walks(sorted.last().endTs, sorted) }
+        shown.filter { it !in inBundles }.forEach { out += Entry.Workout(it) }
+        meals.filter { inRange(it.start) }.forEach { out += Entry.Meal(it.start, it) }
+        ecgs.filter { inRange(it.startTs) }.forEach { out += Entry.Ecg(it.startTs, it) }
+        notices.filter { inRange(it.at) }.forEach { out += Entry.Notice(it.at, it) }
         nights.filter { inRange(it.endTs) }.forEach { n ->
             val m = n.minutes
             val awake = m?.get("wake") ?: 0.0
@@ -128,25 +162,51 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     val now by androidx.compose.runtime.produceState(System.currentTimeMillis() / 1000) {
         while (true) { kotlinx.coroutines.delay(60_000); value = System.currentTimeMillis() / 1000 }
     }
+    var meals by remember { mutableStateOf<List<com.noop.core.CoreFood.Meal>>(emptyList()) }
+    var ecgs by remember { mutableStateOf<List<com.noop.core.CoreEcg.Reading>>(emptyList()) }
+    var notices by remember { mutableStateOf<List<TodayNotices.Notice>>(emptyList()) }
+    var open by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    val live = rememberMomentumLive(viewModel)
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
-    LaunchedEffect(coreRevision) {
+    val todayKey = com.noop.ui.logicalDayNow(ZoneId.systemDefault()).toString()
+    val weighTitle = stringResource(R.string.forge_hint_weigh_title)
+    val weighDetail = stringResource(R.string.forge_hint_weigh_detail)
+    LaunchedEffect(coreRevision, live) {
         val end = System.currentTimeMillis() / 1000
         withContext(Dispatchers.IO) {
             CoreRead.open(context)
             nights = CoreRead.nights(end - 3 * 86_400, end)
             naps = CoreRead.naps(end - 3 * 86_400, end)
+            val today = java.time.LocalDate.now()
+            meals = listOf(today.minusDays(1), today).flatMap { com.noop.core.CoreFood.day(it.toString())?.meals.orEmpty() }
+            ecgs = com.noop.core.CoreEcg.readings().orEmpty()
+            // The hint under the rings says its notice; the rail leaves that one out rather than say it twice.
+            val (all, weighIn) = TodayHints.load(context, live, todayKey)
+            val dismissed = TodayHints.dismissed(com.noop.ui.NoopPrefs.of(context).getString(TodayHints.DISMISSED_KEY, "") ?: "", todayKey)
+            val hintId = TodayHints.candidates(all, weighIn, weighTitle, weighDetail, dismissed).firstOrNull()?.id
+            notices = all.filter { it.key != hintId }
         }
     }
     val zone = ZoneId.systemDefault()
-    val entries = remember(workouts, nights, naps, now) { TodayTimeline.entries(workouts, nights, naps, now, zone) }
+    val all = remember(workouts, nights, naps, now, meals, ecgs, notices) {
+        TodayTimeline.entries(workouts, nights, naps, now, zone, meals, ecgs, notices)
+    }
     // "Yesterday" by the logical day, as iOS's rail (`logicalDayKey`): an evening workout seen after midnight
     // still belongs to today.
     val today = com.noop.ui.logicalDayNow(zone)
+    // Closed, the rail shows today's latest three entries; "Show all" opens the whole day and yesterday (iOS `dayOpen`).
+    val entries = if (open) all else all.filter { Instant.ofEpochSecond(it.endTs).atZone(zone).toLocalDate() == today }.take(3)
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        Text(stringResource(R.string.forge_timeline_title), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),
-             // The canvas text colour, as iOS's `ForgeSectionTitle`: the rail sits below the scene, where scene ink
-             // (white over the picture) all but vanished on the light canvas.
-             color = Forge.colors.text, modifier = Modifier.padding(top = ForgeMetrics.space3, bottom = ForgeMetrics.space3))
+        Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space3, bottom = ForgeMetrics.space3),
+            verticalAlignment = Alignment.Bottom) {
+            Text(stringResource(R.string.forge_timeline_title), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),
+                 // The canvas text colour, as iOS's `ForgeSectionTitle`: the rail sits below the scene, where scene ink
+                 // (white over the picture) all but vanished on the light canvas.
+                 color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Text(stringResource(if (open) R.string.forge_hint_show_less else R.string.forge_tl_show_all),
+                 style = Forge.type.subhead, color = Forge.colors.accent,
+                 modifier = Modifier.clickable(role = androidx.compose.ui.semantics.Role.Button) { open = !open }.padding(4.dp))
+        }
         RailRow(time = time(context, now), dot = Forge.colors.effort, last = entries.isEmpty()) {
             Text(stringResource(R.string.forge_timeline_now), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
                  color = Color.White,
@@ -166,6 +226,26 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
             when (e) {
                 is TodayTimeline.Entry.Workout -> RailRow(time(context, e.endTs), Forge.colors.effort, last) { WorkoutEntry(e.row) }
                 is TodayTimeline.Entry.Wake -> RailRow(time(context, e.endTs), Forge.colors.rest, last) { WakeEntry(e) }
+                is TodayTimeline.Entry.Walks -> RailRow(time(context, e.endTs), Forge.colors.effort, last) {
+                    FactRow(Icons.Rounded.DirectionsWalk, Forge.colors.charge, stringResource(R.string.forge_tl_walks, e.rows.size), "",
+                            TodayTimeline.hoursMinutes(e.minutes), stringResource(R.string.forge_tl_h_walked))
+                }
+                is TodayTimeline.Entry.Meal -> RailRow(time(context, e.endTs), Forge.colors.food, last) {
+                    FactRow(Icons.Rounded.Restaurant, Forge.colors.food, mealName(e.meal.kind),
+                            e.meal.entries.joinToString(", ") { it.name.substringBefore(", ") },
+                            ((e.meal.totals["energy_kcal"] ?: 0.0).toInt()).toString(), "kcal")
+                }
+                is TodayTimeline.Entry.Ecg -> RailRow(time(context, e.endTs), Forge.colors.accent, last) {
+                    FactRow(Icons.Rounded.MonitorHeart, Forge.colors.accent, stringResource(R.string.forge_tl_ecg), e.reading.title,
+                            e.reading.averageHr?.toString(), "bpm")
+                }
+                is TodayTimeline.Entry.Notice -> RailRow(time(context, e.endTs), Forge.colors.textTertiary, last) {
+                    ForgeCard(Modifier.fillMaxWidth()) {
+                        Text(e.notice.headline, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
+                        if (e.notice.detail.isNotEmpty()) Text(e.notice.detail, style = Forge.type.caption, color = Forge.colors.textSecondary,
+                                                               modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
             }
         }
     }

@@ -5654,4 +5654,8 @@
     <string name="forge_hint_dismiss">Dispensar</string>
     <string name="forge_hint_weigh_title">Sem pesagem há uma semana</string>
     <string name="forge_hint_weigh_detail">O teu objetivo de peso precisa de uma de vez em quando.</string>
+    <string name="forge_tl_show_all">Ver todas</string>
+    <string name="forge_tl_walks">%1$d caminhadas</string>
+    <string name="forge_tl_h_walked">h a caminhar</string>
+    <string name="forge_tl_ecg">ECG</string>
 </resources>

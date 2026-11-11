@@ -5701,4 +5701,8 @@
     <string name="forge_hint_dismiss">Dismiss</string>
     <string name="forge_hint_weigh_title">No weigh-in for a week</string>
     <string name="forge_hint_weigh_detail">Your weight goal needs one now and then.</string>
+    <string name="forge_tl_show_all">Show all</string>
+    <string name="forge_tl_walks">%1$d walks</string>
+    <string name="forge_tl_h_walked">h walked</string>
+    <string name="forge_tl_ecg">ECG</string>
 </resources>
