@@ -65,6 +65,9 @@ fun ForgeRoot(viewModel: AppViewModel) {
                 // The chat in its tab, as iOS (2026-11); leaving it returns to Today.
                 ForgeTab.Coach -> {
                     val select = LocalForgeTabSelect.current
+                    // The system Back does what the page's own arrow does, back to Today, instead of closing the app;
+                    // the chat's inner pages register later and keep their own Back first.
+                    androidx.activity.compose.BackHandler { select(ForgeTab.Today) }
                     androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(padding)) {
                         ForgeCoachChatPages(viewModel, androidx.compose.ui.res.stringResource(com.noop.R.string.nav_coach),
                                             onBack = { select(ForgeTab.Today) })
