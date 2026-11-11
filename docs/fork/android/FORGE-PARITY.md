@@ -68,6 +68,8 @@ Fixed:
 - Forge's Today (both designs) took the calendar date: opened between midnight and four it showed an empty new
   day, and kept open past midnight its title fell to the weekday (#144, solved long ago on the classic Today).
   Today and every part of it read the logical day now; seen on the emulator at 00:04.
+- Trend charts (metric pages, Trends cards) broke five-digit axis values in their fixed 32 dp column
+  (steps' 10940 as "1094" over "0"); the column sizes to its labels now. Both designs.
 
 Seen, not changed:
 - Rest's word differs between the platforms: iOS says Good, Fair or Low at 80 and 60 (`ForgeToday.restWord`),
