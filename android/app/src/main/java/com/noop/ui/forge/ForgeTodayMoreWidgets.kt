@@ -201,6 +201,8 @@ internal fun TodayStrapTile(viewModel: AppViewModel, onOpen: () -> Unit) {
     val live by viewModel.live.collectAsState()
     val synced = live.lastSyncAt?.takeIf { it > 0 }
     val caption = when {
+        // The wrist only from an event on this link, as iOS: the stored default says nothing.
+        live.wristThisLink == false -> stringResource(R.string.forge_st_off_wrist)
         live.charging == true -> stringResource(R.string.forge_st_charging)
         synced == null -> stringResource(R.string.forge_st_not_synced)
         else -> stringResource(R.string.forge_st_synced, android.text.format.DateUtils.getRelativeTimeSpanString(

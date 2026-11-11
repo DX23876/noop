@@ -217,6 +217,9 @@ data class LiveState(
      *  parity) — assume worn until the strap says otherwise. (Was false, which made the UI show
      *  "Worn: Off" forever when no WRIST_ON event arrived — issue #18.) */
     val worn: Boolean = true,
+    /** The last wrist event on the CURRENT link (true = on, false = off), null until one arrives on it. Unlike [worn],
+     *  which survives a disconnect, only this may say "Off the wrist" (iOS `LiveState.wristEventThisLink`). */
+    val wristThisLink: Boolean? = null,
     val lastEvent: String? = null,
     /** The strap's current BLE advertising name (the WHOOP 4.0 device name from the OS), captured on
      *  connect. Drives the "Rename strap" card in Settings → Strap. Null until connected. */
@@ -9288,11 +9291,15 @@ class WhoopBleClient(
                                 }
                                 ev.startsWith("WRIST_ON") -> {
                                     wristEventThisLink = true
-                                    if (!_state.value.worn) _state.update { it.copy(worn = true) }
+                                    if (!_state.value.worn || _state.value.wristThisLink != true) {
+                                        _state.update { it.copy(worn = true, wristThisLink = true) }
+                                    }
                                 }
                                 ev.startsWith("WRIST_OFF") -> {
                                     wristEventThisLink = false
-                                    if (_state.value.worn) _state.update { it.copy(worn = false) }
+                                    if (_state.value.worn || _state.value.wristThisLink != false) {
+                                        _state.update { it.copy(worn = false, wristThisLink = false) }
+                                    }
                                 }
                             }
                         }
@@ -12460,6 +12467,7 @@ class WhoopBleClient(
         backfillDrain.reset()
         backfiller.linkEnded()   // an END still writing from this link must not ack on the next one
         wristEventThisLink = null   // only a wrist event seen on the next link may excuse its empty offload
+        if (_state.value.wristThisLink != null) _state.update { it.copy(wristThisLink = null) }
         strapNewestTs = null
         strapNewestTsWall = null
         offloadFramesThisSession = 0

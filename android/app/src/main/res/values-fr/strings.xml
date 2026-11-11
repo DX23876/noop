@@ -5822,4 +5822,5 @@
     <string name="forge_wp_done">fait</string>
     <string name="forge_wp_today">aujourd\'hui</string>
     <string name="forge_wp_no_effort">Pas encore d\'Effort</string>
+    <string name="forge_st_off_wrist">Hors du poignet</string>
 </resources>

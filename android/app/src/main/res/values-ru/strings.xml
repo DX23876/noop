@@ -5796,4 +5796,5 @@
     <string name="forge_wp_done">сделано</string>
     <string name="forge_wp_today">сегодня</string>
     <string name="forge_wp_no_effort">Effort пока нет</string>
+    <string name="forge_st_off_wrist">Не на запястье</string>
 </resources>
