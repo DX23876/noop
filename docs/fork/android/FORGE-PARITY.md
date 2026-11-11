@@ -79,6 +79,10 @@ Fixed:
   (steps' 10940 as "1094" over "0"); the column sizes to its labels now. Both designs.
 
 Seen, not changed:
+- Today's measure tiles: iOS shows each measure's latest value (`ForgeMeasureWidget`, the series' last point),
+  Android the day's value as Key Metrics reads it. After the 4:00 rollover, before the night is synced, Android's
+  tiles read "No data yet" where iOS still shows yesterday's figure; the Charge ring likewise, where iOS carries
+  Charge with its answer line. Seen on the emulator at 04:14. Which reading both should take is the owner's call.
 - Demo build: a run added by hand on the Workouts page did not appear in its list, even after reopening it.
   The save mirrors to the core and the list reads the core; whether only the demo strap's id is at fault could
   not be told on the emulator. To check on a phone: add a workout, then look at Workouts and Today.
