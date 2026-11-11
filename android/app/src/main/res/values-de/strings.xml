@@ -5802,4 +5802,27 @@
     <string name="forge_fl_rhythm_age">Tagesrhythmus</string>
     <string name="forge_fl_rhythm_age_sub">Dein Rhythmusalter aus der Bewegung über den Tag</string>
     <string name="forge_fl_ageless_sub">Dein Gesundheitsalter</string>
+    <string name="forge_wr_week">Woche %1$d</string>
+    <string name="forge_wr_keep">Wie halte ich das?</string>
+    <string name="forge_wr_keep_prompt">Schau auf meine Woche zurück. Was lief gut, und wie halte ich das nächste Woche?</string>
+    <string name="forge_wr_plan">Nächste Woche planen</string>
+    <string name="forge_wr_plan_prompt">Schau auf meine Woche zurück und hilf mir, die nächste zu planen: Training, Schlaf und ein Schwerpunkt.</string>
+    <string name="forge_wr_vs_last">%1$s ggü. Vorwoche</string>
+    <string name="forge_wr_best_day">Bester Tag</string>
+    <string name="forge_wr_charge_pct">Charge %1$d %%</string>
+    <string name="forge_wr_hardest">Härteste Einheit</string>
+    <string name="forge_wr_h_avg">h im Schnitt</string>
+    <string name="forge_wr_min_vs">%1$s%2$d Min. ggü. Vorwoche</string>
+    <string name="forge_wr_pct_vs">%1$s%2$d %% ggü. Vorwoche</string>
+    <string name="forge_wr_this_vs_last">diese Woche ggü. letzter</string>
+    <string name="forge_wr_this_week">Diese Woche</string>
+    <string name="forge_wr_last_week">Letzte Woche</string>
+    <string name="forge_wr_hours_need">Stunden im Vergleich zum Bedarf</string>
+    <string name="forge_wr_asleep">Schlafend</string>
+    <string name="forge_wr_sleep">Schlaf</string>
+    <string name="forge_wr_steps">Schritte</string>
+    <string name="forge_wr_avg">im Schnitt</string>
+    <string name="forge_wr_load">Trainingsbelastung</string>
+    <string name="forge_wr_range">%1$s bis %2$s</string>
+    <string name="forge_wr_pair">%1$s, %2$s</string>
 </resources>

@@ -217,11 +217,10 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         ForgeOverlayPage(onDismiss = { weeklyOpen = false }) {
             ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
                 androidx.activity.compose.BackHandler { weeklyOpen = false }
-                Hosted(stringResource(R.string.forge_hv_weekly), onBack = { weeklyOpen = false }) {
-                    androidx.compose.foundation.layout.Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
-                        com.noop.ui.WeeklyDigestCard(viewModel)
-                    }
-                }
+                ForgeWeeklyReportPage(viewModel, onBack = { weeklyOpen = false },
+                    onAsk = if (com.noop.ui.BottomBarStyleStore.coachEnabled) { prompt ->
+                        com.noop.ui.CoachHandoff.pendingPrompt = prompt; weeklyOpen = false; selectTab(ForgeTab.Coach)
+                    } else null)
             }
         }
     }

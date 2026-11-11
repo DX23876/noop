@@ -5759,4 +5759,27 @@
     <string name="forge_fl_rhythm_age">Дневной ритм</string>
     <string name="forge_fl_rhythm_age_sub">Твой ритмический возраст по движению за день</string>
     <string name="forge_fl_ageless_sub">Твой возраст здоровья</string>
+    <string name="forge_wr_week">Неделя %1$d</string>
+    <string name="forge_wr_keep">Как это удержать?</string>
+    <string name="forge_wr_keep_prompt">Оглянись на мою неделю. Что получилось хорошо и как удержать это на следующей неделе?</string>
+    <string name="forge_wr_plan">Спланировать следующую неделю</string>
+    <string name="forge_wr_plan_prompt">Подведи итоги недели и помоги спланировать следующую: тренировки, сон и один фокус.</string>
+    <string name="forge_wr_vs_last">%1$s к прошлой неделе</string>
+    <string name="forge_wr_best_day">Лучший день</string>
+    <string name="forge_wr_charge_pct">Charge %1$d %%</string>
+    <string name="forge_wr_hardest">Самая тяжёлая тренировка</string>
+    <string name="forge_wr_h_avg">ч в среднем</string>
+    <string name="forge_wr_min_vs">%1$s%2$d мин к прошлой неделе</string>
+    <string name="forge_wr_pct_vs">%1$s%2$d %% к прошлой неделе</string>
+    <string name="forge_wr_this_vs_last">эта неделя к прошлой</string>
+    <string name="forge_wr_this_week">На этой неделе</string>
+    <string name="forge_wr_last_week">Прошлая неделя</string>
+    <string name="forge_wr_hours_need">часы относительно потребности</string>
+    <string name="forge_wr_asleep">Сон</string>
+    <string name="forge_wr_sleep">Сон</string>
+    <string name="forge_wr_steps">Шаги</string>
+    <string name="forge_wr_avg">в среднем</string>
+    <string name="forge_wr_load">Тренировочная нагрузка</string>
+    <string name="forge_wr_range">с %1$s по %2$s</string>
+    <string name="forge_wr_pair">%1$s, %2$s</string>
 </resources>

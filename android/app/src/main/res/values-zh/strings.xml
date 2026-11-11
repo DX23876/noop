@@ -5755,4 +5755,27 @@
     <string name="forge_fl_rhythm_age">日常节律</string>
     <string name="forge_fl_rhythm_age_sub">根据全天活动得出的节律年龄</string>
     <string name="forge_fl_ageless_sub">你的健康年龄</string>
+    <string name="forge_wr_week">第 %1$d 周</string>
+    <string name="forge_wr_keep">我怎样保持下去？</string>
+    <string name="forge_wr_keep_prompt">回顾我这一周。哪些做得好，下周怎样保持？</string>
+    <string name="forge_wr_plan">规划下周</string>
+    <string name="forge_wr_plan_prompt">回顾我的这一周，帮我规划下周：训练、睡眠和一个重点。</string>
+    <string name="forge_wr_vs_last">较上周 %1$s</string>
+    <string name="forge_wr_best_day">最佳单日</string>
+    <string name="forge_wr_charge_pct">Charge %1$d%%</string>
+    <string name="forge_wr_hardest">最累的一次训练</string>
+    <string name="forge_wr_h_avg">小时（平均）</string>
+    <string name="forge_wr_min_vs">较上周 %1$s%2$d 分钟</string>
+    <string name="forge_wr_pct_vs">较上周 %1$s%2$d%%</string>
+    <string name="forge_wr_this_vs_last">本周对比上周</string>
+    <string name="forge_wr_this_week">本周</string>
+    <string name="forge_wr_last_week">上周</string>
+    <string name="forge_wr_hours_need">小时数与需求对比</string>
+    <string name="forge_wr_asleep">已入睡</string>
+    <string name="forge_wr_sleep">睡眠</string>
+    <string name="forge_wr_steps">步数</string>
+    <string name="forge_wr_avg">平均</string>
+    <string name="forge_wr_load">训练负荷</string>
+    <string name="forge_wr_range">%1$s 至 %2$s</string>
+    <string name="forge_wr_pair">%1$s，%2$s</string>
 </resources>

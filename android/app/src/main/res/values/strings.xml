@@ -5825,4 +5825,27 @@
     <string name="forge_fl_rhythm_age">Daily rhythm</string>
     <string name="forge_fl_rhythm_age_sub">Your rhythm age from movement over the day</string>
     <string name="forge_fl_ageless_sub">Your health age</string>
+    <string name="forge_wr_week">Week %1$d</string>
+    <string name="forge_wr_keep">How do I keep this up?</string>
+    <string name="forge_wr_keep_prompt">Look back at my week. What went well, and how do I keep it up next week?</string>
+    <string name="forge_wr_plan">Plan next week</string>
+    <string name="forge_wr_plan_prompt">Look back at my week and help me plan next week: training, sleep and one focus.</string>
+    <string name="forge_wr_vs_last">%1$s vs last week</string>
+    <string name="forge_wr_best_day">Best day</string>
+    <string name="forge_wr_charge_pct">Charge %1$d %%</string>
+    <string name="forge_wr_hardest">Hardest session</string>
+    <string name="forge_wr_h_avg">h avg</string>
+    <string name="forge_wr_min_vs">%1$s%2$d min vs last week</string>
+    <string name="forge_wr_pct_vs">%1$s%2$d %% vs last week</string>
+    <string name="forge_wr_this_vs_last">this week vs last week</string>
+    <string name="forge_wr_this_week">This week</string>
+    <string name="forge_wr_last_week">Last week</string>
+    <string name="forge_wr_hours_need">hours against your need</string>
+    <string name="forge_wr_asleep">Asleep</string>
+    <string name="forge_wr_sleep">Sleep</string>
+    <string name="forge_wr_steps">Steps</string>
+    <string name="forge_wr_avg">avg</string>
+    <string name="forge_wr_load">Training load</string>
+    <string name="forge_wr_range">%1$s to %2$s</string>
+    <string name="forge_wr_pair">%1$s, %2$s</string>
 </resources>

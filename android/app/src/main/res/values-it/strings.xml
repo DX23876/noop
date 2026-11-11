@@ -5754,4 +5754,27 @@
     <string name="forge_fl_rhythm_age">Ritmo quotidiano</string>
     <string name="forge_fl_rhythm_age_sub">La tua età del ritmo dal movimento nella giornata</string>
     <string name="forge_fl_ageless_sub">La tua età di salute</string>
+    <string name="forge_wr_week">Settimana %1$d</string>
+    <string name="forge_wr_keep">Come lo mantengo?</string>
+    <string name="forge_wr_keep_prompt">Ripercorri la mia settimana. Cosa è andato bene e come lo mantengo la prossima settimana?</string>
+    <string name="forge_wr_plan">Pianifica la prossima settimana</string>
+    <string name="forge_wr_plan_prompt">Ripercorri la mia settimana e aiutami a pianificare la prossima: allenamento, sonno e una priorità.</string>
+    <string name="forge_wr_vs_last">%1$s rispetto alla settimana scorsa</string>
+    <string name="forge_wr_best_day">Giorno migliore</string>
+    <string name="forge_wr_charge_pct">Charge %1$d %%</string>
+    <string name="forge_wr_hardest">Sessione più dura</string>
+    <string name="forge_wr_h_avg">h in media</string>
+    <string name="forge_wr_min_vs">%1$s%2$d min rispetto alla settimana scorsa</string>
+    <string name="forge_wr_pct_vs">%1$s%2$d %% rispetto alla settimana scorsa</string>
+    <string name="forge_wr_this_vs_last">questa settimana rispetto alla scorsa</string>
+    <string name="forge_wr_this_week">Questa settimana</string>
+    <string name="forge_wr_last_week">La settimana scorsa</string>
+    <string name="forge_wr_hours_need">ore rispetto al tuo fabbisogno</string>
+    <string name="forge_wr_asleep">Addormentato</string>
+    <string name="forge_wr_sleep">Sonno</string>
+    <string name="forge_wr_steps">Passi</string>
+    <string name="forge_wr_avg">in media</string>
+    <string name="forge_wr_load">Carico di allenamento</string>
+    <string name="forge_wr_range">dal %1$s al %2$s</string>
+    <string name="forge_wr_pair">%1$s, %2$s</string>
 </resources>
