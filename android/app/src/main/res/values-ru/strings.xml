@@ -5005,6 +5005,10 @@
     <string name="forge_st_not_synced">Ещё не синхронизировано</string>
     <string name="forge_st_synced">Синхронизировано %1$s</string>
     <string name="forge_pair_words">%1$s %2$s</string>
+    <string name="forge_w_what_works">Что помогает вашему Charge</string>
+    <string name="forge_w_what_works_sub">Широкий · привычка, сильнее всего влияющая на ваш Charge</string>
+    <string name="forge_ww_empty">Отвечайте в дневнике несколько недель, чтобы увидеть, что влияет на ваш Charge.</string>
+    <string name="forge_ww_pct">%1$s%2$d %%</string>
     <string name="forge_w_next">Следующая тренировка</string>
     <string name="forge_w_next_sub">Широкий · ваша следующая запланированная программа, готова к старту</string>
     <string name="forge_nx_next_up">Далее · %1$s</string>

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Battery5Bar
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.WbSunny
@@ -312,6 +313,57 @@ internal fun TodayNextSessionForge(onOpenTraining: () -> Unit) {
                         Text(entry.day.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, locale),
                              style = Forge.type.caption.copy(fontWeight = if (entry.day == today) FontWeight.Bold else FontWeight.Normal),
                              color = colors.textSecondary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Fork (DX23876), Forge parity 2026-11: Today's "What works for your Charge" card, as iOS's `ForgeWhatWorksWidget`:
+ * the three journal habits that moved Charge the most, from the same ranking the Insights page draws, each on a bar
+ * out from the middle (right raised it, left lowered it) in the colours of better and worse. Opens Insights. iOS
+ * gives each habit its own symbol; Android has no such table yet, so every row carries the journal's.
+ */
+@Composable
+internal fun TodayWhatWorksForge(viewModel: AppViewModel, onOpen: () -> Unit) {
+    val colors = Forge.colors
+    val days by viewModel.recentDays.collectAsState()
+    val hub = remember { com.noop.ui.InsightsHubViewModel() }
+    val state by hub.state.collectAsState()
+    LaunchedEffect(days) { withContext(Dispatchers.IO) { hub.load(viewModel, days) } }
+    val top = remember(state) { hub.rankFor(state, com.noop.ui.InsightsOutcome.Recovery).take(3) }
+    ForgeCard(Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
+        WidgetHead(stringResource(R.string.forge_w_what_works))
+        if (top.isEmpty()) {
+            if (state.loaded) Text(stringResource(R.string.forge_ww_empty), style = Forge.type.caption, color = colors.textSecondary)
+        } else {
+            val widest = top.maxOf { kotlin.math.abs(it.effect.pctChange ?: 0.0) }.coerceAtLeast(1.0)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                top.forEach { r ->
+                    val pct = r.effect.pctChange ?: 0.0
+                    val tint = if (pct >= 0) colors.charge else colors.effort
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(24.dp).background(colors.accent.copy(alpha = 0.16f), RoundedCornerShape(6.dp)),
+                                contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.EditNote, contentDescription = null, tint = colors.accent, modifier = Modifier.size(14.dp))
+                            }
+                            Text(r.behavior, style = Forge.type.footnote.copy(fontWeight = FontWeight.Medium), color = colors.text,
+                                 maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                            Text(stringResource(R.string.forge_ww_pct, if (pct >= 0) "+" else "−", Math.round(kotlin.math.abs(pct)).toInt()),
+                                 style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+                        }
+                        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().height(6.dp)
+                                .background(colors.textSecondary.copy(alpha = 0.14f), CircleShape)) {
+                            val half = maxWidth / 2
+                            val width = maxOf(4.dp, half * (kotlin.math.abs(pct) / widest).toFloat())
+                            Box(Modifier.padding(start = half).width(1.dp).height(6.dp).background(colors.textSecondary.copy(alpha = 0.4f)))
+                            Box(Modifier.padding(start = if (pct >= 0) half else half - width).width(width).height(6.dp)
+                                    .background(tint, CircleShape))
+                        }
                     }
                 }
             }

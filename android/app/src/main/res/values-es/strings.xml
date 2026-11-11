@@ -5102,6 +5102,10 @@
     <string name="forge_st_not_synced">Aún no sincronizado</string>
     <string name="forge_st_synced">Sincronizado %1$s</string>
     <string name="forge_pair_words">%1$s %2$s</string>
+    <string name="forge_w_what_works">Qué ayuda a tu Charge</string>
+    <string name="forge_w_what_works_sub">Ancho · el hábito que más mueve tu Charge</string>
+    <string name="forge_ww_empty">Responde al diario unas semanas para ver qué mueve tu Charge.</string>
+    <string name="forge_ww_pct">%1$s%2$d %%</string>
     <string name="forge_w_next">Próxima sesión</string>
     <string name="forge_w_next_sub">Ancho · tu próxima rutina planificada, lista para empezar</string>
     <string name="forge_nx_next_up">A continuación · %1$s</string>

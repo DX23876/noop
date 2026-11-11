@@ -5072,6 +5072,10 @@
     <string name="forge_st_not_synced">尚未同步</string>
     <string name="forge_st_synced">%1$s已同步</string>
     <string name="forge_pair_words">%1$s %2$s</string>
+    <string name="forge_w_what_works">什么对你的 Charge 有帮助</string>
+    <string name="forge_w_what_works_sub">宽 · 最影响你 Charge 的习惯</string>
+    <string name="forge_ww_empty">坚持填写几周日记，就能看到什么在影响你的 Charge。</string>
+    <string name="forge_ww_pct">%1$s%2$d %%</string>
     <string name="forge_w_next">下一次训练</string>
     <string name="forge_w_next_sub">宽 · 下一个计划的训练，随时开始</string>
     <string name="forge_nx_next_up">接下来 · %1$s</string>

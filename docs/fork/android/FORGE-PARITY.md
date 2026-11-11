@@ -134,7 +134,9 @@ Today
   `--ez demo_widgets true` seeds every card in a debug build, as iOS's `--demo-widgets`.
 - Strap opens Settings (Android has no battery page) and leaves out iOS's "Off the wrist" line, since Android's
   live state keeps only the latest strap event of any kind.
-- Still to draw as iOS's: What changed (better and worse), What helps your Charge (bars), Goals (journeys).
+- Done 2026-11-11: What works for your Charge, from the Insights ranking. Its bars are unchecked on screen: the
+  demo has no journal answers. Every row carries the journal symbol, since Android has no per-habit symbols.
+- Still to draw as iOS's: What changed (better and worse), Goals (journeys).
 - The timeline's head "Tagesverlauf" with "Show all".
 
 Training
