@@ -3,6 +3,7 @@ import SwiftUI
 import Charts
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 
 /// The cycle as one place (prototype board "CycleWheel", 2026-11): the cycle day on a dial of real days, the
@@ -21,7 +22,6 @@ struct ForgeCycleView: View {
     @State private var showingHistory = false
     @State private var scrolledPast = false
     @State private var pattern: CycleTrainingPattern.Result?
-    @StateObject private var strength = StrengthModel()
     @AppStorage(ForgeCyclePush.learningKey) private var learning = true
     @AppStorage(ForgeCycleSnapshot.fertileKey) private var showFertile = true
 
@@ -74,26 +74,12 @@ struct ForgeCycleView: View {
                                        today: Date(), showFertile: showFertile)
     }
 
-    /// The wearer's own sessions by phase: whole-session RPE where rated, else the mean set RPE, and each
-    /// strength session's volume against the usual for that routine.
-    private func learnPattern() async -> CycleTrainingPattern.Result {
-        strength.range = .year
-        await strength.load(repo: repo)
-        let now = Int(Date().timeIntervalSince1970)
-        let rated = await repo.sessionRPEEntries(from: now - 400 * 86_400, to: now)
-        var used = Set<String>()
-        var sessions: [CycleTrainingPattern.Session] = []
-        for s in strength.summaries {
-            let match = rated.first { abs($0.startTs - s.startTs) <= 1_800 }
-            if let match { used.insert(match.id) }
-            sessions.append(.init(day: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(s.startTs))),
-                                  rpe: match?.rpe ?? s.meanRpe, volumeKg: s.volumeLoadKg > 0 ? s.volumeLoadKg : nil, kind: s.title))
-        }
-        for r in rated where !used.contains(r.id) {
-            sessions.append(.init(day: Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(r.startTs))), rpe: r.rpe))
-        }
-        return CycleTrainingPattern.analyse(sessions: sessions, cycles: ForgeCycleSnapshot.cycles(starts: starts, log: log,
-                                                                                                  result: appModel.cyclePhase))
+    /// The wearer's own sessions by phase, through the reading the Android core shares (`CyclePatternReading`).
+    private func learnPattern() async -> CycleTrainingPattern.Result? {
+        guard let store = await repo.storeHandle() else { return nil }
+        return await CyclePatternReading.learn(reader: repo.storeReader(store),
+            cycles: CycleSnapshot.cycles(starts: starts, log: log, result: appModel.cyclePhase),
+            dismissedWorkouts: UserDefaults.standard.stringArray(forKey: WorkoutSource.dismissedDefaultsKey) ?? [])
     }
 
     // MARK: Opt-in
@@ -318,35 +304,23 @@ struct ForgeCycleView: View {
 
 // MARK: - Snapshot
 
-/// Everything the page draws, worked out once from the engine's result, the logged starts and days, and
-/// the nights. Nothing here is a new estimate: it reads the engine's phase, shift and window and counts days.
-struct ForgeCycleSnapshot {
-    var cycleDay: Int?
-    var dayRange: ClosedRange<Int>?
-    var length: Int
-    var phase: ForgeCyclePhase?
-    var shiftDay: Int?
-    var periodLength: Int
-    /// The likely next-period window, in days from today.
-    var nextWindow: ClosedRange<Int>?
-    var temps: [(day: Int, value: Double)] = []
-    var startDate: Date?
-    var periodDays: Set<String> = []
-    var compare: Compare?
-    var cyclesSeen: Int
-    var engineConfidence: CyclePhaseEngine.Confidence?
-    var moodsThisPhase: [String: Int] = [:]
-    /// The rough fertile-days estimate of this cycle, when it may be shown.
-    var fertile: FertileWindow.Estimate?
-    /// Date keys of this cycle's likely fertile days, for the calendar.
-    var fertileDays: Set<String> = []
+/// The page's snapshot is the shared `CycleSnapshot` (`CycleReading.swift`, also the Android core's); the iPhone
+/// adds the wording and the dates it shows.
+typealias ForgeCycleSnapshot = CycleSnapshot
 
+extension CycleSnapshot {
     static let fertileKey = "noopCycleShowFertile"
 
-    var fertileStatus: FertileWindow.Status? {
-        guard let fertile, let cycleDay else { return nil }
-        return FertileWindow.status(fertile, cycleDay: cycleDay)
+    static func make(result: CyclePhaseEngine.Result?, starts: [String], log: [String: CycleLog.Day],
+                     days: [DailyMetric], today: Date, showFertile: Bool = false) -> CycleSnapshot {
+        make(result: result, starts: starts, log: log, days: days, today: Repository.localDayKey(today), showFertile: showFertile)
     }
+
+    /// The first day of this cycle as a local date.
+    var startDate: Date? { startDay.flatMap { Self.dayFormatter.date(from: $0) }.map { Calendar.current.startOfDay(for: $0) } }
+
+    /// The first likely fertile day as a date, while it still lies ahead; what the reminder arms.
+    var fertileStartAhead: Date? { fertileStartDayAhead.flatMap { Self.dayFormatter.date(from: $0) } }
 
     /// The status line under the dial and on the cards.
     var fertileLine: (title: String, detail: String?)? {
@@ -361,33 +335,6 @@ struct ForgeCycleSnapshot {
             return nil
         }
     }
-
-    /// The first likely fertile day as a date, while it still lies ahead; what the reminder arms.
-    var fertileStartAhead: Date? {
-        guard case .before? = fertileStatus, let fertile, let startDate else { return nil }
-        return Calendar.current.date(byAdding: .day, value: fertile.firstDay - 1, to: startDate)
-    }
-
-    func isFertile(day d: Int) -> Bool {
-        guard let fertile else { return false }
-        return (fertile.firstDay...fertile.lastDay).contains(d)
-    }
-
-    /// This cycle's luteal nights against its first half, for the Body, Exercise and Mind cards.
-    struct Compare {
-        var tempDelta: Double?
-        var rhrDelta: Double?
-        var hrvDelta: Double?
-        var chargeNow: Double?
-        var chargeBefore: Double?
-        var wakeNow: Double?
-        var wakeBefore: Double?
-    }
-
-    var wheelDays: Int { min(45, max(length, cycleDay ?? 0, (cycleDay ?? 0) + (nextWindow?.upperBound ?? 0))) }
-    var todayOnWheel: Int? { cycleDay ?? dayRange.map { ($0.lowerBound + $0.upperBound) / 2 } }
-    var tempFloor: Double { min(-0.4, (temps.map(\.value).min() ?? 0) - 0.1) }
-    var tempCeiling: Double { max(0.5, (temps.map(\.value).max() ?? 0) + 0.1) }
 
     var cycleDayText: String {
         if let cycleDay { return String(localized: "Day \(cycleDay)") }
@@ -404,146 +351,6 @@ struct ForgeCycleSnapshot {
 
     var historyLine: String {
         cyclesSeen > 1 ? String(localized: "\(cyclesSeen) cycles logged") : String(localized: "Every period start you logged")
-    }
-
-    /// The phase colour of one day of this cycle on the dial.
-    func phase(onDay d: Int) -> ForgeCyclePhase? {
-        if d <= periodLength, cycleDay != nil { return .period }
-        guard let shift = shiftDay else { return (todayOnWheel.map { d <= $0 } ?? false) ? .follicular : nil }
-        if d < shift - 1 { return .follicular }
-        if d <= shift + 1 { return .shift }
-        return .luteal
-    }
-
-    static func make(result: CyclePhaseEngine.Result?, starts: [String], log: [String: CycleLog.Day],
-                     days: [DailyMetric], today: Date, showFertile: Bool = false) -> ForgeCycleSnapshot {
-        let cal = Calendar.current
-        let todayStart = cal.startOfDay(for: today)
-        func date(_ key: String) -> Date? { dayFormatter.date(from: key).map { cal.startOfDay(for: $0) } }
-        func diff(_ a: Date, _ b: Date) -> Int { cal.dateComponents([.day], from: a, to: b).day ?? 0 }
-
-        // The current cycle runs from the newest logged start, if it is recent enough to still be this cycle.
-        let lastStart = starts.compactMap(date).filter { $0 <= todayStart }.max()
-        let current = lastStart.flatMap { diff($0, todayStart) <= 45 ? $0 : nil }
-        let cycleDay = current.map { diff($0, todayStart) + 1 }
-
-        // The usual length: the engine's, else the median gap between logged starts, else none to claim.
-        let starDates = starts.compactMap(date).sorted()
-        let gaps = zip(starDates, starDates.dropFirst()).map { diff($0, $1) }.filter { (21...40).contains($0) }.sorted()
-        let length = result?.cycleLengthDays ?? (gaps.isEmpty ? CyclePhaseEngine.defaultCycleDays : gaps[gaps.count / 2])
-
-        // Period days: from each start, the days with flow logged, else the first five.
-        var periodDays = Set<String>()
-        for s in starDates {
-            let window = (0..<10).compactMap { cal.date(byAdding: .day, value: $0, to: s) }.map(Repository.localDayKey)
-            let flowed = window.enumerated().filter { log[$0.element]?.flow != nil }.map(\.offset)
-            let n = max(flowed.max().map { $0 + 1 } ?? 5, 1)
-            window.prefix(n).forEach { periodDays.insert($0) }
-        }
-        for (k, d) in log where d.flow != nil { periodDays.insert(k) }
-        var periodLength = 5
-        if let current {
-            let window = (0..<10).compactMap { cal.date(byAdding: .day, value: $0, to: current) }.map(Repository.localDayKey)
-            if let last = window.enumerated().filter({ log[$0.element]?.flow != nil }).map(\.offset).max() { periodLength = last + 1 }
-        }
-
-        // The engine's shift marker inside this cycle, as a cycle day.
-        let shiftDay: Int? = current.flatMap { start in
-            result?.shiftMarkers.compactMap { date($0.day) }.filter { $0 > start && $0 <= todayStart }.max().map { diff(start, $0) + 1 }
-        }
-
-        // The phase: the logged period first (the wearer's own fact), then the engine's read.
-        var phase: ForgeCyclePhase?
-        if let cycleDay, cycleDay <= periodLength {
-            phase = .period
-        } else if let cycleDay, let shiftDay {
-            // The rise found inside THIS cycle places today, so the dial and the cards agree.
-            phase = cycleDay < shiftDay - 1 ? .follicular : (cycleDay <= shiftDay + 1 ? .shift : .luteal)
-        } else if let result {
-            switch result.phase {
-            case .follicular: phase = .follicular
-            case .periOvulatory: phase = .shift
-            case .luteal: phase = .luteal
-            case .unknown, .learning: phase = nil
-            }
-        }
-
-        let nextWindow: ClosedRange<Int>? = result?.nextPeriodWindow.flatMap { w in
-            guard let a = date(w.earliestDay), let b = date(w.latestDay) else { return nil }
-            let lo = diff(todayStart, a), hi = diff(todayStart, b)
-            return hi < lo ? nil : lo...hi
-        }
-
-        var snap = ForgeCycleSnapshot(cycleDay: cycleDay,
-                                      dayRange: (result?.cycleDayLow).flatMap { lo in result?.cycleDayHigh.map { lo...max(lo, $0) } },
-                                      length: length, phase: phase, shiftDay: shiftDay, periodLength: periodLength,
-                                      nextWindow: nextWindow, startDate: current, periodDays: periodDays,
-                                      cyclesSeen: starts.count, engineConfidence: result?.confidence)
-
-        // The nights of this cycle, by cycle day.
-        if let current {
-            let byDay = Dictionary(days.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
-            var nights: [(day: Int, metric: DailyMetric)] = []
-            for offset in 0..<(cycleDay ?? 0) {
-                guard let d = cal.date(byAdding: .day, value: offset, to: current),
-                      let m = byDay[Repository.localDayKey(d)] else { continue }
-                nights.append((offset + 1, m))
-            }
-            snap.temps = nights.compactMap { n in n.metric.skinTempDevC.map { (n.day, $0) } }
-            if let shiftDay, phase == .luteal {
-                let before = nights.filter { $0.day > periodLength && $0.day < shiftDay - 1 }.map(\.metric)
-                let after = nights.filter { $0.day > shiftDay + 1 }.map(\.metric)
-                func mean(_ xs: [Double]) -> Double? { xs.count >= 3 ? xs.reduce(0, +) / Double(xs.count) : nil }
-                func delta(_ f: (DailyMetric) -> Double?) -> Double? {
-                    guard let a = mean(after.compactMap(f)), let b = mean(before.compactMap(f)) else { return nil }
-                    return a - b
-                }
-                snap.compare = Compare(tempDelta: delta { $0.skinTempDevC },
-                                       rhrDelta: delta { $0.restingHr.map(Double.init) },
-                                       hrvDelta: delta { $0.avgHrv },
-                                       chargeNow: mean(after.compactMap(\.recovery)),
-                                       chargeBefore: mean(before.compactMap(\.recovery)),
-                                       wakeNow: mean(after.compactMap { $0.disturbances.map(Double.init) }),
-                                       wakeBefore: mean(before.compactMap { $0.disturbances.map(Double.init) }))
-                for n in nights where n.day > shiftDay + 1 {
-                    let key = n.metric.day
-                    for m in log[key]?.moods ?? [] { snap.moodsThisPhase[m, default: 0] += 1 }
-                }
-            }
-        }
-        if showFertile, let current, let cycleDay {
-            // The rise days of completed past cycles, newest first, then this cycle's own rise or test.
-            let all = cycles(starts: starts, log: log, result: result).sorted { $0.start > $1.start }
-            let pastRises: [Int] = all.dropFirst().compactMap { c in
-                guard let shift = c.shift, let a = date(c.start), let b = date(shift) else { return nil }
-                return diff(a, b) + 1
-            }
-            let testDay = (0..<cycleDay).first { offset in
-                cal.date(byAdding: .day, value: offset, to: current).map { log[Repository.localDayKey($0)]?.ovulationTest == true } ?? false
-            }.map { $0 + 1 }
-            if let estimate = FertileWindow.estimate(pastRiseDays: pastRises, currentRiseDay: shiftDay, positiveTestDay: testDay) {
-                snap.fertile = estimate
-                for d in estimate.firstDay...estimate.lastDay {
-                    if let date = cal.date(byAdding: .day, value: d - 1, to: current) { snap.fertileDays.insert(Repository.localDayKey(date)) }
-                }
-            }
-        }
-        return snap
-    }
-
-    /// Every logged cycle with the temperature rise the engine found inside it, for the training pattern.
-    static func cycles(starts: [String], log: [String: CycleLog.Day], result: CyclePhaseEngine.Result?) -> [CycleTrainingPattern.Cycle] {
-        let sorted = starts.sorted()
-        let shifts = (result?.shiftMarkers ?? []).map(\.day).sorted()
-        return sorted.enumerated().map { i, start in
-            let end = i + 1 < sorted.count ? sorted[i + 1] : "9999-12-31"
-            let shift = shifts.first { $0 > start && $0 < end }
-            let window = (0..<10).compactMap { offset in
-                dayFormatter.date(from: start).flatMap { Calendar.current.date(byAdding: .day, value: offset, to: $0) }
-            }.map(Repository.localDayKey)
-            let flowed = window.enumerated().filter { log[$0.element]?.flow != nil }.map(\.offset).max()
-            return CycleTrainingPattern.Cycle(start: start, shift: shift, periodDays: flowed.map { $0 + 1 } ?? 5)
-        }
     }
 
     static let dayFormatter: DateFormatter = {
@@ -991,12 +798,7 @@ struct ForgeCycleLogSheet: View {
 
     private func save() async {
         saving = true
-        await repo.saveCycleLog(day: day, draft, previous: existing)
-        if draft.flow != nil, existing.flow == nil {
-            let recent = starts.compactMap { ForgeCycleSnapshot.dayFormatter.date(from: $0) }
-                .contains { abs($0.timeIntervalSince(ForgeCycleSnapshot.dayFormatter.date(from: day) ?? Date())) < 10 * 86_400 }
-            if !recent { await repo.logPeriodStart(day: day) }
-        }
+        await repo.saveCycleLogLoggingStart(day: day, draft, previous: existing, starts: starts)
         await onSaved()
         dismiss()
     }

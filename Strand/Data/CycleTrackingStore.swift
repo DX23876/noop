@@ -9,13 +9,8 @@ import WhoopStore
 // `CycleTrackingStore`: same source id, key, value, local ISO day, ordering, and real-delete semantics.
 // No schema change is needed and no data leaves the device.
 
-enum CycleTrackingStore {
-    static let sourceId = "noop-cycle"
-    static let periodStartKey = "period_start"
-    static let loggedValue = 1.0
-    static let earliestDay = "0000-01-01"
-    static let latestDay = "9999-12-31"
-}
+// `CycleTrackingStore` itself (source, key and the store reads) is shared with the Android core in
+// `CycleReading.swift`; these are the iPhone's entry points.
 
 extension Repository {
 
@@ -24,19 +19,13 @@ extension Repository {
     func periodStarts(from: String = CycleTrackingStore.earliestDay,
                       to: String = CycleTrackingStore.latestDay) async -> [String] {
         guard let store = await storeHandle() else { return [] }
-        let rows = (try? await store.metricSeries(deviceId: CycleTrackingStore.sourceId,
-                                                  key: CycleTrackingStore.periodStartKey,
-                                                  from: from, to: to)) ?? []
-        return rows.filter { $0.value >= CycleTrackingStore.loggedValue }.map(\.day)
+        return await CycleTrackingStore.periodStarts(store: store, from: from, to: to)
     }
 
     /// Log (or idempotently re-log) one local calendar day as cycle day 1.
     func logPeriodStart(day: String) async {
         guard let store = await storeHandle() else { return }
-        _ = try? await store.upsertMetricSeries(
-            [MetricPoint(day: day, key: CycleTrackingStore.periodStartKey,
-                         value: CycleTrackingStore.loggedValue)],
-            deviceId: CycleTrackingStore.sourceId)
+        await CycleTrackingStore.logPeriodStart(store: store, day: day)
         noteCycleTrackingChanged()
     }
 

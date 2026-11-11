@@ -9,27 +9,10 @@ import WhoopStore
 // each symptom and each mood is its own value-1 row (`symptom.cramps`, `mood.irritable`), and clearing one
 // is a real row delete. None of it feeds the cycle estimate, which reads the nights and the logged starts.
 
-enum CycleLog {
-    static let flowKey = "flow"
-    static let symptomPrefix = "symptom."
-    static let moodPrefix = "mood."
-    /// A positive ovulation (LH) test on that day.
-    static let ovulationTestKey = "ovulation_test"
-
-    enum Flow: Int, CaseIterable, Identifiable {
-        case spotting = 1, light, medium, heavy
-        var id: Int { rawValue }
-        var title: String {
-            switch self {
-            case .spotting: return String(localized: "Spotting")
-            case .light: return String(localized: "Light")
-            case .medium: return String(localized: "Medium")
-            case .heavy: return String(localized: "Heavy")
-            }
-        }
-    }
-
-    /// Stable ids (they are storage keys) with their display names, in the order the sheet shows them.
+// The log's storage and keys are shared with the Android core (`CycleLog` in `CycleReading.swift`); the iPhone
+// adds the names it shows.
+extension CycleLog {
+    /// The ids with their display names, in the order the sheet shows them.
     static let symptoms: [(id: String, title: String)] = [
         ("cramps", String(localized: "Cramps")), ("headache", String(localized: "Headache")),
         ("bloating", String(localized: "Bloating")), ("tender_breasts", String(localized: "Tender breasts")),
@@ -41,14 +24,16 @@ enum CycleLog {
         ("irritable", String(localized: "Irritable")), ("low", String(localized: "Low")),
         ("anxious", String(localized: "Anxious")), ("sensitive", String(localized: "Sensitive")),
     ]
+}
 
-    /// One day's notes.
-    struct Day: Equatable {
-        var flow: Flow?
-        var symptoms: Set<String> = []
-        var moods: Set<String> = []
-        var ovulationTest = false
-        var isEmpty: Bool { flow == nil && symptoms.isEmpty && moods.isEmpty && !ovulationTest }
+extension CycleLog.Flow {
+    var title: String {
+        switch self {
+        case .spotting: return String(localized: "Spotting")
+        case .light: return String(localized: "Light")
+        case .medium: return String(localized: "Medium")
+        case .heavy: return String(localized: "Heavy")
+        }
     }
 }
 
@@ -57,50 +42,20 @@ extension Repository {
     /// Every logged cycle day in the range, by "yyyy-MM-dd".
     func cycleLog(from: String, to: String) async -> [String: CycleLog.Day] {
         guard let store = await storeHandle() else { return [:] }
-        let keys = ((try? await store.metricKeys(deviceId: CycleTrackingStore.sourceId)) ?? [])
-            .filter { $0 == CycleLog.flowKey || $0 == CycleLog.ovulationTestKey || $0.hasPrefix(CycleLog.symptomPrefix) || $0.hasPrefix(CycleLog.moodPrefix) }
-        var out: [String: CycleLog.Day] = [:]
-        for key in keys {
-            let rows = (try? await store.metricSeries(deviceId: CycleTrackingStore.sourceId, key: key, from: from, to: to)) ?? []
-            for row in rows {
-                var day = out[row.day] ?? CycleLog.Day()
-                if key == CycleLog.flowKey {
-                    day.flow = CycleLog.Flow(rawValue: Int(row.value.rounded()))
-                } else if key == CycleLog.ovulationTestKey {
-                    day.ovulationTest = row.value >= 1
-                } else if key.hasPrefix(CycleLog.symptomPrefix), row.value >= 1 {
-                    day.symptoms.insert(String(key.dropFirst(CycleLog.symptomPrefix.count)))
-                } else if key.hasPrefix(CycleLog.moodPrefix), row.value >= 1 {
-                    day.moods.insert(String(key.dropFirst(CycleLog.moodPrefix.count)))
-                }
-                out[row.day] = day
-            }
-        }
-        return out
+        return await CycleLog.read(store: store, from: from, to: to)
     }
 
     /// Replace one day's notes with `log`: rows that are no longer set are deleted, not zeroed.
     func saveCycleLog(day: String, _ log: CycleLog.Day, previous: CycleLog.Day) async {
         guard let store = await storeHandle() else { return }
-        let source = CycleTrackingStore.sourceId
-        var upserts: [MetricPoint] = []
-        var deletes: [String] = []
-        if let flow = log.flow {
-            upserts.append(MetricPoint(day: day, key: CycleLog.flowKey, value: Double(flow.rawValue)))
-        } else if previous.flow != nil {
-            deletes.append(CycleLog.flowKey)
-        }
-        if log.ovulationTest {
-            upserts.append(MetricPoint(day: day, key: CycleLog.ovulationTestKey, value: 1))
-        } else if previous.ovulationTest {
-            deletes.append(CycleLog.ovulationTestKey)
-        }
-        for id in log.symptoms { upserts.append(MetricPoint(day: day, key: CycleLog.symptomPrefix + id, value: 1)) }
-        for id in previous.symptoms.subtracting(log.symptoms) { deletes.append(CycleLog.symptomPrefix + id) }
-        for id in log.moods { upserts.append(MetricPoint(day: day, key: CycleLog.moodPrefix + id, value: 1)) }
-        for id in previous.moods.subtracting(log.moods) { deletes.append(CycleLog.moodPrefix + id) }
-        if !upserts.isEmpty { _ = try? await store.upsertMetricSeries(upserts, deviceId: source) }
-        for key in deletes { _ = try? await store.deleteMetricSeriesPoint(deviceId: source, day: day, key: key) }
+        await CycleLog.save(store: store, day: day, log, previous: previous)
+        noteCycleTrackingChanged()
+    }
+
+    /// Saves today's notes, logging a new period start when flow begins with none in the last ten days.
+    func saveCycleLogLoggingStart(day: String, _ log: CycleLog.Day, previous: CycleLog.Day, starts: [String]) async {
+        guard let store = await storeHandle() else { return }
+        await CycleLog.saveLoggingStart(store: store, day: day, log, previous: previous, starts: starts)
         noteCycleTrackingChanged()
     }
 }

@@ -1,14 +1,15 @@
 package com.noop.core
 
 import android.content.Context
+import com.noop.analytics.CyclePhaseEngine
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Fork (DX23876), Forge parity 2026-11: the cycle page's two shared reads (`CoreCycle` in NoopCore), the rough
- * fertile-days estimate (`FertileWindow`) and whether the wearer's own training differs by phase
- * (`CycleTrainingPattern`), learned from the same strength sessions and ratings as on iOS. Blocking; call off the
- * main thread. Analysis migration required: no.
+ * Fork (DX23876), Forge parity 2026-11: the cycle from the shared core (`CoreCycle` in NoopCore over
+ * `CycleReading.swift`, the reading the iPhone runs): the phase from the nights, the page's snapshot with the
+ * fertile-days estimate, the training pattern and the day log. Android only words and draws it. Blocking; call off
+ * the main thread. Analysis migration required: no.
  */
 object CoreCycle {
     data class Fertile(val firstDay: Int, val lastDay: Int, val basis: String, val pastRiseDays: List<Int>,
@@ -20,49 +21,115 @@ object CoreCycle {
     data class Pattern(val cyclesUsed: Int, val progressCycles: Int, val progressRated: Int, val minCycles: Int,
                        val minSessionsPerPhase: Int, val rpeThreshold: Double, val verdicts: Map<String, Verdict>)
 
-    /** One logged cycle for the pattern: its start, the temperature rise found inside it and its period length. */
-    data class Cycle(val start: String, val shift: String?, val periodDays: Int)
+    /** One day's notes. [flow] is 1 spotting, 2 light, 3 medium, 4 heavy. */
+    data class LogDay(val flow: Int? = null, val symptoms: Set<String> = emptySet(), val moods: Set<String> = emptySet(),
+                      val ovulationTest: Boolean = false)
 
-    fun fertile(pastRiseDays: List<Int>, currentRiseDay: Int?, positiveTestDay: Int?, cycleDay: Int?): Fertile? {
-        if (!SwiftCore.available) return null
-        val args = JSONObject().put("pastRiseDays", JSONArray(pastRiseDays))
-        currentRiseDay?.let { args.put("currentRiseDay", it) }
-        positiveTestDay?.let { args.put("positiveTestDay", it) }
-        cycleDay?.let { args.put("cycleDay", it) }
-        return SwiftCore.call("cycle.fertile", args.toString())?.let(::parseFertile)
-    }
+    data class Compare(val tempDelta: Double?, val rhrDelta: Double?, val hrvDelta: Double?, val chargeNow: Double?,
+                       val chargeBefore: Double?, val wakeNow: Double?, val wakeBefore: Double?)
 
-    fun pattern(context: Context, cycles: List<Cycle>, dismissedWorkouts: List<String>): Pattern? {
+    /** The page's snapshot as the core worked it out (`CycleSnapshot`). */
+    data class Snapshot(
+        val cycleDay: Int?, val dayRange: IntRange?, val length: Int, val phase: String?, val shiftDay: Int?,
+        val periodLength: Int, val nextWindow: IntRange?, val temps: List<Pair<Int, Double>>, val startDay: String?,
+        val periodDays: Set<String>, val compare: Compare?, val cyclesSeen: Int, val confidence: String?,
+        val moodsThisPhase: Map<String, Int>, val fertile: Fertile?, val fertileDays: Set<String>,
+        val fertileStartDayAhead: String?,
+        /** The phase each day of the dial is drawn in, day 1 first. */
+        val dayPhases: List<String?> = emptyList(),
+    )
+
+    data class Output(val today: String, val starts: List<String>, val todayLog: LogDay, val result: CyclePhaseEngine.Result?,
+                      val snapshot: Snapshot, val pattern: Pattern?)
+
+    /** Stable storage ids, in the order the log sheet shows them (`CycleLog.symptomIds`, `moodIds`). */
+    val SYMPTOMS = listOf("cramps", "headache", "bloating", "tender_breasts", "back_pain", "acne", "tired", "cravings")
+    val MOODS = listOf("calm", "happy", "irritable", "low", "anxious", "sensitive")
+
+    fun read(context: Context, showFertile: Boolean, learning: Boolean, dismissedWorkouts: List<String>): Output? {
         if (!SwiftCore.available) return null
         CoreRead.open(context)
-        val list = JSONArray()
-        cycles.forEach { c ->
-            list.put(JSONObject().put("start", c.start).put("periodDays", c.periodDays).apply { c.shift?.let { put("shift", it) } })
-        }
-        val args = JSONObject().put("cycles", list).put("dismissedWorkouts", JSONArray(dismissedWorkouts))
-        return SwiftCore.call("cycle.pattern", args.toString())?.let(::parsePattern)
+        val args = JSONObject().put("showFertile", showFertile).put("learning", learning)
+            .put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+        return SwiftCore.call("cycle.read", args.toString())?.let(::parseOutput)
     }
 
-    internal fun parseFertile(json: String): Fertile? = runCatching {
+    /** The phase alone, for the Health signals and the classic tracker. */
+    fun phase(context: Context): CyclePhaseEngine.Result? {
+        if (!SwiftCore.available) return null
+        CoreRead.open(context)
+        val json = SwiftCore.call("cycle.phase", "{}") ?: return null
         if (json.trim() == "null") return null
+        return runCatching { JSONObject(json).takeIf { !it.has("error") }?.let(::parseResult) }.getOrNull()
+    }
+
+    /** Saves today's notes; true when the core also logged a new period start. Null when the save failed. */
+    fun save(context: Context, day: String, log: LogDay, previous: LogDay, starts: List<String>): Boolean? {
+        if (!SwiftCore.available) return null
+        CoreRead.open(context)
+        val args = JSONObject().put("day", day).put("log", logJson(log)).put("previous", logJson(previous))
+            .put("starts", JSONArray(starts))
+        val o = SwiftCore.call("cycle.saveLog", args.toString())?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return null
+        return if (o.optBoolean("ok")) o.optBoolean("startLogged") else null
+    }
+
+    private fun logJson(d: LogDay) = JSONObject().apply {
+        d.flow?.let { put("flow", it) }
+        put("symptoms", JSONArray(d.symptoms.sorted())); put("moods", JSONArray(d.moods.sorted()))
+        put("ovulationTest", d.ovulationTest)
+    }
+
+    private fun JSONObject.intOrNull(k: String) = if (has(k) && !isNull(k)) getInt(k) else null
+    private fun JSONObject.doubleOrNull(k: String) = if (has(k) && !isNull(k)) getDouble(k) else null
+    private fun JSONObject.stringOrNull(k: String) = if (has(k) && !isNull(k)) getString(k) else null
+    private fun JSONArray?.strings(): List<String> = this?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+
+    internal fun parseOutput(json: String): Output? = runCatching {
         val o = JSONObject(json)
         if (o.has("error")) return null
-        val past = o.optJSONArray("pastRiseDays")?.let { a -> (0 until a.length()).map { a.getInt(it) } }.orEmpty()
-        fun int(k: String) = if (o.has(k) && !o.isNull(k)) o.getInt(k) else null
-        Fertile(o.getInt("firstDay"), o.getInt("lastDay"), o.getString("basis"), past, int("typicalRiseDay"),
-                if (o.has("status") && !o.isNull("status")) o.getString("status") else null, int("daysUntil"), int("day"), int("of"))
+        val log = o.getJSONObject("todayLog")
+        val s = o.getJSONObject("snapshot")
+        val fertile = s.optJSONObject("fertile")?.let { f ->
+            Fertile(f.getInt("firstDay"), f.getInt("lastDay"), f.getString("basis"),
+                    f.optJSONArray("pastRiseDays")?.let { a -> (0 until a.length()).map { a.getInt(it) } }.orEmpty(),
+                    f.intOrNull("typicalRiseDay"), f.stringOrNull("status"), f.intOrNull("daysUntil"), f.intOrNull("day"), f.intOrNull("of"))
+        }
+        val compare = s.optJSONObject("compare")?.let { c ->
+            Compare(c.doubleOrNull("tempDelta"), c.doubleOrNull("rhrDelta"), c.doubleOrNull("hrvDelta"), c.doubleOrNull("chargeNow"),
+                    c.doubleOrNull("chargeBefore"), c.doubleOrNull("wakeNow"), c.doubleOrNull("wakeBefore"))
+        }
+        val temps = s.optJSONArray("temps")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).let { t -> t.getInt("day") to t.getDouble("value") } } }.orEmpty()
+        val moods = s.optJSONObject("moodsThisPhase")?.let { m -> m.keys().asSequence().associateWith { m.getInt(it) } }.orEmpty()
+        val snap = Snapshot(
+            s.intOrNull("cycleDay"),
+            s.intOrNull("dayRangeLow")?.let { lo -> s.intOrNull("dayRangeHigh")?.let { lo..it } },
+            s.getInt("length"), s.stringOrNull("phase"), s.intOrNull("shiftDay"), s.getInt("periodLength"),
+            s.intOrNull("nextLow")?.let { lo -> s.intOrNull("nextHigh")?.let { lo..it } },
+            temps, s.stringOrNull("startDay"), s.optJSONArray("periodDays").strings().toSet(), compare, s.getInt("cyclesSeen"),
+            s.stringOrNull("confidence"), moods, fertile, s.optJSONArray("fertileDays").strings().toSet(),
+            s.stringOrNull("fertileStartDayAhead"),
+            s.optJSONArray("dayPhases")?.let { a -> (0 until a.length()).map { if (a.isNull(it)) null else a.getString(it) } }.orEmpty())
+        Output(o.getString("today"), o.optJSONArray("starts").strings(),
+               LogDay(log.intOrNull("flow"), log.optJSONArray("symptoms").strings().toSet(), log.optJSONArray("moods").strings().toSet(),
+                      log.optBoolean("ovulationTest")),
+               o.optJSONObject("result")?.let(::parseResult), snap, o.optJSONObject("pattern")?.let(::parsePattern))
     }.getOrNull()
 
-    internal fun parsePattern(json: String): Pattern? = runCatching {
-        val o = JSONObject(json)
-        if (o.has("error")) return null
+    private fun parseResult(r: JSONObject): CyclePhaseEngine.Result = CyclePhaseEngine.Result(
+        phase = CyclePhaseEngine.Phase.entries.firstOrNull { it.raw == r.getString("phase") } ?: CyclePhaseEngine.Phase.UNKNOWN,
+        confidence = CyclePhaseEngine.Confidence.entries.firstOrNull { it.raw == r.getString("confidence") } ?: CyclePhaseEngine.Confidence.LEARNING,
+        cycleDayLow = r.intOrNull("cycleDayLow"), cycleDayHigh = r.intOrNull("cycleDayHigh"), cycleLengthDays = r.intOrNull("cycleLengthDays"),
+        nextPeriodWindow = r.optJSONObject("nextPeriodWindow")?.let { CyclePhaseEngine.NextPeriodWindow(it.getString("earliestDay"), it.getString("latestDay")) },
+        shiftMarkers = r.optJSONArray("shiftMarkers").strings().map { CyclePhaseEngine.ShiftMarker(it) },
+        note = r.optString("note"))
+
+    internal fun parsePattern(o: JSONObject): Pattern {
         val v = o.getJSONObject("verdicts")
         val verdicts = v.keys().asSequence().associateWith { k ->
             val x = v.getJSONObject(k)
-            fun d(n: String) = if (x.has(n) && !x.isNull(n)) x.getDouble(n) else null
-            Verdict(x.getString("kind"), d("rpeDelta"), d("volumeDrop"))
+            Verdict(x.getString("kind"), x.doubleOrNull("rpeDelta"), x.doubleOrNull("volumeDrop"))
         }
-        Pattern(o.getInt("cyclesUsed"), o.getInt("progressCycles"), o.getInt("progressRated"), o.getInt("minCycles"),
-                o.getInt("minSessionsPerPhase"), o.getDouble("rpeThreshold"), verdicts)
-    }.getOrNull()
+        return Pattern(o.getInt("cyclesUsed"), o.getInt("progressCycles"), o.getInt("progressRated"), o.getInt("minCycles"),
+                       o.getInt("minSessionsPerPhase"), o.getDouble("rpeThreshold"), verdicts)
+    }
 }

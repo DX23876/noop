@@ -3,10 +3,7 @@ package com.noop.ui.forge
 import com.noop.R
 import com.noop.analytics.CyclePhaseEngine
 import com.noop.core.CoreCycle
-import com.noop.data.CycleLogStore
-import com.noop.data.DailyMetric
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 /**
  * Fork (DX23876), Forge parity 2026-11: the cycle page's model, as iOS `ForgeCycleSnapshot`, `ForgeCyclePhase`,
@@ -140,7 +137,7 @@ internal data class CyclePush(val headline: CycleText, val reason: List<CycleTex
     }
 }
 
-/** iOS `ForgeCycleSnapshot`: everything the page draws, from the engine's result, the logged starts and days and the nights. */
+/** iOS `ForgeCycleSnapshot`: what the page draws, as the shared core worked it out; this side only adds the wording. */
 internal data class CycleSnapshot(
     val cycleDay: Int?,
     val dayRange: IntRange?,
@@ -155,15 +152,15 @@ internal data class CycleSnapshot(
     val cyclesSeen: Int,
     val engineConfidence: CyclePhaseEngine.Confidence?,
     val temps: List<Pair<Int, Double>> = emptyList(),
-    val compare: Compare? = null,
+    /** This cycle's luteal nights against its first half, for the Body, Exercise and Mind cards. */
+    val compare: CoreCycle.Compare? = null,
     val moodsThisPhase: Map<String, Int> = emptyMap(),
     val fertile: CoreCycle.Fertile? = null,
     val fertileDays: Set<String> = emptySet(),
+    /** The first likely fertile day while it still lies ahead; what the reminder arms. */
+    val fertileStartAhead: LocalDate? = null,
+    val dayPhases: List<String?> = emptyList(),
 ) {
-    /** This cycle's luteal nights against its first half, for the Body, Exercise and Mind cards. */
-    data class Compare(val tempDelta: Double?, val rhrDelta: Double?, val hrvDelta: Double?, val chargeNow: Double?,
-                       val chargeBefore: Double?, val wakeNow: Double?, val wakeBefore: Double?)
-
     val wheelDays: Int get() = minOf(45, maxOf(length, cycleDay ?: 0, (cycleDay ?: 0) + (nextWindow?.last ?: 0)))
     val todayOnWheel: Int? get() = cycleDay ?: dayRange?.let { (it.first + it.last) / 2 }
     val tempFloor: Double get() = minOf(-0.4, (temps.minOfOrNull { it.second } ?: 0.0) - 0.1)
@@ -202,132 +199,16 @@ internal data class CycleSnapshot(
         else -> null
     }
 
-    /** The first likely fertile day as a date while it still lies ahead; what the reminder arms. */
-    val fertileStartAhead: LocalDate? get() =
-        if (fertile?.status == "before" && startDate != null) startDate.plusDays((fertile.firstDay - 1).toLong()) else null
-
-    /** The phase colour of one day of this cycle on the dial. */
-    fun phase(onDay: Int): CyclePhase? {
-        if (onDay <= periodLength && cycleDay != null) return CyclePhase.Period
-        val shift = shiftDay ?: return if (todayOnWheel?.let { onDay <= it } == true) CyclePhase.Follicular else null
-        return when {
-            onDay < shift - 1 -> CyclePhase.Follicular
-            onDay <= shift + 1 -> CyclePhase.Shift
-            else -> CyclePhase.Luteal
-        }
-    }
+    /** The phase colour of one day of this cycle on the dial, as the core drew it. */
+    fun phase(onDay: Int): CyclePhase? = dayPhases.getOrNull(onDay - 1)?.let { p -> CyclePhase.entries.firstOrNull { it.name.equals(p, ignoreCase = true) } }
 
     companion object {
-        const val DEFAULT_CYCLE_DAYS = CyclePhaseEngine.defaultCycleDays
-
-        private fun date(key: String): LocalDate? = runCatching { LocalDate.parse(key) }.getOrNull()
-        private fun diff(a: LocalDate, b: LocalDate): Int = ChronoUnit.DAYS.between(a, b).toInt()
-
-        /**
-         * [fertile] asks the shared `FertileWindow` (past rise days, this cycle's rise, the positive test day, the
-         * cycle day); null when fertile days are hidden.
-         */
-        fun make(result: CyclePhaseEngine.Result?, starts: List<String>, log: Map<String, CycleLogStore.Day>,
-                 days: List<DailyMetric>, today: LocalDate,
-                 fertile: ((List<Int>, Int?, Int?, Int?) -> CoreCycle.Fertile?)? = null): CycleSnapshot {
-            val startDates = starts.mapNotNull(::date).sorted()
-            // The current cycle runs from the newest logged start, if it is recent enough to still be this cycle.
-            val current = startDates.filter { !it.isAfter(today) }.maxOrNull()?.takeIf { diff(it, today) <= 45 }
-            val cycleDay = current?.let { diff(it, today) + 1 }
-            // The usual length: the engine's, else the median gap between logged starts, else the default.
-            val gaps = startDates.zipWithNext { a, b -> diff(a, b) }.filter { it in 21..40 }.sorted()
-            val length = result?.cycleLengthDays ?: if (gaps.isEmpty()) DEFAULT_CYCLE_DAYS else gaps[gaps.size / 2]
-            // Period days: from each start, the days with flow logged, else the first five.
-            val periodDays = mutableSetOf<String>()
-            fun window(s: LocalDate) = (0 until 10).map { s.plusDays(it.toLong()).toString() }
-            for (s in startDates) {
-                val w = window(s)
-                val n = maxOf((w.indices.filter { log[w[it]]?.flow != null }.maxOrNull()?.plus(1)) ?: 5, 1)
-                w.take(n).forEach { periodDays += it }
-            }
-            log.forEach { (k, d) -> if (d.flow != null) periodDays += k }
-            var periodLength = 5
-            if (current != null) {
-                val w = window(current)
-                w.indices.filter { log[w[it]]?.flow != null }.maxOrNull()?.let { periodLength = it + 1 }
-            }
-            // The engine's shift marker inside this cycle, as a cycle day.
-            val shiftDay = current?.let { start ->
-                result?.shiftMarkers?.mapNotNull { date(it.day) }?.filter { it.isAfter(start) && !it.isAfter(today) }
-                    ?.maxOrNull()?.let { diff(start, it) + 1 }
-            }
-            // The phase: the logged period first (the wearer's own fact), then this cycle's rise, then the engine.
-            val phase = when {
-                cycleDay != null && cycleDay <= periodLength -> CyclePhase.Period
-                cycleDay != null && shiftDay != null ->
-                    if (cycleDay < shiftDay - 1) CyclePhase.Follicular else if (cycleDay <= shiftDay + 1) CyclePhase.Shift else CyclePhase.Luteal
-                else -> when (result?.phase) {
-                    CyclePhaseEngine.Phase.FOLLICULAR -> CyclePhase.Follicular
-                    CyclePhaseEngine.Phase.PERI_OVULATORY -> CyclePhase.Shift
-                    CyclePhaseEngine.Phase.LUTEAL -> CyclePhase.Luteal
-                    else -> null
-                }
-            }
-            val nextWindow = result?.nextPeriodWindow?.let { w ->
-                val a = date(w.earliestDay); val b = date(w.latestDay)
-                if (a == null || b == null) null else diff(today, a).let { lo -> diff(today, b).let { hi -> if (hi < lo) null else lo..hi } }
-            }
-            val dayRange = result?.cycleDayLow?.let { lo -> result.cycleDayHigh?.let { lo..maxOf(lo, it) } }
-            var snap = CycleSnapshot(cycleDay, dayRange, length, phase, shiftDay, periodLength, nextWindow, current, periodDays,
-                                     starts.size, result?.confidence)
-            if (current != null) {
-                val byDay = days.associateBy { it.day }
-                val nights = (0 until (cycleDay ?: 0)).mapNotNull { offset ->
-                    byDay[current.plusDays(offset.toLong()).toString()]?.let { offset + 1 to it }
-                }
-                snap = snap.copy(temps = nights.mapNotNull { (d, m) -> m.skinTempDevC?.let { d to it } })
-                if (shiftDay != null && phase == CyclePhase.Luteal) {
-                    val before = nights.filter { it.first > periodLength && it.first < shiftDay - 1 }.map { it.second }
-                    val after = nights.filter { it.first > shiftDay + 1 }.map { it.second }
-                    fun mean(xs: List<Double>): Double? = if (xs.size >= 3) xs.average() else null
-                    fun delta(f: (DailyMetric) -> Double?): Double? {
-                        val a = mean(after.mapNotNull(f)) ?: return null
-                        val b = mean(before.mapNotNull(f)) ?: return null
-                        return a - b
-                    }
-                    val moods = mutableMapOf<String, Int>()
-                    nights.filter { it.first > shiftDay + 1 }.forEach { (_, m) ->
-                        log[m.day]?.moods?.forEach { moods[it] = (moods[it] ?: 0) + 1 }
-                    }
-                    snap = snap.copy(
-                        compare = Compare(delta { it.skinTempDevC }, delta { it.restingHr?.toDouble() }, delta { it.avgHrv },
-                                          mean(after.mapNotNull { it.recovery }), mean(before.mapNotNull { it.recovery }),
-                                          mean(after.mapNotNull { it.disturbances?.toDouble() }),
-                                          mean(before.mapNotNull { it.disturbances?.toDouble() })),
-                        moodsThisPhase = moods)
-                }
-            }
-            if (fertile != null && current != null && cycleDay != null) {
-                // The rise days of completed past cycles, newest first, then this cycle's own rise or test.
-                val pastRises = cycles(starts, log, result).sortedByDescending { it.start }.drop(1).mapNotNull { c ->
-                    val a = date(c.start); val b = c.shift?.let(::date)
-                    if (a == null || b == null) null else diff(a, b) + 1
-                }
-                val testDay = (0 until cycleDay).firstOrNull { log[current.plusDays(it.toLong()).toString()]?.ovulationTest == true }?.plus(1)
-                fertile(pastRises, shiftDay, testDay, cycleDay)?.let { e ->
-                    snap = snap.copy(fertile = e,
-                        fertileDays = (e.firstDay..e.lastDay).map { current.plusDays((it - 1).toLong()).toString() }.toSet())
-                }
-            }
-            return snap
-        }
-
-        /** Every logged cycle with the temperature rise the engine found inside it, for the training pattern. */
-        fun cycles(starts: List<String>, log: Map<String, CycleLogStore.Day>, result: CyclePhaseEngine.Result?): List<CoreCycle.Cycle> {
-            val sorted = starts.sorted()
-            val shifts = result?.shiftMarkers?.map { it.day }?.sorted().orEmpty()
-            return sorted.mapIndexed { i, start ->
-                val end = sorted.getOrNull(i + 1) ?: "9999-12-31"
-                val shift = shifts.firstOrNull { it > start && it < end }
-                val s = date(start)
-                val flowed = s?.let { d -> (0 until 10).filter { log[d.plusDays(it.toLong()).toString()]?.flow != null }.maxOrNull() }
-                CoreCycle.Cycle(start, shift, flowed?.plus(1) ?: 5)
-            }
-        }
+        /** The snapshot the shared core worked out (`CycleSnapshot` in `CycleReading.swift`). */
+        fun from(s: CoreCycle.Snapshot): CycleSnapshot = CycleSnapshot(
+            s.cycleDay, s.dayRange, s.length, CyclePhase.entries.firstOrNull { it.name.equals(s.phase, ignoreCase = true) },
+            s.shiftDay, s.periodLength, s.nextWindow, s.startDay?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+            s.periodDays, s.cyclesSeen, CyclePhaseEngine.Confidence.entries.firstOrNull { it.raw == s.confidence },
+            s.temps, s.compare, s.moodsThisPhase, s.fertile, s.fertileDays,
+            s.fertileStartDayAhead?.let { runCatching { LocalDate.parse(it) }.getOrNull() }, s.dayPhases)
     }
 }

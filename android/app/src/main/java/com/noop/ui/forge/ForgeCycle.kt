@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.noop.R
 import com.noop.core.CoreCycle
-import com.noop.data.CycleLogStore
 import com.noop.notif.CyclePagePrefs
 import com.noop.notif.FertileReminderWorker
 import com.noop.ui.AppViewModel
@@ -131,32 +130,25 @@ private val CycleTopic.icon: ImageVector get() = when (this) {
     CycleTopic.Body -> Icons.Rounded.Thermostat
 }
 
-/** The loaded state of the cycle: the starts, the day log, the snapshot and the training pattern. */
-internal class CycleLoaded(val starts: List<String>, val log: Map<String, CycleLogStore.Day>, val snap: CycleSnapshot?,
+/** The loaded state of the cycle from the shared core: the starts, today's notes, the snapshot and the pattern. */
+internal class CycleLoaded(val starts: List<String>, val todayLog: CoreCycle.LogDay, val snap: CycleSnapshot?,
                            val pattern: CoreCycle.Pattern?)
 
-/** Reads the logged days, builds the snapshot off the main thread and re-arms the fertile reminder. */
+/** Reads the cycle from the shared core off the main thread and re-arms the fertile reminder. */
 @Composable
 internal fun rememberCycle(viewModel: AppViewModel, reload: Int, learning: Boolean = false, showFertile: Boolean): CycleLoaded? {
     val context = LocalContext.current
     val enabled by viewModel.cycleTrackingEnabled.collectAsState()
     val starts by viewModel.periodStarts.collectAsState()
-    val v5 by viewModel.v5Signals.collectAsState()
-    val days by viewModel.recentDays.collectAsState()
-    val loaded by produceState<CycleLoaded?>(null, enabled, starts, v5?.cycle, days, reload, learning, showFertile) {
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val loaded by produceState<CycleLoaded?>(null, enabled, starts, coreRevision, reload, learning, showFertile) {
         if (!enabled) { value = null; return@produceState }
         value = withContext(Dispatchers.IO) {
-            val today = LocalDate.now()
-            val log = runCatching { CycleLogStore(viewModel.repo).read(today.minusDays(180).toString(), today.toString()) }
-                .getOrDefault(emptyMap())
-            val result = v5?.cycle
-            val snap = CycleSnapshot.make(result, starts, log, days, today,
-                if (showFertile) { past, rise, test, day -> runCatching { CoreCycle.fertile(past, rise, test, day) }.getOrNull() } else null)
+            val out = runCatching { CoreCycle.read(context, showFertile, learning, dismissedTrainingWorkouts(context)) }.getOrNull()
+                ?: return@withContext null
+            val snap = CycleSnapshot.from(out.snapshot)
             runCatching { FertileReminderWorker.reschedule(context, snap.fertileStartAhead) }
-            val pattern = if (learning) runCatching {
-                CoreCycle.pattern(context, CycleSnapshot.cycles(starts, log, result), dismissedTrainingWorkouts(context))
-            }.getOrNull() else null
-            CycleLoaded(starts, log, snap, pattern)
+            CycleLoaded(out.starts, out.todayLog, snap, out.pattern)
         }
     }
     return loaded
@@ -670,19 +662,17 @@ private fun CycleLogPage(viewModel: AppViewModel, loaded: CycleLoaded, onDone: (
     val scope = rememberCoroutineScope()
     val today = LocalDate.now()
     val key = today.toString()
-    val existing = loaded.log[key] ?: CycleLogStore.Day()
+    val existing = loaded.todayLog
     var draft by remember { mutableStateOf(existing) }
     var saving by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     fun save() {
         if (saving) return
         saving = true
         scope.launch {
-            withContext(Dispatchers.IO) { runCatching { CycleLogStore(viewModel.repo).save(key, draft, existing) } }
-            if (draft.flow != null && existing.flow == null) {
-                val recent = loaded.starts.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
-                    .any { abs(java.time.temporal.ChronoUnit.DAYS.between(it, today)) < 10 }
-                if (!recent) viewModel.logPeriodStart(key)
-            }
+            // The core saves the notes and, when flow begins with no start in the last ten days, logs today as day 1.
+            val started = withContext(Dispatchers.IO) { runCatching { CoreCycle.save(context, key, draft, existing, loaded.starts) }.getOrNull() }
+            if (started == true) viewModel.refreshCycle()
             onDone()
         }
     }
@@ -705,7 +695,7 @@ private fun CycleLogPage(viewModel: AppViewModel, loaded: CycleLoaded, onDone: (
             (1..4).forEach { f -> LogChip(stringResource(flowTitle(f)), draft.flow == f, colors.cyclePeriod) { draft = draft.copy(flow = f) } }
         }
         section(R.string.forge_cy_symptoms) {
-            CycleLogStore.SYMPTOMS.forEach { id ->
+            CoreCycle.SYMPTOMS.forEach { id ->
                 val on = id in draft.symptoms
                 LogChip(stringResource(symptomTitle(id)!!), on, colors.effort) {
                     draft = draft.copy(symptoms = if (on) draft.symptoms - id else draft.symptoms + id)
@@ -713,7 +703,7 @@ private fun CycleLogPage(viewModel: AppViewModel, loaded: CycleLoaded, onDone: (
             }
         }
         section(R.string.forge_cy_mood) {
-            CycleLogStore.MOODS.forEach { id ->
+            CoreCycle.MOODS.forEach { id ->
                 val on = id in draft.moods
                 LogChip(stringResource(moodTitle(id)!!), on, colors.rest) {
                     draft = draft.copy(moods = if (on) draft.moods - id else draft.moods + id)

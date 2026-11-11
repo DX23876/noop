@@ -1185,14 +1185,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     lastCircadianBins = circadianActivityBins()
                     val loggedPeriodStarts = CycleTrackingStore(repository).starts()
                     _periodStarts.value = loggedPeriodStarts
-                    _v5Signals.value = V5HealthSignals.evaluate(
+                    _v5Signals.value = withCoreCycle(V5HealthSignals.evaluate(
                         days = days,
                         cycleOptedIn = _cycleTrackingEnabled.value,
                         loggedPeriodStarts = loggedPeriodStarts,
                         journalContext = illnessJournalContext(days),
                         activityBins = lastCircadianBins.first,
                         daysObserved = lastCircadianBins.second,
-                    )
+                    ))
                 }
                 // Keep the home-screen widget fresh while the app is open — covers users who turned
                 // the background service off (the service is the widget's heartbeat otherwise).
@@ -3065,14 +3065,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val days = recentDays.value
             val bins = freshCircadianBins()
             runCatching {
-                _v5Signals.value = V5HealthSignals.evaluate(
+                _v5Signals.value = withCoreCycle(V5HealthSignals.evaluate(
                     days = days,
                     cycleOptedIn = enabled,
                     loggedPeriodStarts = _periodStarts.value,
                     journalContext = illnessJournalContext(days),
                     activityBins = bins.first,
                     daysObserved = bins.second,
-                )
+                ))
             }
         }
     }
@@ -3161,6 +3161,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { rescoreAfterEdit() }
     }
 
+    /**
+     * The cycle phase from the shared core (`CycleReading.swift`), the reading the iPhone runs, in place of the Kotlin
+     * classifier's, so the cycle page, the Today card and the tracker cannot disagree with iOS. The Kotlin result
+     * stays when the core is not there or tracking is off.
+     */
+    private suspend fun withCoreCycle(snapshot: V5HealthSignals.Snapshot): V5HealthSignals.Snapshot {
+        if (!_cycleTrackingEnabled.value) return snapshot
+        val core = withContext(Dispatchers.IO) { runCatching { com.noop.core.CoreCycle.phase(appContext) }.getOrNull() }
+        return if (core != null) snapshot.copy(cycle = core) else snapshot
+    }
+
+    /** Reads the logged starts and the phase again after a log written through the core. */
+    fun refreshCycle() {
+        viewModelScope.launch { reloadPeriodStartsAndCycle(CycleTrackingStore(repository)) }
+    }
+
     /** Log one local day as cycle day 1, then immediately re-run the classifier with the new anchor. */
     fun logPeriodStart(day: String = CycleTrackingStore.todayKey()) {
         viewModelScope.launch {
@@ -3193,14 +3209,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _periodStarts.value = starts
         val days = recentDays.value
         val bins = freshCircadianBins()
-        _v5Signals.value = V5HealthSignals.evaluate(
+        _v5Signals.value = withCoreCycle(V5HealthSignals.evaluate(
             days = days,
             cycleOptedIn = _cycleTrackingEnabled.value,
             loggedPeriodStarts = starts,
             journalContext = illnessJournalContext(days),
             activityBins = bins.first,
             daysObserved = bins.second,
-        )
+        ))
     }
 
     /**

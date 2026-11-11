@@ -6,9 +6,10 @@ import StrandAnalytics
 /// The cycle page's phases and what each one tends to mean for mind, exercise and body (tester request,
 /// 2026-11). Every line is general, plain and grounded in the sources each card names; the wearer's own
 /// numbers come separately, from their nights. Awareness only: nothing here reads as fertility advice.
-enum ForgeCyclePhase: String, CaseIterable {
-    case period, follicular, shift, luteal
+typealias ForgeCyclePhase = CyclePagePhase
 
+/// The phases' names and colours; the phase itself is the shared `CyclePagePhase` (`CycleReading.swift`).
+extension CyclePagePhase {
     var title: String {
         switch self {
         case .period: return String(localized: "cycle.period", defaultValue: "Period")
