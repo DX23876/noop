@@ -26,6 +26,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.HourglassBottom
+import androidx.compose.material.icons.rounded.Terrain
+import androidx.compose.material.icons.automirrored.rounded.ShowChart
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.BatteryFull
@@ -110,7 +115,7 @@ internal data class TodayWidget(
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
         Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle"), LastNight("lastNight"),
         Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap"), NextSession("nextSession"), WhatWorks("whatWorks"),
-        Changes("changes"), Water("water"), CoachNote("coachNote"), AgeLess("ageless");
+        Changes("changes"), Water("water"), CoachNote("coachNote"), AgeLess("ageless"), DietGoal("dietGoal");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
@@ -118,7 +123,7 @@ internal data class TodayWidget(
 
     val size: Size get() = when {
         kind !in TILE_KINDS -> Size.Wide
-        kind == Kind.LiveHeart && wide -> Size.Wide
+        (kind == Kind.LiveHeart || kind == Kind.AgeLess) && wide -> Size.Wide
         span == 2 -> Size.Medium
         else -> Size.Small
     }
@@ -131,7 +136,7 @@ internal data class TodayWidget(
     /** One tap on the size control: small, two columns, the whole row where the kind has a card for it, small. */
     fun nextSize(): TodayWidget = when (size) {
         Size.Small -> copy(span = 2, wide = false)
-        Size.Medium -> if (kind == Kind.LiveHeart) copy(span = 1, wide = true) else copy(span = 1, wide = false)
+        Size.Medium -> if (kind == Kind.LiveHeart || kind == Kind.AgeLess) copy(span = 1, wide = true) else copy(span = 1, wide = false)
         Size.Wide -> copy(span = 1, wide = false)
     }
 
@@ -296,7 +301,8 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                   onOpenAlarms: () -> Unit = {}, onOpenTraining: () -> Unit = {},
                                   onOpenBreathe: () -> Unit = {}, onOpenStrap: () -> Unit = {},
                                   onOpenInsights: () -> Unit = {}, onOpenTrends: () -> Unit = {},
-                                  onOpenHydration: () -> Unit = {}, onOpenAgeLess: () -> Unit = {}) {
+                                  onOpenHydration: () -> Unit = {}, onOpenAgeLess: () -> Unit = {},
+                                  onOpenFood: () -> Unit = {}) {
     val context = LocalContext.current
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
@@ -491,7 +497,8 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
-                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, noData, dense = columns > 2, Modifier.fillMaxSize()) { open = it }
+                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, noData, dense = columns > 2, Modifier.fillMaxSize(),
+                                                                     detailed = w.size == TodayWidget.Size.Medium) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy()
@@ -509,10 +516,12 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.NextSession -> TodayNextSessionForge(onOpenTraining)
                             TodayWidget.Kind.WhatWorks -> TodayWhatWorksForge(viewModel, onOpenInsights)
                             TodayWidget.Kind.Changes -> TodayChangesForge(onOpenTrends, viewModel.activeStrapId)
-                            TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap, dense = columns > 2, modifier = Modifier.fillMaxSize())
-                            TodayWidget.Kind.Water -> WaterTile(viewModel, dense = columns > 2, modifier = Modifier.fillMaxSize(), onOpen = onOpenHydration)
-                            TodayWidget.Kind.AgeLess -> AgeLessTile(dense = columns > 2, modifier = Modifier.fillMaxSize(), onOpen = onOpenAgeLess)
+                            TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap, dense = columns > 2, modifier = Modifier.fillMaxSize(), detailed = w.size == TodayWidget.Size.Medium)
+                            TodayWidget.Kind.Water -> WaterTile(viewModel, dense = columns > 2, modifier = Modifier.fillMaxSize(), onOpen = onOpenHydration, detailed = w.size == TodayWidget.Size.Medium)
+                            TodayWidget.Kind.AgeLess -> if (w.size == TodayWidget.Size.Wide) AgeLessWideCard(onOpenAgeLess)
+                                else AgeLessTile(dense = columns > 2, modifier = Modifier.fillMaxSize(), onOpen = onOpenAgeLess, detailed = w.size == TodayWidget.Size.Medium)
                             TodayWidget.Kind.CoachNote -> CoachNoteCard()
+                            TodayWidget.Kind.DietGoal -> TodayDietGoalCard(onOpenFood)
                         }
                     }
                 } }
@@ -536,7 +545,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     ForgeMetricDetail(open) { open = null }
     if (gallery) {
         ForgeOverlayPage(onDismiss = { gallery = false }) {
-            WidgetGallery(placed = widgets.toList(), onAdd = { update(widgets + it); gallery = false },
+            WidgetGallery(cycleOn = viewModel.cycleTrackingEnabled.collectAsState().value, onAdd = { update(widgets + it); gallery = false },
                           onClose = { gallery = false })
         }
     }
@@ -588,10 +597,11 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
  */
 @Composable
 private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>, noData: String,
-                        dense: Boolean, modifier: Modifier, onOpen: (CoreRead.Metric) -> Unit) {
+                        dense: Boolean, modifier: Modifier, detailed: Boolean = false, onOpen: (CoreRead.Metric) -> Unit) {
     if (key == TodayWidget.SLEEP_KEY) {
+        val sleepSummary = if (detailed) rememberTileDelta("sleep_total_min", sleepTrend.takeLast(60))?.summary else null
         ForgeTodayTile(Icons.Rounded.Bedtime, Forge.colors.rest, stringResource(R.string.forge_sleep),
-                       sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, "h", null, noData, dense,
+                       sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, "h", sleepSummary?.let { summaryLine(it, "h") }, noData, dense,
                        modifier.clickable { onOpen(CoreRead.Metric.SleepMinutes) }, trend = sleepTrend.takeLast(30))
         return
     }
@@ -599,79 +609,100 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     val t = keyTiles.tiles[metric] ?: return
     val spark = keyTiles.sparks[metric]
     val change = rememberTileDelta(metric.catalogKey(), spark)
-    ForgeTodayTile(metric.icon, metric.tileTint(), metric.tileLabel(), t.value, t.unit.orEmpty(), null, noData, dense,
+    ForgeTodayTile(metric.icon, metric.tileTint(), metric.tileLabel(), t.value, t.unit.orEmpty(),
+                   if (detailed) change?.summary?.let { summaryLine(it, t.unit.orEmpty()) } else null, noData, dense,
                    modifier.then(t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier),
                    delta = change?.text, deltaTone = change?.tone, trend = spark?.takeLast(30))
 }
 
-/** "Add a widget": the measures not placed yet, then the cards, each with its size and what it shows. */
+/** "usually 53 bpm · range 51 to 58", from the shared `MeasureTileReading.summary`, as iOS's `summaryLine`. */
 @Composable
-private fun WidgetGallery(placed: List<TodayWidget>, onAdd: (TodayWidget) -> Unit, onClose: () -> Unit) {
+private fun summaryLine(s: com.noop.core.CoreTile.Summary, unit: String): String {
+    val usual = if (unit.isEmpty() || unit.startsWith("/")) s.usual else "${s.usual} $unit"
+    return stringResource(R.string.forge_tile_usually, usual) + " · " + stringResource(R.string.forge_tile_range, s.low, s.high)
+}
+
+/**
+ * "Add a widget" as iOS's `ForgeWidgetGallery`: every measure as a small tile, then the cards in iOS's order, each
+ * size its own row with what it shows; a row adds its widget and closes the gallery.
+ */
+@Composable
+private fun WidgetGallery(cycleOn: Boolean, onAdd: (TodayWidget) -> Unit, onClose: () -> Unit) {
     val colors = Forge.colors
-    val placedKeys = placed.mapNotNull { it.key }.toSet()
-    val placedKinds = placed.map { it.kind }.toSet()
+    val context = LocalContext.current
     ForgeSceneBackdrop(ForgeBackdrop.Sky) {
         Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
                    .padding(horizontal = ForgeMetrics.screenPadding),
                verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
-            Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.forge_w_add), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),
-                     color = colors.text, modifier = Modifier.weight(1f))
-                Text(stringResource(R.string.forge_w_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                     color = colors.accent, modifier = Modifier.clickable(role = Role.Button, onClick = onClose)
+            Box(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4)) {
+                Text(stringResource(R.string.forge_g_add), style = Forge.type.headline, color = colors.text, modifier = Modifier.align(Alignment.Center))
+                Text(stringResource(R.string.forge_g_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                     color = colors.accent, modifier = Modifier.align(Alignment.CenterEnd).clickable(role = Role.Button, onClick = onClose)
                          .padding(ForgeMetrics.space2))
             }
-            val measures = TodayWidgets.measures.filter { it !in placedKeys }
-            if (measures.isNotEmpty()) {
-                GalleryHeading(stringResource(R.string.forge_w_measures))
-                ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-                    measures.forEachIndexed { i, key ->
-                        if (i > 0) HubDivider()
-                        val metric = KeyMetric.fromRaw(key)
-                        val title = metric?.tileLabel() ?: stringResource(R.string.forge_sleep)
-                        HubRow(metric?.icon ?: Icons.Rounded.Bedtime, metric?.tileTint() ?: colors.rest, title,
-                               stringResource(R.string.forge_w_measure_sub)) {
-                            onAdd(TodayWidget(kind = TodayWidget.Kind.Measure, key = key))
-                        }
-                    }
+            GalleryHeading(stringResource(R.string.forge_g_measures))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                TodayWidgets.measures.forEachIndexed { i, key ->
+                    if (i > 0) HubDivider()
+                    val metric = KeyMetric.fromRaw(key)
+                    GalleryRow(metric?.icon ?: Icons.Rounded.Bedtime, metric?.tileLabel() ?: stringResource(R.string.forge_sleep),
+                               stringResource(R.string.forge_g_measure_sub)) { onAdd(TodayWidget(kind = TodayWidget.Kind.Measure, key = key)) }
                 }
             }
-            val cards = listOf(
-                Triple(TodayWidget.Kind.TrainingLoad, Icons.Rounded.BarChart, R.string.forge_w_training_load to R.string.forge_w_training_load_sub),
-                Triple(TodayWidget.Kind.Goals, Icons.Rounded.Flag, R.string.forge_w_goals to R.string.forge_w_goals_sub),
-                Triple(TodayWidget.Kind.Energy, Icons.Rounded.LocalFireDepartment, R.string.forge_w_energy to R.string.forge_w_energy_sub),
-                Triple(TodayWidget.Kind.LastNight, Icons.Rounded.Bedtime, R.string.forge_w_last_night to R.string.forge_w_last_night_sub),
-                Triple(TodayWidget.Kind.Tonight, Icons.Rounded.Bedtime, R.string.forge_w_tonight to R.string.forge_w_tonight_sub),
-                Triple(TodayWidget.Kind.WeekPlan, Icons.Rounded.BarChart, R.string.forge_w_week_plan to R.string.forge_w_week_plan_sub),
-                Triple(TodayWidget.Kind.Changes, Icons.Rounded.BarChart, R.string.forge_w_changes to R.string.forge_w_changes_sub),
-                Triple(TodayWidget.Kind.WhatWorks, Icons.Rounded.Bolt, R.string.forge_w_what_works to R.string.forge_w_what_works_sub),
-                Triple(TodayWidget.Kind.NextSession, Icons.Rounded.FitnessCenter, R.string.forge_w_next to R.string.forge_w_next_sub),
-                Triple(TodayWidget.Kind.Breathe, Icons.Rounded.Air, R.string.forge_w_breathe to R.string.forge_w_breathe_sub),
-                Triple(TodayWidget.Kind.Strap, Icons.Rounded.BatteryFull, R.string.forge_w_strap to R.string.forge_w_strap_sub),
-                Triple(TodayWidget.Kind.LastWorkout, Icons.Rounded.DirectionsRun, R.string.forge_w_last_workout to R.string.forge_w_last_workout_sub),
-                Triple(TodayWidget.Kind.Cycle, Icons.Rounded.WaterDrop, R.string.forge_w_cycle to R.string.forge_w_cycle_sub),
-                Triple(TodayWidget.Kind.Momentum, Icons.Rounded.Bolt, R.string.forge_w_momentum to R.string.forge_w_momentum_sub),
-                Triple(TodayWidget.Kind.LiveHeart, Icons.Rounded.Favorite, R.string.forge_w_live_heart to R.string.forge_w_live_heart_sub),
-                Triple(TodayWidget.Kind.Water, Icons.Rounded.WaterDrop, R.string.forge_w_hydration to R.string.forge_w_water_sub),
-            ) + listOfNotNull(
-                if (com.noop.ui.BottomBarStyleStore.coachEnabled)
-                    Triple(TodayWidget.Kind.CoachNote, Icons.Rounded.Bolt, R.string.forge_w_coach_note to R.string.forge_w_coach_note_sub) else null,
-                if (com.noop.core.CoreFeatures.healthspan(LocalContext.current))
-                    Triple(TodayWidget.Kind.AgeLess, Icons.Rounded.HourglassBottom, R.string.forge_ageless_title to R.string.forge_w_ageless_sub) else null,
-            ).filter { it.first !in placedKinds }
-            if (cards.isNotEmpty()) {
-                GalleryHeading(stringResource(R.string.forge_w_cards))
-                ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-                    cards.forEachIndexed { i, (kind, icon, texts) ->
-                        if (i > 0) HubDivider()
-                        HubRow(icon, colors.accent, stringResource(texts.first), stringResource(texts.second)) {
-                            onAdd(TodayWidget(kind = kind))
-                        }
-                    }
+            val coach = com.noop.ui.BottomBarStyleStore.coachEnabled
+            val ageless = com.noop.core.CoreFeatures.healthspan(context)
+            data class Entry(val icon: androidx.compose.ui.graphics.vector.ImageVector, val title: String, val sub: String, val widget: TodayWidget)
+            fun w(kind: TodayWidget.Kind, wide: Boolean = false) = TodayWidget(kind = kind, wide = wide)
+            val agelessTitle = stringResource(R.string.forge_ageless_title)
+            val cards = listOfNotNull(
+                Entry(Icons.Rounded.BarChart, stringResource(R.string.forge_g_training_load), stringResource(R.string.forge_g_training_load_sub), w(TodayWidget.Kind.TrainingLoad)),
+                Entry(Icons.Rounded.Flag, stringResource(R.string.forge_g_goals), stringResource(R.string.forge_g_goals_sub), w(TodayWidget.Kind.Goals)),
+                Entry(Icons.Rounded.LocalFireDepartment, stringResource(R.string.forge_g_energy), stringResource(R.string.forge_g_energy_sub), w(TodayWidget.Kind.Energy)),
+                Entry(Icons.Rounded.DirectionsRun, stringResource(R.string.forge_g_last_workout), stringResource(R.string.forge_g_last_workout_sub), w(TodayWidget.Kind.LastWorkout)),
+                if (ageless) Entry(Icons.Rounded.HourglassBottom, agelessTitle, stringResource(R.string.forge_al_small_sub), w(TodayWidget.Kind.AgeLess)) else null,
+                if (ageless) Entry(Icons.Rounded.HourglassBottom, agelessTitle, stringResource(R.string.forge_al_wide_sub), w(TodayWidget.Kind.AgeLess, wide = true)) else null,
+                Entry(Icons.Rounded.Bedtime, stringResource(R.string.forge_g_last_night), stringResource(R.string.forge_g_last_night_sub), w(TodayWidget.Kind.LastNight)),
+                Entry(Icons.Rounded.CalendarMonth, stringResource(R.string.forge_g_week_plan), stringResource(R.string.forge_g_week_plan_sub), w(TodayWidget.Kind.WeekPlan)),
+                Entry(Icons.Rounded.Terrain, stringResource(R.string.forge_dg_title), stringResource(R.string.forge_dg_sub), w(TodayWidget.Kind.DietGoal)),
+                if (coach) Entry(Icons.Rounded.ChatBubble, stringResource(R.string.forge_g_coach_note), stringResource(R.string.forge_g_coach_note_sub), w(TodayWidget.Kind.CoachNote)) else null,
+                Entry(Icons.Rounded.Bedtime, stringResource(R.string.forge_g_tonight), stringResource(R.string.forge_g_tonight_sub), w(TodayWidget.Kind.Tonight)),
+                Entry(Icons.Rounded.FitnessCenter, stringResource(R.string.forge_g_next), stringResource(R.string.forge_g_next_sub), w(TodayWidget.Kind.NextSession)),
+                Entry(Icons.AutoMirrored.Rounded.ShowChart, stringResource(R.string.forge_g_changes), stringResource(R.string.forge_g_changes_sub), w(TodayWidget.Kind.Changes)),
+                Entry(Icons.Rounded.Lightbulb, stringResource(R.string.forge_g_what_works), stringResource(R.string.forge_g_what_works_sub), w(TodayWidget.Kind.WhatWorks)),
+                Entry(Icons.Rounded.Air, stringResource(R.string.forge_g_breathe), stringResource(R.string.forge_g_breathe_sub), w(TodayWidget.Kind.Breathe)),
+                Entry(Icons.Rounded.BatteryFull, stringResource(R.string.forge_g_strap), stringResource(R.string.forge_g_strap_sub), w(TodayWidget.Kind.Strap)),
+                if (cycleOn) Entry(Icons.Rounded.WaterDrop, stringResource(R.string.forge_g_cycle), stringResource(R.string.forge_g_cycle_sub), w(TodayWidget.Kind.Cycle)) else null,
+                Entry(Icons.Rounded.Bolt, stringResource(R.string.forge_g_momentum), stringResource(R.string.forge_g_momentum_sub), w(TodayWidget.Kind.Momentum)),
+                Entry(Icons.Rounded.WaterDrop, stringResource(R.string.forge_g_hydration), stringResource(R.string.forge_g_hydration_sub), w(TodayWidget.Kind.Water)),
+                Entry(Icons.Rounded.Favorite, stringResource(R.string.forge_g_live), stringResource(R.string.forge_g_live_sub), w(TodayWidget.Kind.LiveHeart)),
+                Entry(Icons.Rounded.MonitorHeart, stringResource(R.string.forge_g_live), stringResource(R.string.forge_g_live_wide_sub), w(TodayWidget.Kind.LiveHeart, wide = true)),
+            )
+            GalleryHeading(stringResource(R.string.forge_g_cards))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                cards.forEachIndexed { i, e ->
+                    if (i > 0) HubDivider()
+                    GalleryRow(e.icon, e.title, e.sub) { onAdd(e.widget.copy(id = UUID.randomUUID().toString())) }
                 }
             }
             Spacer(Modifier.heightIn(min = ForgeMetrics.space8))
         }
+    }
+}
+
+/** iOS's gallery row: the symbol on an accent wash, the name over its size and content, a plus at the end. */
+@Composable
+private fun GalleryRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onAdd: () -> Unit) {
+    val colors = Forge.colors
+    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onAdd).padding(horizontal = ForgeMetrics.space4, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(36.dp).background(colors.accent.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(subtitle, style = Forge.type.caption, color = colors.textSecondary)
+        }
+        Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = colors.accent, modifier = Modifier.size(24.dp))
     }
 }
 
@@ -712,7 +743,7 @@ private fun LiveHeartTile(viewModel: AppViewModel, showsCurve: Boolean, dense: B
 
 /** iOS's `ForgeWaterWidget`: water today in litres against the day's goal, the week as the trend. */
 @Composable
-private fun WaterTile(viewModel: AppViewModel, dense: Boolean, modifier: Modifier, onOpen: () -> Unit) {
+private fun WaterTile(viewModel: AppViewModel, dense: Boolean, modifier: Modifier, onOpen: () -> Unit, detailed: Boolean = false) {
     val context = LocalContext.current
     val today by viewModel.today.collectAsState()
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
@@ -725,13 +756,15 @@ private fun WaterTile(viewModel: AppViewModel, dense: Boolean, modifier: Modifie
     val goalMl = com.noop.analytics.HydrationGoal.dailyGoalMl(com.noop.ui.ProfileStore.from(context).sex, today?.strain)
     val litres = { ml: Double -> String.format(java.util.Locale.getDefault(), "%.1f", ml / 1000) }
     ForgeTodayTile(Icons.Rounded.WaterDrop, ForgeTokens.StrandPalette.metricCyan.resolve(), stringResource(R.string.forge_w_hydration),
-                   litres(read?.first ?: 0.0), "L", stringResource(R.string.forge_w_of_litres, litres(goalMl.toDouble())), "", dense,
+                   litres(read?.first ?: 0.0), "L", stringResource(R.string.forge_w_of_litres, litres(goalMl.toDouble())) +
+                       (if (detailed && goalMl > 0) " · " + java.text.NumberFormat.getPercentInstance(java.util.Locale.getDefault())
+                           .format((read?.first ?: 0.0) / goalMl.toDouble()) else ""), "", dense,
                    modifier.clickable(onClick = onOpen), trend = read?.second?.takeIf { it.size > 1 })
 }
 
 /** iOS's `ForgeAgeLessWidget`: the AgeLess age of the latest week against the actual age. */
 @Composable
-private fun AgeLessTile(dense: Boolean, modifier: Modifier, onOpen: () -> Unit) {
+private fun AgeLessTile(dense: Boolean, modifier: Modifier, onOpen: () -> Unit, detailed: Boolean = false) {
     val context = LocalContext.current
     val week by produceState<com.noop.core.CoreAgeLess.Week?>(null) {
         value = withContext(Dispatchers.IO) {
@@ -742,7 +775,28 @@ private fun AgeLessTile(dense: Boolean, modifier: Modifier, onOpen: () -> Unit) 
     val tint = week?.let { if (it.age <= it.actualAge) Forge.colors.charge else Forge.colors.effort } ?: Forge.colors.accent
     ForgeTodayTile(Icons.Rounded.HourglassBottom, tint, stringResource(R.string.forge_ageless_title), week?.let { years(it.age) },
                    stringResource(R.string.forge_w_years), week?.let { stringResource(R.string.forge_w_age_n, years(it.actualAge)) }, "",
-                   dense, modifier.clickable(onClick = onOpen))
+                   dense, modifier.clickable(onClick = onOpen),
+                   delta = if (detailed) week?.let { agelessGap(it.age - it.actualAge) } else null,
+                   deltaTone = week?.let { if (it.age <= it.actualAge) "good" else "large" })
+}
+
+/** The AgeLess age against the calendar age as a signed change, as iOS's `gapText`. */
+private fun agelessGap(gap: Double): String {
+    val n = String.format(java.util.Locale.getDefault(), "%.1f", kotlin.math.abs(gap))
+    return if (kotlin.math.abs(gap) < 0.05) "±0" else if (gap < 0) "↘ −$n" else "↗ +$n"
+}
+
+/** iOS's `ForgeAgeLessWideWidget`: the top of the AgeLess page on its age line, across the row. */
+@Composable
+private fun AgeLessWideCard(onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val revision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val week by produceState<com.noop.core.CoreAgeLess.Week?>(null, revision) {
+        value = withContext(Dispatchers.IO) {
+            CoreRead.open(context); runCatching { com.noop.core.CoreAgeLess.snapshot(context)?.weeks?.lastOrNull() }.getOrNull()
+        }
+    }
+    ForgeAgeLessSummary(week, onOpen)
 }
 
 /** iOS's `ForgeCoachNoteWidget`: the coach's latest line, the same note Today's rail shows first. */

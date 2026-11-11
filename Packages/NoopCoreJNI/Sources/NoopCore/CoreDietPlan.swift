@@ -14,6 +14,39 @@ enum CoreDietPlan {
         var dayMacros: FoodTargets.Macros
     }
 
+    /// `DietProgress.Progress` on the wire: `kind` is way, hold or recomp, with that case's fields beside it.
+    struct ProgressWire: Encodable {
+        var kind: String
+        var goal: String?
+        var startKg: Double
+        var trendKg: Double
+        var goalKg: Double?
+        var fraction: Double?
+        var stage: String?
+        var doneKg: Double?
+        var leftKg: Double?
+        var inRange: Bool?
+        var weeksInRange: Int?
+        var weightSteady: Bool?
+        var working: Bool?
+        var bodyFatChange: Double?
+        var waistChangeCm: Double?
+        var strengthChangePercent: Double?
+
+        init(_ p: DietProgress.Progress) {
+            switch p {
+            case .way(let w):
+                kind = "way"; goal = w.goal.rawValue; startKg = w.startKg; trendKg = w.trendKg; goalKg = w.goalKg
+                fraction = w.fraction; stage = w.stage.rawValue; doneKg = w.doneKg; leftKg = w.leftKg
+            case .hold(let h):
+                kind = "hold"; startKg = h.startKg; trendKg = h.trendKg; inRange = h.inRange; weeksInRange = h.weeksInRange
+            case .recomp(let r):
+                kind = "recomp"; startKg = r.startKg; trendKg = r.trendKg; weightSteady = r.weightSteady; working = r.working
+                bodyFatChange = r.bodyFatChange; waistChangeCm = r.waistChangeCm; strengthChangePercent = r.strengthChangePercent
+            }
+        }
+    }
+
     static func run(_ op: String, args: [String: Any], store: WhoopStore, reader: StoreReader) async -> String {
         func double(_ k: String) -> Double? { (args[k] as? NSNumber)?.doubleValue }
         let sex = (args["sex"] as? String ?? "").lowercased()
@@ -53,6 +86,22 @@ enum CoreDietPlan {
             let outcome = DietAdjust.weekly(plan: plan, result: result, weighIns: weights, loggedDays: logged, today: today,
                                             kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg)
             return CoreRead.json(outcome)
+        case "food.planProgress":
+            // The way to the goal weight (`DietProgress`), as the plan page and Today's diet goal card show it: the
+            // goal weight as planned, the smoothed weight trend, and for recomposition body fat and the waist.
+            guard let plan = DietPlan.decode(args["plan"] as? String), !plan.hideNumbers else { return "null" }
+            let from = Calendar.current.date(byAdding: .day, value: -120, to: Date()).map(StoreReader.localDayKey) ?? today
+            let weights = await WeightSeries.series(reader: reader, from: from, to: today).map { (day: $0.day, kg: $0.value) }
+            var bodyFat: [(day: String, value: Double)] = []
+            var waist: [(day: String, value: Double)] = []
+            if args["body"] as? Bool == true {
+                let metrics = await BodyMetricsReader.read(reader: reader, activeDeviceId: reader.activeDeviceId, days: 365)
+                bodyFat = metrics.series("body_fat").map { ($0.day, $0.value) }
+                waist = metrics.series("waist").map { ($0.day, $0.value) }
+            }
+            guard let progress = DietProgress.resolve(plan: plan, goalWeightKg: DietTargets.plannedGoalWeight(plan, person: person),
+                                                      weighIns: weights, bodyFat: bodyFat, waist: waist) else { return "null" }
+            return CoreRead.json(ProgressWire(progress))
         case "food.planFit":
             // Whether a food (by id or stored group) suits the plan: 1 suits, -1 kept rare, 0 neutral.
             guard let plan = DietPlan.decode(args["plan"] as? String),

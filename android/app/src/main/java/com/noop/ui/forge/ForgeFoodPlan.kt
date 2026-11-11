@@ -569,6 +569,18 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
                 Text(listOfNotNull(formName(plan.form), plan.addon?.let { addonName(it) }).joinToString(" · "), style = Forge.type.body, color = Color.White.copy(alpha = 0.8f))
             }
         }
+        // iOS's `DietProgressCard` under the header: the way to the goal from the same core reading Today's card uses.
+        val progress by androidx.compose.runtime.produceState<CoreDietPlan.Progress?>(null, plan) {
+            value = if (plan.hideNumbers) null else withContext(Dispatchers.IO) {
+                com.noop.core.CoreRead.open(context)
+                runCatching { CoreDietPlan.progress(plan, dietPerson(context), body = true) }.getOrNull()
+            }
+        }
+        progress?.let { p ->
+            val sex = com.noop.ui.ProfileStore.from(context).sex.lowercase()
+            ForgeDietProgressCard(p, compact = false, male = if (sex == "male") true else if (sex == "female") false else null,
+                                  forecastLine = resolved?.takeIf { it.goal != "maintain" && it.goal != "recomp" }?.let { forecastLine(it) })
+        }
         week?.let { w ->
             ForgeCard(Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.diet_this_week), style = Forge.type.subhead, color = colors.textSecondary)

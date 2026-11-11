@@ -112,6 +112,26 @@ object CoreDietPlan {
         return Outcome(o.optDouble("changeKcal"), o.optString("hold").ifEmpty { null }, o.num("trendKgPerWeek"), o.optDouble("plannedKgPerWeek"))
     }
 
+    /**
+     * The way to the goal weight (`DietProgress` in the core, `food.planProgress`): [kind] is way, hold or recomp.
+     * Null without weigh-ins, without a goal weight to walk to, or when the plan hides its numbers. [body] also reads
+     * body fat and the waist for recomposition, as the plan page does; Today's card leaves them out, as iOS's does.
+     */
+    data class Progress(
+        val kind: String, val startKg: Double, val trendKg: Double, val goalKg: Double?, val fraction: Double,
+        val stage: String?, val doneKg: Double, val leftKg: Double, val inRange: Boolean, val weeksInRange: Int,
+        val weightSteady: Boolean, val working: Boolean, val bodyFatChange: Double?, val waistChangeCm: Double?,
+        val strengthChangePercent: Double?,
+    )
+
+    fun progress(plan: Plan, person: Person, body: Boolean): Progress? {
+        val o = call("food.planProgress", base(person, null, null).put("plan", plan.json()).put("body", body)) ?: return null
+        return Progress(o.optString("kind"), o.optDouble("startKg"), o.optDouble("trendKg"), o.num("goalKg"),
+            o.num("fraction") ?: 0.0, o.optString("stage").ifEmpty { null }, o.num("doneKg") ?: 0.0, o.num("leftKg") ?: 0.0,
+            o.optBoolean("inRange"), o.optInt("weeksInRange"), o.optBoolean("weightSteady"), o.optBoolean("working"),
+            o.num("bodyFatChange"), o.num("waistChangeCm"), o.num("strengthChangePercent"))
+    }
+
     fun fit(plan: Plan, foodId: String, group: String?): Int {
         val args = JSONObject().put("plan", plan.json()).put("foodId", foodId)
         group?.let { args.put("group", it) }

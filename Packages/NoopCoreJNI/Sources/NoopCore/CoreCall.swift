@@ -31,9 +31,10 @@ public enum CoreCall {
             let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
             let key = args["key"] as? String ?? ""
             let values = (args["values"] as? [NSNumber])?.map(\.doubleValue) ?? []
-            struct Wire: Encodable { let delta: String?; let tone: String? }
+            struct Wire: Encodable { let delta: String?; let tone: String?; let summary: MeasureTileReading.Summary? }
             return CoreRead.json(Wire(delta: MeasureTileReading.delta(key: key, values: values),
-                                      tone: MeasureTileReading.tone(key: key, values: values)?.rawValue))
+                                      tone: MeasureTileReading.tone(key: key, values: values)?.rawValue,
+                                      summary: MeasureTileReading.summary(key: key, values: values)))
         }
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])

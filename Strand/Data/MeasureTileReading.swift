@@ -36,6 +36,36 @@ enum MeasureTileReading {
         }
     }
 
+    /// What a tile over two columns adds (owner, 2026-11-11): the wearer's usual (the same median the change is read
+    /// against) and the lowest and highest of the last 30 values, written as the tile writes its figure. None for
+    /// stress, which reads as a word, or with under a week of history.
+    struct Summary: Encodable, Equatable, Sendable {
+        let usual: String
+        let low: String
+        let high: String
+    }
+
+    static func summary(key: String, values: [Double]) -> Summary? {
+        guard key != "stress", values.count >= 8 else { return nil }
+        let before = values.dropLast().suffix(30).sorted()
+        let recent = values.suffix(30)
+        guard let low = recent.min(), let high = recent.max() else { return nil }
+        return Summary(usual: figure(key: key, value: before[before.count / 2]),
+                       low: figure(key: key, value: low), high: figure(key: key, value: high))
+    }
+
+    /// A value as Today's tile writes it, with the catalog's decimals: sleep as hours and minutes, a skin temperature
+    /// stored as a change with its sign.
+    static func figure(key: String, value: Double) -> String {
+        if key == "sleep_total_min" {
+            let total = Int(value.rounded())
+            return "\(total / 60):\(String(format: "%02d", total % 60))"
+        }
+        let decimals = ["vo2max_est", "resp_rate", "skin_temp", "weight"].contains(key) ? 1 : 0
+        let text = value.formatted(.number.precision(.fractionLength(decimals)).locale(AppLanguage.activeLocale))
+        return key == "skin_temp" && value >= 0 && value < 20 ? "+" + text : text
+    }
+
     /// The latest value and the median of the 30 before it: the one reading both the figure and its colour come from.
     private static func lastAndUsual(key: String, values: [Double]) -> (last: Double, usual: Double)? {
         guard !["stress", "steps", "sleep_total_min", "active_kcal", "calories_in"].contains(key),

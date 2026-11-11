@@ -199,17 +199,20 @@ internal fun TodayBreatheTile(onOpen: () -> Unit, dense: Boolean = false, modifi
  */
 @Composable
 internal fun TodayStrapTile(viewModel: AppViewModel, onOpen: () -> Unit, dense: Boolean = false,
-                            modifier: Modifier = Modifier.fillMaxWidth()) {
+                            modifier: Modifier = Modifier.fillMaxWidth(), detailed: Boolean = false) {
     val live by viewModel.live.collectAsState()
     val synced = live.lastSyncAt?.takeIf { it > 0 }
-    val caption = when {
-        // The wrist only from an event on this link, as iOS: the stored default says nothing.
+    // The wrist only from an event on this link, as iOS: the stored default says nothing. Over two columns the state
+    // and the last sync together.
+    val state = when {
         live.wristThisLink == false -> stringResource(R.string.forge_st_off_wrist)
         live.charging == true -> stringResource(R.string.forge_st_charging)
-        synced == null -> stringResource(R.string.forge_st_not_synced)
-        else -> stringResource(R.string.forge_st_synced, android.text.format.DateUtils.getRelativeTimeSpanString(
-            synced * 1000, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString())
+        else -> null
     }
+    val sync = if (synced == null) stringResource(R.string.forge_st_not_synced)
+               else stringResource(R.string.forge_st_synced, android.text.format.DateUtils.getRelativeTimeSpanString(
+                   synced * 1000, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString())
+    val caption = if (state == null) sync else if (detailed) "$state · $sync" else state
     // iOS's `ForgeStrapWidget`: the battery as the figure, the wrist, charge or last sync as its line.
     ForgeTodayTile(if (live.charging == true) Icons.Rounded.BatteryChargingFull else Icons.Rounded.Battery5Bar,
                    if (live.connected) Forge.colors.charge else Forge.colors.textSecondary, stringResource(R.string.forge_w_strap),

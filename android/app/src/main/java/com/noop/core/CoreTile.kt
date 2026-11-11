@@ -10,7 +10,9 @@ import org.json.JSONObject
  * migration required: no.
  */
 object CoreTile {
-    data class Delta(val text: String?, val tone: String?)
+    /** What a tile over two columns adds: the usual and the last 30 values' range, written as the tile writes them. */
+    data class Summary(val usual: String, val low: String, val high: String)
+    data class Delta(val text: String?, val tone: String?, val summary: Summary? = null)
 
     /** [key] is the shared catalog key ("hrv", "rhr", "spo2", "resp_rate", "skin_temp", "weight", ...). */
     fun delta(key: String, values: List<Double>): Delta? {
@@ -18,7 +20,9 @@ object CoreTile {
         val json = SwiftCore.call("tile.delta", JSONObject().put("key", key).put("values", JSONArray(values)).toString()) ?: return null
         return runCatching {
             val o = JSONObject(json)
-            Delta(if (o.isNull("delta")) null else o.optString("delta"), if (o.isNull("tone")) null else o.optString("tone"))
+            val s = o.optJSONObject("summary")
+            Delta(if (o.isNull("delta")) null else o.optString("delta"), if (o.isNull("tone")) null else o.optString("tone"),
+                  s?.let { Summary(it.optString("usual"), it.optString("low"), it.optString("high")) })
         }.getOrNull()
     }
 }

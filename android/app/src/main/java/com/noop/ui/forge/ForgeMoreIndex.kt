@@ -462,7 +462,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         return
     }
     if (dest == MoreDest.AgeLess) {
-        ForgeAgeLessPage(onBack)
+        ForgeAgeLessPage(onBack, onOpenRhythm = { onOpen(MoreDest.RhythmAge) })
         return
     }
     if (dest == MoreDest.Momentum) {

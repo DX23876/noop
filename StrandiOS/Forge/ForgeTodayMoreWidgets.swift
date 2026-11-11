@@ -365,6 +365,8 @@ struct ForgeWhatWorksWidget: View {
 /// The strap as a small tile beside the measures: its level, and the last sync under it. Opens the
 /// battery page.
 struct ForgeStrapWidget: View {
+    /// Over two columns: the wrist or charging state and the last sync together.
+    var detailed = false
     @EnvironmentObject private var live: LiveState
 
     var body: some View {
@@ -378,11 +380,13 @@ struct ForgeStrapWidget: View {
 
     /// The wrist only from an event on this link (the stored default says nothing), then the sync.
     private var caption: String {
-        if let onWrist = live.wristEventThisLink, !onWrist { return String(localized: "Off the wrist") }
-        if live.charging == true { return String(localized: "Charging") }
-        guard let synced = live.lastSyncedAt else { return String(localized: "Not synced yet") }
-        let date = Date(timeIntervalSince1970: synced)
-        return String(localized: "Synced \(date.formatted(.relative(presentation: .named).locale(AppLanguage.activeLocale)))")
+        let state: String? = live.wristEventThisLink == false ? String(localized: "Off the wrist")
+            : live.charging == true ? String(localized: "Charging") : nil
+        let sync: String = live.lastSyncedAt.map {
+            String(localized: "Synced \(Date(timeIntervalSince1970: $0).formatted(.relative(presentation: .named).locale(AppLanguage.activeLocale)))")
+        } ?? String(localized: "Not synced yet")
+        guard let state else { return sync }
+        return detailed ? state + " · " + sync : state
     }
 }
 #endif

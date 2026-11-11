@@ -426,12 +426,12 @@ struct ForgeTodayWidgetView: View {
 
     var body: some View {
         switch widget.kind {
-        case .measure: ForgeMeasureWidget(key: widget.key ?? "hrv", source: widget.source)
+        case .measure: ForgeMeasureWidget(key: widget.key ?? "hrv", source: widget.source, detailed: widget.size == .medium)
         case .trainingLoad: LiquidTrainingLoadSection(surfaceOpacity: surfaceOpacity ?? Double(opacityPercent) / 100)
         // The name inside the card, as every other widget carries it.
         case .goals: GoalsTodaySection(headerOutside: false)
         case .energy: ForgeEnergyWidget()
-        case .water: ForgeWaterWidget()
+        case .water: ForgeWaterWidget(detailed: widget.size == .medium)
         case .liveHeart:
             switch widget.size {
             case .wide: ForgeLiveHeartWideWidget()
@@ -444,7 +444,7 @@ struct ForgeTodayWidgetView: View {
         case .dietGoal: ForgeDietGoalWidget()
         case .coachNote: ForgeCoachNoteWidget()
         case .ageless:
-            if widget.isWide { ForgeAgeLessWideWidget() } else { ForgeAgeLessWidget() }
+            if widget.isWide { ForgeAgeLessWideWidget() } else { ForgeAgeLessWidget(detailed: widget.size == .medium) }
         case .lastWorkout: ForgeLastWorkoutWidget()
         case .cycle: ForgeCycleWidget()
         case .tonight: ForgeTonightWidget()
@@ -452,7 +452,7 @@ struct ForgeTodayWidgetView: View {
         case .nextSession: ForgeNextSessionWidget()
         case .changes: ForgeChangesWidget()
         case .whatWorks: ForgeWhatWorksWidget()
-        case .strap: ForgeStrapWidget()
+        case .strap: ForgeStrapWidget(detailed: widget.size == .medium)
         }
     }
 }
@@ -501,6 +501,8 @@ struct ForgeTodayTile: View {
 
 /// The day's water against its goal. Opens the Hydration page, where drinks are added.
 struct ForgeWaterWidget: View {
+    /// Over two columns: the share of the goal beside it.
+    var detailed = false
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
     @State private var totalML: Double = 0
@@ -511,7 +513,7 @@ struct ForgeWaterWidget: View {
             ForgeTodayTile(label: String(localized: "Hydration"), symbol: "drop.fill",
                            value: UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: totalML))),
                            unit: "L",
-                           caption: String(localized: "of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: Double(repo.hydrationGoalML(profileSex: profile.sex)))))) L"),
+                           caption: caption,
                            tint: StrandPalette.metricCyan,
                            trend: week.count > 1 ? week : nil)
         }
@@ -520,6 +522,13 @@ struct ForgeWaterWidget: View {
             totalML = await repo.hydrationTotal(day: Repository.localDayKey(Date()))
             week = await repo.hydrationHistory(days: 7).map(\.value)
         }
+    }
+
+    private var caption: String {
+        let goal = Double(repo.hydrationGoalML(profileSex: profile.sex))
+        let of = String(localized: "of \(UnitFormatter.localizedMark(String(format: "%.1f", HydrationGoal.litres(fromML: goal)))) L")
+        guard detailed, goal > 0 else { return of }
+        return of + " · " + (totalML / goal).formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale))
     }
 }
 
@@ -836,6 +845,8 @@ struct ForgeMomentumWidget: View {
 struct ForgeMeasureWidget: View {
     let key: String
     let source: String?
+    /// Over two columns (owner, 2026-11-11): the usual and the last 30 days' range under the figure.
+    var detailed = false
     @EnvironmentObject private var repo: Repository
     @State private var values: [Double] = []
     @State private var metric: MetricDescriptor?
@@ -850,6 +861,7 @@ struct ForgeMeasureWidget: View {
                            // Steps speak for themselves, and the word would crowd the number in a small tile; stress
                            // reads as a word ("Medium"), and "/3" beside a word said nothing.
                            unit: key == "steps" || key == "stress" ? "" : m.map(ForgeFocusView.unit) ?? "",
+                           caption: detailed ? Self.summaryLine(key: key, values: values, unit: m.map(ForgeFocusView.unit) ?? "") : nil,
                            delta: Self.delta(key: key, values: values),
                            deltaColor: Self.deltaTone(key: key, values: values),
                            tint: Self.tint(key),
@@ -861,6 +873,13 @@ struct ForgeMeasureWidget: View {
 
     /// The change against the wearer's usual and its colour, from the reading Android shares (`MeasureTileReading`).
     static func delta(key: String, values: [Double]) -> String? { MeasureTileReading.delta(key: key, values: values) }
+
+    /// "usually 53 bpm · range 51 to 58", from the shared `MeasureTileReading.summary`.
+    static func summaryLine(key: String, values: [Double], unit: String) -> String? {
+        guard let s = MeasureTileReading.summary(key: key, values: values) else { return nil }
+        let usual = unit.isEmpty || unit.hasPrefix("/") ? s.usual : "\(s.usual) \(unit)"
+        return String(localized: "usually \(usual)") + " · " + String(localized: "range \(s.low) to \(s.high)")
+    }
 
     static func deltaTone(key: String, values: [Double]) -> Color? {
         switch MeasureTileReading.tone(key: key, values: values) {
@@ -943,6 +962,8 @@ struct ForgeMeasureWidget: View {
 
 /// AgeLess as a small tile: the AgeLess age, with the calendar age under it. Opens the AgeLess page.
 struct ForgeAgeLessWidget: View {
+    /// Over two columns: the years against the calendar age as the change beside the figure.
+    var detailed = false
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
     @State private var week: HealthspanWeek?
@@ -953,11 +974,19 @@ struct ForgeAgeLessWidget: View {
                            value: week.map { HealthspanSection.years($0.result.healthspanAge) },
                            unit: String(localized: "years"),
                            caption: week.map { String(localized: "Age \(HealthspanSection.years($0.result.chronologicalAge))") },
+                           delta: detailed ? week.map { Self.gapText($0.result.healthspanAge - $0.result.chronologicalAge) } : nil,
+                           deltaColor: week.map { $0.result.healthspanAge <= $0.result.chronologicalAge ? ForgeColor.chargeInk : StrandPalette.statusCritical },
                            tint: week.map { $0.result.healthspanAge <= $0.result.chronologicalAge ? ForgeColor.charge : ForgeColor.effort }
                                ?? ForgeColor.accent)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) { week = await ForgeAgeLessWidget.latestWeek(repo: repo, profile: profile) }
+    }
+
+    /// The AgeLess age against the calendar age as a signed change, "↘ −2.1" younger, "↗ +1.4" older.
+    static func gapText(_ gap: Double) -> String {
+        let n = abs(gap).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale))
+        return abs(gap) < 0.05 ? "±0" : gap < 0 ? "↘ −\(n)" : "↗ +\(n)"
     }
 
     /// The week the AgeLess page opens on, read through the shipped engine; nil without a sex in the profile.
