@@ -58,13 +58,22 @@ class HealthConnectPermissionCategoryTest {
 
     @Test
     fun narrowingNeverRepromptsAndExpandingRequestsOnlyNewCategory() {
-        val recoveryPermissions = HealthConnectImporter.permissionsFor(recovery)
+        val recoveryPermissions = HealthConnectImporter.requestFor(recovery)
 
         assertTrue(HealthConnectImporter.unaskedPermissions(recoveryPermissions, recovery).isEmpty())
         assertEquals(
             HealthConnectImporter.permissionsFor(body),
             HealthConnectImporter.unaskedPermissions(recoveryPermissions, recovery + body),
         )
+    }
+
+    @Test
+    fun aWearerAskedBeforeTheHistoryPermissionIsAskedForItOnce() {
+        // Asked under the old rule: the data types only. The history permission is new, so it is asked for once.
+        val oldAsk = HealthConnectImporter.permissionsFor(recovery)
+        assertEquals(setOf(HealthConnectImporter.HISTORY_PERMISSION),
+                     HealthConnectImporter.unaskedPermissions(oldAsk, recovery))
+        assertTrue(HealthConnectImporter.HISTORY_PERMISSION in HealthConnectImporter.requestFor(recovery))
     }
 
     @Test

@@ -342,7 +342,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
                 HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
-                hcPermissionLauncher.launch(selectedPermissions)
+                hcPermissionLauncher.launch(selectedPermissions + HealthConnectImporter.HISTORY_PERMISSION)
             }
         }
     }

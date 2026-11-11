@@ -96,6 +96,8 @@
     <!-- Health Connect (optional): read-only access to the user's own health data so it can
          be imported on-device. Nothing is uploaded. Granted at runtime, revocable any time. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <!-- Records older than 30 days, for the history import (HealthConnectImporter.HISTORY_PERMISSION). -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />

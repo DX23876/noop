@@ -148,6 +148,16 @@ object HealthConnectImporter {
     fun permissionsFor(categories: Set<ImportCategory>): Set<String> =
         recordTypesFor(categories).mapTo(linkedSetOf()) { HealthPermission.getReadPermission(it) }
 
+    /**
+     * Read access to records older than 30 days. Without it Health Connect serves an app only the last 30 days, so the
+     * "bring your history" import (a [WINDOW_YEARS] window) quietly stopped at a month (2026-11-11). Asked together with
+     * the data types; a Health Connect that does not know it simply leaves it out of the grant.
+     */
+    const val HISTORY_PERMISSION = "android.permission.health.READ_HEALTH_DATA_HISTORY"
+
+    /** What the import asks Health Connect for: the selected types' read access plus [HISTORY_PERMISSION]. */
+    fun requestFor(categories: Set<ImportCategory>): Set<String> = permissionsFor(categories) + HISTORY_PERMISSION
+
     internal fun recordTypesFor(categories: Set<ImportCategory>): Set<KClass<out Record>> =
         categories.flatMapTo(linkedSetOf()) { it.recordTypes }
 
@@ -248,14 +258,15 @@ object HealthConnectImporter {
         context: Context,
         categories: Set<ImportCategory> = selectedCategories(context),
     ) {
-        val asked = askedPermissions(context) + permissionsFor(categories)
+        val asked = askedPermissions(context) + requestFor(categories)
         prefs(context).edit().putString(PERMISSION_SIGNATURE_KEY, asked.sorted().joinToString(",")).apply()
     }
 
     internal fun unaskedPermissions(
         asked: Set<String>,
         categories: Set<ImportCategory>,
-    ): Set<String> = permissionsFor(categories) - asked
+    // With the history permission, so a wearer who granted before it was asked for is asked once more.
+    ): Set<String> = requestFor(categories) - asked
 
     private fun askedPermissions(context: Context): Set<String> =
         prefs(context).getString(PERMISSION_SIGNATURE_KEY, null)

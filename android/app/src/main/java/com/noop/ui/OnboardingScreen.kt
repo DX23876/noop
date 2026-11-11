@@ -863,7 +863,7 @@ private fun ImportStep(viewModel: AppViewModel) {
                 // Marked before launching so the request is made ONCE per permission set: a user who
                 // declines is not asked again on every visit (#949).
                 HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
-                hcPermissionLauncher.launch(selectedPermissions)
+                hcPermissionLauncher.launch(HealthConnectImporter.requestFor(hcReadCategories))
             }
         }
     }
