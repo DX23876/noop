@@ -196,5 +196,8 @@ Android reaches the same function; "missing" pages are the build list.
 | Vital tile editor (swap, reorder, up to nine) | `ForgeHealthTiles` | has (drag to reorder 2026-11-11) |
 | AgeLess page | `ForgeAgeLessView` | has, rebuilt 2026-11-11 (age line, domains, over time) |
 | Single-metric page | `MetricDetailView` | Explore opened on the measure stands in |
-| Effort of an imported workout from its heart rate | `WorkoutHeartRateFills.fillApple` (AI-16) | missing for Health Connect: needs the fill extended to `health-connect` rows, an analysis change with a recipe bump |
+| Effort of an imported workout from its heart rate | `WorkoutHeartRateFills.fillApple` (AI-16) | has (2026-11-12): `fillHealthConnect` from the strap trace or the minute heart rate the import files, on AI-35 |
+| Where steps come from | Devices and data sources, `StepsSource` | has (2026-11-12): Data and backup; one steps reader (`MetricResolver.resolvedSteps`) for tiles, steps page and AgeLess |
+| Energy page | `ForgeEnergyView` | has, rebuilt 2026-11-11 (ring against a usual day, parts, 30-day bars) |
+| Workouts page | `ForgeWorkoutsView` | has, rebuilt 2026-11-12 (13 weeks, this week, sessions by week); a recent session opens itself |
 | Workouts list, Strength, Muscles | `ForgeWorkoutsView`, `ForgeStrengthView` | has (History, Strength, Muscles pages) |
