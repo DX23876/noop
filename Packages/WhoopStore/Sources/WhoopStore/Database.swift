@@ -2096,6 +2096,14 @@ extension WhoopStore {
         migrator.registerMigration("v88-food-day-complete") { db in
             try WhoopStore.createFoodDayCompleteTable(db)
         }
+        // Android's GPS route on its workout row (2026-11-11). Since Android dropped Room (5b5c4aa56) this store is its only
+        // store, and every workout write named a `routePolyline` column only Room had, so saving any workout on
+        // Android failed ("table workout has no column named routePolyline"), a Health Connect import included.
+        // Apple keeps its routes in `RouteStore` files and leaves the column null. Additive and nullable; no stored
+        // score reads it. Analysis migration required: no.
+        migrator.registerMigration("v89-workout-route") { db in
+            try db.alter(table: "workout") { t in t.add(column: "routePolyline", .text) }
+        }
         return migrator
     }
 }

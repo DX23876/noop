@@ -44,6 +44,9 @@ public enum WorkoutSource: Equatable, Sendable {
     public static let ouraSource = "oura-api"
     /// The source of workouts synced from the Hevy API (`HevySource.id` in the app).
     public static let hevySource = "hevy"
+    /// The namespace of workouts Android imports from Health Connect (`HealthConnectImporter.HC_DEVICE`). Apple never
+    /// writes it.
+    public static let healthConnectSource = "health-connect"
     private static let legacyAppleHealthSource = "apple_health"
 
     public static func classify(_ source: String) -> WorkoutSource {

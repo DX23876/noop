@@ -91,7 +91,7 @@ public struct StoreReader: Sendable {
     ///
     /// Why this exists: the list unions many device ids while `deleteWorkout` deleted from exactly ONE,
     /// the active strap. A row banked under any other namespace (a retained strap, a computed `-noop`
-    /// sibling, Apple Health, an imported lifting session or activity file) was therefore VISIBLE BUT
+    /// sibling, Apple Health, Health Connect, an imported lifting session or activity file) was therefore VISIBLE BUT
     /// UNDELETABLE: the delete reported nothing, the reload re-read the row from the namespace the delete
     /// never touched, and it came straight back. Reported as workouts that ignore the delete button
     /// (#2278).
@@ -101,7 +101,7 @@ public struct StoreReader: Sendable {
     public static func workoutNamespaces(rawIds: [String]) -> [String] {
         deletableWorkoutNamespaces(rawIds: rawIds)
             + [WorkoutSource.appleHealthSource, "lifting", WorkoutSource.hevySource, "activity-file",
-               WorkoutSource.ouraSource]
+               WorkoutSource.ouraSource, WorkoutSource.healthConnectSource]
     }
 
     /// Daily-metric rows across the imported union for a day range, DEDUPED per day with the ACTIVE STRAP

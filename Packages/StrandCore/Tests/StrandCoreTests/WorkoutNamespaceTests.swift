@@ -30,6 +30,9 @@ final class WorkoutNamespaceTests: XCTestCase {
         XCTAssertTrue(ids.contains("lifting"))
         XCTAssertTrue(ids.contains("activity-file"))
         XCTAssertTrue(ids.contains("hevy"), "API-synced Hevy sessions are listed in their own lane")
+        // Android's Health Connect import banks its workouts here; without it they were stored but never listed
+        // (2026-11-11, a tester's "the import works but the workouts are missing").
+        XCTAssertTrue(ids.contains("health-connect"))
     }
 
     func testDeleteNeverReachesImportNamespaces() {

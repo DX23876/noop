@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: lets the demo app write test records into Health Connect (DebugHealthConnectSeed), so the
+     full app's import can be checked against data another app wrote. Never merged into a release build. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
+</manifest>

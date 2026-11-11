@@ -191,6 +191,11 @@ extension WeightSeries {
                                          from: from, to: to, suppressedSleepWakeDays: [])
         async let apple = reader.series(key: WhoopStore.bodyWeightMetricKey, source: MetricResolver.appleHealthSource,
                                         from: from, to: to, suppressedSleepWakeDays: [])
-        return merge(manual: await manual, appleHealth: await apple)
+        // The phone's health store is Health Connect on Android (2026-11-11): its imported weigh-ins sat under
+        // `health-connect` and no weight readout saw them. A phone has one store or the other, so both feed the same
+        // tier; a manual weigh-in still wins its day.
+        async let healthConnect = reader.series(key: WhoopStore.bodyWeightMetricKey, source: MetricResolver.healthConnectSource,
+                                                from: from, to: to, suppressedSleepWakeDays: [])
+        return merge(manual: await manual, appleHealth: await apple + healthConnect)
     }
 }
