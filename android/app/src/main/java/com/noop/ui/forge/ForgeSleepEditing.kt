@@ -141,7 +141,9 @@ internal fun DeletedSleepWindows(viewModel: AppViewModel) {
             Text(stringResource(R.string.forge_se_windows_sub), style = Forge.type.caption, color = colors.textSecondary)
             windows.forEach { w ->
                 Box(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2).height(ForgeMetrics.hairline).background(colors.divider))
-                Text("${Instant.ofEpochSecond(w.startTs).atZone(zone).format(stamp)} – ${Instant.ofEpochSecond(w.endTs).atZone(zone).format(stamp)}",
+                Text(stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027,
+                                    Instant.ofEpochSecond(w.startTs).atZone(zone).format(stamp),
+                                    Instant.ofEpochSecond(w.endTs).atZone(zone).format(stamp)),
                      style = Forge.type.subhead, color = colors.text)
                 Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space4)) {
                     Text(stringResource(if (busy == w) R.string.forge_se_recomputing else R.string.forge_se_recompute),
