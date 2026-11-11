@@ -76,6 +76,9 @@ Fixed:
   (steps' 10940 as "1094" over "0"); the column sizes to its labels now. Both designs.
 
 Seen, not changed:
+- Both platforms: Customize Sleep reuses Today's editor hint, "Move an item to Hidden to remove it from Today",
+  on the Sleep page (iOS `SleepCustomizationSheet` through `EditableLayoutList`, Android `ForgeEditableLayoutList`).
+  The fix needs a page-neutral sentence in nine languages, which on iOS comes through the Xcode catalog build.
 - Rest's word differs between the platforms: iOS says Good, Fair or Low at 80 and 60 (`ForgeToday.restWord`),
   Android Poor, Fair, Good or Optimal at 50, 70 and 85 (`RestWord`); 94 reads "Good" on iOS, "Optimal" on
   Android. The owner's call which words and thresholds both should use.
