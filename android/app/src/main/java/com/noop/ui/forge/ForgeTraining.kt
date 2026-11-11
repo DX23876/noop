@@ -329,7 +329,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             }
         }
 
-        Section(stringResource(R.string.forge_th_muscle_analytics), stringResource(R.string.forge_th_all_sources)) {
+        // iOS's Training tab has no muscle map; in the new design it opens from a row in the list below.
+        if (!ForgeDesign.preview) Section(stringResource(R.string.forge_th_muscle_analytics), stringResource(R.string.forge_th_all_sources)) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 MuscleAnalyticsSurface(s.muscles, compact = true) { _, _ -> page = TrainingPage.Muscles }
                 Spacer(Modifier.height(ForgeMetrics.space3))
@@ -353,6 +354,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                             Icons.Rounded.Add) { page = TrainingPage.Import }
                 AnalysisRow(stringResource(R.string.forge_th_load_title), stringResource(R.string.forge_th_load_detail),
                             Icons.Rounded.Speed) { page = TrainingPage.Load }
+                if (ForgeDesign.preview) AnalysisRow(stringResource(R.string.forge_th_muscle_analytics),
+                                                     stringResource(R.string.forge_th_explore_muscles),
+                                                     Icons.Rounded.FitnessCenter) { page = TrainingPage.Muscles }
             }
         }
         // The new design ends on iOS's Tools group (`ForgeTrainingView.tools`): the timer and breathing, which the
