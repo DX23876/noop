@@ -87,7 +87,6 @@ object CoreCoach {
 
     fun state(): State? = call("coach.state", "{}")?.let(::parse)
 
-    /** A message the coach started that the wearer has not seen yet: the dot on the floating button. */
     /** One of the coach's own notes for the Today rail (`coach.notes`), already split as iOS splits it. */
     data class Note(
         val id: String, val date: Long, val origin: String, val kicker: String?, val headline: String, val body: String,
@@ -111,6 +110,7 @@ object CoreCoach {
         }
     }
 
+    /** A message the coach started that the wearer has not seen yet: the dot on the floating button. */
     fun unseen(): Boolean = call("coach.unseen", "{}")?.optBoolean("unseen") ?: false
 
     /** The chat is on screen, so everything the coach said on its own counts as seen (`markCoachMessagesSeen`). */

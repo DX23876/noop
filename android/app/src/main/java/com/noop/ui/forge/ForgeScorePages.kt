@@ -308,7 +308,7 @@ internal fun ForgeRestPage(viewModel: AppViewModel, rest: Double?, onBack: () ->
                                  stringResource(R.string.forge_sl_restorative) to m.restorative)
                 .filter { !((it.second.latest ?: 0.0) == 0.0 && (it.second.typical ?: 0.0) == 0.0) }
             if (factors.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(rest?.let { stringResource(R.string.forge_sp_why, "${it.roundToInt()} %") } ?: stringResource(R.string.forge_sp_shaped),
+                Text(rest?.let { stringResource(R.string.forge_sp_why, percentText(it)) } ?: stringResource(R.string.forge_sp_shaped),
                      style = Forge.type.title2, color = Forge.sceneInk.text, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
                 ForgeCard(Modifier.fillMaxWidth()) {
                     factors.forEachIndexed { i, (label, metric) ->
@@ -329,3 +329,7 @@ internal fun ForgeRestPage(viewModel: AppViewModel, rest: Double?, onBack: () ->
         Spacer(Modifier.height(ForgeMetrics.space6))
     }
 }
+
+/** A whole percent in the wearer's locale ("82 %" or "82%"). */
+private fun percentText(value: Double): String =
+    java.text.NumberFormat.getPercentInstance(java.util.Locale.getDefault()).format(value.roundToInt() / 100.0)

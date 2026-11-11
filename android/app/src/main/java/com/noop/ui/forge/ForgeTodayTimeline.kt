@@ -331,10 +331,7 @@ internal fun CoachNoteCard(note: com.noop.core.CoreCoach.Note, onWhy: () -> Unit
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.MonitorHeart, contentDescription = null, tint = colors.accent, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(6.dp))
-            Text(stringResource(when (note.origin) {
-                "brief" -> R.string.forge_cn_morning; "checkIn" -> R.string.forge_cn_checkin; "weeklyReview" -> R.string.forge_cn_weekly
-                "afterWorkout" -> R.string.forge_cn_workout; "evening" -> R.string.forge_cn_evening; else -> R.string.forge_cn_coach
-            }), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.accent, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(stringResource(coachOriginLabel(note.origin)), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.accent, modifier = Modifier.weight(1f), maxLines = 1)
             Icon(Icons.Rounded.Info, stringResource(R.string.forge_cn_why), tint = colors.textTertiary,
                  modifier = Modifier.size(20.dp).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onWhy))
         }
@@ -370,10 +367,7 @@ internal fun CoachWhySheet(note: com.noop.core.CoreCoach.Note, onDismiss: () -> 
                verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
             Text(stringResource(R.string.forge_cn_why), style = Forge.type.headline, color = colors.text)
             Text(stringResource(R.string.forge_cn_why_now), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
-            Text(stringResource(when (note.origin) {
-                "brief" -> R.string.forge_cn_t_brief; "checkIn" -> R.string.forge_cn_t_checkin; "weeklyReview" -> R.string.forge_cn_t_weekly
-                "afterWorkout" -> R.string.forge_cn_t_workout; "evening" -> R.string.forge_cn_t_evening; else -> R.string.forge_cn_t_nudge
-            }), style = Forge.type.body, color = colors.textSecondary)
+            Text(stringResource(coachOriginWhy(note.origin)), style = Forge.type.body, color = colors.textSecondary)
             if (note.read.isNotEmpty()) {
                 Text(stringResource(R.string.forge_cn_read), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
                 Text(note.read.joinToString(" · "), style = Forge.type.footnote, color = colors.text)
@@ -504,4 +498,16 @@ private fun DayEndEntry(e: TodayTimeline.Entry.DayEnd, today: CoreRead.Day?) {
         }
         help?.let { Text(it, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text) }
     }
+}
+
+/** The kicker over a coach note on the rail, by the note's origin (iOS `ForgeCoachNoteCard`). */
+private fun coachOriginLabel(origin: String): Int = when (origin) {
+    "brief" -> R.string.forge_cn_morning; "checkIn" -> R.string.forge_cn_checkin; "weeklyReview" -> R.string.forge_cn_weekly
+    "afterWorkout" -> R.string.forge_cn_workout; "evening" -> R.string.forge_cn_evening; else -> R.string.forge_cn_coach
+}
+
+/** Why the coach wrote now, by the note's origin, for the "Why now" sheet. */
+private fun coachOriginWhy(origin: String): Int = when (origin) {
+    "brief" -> R.string.forge_cn_t_brief; "checkIn" -> R.string.forge_cn_t_checkin; "weeklyReview" -> R.string.forge_cn_t_weekly
+    "afterWorkout" -> R.string.forge_cn_t_workout; "evening" -> R.string.forge_cn_t_evening; else -> R.string.forge_cn_t_nudge
 }

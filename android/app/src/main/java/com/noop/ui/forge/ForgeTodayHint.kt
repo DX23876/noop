@@ -165,14 +165,15 @@ internal object TodayHints {
         return out.filter { it.id !in dismissed }
     }
 
-    /**
-     * The day's admitted notices and whether a weight goal misses its weigh-in (Apple's `weighInDue`), the inputs of
-     * [candidates]. Blocking; the hint card and the timeline both read it, so the timeline can leave out the hint's entry.
-     */
     /** The coach note the hint shows, so the rail leaves it out (iOS: the day leaves the hint's entry out). */
     @Volatile var lastCoachHintId: String? = null
     @Volatile var lastCoachNote: com.noop.core.CoreCoach.Note? = null
     @Volatile var lastProposal: Boolean = false
+
+    /**
+     * The day's admitted notices and whether a weight goal misses its weigh-in (Apple's `weighInDue`), the inputs of
+     * [candidates]. Blocking; the hint card and the timeline both read it, so the timeline can leave out the hint's entry.
+     */
 
     /** The Momentum kinds of the last [load], for the evening report's bedtime line (iOS reads `.sleepCatchUp`). */
     @Volatile var lastMomentumKinds: Set<String> = emptySet()
