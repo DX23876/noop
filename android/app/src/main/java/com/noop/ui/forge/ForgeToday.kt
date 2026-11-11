@@ -234,7 +234,9 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     Column(
         Modifier.fillMaxSize()
             // Swipe sideways for another day, as on iOS; screen readers get the same as two actions.
-            .pointerInput(Unit) {
+            // Not while arranging the tiles: a tile dragged sideways would turn the day instead.
+            .pointerInput(editingWidgets) {
+                if (editingWidgets) return@pointerInput
                 detectHorizontalDragGestures(
                     onDragStart = { drag = 0f },
                     onDragEnd = {

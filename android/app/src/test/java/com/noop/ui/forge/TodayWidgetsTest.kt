@@ -32,6 +32,14 @@ class TodayWidgetsTest {
         assertEquals(list, TodayWidgets.shift(list, "c", 1))
     }
 
+    @Test fun moveTakesTheTileOutAndPutsItWhereTheTargetStands() {
+        val list = listOf(m("a"), m("b"), m("c"), m("d"))
+        assertEquals(listOf("b", "c", "a", "d"), TodayWidgets.move(list, "a", "c").map { it.id })
+        assertEquals(listOf("d", "a", "b", "c"), TodayWidgets.move(list, "d", "a").map { it.id })
+        assertEquals(list, TodayWidgets.move(list, "a", "a"))
+        assertEquals(list, TodayWidgets.move(list, "a", "x"))
+    }
+
     @Test fun storedFormRoundTrips() {
         val list = listOf(m("a", span = 2), card("g"), TodayWidget("h", TodayWidget.Kind.LiveHeart, wide = true))
         assertEquals(list, TodayWidgets.decode(TodayWidgets.encode(list)))

@@ -44,6 +44,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -151,6 +160,14 @@ internal object TodayWidgets {
         }.getOrDefault(emptyList())
     }
 
+    /** [id] taken out and put where [targetId] stands, the others closing up, as a drag drops it; unchanged if either is missing. */
+    fun move(list: List<TodayWidget>, id: String, targetId: String): List<TodayWidget> {
+        val from = list.indexOfFirst { it.id == id }
+        val to = list.indexOfFirst { it.id == targetId }
+        if (from < 0 || to < 0 || from == to) return list
+        return list.toMutableList().also { it.add(to, it.removeAt(from)) }
+    }
+
     /** [id] one place earlier (-1) or later (+1); the list unchanged at either end. */
     fun shift(list: List<TodayWidget>, id: String, by: Int): List<TodayWidget> {
         val from = list.indexOfFirst { it.id == id }
@@ -212,6 +229,17 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
     var gallery by remember { mutableStateOf(false) }
+    // Moving by drag in edit mode, as iOS: hold a tile, drag it over another, let go to put it there.
+    val bounds = remember { androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
+    var dragging by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    fun drop() {
+        val id = dragging ?: return
+        val center = bounds[id]?.center?.plus(dragOffset)
+        val target = center?.let { c -> bounds.entries.firstOrNull { (k, r) -> k != id && r.contains(c) }?.key }
+        if (target != null) update(TodayWidgets.move(widgets, id, target))
+        dragging = null; dragOffset = androidx.compose.ui.geometry.Offset.Zero
+    }
     // Tiles per row as iOS: the choice shared with Key Metrics (`KeyMetricPrefs`, three until chosen), two at the
     // largest text sizes where three cut their figures off.
     var columnsChoice by remember {
@@ -272,10 +300,44 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
             }
         }
         TodayWidgets.rows(widgets, columns).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+            // The row holding the dragged tile draws over the others, so the tile stays on top wherever it goes.
+            Row(Modifier.fillMaxWidth().zIndex(if (row.any { it.id == dragging }) 1f else 0f),
+                horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
                 row.forEach { w ->
                     val span = TodayWidgets.columnsOf(w, columns)
-                    WidgetCell(w, editing, Modifier.weight(span.toFloat()),
+                    val lifted = dragging == w.id
+                    WidgetCell(w, editing, Modifier.weight(span.toFloat()).zIndex(if (lifted) 1f else 0f)
+                        .onGloballyPositioned { bounds[w.id] = it.boundsInRoot() }
+                        .graphicsLayer {
+                            if (lifted) { translationX = dragOffset.x; translationY = dragOffset.y; scaleX = 1.04f; scaleY = 1.04f }
+                        }
+                        .then(if (!editing) Modifier else Modifier.pointerInput(w.id) {
+                            // Watched in the initial pass, ahead of the tile's own tap: a hold lifts the tile, and
+                            // from then on every move is the drag's; a tap or a move before the hold stays the tile's.
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                    while (true) {
+                                        val e = awaitPointerEvent(PointerEventPass.Initial)
+                                        val c = e.changes.firstOrNull { it.id == down.id } ?: break
+                                        // A move after the hold time still counts as held, by the events' own clock.
+                                        if (c.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis) return@withTimeoutOrNull null
+                                        if (!c.pressed || (c.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+                                    }
+                                } == null
+                                if (!held) return@awaitEachGesture
+                                dragging = w.id; dragOffset = androidx.compose.ui.geometry.Offset.Zero
+                                while (true) {
+                                    val e = awaitPointerEvent(PointerEventPass.Initial)
+                                    val c = e.changes.firstOrNull { it.id == down.id } ?: break
+                                    // Read before consuming: a consumed change reports no movement.
+                                    dragOffset += c.positionChange()
+                                    c.consume()
+                                    if (!c.pressed) break
+                                }
+                                drop()
+                            }
+                        }),
                                onRemove = { update(widgets.filter { it.id != w.id }) },
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
