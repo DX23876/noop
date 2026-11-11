@@ -5060,4 +5060,8 @@
         <item quantity="other">%1$d treinos</item>
     </plurals>
     <string name="forge_tl_empty_today">Regista um treino e o NOOP compara o teu treino com a tua carga habitual.</string>
+    <string name="forge_ew_energy">Energia</string>
+    <string name="forge_ew_nothing">Ainda nada registado hoje.</string>
+    <string name="forge_ew_resting">Descanso.</string>
+    <string name="forge_ew_active">Ativo</string>
 </resources>

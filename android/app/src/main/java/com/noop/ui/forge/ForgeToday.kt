@@ -24,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.DirectionsWalk
@@ -35,6 +37,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -579,6 +583,46 @@ internal fun TodayEnergy() {
     val s = summary ?: return
     val whole = java.text.NumberFormat.getIntegerInstance(Locale.getDefault())
     fun kcal(v: Double?) = v?.let { whole.format(kotlin.math.round(it).toLong()) } ?: "—"
+    if (ForgeDesign.preview) {
+        // The new design's card, as iOS's ForgeEnergyWidget: the name with its arrow, then before anything is
+        // measured one quiet line with the flame, else the resting and active burn so far, each beside its colour.
+        val restingTint = ForgeTokens.StrandPalette.forgeEnergyResting.resolve()
+        val activeTint = ForgeTokens.StrandPalette.forgeEnergyActive.resolve()
+        ForgeCard(Modifier.fillMaxWidth().clickable { open = true }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.forge_ew_energy), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                     color = Forge.colors.text, modifier = Modifier.weight(1f))
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = Forge.colors.textTertiary)
+            }
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            if (s.total == null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(32.dp).background(activeTint.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.LocalFireDepartment, contentDescription = null, tint = activeTint, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(ForgeMetrics.space3))
+                    Text(stringResource(R.string.forge_ew_nothing), style = Forge.type.caption, color = Forge.colors.textSecondary)
+                }
+            } else {
+                Text(stringResource(R.string.forge_ed_kcal, kcal(s.total)), style = Forge.type.title1, color = Forge.colors.text)
+                Spacer(Modifier.height(ForgeMetrics.space2))
+                listOf(Triple(restingTint, stringResource(R.string.forge_ew_resting), s.basal),
+                       Triple(activeTint, stringResource(R.string.forge_ew_active), s.active)).forEach { (tint, label, v) ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                        Box(Modifier.size(8.dp).background(tint, CircleShape))
+                        Spacer(Modifier.width(ForgeMetrics.space2))
+                        Text(label, style = Forge.type.caption, color = Forge.colors.textSecondary, modifier = Modifier.weight(1f))
+                        Text(stringResource(R.string.forge_ed_kcal, kcal(v)), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                             color = Forge.colors.text)
+                    }
+                }
+            }
+        }
+        if (open) ForgeOverlayPage(onDismiss = { open = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { open = false }) }
+        }
+        return
+    }
     ForgeCard(Modifier.fillMaxWidth().clickable { open = true }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.forge_ed_title).uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,

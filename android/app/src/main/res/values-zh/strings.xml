@@ -5038,4 +5038,8 @@
         <item quantity="other">%1$d 次训练</item>
     </plurals>
     <string name="forge_tl_empty_today">记录一次训练，NOOP 就会将你的训练与常规负荷进行比较。</string>
+    <string name="forge_ew_energy">能量</string>
+    <string name="forge_ew_nothing">今天还没有记录。</string>
+    <string name="forge_ew_resting">休息</string>
+    <string name="forge_ew_active">活跃</string>
 </resources>

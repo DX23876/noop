@@ -5103,4 +5103,8 @@
         <item quantity="other">%1$d workouts</item>
     </plurals>
     <string name="forge_tl_empty_today">Log a workout and NOOP compares your training with your usual load.</string>
+    <string name="forge_ew_energy">Energy</string>
+    <string name="forge_ew_nothing">Nothing recorded today yet.</string>
+    <string name="forge_ew_resting">Resting</string>
+    <string name="forge_ew_active">Active</string>
 </resources>
