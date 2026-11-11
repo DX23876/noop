@@ -5005,5 +5005,18 @@
     <string name="forge_st_not_synced">Ещё не синхронизировано</string>
     <string name="forge_st_synced">Синхронизировано %1$s</string>
     <string name="forge_pair_words">%1$s %2$s</string>
+    <string name="forge_w_next">Следующая тренировка</string>
+    <string name="forge_w_next_sub">Широкий · ваша следующая запланированная программа, готова к старту</string>
+    <string name="forge_nx_next_up">Далее · %1$s</string>
+    <string name="forge_nx_start">Старт</string>
+    <string name="forge_nx_plan">Спланировать неделю</string>
+    <string name="forge_nx_today">Сегодня</string>
+    <string name="forge_nx_tomorrow">Завтра</string>
+    <plurals name="forge_nx_exercises">
+        <item quantity="one">%1$d упражнение</item>
+        <item quantity="few">%1$d упражнения</item>
+        <item quantity="many">%1$d упражнений</item>
+        <item quantity="other">%1$d упражнения</item>
+    </plurals>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

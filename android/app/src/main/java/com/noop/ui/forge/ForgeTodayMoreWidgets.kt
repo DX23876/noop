@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Battery5Bar
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -51,6 +54,7 @@ import com.noop.ui.AppViewModel
 import com.noop.ui.NoopPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
@@ -206,4 +210,111 @@ internal fun TodayStrapTile(viewModel: AppViewModel, onOpen: () -> Unit) {
                if (live.connected) Forge.colors.charge else Forge.colors.textSecondary, stringResource(R.string.forge_w_strap),
                live.batteryPct?.let { Math.round(it).toString() }, "%", caption, Modifier.fillMaxWidth().clickable(onClick = onOpen),
                delta = caption.takeIf { live.batteryPct != null })
+}
+
+/** One of the coming seven days and the first routine planned on it, if any. */
+private data class NextDay(val day: LocalDate, val routine: com.noop.core.CoreTraining.Routine?)
+
+/**
+ * Fork (DX23876), Forge parity 2026-11: Today's "Next session" card, as iOS's `ForgeNextSessionWidget`: the next
+ * planned routine of the coming seven days with its first exercises, Start when it is today, and a dot per day where
+ * one is planned. Days of this training week come from the core's schedule (which knows a moved day); later days from
+ * each routine's weekdays. Start opens a session in the core and goes to Training, where it waits to be resumed.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+internal fun TodayNextSessionForge(onOpenTraining: () -> Unit) {
+    val context = LocalContext.current
+    val colors = Forge.colors
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val today = com.noop.ui.logicalDayNow()
+    val loaded by produceState<Pair<List<NextDay>, Map<String, String>>?>(null, coreRevision, today) {
+        value = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            val s = com.noop.core.CoreTraining.snapshot(days = 14) ?: return@withContext emptyList<NextDay>() to emptyMap()
+            val byId = s.routines.associateBy { it.id }
+            val planned = s.week.associate { it.day to it.routineIds }
+            val week = (0L until 7L).map { offset ->
+                val day = today.plusDays(offset)
+                val ids = planned[day.toString()] ?: s.routines.filter { day.dayOfWeek.value in it.weekdays }.map { it.id }
+                NextDay(day, ids.firstNotNullOfOrNull { byId[it] })
+            }
+            week to s.exercises.associate { it.id to it.title }
+        }
+    }
+    val week = loaded?.first.orEmpty()
+    val names = loaded?.second.orEmpty()
+    val next = week.firstOrNull { it.routine != null }
+    val locale = java.util.Locale.getDefault()
+    val title = next?.let {
+        val dayText = when (it.day) {
+            today -> stringResource(R.string.forge_nx_today)
+            today.plusDays(1) -> stringResource(R.string.forge_nx_tomorrow)
+            else -> it.day.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, locale)
+        }
+        stringResource(R.string.forge_nx_next_up, dayText)
+    } ?: stringResource(R.string.forge_w_next)
+    ForgeCard(Modifier.fillMaxWidth().clickable(onClick = onOpenTraining)) {
+        WidgetHead(title)
+        val routine = next?.routine
+        if (next != null && routine != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).background(colors.accent.copy(alpha = 0.18f), RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.FitnessCenter, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                }
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(routine.title, style = Forge.type.headline, color = colors.text, maxLines = 1)
+                    Text(androidx.compose.ui.res.pluralStringResource(R.plurals.forge_nx_exercises, routine.exerciseCount, routine.exerciseCount),
+                         style = Forge.type.caption, color = colors.textSecondary)
+                }
+                if (next.day == today) {
+                    Row(Modifier.padding(start = 8.dp).heightIn(min = 40.dp).background(colors.accent, CircleShape)
+                            .clickable(role = androidx.compose.ui.semantics.Role.Button) {
+                                scope.launch {
+                                    withContext(Dispatchers.IO) { CoreRead.open(context); com.noop.core.CoreTraining.startDraft(listOf(routine.id)) }
+                                    onOpenTraining()
+                                }
+                            }.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Text(stringResource(R.string.forge_nx_start), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                             color = Color.White, modifier = Modifier.padding(start = 4.dp))
+                    }
+                }
+            }
+            val titles = routine.exerciseIds.mapNotNull { names[it] }
+            if (titles.isNotEmpty()) {
+                Spacer(Modifier.height(ForgeMetrics.space2))
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                           verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (titles.take(3) + listOfNotNull(if (titles.size > 3) "+${titles.size - 3}" else null)).forEachIndexed { i, name ->
+                        Text(name, style = Forge.type.caption.copy(fontWeight = FontWeight.Medium),
+                             color = if (i < 3) colors.text else colors.textSecondary, maxLines = 1,
+                             modifier = Modifier.background(colors.textSecondary.copy(alpha = 0.12f), CircleShape)
+                                 .padding(horizontal = 10.dp, vertical = 5.dp))
+                    }
+                }
+            }
+        } else if (loaded != null) {
+            Text(stringResource(R.string.forge_nx_plan), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = colors.accent)
+        }
+        if (week.isNotEmpty()) {
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            Row(Modifier.fillMaxWidth().clearAndSetSemantics { }) {
+                week.forEach { entry ->
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
+                           verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(10.dp).background(
+                            if (entry.routine == null) colors.textSecondary.copy(alpha = 0.18f) else colors.accent, CircleShape))
+                        Text(entry.day.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, locale),
+                             style = Forge.type.caption.copy(fontWeight = if (entry.day == today) FontWeight.Bold else FontWeight.Normal),
+                             color = colors.textSecondary)
+                    }
+                }
+            }
+        }
+    }
 }

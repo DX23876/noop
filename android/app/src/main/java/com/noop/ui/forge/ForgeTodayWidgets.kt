@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -100,7 +101,7 @@ internal data class TodayWidget(
     enum class Kind(val raw: String) {
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
         Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle"), LastNight("lastNight"),
-        Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap");
+        Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap"), NextSession("nextSession");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
@@ -224,7 +225,8 @@ internal object TodayWidgets {
      */
     const val DEMO_EXTRA = "demo_widgets"
     val demoSet: List<TodayWidget> = listOf(
-        TodayWidget(kind = TodayWidget.Kind.Tonight), TodayWidget(kind = TodayWidget.Kind.Breathe),
+        TodayWidget(kind = TodayWidget.Kind.Tonight), TodayWidget(kind = TodayWidget.Kind.NextSession),
+        TodayWidget(kind = TodayWidget.Kind.Breathe),
         TodayWidget(kind = TodayWidget.Kind.Strap), TodayWidget(kind = TodayWidget.Kind.Cycle),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.HRV.raw),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.RESTING_HR.raw),
@@ -401,6 +403,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.Tonight -> TodayTonightForge(viewModel, onOpenAlarms)
                             TodayWidget.Kind.WeekPlan -> TodayWeekPlanForge(viewModel, onOpenTraining)
                             TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe)
+                            TodayWidget.Kind.NextSession -> TodayNextSessionForge(onOpenTraining)
                             TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap)
                         }
                     }
@@ -527,6 +530,7 @@ private fun WidgetGallery(placed: List<TodayWidget>, onAdd: (TodayWidget) -> Uni
                 Triple(TodayWidget.Kind.LastNight, Icons.Rounded.Bedtime, R.string.forge_w_last_night to R.string.forge_w_last_night_sub),
                 Triple(TodayWidget.Kind.Tonight, Icons.Rounded.Bedtime, R.string.forge_w_tonight to R.string.forge_w_tonight_sub),
                 Triple(TodayWidget.Kind.WeekPlan, Icons.Rounded.BarChart, R.string.forge_w_week_plan to R.string.forge_w_week_plan_sub),
+                Triple(TodayWidget.Kind.NextSession, Icons.Rounded.FitnessCenter, R.string.forge_w_next to R.string.forge_w_next_sub),
                 Triple(TodayWidget.Kind.Breathe, Icons.Rounded.Air, R.string.forge_w_breathe to R.string.forge_w_breathe_sub),
                 Triple(TodayWidget.Kind.Strap, Icons.Rounded.BatteryFull, R.string.forge_w_strap to R.string.forge_w_strap_sub),
                 Triple(TodayWidget.Kind.LastWorkout, Icons.Rounded.DirectionsRun, R.string.forge_w_last_workout to R.string.forge_w_last_workout_sub),

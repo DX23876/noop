@@ -5072,5 +5072,15 @@
     <string name="forge_st_not_synced">尚未同步</string>
     <string name="forge_st_synced">%1$s已同步</string>
     <string name="forge_pair_words">%1$s %2$s</string>
+    <string name="forge_w_next">下一次训练</string>
+    <string name="forge_w_next_sub">宽 · 下一个计划的训练，随时开始</string>
+    <string name="forge_nx_next_up">接下来 · %1$s</string>
+    <string name="forge_nx_start">开始</string>
+    <string name="forge_nx_plan">规划本周</string>
+    <string name="forge_nx_today">今天</string>
+    <string name="forge_nx_tomorrow">明天</string>
+    <plurals name="forge_nx_exercises">
+        <item quantity="other">%1$d 练习</item>
+    </plurals>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

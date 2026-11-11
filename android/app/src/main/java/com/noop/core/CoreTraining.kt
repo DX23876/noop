@@ -55,8 +55,9 @@ object CoreTraining {
     private fun call(op: String, args: JSONObject = JSONObject()): String? =
         if (SwiftCore.available) SwiftCore.call(op, args.toString()) else null
 
-    fun snapshot(dismissedWorkouts: List<String> = emptyList()): Snapshot? =
-        call("training.snapshot", JSONObject().put("days", 4_000).put("dismissedWorkouts", JSONArray(dismissedWorkouts)))
+    /** [days] bounds the sessions and history read; the routines and the week come whole either way. */
+    fun snapshot(dismissedWorkouts: List<String> = emptyList(), days: Int = 4_000): Snapshot? =
+        call("training.snapshot", JSONObject().put("days", days).put("dismissedWorkouts", JSONArray(dismissedWorkouts)))
             ?.let(::parseSnapshot)
 
     fun startDraft(routineIds: List<String>): Draft? =

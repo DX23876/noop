@@ -5102,5 +5102,16 @@
     <string name="forge_st_not_synced">Aún no sincronizado</string>
     <string name="forge_st_synced">Sincronizado %1$s</string>
     <string name="forge_pair_words">%1$s %2$s</string>
+    <string name="forge_w_next">Próxima sesión</string>
+    <string name="forge_w_next_sub">Ancho · tu próxima rutina planificada, lista para empezar</string>
+    <string name="forge_nx_next_up">A continuación · %1$s</string>
+    <string name="forge_nx_start">Iniciar</string>
+    <string name="forge_nx_plan">Planificar esta semana</string>
+    <string name="forge_nx_today">Hoy</string>
+    <string name="forge_nx_tomorrow">Mañana</string>
+    <plurals name="forge_nx_exercises">
+        <item quantity="one">%1$d ejercicio</item>
+        <item quantity="other">%1$d ejercicios</item>
+    </plurals>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>
