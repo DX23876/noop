@@ -5113,5 +5113,20 @@
     <string name="forge_health_what_works_sub">What helps you, what hurts you</string>
     <string name="forge_lw_title">Latest workout</string>
     <string name="forge_lw_none">Workouts you record or import appear here.</string>
+    <string name="forge_w_last_night">Last night</string>
+    <string name="forge_w_last_night_sub">Wide · hours asleep and bedtime</string>
+    <string name="forge_ln_none">No night yet.</string>
+    <string name="forge_w_tonight">Tonight</string>
+    <string name="forge_w_tonight_sub">Wide · bedtime for a full night and the alarm</string>
+    <string name="forge_tn_in_bed">in bed</string>
+    <string name="forge_tn_now">Time for bed</string>
+    <string name="forge_tn_full">Bedtime for a full night</string>
+    <string name="forge_tn_in_min">In %1$d min</string>
+    <string name="forge_tn_in_h">In %1$s h</string>
+    <string name="forge_tn_alarm">Alarm %1$s</string>
+    <string name="forge_w_week_plan">This week\'s plan</string>
+    <string name="forge_w_week_plan_sub">Wide · done and planned days</string>
+    <string name="forge_wp_days">Workouts on %1$d of 7 days</string>
+    <string name="forge_wp_a11y">%1$d days with a workout this week</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

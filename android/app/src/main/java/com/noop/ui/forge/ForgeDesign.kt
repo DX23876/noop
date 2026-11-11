@@ -36,6 +36,7 @@ object ForgeDesign {
         // a release build ignores it, so no other app can flip the wearer's choice through the launcher.
         val override = intent?.takeIf { com.noop.BuildConfig.DEBUG && it.hasExtra(EXTRA) }?.getBooleanExtra(EXTRA, DEFAULT)
         preview = override ?: prefs.getBoolean(KEY, DEFAULT)
+        TodayWidgets.seedDemoIfRequested(context, intent)
     }
 
     /** Set by a tab header's magnifier: the More page it opens puts the cursor in its search field, once. */

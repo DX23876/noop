@@ -5048,5 +5048,20 @@
     <string name="forge_health_what_works_sub">什么对你有益，什么对你有害</string>
     <string name="forge_lw_title">最近一次训练</string>
     <string name="forge_lw_none">你记录或导入的训练会显示在这里。</string>
+    <string name="forge_w_last_night">昨晚</string>
+    <string name="forge_w_last_night_sub">宽 · 睡眠时长和就寝时间</string>
+    <string name="forge_ln_none">还没有夜间记录。</string>
+    <string name="forge_w_tonight">今晚</string>
+    <string name="forge_w_tonight_sub">宽 · 睡满一整晚的就寝时间和闹钟</string>
+    <string name="forge_tn_in_bed">上床</string>
+    <string name="forge_tn_now">该睡觉了</string>
+    <string name="forge_tn_full">睡满一整晚的就寝时间</string>
+    <string name="forge_tn_in_min">%1$d 分钟后</string>
+    <string name="forge_tn_in_h">%1$s 小时后</string>
+    <string name="forge_tn_alarm">闹钟 %1$s</string>
+    <string name="forge_w_week_plan">本周计划</string>
+    <string name="forge_w_week_plan_sub">宽 · 已完成和计划的日子</string>
+    <string name="forge_wp_days">7 天中有 %1$d 天训练</string>
+    <string name="forge_wp_a11y">本周有 %1$d 天训练</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

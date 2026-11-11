@@ -5078,5 +5078,20 @@
     <string name="forge_health_what_works_sub">Lo que te ayuda y lo que te perjudica</string>
     <string name="forge_lw_title">Último entrenamiento</string>
     <string name="forge_lw_none">Los entrenos que registres o importes aparecen aquí.</string>
+    <string name="forge_w_last_night">Anoche</string>
+    <string name="forge_w_last_night_sub">Ancho · horas de sueño y hora de dormir</string>
+    <string name="forge_ln_none">Aún no hay ninguna noche.</string>
+    <string name="forge_w_tonight">Esta noche</string>
+    <string name="forge_w_tonight_sub">Ancho · hora de dormir para una noche completa y la alarma</string>
+    <string name="forge_tn_in_bed">en la cama</string>
+    <string name="forge_tn_now">Hora de dormir</string>
+    <string name="forge_tn_full">Hora de dormir para una noche completa</string>
+    <string name="forge_tn_in_min">En %1$d min</string>
+    <string name="forge_tn_in_h">En %1$s h</string>
+    <string name="forge_tn_alarm">Alarma %1$s</string>
+    <string name="forge_w_week_plan">Plan de esta semana</string>
+    <string name="forge_w_week_plan_sub">Ancho · días hechos y planificados</string>
+    <string name="forge_wp_days">Entrenamientos en %1$d de 7 días</string>
+    <string name="forge_wp_a11y">%1$d días con entreno esta semana</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

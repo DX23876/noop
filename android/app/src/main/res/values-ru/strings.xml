@@ -4981,5 +4981,20 @@
     <string name="forge_health_what_works_sub">Что помогает, что вредит</string>
     <string name="forge_lw_title">Последняя тренировка</string>
     <string name="forge_lw_none">Здесь появятся записанные или импортированные тренировки.</string>
+    <string name="forge_w_last_night">Последняя ночь</string>
+    <string name="forge_w_last_night_sub">Широкий · часы сна и время отхода ко сну</string>
+    <string name="forge_ln_none">Пока нет ночи.</string>
+    <string name="forge_w_tonight">Сегодня ночью</string>
+    <string name="forge_w_tonight_sub">Широкий · время отхода ко сну для полной ночи и будильник</string>
+    <string name="forge_tn_in_bed">в постели</string>
+    <string name="forge_tn_now">Пора спать</string>
+    <string name="forge_tn_full">Время сна для полной ночи</string>
+    <string name="forge_tn_in_min">Через %1$d мин</string>
+    <string name="forge_tn_in_h">Через %1$s ч</string>
+    <string name="forge_tn_alarm">Будильник %1$s</string>
+    <string name="forge_w_week_plan">План на эту неделю</string>
+    <string name="forge_w_week_plan_sub">Широкий · выполненные и запланированные дни</string>
+    <string name="forge_wp_days">Тренировки в %1$d из 7 дней</string>
+    <string name="forge_wp_a11y">Дней с тренировкой на этой неделе: %1$d</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

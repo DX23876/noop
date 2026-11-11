@@ -97,7 +97,8 @@ internal data class TodayWidget(
 ) {
     enum class Kind(val raw: String) {
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
-        Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle");
+        Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle"), LastNight("lastNight"),
+        Tonight("tonight"), WeekPlan("weekPlan");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
@@ -214,6 +215,29 @@ internal object TodayWidgets {
         return seeded
     }
 
+    /**
+     * Every card kind once, for emulator comparisons in a debug build, as iOS's `--demo-widgets` seeds its
+     * gallery (same order where Android has the card). Started with `--ez demo_widgets true`; replaces the list.
+     */
+    const val DEMO_EXTRA = "demo_widgets"
+    val demoSet: List<TodayWidget> = listOf(
+        TodayWidget(kind = TodayWidget.Kind.Tonight), TodayWidget(kind = TodayWidget.Kind.Cycle),
+        TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.HRV.raw),
+        TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.RESTING_HR.raw),
+        TodayWidget(kind = TodayWidget.Kind.Energy), TodayWidget(kind = TodayWidget.Kind.LastWorkout),
+        TodayWidget(kind = TodayWidget.Kind.Momentum), TodayWidget(kind = TodayWidget.Kind.LastNight),
+        TodayWidget(kind = TodayWidget.Kind.WeekPlan), TodayWidget(kind = TodayWidget.Kind.Goals),
+        TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.WEIGHT.raw),
+        TodayWidget(kind = TodayWidget.Kind.Measure, key = TodayWidget.SLEEP_KEY),
+        TodayWidget(kind = TodayWidget.Kind.TrainingLoad),
+    )
+
+    internal fun seedDemoIfRequested(context: Context, intent: android.content.Intent?) {
+        if (!com.noop.BuildConfig.DEBUG || intent?.getBooleanExtra(DEMO_EXTRA, false) != true) return
+        context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(SEEDED_KEY, true).putString(KEY, encode(demoSet)).apply()
+    }
+
     internal fun save(context: Context, list: List<TodayWidget>) {
         context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE).edit().putString(KEY, encode(list)).apply()
     }
@@ -225,7 +249,8 @@ internal object TodayWidgets {
  */
 @Composable
 internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, width: ForgeWidth, editing: Boolean,
-                                  onEditing: (Boolean) -> Unit, onOpenTrainingLoad: () -> Unit) {
+                                  onEditing: (Boolean) -> Unit, onOpenTrainingLoad: () -> Unit, onOpenSleep: () -> Unit = {},
+                                  onOpenAlarms: () -> Unit = {}, onOpenTraining: () -> Unit = {}) {
     val context = LocalContext.current
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
@@ -367,6 +392,9 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.Momentum -> ForgeTodayMomentum(viewModel)
                             TodayWidget.Kind.LastWorkout -> TodayWorkoutsForge(viewModel)
                             TodayWidget.Kind.Cycle -> TodayCycleForge(viewModel)
+                            TodayWidget.Kind.LastNight -> TodayLastNightForge(onOpenSleep)
+                            TodayWidget.Kind.Tonight -> TodayTonightForge(viewModel, onOpenAlarms)
+                            TodayWidget.Kind.WeekPlan -> TodayWeekPlanForge(viewModel, onOpenTraining)
                         }
                     }
                 }
@@ -489,6 +517,9 @@ private fun WidgetGallery(placed: List<TodayWidget>, onAdd: (TodayWidget) -> Uni
                 Triple(TodayWidget.Kind.TrainingLoad, Icons.Rounded.BarChart, R.string.forge_w_training_load to R.string.forge_w_training_load_sub),
                 Triple(TodayWidget.Kind.Goals, Icons.Rounded.Flag, R.string.forge_w_goals to R.string.forge_w_goals_sub),
                 Triple(TodayWidget.Kind.Energy, Icons.Rounded.LocalFireDepartment, R.string.forge_w_energy to R.string.forge_w_energy_sub),
+                Triple(TodayWidget.Kind.LastNight, Icons.Rounded.Bedtime, R.string.forge_w_last_night to R.string.forge_w_last_night_sub),
+                Triple(TodayWidget.Kind.Tonight, Icons.Rounded.Bedtime, R.string.forge_w_tonight to R.string.forge_w_tonight_sub),
+                Triple(TodayWidget.Kind.WeekPlan, Icons.Rounded.BarChart, R.string.forge_w_week_plan to R.string.forge_w_week_plan_sub),
                 Triple(TodayWidget.Kind.LastWorkout, Icons.Rounded.DirectionsRun, R.string.forge_w_last_workout to R.string.forge_w_last_workout_sub),
                 Triple(TodayWidget.Kind.Cycle, Icons.Rounded.WaterDrop, R.string.forge_w_cycle to R.string.forge_w_cycle_sub),
                 Triple(TodayWidget.Kind.Momentum, Icons.Rounded.Bolt, R.string.forge_w_momentum to R.string.forge_w_momentum_sub),
