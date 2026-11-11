@@ -5049,4 +5049,14 @@
     <string name="forge_sleep_duration_tile">Duração do sono</string>
     <string name="forge_sleep_discuss">Falar da última noite com o coach</string>
     <string name="forge_sleep_discuss_prompt">Olha para o meu sono da última noite e diz-me o que se destacou e o que posso mudar esta noite.</string>
+    <string name="forge_tw_this_week">Esta semana</string>
+    <string name="forge_tw_none">Ainda não há treinos</string>
+    <string name="forge_tw_min">%1$d min</string>
+    <string name="forge_tw_hmin">%1$d h %2$s min</string>
+    <string name="forge_tw_trained">Treinado</string>
+    <string name="forge_tw_no_workout">Sem treino</string>
+    <plurals name="forge_tw_count">
+        <item quantity="one">%1$d treino</item>
+        <item quantity="other">%1$d treinos</item>
+    </plurals>
 </resources>

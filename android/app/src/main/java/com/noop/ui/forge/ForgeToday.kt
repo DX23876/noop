@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -278,7 +279,22 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { quickActions = true })
             // Holding a ring arranges the tiles, as on iOS. The rings' own tap claims the touch, so the hold rides
             // on the same click (a long-press detector around them never saw the press).
-            Hero(model?.day, width, onHold = { editingWidgets = true })
+            // As iOS's rings: Charge carried from the latest scored day and Rest from the latest night while today has
+            // none yet (the small hours, a morning before the sync); Effort stays today's.
+            val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+            val carried by produceState<Pair<Double?, Double?>>(null to null, shown, coreRevision) {
+                value = withContext(Dispatchers.IO) {
+                    CoreRead.open(context)
+                    val from = shown.minusDays(14).toString(); val to = shown.toString()
+                    CoreRead.series(CoreRead.Metric.Charge, from, to).lastOrNull()?.value to
+                        CoreRead.series(CoreRead.Metric.Rest, from, to).lastOrNull()?.value
+                }
+            }
+            val heroDay = (model?.day ?: CoreRead.Day(shown.toString(), null, null, null, null, null, null, null, null, null,
+                                                      null, null, null, null, null)).let { d ->
+                d.copy(charge = d.charge ?: carried.first, rest = d.rest ?: carried.second)
+            }
+            Hero(heroDay, width, onHold = { editingWidgets = true })
             if (shown == today) ForgeActivityPrompt()
             if (shown == today) ForgeMorningSuggestion()
             ForgeTodayWidgetArea(model, viewModel, width, editing = editingWidgets, onEditing = { editingWidgets = it },

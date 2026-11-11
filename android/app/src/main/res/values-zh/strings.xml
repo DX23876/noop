@@ -5027,4 +5027,14 @@
     <string name="forge_sleep_duration_tile">睡眠时长</string>
     <string name="forge_sleep_discuss">和教练聊聊昨晚</string>
     <string name="forge_sleep_discuss_prompt">看看我昨晚的睡眠，告诉我有什么突出之处，今晚可以改变什么。</string>
+    <string name="forge_tw_this_week">本周</string>
+    <string name="forge_tw_none">暂无锻炼记录</string>
+    <string name="forge_tw_min">%1$d 分钟</string>
+    <string name="forge_tw_hmin">%1$d 小时 %2$s 分钟</string>
+    <string name="forge_tw_trained">已训练</string>
+    <string name="forge_tw_no_workout">无训练</string>
+    <plurals name="forge_tw_count">
+        <item quantity="one">%1$d 次训练</item>
+        <item quantity="other">%1$d 次训练</item>
+    </plurals>
 </resources>

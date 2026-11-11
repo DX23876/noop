@@ -5056,4 +5056,14 @@
     <string name="forge_sleep_duration_tile">Durée du sommeil</string>
     <string name="forge_sleep_discuss">Parler de la nuit avec le coach</string>
     <string name="forge_sleep_discuss_prompt">Regarde mon sommeil de cette nuit et dis-moi ce qui ressort et ce que je pourrais changer ce soir.</string>
+    <string name="forge_tw_this_week">Cette semaine</string>
+    <string name="forge_tw_none">Aucun entraînement pour l\'instant</string>
+    <string name="forge_tw_min">%1$d min</string>
+    <string name="forge_tw_hmin">%1$d h %2$s min</string>
+    <string name="forge_tw_trained">Entraîné</string>
+    <string name="forge_tw_no_workout">Pas de séance</string>
+    <plurals name="forge_tw_count">
+        <item quantity="one">%1$d entraînement</item>
+        <item quantity="other">%1$d entraînements</item>
+    </plurals>
 </resources>

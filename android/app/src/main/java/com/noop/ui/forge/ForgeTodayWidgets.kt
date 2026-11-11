@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -252,12 +253,18 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val metrics = remember(widgets.toList()) {
         widgets.mapNotNull { w -> w.key?.let { KeyMetric.fromRaw(it) } }.toSet()
     }
-    val keyTiles = rememberKeyTiles(model, metrics, detailed = true, windowDays = 30)
+    val keyTiles = rememberKeyTiles(model, metrics, detailed = true, windowDays = 30, latestFallback = true)
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
     val noData = stringResource(R.string.forge_no_data)
     val date = model?.date ?: com.noop.ui.logicalDayNow()
     // The latest night as the Sleep tab shows it, read only while a sleep tile is placed (iOS `withLatestNight`).
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    // The sleep tile's 30 nights, as iOS draws its trend.
+    val sleepTrend by produceState(emptyList<Double>(), date, widgets.any { it.key == TodayWidget.SLEEP_KEY }, coreRevision) {
+        value = if (widgets.none { it.key == TodayWidget.SLEEP_KEY }) emptyList() else withContext(Dispatchers.IO) {
+            CoreRead.series(CoreRead.Metric.SleepMinutes, date.minusDays(29).toString(), date.toString()).map { it.value / 60 }
+        }
+    }
     val sleepMinutes by produceState<Double?>(null, date, widgets.any { it.key == TodayWidget.SLEEP_KEY }, coreRevision) {
         value = if (widgets.none { it.key == TodayWidget.SLEEP_KEY }) null else withContext(Dispatchers.IO) {
             val end = date.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toEpochSecond()
@@ -349,7 +356,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
-                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, noData) { open = it }
+                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, noData, dense = columns > 2) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy()
@@ -401,13 +408,12 @@ private fun WidgetCell(w: TodayWidget, editing: Boolean, modifier: Modifier, onR
         if (editing) {
             // As iOS places them: remove in the top corner, the order and the size at the bottom, so the tile's name
             // stays readable. Each control keeps the full hit target around its small plate.
+            // As iOS: remove in the top corner, size in the other; moving is by drag, and earlier and later stay as
+            // the screen reader's actions above. Nothing sits on the figure or the curve.
             EditButton(Icons.Rounded.RemoveCircle, removeLabel, onRemove, tint = Forge.colors.effort,
-                       modifier = Modifier.align(Alignment.TopStart))
-            Row(Modifier.align(Alignment.BottomEnd)) {
-                EditButton(Icons.Rounded.ChevronLeft, earlier, onClick = { onShift(-1) })
-                EditButton(Icons.Rounded.ChevronRight, later, onClick = { onShift(1) })
-                if (w.resizable) EditButton(Icons.Rounded.OpenInFull, sizeLabel, onSize)
-            }
+                       modifier = Modifier.align(Alignment.TopStart).offset((-10).dp, (-10).dp))
+            if (w.resizable) EditButton(Icons.Rounded.OpenInFull, sizeLabel, onSize,
+                                        modifier = Modifier.align(Alignment.TopEnd).offset(10.dp, (-10).dp))
         }
     }
 }
@@ -425,12 +431,15 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
 
 /** A measure's tile, from the same reading as Key Metrics; sleep reads the latest night as the Sleep tab does. */
 @Composable
-private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, noData: String,
-                        onOpen: (CoreRead.Metric) -> Unit) {
+private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>, noData: String,
+                        dense: Boolean, onOpen: (CoreRead.Metric) -> Unit) {
+    val sparkHeight = if (dense) 22.dp else 28.dp
     if (key == TodayWidget.SLEEP_KEY) {
-        MetricTile(Icons.Rounded.Bedtime, Forge.colors.rest, stringResource(R.string.forge_sleep),
-                   sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, null, noData,
-                   Modifier.fillMaxWidth().clickable { onOpen(CoreRead.Metric.SleepMinutes) })
+        val rest = Forge.colors.rest
+        MetricTile(Icons.Rounded.Bedtime, rest, stringResource(R.string.forge_sleep),
+                   sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, "h", noData,
+                   Modifier.fillMaxWidth().clickable { onOpen(CoreRead.Metric.SleepMinutes) },
+                   below = sleepTrend.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, rest, sparkHeight) } })
         return
     }
     val metric = KeyMetric.fromRaw(key) ?: return
@@ -438,7 +447,7 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     val tint = metric.tileTint()
     MetricTile(metric.icon, tint, metric.tileLabel(), t.value, t.unit, noData,
                Modifier.fillMaxWidth().then(t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier), t.delta,
-               below = keyTiles.sparks[metric]?.let { values -> @Composable { KeyTileSpark(values, tint) } })
+               below = keyTiles.sparks[metric]?.let { values -> @Composable { KeyTileSpark(values, tint, sparkHeight) } })
 }
 
 /** "Add a widget": the measures not placed yet, then the cards, each with its size and what it shows. */

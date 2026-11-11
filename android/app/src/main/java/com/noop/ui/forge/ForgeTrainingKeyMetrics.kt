@@ -1,6 +1,17 @@
 package com.noop.ui.forge
 
 import androidx.compose.foundation.background
+import kotlin.math.roundToInt
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -118,6 +129,68 @@ private fun MiniBars(values: List<Double>, tint: Color) {
         values.forEach { v ->
             Box(Modifier.weight(1f).fillMaxHeight((v / top).toFloat().coerceIn(0.08f, 1f))
                     .background(if (v > 0) tint else tint.copy(alpha = 0.2f), RoundedCornerShape(3.dp)))
+        }
+    }
+}
+
+/**
+ * The new design's head of Training, as iOS's `weekHero`: this training week's workouts (how many, how long) and a
+ * circle per day carrying the first workout's sport, today ringed in the accent. The days are the core's training
+ * week ([CoreTraining.PlannedDay]), so the week starts where the schedule's does.
+ */
+@Composable
+internal fun TrainingWeekHero(week: List<CoreTraining.PlannedDay>, viewModel: AppViewModel) {
+    val colors = Forge.colors
+    val zone = java.time.ZoneId.systemDefault()
+    val workouts by viewModel.workouts.collectAsState()
+    val days = remember(week) { week.map { LocalDate.parse(it.day) } }
+    val inWeek = remember(workouts, days) {
+        if (days.isEmpty()) emptyList() else workouts.filter { w ->
+            val d = java.time.Instant.ofEpochSecond(w.startTs).atZone(zone).toLocalDate()
+            d >= days.first() && d <= days.last()
+        }
+    }
+    val minutes = inWeek.sumOf { (it.durationS ?: (it.endTs - it.startTs).coerceAtLeast(0).toDouble()) / 60 }.roundToInt()
+    val trained = stringResource(R.string.forge_tw_trained)
+    val rest = stringResource(R.string.forge_tw_no_workout)
+    Column(Modifier.padding(horizontal = ForgeMetrics.space1), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(R.string.forge_tw_this_week), style = Forge.type.subhead.copy(fontWeight = FontWeight.Medium),
+             color = colors.textSecondary)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(if (inWeek.isEmpty()) stringResource(R.string.forge_tw_none)
+                 else pluralStringResource(R.plurals.forge_tw_count, inWeek.size, inWeek.size),
+                 style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = colors.text)
+            if (inWeek.isNotEmpty()) {
+                Spacer(Modifier.width(ForgeMetrics.space2))
+                Text(if (minutes < 60) stringResource(R.string.forge_tw_min, minutes)
+                     else stringResource(R.string.forge_tw_hmin, minutes / 60, "%02d".format(minutes % 60)),
+                     style = Forge.type.body.copy(fontWeight = FontWeight.Medium), color = colors.textSecondary,
+                     modifier = Modifier.padding(bottom = 2.dp))
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            days.forEach { day ->
+                val first = inWeek.filter {
+                    java.time.Instant.ofEpochSecond(it.startTs).atZone(zone).toLocalDate() == day
+                }.minByOrNull { it.startTs }
+                val isToday = day == com.noop.ui.logicalDayNow()
+                val name = day.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
+                Column(Modifier.weight(1f).clearAndSetSemantics {
+                           contentDescription = name; stateDescription = if (first != null) trained else rest
+                       },
+                       horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(Modifier.size(36.dp)
+                            .background(if (first != null) colors.accent.copy(alpha = 0.22f) else colors.surface.copy(alpha = 0.7f), CircleShape)
+                            .border(if (isToday) 1.5.dp else 1.dp, if (isToday) colors.accent else colors.divider, CircleShape),
+                        contentAlignment = Alignment.Center) {
+                        if (first != null) Icon(com.noop.ui.sportIcon(first.sport), contentDescription = null,
+                                                tint = colors.accent, modifier = Modifier.size(16.dp))
+                    }
+                    Text(day.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, java.util.Locale.getDefault()),
+                         style = Forge.type.caption.copy(fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal),
+                         color = if (isToday) colors.text else colors.textSecondary)
+                }
+            }
         }
     }
 }

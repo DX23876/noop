@@ -4958,4 +4958,16 @@
     <string name="forge_sleep_duration_tile">Длительность сна</string>
     <string name="forge_sleep_discuss">Обсудить ночь с коучем</string>
     <string name="forge_sleep_discuss_prompt">Посмотри на мой сон прошлой ночью и скажи, что выделялось и что изменить сегодня вечером.</string>
+    <string name="forge_tw_this_week">На этой неделе</string>
+    <string name="forge_tw_none">Тренировок пока нет</string>
+    <string name="forge_tw_min">%1$d мин.</string>
+    <string name="forge_tw_hmin">%1$d ч %2$s мин</string>
+    <string name="forge_tw_trained">Тренировка</string>
+    <string name="forge_tw_no_workout">Без тренировки</string>
+    <plurals name="forge_tw_count">
+        <item quantity="one">%1$d тренировка</item>
+        <item quantity="few">%1$d тренировки</item>
+        <item quantity="many">%1$d тренировок</item>
+        <item quantity="other">%1$d тренировки</item>
+    </plurals>
 </resources>

@@ -164,7 +164,7 @@ internal class KeyTiles(val tiles: Map<KeyMetric, KeyTile>, val sparks: Map<KeyM
  */
 @Composable
 internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>, detailed: Boolean,
-                              windowDays: Int): KeyTiles {
+                              windowDays: Int, latestFallback: Boolean = false): KeyTiles {
     val context = LocalContext.current
     // The logical day, as Today's own date (#144): past midnight the evening's row is still today's.
     val date = model?.date ?: com.noop.ui.logicalDayNow()
@@ -196,7 +196,27 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
         }
     }
 
-    val day = model?.day
+    // With [latestFallback] (the new design's tiles, as iOS's `ForgeMeasureWidget` reads `values.last`), a measure
+    // the day has no value for yet shows its latest one, so the small hours and a morning before the sync read a
+    // figure, not "No data yet".
+    val latest by produceState<Map<KeyMetric, Double>>(emptyMap(), date, metrics, latestFallback) {
+        value = if (!latestFallback) emptyMap() else withContext(Dispatchers.IO) {
+            val to = date.toString()
+            metrics.mapNotNull { m ->
+                m.series?.let { s -> CoreRead.series(s, date.minusDays(60).toString(), to).lastOrNull()?.let { m to it.value } }
+            }.toMap()
+        }
+    }
+    // No row for the day yet (the small hours, a morning before the sync): an empty one the latest values fill.
+    val dayRow = model?.day ?: if (latestFallback) CoreRead.Day(date.toString(), null, null, null, null, null, null, null,
+                                                              null, null, null, null, null, null, null) else null
+    val day = if (!latestFallback || dayRow == null) dayRow else dayRow.copy(
+        charge = dayRow.charge ?: latest[KeyMetric.CHARGE], effort = dayRow.effort ?: latest[KeyMetric.EFFORT],
+        rest = dayRow.rest ?: latest[KeyMetric.REST], hrv = dayRow.hrv ?: latest[KeyMetric.HRV],
+        restingHr = dayRow.restingHr ?: latest[KeyMetric.RESTING_HR]?.roundToInt(),
+        spo2 = dayRow.spo2 ?: latest[KeyMetric.BLOOD_OXYGEN], respRate = dayRow.respRate ?: latest[KeyMetric.RESPIRATORY],
+        steps = dayRow.steps ?: latest[KeyMetric.STEPS]?.roundToInt(), skinTempDev = dayRow.skinTempDev ?: latest[KeyMetric.SKIN_TEMP],
+    )
     val base = model?.baselines.orEmpty()
     val effortFormat = rememberEffortFormat()
     val units = remember { UnitPrefs.system(context) }
@@ -301,19 +321,23 @@ internal fun KeyMetric.tileTint(): Color = when (this) {
     else -> tint()
 }
 
-/** A detailed tile's trend: the window's values as one line, scaled to their own range. */
+/**
+ * A detailed tile's trend: the window's values as one line, scaled to their own range, with the latest point marked
+ * as iOS's tile sparkline marks it. Inset by the stroke and the dot, so peaks and the last point are drawn whole
+ * instead of cut by the canvas edge. [height] is 22 dp in three columns, 28 dp otherwise, as on iOS.
+ */
 @Composable
-internal fun KeyTileSpark(values: List<Double>, tint: Color) {
-    Canvas(Modifier.fillMaxWidth().height(28.dp)) {
+internal fun KeyTileSpark(values: List<Double>, tint: Color, height: androidx.compose.ui.unit.Dp = 28.dp) {
+    Canvas(Modifier.fillMaxWidth().height(height)) {
         val lo = values.min(); val hi = values.max()
         val span = (hi - lo).takeIf { it > 0 } ?: 1.0
-        val step = size.width / (values.size - 1)
+        val pad = 3.dp.toPx()
+        val w = size.width - 2 * pad; val h = size.height - 2 * pad
+        val step = w / (values.size - 1)
+        fun at(i: Int, v: Double) = androidx.compose.ui.geometry.Offset(pad + i * step, pad + h - ((v - lo) / span).toFloat() * h)
         val path = Path()
-        values.forEachIndexed { i, v ->
-            val x = i * step
-            val y = size.height - ((v - lo) / span).toFloat() * size.height
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-        drawPath(path, tint, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+        values.forEachIndexed { i, v -> val p = at(i, v); if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y) }
+        drawPath(path, tint, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        drawCircle(tint, radius = 2.5.dp.toPx(), center = at(values.lastIndex, values.last()))
     }
 }
