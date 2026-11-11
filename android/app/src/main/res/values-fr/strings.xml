@@ -5667,4 +5667,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">Allure de course</string>
     <string name="forge_th_walking_pace">Allure de marche</string>
+    <string name="forge_se_blurb">Corrigez l\'heure du coucher et du réveil. Les stades sont recalculés à partir de vos données ; la modification est conservée jusqu\'à la prochaine synchronisation du bracelet.</string>
+    <string name="forge_se_asleep">Endormi</string>
+    <string name="forge_se_woke">Réveillé</string>
+    <string name="forge_se_delete">Supprimer ce sommeil</string>
+    <string name="forge_se_cancel">Annuler</string>
+    <string name="forge_se_save">Enregistrer</string>
+    <string name="forge_se_deleted">Sommeil supprimé.</string>
+    <string name="forge_se_undo">Annuler</string>
+    <string name="forge_se_windows">Périodes de sommeil supprimées</string>
+    <string name="forge_se_windows_sub">Recalculer efface le marqueur de suppression et analyse les 21 derniers jours.</string>
+    <string name="forge_se_hide">Masquer</string>
+    <string name="forge_se_recompute">Recalculer cette nuit</string>
+    <string name="forge_se_recomputing">Recalcul en cours…</string>
+    <string name="forge_se_import_note">Si ce sommeil provient uniquement d’un import et qu’aucun échantillon brut n’est enregistré, il peut ne pas réapparaître.</string>
+    <string name="forge_se_delete_nap">Supprimer la sieste</string>
 </resources>

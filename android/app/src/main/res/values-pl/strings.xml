@@ -5688,4 +5688,19 @@
     <string name="forge_tl_ecg">EKG</string>
     <string name="forge_th_running_pace">Tempo biegu</string>
     <string name="forge_th_walking_pace">Tempo marszu</string>
+    <string name="forge_se_blurb">Prawidłowy moment, w którym poszedłeś spać i obudziłeś się. Etapy są ponownie obliczane na podstawie Twoich danych; edycja zostanie zachowana podczas następnej synchronizacji paska.</string>
+    <string name="forge_se_asleep">We śnie</string>
+    <string name="forge_se_woke">Obudziłem się</string>
+    <string name="forge_se_delete">Usuń ten sen</string>
+    <string name="forge_se_cancel">Anuluj</string>
+    <string name="forge_se_save">Zapisz</string>
+    <string name="forge_se_deleted">Usunięto sen.</string>
+    <string name="forge_se_undo">Anulować</string>
+    <string name="forge_se_windows">Usunięte okna snu</string>
+    <string name="forge_se_windows_sub">Ponowne obliczenie usuwa znacznik usunięcia i analizuje ostatnie 21 dni.</string>
+    <string name="forge_se_hide">Ukryj</string>
+    <string name="forge_se_recompute">Przelicz tę noc</string>
+    <string name="forge_se_recomputing">Przeliczanie…</string>
+    <string name="forge_se_import_note">Jeśli ten sen pochodzi wyłącznie z importu i nie zapisano surowych próbek, może się nie pojawić ponownie.</string>
+    <string name="forge_se_delete_nap">Usuń drzemkę</string>
 </resources>

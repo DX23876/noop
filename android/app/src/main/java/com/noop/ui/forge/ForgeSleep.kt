@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.runtime.collectAsState
 import com.noop.R
 import com.noop.core.CoreRead
@@ -64,6 +65,7 @@ import androidx.compose.runtime.produceState
 import com.noop.core.CoreGoals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -436,7 +438,8 @@ private fun clock(ts: Long, zone: ZoneId, format: DateTimeFormatter): String =
 
 /** The naps of [wakeDay] after this night, one row each with its clock span and length; nothing without one. */
 @Composable
-private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: ZoneId) {
+private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: ZoneId,
+                    onDelete: ((CoreRead.Nap) -> Unit)? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val naps by produceState(emptyList<CoreRead.Nap>(), night.endTs, wakeDay) {
         val end = wakeDay.plusDays(1).atStartOfDay(zone).toEpochSecond()
@@ -460,6 +463,14 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
                              style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
                         Text(TodayTimeline.hoursMinutes(nap.asleepMinutes), style = Forge.type.caption,
                              color = Forge.colors.textSecondary)
+                    }
+                    // A wrongly detected nap goes with the shared editor's delete and its undo (iOS `napRow`).
+                    if (onDelete != null) {
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = { onDelete(nap) }) {
+                            Icon(androidx.compose.material.icons.Icons.Rounded.Delete, stringResource(R.string.forge_se_delete_nap),
+                                 tint = Forge.colors.textSecondary)
+                        }
                     }
                 }
             }
@@ -674,11 +685,40 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
                            wakeDay: java.time.LocalDate?, zone: ZoneId, days: List<com.noop.data.DailyMetric>,
                            tiles: com.noop.ui.SleepModel?, traits: com.noop.analytics.RestTraitLookup, need: Double,
                            onAlarms: () -> Unit, bodyClock: com.noop.analytics.CircadianEngine.PhaseEstimate?) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var editing by remember { mutableStateOf<CoreRead.Night?>(null) }
+    var undo by remember { mutableStateOf<List<com.noop.data.SleepSession>>(emptyList()) }
     SleepTonightCard(viewModel, need, onAlarms)
+    if (undo.isNotEmpty()) SleepUndoStrip {
+        val restore = undo; undo = emptyList()
+        scope.launch { viewModel.undoDeleteSleepSessions(restore) }
+    }
+    editing?.let { n ->
+        SleepEditDialog(n, onSave = { start, end ->
+            editing = null
+            scope.launch { nightSessions(viewModel, n).takeIf { it.isNotEmpty() }?.let { viewModel.updateSleepGroupTimes(it, start, end) } }
+        }, onDelete = {
+            editing = null
+            scope.launch {
+                val group = nightSessions(viewModel, n)
+                group.forEach { viewModel.deleteSleepSession(it) }
+                undo = group
+            }
+        }, onDismiss = { editing = null })
+    }
     if (night != null && wakeDay != null) {
         val key = wakeDay.toString()
-        SleepNightCard(night, isLatest, zone)
-        DayNaps(night, wakeDay, zone)
+        SleepNightCard(night, isLatest, zone, onEdit = { editing = night })
+        DayNaps(night, wakeDay, zone, onDelete = { nap ->
+            scope.launch {
+                val group = withContext(Dispatchers.IO) {
+                    runCatching { viewModel.repo.sleepSessionsUnion(viewModel.activeStrapId, nap.startTs - 3600, nap.endTs + 3600) }
+                        .getOrDefault(emptyList()).filter { (it.startTsAdjusted ?: it.startTs) < nap.endTs && it.endTs > nap.startTs }
+                }
+                group.forEach { viewModel.deleteSleepSession(it) }
+                undo = group
+            }
+        })
         if (hasStageMinutes(night)) {
             SleepStagesVsTypical(night, tiles)
             SleepShaped(night, tiles, traits.needHoursFor(key) * 60, days.lastOrNull { it.day == key },
@@ -703,4 +743,5 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     SleepHistory(days, need)
     SleepAlarms(viewModel, onAlarms)
     ForgeSleepMarkCard(viewModel)
+    DeletedSleepWindows(viewModel)
 }

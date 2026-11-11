@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.MonitorHeart
@@ -162,7 +163,7 @@ private fun stageParts(night: CoreRead.Night): List<StagePart> {
  * them, the night's make-up as one bar and each stage's total.
  */
 @Composable
-internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId) {
+internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId, onEdit: (() -> Unit)? = null) {
     val colors = Forge.colors
     val clock = rememberClockFormatter()
     fun at(ts: Long) = Instant.ofEpochSecond(ts).atZone(zone).format(clock)
@@ -172,6 +173,11 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
                  style = Forge.type.headline, color = colors.text, modifier = Modifier.weight(1f))
             Text(stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027, at(night.startTs), at(night.endTs)),
                  style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
+            // The same editor the full Sleep screen opened, here in place (iOS `nightCard`'s pencil).
+            if (onEdit != null) androidx.compose.material3.IconButton(onClick = onEdit) {
+                Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.forge_sl_edit_times), tint = colors.rest,
+                     modifier = Modifier.size(20.dp))
+            }
         }
         Spacer(Modifier.height(ForgeMetrics.space3))
         val parts = stageParts(night)

@@ -5684,4 +5684,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">Lauftempo</string>
     <string name="forge_th_walking_pace">Gehtempo</string>
+    <string name="forge_se_blurb">Korrigiere, wann du ins Bett gegangen und aufgewacht bist. Die Phasen werden aus deinen Daten neu abgeleitet; die Änderung bleibt über die nächste Strap-Synchronisierung erhalten.</string>
+    <string name="forge_se_asleep">Schlafend</string>
+    <string name="forge_se_woke">Aufgewacht</string>
+    <string name="forge_se_delete">Diesen Schlaf löschen</string>
+    <string name="forge_se_cancel">Abbrechen</string>
+    <string name="forge_se_save">Sichern</string>
+    <string name="forge_se_deleted">Schlaf gelöscht.</string>
+    <string name="forge_se_undo">Undo</string>
+    <string name="forge_se_windows">Gelöschte Schlafzeiträume</string>
+    <string name="forge_se_windows_sub">Neu berechnen entfernt die Löschmarkierung und prüft die letzten 21 Tage.</string>
+    <string name="forge_se_hide">Ausblenden</string>
+    <string name="forge_se_recompute">Diese Nacht neu berechnen</string>
+    <string name="forge_se_recomputing">Wird neu berechnet…</string>
+    <string name="forge_se_import_note">Wenn dieser Schlaf nur aus einem Import stammt und keine Rohdaten gespeichert sind, wird er möglicherweise nicht wieder angezeigt.</string>
+    <string name="forge_se_delete_nap">Nickerchen löschen</string>
 </resources>

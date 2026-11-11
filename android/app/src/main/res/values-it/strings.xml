@@ -5636,4 +5636,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">Passo di corsa</string>
     <string name="forge_th_walking_pace">Passo di camminata</string>
+    <string name="forge_se_blurb">Correggi quando sei andato a letto e ti sei svegliato. Le fasi vengono ricalcolate dai tuoi dati; la modifica viene mantenuta fino alla successiva sincronizzazione della fascia.</string>
+    <string name="forge_se_asleep">Addormentato</string>
+    <string name="forge_se_woke">Sveglio</string>
+    <string name="forge_se_delete">Elimina questo sonno</string>
+    <string name="forge_se_cancel">Annulla</string>
+    <string name="forge_se_save">Salva</string>
+    <string name="forge_se_deleted">Sonno cancellato.</string>
+    <string name="forge_se_undo">Annulla</string>
+    <string name="forge_se_windows">Finestre di sonno eliminate</string>
+    <string name="forge_se_windows_sub">Ricalcola rimuove il contrassegno di eliminazione e analizza gli ultimi 21 giorni.</string>
+    <string name="forge_se_hide">Nascondi</string>
+    <string name="forge_se_recompute">Ricalcola questa notte</string>
+    <string name="forge_se_recomputing">Ricalcolo…</string>
+    <string name="forge_se_import_note">Se questo sonno proveniva solo da un\'importazione e non ci sono campioni grezzi salvati, potrebbe non ricomparire.</string>
+    <string name="forge_se_delete_nap">Elimina pisolino</string>
 </resources>

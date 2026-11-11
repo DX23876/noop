@@ -5660,4 +5660,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">Ritmo de corrida</string>
     <string name="forge_th_walking_pace">Ritmo de caminhada</string>
+    <string name="forge_se_blurb">Correto quando foi dormir e acordou. As etapas são novamente derivadas dos teus dados; a edição é mantida durante a próxima sincronização da correia.</string>
+    <string name="forge_se_asleep">Adormecido</string>
+    <string name="forge_se_woke">Acordei</string>
+    <string name="forge_se_delete">Excluir este sono</string>
+    <string name="forge_se_cancel">Cancelar</string>
+    <string name="forge_se_save">Guardar</string>
+    <string name="forge_se_deleted">Sono excluído.</string>
+    <string name="forge_se_undo">Desfazer</string>
+    <string name="forge_se_windows">Janelas de sono eliminadas</string>
+    <string name="forge_se_windows_sub">Recalcular remove a marca de eliminação e analisa os últimos 21 dias.</string>
+    <string name="forge_se_hide">Ocultar</string>
+    <string name="forge_se_recompute">Recalcular esta noite</string>
+    <string name="forge_se_recomputing">A recalcular…</string>
+    <string name="forge_se_import_note">Se este sono veio apenas de uma importação e não houver amostras brutas guardadas, poderá não voltar a aparecer.</string>
+    <string name="forge_se_delete_nap">Eliminar sesta</string>
 </resources>

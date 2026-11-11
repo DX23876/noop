@@ -5707,4 +5707,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">Running pace</string>
     <string name="forge_th_walking_pace">Walking pace</string>
+    <string name="forge_se_blurb">Correct when you went to bed and woke. Stages are re-derived from your data; the edit is kept through the next strap sync.</string>
+    <string name="forge_se_asleep">Asleep</string>
+    <string name="forge_se_woke">Woke</string>
+    <string name="forge_se_delete">Delete this sleep</string>
+    <string name="forge_se_cancel">Cancel</string>
+    <string name="forge_se_save">Save</string>
+    <string name="forge_se_deleted">Sleep deleted.</string>
+    <string name="forge_se_undo">Undo</string>
+    <string name="forge_se_windows">Deleted sleep windows</string>
+    <string name="forge_se_windows_sub">Recompute clears the deletion marker and scans the most recent 21 days.</string>
+    <string name="forge_se_hide">Hide</string>
+    <string name="forge_se_recompute">Recompute this night</string>
+    <string name="forge_se_recomputing">Recomputing…</string>
+    <string name="forge_se_import_note">If this sleep came only from an import and no raw samples are stored, it may not reappear.</string>
+    <string name="forge_se_delete_nap">Delete nap</string>
 </resources>

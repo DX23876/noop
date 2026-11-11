@@ -5668,4 +5668,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">Ritmo de carrera</string>
     <string name="forge_th_walking_pace">Ritmo al caminar</string>
+    <string name="forge_se_blurb">Corrige cuándo te acostaste y te despertaste. Las fases se recalculan a partir de tus datos; la edición se conserva tras la siguiente sincronización de la pulsera.</string>
+    <string name="forge_se_asleep">Dormido</string>
+    <string name="forge_se_woke">Despertó</string>
+    <string name="forge_se_delete">Eliminar este sueño</string>
+    <string name="forge_se_cancel">Cancelar</string>
+    <string name="forge_se_save">Guardar</string>
+    <string name="forge_se_deleted">Sueño eliminado.</string>
+    <string name="forge_se_undo">Undo</string>
+    <string name="forge_se_windows">Periodos de sueño eliminados</string>
+    <string name="forge_se_windows_sub">Recalcular elimina la marca de borrado y analiza los últimos 21 días.</string>
+    <string name="forge_se_hide">Ocultar</string>
+    <string name="forge_se_recompute">Volver a calcular esta noche</string>
+    <string name="forge_se_recomputing">Recalculando…</string>
+    <string name="forge_se_import_note">Si este sueño procede únicamente de una importación y no hay muestras sin procesar guardadas, es posible que no vuelva a aparecer.</string>
+    <string name="forge_se_delete_nap">Eliminar siesta</string>
 </resources>

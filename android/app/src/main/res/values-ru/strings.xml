@@ -5641,4 +5641,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">Темп бега</string>
     <string name="forge_th_walking_pace">Темп ходьбы</string>
+    <string name="forge_se_blurb">Скорректируйте время отхода ко сну и пробуждения. Стадии пересчитываются из ваших данных; изменение сохраняется до следующей синхронизации браслета.</string>
+    <string name="forge_se_asleep">Сон</string>
+    <string name="forge_se_woke">Подъём</string>
+    <string name="forge_se_delete">Удалить этот сон</string>
+    <string name="forge_se_cancel">Отмена</string>
+    <string name="forge_se_save">Сохранить</string>
+    <string name="forge_se_deleted">Сон удален.</string>
+    <string name="forge_se_undo">отменить.</string>
+    <string name="forge_se_windows">Удалённые окна сна</string>
+    <string name="forge_se_windows_sub">Пересчёт снимает отметку об удалении и анализирует последние 21 день.</string>
+    <string name="forge_se_hide">Скрыть</string>
+    <string name="forge_se_recompute">Пересчитать эту ночь</string>
+    <string name="forge_se_recomputing">Пересчёт…</string>
+    <string name="forge_se_import_note">Если этот сон получен только из импорта и сырые данные не сохранены, он может не появиться снова.</string>
+    <string name="forge_se_delete_nap">Удалить дневной сон</string>
 </resources>

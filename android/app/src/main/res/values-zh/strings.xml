@@ -5637,4 +5637,19 @@
     <string name="forge_tl_ecg">ECG</string>
     <string name="forge_th_running_pace">跑步配速</string>
     <string name="forge_th_walking_pace">步行配速</string>
+    <string name="forge_se_blurb">修正你的就寝和起床时间。各阶段会根据你的数据重新推导；该编辑会在下次手环同步后保留。</string>
+    <string name="forge_se_asleep">已入睡</string>
+    <string name="forge_se_woke">已醒来</string>
+    <string name="forge_se_delete">删除此睡眠</string>
+    <string name="forge_se_cancel">取消</string>
+    <string name="forge_se_save">保存</string>
+    <string name="forge_se_deleted">睡眠删除了。</string>
+    <string name="forge_se_undo">撤销</string>
+    <string name="forge_se_windows">已删除的睡眠时间段</string>
+    <string name="forge_se_windows_sub">重新计算会清除删除标记，并分析最近 21 天的数据。</string>
+    <string name="forge_se_hide">隐藏</string>
+    <string name="forge_se_recompute">重新计算这一晚</string>
+    <string name="forge_se_recomputing">正在重新计算…</string>
+    <string name="forge_se_import_note">如果这段睡眠仅仅来源于外部导入，且手机内没有留存原始心率样本，它被删除后可能就无法恢复了。</string>
+    <string name="forge_se_delete_nap">删除小睡</string>
 </resources>
