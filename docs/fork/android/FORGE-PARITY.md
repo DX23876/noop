@@ -52,6 +52,9 @@ Each step is checked side by side with iOS screenshots of the same demo data.
 The new design checked on the `noop-spike` emulator (demo data, light and dark), then the code read again.
 
 Fixed:
+- (2026-11-11, from yesterday's own change) The More page over the tabs was an overlay page itself; opening
+  Analysis, Health & Body, Tools or Settings from it closed both and left the profile dead until a restart.
+  More is a layer of its own now; seen on the emulator.
 - The More page opened from a profile drew its title under the status bar (empty insets).
 - The Timeline and Naps headings used the scene's white ink on the light canvas and all but vanished.
 - Holding the rings opened Effort instead of arranging the tiles: each ring's click claimed the press first.
