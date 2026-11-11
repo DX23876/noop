@@ -5825,4 +5825,23 @@
     <string name="forge_de_help_sleep">Больше всего завтра поможет ранний сон сегодня.</string>
     <string name="forge_de_help_easy">Больше всего завтра поможет лёгкий день после сегодняшней нагрузки.</string>
     <string name="forge_de_target">Effort %1$s, цель %2$s–%3$s</string>
+    <string name="forge_cn_morning">Коуч · утро</string>
+    <string name="forge_cn_checkin">Коуч · чек-ин</string>
+    <string name="forge_cn_coach">ИИ-тренер</string>
+    <string name="forge_cn_weekly">Коуч · обзор недели</string>
+    <string name="forge_cn_workout">Коуч · после тренировки</string>
+    <string name="forge_cn_evening">Коуч · вечер</string>
+    <string name="forge_cn_why">Почему я это вижу?</string>
+    <string name="forge_cn_why_now">Почему сейчас</string>
+    <string name="forge_cn_t_brief">Утренняя заметка пишется раз в день после синхронизации ночи. Если вчерашняя запланированная тренировка не отмечена, она спросит о ней.</string>
+    <string name="forge_cn_t_checkin">Твой ежедневный чек-ин в обычное время пробуждения.</string>
+    <string name="forge_cn_t_nudge">Коуч нашёл в твоих данных настоящий сигнал: серию, тренд за несколько ночей или дату цели. В обычные дни он молчит.</string>
+    <string name="forge_cn_t_weekly">Недельный обзор, не чаще раза в семь дней.</string>
+    <string name="forge_cn_t_workout">Пишется один раз после окончания тренировки, не более трёх заметок коуча в день и никогда с 22:00 до 07:00.</string>
+    <string name="forge_cn_t_evening">Итоги вечера, раз в день после 19:00, не более трёх заметок коуча в день и никогда с 22:00 до 07:00.</string>
+    <string name="forge_cn_read">Что прочитал коуч</string>
+    <string name="forge_cn_where">Откуда цифры</string>
+    <string name="forge_cn_where_text">Провайдер коуча пишет слова вокруг них по данным, которые ты разрешил в настройках коуча.</string>
+    <string name="forge_cn_more">Читать далее</string>
+    <string name="forge_hint_proposal">Предложение ждёт ответа</string>
 </resources>

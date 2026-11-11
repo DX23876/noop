@@ -71,6 +71,43 @@ enum CoreCoach {
             return #"{"ok":true}"#
         case "coach.state":
             return CoreRead.json(State(coach))
+        case "coach.notes":
+            // The coach's own notes of the last days for the new design's Today rail, as `ForgeTodayView` gathers
+            // them: every message the coach started, split into kicker, headline and body by `ForgeTimeline.splitNote`,
+            // with what the wearer asked after it and the answer, until the coach speaks up on its own again.
+            struct FollowUp: Encodable { var question: String, answer: String }
+            struct Note: Encodable {
+                var id: String, date: Double, origin: String, kicker: String?, headline: String, body: String
+                var workoutId: String?, basis: String?, replies: [String], followUps: [FollowUp]
+                /// What the coach read, as the "Why" sheet lists it: the tools it called and the local context it used.
+                var read: [String]
+            }
+            let cutoff = Date().addingTimeInterval(-Double((args["days"] as? NSNumber)?.intValue ?? 3) * 86_400)
+            var notes: [Note] = []
+            for conversation in coach.conversations {
+                let thread = conversation.messages
+                for (index, m) in thread.enumerated() where m.role == .assistant && m.origin.isCoachInitiated && m.date >= cutoff {
+                    var followUps: [FollowUp] = []
+                    var j = index + 1
+                    while j < thread.count, !(thread[j].role == .assistant && thread[j].origin.isCoachInitiated) {
+                        if thread[j].role == .user, j + 1 < thread.count, thread[j + 1].role == .assistant {
+                            followUps.append(FollowUp(question: thread[j].text, answer: thread[j + 1].text)); j += 2
+                        } else { j += 1 }
+                    }
+                    let split = ForgeTimeline.splitNote(m.text)
+                    notes.append(Note(id: m.id.uuidString, date: m.date.timeIntervalSince1970, origin: m.origin.rawValue,
+                                      kicker: split.kicker, headline: split.headline, body: split.body, workoutId: m.workoutId,
+                                      basis: m.basis, replies: m.replies, followUps: followUps,
+                                      read: {
+                                          var seen = Set<String>()
+                                          return (m.toolsUsed.map {
+                                              $0.replacingOccurrences(of: "get_", with: "").replacingOccurrences(of: "_", with: " ")
+                                          } + m.localContextUsed.map(\.rawValue)).filter { seen.insert($0).inserted }
+                                      }()))
+                }
+            }
+            struct Out: Encodable { var notes: [Note] }
+            return CoreRead.json(Out(notes: notes.sorted { $0.date > $1.date }))
         case "coach.unseen":
             // The dot on the floating button (`hasUnseenCoachMessage`): a message the coach started, not yet seen.
             return CoreRead.json(["unseen": coach.hasUnseenCoachMessage])

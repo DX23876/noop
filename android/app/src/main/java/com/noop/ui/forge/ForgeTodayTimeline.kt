@@ -24,6 +24,10 @@ import androidx.compose.material.icons.rounded.WbTwilight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MonitorWeight
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Restaurant
@@ -95,6 +99,9 @@ internal object TodayTimeline {
 
         data class Notice(override val endTs: Long, val notice: TodayNotices.Notice) : Entry
 
+        /** One of the coach's own notes (iOS `.coach` entries), at the moment it was written. */
+        data class Coach(override val endTs: Long, val note: com.noop.core.CoreCoach.Note) : Entry
+
         /** The evening report (iOS `dayEnd`): from the evening on, the day's sessions, tomorrow's plan, the bedtime. */
         data class DayEnd(override val endTs: Long, val sessions: Int, val tomorrow: String?, val bedtime: Long?) : Entry
 
@@ -119,7 +126,7 @@ internal object TodayTimeline {
                 ecgs: List<com.noop.core.CoreEcg.Reading> = emptyList(),
                 notices: List<TodayNotices.Notice> = emptyList(),
                 weighIns: List<Pair<Long, Double>> = emptyList(), weightChange30: Double? = null,
-                dayEnd: Entry.DayEnd? = null): List<Entry> {
+                dayEnd: Entry.DayEnd? = null, coachNotes: List<com.noop.core.CoreCoach.Note> = emptyList()): List<Entry> {
         val today = Instant.ofEpochSecond(now).atZone(zone).toLocalDate()
         fun inRange(ts: Long): Boolean {
             val day = Instant.ofEpochSecond(ts).atZone(zone).toLocalDate()
@@ -138,6 +145,7 @@ internal object TodayTimeline {
         notices.filter { inRange(it.at) }.forEach { out += Entry.Notice(it.at, it) }
         weighIns.filter { inRange(it.first) }.forEach { (at, kg) -> out += Entry.Weight(at, kg, weightChange30) }
         dayEnd?.takeIf { inRange(it.endTs) }?.let { out += it }
+        coachNotes.filter { inRange(it.date) }.forEach { out += Entry.Coach(it.date, it) }
         nights.filter { inRange(it.endTs) }.forEach { n ->
             val m = n.minutes
             val awake = m?.get("wake") ?: 0.0
@@ -181,6 +189,8 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     var tomorrowPlan by remember { mutableStateOf<com.noop.core.CoreCoach.PlanRow?>(null) }
     var todayRow by remember { mutableStateOf<CoreRead.Day?>(null) }
     var catchUp by remember { mutableStateOf(false) }
+    var coachNotes by remember { mutableStateOf<List<com.noop.core.CoreCoach.Note>>(emptyList()) }
+    var why by remember { mutableStateOf<com.noop.core.CoreCoach.Note?>(null) }
     // The evening report from the evening on (iOS `ForgeToday.eveningStart`): 19:00, or two hours before the planned
     // bedtime when that is later; not in quiet hours (22:00 to 07:00), when the coach keeps quiet too.
     val wake = rememberTomorrowWake(viewModel)
@@ -206,6 +216,9 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
                 ?.agreed?.firstOrNull { it.day == tomorrowKey }
             todayRow = CoreRead.day(com.noop.ui.logicalDayNow(ZoneId.systemDefault()).toString())
             catchUp = "sleepCatchUp" in TodayHints.lastMomentumKinds
+            // The coach's notes while the coach is on, as iOS's rail reads them; the hint's own note is left out below.
+            coachNotes = if (com.noop.ui.BottomBarStyleStore.coachEnabled) runCatching { com.noop.core.CoreCoach.notes() }.getOrDefault(emptyList())
+                         else emptyList()
             com.noop.core.CoreBody.snapshot(context, days = 30)?.let { body ->
                 weighIns = body.weighIns.mapNotNull { r -> r.takenAt?.let { it to r.value } }
                 weightChange = body.weightChangeKg
@@ -213,7 +226,8 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
             // The hint under the rings says its notice; the rail leaves that one out rather than say it twice.
             val (all, weighIn) = TodayHints.load(context, live, todayKey)
             val dismissed = TodayHints.dismissed(com.noop.ui.NoopPrefs.of(context).getString(TodayHints.DISMISSED_KEY, "") ?: "", todayKey)
-            val hintId = TodayHints.candidates(all, weighIn, weighTitle, weighDetail, dismissed).firstOrNull()?.id
+            val hintId = TodayHints.candidates(all, weighIn, weighTitle, weighDetail, dismissed, TodayHints.lastProposal, "",
+                                               TodayHints.lastCoachNote).firstOrNull()?.id
             notices = all.filter { it.key != hintId }
         }
     }
@@ -230,8 +244,10 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
             p.durationMin?.let { context.getString(R.string.forge_de_tomorrow_min, sport, it) } ?: context.getString(R.string.forge_de_tomorrow, sport)
         }, if (catchUp) bedtime else null)
     } else null
-    val all = remember(workouts, nights, naps, now, meals, ecgs, notices, weighIns, weightChange, dayEnd) {
-        TodayTimeline.entries(workouts, nights, naps, now, zone, meals, ecgs, notices, weighIns, weightChange, dayEnd)
+    val hintNoteId = TodayHints.lastCoachHintId
+    val all = remember(workouts, nights, naps, now, meals, ecgs, notices, weighIns, weightChange, dayEnd, coachNotes, hintNoteId) {
+        TodayTimeline.entries(workouts, nights, naps, now, zone, meals, ecgs, notices, weighIns, weightChange, dayEnd,
+                              coachNotes.filter { it.id != hintNoteId })
     }
     // "Yesterday" by the logical day, as iOS's rail (`logicalDayKey`): an evening workout seen after midnight
     // still belongs to today.
@@ -287,6 +303,9 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
                                 (if (c >= 0) "+" else "−") + "%.1f kg".format(java.util.Locale.getDefault(), kotlin.math.abs(c))) } ?: "",
                             "%.1f".format(java.util.Locale.getDefault(), e.kg), "kg")
                 }
+                is TodayTimeline.Entry.Coach -> RailRow(time(context, e.endTs), Forge.colors.accent, last) {
+                    CoachNoteCard(e.note, onWhy = { why = e.note })
+                }
                 is TodayTimeline.Entry.DayEnd -> RailRow(time(context, e.endTs), Forge.colors.rest, last) { DayEndEntry(e, todayRow) }
                 is TodayTimeline.Entry.Notice -> RailRow(time(context, e.endTs), Forge.colors.textTertiary, last) {
                     ForgeCard(Modifier.fillMaxWidth()) {
@@ -296,6 +315,73 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+    why?.let { CoachWhySheet(it) { why = null } }
+}
+
+/** The coach's note on the rail, as iOS's `coachCard`: its kind, the headline, the body (Read more past four lines), what
+ * the wearer asked after it with the answers, and the replies it offers, each sent to the coach. */
+@Composable
+internal fun CoachNoteCard(note: com.noop.core.CoreCoach.Note, onWhy: () -> Unit) {
+    val colors = Forge.colors
+    val select = LocalForgeTabSelect.current
+    var opened by remember { mutableStateOf(note.body.length <= 220) }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.MonitorHeart, contentDescription = null, tint = colors.accent, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(when (note.origin) {
+                "brief" -> R.string.forge_cn_morning; "checkIn" -> R.string.forge_cn_checkin; "weeklyReview" -> R.string.forge_cn_weekly
+                "afterWorkout" -> R.string.forge_cn_workout; "evening" -> R.string.forge_cn_evening; else -> R.string.forge_cn_coach
+            }), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.accent, modifier = Modifier.weight(1f), maxLines = 1)
+            Icon(Icons.Rounded.Info, stringResource(R.string.forge_cn_why), tint = colors.textTertiary,
+                 modifier = Modifier.size(20.dp).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onWhy))
+        }
+        note.kicker?.let { Text(it, style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.padding(top = 4.dp)) }
+        Text(note.headline, style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = colors.text, modifier = Modifier.padding(top = 4.dp))
+        if (note.body.isNotEmpty()) {
+            Text(note.body.replace("**", ""), style = Forge.type.body, color = colors.textSecondary, maxLines = if (opened) Int.MAX_VALUE else 4,
+                 overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+            if (!opened) Text(stringResource(R.string.forge_cn_more), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                              color = colors.accent, modifier = Modifier.clickable { opened = true }.padding(vertical = 8.dp))
+        }
+        note.followUps.forEach { (q, a) ->
+            Text(q, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text, modifier = Modifier.padding(top = 8.dp))
+            Text(a.replace("**", ""), style = Forge.type.body, color = colors.textSecondary)
+        }
+        if (note.replies.isNotEmpty()) Row(Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()),
+                                           horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            note.replies.forEach { r ->
+                Text(r, style = Forge.type.subhead, color = colors.accent,
+                     modifier = Modifier.background(colors.accent.copy(alpha = 0.12f), CircleShape)
+                         .clickable { com.noop.ui.CoachHandoff.pendingPrompt = r; select(ForgeTab.Coach) }.padding(horizontal = 14.dp, vertical = 8.dp))
+            }
+        }
+    }
+}
+
+/** "Why am I seeing this?" for a coach note, as iOS's `ForgeCoachWhySheet`: why now, what it read, where the figures come from. */
+@Composable
+internal fun CoachWhySheet(note: com.noop.core.CoreCoach.Note, onDismiss: () -> Unit) {
+    val colors = Forge.colors
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.background(colors.surface, RoundedCornerShape(20.dp)).padding(20.dp).verticalScroll(rememberScrollState()),
+               verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+            Text(stringResource(R.string.forge_cn_why), style = Forge.type.headline, color = colors.text)
+            Text(stringResource(R.string.forge_cn_why_now), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(stringResource(when (note.origin) {
+                "brief" -> R.string.forge_cn_t_brief; "checkIn" -> R.string.forge_cn_t_checkin; "weeklyReview" -> R.string.forge_cn_t_weekly
+                "afterWorkout" -> R.string.forge_cn_t_workout; "evening" -> R.string.forge_cn_t_evening; else -> R.string.forge_cn_t_nudge
+            }), style = Forge.type.body, color = colors.textSecondary)
+            if (note.read.isNotEmpty()) {
+                Text(stringResource(R.string.forge_cn_read), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+                Text(note.read.joinToString(" · "), style = Forge.type.footnote, color = colors.text)
+            }
+            Text(stringResource(R.string.forge_cn_where), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(stringResource(R.string.forge_cn_where_text), style = Forge.type.body, color = colors.textSecondary)
+            Text(stringResource(R.string.forge_hv_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent,
+                 modifier = Modifier.align(Alignment.End).clickable(onClick = onDismiss).padding(8.dp))
         }
     }
 }

@@ -306,7 +306,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 var hintCharge by remember { mutableStateOf(false) }
                 TodayHintCard(viewModel, today.toString(), onCharge = { hintCharge = true },
                               onGoals = { more.push(MoreRoute.Dest(MoreDest.Goals)) },
-                              onPlan = { selectTab(ForgeTab.Training) },
+                              onPlan = { selectTab(ForgeTab.Coach) },
                               onWeight = { more.push(MoreRoute.Dest(MoreDest.Body)) })
                 if (hintCharge) ChargeBreakdownHost(viewModel, onDismiss = { hintCharge = false })
             }

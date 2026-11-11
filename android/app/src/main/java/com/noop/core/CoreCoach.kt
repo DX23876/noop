@@ -88,6 +88,29 @@ object CoreCoach {
     fun state(): State? = call("coach.state", "{}")?.let(::parse)
 
     /** A message the coach started that the wearer has not seen yet: the dot on the floating button. */
+    /** One of the coach's own notes for the Today rail (`coach.notes`), already split as iOS splits it. */
+    data class Note(
+        val id: String, val date: Long, val origin: String, val kicker: String?, val headline: String, val body: String,
+        val workoutId: String?, val basis: String?, val replies: List<String>, val followUps: List<Pair<String, String>>,
+        val read: List<String>,
+    )
+
+    /** The coach's notes of the last [days] days, newest first. */
+    fun notes(days: Int = 3): List<Note> {
+        val o = call("coach.notes", JSONObject().put("days", days).toString()) ?: return emptyList()
+        val a = o.optJSONArray("notes") ?: return emptyList()
+        return (0 until a.length()).map { i ->
+            val n = a.getJSONObject(i)
+            fun opt(k: String) = if (n.isNull(k) || !n.has(k)) null else n.optString(k).takeIf { it.isNotEmpty() }
+            val replies = n.optJSONArray("replies"); val fu = n.optJSONArray("followUps"); val read = n.optJSONArray("read")
+            Note(n.getString("id"), n.getDouble("date").toLong(), n.getString("origin"), opt("kicker"), n.optString("headline"),
+                 n.optString("body"), opt("workoutId"), opt("basis"),
+                 (0 until (replies?.length() ?: 0)).map { replies!!.getString(it) },
+                 (0 until (fu?.length() ?: 0)).map { fu!!.getJSONObject(it).let { f -> f.getString("question") to f.getString("answer") } },
+                 (0 until (read?.length() ?: 0)).map { read!!.getString(it) })
+        }
+    }
+
     fun unseen(): Boolean = call("coach.unseen", "{}")?.optBoolean("unseen") ?: false
 
     /** The chat is on screen, so everything the coach said on its own counts as seen (`markCoachMessagesSeen`). */

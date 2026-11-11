@@ -126,9 +126,18 @@ internal fun ForgeWeeklyReportPage(viewModel: AppViewModel, onBack: () -> Unit, 
             Text(stringResource(R.string.forge_wr_week, first.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)),
                  style = Forge.type.title1, color = Forge.sceneInk.text)
         }
-        // The week's three means as rings with the change against last week, every day as small rings, the coach's asks.
+        // The coach's weekly review on top when there is one this week (iOS `weeklyNote`), else "Your week".
+        val review by produceState<com.noop.core.CoreCoach.Note?>(null, coreRevision) {
+            value = if (onAsk == null) null else withContext(Dispatchers.IO) {
+                runCatching { com.noop.core.CoreCoach.notes(days = 7).firstOrNull { it.origin == "weeklyReview" } }.getOrNull()
+            }
+        }
         ForgeCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.forge_tr_your_week), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = colors.text)
+            review?.let { note ->
+                Text(stringResource(R.string.forge_cn_weekly), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent)
+                Text(note.headline, style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = colors.text)
+                if (note.body.isNotEmpty()) Text(note.body.replace("**", ""), style = Forge.type.body, color = colors.textSecondary)
+            } ?: Text(stringResource(R.string.forge_tr_your_week), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold), color = colors.text)
             Spacer(Modifier.height(ForgeMetrics.space3))
             Row(Modifier.fillMaxWidth()) {
                 WeekRing(thisWeek.mean { it.charge }, lastWeek.mean { it.charge }, stringResource(R.string.forge_charge), colors.charge,

@@ -5872,4 +5872,23 @@
     <string name="forge_de_help_sleep">Co najbardziej pomoże jutro: wcześnie do łóżka dziś wieczorem.</string>
     <string name="forge_de_help_easy">Co najbardziej pomoże jutro: lekki dzień po dzisiejszym obciążeniu.</string>
     <string name="forge_de_target">Effort %1$s, cel %2$s–%3$s</string>
+    <string name="forge_cn_morning">Coach · rano</string>
+    <string name="forge_cn_checkin">Coach · codzienny check-in</string>
+    <string name="forge_cn_coach">Trener</string>
+    <string name="forge_cn_weekly">Coach · przegląd tygodnia</string>
+    <string name="forge_cn_workout">Coach · po treningu</string>
+    <string name="forge_cn_evening">Coach · wieczór</string>
+    <string name="forge_cn_why">Dlaczego to widzę?</string>
+    <string name="forge_cn_why_now">Dlaczego teraz</string>
+    <string name="forge_cn_t_brief">Twoja notatka poranna, pisana raz dziennie po synchronizacji nocy. Jeśli wczorajsza zaplanowana sesja jest otwarta, pyta o nią.</string>
+    <string name="forge_cn_t_checkin">Twój codzienny check-in o zwykłej porze pobudki.</string>
+    <string name="forge_cn_t_nudge">Coach znalazł prawdziwy sygnał w twoich danych, na przykład serię, trend z kilku nocy albo termin celu. W zwykłe dni milczy.</string>
+    <string name="forge_cn_t_weekly">Przegląd tygodnia, najwyżej raz na siedem dni.</string>
+    <string name="forge_cn_t_workout">Pisana raz po zakończonym treningu, najwyżej trzy notatki coacha dziennie i nigdy między 22:00 a 07:00.</string>
+    <string name="forge_cn_t_evening">Podsumowanie wieczoru, raz dziennie po 19:00, najwyżej trzy notatki coacha dziennie i nigdy między 22:00 a 07:00.</string>
+    <string name="forge_cn_read">Co przeczytał coach</string>
+    <string name="forge_cn_where">Skąd pochodzą liczby</string>
+    <string name="forge_cn_where_text">Każda liczba jest odczytywana na tym iPhonie. Dostawca coacha pisze słowa wokół nich z danych, na które pozwoliłeś w ustawieniach coacha.</string>
+    <string name="forge_cn_more">Czytaj więcej</string>
+    <string name="forge_hint_proposal">Propozycja czeka na twoją odpowiedź</string>
 </resources>

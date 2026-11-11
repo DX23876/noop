@@ -137,6 +137,8 @@ internal object TodayHints {
     sealed interface Source {
         data class Notice(val notice: TodayNotices.Notice) : Source
         data object WeighIn : Source
+        data class Coach(val note: com.noop.core.CoreCoach.Note) : Source
+        data object Proposal : Source
     }
 
     data class Hint(val id: String, val source: Source, val title: String, val detail: String?)
@@ -145,14 +147,18 @@ internal object TodayHints {
 
     /**
      * The day's candidates, most pressing first: a raised warning, then the other notices (care before news), then a
-     * missing weigh-in. Apple also ranks a plan waiting for an answer and the newest coach note between them; Android's
-     * Today has neither yet. Dismissed ones are left out.
+     * missing weigh-in, with a plan waiting for an answer and the newest coach note after the warning. Dismissed ones
+     * are left out.
      */
     fun candidates(notices: List<TodayNotices.Notice>, weighIn: Boolean, weighTitle: String, weighDetail: String,
-                   dismissed: Set<String>): List<Hint> {
+                   dismissed: Set<String>, proposal: Boolean = false, proposalTitle: String = "",
+                   coach: com.noop.core.CoreCoach.Note? = null): List<Hint> {
         fun hint(n: TodayNotices.Notice) = Hint(n.key, Source.Notice(n), n.headline, n.detail.ifEmpty { null })
         val out = mutableListOf<Hint>()
         out += notices.filter { it.tone == "critical" }.sortedByDescending { it.at }.map(::hint)
+        // A plan waiting for an answer, then the newest coach note, as iOS ranks them.
+        if (proposal) out += Hint("hint.proposal", Source.Proposal, proposalTitle, null)
+        coach?.let { out += Hint(it.id, Source.Coach(it), it.headline, it.body.ifEmpty { null }) }
         out += notices.filter { it.tone != "critical" }
             .sortedWith(compareBy<TodayNotices.Notice>({ toneRank[it.tone] ?: 9 }, { -it.at })).map(::hint)
         if (weighIn) out += Hint("hint.weighIn", Source.WeighIn, weighTitle, weighDetail)
@@ -163,6 +169,11 @@ internal object TodayHints {
      * The day's admitted notices and whether a weight goal misses its weigh-in (Apple's `weighInDue`), the inputs of
      * [candidates]. Blocking; the hint card and the timeline both read it, so the timeline can leave out the hint's entry.
      */
+    /** The coach note the hint shows, so the rail leaves it out (iOS: the day leaves the hint's entry out). */
+    @Volatile var lastCoachHintId: String? = null
+    @Volatile var lastCoachNote: com.noop.core.CoreCoach.Note? = null
+    @Volatile var lastProposal: Boolean = false
+
     /** The Momentum kinds of the last [load], for the evening report's bedtime line (iOS reads `.sleepCatchUp`). */
     @Volatile var lastMomentumKinds: Set<String> = emptySet()
 
@@ -171,6 +182,13 @@ internal object TodayHints {
         val dismissedWorkouts = dismissedTrainingWorkouts(context)
         val momentum = CoreMomentum.feed(context, dismissedWorkouts, live).orEmpty()
         lastMomentumKinds = momentum.map { it.kind }.toSet()
+        // The coach's newest note of today and a plan waiting for today's answer, while the coach is on.
+        val coachOn = com.noop.ui.BottomBarStyleStore.coachEnabled
+        lastCoachNote = if (!coachOn) null else runCatching { com.noop.core.CoreCoach.notes() }.getOrDefault(emptyList())
+            .firstOrNull { java.time.Instant.ofEpochSecond(it.date).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString() == day }
+        lastProposal = coachOn && runCatching {
+            com.noop.core.CoreCoach.plan(com.noop.ui.UnitPrefs.effortScale(context).raw)?.pending?.any { it.day == day }
+        }.getOrNull() == true
         val notices = TodayNotices.notices(context, momentum, day, System.currentTimeMillis() / 1000)
         val weightGoal = com.noop.core.CoreGoals.snapshot(context, dismissedWorkouts)?.longTerm.orEmpty()
             .any { it.kind == "weight" && (it.status == "active" || it.status == "paused") }
@@ -199,6 +217,8 @@ private fun hintLook(source: TodayHints.Source): Pair<ImageVector, Color> {
     val colors = Forge.colors
     return when (source) {
         TodayHints.Source.WeighIn -> Icons.Rounded.Accessibility to colors.rest
+        is TodayHints.Source.Coach -> Icons.Rounded.MonitorHeart to colors.accent
+        TodayHints.Source.Proposal -> Icons.Rounded.Flag to colors.accent
         is TodayHints.Source.Notice -> {
             val n = source.notice
             val tint = when (n.tone) {
@@ -247,12 +267,19 @@ internal fun TodayHintCard(viewModel: AppViewModel, day: String, onCharge: () ->
     val loaded by produceState<Pair<List<TodayNotices.Notice>, Boolean>>(emptyList<TodayNotices.Notice>() to false, revision, live, day) {
         value = withContext(Dispatchers.IO) { TodayHints.load(context, live, day) }
     }
+    val proposalTitle = stringResource(R.string.forge_hint_proposal)
     val hints = TodayHints.candidates(loaded.first, loaded.second, weighTitle, weighDetail,
-                                      TodayHints.dismissed(dismissedRaw, day))
+                                      TodayHints.dismissed(dismissedRaw, day), TodayHints.lastProposal, proposalTitle,
+                                      TodayHints.lastCoachNote)
+    TodayHints.lastCoachHintId = (hints.firstOrNull()?.source as? TodayHints.Source.Coach)?.note?.id
+    var noteOpen by remember { mutableStateOf(false) }
     val top = hints.firstOrNull() ?: return
     fun act(h: TodayHints.Hint) {
         when (val s = h.source) {
             TodayHints.Source.WeighIn -> onWeight()
+            // A coach note opens in place, as iOS's hint shows the whole note; a plan opens where it is answered.
+            is TodayHints.Source.Coach -> noteOpen = !noteOpen
+            TodayHints.Source.Proposal -> onPlan()
             is TodayHints.Source.Notice -> when (s.notice.destination) {
                 "chargeBreakdown" -> onCharge()
                 "goalJourney" -> onGoals()
@@ -267,7 +294,8 @@ internal fun TodayHintCard(viewModel: AppViewModel, day: String, onCharge: () ->
             Spacer(Modifier.width(ForgeMetrics.space3))
             Column(Modifier.weight(1f).clickable(role = Role.Button) { act(top) }) {
                 Text(top.title, style = Forge.type.headline, color = colors.text)
-                top.detail?.let { Text(it, style = Forge.type.subhead, color = colors.textSecondary, maxLines = 2,
+                top.detail?.let { Text(it.replace("**", ""), style = Forge.type.subhead, color = colors.textSecondary,
+                                       maxLines = if (noteOpen) Int.MAX_VALUE else 2,
                                        modifier = Modifier.padding(top = 4.dp)) }
             }
             IconButton(onClick = {

@@ -31,4 +31,11 @@ class TodayHintsTest {
         assertEquals(null, TodayNotices.topic("recoveryRead"))
         assertEquals(4.0, TodayNotices.severity("critical"), 0.0)
     }
+
+    @Test fun aPlanWaitingAndTheCoachNoteComeRightAfterTheWarning() {
+        val note = com.noop.core.CoreCoach.Note("n1", 10, "brief", null, "Morning", "", null, null, emptyList(), emptyList(), emptyList())
+        val hints = TodayHints.candidates(listOf(notice("care", "caution", 1), notice("alert", "critical", 2)), false, "w", "d",
+                                          emptySet(), proposal = true, proposalTitle = "p", coach = note)
+        assertEquals(listOf("alert", "hint.proposal", "n1", "care"), hints.map { it.id })
+    }
 }

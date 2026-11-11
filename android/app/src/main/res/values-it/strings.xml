@@ -5820,4 +5820,23 @@
     <string name="forge_de_help_sleep">Ciò che aiuta di più domani: andare a letto presto stasera.</string>
     <string name="forge_de_help_easy">Ciò che aiuta di più domani: una giornata leggera dopo il carico di oggi.</string>
     <string name="forge_de_target">Effort %1$s, obiettivo da %2$s a %3$s</string>
+    <string name="forge_cn_morning">Coach · mattina</string>
+    <string name="forge_cn_checkin">Coach · controllo del giorno</string>
+    <string name="forge_cn_coach">Coach</string>
+    <string name="forge_cn_weekly">Coach · revisione settimanale</string>
+    <string name="forge_cn_workout">Coach · dopo l’allenamento</string>
+    <string name="forge_cn_evening">Coach · sera</string>
+    <string name="forge_cn_why">Perché vedo questo?</string>
+    <string name="forge_cn_why_now">Perché ora</string>
+    <string name="forge_cn_t_brief">La tua nota del mattino, scritta una volta al giorno dopo la sincronizzazione della notte. Se una sessione pianificata di ieri è ancora aperta, ti chiede com’è andata.</string>
+    <string name="forge_cn_t_checkin">Il tuo check-in quotidiano alla tua solita ora di sveglia.</string>
+    <string name="forge_cn_t_nudge">Il coach ha trovato un segnale reale nei tuoi dati, come una serie, una tendenza su più notti o la data di un obiettivo. Nei giorni normali resta in silenzio.</string>
+    <string name="forge_cn_t_weekly">La revisione settimanale, al massimo una volta ogni sette giorni.</string>
+    <string name="forge_cn_t_workout">Scritta una volta al termine di un allenamento, al massimo tre note del coach al giorno e mai tra le 22:00 e le 07:00.</string>
+    <string name="forge_cn_t_evening">Il riepilogo serale, una volta al giorno dopo le 19:00, al massimo tre note del coach al giorno e mai tra le 22:00 e le 07:00.</string>
+    <string name="forge_cn_read">Cosa ha letto il coach</string>
+    <string name="forge_cn_where">Da dove vengono i numeri</string>
+    <string name="forge_cn_where_text">Il tuo fornitore del coach scrive le parole intorno con i dati che hai consentito nelle impostazioni del coach.</string>
+    <string name="forge_cn_more">Leggi di più</string>
+    <string name="forge_hint_proposal">Un suggerimento aspetta la tua risposta</string>
 </resources>

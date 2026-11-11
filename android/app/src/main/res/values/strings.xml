@@ -5891,4 +5891,23 @@
     <string name="forge_de_help_sleep">What helps most tomorrow: an early night tonight.</string>
     <string name="forge_de_help_easy">What helps most tomorrow: an easy day after today\'s load.</string>
     <string name="forge_de_target">Effort %1$s, target %2$s to %3$s</string>
+    <string name="forge_cn_morning">Coach · morning</string>
+    <string name="forge_cn_checkin">Coach · check-in</string>
+    <string name="forge_cn_coach">Coach</string>
+    <string name="forge_cn_weekly">Coach · weekly review</string>
+    <string name="forge_cn_workout">Coach · after your workout</string>
+    <string name="forge_cn_evening">Coach · evening</string>
+    <string name="forge_cn_why">Why am I seeing this?</string>
+    <string name="forge_cn_why_now">Why now</string>
+    <string name="forge_cn_t_brief">Your morning note, written once a day after the night has synced. It also asks about yesterday when a planned session is still open.</string>
+    <string name="forge_cn_t_checkin">Your daily check-in at your usual wake time.</string>
+    <string name="forge_cn_t_nudge">The coach found a real signal in your data, such as a streak, a multi-night trend or a goal date. It stays quiet on ordinary days.</string>
+    <string name="forge_cn_t_weekly">The weekly review, at most once every seven days.</string>
+    <string name="forge_cn_t_workout">Written once after a workout ended, at most three coach notes a day and never between 22:00 and 07:00.</string>
+    <string name="forge_cn_t_evening">The evening recap, once a day after 19:00, at most three coach notes a day and never between 22:00 and 07:00.</string>
+    <string name="forge_cn_read">What the coach read</string>
+    <string name="forge_cn_where">Where the figures come from</string>
+    <string name="forge_cn_where_text">Your coach provider writes the words around them from the data you allowed in Coach settings.</string>
+    <string name="forge_cn_more">Read more</string>
+    <string name="forge_hint_proposal">A suggestion waits for your answer</string>
 </resources>

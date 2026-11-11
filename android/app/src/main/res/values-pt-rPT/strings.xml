@@ -5844,4 +5844,23 @@
     <string name="forge_de_help_sleep">O que mais ajuda amanhã: deitar cedo esta noite.</string>
     <string name="forge_de_help_easy">O que mais ajuda amanhã: um dia leve depois da carga de hoje.</string>
     <string name="forge_de_target">Effort %1$s, objetivo %2$s a %3$s</string>
+    <string name="forge_cn_morning">Coach · manhã</string>
+    <string name="forge_cn_checkin">Coach · ponto do dia</string>
+    <string name="forge_cn_coach">Treinador</string>
+    <string name="forge_cn_weekly">Coach · revisão semanal</string>
+    <string name="forge_cn_workout">Coach · após o treino</string>
+    <string name="forge_cn_evening">Coach · noite</string>
+    <string name="forge_cn_why">Porque estou a ver isto?</string>
+    <string name="forge_cn_why_now">Porquê agora</string>
+    <string name="forge_cn_t_brief">A tua nota da manhã, escrita uma vez por dia depois de a noite sincronizar. Se uma sessão planeada de ontem continua em aberto, pergunta por ela.</string>
+    <string name="forge_cn_t_checkin">O teu check-in diário à tua hora habitual de acordar.</string>
+    <string name="forge_cn_t_nudge">O coach encontrou um sinal real nos teus dados, como uma sequência, uma tendência de várias noites ou a data de um objetivo. Em dias normais fica calado.</string>
+    <string name="forge_cn_t_weekly">A revisão semanal, no máximo uma vez a cada sete dias.</string>
+    <string name="forge_cn_t_workout">Escrita uma vez após o fim de um treino, no máximo três notas do coach por dia e nunca entre as 22:00 e as 07:00.</string>
+    <string name="forge_cn_t_evening">O resumo da noite, uma vez por dia depois das 19:00, no máximo três notas do coach por dia e nunca entre as 22:00 e as 07:00.</string>
+    <string name="forge_cn_read">O que o coach leu</string>
+    <string name="forge_cn_where">De onde vêm os números</string>
+    <string name="forge_cn_where_text">O teu fornecedor do coach escreve as palavras à volta com os dados que permitiste nas definições do coach.</string>
+    <string name="forge_cn_more">Ler mais</string>
+    <string name="forge_hint_proposal">Uma sugestão espera a tua resposta</string>
 </resources>

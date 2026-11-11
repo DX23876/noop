@@ -5821,4 +5821,23 @@
     <string name="forge_de_help_sleep">明天最有帮助的是：今晚早点睡。</string>
     <string name="forge_de_help_easy">明天最有帮助的是：在今天的负荷后轻松一天。</string>
     <string name="forge_de_target">Effort %1$s，目标 %2$s 至 %3$s</string>
+    <string name="forge_cn_morning">教练 · 早晨</string>
+    <string name="forge_cn_checkin">教练 · 签到</string>
+    <string name="forge_cn_coach">教练</string>
+    <string name="forge_cn_weekly">教练 · 每周回顾</string>
+    <string name="forge_cn_workout">教练 · 训练后</string>
+    <string name="forge_cn_evening">教练 · 晚间</string>
+    <string name="forge_cn_why">为什么我会看到这个？</string>
+    <string name="forge_cn_why_now">为什么是现在</string>
+    <string name="forge_cn_t_brief">你的晨间笔记，每天在夜间数据同步后写一次。若昨天计划的训练还未结束，它会询问。</string>
+    <string name="forge_cn_t_checkin">你在平常起床时间的每日签到。</string>
+    <string name="forge_cn_t_nudge">教练在你的数据中发现了真实信号，例如连续记录、多晚趋势或目标日期。平常的日子它保持安静。</string>
+    <string name="forge_cn_t_weekly">每周回顾，最多每七天一次。</string>
+    <string name="forge_cn_t_workout">在一次训练结束后写一次，每天最多三条教练笔记，22:00 到 07:00 之间从不发送。</string>
+    <string name="forge_cn_t_evening">晚间回顾，每天 19:00 之后一次，每天最多三条教练笔记，22:00 到 07:00 之间从不发送。</string>
+    <string name="forge_cn_read">教练读取了什么</string>
+    <string name="forge_cn_where">数字从哪里来</string>
+    <string name="forge_cn_where_text">你的教练服务商根据你在教练设置中允许的数据撰写文字。</string>
+    <string name="forge_cn_more">阅读更多</string>
+    <string name="forge_hint_proposal">有一条建议等你回复</string>
 </resources>
