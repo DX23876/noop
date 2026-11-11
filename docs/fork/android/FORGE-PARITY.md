@@ -90,8 +90,10 @@ Seen, not changed:
   thread was waiting for the render thread and spent most of the minute waiting for the CPU, in both designs,
   with software rendering and also with the host GPU and 4 GB. No NOOP code was on the stack; the first
   start's load is worth measuring on a real low-end phone.
+- Optimisation done (2026-11-11): the score rings redrew sixty times a second when scrolled away or covered
+  by a page; they pause there now, as iOS's rings pause by `dashboardAnimationVisibility`. Main and render
+  threads over 10 s: scrolled away 1389 to 0 jiffies, More open 1280 to 11, a metric page over Today 13.
 - Optimisation, measured on the debug build: a cold start takes about 10.5 s to the first frame on this
   emulator. A simpleperf profile shows no single hotspot (the scene picture decode and loading the Swift
-  library about 1 % each, the rest ordinary composition, which a debug build runs interpreted). Idle on Today
-  the main thread still uses about a third of a core and the render thread a sixth, from the rings' constant
-  animation, in both designs. Worth a release-build measurement on a phone before changing anything.
+  library about 1 % each, the rest ordinary composition, which a debug build runs interpreted). With the rings on screen
+  their animation is the cost, as on iOS. Worth a release-build measurement on a phone before changing anything.
