@@ -52,6 +52,8 @@ Each step is checked side by side with iOS screenshots of the same demo data.
 The new design checked on the `noop-spike` emulator (demo data, light and dark), then the code read again.
 
 Fixed:
+- (2026-11-11, from the Health tab of 2026-11-09) Trends opened from Health had no backdrop, insets or back
+  arrow: the Health tab and the tab bar showed through it. Now a page of its own; seen on the emulator.
 - (2026-11-11, from yesterday's own change) The More page over the tabs was an overlay page itself; opening
   Analysis, Health & Body, Tools or Settings from it closed both and left the profile dead until a restart.
   More is a layer of its own now; seen on the emulator.
