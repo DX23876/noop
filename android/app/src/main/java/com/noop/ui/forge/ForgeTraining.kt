@@ -29,6 +29,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
@@ -152,6 +154,7 @@ private sealed interface TrainingPage {
     data object Library : TrainingPage
     data object Intervals : TrainingPage
     data object Breathe : TrainingPage
+    data object Live : TrainingPage
 }
 
 /** Activities offered before the wearer's own recents fill the list (`WorkoutQuickStart.starterNames`). */
@@ -181,6 +184,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     var deleting by remember { mutableStateOf<CoreTraining.Routine?>(null) }
     var showLive by remember { mutableStateOf(false) }
     var showAll by remember { mutableStateOf(false) }
+    var addingWorkout by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf<Sport?>(null) }
     val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
     // Also after each analysis pass, so a session synced while the tab stays open reaches Recent and the year.
@@ -230,6 +234,17 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             InProgressCard(subtitle = live?.sport?.name, onResume = {
                 if (live != null) showLive = true else page = TrainingPage.Session
             })
+        } else if (ForgeDesign.preview) {
+            // The new design starts from a row of capsules, as iOS's `startRow`: start (the shared start sheet picks
+            // the activity), add one that already happened, then the interval timer, live heart rate and breathing.
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StartChip(stringResource(R.string.forge_qa_start_workout), Icons.Rounded.PlayArrow) { showAll = true }
+                StartChip(stringResource(R.string.l10n_workouts_screen_add_workout_a196a2cc), Icons.Rounded.Add) { addingWorkout = true }
+                StartChip(stringResource(R.string.nav_intervals), Icons.Rounded.Timer) { page = TrainingPage.Intervals }
+                StartChip(stringResource(R.string.nav_live), Icons.Rounded.Favorite) { page = TrainingPage.Live }
+                StartChip(stringResource(R.string.nav_breathe), Icons.Rounded.Air) { page = TrainingPage.Breathe }
+            }
         } else {
             val today = s.week.firstOrNull { it.isToday }?.routineIds.orEmpty()
             QuickStartCard(
@@ -377,6 +392,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.Intervals -> Hosted(stringResource(R.string.forge_th_interval_timer), close) {
                         com.noop.ui.IntervalsScreen(viewModel)
                     }
+                    TrainingPage.Live -> Hosted(stringResource(R.string.nav_live), close) { com.noop.ui.LiveScreen(viewModel) }
                     TrainingPage.Breathe -> Hosted(stringResource(R.string.nav_breathe), close) {
                         com.noop.ui.BreatheScreen(viewModel)
                     }
@@ -398,6 +414,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         }
     }
     if (showAll) StartWorkoutSheet(vm = viewModel, onDismiss = { showAll = false; reload() })
+    if (addingWorkout) com.noop.ui.ManualWorkoutDialog(editing = null, onDismiss = { addingWorkout = false },
+        onSave = { row, replacing -> viewModel.saveManualWorkout(row, replacing); addingWorkout = false; reload() })
     configuring?.let { sport ->
         var route by remember(sport) { mutableStateOf(QuickStartPrefs.route(context, sport)) }
         AlertDialog(
@@ -460,6 +478,18 @@ private fun Section(title: String, overline: String?, trailing: (@Composable () 
             trailing?.invoke()
         }
         content()
+    }
+}
+
+/** iOS's quick-start chip: a light capsule with a dark icon and title, at least 46 dp tall. */
+@Composable
+private fun StartChip(label: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(Modifier.heightIn(min = 46.dp).background(Forge.colors.surface.copy(alpha = 0.75f), CircleShape)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = Forge.colors.text, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text, maxLines = 1)
     }
 }
 
