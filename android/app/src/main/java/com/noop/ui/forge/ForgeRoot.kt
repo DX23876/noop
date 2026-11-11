@@ -49,7 +49,9 @@ fun ForgeRoot(viewModel: AppViewModel) {
     var moreOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     ForgeOverlayHost {
         androidx.compose.runtime.CompositionLocalProvider(
-            LocalForgeOpenMore provides (if (ForgeDesign.preview) ({ moreOpen = true }) else null)) {
+            LocalForgeOpenMore provides (if (ForgeDesign.preview) ({ moreOpen = true }) else null),
+            // The tabs lie under the More page while it is open.
+            LocalForgeCovered provides (LocalForgeCovered.current || (moreOpen && ForgeDesign.preview))) {
         ForgeShell { tab, padding, width ->
             when (tab) {
                 // The new design has one Today whatever the dashboard style, as iOS; the classic page jumps to tabs

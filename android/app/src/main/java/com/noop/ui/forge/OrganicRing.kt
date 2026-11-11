@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
@@ -111,7 +115,12 @@ fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric
     val color = if (model.missing && !model.awaitsEffort) colors.missing else tint
     val still = rememberPoseStill()
     val clock = remember { mutableDoubleStateOf(0.0) }
-    if (!still) {
+    // Drawn every frame only while someone can see it: on screen (not scrolled out of the page) and not under a
+    // page laid over the tabs. Paused, it keeps its pose and goes on from there; before, an off-screen or covered
+    // ring redrew its blurred layers sixty times a second for nobody.
+    var onScreen by remember { mutableStateOf(true) }
+    val covered = LocalForgeCovered.current
+    if (!still && onScreen && !covered) {
         LaunchedEffect(Unit) {
             // 60 fps, the iOS ring's TimelineView rate. Unbounded, a 120 Hz panel redrew the ring's blurred layers
             // twice as often and left scrolling short of frames.
@@ -130,7 +139,10 @@ fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric
     // Without blur the soft layers would read as hard bands, so they draw fainter there.
     val soft = if (blurSupported) 1f else 0.45f
 
-    Box(modifier.size(diameter), contentAlignment = Alignment.Center) {
+    Box(modifier.size(diameter).onGloballyPositioned { c ->
+            // Clipped to the scrolling page and the window: an empty rect is a ring nobody sees.
+            val r = c.boundsInWindow(); onScreen = r.width > 0f && r.height > 0f
+        }, contentAlignment = Alignment.Center) {
         if (model.awaitsEffort) {
             Canvas(blurred(5f)) {
                 val f = cache.at(clock.doubleValue, size)

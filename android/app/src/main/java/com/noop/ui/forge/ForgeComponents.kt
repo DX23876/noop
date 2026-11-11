@@ -236,18 +236,28 @@ class ForgeOverlay {
 
 val LocalForgeOverlay = staticCompositionLocalOf { ForgeOverlay() }
 
+/**
+ * True while a page lies fully over this content (an overlay page, the new design's More page): what animates
+ * every frame, as the score rings do, pauses there instead of drawing for nobody.
+ */
+val LocalForgeCovered = androidx.compose.runtime.compositionLocalOf { false }
+
 /** Draws [content] and, over it, the page a [ForgeOverlayPage] has open; Back closes that page. */
 @Composable
 fun ForgeOverlayHost(content: @Composable () -> Unit) {
     val overlay = remember { ForgeOverlay() }
     CompositionLocalProvider(LocalForgeOverlay provides overlay) {
         Box(Modifier.fillMaxSize()) {
-            content()
             // The first page slides in over the tab and the last one slides out to it, as the pages inside a
             // stack already do; the closing page keeps drawing until its exit has run.
             val current = overlay.page
             var shown by remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
             val progress = remember { Animatable(0f) }
+            // A page fully in covers the tabs; while it slides in or out they still show. Derived, so the content
+            // sees one change at the end of the slide, not one per frame.
+            val pageIn by remember { androidx.compose.runtime.derivedStateOf { overlay.page != null && progress.value >= 1f } }
+            val coveredBelow = LocalForgeCovered.current
+            CompositionLocalProvider(LocalForgeCovered provides (coveredBelow || pageIn)) { content() }
             LaunchedEffect(current) {
                 if (current != null) {
                     shown = current
