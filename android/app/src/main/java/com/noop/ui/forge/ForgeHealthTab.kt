@@ -93,6 +93,9 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
 
     val more = rememberMoreNavigator()
     var trendsOpen by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(ForgeDesign.openTrends) {
+        if (ForgeDesign.openTrends) { ForgeDesign.openTrends = false; trendsOpen = true }
+    }
     fun open(dest: MoreDest) = more.push(MoreRoute.Dest(dest))
 
     Column(

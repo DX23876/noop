@@ -136,7 +136,10 @@ Today
   live state keeps only the latest strap event of any kind.
 - Done 2026-11-11: What works for your Charge, from the Insights ranking. Its bars are unchecked on screen: the
   demo has no journal answers. Every row carries the journal symbol, since Android has no per-habit symbols.
-- Still to draw as iOS's: What changed (better and worse), Goals (journeys).
+- Done 2026-11-11: What changed, the rule of iOS's `TrendsChangeSummary.rows` with a test; it opens Health's
+  Trends. Android reads seven of iOS's ten measures (no sleep regularity, stress or weight on the core path yet),
+  so its counts can be smaller for the same data.
+- Still to draw as iOS's: Goals (journeys).
 - The timeline's head "Tagesverlauf" with "Show all".
 
 Training

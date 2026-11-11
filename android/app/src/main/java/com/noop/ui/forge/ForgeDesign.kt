@@ -42,6 +42,9 @@ object ForgeDesign {
     /** Set by a tab header's magnifier: the More page it opens puts the cursor in its search field, once. */
     var focusSearch by mutableStateOf(false)
 
+    /** Set by Today's "What changed" card: the Health tab it selects opens Trends over itself, once. */
+    var openTrends by mutableStateOf(false)
+
     fun set(context: Context, on: Boolean) {
         context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY, on).apply()
         preview = on

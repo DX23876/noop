@@ -101,7 +101,8 @@ internal data class TodayWidget(
     enum class Kind(val raw: String) {
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
         Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle"), LastNight("lastNight"),
-        Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap"), NextSession("nextSession"), WhatWorks("whatWorks");
+        Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap"), NextSession("nextSession"), WhatWorks("whatWorks"),
+        Changes("changes");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
@@ -226,7 +227,7 @@ internal object TodayWidgets {
     const val DEMO_EXTRA = "demo_widgets"
     val demoSet: List<TodayWidget> = listOf(
         TodayWidget(kind = TodayWidget.Kind.Tonight), TodayWidget(kind = TodayWidget.Kind.NextSession),
-        TodayWidget(kind = TodayWidget.Kind.WhatWorks),
+        TodayWidget(kind = TodayWidget.Kind.Changes), TodayWidget(kind = TodayWidget.Kind.WhatWorks),
         TodayWidget(kind = TodayWidget.Kind.Breathe),
         TodayWidget(kind = TodayWidget.Kind.Strap), TodayWidget(kind = TodayWidget.Kind.Cycle),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.HRV.raw),
@@ -259,7 +260,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                   onEditing: (Boolean) -> Unit, onOpenTrainingLoad: () -> Unit, onOpenSleep: () -> Unit = {},
                                   onOpenAlarms: () -> Unit = {}, onOpenTraining: () -> Unit = {},
                                   onOpenBreathe: () -> Unit = {}, onOpenStrap: () -> Unit = {},
-                                  onOpenInsights: () -> Unit = {}) {
+                                  onOpenInsights: () -> Unit = {}, onOpenTrends: () -> Unit = {}) {
     val context = LocalContext.current
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
@@ -407,6 +408,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe)
                             TodayWidget.Kind.NextSession -> TodayNextSessionForge(onOpenTraining)
                             TodayWidget.Kind.WhatWorks -> TodayWhatWorksForge(viewModel, onOpenInsights)
+                            TodayWidget.Kind.Changes -> TodayChangesForge(onOpenTrends)
                             TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap)
                         }
                     }
@@ -533,6 +535,7 @@ private fun WidgetGallery(placed: List<TodayWidget>, onAdd: (TodayWidget) -> Uni
                 Triple(TodayWidget.Kind.LastNight, Icons.Rounded.Bedtime, R.string.forge_w_last_night to R.string.forge_w_last_night_sub),
                 Triple(TodayWidget.Kind.Tonight, Icons.Rounded.Bedtime, R.string.forge_w_tonight to R.string.forge_w_tonight_sub),
                 Triple(TodayWidget.Kind.WeekPlan, Icons.Rounded.BarChart, R.string.forge_w_week_plan to R.string.forge_w_week_plan_sub),
+                Triple(TodayWidget.Kind.Changes, Icons.Rounded.BarChart, R.string.forge_w_changes to R.string.forge_w_changes_sub),
                 Triple(TodayWidget.Kind.WhatWorks, Icons.Rounded.Bolt, R.string.forge_w_what_works to R.string.forge_w_what_works_sub),
                 Triple(TodayWidget.Kind.NextSession, Icons.Rounded.FitnessCenter, R.string.forge_w_next to R.string.forge_w_next_sub),
                 Triple(TodayWidget.Kind.Breathe, Icons.Rounded.Air, R.string.forge_w_breathe to R.string.forge_w_breathe_sub),
