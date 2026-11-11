@@ -192,6 +192,7 @@ struct ForgeTodayView: View {
                 .background(alignment: .top) { ForgeScrollingMotif() }
             }
             .scrollIndicators(.hidden)
+            .forgeDemoScrollAnchor()
             // Cards dissolve before they reach the clock and the tab bar, leaving the picture there, with nothing
             // painted over it. The picture lies over the two edges instead of a mask on the scroll view, which
             // drew every card and the rings off screen on each frame.

@@ -450,3 +450,17 @@ extension ForgeDesignPrefs {
     }
 }
 #endif
+
+extension View {
+    /// `--demo-anchor <0…1>` in a DEBUG build opens a Forge tab scrolled to that height of its page, for screenshots of
+    /// the lower page without driving the simulator. Analysis migration required: no; nothing outside DEBUG changes.
+    func forgeDemoScrollAnchor() -> some View {
+        #if DEBUG
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--demo-anchor"), i + 1 < args.count, let y = Double(args[i + 1]) {
+            return AnyView(self.defaultScrollAnchor(UnitPoint(x: 0.5, y: min(max(y, 0), 1))))
+        }
+        #endif
+        return AnyView(self)
+    }
+}

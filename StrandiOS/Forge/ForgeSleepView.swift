@@ -96,6 +96,7 @@ struct ForgeSleepView: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
+            .forgeDemoScrollAnchor()
             .onChange(of: scrollToTopSignal) { _, _ in
                 withAnimation(.smooth) { proxy.scrollTo("forge-sleep-top", anchor: .top) }
             }
