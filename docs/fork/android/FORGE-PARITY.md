@@ -128,9 +128,9 @@ Whole app
 Today
 - Done 2026-11-11: tiles show the latest value, curves whole with an end dot, rings carry Charge and Rest,
   edit controls in the corners.
-- The hint card under the rings ("You slept less today", "1 more"). Open: iOS chooses it from its timeline notices
-  (Momentum messages through `TimelineFeed.admit`, a topic at most once a week), which Android does not have yet;
-  the hint waits for that feed rather than a shortcut over Momentum.
+- Done 2026-11-11: the hint card under the rings (`ForgeTodayHint`): Momentum's notices through the shared
+  `TimelineFeed.admit` (core call `timeline.admit`), ranked as iOS ranks them, dismissed for the day, "n more". Not
+  among Android's candidates: the coach note and a plan waiting for an answer.
 - Done 2026-11-11: Energy, Momentum and Training load drawn as iOS's; the cycle card only while tracking is on.
 - Done 2026-11-11: Latest workout, Last night, Tonight (bedtime from the phone alarm's wake time and the
   wind-down sleep need), This week's plan (agreed coach sessions ringed), Next session, Breathe and Strap.
@@ -142,8 +142,9 @@ Today
 - Done 2026-11-11: What changed, the rule of iOS's `TrendsChangeSummary.rows` with a test; it opens Health's
   Trends. Android reads seven of iOS's ten measures (no sleep regularity, stress or weight on the core path yet),
   so its counts can be smaller for the same data.
-- Still to draw as iOS's: Goals (journeys).
-- The timeline's head "Tagesverlauf" with "Show all".
+- Done 2026-11-11: a goal on Today's card opens its own page or journey.
+- Done 2026-11-11: the timeline's head with "Show all" (closed: today's latest three), walks bundled, meals, ECG
+  readings and notices on the rail. Still missing there: coach notes, timed weigh-ins, the day's close.
 
 Training
 - Done 2026-11-11: the week head; the start capsules; the year grid and the muscle map off the tab (both still
@@ -153,8 +154,8 @@ Training
   one grouped list with Effort; the Training load, Strength, Cardio and Goals rows under Key metrics; Tools with
   This week's plan, Plan and library, Intervals and Breathe. The week strip and the Understand list left the tab;
   muscles, past sessions and lifting imports sit under Tools.
-- Still missing: the pace tile under Key metrics. "Plan and library" opens the exercise library (iOS opens its
-  full training page). Unseen on screen: the routine row and the recent list with data (the demo has neither).
+- Done 2026-11-11: the pace tile; "Plan and library" as a page of its own (plan, routines, starters, Hevy, library,
+  past sessions, muscles, imports). Unseen on screen: the routine row and the recent list with data.
 
 Sleep
 - Done 2026-11-11 (`ForgeSleepNewDesign`): Tonight, the night with stage lanes, make-up bar and totals, naps,
@@ -162,11 +163,14 @@ Sleep
   stored AI-35 regularity, breathing), sleep debt, body clock, the week's sleep goal, highlights as pages, "This
   night" with 14 nights' bars, history with Week, Month and Year, the alarms and the sleep marks. The need is the
   stored Rest trait, as on iOS. A night stored only as stage minutes keeps its breakdown without lanes.
-- Still missing: the in-place night editor, the deleted nights list. The body clock was not on screen (the demo's
-  rhythm is unreadable).
+- Done 2026-11-11: the night editor (bed and wake times, delete) with Undo, nap delete, the deleted sleep windows
+  with Recompute and Hide. The body clock was not on screen (the demo's rhythm is unreadable).
 
 Health
 - Done 2026-11-11: the Long term group with Trends, What works and All metrics.
 - Done 2026-11-11: the food log card; Focus areas as six tiles, each opening a list of that area's Android pages
   (Sleep opens the Sleep tab), which replaces the Heart and Body groups; "Your week in rings" opening Trends.
-- Still missing: iOS's own focus pages, the Weekly report row, the cycle summary and Vitals with "Edit".
+- Done 2026-11-11: the Weekly report row and page, the cycle card while tracking is on, Vitals with "Edit" (hide,
+  bring back, two or three per row).
+- Still different: iOS's own focus pages (Android lists each area's pages), swapping a vital tile for a non-vital
+  measure and reordering tiles by dragging.
