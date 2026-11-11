@@ -114,3 +114,41 @@ Seen, not changed:
   emulator. A simpleperf profile shows no single hotspot (the scene picture decode and loading the Swift
   library about 1 % each, the rest ordinary composition, which a debug build runs interpreted). With the rings on screen
   their animation is the cost, as on iOS. Worth a release-build measurement on a phone before changing anything.
+
+## Screen comparison 2026-11-11 (iOS simulator `--demo-anchor`, Android emulator, demo data)
+
+Card by card where Android's new design still differs from iOS's. The rule: Android rebuilds each card as iOS
+draws it, reading the same core data; the shipped Android cards are not reused in the new design.
+
+Whole app
+- iOS's Training, Sleep and Health sit on the plain canvas; Android draws the night sky on Sleep.
+- iOS's tab bar spans the width at the bottom; Android's floats as a capsule.
+
+Today
+- Done 2026-11-11: tiles show the latest value, curves whole with an end dot, rings carry Charge and Rest,
+  edit controls in the corners.
+- The hint card under the rings ("You slept less today", "1 more").
+- Widgets drawn as iOS's: Tonight (bedtime bar), Next up (routine), What changed (better and worse), What
+  helps your Charge (bars), Energy, Latest workout, Momentum, Last night, This week's plan, Goals (journeys),
+  Training load (empty state as a sentence), Breathe, Strap. Android draws the shipped cards for its kinds and
+  lacks the rest.
+- The timeline's head "Tagesverlauf" with "Show all".
+
+Training
+- Done 2026-11-11: the week head.
+- Starting as two buttons, "Start workout" and "Add workout", instead of the quick-start list.
+- "Your week" card with the week's goals as progress bars.
+- Routines as a sideways row of cards.
+- Recent activities as one grouped list with Effort on the right.
+- Key metrics with the pace tile, then the grouped rows (Training load, Strength, Cardio, Goals).
+- Tools: This week's plan and Plan and library besides Intervals and Breathe.
+- Consistency and Muscle analytics are not on iOS's tab.
+
+Sleep
+- Phases as bars against the typical night; "What shaped the night" with three rings, Regularity and
+  Breathing; Sleep debt with its bars; Inner clock dial; this week's sleep goal; Highlights; "This night"
+  tiles with 14 nights' bars; the history chart with Week, Month, Year; Alarms rows; Sleep marks last.
+
+Health
+- Focus areas as six tiles; "Your week in rings"; the Long term group (Weekly report, Trends, What works,
+  All metrics); Vitals with "Edit".
