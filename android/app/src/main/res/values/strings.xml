@@ -5881,4 +5881,14 @@
     <string name="forge_vt_high">High</string>
     <string name="forge_tl_weight">Weight logged</string>
     <string name="forge_tl_weight_30">%1$s in 30 days</string>
+    <string name="forge_de_title">Your day</string>
+    <string name="forge_de_none">No session recorded today.</string>
+    <string name="forge_de_one">One session today.</string>
+    <string name="forge_de_many">%1$d sessions today.</string>
+    <string name="forge_de_tomorrow_min">Tomorrow: %1$s, %2$d min.</string>
+    <string name="forge_de_tomorrow">Tomorrow: %1$s.</string>
+    <string name="forge_de_bed">For your sleep need, in bed by %1$s.</string>
+    <string name="forge_de_help_sleep">What helps most tomorrow: an early night tonight.</string>
+    <string name="forge_de_help_easy">What helps most tomorrow: an easy day after today\'s load.</string>
+    <string name="forge_de_target">Effort %1$s, target %2$s to %3$s</string>
 </resources>

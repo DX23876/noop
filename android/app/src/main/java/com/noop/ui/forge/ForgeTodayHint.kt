@@ -163,10 +163,14 @@ internal object TodayHints {
      * The day's admitted notices and whether a weight goal misses its weigh-in (Apple's `weighInDue`), the inputs of
      * [candidates]. Blocking; the hint card and the timeline both read it, so the timeline can leave out the hint's entry.
      */
+    /** The Momentum kinds of the last [load], for the evening report's bedtime line (iOS reads `.sleepCatchUp`). */
+    @Volatile var lastMomentumKinds: Set<String> = emptySet()
+
     suspend fun load(context: Context, live: CoreMomentum.Live, day: String): Pair<List<TodayNotices.Notice>, Boolean> {
         CoreRead.open(context)
         val dismissedWorkouts = dismissedTrainingWorkouts(context)
         val momentum = CoreMomentum.feed(context, dismissedWorkouts, live).orEmpty()
+        lastMomentumKinds = momentum.map { it.kind }.toSet()
         val notices = TodayNotices.notices(context, momentum, day, System.currentTimeMillis() / 1000)
         val weightGoal = com.noop.core.CoreGoals.snapshot(context, dismissedWorkouts)?.longTerm.orEmpty()
             .any { it.kind == "weight" && (it.status == "active" || it.status == "paused") }

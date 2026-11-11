@@ -5815,4 +5815,14 @@
     <string name="forge_vt_high">Высокий</string>
     <string name="forge_tl_weight">Вес записан</string>
     <string name="forge_tl_weight_30">%1$s за 30 дней</string>
+    <string name="forge_de_title">Ваш день</string>
+    <string name="forge_de_none">Сегодня тренировок нет.</string>
+    <string name="forge_de_one">Сегодня одна тренировка.</string>
+    <string name="forge_de_many">Сегодня тренировок: %1$d.</string>
+    <string name="forge_de_tomorrow_min">Завтра: %1$s, %2$d мин.</string>
+    <string name="forge_de_tomorrow">Завтра: %1$s.</string>
+    <string name="forge_de_bed">Для нужного сна: в постель в %1$s.</string>
+    <string name="forge_de_help_sleep">Больше всего завтра поможет ранний сон сегодня.</string>
+    <string name="forge_de_help_easy">Больше всего завтра поможет лёгкий день после сегодняшней нагрузки.</string>
+    <string name="forge_de_target">Effort %1$s, цель %2$s–%3$s</string>
 </resources>

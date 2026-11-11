@@ -5858,4 +5858,14 @@
     <string name="forge_vt_high">Hoch</string>
     <string name="forge_tl_weight">Gewicht eingetragen</string>
     <string name="forge_tl_weight_30">%1$s in 30 Tagen</string>
+    <string name="forge_de_title">Dein Tag</string>
+    <string name="forge_de_none">Heute keine Einheit erfasst.</string>
+    <string name="forge_de_one">Heute eine Einheit.</string>
+    <string name="forge_de_many">Heute %1$d Einheiten.</string>
+    <string name="forge_de_tomorrow_min">Morgen: %1$s, %2$d min.</string>
+    <string name="forge_de_tomorrow">Morgen: %1$s.</string>
+    <string name="forge_de_bed">Für deinen Schlafbedarf: um %1$s ins Bett.</string>
+    <string name="forge_de_help_sleep">Was morgen am meisten hilft: heute früh ins Bett.</string>
+    <string name="forge_de_help_easy">Was morgen am meisten hilft: ein leichter Tag nach der heutigen Belastung.</string>
+    <string name="forge_de_target">Effort %1$s, Ziel %2$s bis %3$s</string>
 </resources>

@@ -5811,4 +5811,14 @@
     <string name="forge_vt_high">高</string>
     <string name="forge_tl_weight">已记录体重</string>
     <string name="forge_tl_weight_30">30 天内 %1$s</string>
+    <string name="forge_de_title">你的一天</string>
+    <string name="forge_de_none">今天没有记录训练。</string>
+    <string name="forge_de_one">今天 1 次训练。</string>
+    <string name="forge_de_many">今天 %1$d 次训练。</string>
+    <string name="forge_de_tomorrow_min">明天：%1$s，%2$d 分钟。</string>
+    <string name="forge_de_tomorrow">明天：%1$s。</string>
+    <string name="forge_de_bed">按你的睡眠需求，%1$s 上床。</string>
+    <string name="forge_de_help_sleep">明天最有帮助的是：今晚早点睡。</string>
+    <string name="forge_de_help_easy">明天最有帮助的是：在今天的负荷后轻松一天。</string>
+    <string name="forge_de_target">Effort %1$s，目标 %2$s 至 %3$s</string>
 </resources>

@@ -95,6 +95,9 @@ internal object TodayTimeline {
 
         data class Notice(override val endTs: Long, val notice: TodayNotices.Notice) : Entry
 
+        /** The evening report (iOS `dayEnd`): from the evening on, the day's sessions, tomorrow's plan, the bedtime. */
+        data class DayEnd(override val endTs: Long, val sessions: Int, val tomorrow: String?, val bedtime: Long?) : Entry
+
         /** A weigh-in that records its time (only those reach the rail, as on iOS), with the 30-day change. */
         data class Weight(override val endTs: Long, val kg: Double, val change30: Double?) : Entry
     }
@@ -115,7 +118,8 @@ internal object TodayTimeline {
                 zone: ZoneId, meals: List<com.noop.core.CoreFood.Meal> = emptyList(),
                 ecgs: List<com.noop.core.CoreEcg.Reading> = emptyList(),
                 notices: List<TodayNotices.Notice> = emptyList(),
-                weighIns: List<Pair<Long, Double>> = emptyList(), weightChange30: Double? = null): List<Entry> {
+                weighIns: List<Pair<Long, Double>> = emptyList(), weightChange30: Double? = null,
+                dayEnd: Entry.DayEnd? = null): List<Entry> {
         val today = Instant.ofEpochSecond(now).atZone(zone).toLocalDate()
         fun inRange(ts: Long): Boolean {
             val day = Instant.ofEpochSecond(ts).atZone(zone).toLocalDate()
@@ -133,6 +137,7 @@ internal object TodayTimeline {
         ecgs.filter { inRange(it.startTs) }.forEach { out += Entry.Ecg(it.startTs, it) }
         notices.filter { inRange(it.at) }.forEach { out += Entry.Notice(it.at, it) }
         weighIns.filter { inRange(it.first) }.forEach { (at, kg) -> out += Entry.Weight(at, kg, weightChange30) }
+        dayEnd?.takeIf { inRange(it.endTs) }?.let { out += it }
         nights.filter { inRange(it.endTs) }.forEach { n ->
             val m = n.minutes
             val awake = m?.get("wake") ?: 0.0
@@ -173,6 +178,14 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     var notices by remember { mutableStateOf<List<TodayNotices.Notice>>(emptyList()) }
     var weighIns by remember { mutableStateOf<List<Pair<Long, Double>>>(emptyList()) }
     var weightChange by remember { mutableStateOf<Double?>(null) }
+    var tomorrowPlan by remember { mutableStateOf<com.noop.core.CoreCoach.PlanRow?>(null) }
+    var todayRow by remember { mutableStateOf<CoreRead.Day?>(null) }
+    var catchUp by remember { mutableStateOf(false) }
+    // The evening report from the evening on (iOS `ForgeToday.eveningStart`): 19:00, or two hours before the planned
+    // bedtime when that is later; not in quiet hours (22:00 to 07:00), when the coach keeps quiet too.
+    val wake = rememberTomorrowWake(viewModel)
+    val needMin = remember { com.noop.alarm.WindDownStore.from(context).sleepNeedMinutes }
+    val bedtime = wake.minusMinutes(needMin.toLong()).toEpochSecond()
     var open by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val live = rememberMomentumLive(viewModel)
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
@@ -188,6 +201,11 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
             val today = java.time.LocalDate.now()
             meals = listOf(today.minusDays(1), today).flatMap { com.noop.core.CoreFood.day(it.toString())?.meals.orEmpty() }
             ecgs = com.noop.core.CoreEcg.readings().orEmpty()
+            val tomorrowKey = java.time.LocalDate.now().plusDays(1).toString()
+            tomorrowPlan = runCatching { com.noop.core.CoreCoach.plan(com.noop.ui.UnitPrefs.effortScale(context).raw) }.getOrNull()
+                ?.agreed?.firstOrNull { it.day == tomorrowKey }
+            todayRow = CoreRead.day(com.noop.ui.logicalDayNow(ZoneId.systemDefault()).toString())
+            catchUp = "sleepCatchUp" in TodayHints.lastMomentumKinds
             com.noop.core.CoreBody.snapshot(context, days = 30)?.let { body ->
                 weighIns = body.weighIns.mapNotNull { r -> r.takenAt?.let { it to r.value } }
                 weightChange = body.weightChangeKg
@@ -200,8 +218,20 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
         }
     }
     val zone = ZoneId.systemDefault()
-    val all = remember(workouts, nights, naps, now, meals, ecgs, notices, weighIns, weightChange) {
-        TodayTimeline.entries(workouts, nights, naps, now, zone, meals, ecgs, notices, weighIns, weightChange)
+    val nowDate = Instant.ofEpochSecond(now).atZone(zone)
+    val seven = nowDate.toLocalDate().atTime(19, 0).atZone(zone).toEpochSecond()
+    val eveningStart = maxOf(seven, bedtime - 2 * 3600)
+    val eveningHour = Instant.ofEpochSecond(eveningStart).atZone(zone).hour
+    val dayEnd = if (now >= eveningStart && eveningHour in 7 until 22) {
+        val todayKey = com.noop.ui.logicalDayNow(zone)
+        val sessions = workouts.count { Instant.ofEpochSecond(it.endTs).atZone(zone).toLocalDate() == todayKey }
+        TodayTimeline.Entry.DayEnd(eveningStart, sessions, tomorrowPlan?.let { p ->
+            val sport = com.noop.ui.WorkoutEditing.displaySport(p.sport.ifEmpty { p.summary })
+            p.durationMin?.let { context.getString(R.string.forge_de_tomorrow_min, sport, it) } ?: context.getString(R.string.forge_de_tomorrow, sport)
+        }, if (catchUp) bedtime else null)
+    } else null
+    val all = remember(workouts, nights, naps, now, meals, ecgs, notices, weighIns, weightChange, dayEnd) {
+        TodayTimeline.entries(workouts, nights, naps, now, zone, meals, ecgs, notices, weighIns, weightChange, dayEnd)
     }
     // "Yesterday" by the logical day, as iOS's rail (`logicalDayKey`): an evening workout seen after midnight
     // still belongs to today.
@@ -257,6 +287,7 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
                                 (if (c >= 0) "+" else "−") + "%.1f kg".format(java.util.Locale.getDefault(), kotlin.math.abs(c))) } ?: "",
                             "%.1f".format(java.util.Locale.getDefault(), e.kg), "kg")
                 }
+                is TodayTimeline.Entry.DayEnd -> RailRow(time(context, e.endTs), Forge.colors.rest, last) { DayEndEntry(e, todayRow) }
                 is TodayTimeline.Entry.Notice -> RailRow(time(context, e.endTs), Forge.colors.textTertiary, last) {
                     ForgeCard(Modifier.fillMaxWidth()) {
                         Text(e.notice.headline, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
@@ -350,4 +381,41 @@ private fun time(context: Context, ts: Long): String {
     val pattern = if (DateFormat.is24HourFormat(context)) "H:mm" else "h:mm a"
     return Instant.ofEpochSecond(ts).atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+}
+
+/** The evening report, as iOS's `dayEndCard`: Effort against today's target, the sessions, tomorrow, the bedtime and what helps. */
+@Composable
+private fun DayEndEntry(e: TodayTimeline.Entry.DayEnd, today: CoreRead.Day?) {
+    val context = LocalContext.current
+    val colors = Forge.colors
+    val format = rememberEffortFormat()
+    val effort = today?.effort
+    val target = effortTargetStored(today?.charge)
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        Text(stringResource(R.string.forge_de_title), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary)
+        if (effort != null && target != null) {
+            Column(Modifier.fillMaxWidth().background(colors.inset, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(12.dp)) {
+                    val w = size.width
+                    drawRoundRect(colors.divider, size = size, cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx()))
+                    drawRoundRect(colors.effort.copy(alpha = 0.3f), androidx.compose.ui.geometry.Offset((w * target.start / 100).toFloat(), 0f),
+                                  androidx.compose.ui.geometry.Size((w * (target.endInclusive - target.start) / 100).toFloat(), size.height),
+                                  androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx()))
+                    drawCircle(colors.effort, 6.dp.toPx(), androidx.compose.ui.geometry.Offset((w * (effort / 100)).toFloat().coerceIn(6.dp.toPx(), w - 6.dp.toPx()), size.height / 2))
+                }
+                Text(stringResource(R.string.forge_de_target, format(effort), format(target.start), format(target.endInclusive)),
+                     style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.padding(top = 6.dp))
+            }
+        }
+        Text(when (e.sessions) { 0 -> stringResource(R.string.forge_de_none); 1 -> stringResource(R.string.forge_de_one)
+                                  else -> stringResource(R.string.forge_de_many, e.sessions) }, style = Forge.type.body, color = colors.textSecondary)
+        e.tomorrow?.let { Text(it, style = Forge.type.body, color = colors.textSecondary) }
+        e.bedtime?.let { Text(stringResource(R.string.forge_de_bed, time(context, it)), style = Forge.type.body, color = colors.textSecondary) }
+        val help = when {
+            e.bedtime != null -> stringResource(R.string.forge_de_help_sleep)
+            effort != null && target != null && effort > target.endInclusive -> stringResource(R.string.forge_de_help_easy)
+            else -> null
+        }
+        help?.let { Text(it, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text) }
+    }
 }

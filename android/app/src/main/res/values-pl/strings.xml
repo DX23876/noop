@@ -5862,4 +5862,14 @@
     <string name="forge_vt_high">Wysoki</string>
     <string name="forge_tl_weight">Waga zapisana</string>
     <string name="forge_tl_weight_30">%1$s w 30 dni</string>
+    <string name="forge_de_title">Twój dzień</string>
+    <string name="forge_de_none">Dziś brak zapisanych sesji.</string>
+    <string name="forge_de_one">Dziś jedna sesja.</string>
+    <string name="forge_de_many">Dziś sesji: %1$d.</string>
+    <string name="forge_de_tomorrow_min">Jutro: %1$s, %2$d min.</string>
+    <string name="forge_de_tomorrow">Jutro: %1$s.</string>
+    <string name="forge_de_bed">Dla potrzeby snu: do łóżka o %1$s.</string>
+    <string name="forge_de_help_sleep">Co najbardziej pomoże jutro: wcześnie do łóżka dziś wieczorem.</string>
+    <string name="forge_de_help_easy">Co najbardziej pomoże jutro: lekki dzień po dzisiejszym obciążeniu.</string>
+    <string name="forge_de_target">Effort %1$s, cel %2$s–%3$s</string>
 </resources>
