@@ -45,6 +45,8 @@ data class ForgeColors(
     val heart: Color,
     // The food log's colours, the values of iOS `ForgeColor.food`/`protein`/`carbs`/`fat`.
     val food: Color, val protein: Color, val carbs: Color, val fat: Color,
+    // The cycle page's phase colours, the values of iOS `ForgeColor.cyclePeriod`/`cycleFollicular`/`cycleShift`/`cycleFertile`.
+    val cyclePeriod: Color, val cycleFollicular: Color, val cycleShift: Color, val cycleFertile: Color,
 )
 
 @Immutable
@@ -78,7 +80,17 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
     heart = P.liquidHeart.pick(dark),
     food = FoodInk.food.pick(dark), protein = FoodInk.protein.pick(dark), carbs = FoodInk.carbs.pick(dark),
     fat = FoodInk.fat.pick(dark),
+    cyclePeriod = CycleInk.period.pick(dark), cycleFollicular = CycleInk.follicular.pick(dark),
+    cycleShift = CycleInk.shift.pick(dark), cycleFertile = CycleInk.fertile.pick(dark),
 )
+
+/** The cycle phases' hues (iOS `ForgeTheme.swift`); hand-set there too, not design-system tokens. */
+private object CycleInk {
+    val period = ForgeColor(light = 0xFFC94A63, dark = 0xFFFF7A93)
+    val follicular = ForgeColor(light = 0xFF21877B, dark = 0xFF5FD3C4)
+    val shift = ForgeColor(light = 0xFFB07A0C, dark = 0xFFE8B64A)
+    val fertile = ForgeColor(light = 0xFF4E9F2E, dark = 0xFF9BDB6B)
+}
 
 /** The food log's hues (iOS `ForgeTheme.swift`, decision 2026-11-08); hand-set there too, not design-system tokens. */
 private object FoodInk {

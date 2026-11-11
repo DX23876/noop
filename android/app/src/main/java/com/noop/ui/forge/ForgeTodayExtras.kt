@@ -135,6 +135,19 @@ internal fun TodayCycleForge(viewModel: AppViewModel) {
     val starts by viewModel.periodStarts.collectAsState()
     val v5 by viewModel.v5Signals.collectAsState()
     var tracker by remember { mutableStateOf(false) }
+    if (ForgeDesign.preview) {
+        // The new design's cycle card and page (iOS `ForgeCycleSummaryCard`, `ForgeCycleView`).
+        var page by remember { mutableStateOf(false) }
+        var logFirst by remember { mutableStateOf(false) }
+        if (enabled && starts.isNotEmpty()) ForgeCycleSummaryCard(viewModel, onOpen = { page = true }, onLog = { logFirst = true; page = true })
+        else Classic {
+            com.noop.ui.MenstrualCycleHomeCard(enabled = enabled, result = v5?.cycle, starts = starts,
+                onSetUp = { viewModel.setCycleTrackingEnabled(true); page = true },
+                onOpen = { page = true }, onLogToday = { viewModel.logPeriodStart() })
+        }
+        if (page) ForgeCycleOverlay(viewModel, logFirst, onDismiss = { page = false; logFirst = false })
+        return
+    }
     Classic {
         com.noop.ui.MenstrualCycleHomeCard(enabled = enabled, result = v5?.cycle, starts = starts,
             onSetUp = { viewModel.setCycleTrackingEnabled(true); tracker = true },

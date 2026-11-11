@@ -114,6 +114,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     var tileColumns by remember { mutableStateOf(VitalTilePrefs.columns(context, if (width == ForgeWidth.Compact) 2 else 3)) }
     var weeklyOpen by remember { mutableStateOf(false) }
     var cycleOpen by remember { mutableStateOf(false) }
+    var cycleLogFirst by remember { mutableStateOf(false) }
     var focus by remember { mutableStateOf<FocusArea?>(null) }
     val selectTab = LocalForgeTabSelect.current
 
@@ -196,7 +197,10 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         // The cycle at a glance, only while cycle tracking is on and a period is logged (iOS `ForgeCycleSummaryCard`).
         val cycleOn by viewModel.cycleTrackingEnabled.collectAsStateWithLifecycle()
         val periodStarts by viewModel.periodStarts.collectAsStateWithLifecycle()
-        if (cycleOn && periodStarts.isNotEmpty()) TodayCycleForge(viewModel)
+        if (cycleOn && periodStarts.isNotEmpty()) {
+            if (ForgeDesign.preview) ForgeCycleSummaryCard(viewModel, onOpen = { cycleOpen = true }, onLog = { cycleLogFirst = true; cycleOpen = true })
+            else TodayCycleForge(viewModel)
+        }
 
         // Today's food log, one tap from the page, as iOS's `FoodHealthCard`.
         FoodTodayCard(onOpen = { open(MoreDest.Food) }, onAdd = { FoodArrival.requestAdd(); open(MoreDest.Food) })
@@ -252,8 +256,10 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
             }
         }
     }
-    // The cycle, from a focus link, in the tracker the Today card opens.
-    if (cycleOpen) {
+    // The cycle, from a focus link or the cycle card: the new design's cycle page, the classic tracker otherwise.
+    if (cycleOpen && ForgeDesign.preview) {
+        ForgeCycleOverlay(viewModel, logFirst = cycleLogFirst, onDismiss = { cycleOpen = false; cycleLogFirst = false })
+    } else if (cycleOpen) {
         val v5 by viewModel.v5Signals.collectAsStateWithLifecycle()
         val starts by viewModel.periodStarts.collectAsStateWithLifecycle()
         v5?.cycle?.let { cycle ->

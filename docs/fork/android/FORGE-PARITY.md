@@ -191,7 +191,7 @@ Android reaches the same function; "missing" pages are the build list.
 | Weekly report page | `ForgeWeeklyReportView` | missing (Android hosts the classic weekly digest card) |
 | This week's plan page | `ForgeWeekPlanView` | missing (Android opens the schedule editor) |
 | Focus pages, six | `ForgeFocusView` | missing (Android lists each area's pages) |
-| Cycle page, guide, fertile band | `ForgeCycleView`, `ForgeCycleGuide`, `ForgeCycleFertile` | missing (Android has the classic tracker dialog) |
+| Cycle page, guide, fertile band | `ForgeCycleView`, `ForgeCycleGuide`, `ForgeCycleFertile` | done 2026-11-11 (`ForgeCycle.kt`, `ForgeCycleModel.kt`): dial, fertile line and page, log sheet (flow, symptoms, mood, ovulation test under `noop-cycle`), phase cards and topic pages, temperature card, calendar, history, settings with the fertile reminder; fertile estimate and training pattern from the shared core (`cycle.fertile`, `cycle.pattern`) |
 | Coach notes on the timeline, "Why" sheet | `ForgeTodayView`, `ForgeCoachWhySheet` | missing |
 | Vital tile editor (swap, reorder, up to nine) | `ForgeHealthTiles` | partly (hide and show, two or three per row) |
 | Workouts list, Strength, Muscles | `ForgeWorkoutsView`, `ForgeStrengthView` | has (History, Strength, Muscles pages) |

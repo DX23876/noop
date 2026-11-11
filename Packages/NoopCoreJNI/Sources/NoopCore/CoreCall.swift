@@ -26,6 +26,15 @@ public enum CoreCall {
             return CoreRead.json(Wire(platesPerSideKg: loading.platesPerSideKg,
                                       achievableTotalKg: loading.achievableTotalKg, remainderKg: loading.remainderKg))
         }
+        if op == "cycle.fertile" {
+            // The cycle page's rough fertile-days estimate and where today sits in it (`FertileWindow`).
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            let past = (args["pastRiseDays"] as? [NSNumber])?.map(\.intValue) ?? []
+            guard let out = CoreCycle.fertile(pastRiseDays: past, currentRiseDay: (args["currentRiseDay"] as? NSNumber)?.intValue,
+                                              positiveTestDay: (args["positiveTestDay"] as? NSNumber)?.intValue,
+                                              cycleDay: (args["cycleDay"] as? NSNumber)?.intValue) else { return "null" }
+            return CoreRead.json(out)
+        }
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
         }
@@ -406,6 +415,15 @@ public enum CoreCall {
         case "energy.recordIntake":
             guard let kcal = (args["kcal"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
             return ok(await CoreEnergyPlan.recordIntake(store: store, kcal: kcal))
+        case "cycle.pattern":
+            // Whether this wearer's sessions feel harder in one phase (`CycleTrainingPattern`), as iOS learns it.
+            let cycles = (args["cycles"] as? [[String: Any]] ?? []).compactMap { c -> CycleTrainingPattern.Cycle? in
+                guard let start = c["start"] as? String else { return nil }
+                return CycleTrainingPattern.Cycle(start: start, shift: c["shift"] as? String,
+                                                  periodDays: (c["periodDays"] as? NSNumber)?.intValue ?? 5)
+            }
+            return CoreRead.json(await CoreCycle.pattern(reader: reader, cycles: cycles,
+                                                         dismissed: args["dismissedWorkouts"] as? [String] ?? []))
         case "rhythm.snapshot":
             return CoreRead.json(await CoreRhythmAge.snapshot(reader: reader))
         case "ageless.snapshot":
