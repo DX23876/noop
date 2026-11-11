@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Text
@@ -57,7 +58,8 @@ import java.time.LocalDate
  * 30 days' workouts with a bar per week. iOS's pace tile waits for a pace reading on Android.
  */
 @Composable
-internal fun TrainingKeyMetrics(week: List<CoreTraining.PlannedDay>, viewModel: AppViewModel, onWorkouts: () -> Unit) {
+internal fun TrainingKeyMetrics(week: List<CoreTraining.PlannedDay>, viewModel: AppViewModel, onWorkouts: () -> Unit,
+                                onCardio: () -> Unit = {}) {
     val context = LocalContext.current
     val noData = stringResource(R.string.forge_no_data)
     val effortFormat = rememberEffortFormat()
@@ -89,6 +91,21 @@ internal fun TrainingKeyMetrics(week: List<CoreTraining.PlannedDay>, viewModel: 
             if (age in 0..3) weeks[3 - age] += 1.0
         } }.toList()
     }
+    // The pace tile, as iOS's `paceTile`: the last eight runs over half a kilometre, else the walks, as seconds per km.
+    fun paces(sport: String) = recent.filter { it.sport.lowercase().contains(sport) && (it.distanceM ?: 0.0) > 500 }
+        .sortedBy { it.startTs }.takeLast(8).mapNotNull { r ->
+            val secs = r.durationS ?: (r.endTs - r.startTs).coerceAtLeast(0).toDouble()
+            val m = r.distanceM ?: return@mapNotNull null
+            if (m > 0 && secs > 0) secs / (m / 1000) else null
+        }
+    val runPaces = remember(recent) { paces("run") }
+    val walkPaces = remember(recent) { paces("walk") }
+    val pace = when {
+        runPaces.isNotEmpty() -> R.string.forge_th_running_pace to runPaces
+        walkPaces.isNotEmpty() -> R.string.forge_th_walking_pace to walkPaces
+        else -> null
+    }
+    val distanceSystem = remember { com.noop.ui.UnitPrefs.distanceSystem(context) }
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
     val decimal = remember { NumberFormat.getNumberInstance().apply { minimumFractionDigits = 1; maximumFractionDigits = 1 } }
     val mean = weekEffort.filterNotNull().takeIf { it.isNotEmpty() }?.average()
@@ -96,25 +113,36 @@ internal fun TrainingKeyMetrics(week: List<CoreTraining.PlannedDay>, viewModel: 
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         Text(stringResource(R.string.forge_th_key_metrics), style = Forge.type.title2, color = Forge.colors.text,
              modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
-        Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-            MetricTile(Icons.Rounded.Speed, Forge.colors.effort, stringResource(R.string.forge_th_effort_week),
+        // In iOS's order: Effort this week, the pace (when there is one), VO₂max, the last 30 days, two to a row.
+        val tiles = buildList<@Composable (Modifier) -> Unit> {
+            add { m -> MetricTile(Icons.Rounded.Speed, Forge.colors.effort, stringResource(R.string.forge_th_effort_week),
                        mean?.let(effortFormat), mean?.let { stringResource(R.string.forge_th_avg) }, noData,
-                       Modifier.weight(1f).clickable { open = CoreRead.Metric.Effort },
+                       m.clickable { open = CoreRead.Metric.Effort },
                        below = weekEffort.takeIf { it.any { v -> v != null } }?.let { values ->
                            @Composable { MiniBars(values.map { it ?: 0.0 }, Forge.colors.effort) }
-                       })
-            MetricTile(Icons.Rounded.Air, Forge.colors.charge, stringResource(R.string.forge_th_vo2max),
-                       vo2max.lastOrNull()?.let { decimal.format(it) }, null, noData, Modifier.weight(1f),
+                       }) }
+            pace?.let { (label, values) ->
+                add { m -> MetricTile(Icons.Rounded.DirectionsRun, Forge.colors.accent, stringResource(label),
+                           com.noop.ui.UnitFormatter.paceFromSecPerKm(values.last(), distanceSystem), null, noData,
+                           m.clickable(onClick = onCardio),
+                           // Faster reads higher, as iOS draws the negated paces.
+                           below = values.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v.map { -it }, Forge.colors.accent) } }) }
+            }
+            add { m -> MetricTile(Icons.Rounded.Air, Forge.colors.charge, stringResource(R.string.forge_th_vo2max),
+                       vo2max.lastOrNull()?.let { decimal.format(it) }, null, noData, m,
                        below = vo2max.takeLast(30).takeIf { it.size > 1 }?.let { values ->
                            @Composable { KeyTileSpark(values, Forge.colors.charge) }
-                       })
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-            MetricTile(Icons.Rounded.History, Forge.colors.accent, stringResource(R.string.forge_th_last30),
+                       }) }
+            add { m -> MetricTile(Icons.Rounded.History, Forge.colors.accent, stringResource(R.string.forge_th_last30),
                        recent.size.toString(), stringResource(R.string.forge_th_workouts_unit), noData,
-                       Modifier.weight(1f).clickable(onClick = onWorkouts),
-                       below = @Composable { MiniBars(perWeek, Forge.colors.accent) })
-            Spacer(Modifier.weight(1f))
+                       m.clickable(onClick = onWorkouts),
+                       below = @Composable { MiniBars(perWeek, Forge.colors.accent) }) }
+        }
+        tiles.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+                pair.forEach { it(Modifier.weight(1f)) }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
         }
     }
     ForgeMetricDetail(open) { open = null }

@@ -5635,4 +5635,6 @@
     <string name="forge_tl_walks">%1$d 次步行</string>
     <string name="forge_tl_h_walked">小时步行</string>
     <string name="forge_tl_ecg">ECG</string>
+    <string name="forge_th_running_pace">跑步配速</string>
+    <string name="forge_th_walking_pace">步行配速</string>
 </resources>

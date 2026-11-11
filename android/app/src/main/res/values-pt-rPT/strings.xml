@@ -5658,4 +5658,6 @@
     <string name="forge_tl_walks">%1$d caminhadas</string>
     <string name="forge_tl_h_walked">h a caminhar</string>
     <string name="forge_tl_ecg">ECG</string>
+    <string name="forge_th_running_pace">Ritmo de corrida</string>
+    <string name="forge_th_walking_pace">Ritmo de caminhada</string>
 </resources>

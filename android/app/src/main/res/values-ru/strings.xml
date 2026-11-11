@@ -5639,4 +5639,6 @@
     <string name="forge_tl_walks">Прогулок: %1$d</string>
     <string name="forge_tl_h_walked">ч ходьбы</string>
     <string name="forge_tl_ecg">ECG</string>
+    <string name="forge_th_running_pace">Темп бега</string>
+    <string name="forge_th_walking_pace">Темп ходьбы</string>
 </resources>

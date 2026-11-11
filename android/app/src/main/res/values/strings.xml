@@ -5705,4 +5705,6 @@
     <string name="forge_tl_walks">%1$d walks</string>
     <string name="forge_tl_h_walked">h walked</string>
     <string name="forge_tl_ecg">ECG</string>
+    <string name="forge_th_running_pace">Running pace</string>
+    <string name="forge_th_walking_pace">Walking pace</string>
 </resources>

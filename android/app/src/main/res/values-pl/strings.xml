@@ -5686,4 +5686,6 @@
     <string name="forge_tl_walks">Spacery: %1$d</string>
     <string name="forge_tl_h_walked">h marszu</string>
     <string name="forge_tl_ecg">EKG</string>
+    <string name="forge_th_running_pace">Tempo biegu</string>
+    <string name="forge_th_walking_pace">Tempo marszu</string>
 </resources>

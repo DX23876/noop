@@ -5665,4 +5665,6 @@
     <string name="forge_tl_walks">%1$d marches</string>
     <string name="forge_tl_h_walked">h de marche</string>
     <string name="forge_tl_ecg">ECG</string>
+    <string name="forge_th_running_pace">Allure de course</string>
+    <string name="forge_th_walking_pace">Allure de marche</string>
 </resources>
