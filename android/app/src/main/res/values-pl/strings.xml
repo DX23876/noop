@@ -5090,4 +5090,6 @@
     <string name="forge_ew_nothing">Dziś jeszcze nic nie zarejestrowano.</string>
     <string name="forge_ew_resting">Odpoczynek.</string>
     <string name="forge_ew_active">Aktywny</string>
+    <string name="forge_mw_title">Momentum</string>
+    <string name="forge_mw_none">Dziś nic się nie wyróżnia.</string>
 </resources>

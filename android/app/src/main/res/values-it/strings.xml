@@ -5040,4 +5040,6 @@
     <string name="forge_ew_nothing">Ancora nulla registrato oggi.</string>
     <string name="forge_ew_resting">Riposo</string>
     <string name="forge_ew_active">Attivo</string>
+    <string name="forge_mw_title">Momentum</string>
+    <string name="forge_mw_none">Oggi non spicca nulla.</string>
 </resources>

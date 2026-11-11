@@ -5071,4 +5071,6 @@
     <string name="forge_ew_nothing">Rien d\'enregistré aujourd\'hui pour l\'instant.</string>
     <string name="forge_ew_resting">Repos.</string>
     <string name="forge_ew_active">Actif</string>
+    <string name="forge_mw_title">Momentum</string>
+    <string name="forge_mw_none">Rien de marquant aujourd\'hui.</string>
 </resources>

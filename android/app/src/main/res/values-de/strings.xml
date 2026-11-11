@@ -5085,4 +5085,6 @@
     <string name="forge_ew_nothing">Heute noch nichts erfasst.</string>
     <string name="forge_ew_resting">Ruhend</string>
     <string name="forge_ew_active">Aktiv</string>
+    <string name="forge_mw_title">Momentum</string>
+    <string name="forge_mw_none">Heute sticht nichts heraus.</string>
 </resources>

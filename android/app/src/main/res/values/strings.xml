@@ -5107,4 +5107,6 @@
     <string name="forge_ew_nothing">Nothing recorded today yet.</string>
     <string name="forge_ew_resting">Resting</string>
     <string name="forge_ew_active">Active</string>
+    <string name="forge_mw_title">Momentum</string>
+    <string name="forge_mw_none">Nothing stands out today.</string>
 </resources>

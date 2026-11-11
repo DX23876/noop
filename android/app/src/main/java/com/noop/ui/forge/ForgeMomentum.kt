@@ -21,6 +21,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -110,7 +124,43 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
     var hideFailed by remember { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     val top = state.messages?.firstOrNull()
-    if (top != null) {
+    if (ForgeDesign.preview) {
+        // The new design's card, as iOS's ForgeMomentumWidget: the name with its arrow, the first message beside the
+        // bolt in Momentum's amber, its progress drawn when it is a goal, or one quiet line when nothing stands out.
+        val tint = ForgeTokens.StrandPalette.metricAmber.resolve()
+        ForgeCard(Modifier.fillMaxWidth().clickable { page = "momentum" }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.forge_mw_title), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                     color = Forge.colors.text, modifier = Modifier.weight(1f))
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = Forge.colors.textTertiary)
+            }
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            if (top == null) {
+                Text(stringResource(R.string.forge_mw_none), style = Forge.type.caption, color = Forge.colors.textSecondary)
+            } else {
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(Modifier.size(40.dp).background(tint.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.Bolt, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(Modifier.width(ForgeMetrics.space3))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(top.headline, style = Forge.type.headline, color = Forge.colors.text)
+                        if (top.detail.isNotEmpty()) Text(top.detail, style = Forge.type.caption, color = Forge.colors.textSecondary,
+                                                          maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    }
+                }
+                top.progress?.let { p ->
+                    Spacer(Modifier.height(ForgeMetrics.space3))
+                    Box(Modifier.fillMaxWidth().height(4.dp).background(Forge.colors.inset, RoundedCornerShape(2.dp))) {
+                        Box(Modifier.fillMaxWidth(p.toFloat().coerceIn(0f, 1f)).height(4.dp).background(tint, RoundedCornerShape(2.dp)))
+                    }
+                    top.progressLabel?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textSecondary,
+                                                  modifier = Modifier.padding(top = 4.dp)) }
+                }
+            }
+        }
+    } else if (top != null) {
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
             MomentumMessageCard(top, compact = true, onOpen = { page = "momentum" }, onHide = {
                 scope.launch {

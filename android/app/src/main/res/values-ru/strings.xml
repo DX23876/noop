@@ -4975,4 +4975,6 @@
     <string name="forge_ew_nothing">Сегодня пока ничего не записано.</string>
     <string name="forge_ew_resting">регулярное восстановление</string>
     <string name="forge_ew_active">Активно</string>
+    <string name="forge_mw_title">Momentum</string>
+    <string name="forge_mw_none">Сегодня ничего примечательного.</string>
 </resources>
