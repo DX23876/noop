@@ -46,6 +46,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -107,9 +114,15 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     var chosenTiles by remember { mutableStateOf(VitalTilePrefs.chosen(context)) }
     // The tile the picker swaps ("" adds one), null while the picker is closed.
     var tilePick by remember { mutableStateOf<String?>(null) }
+    // A tile opens its own measure, as iOS's `TabRoute.metricSourced`: Explore on that measure, or its own page.
     fun openMeasure(key: String) = when (key) {
         "ageless" -> open(MoreDest.AgeLess); "weight" -> open(MoreDest.Body); "stress" -> open(MoreDest.Stress)
-        else -> open(MoreDest.Explore)
+        else -> {
+            com.noop.ui.ExploreLaunch.pendingKey = when (key) {
+                "spo2raw" -> "spo2"; "skin" -> "skin_temp"; "vo2max" -> "vo2max_est"; else -> key
+            }
+            open(MoreDest.Explore)
+        }
     }
     var tileColumns by remember { mutableStateOf(VitalTilePrefs.columns(context, if (width == ForgeWidth.Compact) 2 else 3)) }
     var weeklyOpen by remember { mutableStateOf(false) }
@@ -153,13 +166,43 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         // The wearer's tiles in their order (iOS `ForgeVitalTileStore`): until edited, the night's vitals as before.
         val placed = (chosenTiles ?: vitals.map { it.key }).take(VitalTilePrefs.MAX)
         fun save(list: List<String>) { chosenTiles = list.distinct().take(VitalTilePrefs.MAX); VitalTilePrefs.setChosen(context, chosenTiles!!) }
+        // Reordering by drag while editing, as iOS's `.draggable` tiles: hold a tile, carry it over another, and the two
+        // trade places at once. Bounds are measured in the window, unclipped, as on Today.
+        val tileBounds = remember { androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
+        var carried by remember { mutableStateOf<String?>(null) }
+        var carryOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+        fun swapUnderCarried() {
+            val key = carried ?: return
+            val from = tileBounds[key] ?: return
+            val centre = from.center + carryOffset
+            val target = tileBounds.entries.firstOrNull { it.key != key && it.value.contains(centre) }?.key ?: return
+            val list = placed.toMutableList()
+            val a = list.indexOf(key); val b = list.indexOf(target)
+            if (a < 0 || b < 0) return
+            list[a] = target; list[b] = key
+            val to = tileBounds[target] ?: return
+            carryOffset -= (to.topLeft - from.topLeft)
+            save(list)
+        }
         placed.chunked(columns).forEachIndexed { rowIndex, row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+            Row(Modifier.fillMaxWidth().zIndex(if (carried in row) 1f else 0f), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
                 row.forEachIndexed { col, key ->
                     val index = rowIndex * columns + col
-                    Box(Modifier.weight(1f)) {
+                    androidx.compose.runtime.key(key) {
+                    val lifted = carried == key
+                    Box(Modifier.weight(1f)
+                            .onGloballyPositioned { tileBounds[key] = androidx.compose.ui.geometry.Rect(it.positionInWindow(), it.size.toSize()) }
+                            .zIndex(if (lifted) 1f else 0f)
+                            .graphicsLayer { if (lifted) { translationX = carryOffset.x; translationY = carryOffset.y; scaleX = 1.04f; scaleY = 1.04f } }
+                            .then(if (!editingTiles) Modifier else Modifier.pointerInput(key, placed) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { carried = key; carryOffset = androidx.compose.ui.geometry.Offset.Zero },
+                                    onDragEnd = { carried = null; carryOffset = androidx.compose.ui.geometry.Offset.Zero },
+                                    onDragCancel = { carried = null; carryOffset = androidx.compose.ui.geometry.Offset.Zero },
+                                    onDrag = { change, amount -> change.consume(); carryOffset += amount; swapUnderCarried() })
+                            })) {
                         val vital = vitals.firstOrNull { it.key == key }
-                        val tap = { if (editingTiles) tilePick = key else if (vital != null) open(MoreDest.Health) else openMeasure(key) }
+                        val tap = { if (editingTiles) tilePick = key else openMeasure(key) }
                         if (vital != null) VitalTile(vital, Modifier.fillMaxWidth()) { tap() }
                         else MeasureTile(viewModel, key, Modifier.fillMaxWidth()) { tap() }
                         if (editingTiles) {
@@ -173,6 +216,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
                                 }
                             }
                         }
+                    }
                     }
                 }
                 repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }

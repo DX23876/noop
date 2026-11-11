@@ -237,6 +237,22 @@ private fun statOf(values: List<Double>): Stat {
 
 // MARK: - Screen
 
+/**
+ * Fork (DX23876), Forge parity 2026-11: the measure a page asked Explore to open on, as iOS opens a metric's own page
+ * (`TabRoute.metricSourced`) from a focus tile. Read once when Explore opens, then cleared.
+ */
+object ExploreLaunch {
+    @Volatile var pendingKey: String? = null
+
+    /** A shared catalog key ("resp_rate", "sleep_total_min") as Explore names its built-in measures. */
+    fun exploreKey(catalogKey: String): String = when (catalogKey) {
+        "resp_rate" -> "resp"
+        "sleep_total_min" -> "sleep"
+        "sleep_efficiency" -> "efficiency"
+        else -> catalogKey
+    }
+}
+
 @Composable
 fun TrendsExploreScreen(vm: AppViewModel) {
     // The Deep Timeline (#575) is presented INLINE from Explore , no NavHost route needed, so this stays
@@ -312,7 +328,7 @@ fun TrendsExploreScreen(vm: AppViewModel) {
     // follow the toggle through every read-out (hero, footer stats, Y-axis). Display-only.
     val effortScale = UnitPrefs.effortScale(LocalContext.current)
 
-    var selectedKey by remember { mutableStateOf(builtInMetrics.first().key) }
+    var selectedKey by remember { mutableStateOf(ExploreLaunch.pendingKey?.also { ExploreLaunch.pendingKey = null } ?: builtInMetrics.first().key) }
     var range by remember { mutableStateOf(ExploreRange.Month) }
     val selected = (metrics.firstOrNull { it.key == selectedKey } ?: metrics.first())
         .copy(effortScale = effortScale)

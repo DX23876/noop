@@ -71,9 +71,9 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /*
- * Fork (DX23876), Forge parity 2026-11: the Health tab's Focus areas and "Your week in rings" in the new design,
- * rebuilt from iOS's `ForgeHealthView`. iOS opens a focus page of its own per area; Android lists that area's existing
- * pages on one page (Sleep opens the Sleep tab), so every page the Heart and Body groups held stays one tap further.
+ * Fork (DX23876), Forge parity 2026-11: the Health tab's Focus areas, their pages and "Your week in rings" in the new
+ * design, rebuilt from iOS's `ForgeHealthView` and `ForgeFocusView`. A focus tile opens its measure in Explore, which
+ * stands in for iOS's single-metric page.
  */
 
 /** The six focus areas, as iOS's `ForgeFocusArea`, each with the Android pages that belong to it. */
@@ -242,14 +242,20 @@ internal fun FocusAreaPage(area: FocusArea, viewModel: com.noop.ui.AppViewModel,
     }
     SettingsColumn {
         PageTitle(stringResource(area.titleRes), onBack)
-        val tiles = series.map { (m, v) -> Triple(stringResource(m.titleRes), focusValue(v.last(), m) to focusUnit(m), v.takeLast(30)) } +
-            (if (energy.isNotEmpty()) listOf(Triple(stringResource(R.string.forge_fm_energy), "%,d".format(energy.last().roundToInt()) to "kcal", energy.takeLast(30))) else emptyList())
+        data class FocusTile(val key: String?, val label: String, val value: String, val unit: String, val values: List<Double>)
+        val tiles = series.map { (m, v) -> FocusTile(m.key, stringResource(m.titleRes), focusValue(v.last(), m), focusUnit(m), v.takeLast(30)) } +
+            (if (energy.isNotEmpty()) listOf(FocusTile("energy", stringResource(R.string.forge_fm_energy),
+                java.text.NumberFormat.getIntegerInstance(Locale.getDefault()).format(energy.last().roundToInt()), "kcal", energy.takeLast(30))) else emptyList())
         if (tiles.isNotEmpty()) {
             tiles.chunked(2).forEach { pair ->
                 Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
-                    pair.forEach { (label, vu, values) ->
-                        MetricTile(area.icon, tint, label, vu.first, vu.second.ifEmpty { null }, noData,
-                                   Modifier.weight(1f).clickable(role = Role.Button) { onOpen(MoreDest.Explore) },
+                    pair.forEach { t ->
+                        val key = t.key
+                        val values = t.values
+                        MetricTile(area.icon, tint, t.label, t.value, t.unit.ifEmpty { null }, noData,
+                                   Modifier.weight(1f).clickable(role = Role.Button) {
+                                       com.noop.ui.ExploreLaunch.pendingKey = key?.let(com.noop.ui.ExploreLaunch::exploreKey); onOpen(if (key == "energy") MoreDest.Energy else MoreDest.Explore)
+                                   },
                                    below = values.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, tint) } })
                     }
                     if (pair.size == 1) Spacer(Modifier.weight(1f))
