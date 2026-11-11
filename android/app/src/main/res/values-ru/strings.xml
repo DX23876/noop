@@ -5800,4 +5800,17 @@
     <string name="forge_ch_consistency">Постоянство сна</string>
     <string name="forge_ch_stress">Дневной стресс</string>
     <string name="forge_ch_weight">Вес</string>
+    <string name="forge_vt_swap">Заменить: %1$s</string>
+    <string name="forge_vt_vitals">Жизненно важные органы</string>
+    <string name="forge_vt_measures">Показатели</string>
+    <string name="forge_vt_vo2">VO₂max</string>
+    <string name="forge_vt_weight">Вес</string>
+    <string name="forge_vt_stress">Стресс</string>
+    <string name="forge_vt_steps">Шаги</string>
+    <string name="forge_vt_earlier">Переместить выше</string>
+    <string name="forge_vt_later">Переместить ниже</string>
+    <string name="forge_vt_years">лет</string>
+    <string name="forge_vt_low">Низкий</string>
+    <string name="forge_vt_medium">Средний</string>
+    <string name="forge_vt_high">Высокий</string>
 </resources>

@@ -5843,4 +5843,17 @@
     <string name="forge_ch_consistency">Schlafkonsistenz</string>
     <string name="forge_ch_stress">Tagesstress</string>
     <string name="forge_ch_weight">Gewicht</string>
+    <string name="forge_vt_swap">%1$s tauschen</string>
+    <string name="forge_vt_vitals">Vitalwerte</string>
+    <string name="forge_vt_measures">Messwerte</string>
+    <string name="forge_vt_vo2">VO₂max</string>
+    <string name="forge_vt_weight">Gewicht</string>
+    <string name="forge_vt_stress">Stress</string>
+    <string name="forge_vt_steps">Schritte</string>
+    <string name="forge_vt_earlier">Nach vorne</string>
+    <string name="forge_vt_later">Nach hinten</string>
+    <string name="forge_vt_years">Jahre</string>
+    <string name="forge_vt_low">Niedrig</string>
+    <string name="forge_vt_medium">Mittel</string>
+    <string name="forge_vt_high">Hoch</string>
 </resources>

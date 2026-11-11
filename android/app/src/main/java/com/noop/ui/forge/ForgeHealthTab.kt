@@ -20,6 +20,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CalendarMonth
@@ -101,7 +104,13 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     }
     fun open(dest: MoreDest) = more.push(MoreRoute.Dest(dest))
     var editingTiles by remember { mutableStateOf(false) }
-    var hiddenTiles by remember { mutableStateOf(VitalTilePrefs.hidden(context)) }
+    var chosenTiles by remember { mutableStateOf(VitalTilePrefs.chosen(context)) }
+    // The tile the picker swaps ("" adds one), null while the picker is closed.
+    var tilePick by remember { mutableStateOf<String?>(null) }
+    fun openMeasure(key: String) = when (key) {
+        "ageless" -> open(MoreDest.AgeLess); "weight" -> open(MoreDest.Body); "stress" -> open(MoreDest.Stress)
+        else -> open(MoreDest.Explore)
+    }
     var tileColumns by remember { mutableStateOf(VitalTilePrefs.columns(context, if (width == ForgeWidth.Compact) 2 else 3)) }
     var weeklyOpen by remember { mutableStateOf(false) }
     var cycleOpen by remember { mutableStateOf(false) }
@@ -140,29 +149,48 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         val columns = tileColumns.coerceIn(2, 3)
         if (editingTiles) VitalsEditHeader(columns, onColumns = { tileColumns = it; VitalTilePrefs.setColumns(context, it) },
                                            onDone = { editingTiles = false })
-        val shownVitals = vitals.filter { it.key !in hiddenTiles }
-        shownVitals.chunked(columns).forEach { row ->
+        // The wearer's tiles in their order (iOS `ForgeVitalTileStore`): until edited, the night's vitals as before.
+        val placed = (chosenTiles ?: vitals.map { it.key }).take(VitalTilePrefs.MAX)
+        fun save(list: List<String>) { chosenTiles = list.distinct().take(VitalTilePrefs.MAX); VitalTilePrefs.setChosen(context, chosenTiles!!) }
+        placed.chunked(columns).forEachIndexed { rowIndex, row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
-                row.forEach { v ->
+                row.forEachIndexed { col, key ->
+                    val index = rowIndex * columns + col
                     Box(Modifier.weight(1f)) {
-                        VitalTile(v, Modifier.fillMaxWidth()) { if (!editingTiles) open(MoreDest.Health) }
-                        if (editingTiles) RemoveBadge(Modifier.align(Alignment.TopEnd)) {
-                            hiddenTiles = hiddenTiles + v.key; VitalTilePrefs.setHidden(context, hiddenTiles)
+                        val vital = vitals.firstOrNull { it.key == key }
+                        val tap = { if (editingTiles) tilePick = key else if (vital != null) open(MoreDest.Health) else openMeasure(key) }
+                        if (vital != null) VitalTile(vital, Modifier.fillMaxWidth()) { tap() }
+                        else MeasureTile(viewModel, key, Modifier.fillMaxWidth()) { tap() }
+                        if (editingTiles) {
+                            RemoveBadge(Modifier.align(Alignment.TopEnd)) { save(placed - key) }
+                            Row(Modifier.align(Alignment.BottomEnd).padding(4.dp)) {
+                                if (index > 0) MoveButton(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.forge_vt_earlier)) {
+                                    save(placed.toMutableList().apply { add(index - 1, removeAt(index)) })
+                                }
+                                if (index < placed.lastIndex) MoveButton(Icons.AutoMirrored.Rounded.ArrowForward, stringResource(R.string.forge_vt_later)) {
+                                    save(placed.toMutableList().apply { add(index + 1, removeAt(index)) })
+                                }
+                            }
                         }
                     }
                 }
                 repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-        if (editingTiles) vitals.filter { it.key in hiddenTiles }.takeIf { it.isNotEmpty() }?.let { hidden ->
-            ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-                hidden.forEachIndexed { i, v ->
-                    if (i > 0) HubDivider()
-                    HubRow(Icons.Rounded.AddCircle, colors.accent, stringResource(R.string.forge_hv_add), v.label) {
-                        hiddenTiles = hiddenTiles - v.key; VitalTilePrefs.setHidden(context, hiddenTiles)
-                    }
-                }
+        if (editingTiles && placed.size < VitalTilePrefs.MAX) {
+            Row(Modifier.fillMaxWidth().background(colors.surface, androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
+                    .clickable(role = Role.Button) { tilePick = "" }.padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(6.dp))
+                Text(stringResource(R.string.forge_hv_add), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent)
             }
+        }
+        tilePick?.let { replacing ->
+            VitalTilePicker(replacing.ifEmpty { null }, placed, vitals, onPick = { picked ->
+                save(if (replacing.isEmpty()) placed + picked else placed.map { if (it == replacing) picked else it })
+                tilePick = null
+            }, onDismiss = { tilePick = null })
         }
 
         // The cycle at a glance, only while cycle tracking is on and a period is logged (iOS `ForgeCycleSummaryCard`).
@@ -388,16 +416,98 @@ private fun VitalBadge(v: Vital) {
          modifier = Modifier.background(tint.copy(alpha = 0.14f), CircleShape).padding(horizontal = 10.dp, vertical = 3.dp))
 }
 
-/** The wearer's vital tiles: the hidden ones and the tiles per row, as iOS's `ForgeVitalTileStore` keeps them. */
+/** The wearer's vital tiles in order and the tiles per row, as iOS's `ForgeVitalTileStore` keeps them (same keys). */
 internal object VitalTilePrefs {
-    private const val HIDDEN = "forge.health.hiddenVitals"
+    private const val CHOSEN = "forge.health.vitalTiles"
     private const val COLUMNS = "forge.health.vitalColumns"
-    fun hidden(context: android.content.Context): Set<String> =
-        (NoopPrefs.of(context).getString(HIDDEN, "") ?: "").split(",").filter { it.isNotEmpty() }.toSet()
-    fun setHidden(context: android.content.Context, keys: Set<String>) =
-        NoopPrefs.of(context).edit().putString(HIDDEN, keys.sorted().joinToString(",")).apply()
+    const val MAX = 9
+    /** Every tile the grid can show, as iOS's `ForgeVitalTile`: the nightly vitals, then the measures beside them. */
+    val vitalKeys = listOf("hrv", "rhr", "spo2", "resp", "skin", "spo2raw")
+    val measureKeys = listOf("ageless", "vo2max", "weight", "stress", "steps")
+    /** Null until the wearer edits the tiles. */
+    fun chosen(context: android.content.Context): List<String>? =
+        NoopPrefs.of(context).getString(CHOSEN, null)?.split(",")?.filter { it in vitalKeys || it in measureKeys }
+    fun setChosen(context: android.content.Context, keys: List<String>) =
+        NoopPrefs.of(context).edit().putString(CHOSEN, keys.joinToString(",")).apply()
     fun columns(context: android.content.Context, fallback: Int): Int = NoopPrefs.of(context).getInt(COLUMNS, fallback)
     fun setColumns(context: android.content.Context, n: Int) = NoopPrefs.of(context).edit().putInt(COLUMNS, n).apply()
+}
+
+@Composable
+private fun measureTitle(key: String): String = when (key) {
+    "ageless" -> "AgeLess"; "vo2max" -> stringResource(R.string.forge_vt_vo2); "weight" -> stringResource(R.string.forge_vt_weight)
+    "stress" -> stringResource(R.string.forge_vt_stress); else -> stringResource(R.string.forge_vt_steps)
+}
+
+/** A measure beside the vitals, its latest value and two months as a line (iOS `ForgeHealthMeasureTile`). */
+@Composable
+private fun MeasureTile(viewModel: AppViewModel, key: String, modifier: Modifier, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val colors = Forge.colors
+    val revision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val values by androidx.compose.runtime.produceState(emptyList<Double>(), key, revision) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            if (key == "ageless") runCatching { com.noop.core.CoreAgeLess.snapshot(context)?.weeks?.map { it.age } }.getOrNull().orEmpty()
+            else {
+                val (k, src) = when (key) { "vo2max" -> "vo2max_est" to "my-whoop"; "weight" -> "weight" to "noop-weight"
+                                            "stress" -> "stress" to "my-whoop"; else -> "steps" to "my-whoop" }
+                val today = LocalDate.now()
+                runCatching { viewModel.repo.resolvedSeries(k, src, today.minusDays(60).toString(), today.toString(), viewModel.activeStrapId).points.map { it.value } }
+                    .getOrDefault(emptyList())
+            }
+        }
+    }
+    val last = values.lastOrNull()
+    val text = last?.let { v -> when (key) {
+        "stress" -> stringResource(when { v < 1.0 -> R.string.forge_vt_low; v < 2.0 -> R.string.forge_vt_medium; else -> R.string.forge_vt_high })
+        "steps" -> java.text.NumberFormat.getIntegerInstance().format(Math.round(v))
+        "ageless" -> Math.round(v).toString()
+        else -> "%.1f".format(java.util.Locale.getDefault(), v)
+    } }
+    val unit = when (key) { "weight" -> "kg"; "ageless" -> stringResource(R.string.forge_vt_years); else -> null }
+    val tint = when (key) { "vo2max" -> colors.charge; "weight" -> colors.rest; "stress" -> colors.effort; "ageless" -> colors.accent; else -> colors.charge }
+    MetricTile(Icons.Rounded.MonitorHeart, tint, measureTitle(key), text, unit, stringResource(R.string.forge_no_data),
+               modifier.clickable(role = Role.Button, onClick = onClick),
+               below = values.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v.takeLast(60), tint) } })
+}
+
+@Composable
+private fun MoveButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Box(Modifier.padding(2.dp).size(26.dp).background(Forge.colors.textSecondary, CircleShape).clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center) {
+        Icon(icon, label, tint = Forge.colors.surface, modifier = Modifier.size(14.dp))
+    }
+}
+
+/** The tiles to add or to swap [replacing] for, as iOS's picker: Vitals, then Measures; placed ones are ticked. */
+@Composable
+private fun VitalTilePicker(replacing: String?, placed: List<String>, vitals: List<Vital>, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val colors = Forge.colors
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.background(colors.surface, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(20.dp)
+                   .verticalScroll(rememberScrollState())) {
+            Text(replacing?.let { r -> stringResource(R.string.forge_vt_swap, vitals.firstOrNull { it.key == r }?.label ?: measureTitle(r)) }
+                     ?: stringResource(R.string.forge_hv_add), style = Forge.type.headline, color = colors.text)
+            listOf(R.string.forge_vt_vitals to VitalTilePrefs.vitalKeys.filter { k -> vitals.any { it.key == k } },
+                   R.string.forge_vt_measures to VitalTilePrefs.measureKeys.filter { it != "ageless" || MoreDest.AgeLess.shown(LocalContext.current) })
+                .forEach { (header, keys) ->
+                    Text(stringResource(header).uppercase(), style = Forge.type.overline, color = colors.textSecondary,
+                         modifier = Modifier.padding(top = ForgeMetrics.space4, bottom = ForgeMetrics.space2))
+                    keys.forEach { k ->
+                        val isPlaced = k in placed
+                        Row(Modifier.fillMaxWidth().clickable(enabled = !isPlaced, role = Role.Button) { onPick(k) }.padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text(vitals.firstOrNull { it.key == k }?.label ?: measureTitle(k), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
+                                 color = colors.text, modifier = Modifier.weight(1f))
+                            Icon(if (isPlaced) Icons.Rounded.CheckCircle else Icons.Rounded.AddCircle, contentDescription = null,
+                                 tint = if (isPlaced) colors.textTertiary else colors.accent)
+                        }
+                    }
+                }
+            Text(stringResource(R.string.forge_hv_done), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent,
+                 modifier = Modifier.align(Alignment.End).clickable(role = Role.Button, onClick = onDismiss).padding(top = ForgeMetrics.space3))
+        }
+    }
 }
 
 /** "Edit Vitals" with Done and the tiles per row, as iOS's editing header. */

@@ -5796,4 +5796,17 @@
     <string name="forge_ch_consistency">睡眠规律性</string>
     <string name="forge_ch_stress">日间压力</string>
     <string name="forge_ch_weight">体重</string>
+    <string name="forge_vt_swap">替换%1$s</string>
+    <string name="forge_vt_vitals">生命体征</string>
+    <string name="forge_vt_measures">指标</string>
+    <string name="forge_vt_vo2">最大摄氧量</string>
+    <string name="forge_vt_weight">体重</string>
+    <string name="forge_vt_stress">压力</string>
+    <string name="forge_vt_steps">步数</string>
+    <string name="forge_vt_earlier">前移</string>
+    <string name="forge_vt_later">后移</string>
+    <string name="forge_vt_years">年</string>
+    <string name="forge_vt_low">低</string>
+    <string name="forge_vt_medium">中等</string>
+    <string name="forge_vt_high">高</string>
 </resources>

@@ -5819,4 +5819,17 @@
     <string name="forge_ch_consistency">Consistência do sono</string>
     <string name="forge_ch_stress">Estresse diurno</string>
     <string name="forge_ch_weight">Peso</string>
+    <string name="forge_vt_swap">Trocar %1$s</string>
+    <string name="forge_vt_vitals">Sinais vitais</string>
+    <string name="forge_vt_measures">Medidas</string>
+    <string name="forge_vt_vo2">VO₂máx.</string>
+    <string name="forge_vt_weight">Peso</string>
+    <string name="forge_vt_stress">Stress</string>
+    <string name="forge_vt_steps">Passos</string>
+    <string name="forge_vt_earlier">Mover para antes</string>
+    <string name="forge_vt_later">Mover para depois</string>
+    <string name="forge_vt_years">anos</string>
+    <string name="forge_vt_low">Baixo</string>
+    <string name="forge_vt_medium">Médio</string>
+    <string name="forge_vt_high">Alto</string>
 </resources>
