@@ -5683,4 +5683,25 @@
     <string name="forge_hv_remove">Remover mosaico</string>
     <string name="forge_hv_weekly">Relatório semanal</string>
     <string name="forge_hv_weekly_sub">A tua semana em resumo</string>
+    <string name="forge_sp_today">Hoje</string>
+    <string name="forge_sp_target">objetivo %1$s a %2$s</string>
+    <string name="forge_sp_below">O Effort é %1$s, abaixo do objetivo de hoje de %2$s a %3$s.</string>
+    <string name="forge_sp_inside">O Effort é %1$s, dentro do objetivo de hoje de %2$s a %3$s.</string>
+    <string name="forge_sp_above">O Effort é %1$s, acima do objetivo de hoje de %2$s a %3$s.</string>
+    <string name="forge_sp_why">Porquê %1$s?</string>
+    <string name="forge_sp_added">O que somou hoje</string>
+    <string name="forge_sp_no_workout">Ainda sem treino hoje. O Effort também conta o movimento do dia a dia e a frequência cardíaca.</string>
+    <string name="forge_sp_last14">Últimos 14 dias</string>
+    <string name="forge_sp_band">A faixa sombreada é o objetivo que a tua Charge permitia em cada dia.</string>
+    <string name="forge_sp_effort_how">Como é calculado o Effort</string>
+    <string name="forge_sp_effort_how_text">O Effort soma o quanto o teu coração trabalhou ao longo do dia face à tua frequência em repouso e máxima, treinos incluídos. O objetivo vem da Charge desta manhã: mais Charge, mais margem.</string>
+    <string name="forge_sp_history">Histórico</string>
+    <string name="forge_sp_asleep_span">%1$s h a dormir, das %2$s às %3$s</string>
+    <string name="forge_sp_shaped">O que moldou este</string>
+    <string name="forge_sp_hours_need">Horas face à tua necessidade</string>
+    <string name="forge_sp_consistency">Consistência</string>
+    <string name="forge_sp_usually">normalmente %1$d %%</string>
+    <string name="forge_sp_rest_how">Como é calculado o Rest</string>
+    <string name="forge_sp_rest_how_text">O Rest pondera quanto dormiste face ao que precisavas, quão bem dormiste, quão regulares foram os horários e quanto sono profundo e REM tiveste.</string>
+    <string name="forge_sp_not_enough">Ainda não há dias suficientes.</string>
 </resources>

@@ -5730,4 +5730,25 @@
     <string name="forge_hv_remove">Remove tile</string>
     <string name="forge_hv_weekly">Weekly report</string>
     <string name="forge_hv_weekly_sub">Your week read back</string>
+    <string name="forge_sp_today">Today</string>
+    <string name="forge_sp_target">target %1$s to %2$s</string>
+    <string name="forge_sp_below">Effort is %1$s, below today\'s target of %2$s to %3$s.</string>
+    <string name="forge_sp_inside">Effort is %1$s, inside today\'s target of %2$s to %3$s.</string>
+    <string name="forge_sp_above">Effort is %1$s, above today\'s target of %2$s to %3$s.</string>
+    <string name="forge_sp_why">Why %1$s?</string>
+    <string name="forge_sp_added">What added to it today</string>
+    <string name="forge_sp_no_workout">No workout yet today. Effort also counts everyday movement and heart rate through the day.</string>
+    <string name="forge_sp_last14">Last 14 days</string>
+    <string name="forge_sp_band">The shaded band is the target your Charge allowed on each day.</string>
+    <string name="forge_sp_effort_how">How Effort is made</string>
+    <string name="forge_sp_effort_how_text">Effort adds up how hard your heart worked through the day against your own resting and maximum heart rate, workouts included. The target comes from this morning\'s Charge: more Charge, more room.</string>
+    <string name="forge_sp_history">History</string>
+    <string name="forge_sp_asleep_span">%1$s h asleep, %2$s to %3$s</string>
+    <string name="forge_sp_shaped">What shaped it</string>
+    <string name="forge_sp_hours_need">Hours against your need</string>
+    <string name="forge_sp_consistency">Consistency</string>
+    <string name="forge_sp_usually">usually %1$d %%</string>
+    <string name="forge_sp_rest_how">How Rest is made</string>
+    <string name="forge_sp_rest_how_text">Rest weighs how long you slept against what you needed, how well you slept, how regular your times were and how much deep and REM sleep you got.</string>
+    <string name="forge_sp_not_enough">Not enough days yet.</string>
 </resources>

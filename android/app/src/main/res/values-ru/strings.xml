@@ -5664,4 +5664,25 @@
     <string name="forge_hv_remove">Убрать плитку</string>
     <string name="forge_hv_weekly">Недельный отчёт</string>
     <string name="forge_hv_weekly_sub">Ваша неделя в обзоре</string>
+    <string name="forge_sp_today">Сегодня</string>
+    <string name="forge_sp_target">цель %1$s–%2$s</string>
+    <string name="forge_sp_below">Effort %1$s, ниже сегодняшней цели %2$s–%3$s.</string>
+    <string name="forge_sp_inside">Effort %1$s, в пределах сегодняшней цели %2$s–%3$s.</string>
+    <string name="forge_sp_above">Effort %1$s, выше сегодняшней цели %2$s–%3$s.</string>
+    <string name="forge_sp_why">Почему %1$s?</string>
+    <string name="forge_sp_added">Что добавилось сегодня</string>
+    <string name="forge_sp_no_workout">Сегодня ещё без тренировки. Effort учитывает и обычное движение, и пульс за день.</string>
+    <string name="forge_sp_last14">Последние 14 дней</string>
+    <string name="forge_sp_band">Затенённая полоса показывает цель, которую твой Charge допускал в каждый день.</string>
+    <string name="forge_sp_effort_how">Как считается Effort</string>
+    <string name="forge_sp_effort_how_text">Effort суммирует, насколько усердно работало сердце за день относительно твоего пульса покоя и максимума, включая тренировки. Цель берётся из утреннего Charge: больше Charge, больше запаса.</string>
+    <string name="forge_sp_history">История</string>
+    <string name="forge_sp_asleep_span">%1$s ч сна, %2$s–%3$s</string>
+    <string name="forge_sp_shaped">Что на это повлияло</string>
+    <string name="forge_sp_hours_need">Часы относительно потребности</string>
+    <string name="forge_sp_consistency">Регулярность</string>
+    <string name="forge_sp_usually">обычно %1$d %%</string>
+    <string name="forge_sp_rest_how">Как считается Rest</string>
+    <string name="forge_sp_rest_how_text">Rest учитывает, сколько ты спал по сравнению с потребностью, насколько хорошо, насколько регулярным был режим и сколько было глубокого и REM-сна.</string>
+    <string name="forge_sp_not_enough">Пока мало дней.</string>
 </resources>

@@ -299,7 +299,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                                                       null, null, null, null, null)).let { d ->
                 d.copy(charge = d.charge ?: carried.first, rest = d.rest ?: carried.second)
             }
-            Hero(heroDay, width, onHold = { editingWidgets = true })
+            Hero(heroDay, width, onHold = { editingWidgets = true }, viewModel = viewModel)
             if (shown == today) ForgeActivityPrompt()
             // The day's one hint under the rings, as iOS's `hintCard`.
             if (shown == today) {
@@ -420,7 +420,7 @@ private fun Header(date: LocalDate, isToday: Boolean, backfilling: Boolean, onPr
 }
 
 @Composable
-private fun Hero(day: CoreRead.Day?, width: ForgeWidth, onHold: (() -> Unit)? = null) {
+private fun Hero(day: CoreRead.Day?, width: ForgeWidth, onHold: (() -> Unit)? = null, viewModel: AppViewModel? = null) {
     val colors = Forge.colors
     // Each ring opens its trend, as iOS's `HeroScoreCell` pushes its `detailRoute`.
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
@@ -447,7 +447,27 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth, onHold: (() -> Unit)? = 
             }
         }
     }
-    ForgeMetricDetail(open) { open = null }
+    // The new design opens each score's own page, as iOS's rings push `ForgeRoute.charge`, `.effort` and `.rest`; the
+    // trend stays behind each page's History. The shipped design keeps opening the trend.
+    var history by remember { mutableStateOf<CoreRead.Metric?>(null) }
+    if (ForgeDesign.preview && viewModel != null) when (open) {
+        CoreRead.Metric.Charge -> ChargeBreakdownHost(viewModel, onDismiss = { open = null })
+        CoreRead.Metric.Effort -> ForgeOverlayPage(onDismiss = { open = null }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                androidx.activity.compose.BackHandler { open = null }
+                ForgeEffortPage(viewModel, day?.effort, day?.charge, onBack = { open = null },
+                                onHistory = { history = CoreRead.Metric.Effort })
+            }
+        }
+        CoreRead.Metric.Rest -> ForgeOverlayPage(onDismiss = { open = null }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                androidx.activity.compose.BackHandler { open = null }
+                ForgeRestPage(viewModel, day?.rest, onBack = { open = null }, onHistory = { history = CoreRead.Metric.Rest })
+            }
+        }
+        else -> Unit
+    } else ForgeMetricDetail(open) { open = null }
+    ForgeMetricDetail(history) { history = null }
 }
 
 /** The hero's source caption: the names joined with " + ", the translated words resolved; null without any. */

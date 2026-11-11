@@ -5711,4 +5711,25 @@
     <string name="forge_hv_remove">Usuń kafelek</string>
     <string name="forge_hv_weekly">Raport tygodniowy</string>
     <string name="forge_hv_weekly_sub">Twój tydzień w skrócie</string>
+    <string name="forge_sp_today">Dzisiaj</string>
+    <string name="forge_sp_target">cel %1$s do %2$s</string>
+    <string name="forge_sp_below">Effort wynosi %1$s, poniżej dzisiejszego celu %2$s–%3$s.</string>
+    <string name="forge_sp_inside">Effort wynosi %1$s, w dzisiejszym celu %2$s–%3$s.</string>
+    <string name="forge_sp_above">Effort wynosi %1$s, powyżej dzisiejszego celu %2$s–%3$s.</string>
+    <string name="forge_sp_why">Dlaczego %1$s?</string>
+    <string name="forge_sp_added">Co dziś się dołożyło</string>
+    <string name="forge_sp_no_workout">Dziś jeszcze bez treningu. Effort liczy też codzienny ruch i tętno w ciągu dnia.</string>
+    <string name="forge_sp_last14">Ostatnie 14 dni</string>
+    <string name="forge_sp_band">Zacieniowany pas to cel, na który twój Charge pozwalał każdego dnia.</string>
+    <string name="forge_sp_effort_how">Jak powstaje Effort</string>
+    <string name="forge_sp_effort_how_text">Effort sumuje, jak ciężko pracowało twoje serce w ciągu dnia względem twojego tętna spoczynkowego i maksymalnego, z treningami. Cel wynika z porannej Charge: więcej Charge, więcej zapasu. Wszystko liczy się na tym iPhonie.</string>
+    <string name="forge_sp_history">Historia</string>
+    <string name="forge_sp_asleep_span">%1$s h snu, %2$s–%3$s</string>
+    <string name="forge_sp_shaped">Co to ukształtowało</string>
+    <string name="forge_sp_hours_need">Godziny wobec potrzeby</string>
+    <string name="forge_sp_consistency">Konsystencja</string>
+    <string name="forge_sp_usually">zwykle %1$d %%</string>
+    <string name="forge_sp_rest_how">Jak powstaje Rest</string>
+    <string name="forge_sp_rest_how_text">Rest waży, ile spałeś wobec potrzeby, jak dobrze spałeś, jak regularne były godziny i ile miałeś snu głębokiego i REM. Wszystko liczy się na tym iPhonie.</string>
+    <string name="forge_sp_not_enough">Za mało dni.</string>
 </resources>

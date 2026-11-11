@@ -654,7 +654,7 @@ private fun SleepDebtLedger() {
 
 
 /** The tiles' model: daily rows, the imported sleep figures and the merged sessions, as the classic screen read them. */
-private suspend fun nightDetailModel(viewModel: com.noop.ui.AppViewModel,
+internal suspend fun nightDetailModel(viewModel: com.noop.ui.AppViewModel,
                                      days: List<com.noop.data.DailyMetric>): com.noop.ui.SleepModel? {
     val repo = viewModel.repo
     val strap = viewModel.activeStrapId

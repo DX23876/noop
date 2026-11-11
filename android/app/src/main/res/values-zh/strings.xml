@@ -5660,4 +5660,25 @@
     <string name="forge_hv_remove">移除磁贴</string>
     <string name="forge_hv_weekly">周报</string>
     <string name="forge_hv_weekly_sub">回顾你的一周</string>
+    <string name="forge_sp_today">今天</string>
+    <string name="forge_sp_target">目标 %1$s 至 %2$s</string>
+    <string name="forge_sp_below">Effort 为 %1$s，低于今天 %2$s 至 %3$s 的目标。</string>
+    <string name="forge_sp_inside">Effort 为 %1$s，处于今天 %2$s 至 %3$s 的目标内。</string>
+    <string name="forge_sp_above">Effort 为 %1$s，高于今天 %2$s 至 %3$s 的目标。</string>
+    <string name="forge_sp_why">为什么是 %1$s？</string>
+    <string name="forge_sp_added">今天增加了什么</string>
+    <string name="forge_sp_no_workout">今天还没有训练。Effort 也计入日常活动和全天心率。</string>
+    <string name="forge_sp_last14">最近 14 天</string>
+    <string name="forge_sp_band">阴影带是你的 Charge 每天允许的目标。</string>
+    <string name="forge_sp_effort_how">Effort 是如何计算的</string>
+    <string name="forge_sp_effort_how_text">Effort 累计你的心脏全天相对于你自己的静息和最大心率的工作强度，包括训练。 目标来自今早的 Charge：Charge 越高，空间越大。</string>
+    <string name="forge_sp_history">历史</string>
+    <string name="forge_sp_asleep_span">睡眠 %1$s 小时，%2$s 至 %3$s</string>
+    <string name="forge_sp_shaped">是什么塑造了它</string>
+    <string name="forge_sp_hours_need">时长与需求对比</string>
+    <string name="forge_sp_consistency">规律性</string>
+    <string name="forge_sp_usually">通常 %1$d%%</string>
+    <string name="forge_sp_rest_how">Rest 是如何计算的</string>
+    <string name="forge_sp_rest_how_text">Rest 衡量你睡了多久与所需相比、睡得多好、作息多规律以及深睡和 REM 睡眠有多少。</string>
+    <string name="forge_sp_not_enough">天数还不够。</string>
 </resources>

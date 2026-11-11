@@ -5659,4 +5659,25 @@
     <string name="forge_hv_remove">Rimuovi riquadro</string>
     <string name="forge_hv_weekly">Report settimanale</string>
     <string name="forge_hv_weekly_sub">La tua settimana in sintesi</string>
+    <string name="forge_sp_today">Oggi</string>
+    <string name="forge_sp_target">obiettivo da %1$s a %2$s</string>
+    <string name="forge_sp_below">L\'Effort è %1$s, sotto l\'obiettivo di oggi da %2$s a %3$s.</string>
+    <string name="forge_sp_inside">L\'Effort è %1$s, entro l\'obiettivo di oggi da %2$s a %3$s.</string>
+    <string name="forge_sp_above">L\'Effort è %1$s, sopra l\'obiettivo di oggi da %2$s a %3$s.</string>
+    <string name="forge_sp_why">Perché %1$s?</string>
+    <string name="forge_sp_added">Cosa si è aggiunto oggi</string>
+    <string name="forge_sp_no_workout">Ancora nessun allenamento oggi. Effort conta anche il movimento quotidiano e la frequenza cardiaca della giornata.</string>
+    <string name="forge_sp_last14">Ultimi 14 giorni</string>
+    <string name="forge_sp_band">La banda ombreggiata è l\'obiettivo che la tua Charge consentiva ogni giorno.</string>
+    <string name="forge_sp_effort_how">Come si calcola Effort</string>
+    <string name="forge_sp_effort_how_text">Effort somma quanto ha lavorato il tuo cuore durante il giorno rispetto alla tua frequenza a riposo e massima, allenamenti inclusi. L\'obiettivo viene dalla Charge di stamattina: più Charge, più margine.</string>
+    <string name="forge_sp_history">Cronologia</string>
+    <string name="forge_sp_asleep_span">%1$s h di sonno, dalle %2$s alle %3$s</string>
+    <string name="forge_sp_shaped">Cosa l\'ha plasmato</string>
+    <string name="forge_sp_hours_need">Ore rispetto al fabbisogno</string>
+    <string name="forge_sp_consistency">Costanza</string>
+    <string name="forge_sp_usually">di solito %1$d %%</string>
+    <string name="forge_sp_rest_how">Come si calcola Rest</string>
+    <string name="forge_sp_rest_how_text">Rest valuta quanto hai dormito rispetto al bisogno, quanto bene hai dormito, quanto erano regolari gli orari e quanto sonno profondo e REM hai avuto.</string>
+    <string name="forge_sp_not_enough">Non ci sono ancora abbastanza giorni.</string>
 </resources>

@@ -5707,4 +5707,25 @@
     <string name="forge_hv_remove">Kachel entfernen</string>
     <string name="forge_hv_weekly">Wochenbericht</string>
     <string name="forge_hv_weekly_sub">Deine Woche im Rückblick</string>
+    <string name="forge_sp_today">Heute</string>
+    <string name="forge_sp_target">Ziel %1$s bis %2$s</string>
+    <string name="forge_sp_below">Effort liegt bei %1$s, unter dem heutigen Ziel von %2$s bis %3$s.</string>
+    <string name="forge_sp_inside">Effort liegt bei %1$s, im heutigen Ziel von %2$s bis %3$s.</string>
+    <string name="forge_sp_above">Effort liegt bei %1$s, über dem heutigen Ziel von %2$s bis %3$s.</string>
+    <string name="forge_sp_why">Warum %1$s?</string>
+    <string name="forge_sp_added">Was heute dazukam</string>
+    <string name="forge_sp_no_workout">Heute noch kein Training. Effort zählt auch Alltagsbewegung und den Puls über den Tag.</string>
+    <string name="forge_sp_last14">Letzte 14 Tage</string>
+    <string name="forge_sp_band">Das schattierte Band ist das Ziel, das deine Charge an jedem Tag erlaubt hat.</string>
+    <string name="forge_sp_effort_how">So entsteht Effort</string>
+    <string name="forge_sp_effort_how_text">Effort summiert, wie hart dein Herz über den Tag gearbeitet hat, gemessen an deinem eigenen Ruhe- und Maximalpuls, Trainings eingeschlossen. Das Ziel kommt aus der Charge von heute Morgen: mehr Charge, mehr Spielraum.</string>
+    <string name="forge_sp_history">Verlauf</string>
+    <string name="forge_sp_asleep_span">%1$s h Schlaf, %2$s bis %3$s</string>
+    <string name="forge_sp_shaped">Was ihn geprägt hat</string>
+    <string name="forge_sp_hours_need">Stunden im Vergleich zum Bedarf</string>
+    <string name="forge_sp_consistency">Konsistenz</string>
+    <string name="forge_sp_usually">üblich %1$d %%</string>
+    <string name="forge_sp_rest_how">So entsteht Rest</string>
+    <string name="forge_sp_rest_how_text">Rest wägt ab, wie lange du im Vergleich zu deinem Bedarf geschlafen hast, wie gut du geschlafen hast, wie regelmäßig deine Zeiten waren und wie viel Tief- und REM-Schlaf du hattest.</string>
+    <string name="forge_sp_not_enough">Noch nicht genug Tage.</string>
 </resources>

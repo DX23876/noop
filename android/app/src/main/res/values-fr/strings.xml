@@ -5690,4 +5690,25 @@
     <string name="forge_hv_remove">Retirer la tuile</string>
     <string name="forge_hv_weekly">Rapport hebdomadaire</string>
     <string name="forge_hv_weekly_sub">Votre semaine en revue</string>
+    <string name="forge_sp_today">Aujourd\'hui</string>
+    <string name="forge_sp_target">objectif %1$s à %2$s</string>
+    <string name="forge_sp_below">L\'Effort est de %1$s, sous l\'objectif du jour de %2$s à %3$s.</string>
+    <string name="forge_sp_inside">L\'Effort est de %1$s, dans l\'objectif du jour de %2$s à %3$s.</string>
+    <string name="forge_sp_above">L\'Effort est de %1$s, au-dessus de l\'objectif du jour de %2$s à %3$s.</string>
+    <string name="forge_sp_why">Pourquoi %1$s ?</string>
+    <string name="forge_sp_added">Ce qui s\'y est ajouté aujourd\'hui</string>
+    <string name="forge_sp_no_workout">Pas encore de séance aujourd\'hui. Effort compte aussi les mouvements du quotidien et la fréquence cardiaque de la journée.</string>
+    <string name="forge_sp_last14">14 derniers jours</string>
+    <string name="forge_sp_band">La bande ombrée est l\'objectif que ta Charge permettait chaque jour.</string>
+    <string name="forge_sp_effort_how">Comment Effort est calculé</string>
+    <string name="forge_sp_effort_how_text">Effort additionne l\'effort de ton cœur sur la journée par rapport à ta propre fréquence au repos et maximale, séances comprises. L\'objectif vient de la Charge de ce matin : plus de Charge, plus de marge.</string>
+    <string name="forge_sp_history">Historique</string>
+    <string name="forge_sp_asleep_span">%1$s h de sommeil, de %2$s à %3$s</string>
+    <string name="forge_sp_shaped">Ce qui l\'a façonné</string>
+    <string name="forge_sp_hours_need">Heures face à ton besoin</string>
+    <string name="forge_sp_consistency">Régularité</string>
+    <string name="forge_sp_usually">d\'habitude %1$d %%</string>
+    <string name="forge_sp_rest_how">Comment Rest est calculé</string>
+    <string name="forge_sp_rest_how_text">Rest pèse la durée de ton sommeil face à ton besoin, sa qualité, la régularité de tes horaires et la part de sommeil profond et paradoxal.</string>
+    <string name="forge_sp_not_enough">Pas encore assez de jours.</string>
 </resources>
