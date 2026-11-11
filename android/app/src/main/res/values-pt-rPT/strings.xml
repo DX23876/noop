@@ -5066,4 +5066,6 @@
     <string name="forge_ew_active">Ativo</string>
     <string name="forge_mw_title">Momentum</string>
     <string name="forge_mw_none">Hoje nada se destaca.</string>
+    <string name="forge_health_what_works">O que resulta</string>
+    <string name="forge_health_what_works_sub">O que te ajuda e o que te prejudica</string>
 </resources>

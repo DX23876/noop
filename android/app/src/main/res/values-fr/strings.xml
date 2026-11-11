@@ -5073,4 +5073,6 @@
     <string name="forge_ew_active">Actif</string>
     <string name="forge_mw_title">Momentum</string>
     <string name="forge_mw_none">Rien de marquant aujourd\'hui.</string>
+    <string name="forge_health_what_works">Ce qui marche</string>
+    <string name="forge_health_what_works_sub">Ce qui t\'aide, ce qui te nuit</string>
 </resources>

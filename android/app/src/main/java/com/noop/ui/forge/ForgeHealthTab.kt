@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ShowChart
@@ -136,12 +137,18 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
             HubRow(Icons.Rounded.ShowChart, colors.charge, stringResource(R.string.nav_trends),
                    stringResource(R.string.forge_health_trends_sub)) { trendsOpen = true }
             HubDivider()
+            // What works sits between them, as iOS's Long term group lists it.
+            if (MoreDest.Insights.shown(context)) {
+                HubRow(Icons.Rounded.Lightbulb, ForgeTokens.Color.systemYellow.resolve(), stringResource(R.string.forge_health_what_works),
+                       stringResource(R.string.forge_health_what_works_sub)) { open(MoreDest.Insights) }
+                HubDivider()
+            }
             HubRow(Icons.Rounded.GridView, colors.accent, stringResource(R.string.forge_health_all_metrics),
                    stringResource(R.string.forge_health_all_metrics_sub)) {
                 open(MoreDest.Explore)
             }
         }
-        val longTerm = listOf(MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Insights).filter { it.shown(context) }
+        val longTerm = listOf(MoreDest.AgeLess, MoreDest.RhythmAge).filter { it.shown(context) }
         if (longTerm.isNotEmpty()) DestCard(longTerm) { open(it) }
         Spacer(Modifier.height(ForgeMetrics.space4))
     }
