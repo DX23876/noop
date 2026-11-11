@@ -107,6 +107,7 @@ internal class NotifyDayStateCache(
     private var cachedLogicalKey: String? = null
     private var cachedLocalKey: String? = null
     private var cachedIllnessEnabled: Boolean? = null
+    private var cachedRestTraits: com.noop.analytics.RestTraitLookup? = null
     private var cachedState: NotifyDayState? = null
 
     fun resolve(
@@ -114,10 +115,12 @@ internal class NotifyDayStateCache(
         logicalKey: String,
         localKey: String,
         illnessEnabled: Boolean,
+        /** AI-35: the stored traits the widget's Rest is rebuilt with. */
+        restTraits: com.noop.analytics.RestTraitLookup = com.noop.analytics.RestTraitLookup.EMPTY,
     ): NotifyDayState {
         cachedState?.let { state ->
             if (days === cachedDays && logicalKey == cachedLogicalKey && localKey == cachedLocalKey &&
-                illnessEnabled == cachedIllnessEnabled
+                illnessEnabled == cachedIllnessEnabled && restTraits == cachedRestTraits
             ) {
                 return state
             }
@@ -128,7 +131,7 @@ internal class NotifyDayStateCache(
         val state = NotifyDayState(
             todayRecovery = todayRow?.recovery,
             widgetRecovery = anchorRow?.recovery?.roundToInt(),
-            widgetRest = anchorRow?.let { RestScorer.restFromDaily(it)?.roundToInt() },
+            widgetRest = anchorRow?.let { RestScorer.restFromDaily(it, restTraits)?.roundToInt() },
             widgetEffort = anchorRow?.strain?.roundToInt(),
             illness = if (illnessEnabled && todayRow != null && days.lastOrNull()?.day == todayRow.day) {
                 illnessEvaluator(days)
@@ -139,6 +142,7 @@ internal class NotifyDayStateCache(
         cachedLogicalKey = logicalKey
         cachedLocalKey = localKey
         cachedIllnessEnabled = illnessEnabled
+        cachedRestTraits = restTraits
         cachedState = state
         return state
     }
@@ -345,7 +349,9 @@ class WhoopConnectionService : Service() {
                 // #1304/#512: the active strap's live day is under its own id ("whoop-<uuid>"); a raw
                 // "my-whoop" read (which the union method collapses to) misses it. Same accessor as :606.
                 repo.recentDaysMergedFlow((application as NoopApplication).activeDeviceId).catch { emit(emptyList()) },
-            ) { state, days ->
+                repo.restTraitsFlow((application as NoopApplication).activeDeviceId)
+                    .catch { emit(com.noop.analytics.RestTraitLookup.EMPTY) },
+            ) { state, days, restTraits ->
                 // #911: resolve the day the way the dashboard does, via the LOGICAL local day (rolls at
                 // 04:00, with the #304 pre-04:00 carve-out), NOT a naive LocalDate.now() that rolls at
                 // midnight and starts looking up a brand-new, not-yet-scored calendar day. Two DISTINCT
@@ -371,6 +377,7 @@ class WhoopConnectionService : Service() {
                         // still takes effect on the next live-state emission without re-running the
                         // evaluation while the value is unchanged.
                         illnessEnabled = NoopPrefs.illnessWatch(this@WhoopConnectionService),
+                        restTraits = restTraits,
                     ),
                 )
             }.catch { /* belt-and-braces: a frozen notification beats a dead process */ }

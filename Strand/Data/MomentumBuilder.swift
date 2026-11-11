@@ -1,5 +1,6 @@
 import Foundation
 import StrandAnalytics
+import StrandCore
 #if !NOOP_CORE
 import StrandDesign
 #endif
@@ -461,6 +462,8 @@ extension MomentumBuilder {
         /// The HRV baseline Charge scored against (`Repository.chargeBaselines?.hrv`), so the card's
         /// "over/under baseline" read and the Charge breakdown cannot describe two different baselines.
         var hrvBaseline: BaselineState?
+        /// The stored traits each night's Rest was scored with (AI-34), for the one sleep need every readout names.
+        var restTraits: RestTraitLookup = .empty
         var dayKey: String = ""
         var isToday: Bool = true
         /// The "Last night · 15 Aug" provenance for a carried read, or nil when the read is today's.
@@ -521,10 +524,11 @@ extension MomentumBuilder {
         i.stepGoal = c.stepGoal > 0 ? c.stepGoal : nil
         i.typicalSteps = medianSteps(c.allDays.suffix(28).compactMap(\.steps))
 
-        // Sleep: the wearer's OWN need, derived the way the analytics rollup derives it.
+        // Sleep: the wearer's OWN need, the one the night's Rest was scored with and the Sleep screen names
+        // (AI-34, `RestTraitLookup`), never a need re-derived here from the loaded nights.
         let nightly = c.allDays.suffix(28).compactMap(\.totalSleepMin).map { $0 / 60.0 }.filter { $0 > 0 }
         if nightly.count >= 7 {
-            i.sleepNeedHours = AnalyticsEngine.Rest.personalizedNeedHours(nightlyHours: nightly, age: nil)
+            i.sleepNeedHours = c.restTraits.needMin(forDay: c.dayKey) / 60.0
             i.weekSleepHours = Array(nightly.suffix(7))
         }
 

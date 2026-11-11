@@ -613,14 +613,25 @@ private struct DevicesContent: View {
         let bByDay = Dictionary(bDaily.map { ($0.day, $0) }, uniquingKeysWith: { first, _ in first })
         guard let shared = aDaily.sorted(by: { $0.day > $1.day }).first(where: { bByDay[$0.day] != nil }),
               let bShared = bByDay[shared.day] else { strapCompare = nil; return }
-        let rows = StrapComparison.compare(Self.metricKindValues(shared), Self.metricKindValues(bShared))
+        // AI-34: a WHOOP strap's calories are its energy-model row for the day, the figure the Energy screen
+        // is built on; the daily row's `activeKcalEst` is the retired Keytel estimate. Another source keeps
+        // the calories it reported itself.
+        func modelKcal(_ id: String) async -> Double? {
+            ((try? await store.whoopDailyEnergy(deviceId: id, from: shared.day, to: shared.day)) ?? [])
+                .first { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }?.rawTotalKcal
+        }
+        let aKcal = SourceCoordinator.isWhoop(a) ? await modelKcal(a.id) : shared.activeKcalEst
+        let bKcal = SourceCoordinator.isWhoop(b) ? await modelKcal(b.id) : bShared.activeKcalEst
+        let rows = StrapComparison.compare(Self.metricKindValues(shared, calories: aKcal),
+                                           Self.metricKindValues(bShared, calories: bKcal))
         strapCompare = rows.isEmpty ? nil
             : StrapCompareData(aName: a.displayName, bName: b.displayName, day: shared.day, rows: rows)
     }
 
     /// Map a stored DailyMetric onto the comparable MetricKinds it carries. `heartRate` has no daily
     /// avg/max field, so it's absent; `.other` is never comparable.
-    private static func metricKindValues(_ d: DailyMetric) -> [MetricArbitrationPolicy.MetricKind: Double] {
+    private static func metricKindValues(_ d: DailyMetric,
+                                         calories: Double?) -> [MetricArbitrationPolicy.MetricKind: Double] {
         var out: [MetricArbitrationPolicy.MetricKind: Double] = [:]
         if let v = d.restingHr { out[.restingHR] = Double(v) }
         if let v = d.avgHrv { out[.hrv] = v }
@@ -628,7 +639,7 @@ private struct DevicesContent: View {
         if let v = d.skinTempDevC { out[.skinTemp] = v }
         if let v = d.steps { out[.steps] = Double(v) }
         if let v = d.totalSleepMin { out[.sleep] = v }
-        if let v = d.activeKcalEst { out[.calories] = v }
+        if let v = calories { out[.calories] = v }
         return out
     }
 

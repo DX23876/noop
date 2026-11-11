@@ -2,11 +2,13 @@ import XCTest
 @testable import StrandAnalytics
 import WhoopStore
 
-/// Which nights the Charge baselines are folded from (#2525).
+/// Which nights the Charge baselines are folded from (#2525, AI-35).
 ///
-/// The defect these pin: the imported vendor history was folded in full while the wearer's own nights
+/// The defects these pin: the imported vendor history was folded in full while the wearer's own nights
 /// entered only from the scan window, so the import kept about a third of the weight however long NOOP had
-/// been worn. Byte-identical twin: Kotlin `ChargeBaselinesTest` (same cases, same oracle literal).
+/// been worn (#2525); and one baseline folded from the nights ending TODAY scored every day, so a day's
+/// Charge read its own night and every later one (AI-35). Byte-identical twin: Kotlin `ChargeBaselinesTest`
+/// (same cases, same oracle literal).
 final class ChargeBaselinesTests: XCTestCase {
 
     private let hrvCfg = Baselines.hrvCfg
@@ -43,22 +45,77 @@ final class ChargeBaselinesTests: XCTestCase {
         XCTAssertEqual(Self.anchor, "2026-09-30")
     }
 
-    /// The window holds the anchor and the 20 days before it; the 21st day back and any later day are out.
-    func testTheWindowKeepsTwentyOneCalendarDaysEndingOnTheAnchor() {
+    /// The window holds the anchor and the 89 days before it; the 90th day back and any later day are out.
+    func testTheWindowKeepsNinetyCalendarDaysEndingOnTheAnchor() {
+        XCTAssertEqual(ChargeBaselines.windowDays, 90)
         let own: [(day: String, value: Double?)] = [
-            (day: Self.dayKey(Self.anchorEpochDay - 21), value: 50),
-            (day: Self.dayKey(Self.anchorEpochDay - 20), value: 51),
+            (day: Self.dayKey(Self.anchorEpochDay - 90), value: 50),
+            (day: Self.dayKey(Self.anchorEpochDay - 89), value: 51),
             (day: Self.anchor, value: 52),
             (day: Self.dayKey(Self.anchorEpochDay + 1), value: 53),
         ]
         let h = ChargeBaselines.history(imported: [], own: own, anchorDay: Self.anchor, cfg: hrvCfg, baselineEpoch: 0)
-        XCTAssertEqual(h.dayKeys, ["2026-09-10", "2026-09-30"])
+        XCTAssertEqual(h.dayKeys, ["2026-07-03", "2026-09-30"])
         XCTAssertEqual(h.values, [51, 52])
+    }
+
+    // MARK: - The scored day (AI-35)
+
+    /// A day's Charge is scored against the day BEFORE it, so its own night and later nights stay out.
+    func testTheAnchorOfAScoredDayIsTheDayBefore() {
+        XCTAssertEqual(ChargeBaselines.anchorDay(forScoredDay: "2026-10-01"), "2026-09-30")
+        XCTAssertEqual(ChargeBaselines.anchorDay(forScoredDay: "2026-03-01"), "2026-02-28")
+        XCTAssertNil(ChargeBaselines.anchorDay(forScoredDay: "not-a-day"))
+    }
+
+    private static func row(_ back: Int, hrv: Double, rhr: Int) -> DailyMetric {
+        DailyMetric(day: dayKey(anchorEpochDay - back), totalSleepMin: nil, efficiency: nil,
+                    deepMin: nil, remMin: nil, lightMin: nil, disturbances: nil, restingHr: rhr,
+                    avgHrv: hrv, recovery: nil, strain: nil, exerciseCount: nil)
+    }
+
+    /// The scored night itself does not enter its own baseline: a very low night cannot pull its own normal
+    /// down and so soften its own score.
+    func testAScoredNightIsNotPartOfItsOwnBaseline() {
+        let earlier = (1...20).map { Self.row($0, hrv: 50, rhr: 55) }
+        let withLowNight = earlier + [Self.row(0, hrv: 20, rhr: 70)]
+        let r = ChargeBaselines.resolve(imported: [], own: withLowNight, scoredDay: Self.anchor,
+                                        hrvEpoch: 0, recoveryEpoch: 0)
+        let without = ChargeBaselines.resolve(imported: [], own: earlier, scoredDay: Self.anchor,
+                                              hrvEpoch: 0, recoveryEpoch: 0)
+        XCTAssertEqual(r, without)
+        XCTAssertEqual(r.hrv.nValid, 20)
+        XCTAssertEqual(r.hrv.baseline, 50, accuracy: 1e-9)
+    }
+
+    /// Nights after the scored day change nothing: a past day keeps the baseline it was scored with when
+    /// later nights arrive (before AI-35 a rebuild scored every day against today's baseline).
+    func testLaterNightsDoNotMoveAnEarlierDaysBaseline() {
+        let history = (0..<30).map { Self.row($0 + 10, hrv: 40 + Double($0 % 7), rhr: 60 - $0 % 5) }
+        let later = (0..<10).map { Self.row($0, hrv: 90, rhr: 45) }
+        let scored = Self.dayKey(Self.anchorEpochDay - 9)   // the first day after `history`
+        let before = ChargeBaselines.resolve(imported: [], own: history, scoredDay: scored, hrvEpoch: 0,
+                                             recoveryEpoch: 0)
+        let after = ChargeBaselines.resolve(imported: [], own: history + later, scoredDay: scored, hrvEpoch: 0,
+                                            recoveryEpoch: 0)
+        XCTAssertEqual(before, after)
+    }
+
+    /// The Charge configs are the shared ones plus the early spread half-life; nothing else differs.
+    func testTheChargeConfigsAddOnlyTheEarlySpreadHalfLife() {
+        for (charge, shared) in [(ChargeBaselines.hrvCfg, Baselines.hrvCfg),
+                                 (ChargeBaselines.restingHRCfg, Baselines.restingHRCfg),
+                                 (ChargeBaselines.respCfg, Baselines.respCfg)] {
+            XCTAssertEqual(charge.earlyHalfLifeS, ChargeBaselines.earlySpreadHalfLife)
+            XCTAssertNil(shared.earlyHalfLifeS)
+            XCTAssertEqual(MetricCfg(minVal: charge.minVal, maxVal: charge.maxVal, floorSpread: charge.floorSpread,
+                                     halfLifeB: charge.halfLifeB, halfLifeS: charge.halfLifeS), shared)
+        }
     }
 
     /// An import that ended before the window has nothing left to seed with, however few own nights exist.
     func testAnImportOlderThanTheWindowDoesNotSeed() {
-        let imported = Self.run(300, endBack: 25, value: 40)
+        let imported = Self.run(300, endBack: 95, value: 40)
         let own = Self.run(3, endBack: 0, value: 60)
         let h = ChargeBaselines.history(imported: imported, own: own, anchorDay: Self.anchor, cfg: hrvCfg,
                                         baselineEpoch: 0)
@@ -212,26 +269,25 @@ final class ChargeBaselinesTests: XCTestCase {
         }
     }
 
-    /// Without an import nothing changes on the 21-day pass: the history is exactly the nights the old rule
-    /// folded (the scan window's own nights), and the folded baseline is identical.
-    func testWithoutAnImportTheTwentyOneDayPassIsUnchanged() {
-        let scanWindow = Array(Self.variedOwnNights().suffix(21))
-        let oldRule = Baselines.foldHistory(scanWindow.map(\.value), dayKeys: scanWindow.map(\.day),
-                                            cfg: hrvCfg, baselineEpoch: 0)
-        let h = ChargeBaselines.history(imported: [], own: scanWindow, anchorDay: Self.anchor, cfg: hrvCfg,
+    /// Without an import the history is exactly the own nights of the window, in day order.
+    func testWithoutAnImportTheHistoryIsTheWindowsOwnNights() {
+        let nights = Self.variedOwnNights()
+        let h = ChargeBaselines.history(imported: [], own: nights.shuffled(), anchorDay: Self.anchor, cfg: hrvCfg,
                                         baselineEpoch: 0)
-        XCTAssertEqual(h.dayKeys, scanWindow.map(\.day))
-        XCTAssertEqual(Baselines.foldHistory(h.values, dayKeys: h.dayKeys, cfg: hrvCfg, baselineEpoch: 0), oldRule)
+        XCTAssertEqual(h.dayKeys, nights.map(\.day))
+        XCTAssertEqual(h.values, nights.map(\.value))
     }
 
-    /// A full-history repair pass scores every day it can; the window trims it to the same 21, so the
-    /// baseline no longer depends on which pass ran last.
-    func testARepairPassFoldsTheSameTwentyOneDays() {
-        let all = Self.variedOwnNights()
+    /// A full-history repair pass and a short pass give a day the same history: nights older than the window
+    /// fall out, so the baseline no longer depends on which pass ran last.
+    func testARepairPassFoldsTheSameWindowAsAShortPass() {
+        let all = (0..<200).map { i in
+            (day: Self.dayKey(Self.anchorEpochDay - 199 + i), value: Optional(45 + Double((i * 7) % 13)))
+        }
         let repair = ChargeBaselines.history(imported: [], own: all, anchorDay: Self.anchor, cfg: hrvCfg,
                                              baselineEpoch: 0)
-        let tick = ChargeBaselines.history(imported: [], own: Array(all.suffix(21)), anchorDay: Self.anchor,
-                                           cfg: hrvCfg, baselineEpoch: 0)
+        let tick = ChargeBaselines.history(imported: [], own: Array(all.suffix(ChargeBaselines.windowDays)),
+                                           anchorDay: Self.anchor, cfg: hrvCfg, baselineEpoch: 0)
         XCTAssertEqual(repair, tick)
     }
 
@@ -246,8 +302,9 @@ final class ChargeBaselinesTests: XCTestCase {
         }
         let own = (0..<20).map { row($0, rhr: $0 < 5 ? 50 : 60) }
         let epoch = Double(Self.anchorEpochDay - 4) * 86_400
-        let r = ChargeBaselines.resolve(imported: [], own: own, anchorDay: Self.anchor, hrvEpoch: 0,
-                                        recoveryEpoch: epoch)
+        // Scored the day after the anchor, so the anchor's night is the newest the baseline reads.
+        let r = ChargeBaselines.resolve(imported: [], own: own, scoredDay: Self.dayKey(Self.anchorEpochDay + 1),
+                                        hrvEpoch: 0, recoveryEpoch: epoch)
         XCTAssertEqual(r.restingHR.nValid, 5)
         XCTAssertEqual(r.restingHR.baseline, 50, accuracy: 1e-9)
         XCTAssertEqual(r.hrv.nValid, 20)
@@ -262,7 +319,7 @@ final class ChargeBaselinesTests: XCTestCase {
                                           ownValidNights: 45, importedNights: 0)
         XCTAssertEqual(ChargeBaselines.logLine(anchorDay: "2026-09-30", hrv: own, restingHR: seeded,
                                                resp: own, skin: own),
-                       "charge baseline anchor=2026-09-30 window=21d hrv=own/45 rhr=seed/9+40 resp=own/45 skin=own/45")
+                       "charge baseline anchor=2026-09-30 window=90d hrv=own/45 rhr=seed/9+40 resp=own/45 skin=own/45")
     }
 
     // MARK: - Oracle (shared with Kotlin)
@@ -310,45 +367,45 @@ final class ChargeBaselinesTests: XCTestCase {
     }
 
     static let oracleLiteral = """
-    c=0 anchor=2026-01-25 n=7 first=2026-01-10 last=2026-01-16 seeded=0 own=7 imp=0 nils=0 sum=377.0
-    c=1 anchor=2025-07-07 n=7 first=2025-06-17 last=2025-07-07 seeded=1 own=2 imp=5 nils=1 sum=322.0
-    c=2 anchor=2025-12-01 n=13 first=2025-11-11 last=2025-11-25 seeded=1 own=9 imp=3 nils=3 sum=645.0
-    c=3 anchor=2025-06-15 n=8 first=2025-05-26 last=2025-06-15 seeded=1 own=2 imp=6 nils=0 sum=435.5
-    c=4 anchor=2025-08-01 n=15 first=2025-07-13 last=2025-07-27 seeded=0 own=13 imp=0 nils=2 sum=718.0
-    c=5 anchor=2025-11-29 n=14 first=2025-11-14 last=2025-11-27 seeded=0 own=11 imp=0 nils=3 sum=626.5
-    c=6 anchor=2025-05-06 n=12 first=2025-04-19 last=2025-04-30 seeded=0 own=11 imp=0 nils=1 sum=574.5
-    c=7 anchor=2025-10-16 n=14 first=2025-10-01 last=2025-10-14 seeded=0 own=13 imp=0 nils=1 sum=673.5
-    c=8 anchor=2026-01-27 n=12 first=2026-01-07 last=2026-01-18 seeded=0 own=10 imp=0 nils=2 sum=531.5
-    c=9 anchor=2026-02-02 n=10 first=2026-01-13 last=2026-01-28 seeded=1 own=3 imp=7 nils=1 sum=456.5
-    c=10 anchor=2025-02-01 n=14 first=2025-01-12 last=2025-01-28 seeded=1 own=5 imp=6 nils=5 sum=460.0
+    c=0 anchor=2026-01-25 n=12 first=2025-12-18 last=2026-01-16 seeded=1 own=7 imp=5 nils=0 sum=668.5
+    c=1 anchor=2025-07-07 n=54 first=2025-05-01 last=2025-07-07 seeded=1 own=2 imp=52 nils=5 sum=2672.0
+    c=2 anchor=2025-12-01 n=82 first=2025-09-03 last=2025-11-25 seeded=1 own=9 imp=72 nils=11 sum=4011.5
+    c=3 anchor=2025-06-15 n=59 first=2025-04-05 last=2025-06-15 seeded=1 own=2 imp=57 nils=6 sum=2860.0
+    c=4 anchor=2025-08-01 n=70 first=2025-05-15 last=2025-07-27 seeded=1 own=13 imp=55 nils=8 sum=3361.0
+    c=5 anchor=2025-11-29 n=80 first=2025-09-01 last=2025-11-27 seeded=1 own=11 imp=66 nils=10 sum=3987.0
+    c=6 anchor=2025-05-06 n=81 first=2025-02-06 last=2025-04-30 seeded=1 own=11 imp=69 nils=13 sum=3776.0
+    c=7 anchor=2025-10-16 n=68 first=2025-07-19 last=2025-10-14 seeded=1 own=13 imp=54 nils=5 sum=3339.5
+    c=8 anchor=2026-01-27 n=29 first=2025-12-04 last=2026-01-18 seeded=1 own=10 imp=17 nils=3 sum=1394.5
+    c=9 anchor=2026-02-02 n=74 first=2025-11-10 last=2026-01-28 seeded=1 own=3 imp=71 nils=5 sum=3649.5
+    c=10 anchor=2025-02-01 n=83 first=2024-11-04 last=2025-01-28 seeded=1 own=5 imp=75 nils=8 sum=4020.5
     c=11 anchor=2025-12-06 n=13 first=2025-11-22 last=2025-12-04 seeded=1 own=13 imp=2 nils=0 sum=687.0
-    c=12 anchor=2025-07-27 n=21 first=2025-07-07 last=2025-07-27 seeded=1 own=11 imp=21 nils=0 sum=1110.0
-    c=13 anchor=2025-04-30 n=9 first=2025-04-17 last=2025-04-25 seeded=0 own=8 imp=0 nils=1 sum=425.5
-    c=14 anchor=2025-05-17 n=12 first=2025-04-27 last=2025-05-08 seeded=1 own=12 imp=6 nils=0 sum=603.0
+    c=12 anchor=2025-07-27 n=20 first=2025-06-30 last=2025-07-19 seeded=0 own=18 imp=0 nils=2 sum=980.0
+    c=13 anchor=2025-04-30 n=71 first=2025-02-02 last=2025-04-25 seeded=1 own=8 imp=62 nils=8 sum=3431.5
+    c=14 anchor=2025-05-17 n=21 first=2025-04-18 last=2025-05-08 seeded=0 own=21 imp=0 nils=0 sum=1134.0
     c=15 anchor=2025-06-17 n=19 first=2025-05-30 last=2025-06-17 seeded=0 own=16 imp=0 nils=3 sum=929.0
-    c=16 anchor=2025-11-04 n=14 first=2025-10-16 last=2025-10-29 seeded=0 own=11 imp=0 nils=3 sum=628.5
-    c=17 anchor=2025-07-22 n=10 first=2025-07-10 last=2025-07-19 seeded=0 own=8 imp=0 nils=2 sum=462.5
-    c=18 anchor=2025-08-09 n=9 first=2025-07-20 last=2025-07-28 seeded=1 own=0 imp=9 nils=1 sum=402.5
+    c=16 anchor=2025-11-04 n=69 first=2025-08-07 last=2025-10-29 seeded=1 own=11 imp=55 nils=8 sum=3376.5
+    c=17 anchor=2025-07-22 n=47 first=2025-05-26 last=2025-07-19 seeded=1 own=8 imp=37 nils=3 sum=2403.5
+    c=18 anchor=2025-08-09 n=16 first=2025-07-13 last=2025-07-28 seeded=1 own=0 imp=16 nils=1 sum=762.5
     c=19 anchor=2025-01-01 n=17 first=2024-12-12 last=2024-12-28 seeded=0 own=16 imp=0 nils=1 sum=873.0
-    c=20 anchor=2025-09-06 n=14 first=2025-08-19 last=2025-09-01 seeded=0 own=13 imp=0 nils=1 sum=716.5
-    c=21 anchor=2025-02-05 n=2 first=2025-01-26 last=2025-01-27 seeded=0 own=2 imp=0 nils=0 sum=140.5
-    c=22 anchor=2025-09-03 n=15 first=2025-08-14 last=2025-08-28 seeded=1 own=5 imp=10 nils=3 sum=701.0
-    c=23 anchor=2025-11-14 n=14 first=2025-10-25 last=2025-11-07 seeded=1 own=3 imp=13 nils=0 sum=819.0
-    c=24 anchor=2025-02-26 n=20 first=2025-02-06 last=2025-02-25 seeded=0 own=18 imp=0 nils=2 sum=989.0
-    c=25 anchor=2025-01-27 n=15 first=2025-01-07 last=2025-01-21 seeded=0 own=13 imp=0 nils=2 sum=655.5
-    c=26 anchor=2025-07-12 n=14 first=2025-06-22 last=2025-07-05 seeded=0 own=11 imp=0 nils=3 sum=583.5
-    c=27 anchor=2025-12-20 n=12 first=2025-11-30 last=2025-12-11 seeded=0 own=11 imp=0 nils=1 sum=637.5
-    c=28 anchor=2025-06-07 n=16 first=2025-05-18 last=2025-06-02 seeded=0 own=15 imp=0 nils=1 sum=867.0
-    c=29 anchor=2025-05-29 n=18 first=2025-05-09 last=2025-05-26 seeded=0 own=14 imp=0 nils=4 sum=835.0
-    c=30 anchor=2025-06-16 n=13 first=2025-05-27 last=2025-06-08 seeded=1 own=12 imp=10 nils=0 sum=644.0
-    c=31 anchor=2025-08-10 n=15 first=2025-07-21 last=2025-08-04 seeded=1 own=9 imp=10 nils=1 sum=785.0
-    c=32 anchor=2026-01-17 n=14 first=2025-12-28 last=2026-01-10 seeded=0 own=14 imp=0 nils=0 sum=863.5
-    c=33 anchor=2026-01-10 n=21 first=2025-12-21 last=2026-01-10 seeded=1 own=12 imp=21 nils=1 sum=1130.0
-    c=34 anchor=2025-08-30 n=6 first=2025-08-25 last=2025-08-30 seeded=0 own=4 imp=0 nils=2 sum=223.5
-    c=35 anchor=2026-01-31 n=13 first=2026-01-11 last=2026-01-31 seeded=1 own=4 imp=9 nils=0 sum=722.5
-    c=36 anchor=2025-06-22 n=5 first=2025-06-15 last=2025-06-19 seeded=0 own=5 imp=0 nils=0 sum=295.0
-    c=37 anchor=2026-01-28 n=18 first=2026-01-08 last=2026-01-25 seeded=1 own=12 imp=11 nils=2 sum=844.0
-    c=38 anchor=2025-05-08 n=16 first=2025-04-18 last=2025-05-03 seeded=0 own=13 imp=0 nils=3 sum=757.0
-    c=39 anchor=2025-10-01 n=14 first=2025-09-11 last=2025-09-24 seeded=1 own=12 imp=8 nils=1 sum=714.5
+    c=20 anchor=2025-09-06 n=68 first=2025-06-09 last=2025-09-01 seeded=1 own=13 imp=54 nils=4 sum=3502.0
+    c=21 anchor=2025-02-05 n=60 first=2024-11-08 last=2025-01-27 seeded=1 own=2 imp=58 nils=5 sum=3012.0
+    c=22 anchor=2025-09-03 n=73 first=2025-06-17 last=2025-08-28 seeded=1 own=5 imp=68 nils=12 sum=3454.0
+    c=23 anchor=2025-11-14 n=83 first=2025-08-17 last=2025-11-07 seeded=1 own=3 imp=82 nils=9 sum=4184.5
+    c=24 anchor=2025-02-26 n=25 first=2025-02-01 last=2025-02-25 seeded=0 own=23 imp=0 nils=2 sum=1272.0
+    c=25 anchor=2025-01-27 n=24 first=2024-12-29 last=2025-01-21 seeded=0 own=22 imp=0 nils=2 sum=1166.0
+    c=26 anchor=2025-07-12 n=24 first=2025-06-12 last=2025-07-05 seeded=0 own=21 imp=0 nils=3 sum=1119.5
+    c=27 anchor=2025-12-20 n=22 first=2025-11-20 last=2025-12-11 seeded=0 own=20 imp=0 nils=2 sum=1107.5
+    c=28 anchor=2025-06-07 n=20 first=2025-05-14 last=2025-06-02 seeded=0 own=17 imp=0 nils=3 sum=952.0
+    c=29 anchor=2025-05-29 n=23 first=2025-05-04 last=2025-05-26 seeded=0 own=19 imp=0 nils=4 sum=1097.0
+    c=30 anchor=2025-06-16 n=82 first=2025-03-19 last=2025-06-08 seeded=1 own=12 imp=79 nils=7 sum=4093.0
+    c=31 anchor=2025-08-10 n=66 first=2025-05-31 last=2025-08-04 seeded=1 own=9 imp=61 nils=9 sum=3186.0
+    c=32 anchor=2026-01-17 n=20 first=2025-12-22 last=2026-01-10 seeded=0 own=18 imp=0 nils=2 sum=1027.0
+    c=33 anchor=2026-01-10 n=20 first=2025-12-15 last=2026-01-03 seeded=0 own=18 imp=0 nils=2 sum=1040.0
+    c=34 anchor=2025-08-30 n=66 first=2025-06-02 last=2025-08-30 seeded=1 own=4 imp=60 nils=3 sum=3438.0
+    c=35 anchor=2026-01-31 n=57 first=2025-11-28 last=2026-01-31 seeded=1 own=4 imp=53 nils=7 sum=2873.0
+    c=36 anchor=2025-06-22 n=52 first=2025-04-12 last=2025-06-19 seeded=1 own=5 imp=47 nils=4 sum=2674.5
+    c=37 anchor=2026-01-28 n=87 first=2025-10-31 last=2026-01-25 seeded=1 own=12 imp=80 nils=7 sum=4351.0
+    c=38 anchor=2025-05-08 n=18 first=2025-04-16 last=2025-05-03 seeded=0 own=14 imp=0 nils=4 sum=810.0
+    c=39 anchor=2025-10-01 n=22 first=2025-09-03 last=2025-09-24 seeded=0 own=19 imp=0 nils=3 sum=1075.0
     """
 }

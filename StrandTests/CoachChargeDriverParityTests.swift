@@ -37,10 +37,10 @@ final class CoachChargeDriverParityTests: XCTestCase {
 
     func testRestQualityTermIsTheRestCompositeOverHundred() {
         let daily = night("2026-07-21", hrv: 60, rhr: 50)
-        let expected = AnalyticsEngine.Rest.composite(daily: daily).map { $0 / 100.0 }
+        let expected = AnalyticsEngine.Rest.composite(daily: daily, inputs: .coldStart).map { $0 / 100.0 }
 
         XCTAssertNotNil(expected, "fixture must actually resolve a composite, or this proves nothing")
-        XCTAssertEqual(AICoachEngine.restQualityTerm(daily), expected,
+        XCTAssertEqual(AICoachEngine.restQualityTerm(daily, restTraits: .empty), expected,
                        "must be the SAME derivation IntelligenceEngine.recomputeRecovery used to write "
                        + "the stored Charge")
     }
@@ -48,12 +48,12 @@ final class CoachChargeDriverParityTests: XCTestCase {
     func testRestQualityTermFallsBackToRawEfficiency() {
         // No sleep minutes → no composite. The stored score falls back to raw efficiency; so must this.
         let daily = night("2026-07-21", hrv: 60, rhr: 50, sleepMin: nil)
-        XCTAssertEqual(AICoachEngine.restQualityTerm(daily), 0.92)
+        XCTAssertEqual(AICoachEngine.restQualityTerm(daily, restTraits: .empty), 0.92)
     }
 
     func testRestQualityTermIsNilWhenNothingIsKnown() {
         let daily = night("2026-07-21", hrv: 60, rhr: 50, sleepMin: nil, efficiency: nil)
-        XCTAssertNil(AICoachEngine.restQualityTerm(daily),
+        XCTAssertNil(AICoachEngine.restQualityTerm(daily, restTraits: .empty),
                      "a missing input must produce no term, never a fabricated one")
     }
 
@@ -69,11 +69,12 @@ final class CoachChargeDriverParityTests: XCTestCase {
 
         // Cross-check against the driver list computed WITH the term: whatever label the analytics
         // package gives the rest term, it must appear in the coach's text.
-        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        // The baseline the coach now reads: the row's own (AI-35), from the same funnel as the Today sheet.
+        let hrvBase = repo.chargeBaselines(forDay: days.last!.day)!.hrv
         let expected = RecoveryScorer.chargeDrivers(
             hrv: days.last!.avgHrv!, rhr: Double(days.last!.restingHr!), resp: days.last!.respRateBpm,
             hrvBaseline: hrvBase, rhrBaseline: nil, respBaseline: nil,
-            sleepPerf: AICoachEngine.restQualityTerm(days.last!), skinTempDev: days.last!.skinTempDevC)
+            sleepPerf: AICoachEngine.restQualityTerm(days.last!, restTraits: .empty), skinTempDev: days.last!.skinTempDevC)
         let withoutTerm = RecoveryScorer.chargeDrivers(
             hrv: days.last!.avgHrv!, rhr: Double(days.last!.restingHr!), resp: days.last!.respRateBpm,
             hrvBaseline: hrvBase, rhrBaseline: nil, respBaseline: nil,

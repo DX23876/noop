@@ -339,6 +339,10 @@ fun TodayScreen(
     // #2525: the Charge baselines the engine's rule resolves, the one source for every Charge readout below
     // the headline (calibration count, "What shaped it", confidence tier).
     val chargeBaselines by viewModel.chargeBaselines.collectAsStateWithLifecycle()
+    // AI-35: what a carried or past day's own baselines resolve from.
+    val chargeBaselineInputs by viewModel.chargeBaselineInputs.collectAsStateWithLifecycle()
+    // AI-35: the stored traits each night's Rest was scored with.
+    val restTraits by viewModel.restTraits.collectAsStateWithLifecycle()
     val activeDayCycle by viewModel.activeDayCycle.collectAsStateWithLifecycle()
     val spo2CandidateByDay by viewModel.spo2CandidateByDay.collectAsStateWithLifecycle()
     // #2208: `connected` alone never said WHOSE charge liveSnap.batteryPct is. It goes true the moment any
@@ -2030,6 +2034,8 @@ fun TodayScreen(
             ChargeBreakdownSheet(
                 days = days,
                 chargeBaselines = chargeBaselines,
+                chargeBaselineInputs = chargeBaselineInputs,
+                restTraits = restTraits,
                 displayDay = displayMetric,
                 carriedDay = lastScoredRecoveryDay,
                 showReadiness = selectedDayOffset == 0,
@@ -4804,6 +4810,8 @@ private fun TodayLayoutEditorDialog(
 internal fun ChargeBreakdownSheet(
     days: List<DailyMetric>,
     chargeBaselines: ChargeBaselines.Resolved?,
+    chargeBaselineInputs: AppViewModel.ChargeBaselineInputs?,
+    restTraits: com.noop.analytics.RestTraitLookup,
     displayDay: DailyMetric?,
     carriedDay: DailyMetric?,
     showReadiness: Boolean,
@@ -4847,7 +4855,8 @@ internal fun ChargeBreakdownSheet(
             ) {
                 // The breakdown self-gates: a calibrating night (empty drivers) renders nothing here, the
                 // Contributors + Readiness below still give an honest read, never a blank sheet.
-                RecoveryDriversSection(chargeBaselines = chargeBaselines, displayDay = displayDay, carriedDay = carriedDay)
+                RecoveryDriversSection(chargeBaselines = chargeBaselines, chargeBaselineInputs = chargeBaselineInputs,
+                                       restTraits = restTraits, displayDay = displayDay, carriedDay = carriedDay)
                 RecoveryContributorsSection(day = displayDay, carriedDay = carriedDay)
                 // S4: the SEPARATE Readiness block now lives here behind the Charge-ring tap (today-only,
                 // matching the old inline gate). A one-word read (Push / Maintain / Rest) stays on the hero.
@@ -4961,6 +4970,8 @@ internal fun ChargeBreakdownSheet(
 @Composable
 private fun RecoveryDriversSection(
     chargeBaselines: ChargeBaselines.Resolved?,
+    chargeBaselineInputs: AppViewModel.ChargeBaselineInputs?,
+    restTraits: com.noop.analytics.RestTraitLookup,
     displayDay: DailyMetric?,
     carriedDay: DailyMetric? = null,
 ) {
@@ -4968,10 +4979,14 @@ private fun RecoveryDriversSection(
     // day (#543) so the breakdown matches the carried ring instead of vanishing at the rollover. The
     // baselines already carry both recalibration epochs (#2315), applied where they were resolved (#2525).
     val readDay = carriedDay ?: displayDay
-    val drivers = remember(chargeBaselines, readDay) { recoveryChargeDrivers(chargeBaselines, readDay) }
+    // AI-35: the read row's own baselines (the nights before it), not today's, when it is a carried day.
+    val dayBaselines = remember(chargeBaselineInputs, chargeBaselines, readDay) {
+        readDay?.let { chargeBaselineInputs?.resolve(it.day) } ?: chargeBaselines
+    }
+    val drivers = remember(dayBaselines, readDay, restTraits) { recoveryChargeDrivers(dayBaselines, readDay, restTraits) }
     if (drivers.isEmpty()) return
 
-    val tier = remember(chargeBaselines, readDay) { chargeConfidenceTier(chargeBaselines, readDay) }
+    val tier = remember(dayBaselines, readDay) { chargeConfidenceTier(dayBaselines, readDay) }
     val overline = carriedDay?.let { uiString(R.string.today_charge_carried, carriedCaption(it.day).localized()) }
         ?: uiString(R.string.trends_charge)
 

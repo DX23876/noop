@@ -1712,7 +1712,7 @@ object IntelligenceEngine {
             if (recoveryTraceSink != null) {
                 for (line in recoveryTraceLines(daily, baselines2)) recoveryTraceSink(line)
             }
-            RestScorer.restFromDaily(daily)?.let { rest ->
+            RestScorer.restFromDaily(daily, RestTraitLookup.EMPTY)?.let { rest ->
                 restRows.add(MetricSeriesRow(deviceId = computedId, day = daily.day, key = "sleep_performance", value = rest))
             }
             // #103: persist the SpO₂ candidate @82 nightly mean to metricSeries as "spo2_candidate" so the
@@ -1938,7 +1938,7 @@ object IntelligenceEngine {
                     } else {
                         source
                     }
-                RestScorer.restFromDaily(scored)?.let { rest ->
+                RestScorer.restFromDaily(scored, RestTraitLookup.EMPTY)?.let { rest ->
                     restRows.add(MetricSeriesRow(deviceId = computedId, day = w.day, key = "sleep_performance", value = rest))
                 }
                 out.add(
@@ -2393,7 +2393,7 @@ object IntelligenceEngine {
         // Charge enrichment: feed the Rest COMPOSITE (÷100) as the sleep-quality term instead of raw
         // efficiency, and fold in the night's skin-temp deviation (both from persisted daily fields).
         // Mirrors the Swift recomputeRecovery. (Charge/Effort/Rest scoring redesign.)
-        val restQuality = RestScorer.restFromDaily(daily)?.let { it / 100.0 } ?: daily.efficiency
+        val restQuality = RestScorer.restFromDaily(daily, RestTraitLookup.EMPTY)?.let { it / 100.0 } ?: daily.efficiency
         return RecoveryScorer.recovery(
             hrv = hrvVal,
             rhr = rhrVal.toDouble(),
@@ -2499,7 +2499,7 @@ object IntelligenceEngine {
                 "charge day=${daily.day} nilScore reason=missingInput (hrv/rhr/hrvBaseline required)",
             )
         }
-        val restQuality = RestScorer.restFromDaily(daily)?.let { it / 100.0 } ?: daily.efficiency
+        val restQuality = RestScorer.restFromDaily(daily, RestTraitLookup.EMPTY)?.let { it / 100.0 } ?: daily.efficiency
         val (_, trace) = RecoveryScorerTrace.recoveryTrace(
             hrv = hrvVal,
             rhr = rhrVal.toDouble(),

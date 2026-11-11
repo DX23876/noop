@@ -1108,3 +1108,49 @@ two. Mixed ways failing alone removes only them. Fewer than ten answers extends 
 minute is fixed; a wearer who walks slower gets no full minutes, and only this wearer's data exists to tune it.
 
 Analysis migration required: no. Suggestions feed no score; `activity-v2` has not shipped, so this stays on it.
+
+## Algorithm review: each day judged by what was known then (2026-11-10)
+
+An audit of the core scores against their sources and the owner's real data (the iPhone store of 2026-11-03)
+found four defects and one outdated rule; decided with the owner, fork only (no upstream PR). One recipe, AI-35,
+its own number because the owner's iPhone already runs AI-34 (775037e4c).
+
+- **Charge reads the nights before the scored day.** One baseline was folded from the 21 nights ending today
+  and every day of a pass, after a rebuild the whole history, was scored against it. The stored Charge matched
+  today's baseline far better (r 0.984 over 103 days) than each day's own (r 0.803): a July night with resting HR
+  76 scored 14 against a November normal of 59, and every new night moved the last three weeks. Now each day D
+  folds the own nights of the 90 days before D (`ChargeBaselines.anchorDay(forScoredDay:)`), the engine reads the
+  stored own rows before its window for that, and every readout (the "What shaped it" rows, the calibration
+  count, the confidence tier, the vitals' usual value, the coach) resolves the row's own day through
+  `Repository.chargeBaselines(forDay:)`. The skin-temperature deviation follows the same baselines. The upstream
+  code (ryanbr/noop `IntelligenceEngine`) has the same rule. Analysis migration required: yes (AI-35).
+- **The Charge spread is learned faster at the start and over 90 days.** The spread starts at the floor and,
+  at its 21-night half-life, could not leave it within 21 nights: the resting-HR spread read 2.8 bpm against a
+  real mean deviation of 4.3, so that term moved Charge about half again too far. On the same history the
+  resting-HR z-scores had a standard deviation of 1.34 under the old rule, 1.45 with prior nights over 21 days
+  and 1.05 with 90 days plus a 3-night spread half-life while the baseline is young (a calibrated spread gives
+  1.0); HRV was near 1.0 in every variant. `MetricCfg.earlyHalfLifeS` is set only in the Charge configs
+  (`ChargeBaselines.cfg(_:)`); every other fold is byte-identical. Analysis migration required: yes (AI-35).
+- **One need and one regularity per night, stored.** The stored and displayed Rest used a fixed 8 h need and a
+  neutral regularity (all 15 checked nights matched that formula to two decimals), while the pass learned one
+  need for the whole run from whatever its window held, and the screens named up to four different needs. Each
+  night's traits are now learned from the nights before it (`Rest.inputs(forDay:nights:age:)`: the need from 90
+  days, the regularity from the last 28 nights) and stored as `sleep_need_min` and `sleep_consistency` beside
+  `sleep_performance`. Every Rest rebuilt from a daily row and every sleep need on screen read them
+  (`RestTraitLookup`; an imported WHOOP need still wins its day). This refines the 2026-11-07 "one sleep need on
+  every card" rule rather than replacing it. Analysis migration required: yes (AI-35).
+- **One calorie figure.** `DailyMetric.activeKcalEst`, the retired Keytel whole-day estimate, was still shown by
+  the Trends calorie tile's fallback, the Explore calorie metrics and the strap comparison; on an active day it read
+  about twice the Energy screen (8,426 against 4,435 kcal on 2026-11-02). They now read the energy model. The
+  column stays as a stored input. Analysis migration required: no.
+- **Each day is cut at its own midnight.** A pass took today's UTC offset for every day, so a winter rebuild cut
+  every summer day at 01:00 summer time. `DailyAnalysis.localDay` takes each day's own offset; the transition day
+  keeps its fixed 24 h window and its `day-window-skew` line. The day-cycle attribution and the stage self-heal
+  still use the pass offset, which only moves timestamps within an hour of midnight. Analysis migration
+  required: yes (AI-35).
+- **Not changed:** the basal formula. The audit first reported Harris–Benedict as the default; that read an old
+  file comment. Since 2026-09-26 an untouched log uses Mifflin–St Jeor for the whole history (see that entry).
+  Also kept: the nightly HRV over the whole night. A check of 50 real nights against deep-sleep-only and
+  WHOOP-style last-slow-wave-sleep windows found the whole night steadiest (night-to-night change 18 % against 24 %
+  and 35 %) and most tied to resting HR (r −0.54 against −0.44 and −0.17); leaving out wake windows changed
+  nothing (6 % of windows).

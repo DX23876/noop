@@ -129,7 +129,7 @@ struct ForgeChargeDetailView: View {
 
     var body: some View {
         let pct = display.pct
-        let breakdown = ChargeBreakdownFormat.compute(row: row, baselines: repo.chargeBaselines, restScore: rest)
+        let breakdown = ChargeBreakdownFormat.compute(row: row, baselines: repo.chargeBaselines(forDay: row?.day), restScore: rest)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // Which night the score is from, in the overline as Effort ("Today") and Rest ("Last night")
@@ -207,7 +207,7 @@ struct ForgeChargeDetailView: View {
         .background(ForgeBackground(tab: .today))
         .forgeDetailBar(title: DomainTheme.charge.productName, showsTitle: scrolledPast)
         .task {
-            rest = DashboardRestScore.value(day: todayKey, days: repo.days, importedSleep: repo.importedSleep)
+            rest = DashboardRestScore.value(day: todayKey, days: repo.days, importedSleep: repo.importedSleep, restTraits: repo.restTraits)
         }
     }
 }

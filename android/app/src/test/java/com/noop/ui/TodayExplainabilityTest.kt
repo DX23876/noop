@@ -101,9 +101,9 @@ class TodayExplainabilityTest {
         // under either rule, which would pin nothing, so these fourteen would have been TRUSTED by the
         // old whole-history fold and the carry genuinely used to win.
         // Twin of the Swift `testScoreState_gapLongerThanTheChargeWindow_calibratesRatherThanCarrying`.
-        val anchor = "2026-02-11"
-        // 2026-01-01..2026-01-14 are 41..28 days before the anchor: fourteen nights, every one of them
-        // outside the 21-day window (which opens 2026-01-22).
+        val anchor = "2026-04-25"
+        // 2026-01-01..2026-01-14 are 114..101 days before the anchor: fourteen nights, every one of them
+        // outside the 90-day window (AI-35; it opens 2026-01-25).
         val oldNights = (1..14).map { String.format("2026-01-%02d", it) to 70.0 }
         val lastNight = oldNights.last().first
 

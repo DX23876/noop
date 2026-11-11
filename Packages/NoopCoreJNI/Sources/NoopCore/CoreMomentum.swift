@@ -38,8 +38,12 @@ public enum CoreMomentum {
         let display = days.last { $0.day == todayKey }
         let nowTs = Int(now.timeIntervalSince1970)
         let anchor = AnalyticsEngine.dayString(nowTs, offsetSec: TimeZone.current.secondsFromGMT(for: now))
-        let baselines = ChargeBaselines.resolve(imported: imported, own: computed, anchorDay: anchor,
-                                                hrvEpoch: hrvEpoch, recoveryEpoch: recoveryEpoch)
+        // Today's Charge baseline reads the `ChargeBaselines.windowDays` nights before today (AI-34), a longer
+        // reach than the 60 days the momentum context shows.
+        let chargeFrom = StoreReader.localDayKey(now.addingTimeInterval(-Double(ChargeBaselines.windowDays + 1) * 86_400))
+        let baselines = ChargeBaselines.resolve(imported: await reader.unionDailyMetrics(from: chargeFrom, to: to),
+                                                own: await reader.unionComputedDailyMetrics(from: chargeFrom, to: to),
+                                                scoredDay: anchor, hrvEpoch: hrvEpoch, recoveryEpoch: recoveryEpoch)
         let appleSteps = ((try? await reader.store.appleDaily(deviceId: MetricResolver.appleHealthSource,
                                                               from: todayKey, to: todayKey)) ?? [])
             .first { $0.day == todayKey }?.steps
@@ -48,6 +52,7 @@ public enum CoreMomentum {
         c.displayDay = display
         c.allDays = days
         c.hrvBaseline = baselines.hrv
+        c.restTraits = await reader.restTraits(from: from, to: to)
         c.dayKey = todayKey
         c.isToday = true
         let lastScored = CarriedRecovery.lastScored(days: days, selectedDayKey: todayKey, isToday: true,

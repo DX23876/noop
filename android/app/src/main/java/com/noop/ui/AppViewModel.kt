@@ -65,6 +65,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flatMapLatest
@@ -818,20 +819,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** The rows and epochs the Charge baselines resolve from, so any shown day resolves its own (AI-35). */
+    data class ChargeBaselineInputs(
+        val imported: List<DailyMetric>,
+        val own: List<DailyMetric>,
+        val todayKey: String,
+        val hrvEpoch: Double,
+        val recoveryEpoch: Double,
+    ) {
+        /** The baselines [day]'s Charge was scored against: the nights before it. Swift twin: `Repository.chargeBaselines(forDay:)`. */
+        fun resolve(day: String): ChargeBaselines.Resolved =
+            ChargeBaselines.resolve(imported, own, day, hrvEpoch, recoveryEpoch)
+    }
+
     /**
      * #2525: the Charge baselines (HRV, resting HR, respiration) resolved with the engine's own rule from the
      * imported and own daily rows, read apart because the rule needs to know which nights are imported. The
      * single funnel every Charge readout below the headline reads (the "What shaped it" rows, the
      * calibration count, the confidence tier), so none of them can fold a different history than the score
-     * was computed against. Anchored on today's local day and the two recalibration epochs, read on each
-     * emission exactly as the engine reads them per pass. The read range starts at this ViewModel's first
-     * window start, so it only ever covers MORE days than the window; [ChargeBaselines.history] trims to the
-     * current one. Mirrors the Swift `Repository.chargeBaselines`.
+     * was computed against. Since AI-35 these are the INPUTS: each shown day resolves its own baselines from
+     * them ([ChargeBaselineInputs.resolve], the nights before it), with the two recalibration epochs read on
+     * each emission exactly as the engine reads them per pass. The read range reaches the window before the
+     * oldest day a screen shows; [ChargeBaselines.history] trims to each day's own. Mirrors the Swift
+     * `Repository.chargeBaselines(forDay:)`.
      */
-    val chargeBaselines: StateFlow<ChargeBaselines.Resolved?> = run {
+    val chargeBaselineInputs: StateFlow<ChargeBaselineInputs?> = run {
         val startSec = System.currentTimeMillis() / 1000L
         val startTz = java.util.TimeZone.getDefault().getOffset(startSec * 1000L) / 1000L
-        val from = Baselines.cutoffKey(AnalyticsEngine.dayString(startSec, startTz), ChargeBaselines.windowDays - 1)
+        // A shown day up to four months back still gets its full window of nights before it.
+        val from = Baselines.cutoffKey(AnalyticsEngine.dayString(startSec, startTz), ChargeBaselines.windowDays + 120)
         combine(
             repository.importedDailyUnionFlow(deviceId, from, "9999-12-31"),
             repository.computedDailyUnionFlow(deviceId, from, "9999-12-31"),
@@ -839,10 +855,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val nowSec = System.currentTimeMillis() / 1000L
             val tz = java.util.TimeZone.getDefault().getOffset(nowSec * 1000L) / 1000L
             val prefs = NoopPrefs.of(appContext)
-            ChargeBaselines.resolve(
+            ChargeBaselineInputs(
                 imported = imported,
                 own = own,
-                anchorDay = AnalyticsEngine.dayString(nowSec, tz),
+                todayKey = AnalyticsEngine.dayString(nowSec, tz),
                 hrvEpoch = prefs.getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble(),
                 recoveryEpoch = prefs.getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble(),
             )
@@ -850,6 +866,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     }
+
+    /** AI-35: the stored Rest traits of the wearer's nights, for every Rest rebuilt from a daily row. */
+    val restTraits: StateFlow<com.noop.analytics.RestTraitLookup> = repository.restTraitsFlow(deviceId)
+        .catch { emit(com.noop.analytics.RestTraitLookup.EMPTY) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, com.noop.analytics.RestTraitLookup.EMPTY)
+
+    /** Today's Charge baselines (the nights before today, AI-35); a past day resolves through [chargeBaselineInputs]. */
+    val chargeBaselines: StateFlow<ChargeBaselines.Resolved?> = chargeBaselineInputs
+        .map { it?.resolve(it.todayKey) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
      * Today's measured steps follow the newest confirmed sleep-onset cycle, independently of the fixed
@@ -1117,7 +1145,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             // otherwise the midnight rollover re-fires last night's recap for late-nighters (#567).
                             reportDay = todayRow.day,
                             chargePct = todayRow.recovery.scorePctOrNull(),
-                            restPct = RestScorer.restFromDaily(todayRow).scorePctOrNull(),
+                            restPct = RestScorer.restFromDaily(todayRow, restTraits.value).scorePctOrNull(),
                         )
                     }
                     // #593: once-a-day optimal-strain-reached nudge. Convert the stored 0-100 Effort to the
@@ -1195,7 +1223,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             recoveryPct = anchorRow?.recovery?.roundToInt(),
                             // Rest = the sleep_performance composite from THIS row's banked stage figures
                             // (pure, honest-null until last night is scored); Effort = the 0–100 strain. (#516)
-                            restPct = anchorRow?.let { RestScorer.restFromDaily(it)?.roundToInt() },
+                            restPct = anchorRow?.let { RestScorer.restFromDaily(it, restTraits.value)?.roundToInt() },
                             effortPct = anchorRow?.strain?.roundToInt(),
                             heartRate = live.heartRate,
                             // The ACTIVE device's charge (#2075): a ring reports its own and does not

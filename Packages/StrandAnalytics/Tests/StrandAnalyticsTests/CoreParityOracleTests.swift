@@ -647,13 +647,13 @@ final class CoreParityOracleTests: XCTestCase {
                    let start = 20_800
                    return ["imported": (0..<r.int(0...40)).map { dailyRow(&r, day: day(start + $0)) },
                            "own": (0..<r.int(0...40)).map { dailyRow(&r, day: day(start + 20 + $0)) },
-                           "anchor": day(start + r.int(30...70)),
+                           "scoredDay": day(start + r.int(30...70)),
                            "hrvEpoch": r.chance(0.5) ? 0.0 : Double(start + 35) * 86_400,
                            "recEpoch": r.chance(0.5) ? 0.0 : Double(start + 25) * 86_400]
                },
                run: { a in
                    let res = ChargeBaselines.resolve(imported: dailyRows(a["imported"]), own: dailyRows(a["own"]),
-                                                     anchorDay: a["anchor"] as! String, hrvEpoch: a["hrvEpoch"] as! Double,
+                                                     scoredDay: a["scoredDay"] as! String, hrvEpoch: a["hrvEpoch"] as! Double,
                                                      recoveryEpoch: a["recEpoch"] as! Double)
                    func st(_ s: BaselineState) -> [String: Any] {
                        ["baseline": s.baseline, "spread": s.spread, "n": s.nValid, "status": s.status.rawValue]

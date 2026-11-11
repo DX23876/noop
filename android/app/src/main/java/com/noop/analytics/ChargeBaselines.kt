@@ -29,10 +29,29 @@ object ChargeBaselines {
 
     /**
      * Calendar days of nightly history a Charge baseline reads, counted back from the anchor day and
-     * including it. Deliberately the default scan window (`analyzeRecent(maxDays = 21)`), so the own nights a
-     * baseline reads are the ones the pass has just scored, and nothing changes for a wearer with no import.
+     * including it. The anchor is the day before the scored day ([anchorDay]), so these are the 90 nights
+     * before it (AI-35). Swift twin: `ChargeBaselines.windowDays`.
      */
-    const val windowDays: Int = 21
+    const val windowDays: Int = 90
+
+    /** Spread half-life of a Charge baseline while young. Swift twin: `ChargeBaselines.earlySpreadHalfLife`. */
+    const val earlySpreadHalfLife: Double = 3.0
+
+    /** The Charge fold of a metric's config: the shared one plus [earlySpreadHalfLife]. */
+    fun cfg(base: MetricCfg): MetricCfg = base.copy(earlyHalfLifeS = earlySpreadHalfLife)
+
+    val hrvCfg: MetricCfg get() = cfg(Baselines.hrvCfg)
+    val restingHRCfg: MetricCfg get() = cfg(Baselines.restingHRCfg)
+    val respCfg: MetricCfg get() = cfg(Baselines.respCfg)
+
+    /**
+     * The anchor of the baseline a day's Charge is scored against: the day BEFORE [day], so the scored night
+     * and every later night stay out (AI-35). null for an unparseable key. Swift twin:
+     * `ChargeBaselines.anchorDay(forScoredDay:)`.
+     */
+    fun anchorDayFor(day: String): String? = runCatching {
+        java.time.LocalDate.parse(day).minusDays(1).toString()
+    }.getOrNull()
 
     /**
      * One metric's nightly history for a Charge baseline, oldest first, ready for
@@ -133,7 +152,8 @@ object ChargeBaselines {
     )
 
     /**
-     * Resolve HRV, resting-HR and respiration baselines from stored rows: [imported] are the imported vendor
+     * Resolve the HRV, resting-HR and respiration baselines [scoredDay]'s Charge is scored against (the nights
+     * before it, AI-35) from stored rows: [imported] are the imported vendor
      * rows, [own] the NOOP-computed ("-noop") rows. HRV folds on [hrvEpoch], resting HR and respiration on
      * [recoveryEpoch], exactly as the engine does. The engine additionally cuts respiration at a device-era
      * boundary (#459), which needs a per-night source the stored rows do not carry; the two agree for every
@@ -142,13 +162,15 @@ object ChargeBaselines {
     fun resolve(
         imported: List<DailyMetric>,
         own: List<DailyMetric>,
-        anchorDay: String,
+        scoredDay: String,
         hrvEpoch: Double,
         recoveryEpoch: Double,
     ): Resolved {
-        val hrvCfg = Baselines.hrvCfg
-        val rhrCfg = Baselines.restingHRCfg
-        val respCfg = Baselines.respCfg
+        val hrvCfg = this.hrvCfg
+        val rhrCfg = this.restingHRCfg
+        val respCfg = this.respCfg
+        // An unparseable day yields "", which [history] reads as no history at all (an unusable baseline).
+        val anchorDay = anchorDayFor(scoredDay) ?: ""
         val hrvHistory = history(
             imported.map { it.day to it.avgHrv }, own.map { it.day to it.avgHrv },
             anchorDay, hrvCfg, hrvEpoch,

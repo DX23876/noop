@@ -20,15 +20,51 @@ import WhoopStore
 //     algorithms, so they are never mixed past the cold start.
 //   - The rule keeps no state. Every call decides from the nights it is given.
 //
-// Pure and database-free; the engine feeds it this pass's fresh values, the dashboard the stored rows.
-// Byte-identical twin of the Kotlin `ChargeBaselines`.
+// AI-34 (2026-11-10, fork) changes WHEN a baseline is taken, not how it is folded:
+//   - Each scored day reads the nights BEFORE it (`anchorDay(forScoredDay:)`), never its own night and never
+//     a later one. Before AI-34 one baseline was folded from the 21 nights ending today and every day of
+//     the pass, after a rebuild the whole history, was scored against it: stored Charge matched today's
+//     baseline (r 0.984) far better than the day's own (r 0.803), so a July night was judged against a
+//     November resting HR and the history moved every time a new night arrived.
+//   - The window is 90 days and the Charge configs learn their spread faster while young (`cfg(_:)`). On
+//     the same real history the resting-HR z-scores had a standard deviation of 1.45 with prior nights over
+//     21 days and 1.05 with this rule, where a calibrated spread gives 1.0.
+//
+// Pure and database-free; the engine feeds it this pass's fresh values plus the stored rows before the
+// pass, the dashboard the stored rows. Byte-identical twin of the Kotlin `ChargeBaselines`.
 public enum ChargeBaselines {
 
     /// Calendar days of nightly history a Charge baseline reads, counted back from the anchor day and
-    /// including it. Deliberately the default scan window (`analyzeRecent(maxDays: 21)`), so the own nights
-    /// a baseline reads are the ones the pass has just scored, and nothing changes for a wearer with no
-    /// import.
-    public static let windowDays: Int = 21
+    /// including it. The anchor is the day before the scored day (`anchorDay(forScoredDay:)`), so these are
+    /// the 90 nights before it. 90 rather than the scan window's 21 because the spread folds at a 21-night
+    /// half-life and needs that long to settle; the centre's 14-night half-life makes nights older than
+    /// about six weeks nearly weightless, so the longer window barely moves it (AI-34).
+    public static let windowDays: Int = 90
+
+    /// Spread half-life (nights) of a Charge baseline while it is young, the spread twin of
+    /// `Baselines.earlyHalfLifeB`. See `MetricCfg.earlyHalfLifeS`.
+    public static let earlySpreadHalfLife: Double = 3.0
+
+    /// The Charge fold of a metric's config: the same bounds, floor and half-lives, plus the early spread
+    /// half-life. Charge's baselines fold through this; every other fold keeps the shared config unchanged.
+    public static func cfg(_ base: MetricCfg) -> MetricCfg {
+        MetricCfg(minVal: base.minVal, maxVal: base.maxVal, floorSpread: base.floorSpread,
+                  halfLifeB: base.halfLifeB, halfLifeS: base.halfLifeS, earlyHalfLifeS: earlySpreadHalfLife)
+    }
+
+    /// Charge configs for the four baselines it reads.
+    public static var hrvCfg: MetricCfg { cfg(Baselines.hrvCfg) }
+    public static var restingHRCfg: MetricCfg { cfg(Baselines.restingHRCfg) }
+    public static var respCfg: MetricCfg { cfg(Baselines.respCfg) }
+    public static var skinTempCfg: MetricCfg { cfg(Baselines.metricCfg["skin_temp"]!) }
+
+    /// The anchor of the baseline a day's Charge is scored against: the day BEFORE `day`, so the night being
+    /// scored and every later night stay out of it. nil for an unparseable key, which leaves the caller an
+    /// empty history (an unusable baseline, never one read from nights it cannot place).
+    public static func anchorDay(forScoredDay day: String) -> String? {
+        guard Baselines.isoEpochDay(day) != nil else { return nil }
+        return HealthspanWindow.dayKey(day, plus: -1)
+    }
 
     /// One metric's nightly history for a Charge baseline, oldest first, ready for
     /// `Baselines.foldHistory(_:dayKeys:cfg:baselineEpoch:)`, plus the counts the diagnostic line reports.
@@ -143,14 +179,17 @@ public enum ChargeBaselines {
         }
     }
 
-    /// Resolve HRV, resting-HR and respiration baselines from stored rows: `imported` are the imported
-    /// vendor rows, `own` the NOOP-computed ("-noop") rows. HRV folds on `hrvEpoch`, resting HR and
-    /// respiration on `recoveryEpoch`, exactly as the engine does. The engine additionally cuts respiration
-    /// at a device-era boundary (#459), which needs a per-night source the stored rows do not carry; the
-    /// two agree for every single-brand history. Kotlin twin: `ChargeBaselines.resolve`.
-    public static func resolve(imported: [DailyMetric], own: [DailyMetric], anchorDay: String,
+    /// Resolve the HRV, resting-HR and respiration baselines `scoredDay`'s Charge is scored against, from
+    /// stored rows: `imported` are the imported vendor rows, `own` the NOOP-computed ("-noop") rows. Only the
+    /// nights before `scoredDay` take part (`anchorDay(forScoredDay:)`). HRV folds on `hrvEpoch`, resting HR
+    /// and respiration on `recoveryEpoch`, exactly as the engine does. The engine additionally cuts
+    /// respiration at a device-era boundary (#459), which needs a per-night source the stored rows do not
+    /// carry; the two agree for every single-brand history. Kotlin twin: `ChargeBaselines.resolve`.
+    public static func resolve(imported: [DailyMetric], own: [DailyMetric], scoredDay: String,
                                hrvEpoch: Double, recoveryEpoch: Double) -> Resolved {
-        let hrvCfg = Baselines.hrvCfg, rhrCfg = Baselines.restingHRCfg, respCfg = Baselines.respCfg
+        let hrvCfg = Self.hrvCfg, rhrCfg = Self.restingHRCfg, respCfg = Self.respCfg
+        // An unparseable day yields "", which `history` reads as no history at all (an unusable baseline).
+        let anchorDay = anchorDay(forScoredDay: scoredDay) ?? ""
         let hrvHistory = history(imported: imported.map { (day: $0.day, value: $0.avgHrv) },
                                  own: own.map { (day: $0.day, value: $0.avgHrv) },
                                  anchorDay: anchorDay, cfg: hrvCfg, baselineEpoch: hrvEpoch)

@@ -40,7 +40,7 @@ class RecoveryDriversUiTest {
     ) = ChargeBaselines.resolve(imported, days, anchor, hrvEpoch = hrvEpoch, recoveryEpoch = 0.0)
 
     private fun drivers(days: List<DailyMetric>, day: DailyMetric?, hrvEpoch: Double = 0.0) =
-        recoveryChargeDrivers(resolved(days, day?.day ?: days.last().day, hrvEpoch = hrvEpoch), day)
+        recoveryChargeDrivers(resolved(days, day?.day ?: days.last().day, hrvEpoch = hrvEpoch), day, com.noop.analytics.RestTraitLookup.EMPTY)
 
     private fun tier(days: List<DailyMetric>, day: DailyMetric?, hrvEpoch: Double = 0.0) =
         chargeConfidenceTier(resolved(days, day?.day ?: days.last().day, hrvEpoch = hrvEpoch), day)
@@ -83,7 +83,7 @@ class RecoveryDriversUiTest {
 
     @Test fun nullDayProducesNoRows() {
         assertTrue(drivers(scoredHistory(), null).isEmpty())
-        assertTrue("no baselines resolved yet means no rows", recoveryChargeDrivers(null, scoredHistory().last()).isEmpty())
+        assertTrue("no baselines resolved yet means no rows", recoveryChargeDrivers(null, scoredHistory().last(), com.noop.analytics.RestTraitLookup.EMPTY).isEmpty())
     }
 
     // ---- #1988: the RHR row needs a USABLE resting-HR baseline ----------------------------------
@@ -150,8 +150,8 @@ class RecoveryDriversUiTest {
         val today = day("2026-01-21", hrv = 72.0, recovery = 70.0)
         // Inside the window and on the same days: only the handoff can keep it out of the baseline.
         val lowImport = (1..20).map { day("2026-01-%02d".format(it), hrv = 40.0).copy(deviceId = "my-whoop") }
-        val alone = recoveryChargeDrivers(resolved(own + today, today.day), today)
-        val withImport = recoveryChargeDrivers(resolved(own + today, today.day, imported = lowImport), today)
+        val alone = recoveryChargeDrivers(resolved(own + today, today.day), today, com.noop.analytics.RestTraitLookup.EMPTY)
+        val withImport = recoveryChargeDrivers(resolved(own + today, today.day, imported = lowImport), today, com.noop.analytics.RestTraitLookup.EMPTY)
         assertEquals(alone.map { it.baseline }, withImport.map { it.baseline })
         assertEquals(alone.map { it.deltaPoints }, withImport.map { it.deltaPoints })
     }

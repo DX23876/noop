@@ -270,7 +270,7 @@ struct SleepView: View {
     private func performanceScore(for night: Night) -> Double? {
         let wakeDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(night.session.endTs)))
         return DashboardRestScore.value(day: wakeDay, days: repo.days,
-                                        importedSleep: repo.importedSleep)
+                                        importedSleep: repo.importedSleep, restTraits: repo.restTraits)
     }
 
     /// Dispatch a reorderable Sleep section to its card. Naps rides with `.stages` (drawn inside the stages

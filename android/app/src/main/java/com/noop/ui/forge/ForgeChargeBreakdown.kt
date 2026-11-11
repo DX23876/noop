@@ -67,12 +67,15 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChargeBreakdownSheet(viewModel: AppViewModel, onHowCalculated: (() -> Unit)?, onDismiss: () -> Unit) {
-    val baselines by viewModel.chargeBaselines.collectAsState()
+    val inputs by viewModel.chargeBaselineInputs.collectAsState()
     val today by viewModel.today.collectAsState()
     val days by viewModel.recentDays.collectAsState()
     // The row the ring reads: today's once scored, else the last scored night carried over (#543).
     val row = today?.takeIf { it.recovery != null } ?: days.lastOrNull { it.recovery != null && it.day <= (today?.day ?: "9999-12-31") }
-    val drivers = remember(baselines, row) { recoveryChargeDrivers(baselines, row) }
+    // AI-35: the row's own baselines, the nights before it.
+    val baselines = remember(inputs, row) { row?.let { inputs?.resolve(it.day) } }
+    val traits by viewModel.restTraits.collectAsState()
+    val drivers = remember(baselines, row, traits) { recoveryChargeDrivers(baselines, row, traits) }
     val tier = remember(baselines, row) { chargeConfidenceTier(baselines, row) }
     val skin = row?.skinTempDevC
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),

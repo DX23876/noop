@@ -1764,9 +1764,11 @@ object RestScorer {
      * Rest composite [0,100] derived from a persisted [DailyMetric] (the pass-2 / display path — raw
      * streams are gone but the night's totals remain). null when there's no sleep. Single source of
      * truth so the persisted sleep_performance series and the Charge "Rest quality" term agree. Mirrors
-     * Swift `AnalyticsEngine.Rest.composite(daily:)`.
+     * Swift `AnalyticsEngine.Rest.composite(daily:inputs:)`. [traits] are the night's stored need and
+     * regularity (AI-35); no default on purpose, since the old default (8 h, neutral) is how every screen
+     * dropped the personal need.
      */
-    fun restFromDaily(daily: DailyMetric, consistency: Double? = null): Double? {
+    fun restFromDaily(daily: DailyMetric, traits: RestTraitLookup): Double? {
         val tstMin = daily.totalSleepMin ?: return null
         val eff = daily.efficiency ?: return null
         if (tstMin <= 0.0) return null
@@ -1775,8 +1777,8 @@ object RestScorer {
             efficiency = eff,
             deepSeconds = (daily.deepMin ?: 0.0) * 60.0,
             remSeconds = (daily.remMin ?: 0.0) * 60.0,
-            sleepNeedHours = null,
-            consistency = consistency,
+            sleepNeedHours = traits.needHoursFor(daily.day),
+            consistency = traits.consistencyFor(daily.day),
         )
     }
 }

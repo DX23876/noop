@@ -93,11 +93,13 @@ object FusionDayAdapter {
         }
 
         val contributingSources = perSource.count { it.second != null }
+        // AI-35: a strap night's Rest uses its stored traits; other sources' rows carry none.
+        val traits = runCatching { repo.restTraits(activeStrapId) }.getOrDefault(com.noop.analytics.RestTraitLookup.EMPTY)
 
         val rows = ArrayList<FusedRow>()
         for (spec in METRICS) {
             val inputs = perSource.mapNotNull { (source, row) ->
-                row?.let { WhoopRepository.dailyColumn(spec.key, it)?.let { v -> FusionInput(source, v) } }
+                row?.let { WhoopRepository.dailyColumn(spec.key, it, traits)?.let { v -> FusionInput(source, v) } }
             }
             val point = FusionResolver.resolve(spec.key, inputs) ?: continue
             rows.add(FusedRow(point = point, label = spec.label))

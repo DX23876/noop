@@ -180,12 +180,55 @@ final class Repository: ObservableObject {
 
     /// Daily metrics (recovery/strain/sleep/HRV/RHR…) over the recent window, oldest→newest.
     @Published var days: [DailyMetric] = []
-    /// The Charge baselines (HRV, resting HR, respiration) resolved from the imported and own daily rows
-    /// with the engine's own rule (#2525), recomputed on every `refresh()`. The single funnel every Charge
-    /// readout below the headline reads (the "What shaped it" rows, the calibration count, the confidence
-    /// tier), so none of them can fold a different history than the score was computed against. nil until
-    /// the first refresh.
+    /// The Charge baselines (HRV, resting HR, respiration) TODAY's Charge is scored against, resolved from the
+    /// imported and own daily rows with the engine's own rule (#2525, AI-34: the nights before today),
+    /// recomputed on every `refresh()`. For any other day read `chargeBaselines(forDay:)`: since AI-34 every
+    /// day has its own baseline, so a past day's breakdown scored against this one would describe a baseline
+    /// that day was never scored against. nil until the first refresh.
     @Published private(set) var chargeBaselines: ChargeBaselines.Resolved?
+    /// The stored traits each of the wearer's nights was scored with (`sleep_need_min`,
+    /// `sleep_consistency`, AI-34): the one need and regularity every Rest readout and every sleep-need
+    /// readout uses for that night. Recomputed on every `refresh()`.
+    @Published private(set) var restTraits: RestTraitLookup = .empty
+    /// The rows and epochs `chargeBaselines` was resolved from, kept so a past day resolves the same way.
+    private var chargeBaselineInputs: ChargeBaselineInputs?
+    /// `chargeBaselines(forDay:)` results for the current inputs; emptied whenever the inputs change.
+    private var chargeBaselinesByDay: [String: ChargeBaselines.Resolved] = [:]
+
+    /// The single funnel every Charge readout below a headline reads (the "What shaped it" rows, the
+    /// calibration count, the confidence tier, the vitals' "vs your normal"): the baselines `day`'s Charge
+    /// was scored against, from the nights before it, by the engine's rule. nil before the first refresh
+    /// or for a nil day.
+    func chargeBaselines(forDay day: String?) -> ChargeBaselines.Resolved? {
+        guard let day else { return nil }
+        // Before the first refresh the loaded rows stand in as the wearer's own nights (a caller that set
+        // `days` itself, as the tests do); a refresh replaces them with the rows it read.
+        guard let inputs = chargeBaselineInputs else {
+            return days.isEmpty ? nil : ChargeBaselines.resolve(imported: [], own: days, scoredDay: day,
+                                                                hrvEpoch: Baselines.hrvBaselineEpoch(),
+                                                                recoveryEpoch: Baselines.recoveryBaselineEpoch())
+        }
+        if day == inputs.todayKey { return chargeBaselines }
+        if let cached = chargeBaselinesByDay[day] { return cached }
+        let resolved = inputs.resolve(scoredDay: day)
+        chargeBaselinesByDay[day] = resolved
+        return resolved
+    }
+
+    /// What `ChargeBaselines.resolve` reads, read once per refresh. The rows reach back
+    /// `ChargeBaselines.windowDays` before the dashboard window so every day it shows has its full window.
+    struct ChargeBaselineInputs: Equatable {
+        let imported: [DailyMetric]
+        let computed: [DailyMetric]
+        let todayKey: String
+        let hrvEpoch: Double
+        let recoveryEpoch: Double
+
+        func resolve(scoredDay: String) -> ChargeBaselines.Resolved {
+            ChargeBaselines.resolve(imported: imported, own: computed, scoredDay: scoredDay,
+                                    hrvEpoch: hrvEpoch, recoveryEpoch: recoveryEpoch)
+        }
+    }
     /// Cached sleep sessions over the recent window, oldest→newest.
     @Published var sleeps: [CachedSleepSession] = []
     /// Imported (export-verbatim) sleep figures by day. Empty until a WHOOP import lands.
@@ -1036,6 +1079,8 @@ final class Repository: ObservableObject {
         let importedSleep: [String: ImportedSleepFigures]
         let days: [DailyMetric]
         let chargeBaselines: ChargeBaselines.Resolved
+        let chargeBaselineInputs: ChargeBaselineInputs
+        let restTraits: RestTraitLookup
         let sleeps: [CachedSleepSession]
         let vitalRows: [SourcedDailyMetric]
         let freshness: RepositoryFreshness
@@ -1186,11 +1231,18 @@ final class Repository: ObservableObject {
         let compSleep = await unionComputedSleepSessions(store: store, from: lo, to: hi)
 
         // #2525: the Charge baselines' inputs, read on the main actor before detaching: today's local day
-        // (the same local-calendar key the engine anchors its fold on) and the two recalibration epochs the
-        // engine reads from the same UserDefaults keys.
-        let chargeAnchorDay = AnalyticsEngine.dayString(nowTs, offsetSec: TimeZone.current.secondsFromGMT(for: now))
+        // (the same local-calendar key the engine scores today's Charge under) and the two recalibration
+        // epochs the engine reads from the same UserDefaults keys. AI-34: each day's baseline reads the
+        // `ChargeBaselines.windowDays` before it, so the rows reach back that far before the window.
+        let chargeTodayKey = AnalyticsEngine.dayString(nowTs, offsetSec: TimeZone.current.secondsFromGMT(for: now))
         let hrvEpoch = Baselines.hrvBaselineEpoch()
         let recoveryEpoch = Baselines.recoveryBaselineEpoch()
+        let chargeFromDay = HealthspanWindow.dayKey(fromDay, plus: -ChargeBaselines.windowDays)
+        let restTraits = await reader(store).restTraits(from: fromDay, to: toDay)
+        let chargeInputs = ChargeBaselineInputs(
+            imported: await unionDailyMetrics(store: store, from: chargeFromDay, to: toDay),
+            computed: await unionComputedDailyMetrics(store: store, from: chargeFromDay, to: toDay),
+            todayKey: chargeTodayKey, hrvEpoch: hrvEpoch, recoveryEpoch: recoveryEpoch)
 
         // Export-verbatim sleep figures (long-format metricSeries rows from WhoopImporter).
         // SleepView prefers these per day over its APPROXIMATE recomputations.
@@ -1237,9 +1289,9 @@ final class Repository: ObservableObject {
                 ),
                 // From the two buckets BEFORE `mergeDaily` blends them: the rule needs to know which nights
                 // are imported and which are the wearer's own.
-                chargeBaselines: ChargeBaselines.resolve(imported: imported, own: computed,
-                                                         anchorDay: chargeAnchorDay,
-                                                         hrvEpoch: hrvEpoch, recoveryEpoch: recoveryEpoch),
+                chargeBaselines: chargeInputs.resolve(scoredDay: chargeInputs.todayKey),
+                chargeBaselineInputs: chargeInputs,
+                restTraits: restTraits,
                 sleeps: mergedSleeps,
                 vitalRows: Self.sourceRows(imported: imported, computed: computed, apple: apple),
                 freshness: Self.computeFreshness(imported: imported, computed: computed, apple: apple,
@@ -1257,6 +1309,8 @@ final class Repository: ObservableObject {
         let unchanged = loaded
             && merged.days == days
             && merged.chargeBaselines == chargeBaselines
+            && merged.chargeBaselineInputs == chargeBaselineInputs
+            && merged.restTraits == restTraits
             && merged.sleeps == sleeps
             && merged.importedSleep == importedSleep
             && merged.vitalRows == vitalRows
@@ -1268,6 +1322,9 @@ final class Repository: ObservableObject {
         self.importedSleep = merged.importedSleep
         self.days = merged.days
         self.chargeBaselines = merged.chargeBaselines
+        if merged.chargeBaselineInputs != chargeBaselineInputs { chargeBaselinesByDay = [:] }
+        self.chargeBaselineInputs = merged.chargeBaselineInputs
+        self.restTraits = merged.restTraits
         self.sleeps = merged.sleeps
         self.vitalRows = merged.vitalRows
         self.freshness = merged.freshness
@@ -2633,8 +2690,27 @@ final class Repository: ObservableObject {
         let now = Date()
         let from = fullHistory ? "0000-01-01" : Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
         let to = fullHistory ? "9999-12-31" : Self.dayString(now.addingTimeInterval(86_400))
-        return await storeReader(store).exploreSeries(key: key, source: source, from: from, to: to,
+        let series = await storeReader(store).exploreSeries(key: key, source: source, from: from, to: to,
             dailyRows: self.days, suppressedSleepWakeDays: suppressedSleepWakeDays)
+        guard source == Self.whoopSource, key == "energy_kcal" || key == "active_kcal" else { return series }
+        // AI-34: a strap day's calories come from the energy model, the figure the Energy screen shows. The
+        // daily column they used to fall back to (`activeKcalEst`) is the retired Keytel whole-day estimate.
+        // An imported value (a WHOOP export's own kcal) still wins its day.
+        let profile = energyProfile ?? ProfileStore.persistedAnalyticsProfile
+        let summaries = await energySummaries(days: fullHistory ? 4000 : days, profile: profile)
+        return Self.fillingEnergy(series, key: key, summaries: summaries)
+    }
+
+    /// `series` with every day it lacks filled from the energy summaries: the day's total for `energy_kcal`,
+    /// its active part for `active_kcal`. Pure, so the precedence (an existing point wins) is testable.
+    nonisolated static func fillingEnergy(_ series: [(day: String, value: Double)], key: String,
+                                          summaries: [DailyEnergySummary]) -> [(day: String, value: Double)] {
+        var byDay = Dictionary(series.map { ($0.day, $0.value) }, uniquingKeysWith: { first, _ in first })
+        for summary in summaries where byDay[summary.day] == nil {
+            let value = key == "active_kcal" ? summary.activeBurnedSoFar : summary.totalBurnedSoFar
+            if let value, value.isFinite, value >= 0 { byDay[summary.day] = value }
+        }
+        return byDay.keys.sorted().map { (day: $0, value: byDay[$0]!) }
     }
 
     /// Every catalog metric's Explore series at once, memoized — the cross-catalog scan behind the
@@ -2676,9 +2752,10 @@ final class Repository: ObservableObject {
     /// no locking; one shared copy replaces the per-view-instance `@State` it supersedes.
     private var exploreAllCache: (key: String, byMetricID: [String: [(day: String, value: Double)]])?
 
-    /// The merged DailyMetric column backing a metric key (`MetricResolver`).
+    /// Whether the merged DailyMetric row carries a column for a metric key (`MetricResolver`). Asks only
+    /// whether a value EXISTS, which the night's Rest traits cannot change, so the cold-start traits stand in.
     nonisolated static func dailyColumn(key: String, day d: DailyMetric) -> Double? {
-        MetricResolver.dailyColumn(key: key, day: d)
+        MetricResolver.dailyColumn(key: key, day: d, restInputs: .coldStart)
     }
 
     /// Which of `catalog`'s metrics hold at least one reading — the question the Explore catalog list asks

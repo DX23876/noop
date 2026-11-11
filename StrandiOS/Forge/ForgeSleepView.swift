@@ -46,7 +46,7 @@ struct ForgeSleepView: View {
     private var wakeKey: String? { night.map { Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.session.endTs))) } }
     private var nightRow: DailyMetric? { wakeKey.flatMap { key in repo.days.last(where: { $0.day == key }) } }
     /// The need every sleep card names: the one the Rest score and the debt ledger use.
-    private var need: Double { SleepModel.debtNeedMin(days: repo.days) }
+    private var need: Double { SleepModel.currentNeedMin(days: repo.days, restTraits: repo.restTraits) }
     /// The night editor, its undo and the nap delete confirmation, shared with the full Sleep screen.
     @StateObject private var editor = SleepNightEditor()
     /// The bedtime planner still counts back from the wearer's own setting in Alarms.

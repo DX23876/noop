@@ -47,8 +47,11 @@ enum CoreSleepDebt {
                 .filter { !main.contains($0.startTs) }
                 .reduce(0) { $0 + SleepNight.asleepMinutes($1.stagesJSON, effectiveStartTs: $1.effectiveStartTs) }
         }
-        let needMin = AnalyticsEngine.Rest.personalizedNeedHours(
-            nightlyHours: days.compactMap { $0.totalSleepMin.map { $0 / 60.0 } }, age: nil) * 60.0
+        // The newest night's stored need (AI-34), the one its Rest was scored with and the iPhone's Sleep
+        // screen measures the ledger against (`SleepModel.currentNeedMin`).
+        let traits = await reader.restTraits(from: from, to: to)
+        let needMin = (days.map(\.day).max().map { traits.inputs(forDay: $0) }
+            ?? AnalyticsEngine.Rest.Inputs.coldStart).needHours * 60.0
         let ledger = SleepDebt.ledger(
             series: days.map { (day: $0.day, totalSleepMin: SleepDebt.creditedSleepMin(mainSleepMin: $0.totalSleepMin,
                                                                                        napSleepMin: naps[$0.day] ?? 0)) },

@@ -13,8 +13,8 @@ final class SleepModelDebtTests: XCTestCase {
     func testLocalFallbackLatestAgreesWithLedger() {
         let days = [day("2026-06-01", sleep: 360), day("2026-06-02", sleep: 480)]
         let metric = SleepModel.sleepDebtSeries(
-            days: days, importedSleep: [:], napSleepMinByDay: [:])
-        let ledger = SleepModel.debtLedger(days: days, napSleepMinByDay: [:])
+            days: days, importedSleep: [:], napSleepMinByDay: [:], restTraits: .empty)
+        let ledger = SleepModel.debtLedger(days: days, napSleepMinByDay: [:], restTraits: .empty)
         XCTAssertEqual(metric.latest ?? -1, ledger.magnitudeMin, accuracy: 1e-9)
     }
 
@@ -23,7 +23,7 @@ final class SleepModelDebtTests: XCTestCase {
         let imported = ["2026-06-01": ImportedSleepFigures(
             performancePct: nil, consistencyPct: nil, needMin: nil, debtMin: 17.25)]
         let metric = SleepModel.sleepDebtSeries(
-            days: days, importedSleep: imported, napSleepMinByDay: [:])
+            days: days, importedSleep: imported, napSleepMinByDay: [:], restTraits: .empty)
         XCTAssertEqual(metric.latest ?? -1, 17.25, accuracy: 1e-9)
     }
 }

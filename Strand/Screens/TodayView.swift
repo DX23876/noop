@@ -905,7 +905,7 @@ struct TodayView: View {
         // `restScore` is the same merged sleep_performance value the Rest ring reads, so the sleep-quality
         // term stays consistent; `chargeBreakdownRow` mirrors the ring (today's own row, else the carried
         // last-scored one).
-        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, baselines: repo.chargeBaselines, restScore: restScore)
+        ChargeBreakdownFormat.compute(row: chargeBreakdownRow, baselines: repo.chargeBaselines(forDay: chargeBreakdownRow?.day), restScore: restScore)
     }
 
     /// The night's relative skin-temp marker for the displayed row (A5), or nil. Surfaced verbatim from
@@ -2519,7 +2519,8 @@ struct TodayView: View {
         c.displayDay = d
         c.lastScoredDay = lastScoredRecoveryDay
         c.allDays = repo.days
-        c.hrvBaseline = repo.chargeBaselines?.hrv
+        c.hrvBaseline = repo.chargeBaselines(forDay: selectedDayKey)?.hrv
+        c.restTraits = repo.restTraits
         c.dayKey = selectedDayKey
         c.isToday = selectedDayOffset == 0
         c.carriedCaption = lastScoredRecoveryDay.map { carriedCaption($0) }
@@ -5166,7 +5167,7 @@ struct TodayView: View {
         // weeks-old series tail forever; gate the tail-fallback on freshness so a stale tail falls through
         // to the No-Data state instead of freezing.
         let correctedRest = DashboardRestScore.value(
-            day: selectedDayKey, days: repo.days, importedSleep: repo.importedSleep)
+            day: selectedDayKey, days: repo.days, importedSleep: repo.importedSleep, restTraits: repo.restTraits)
         let restScoreLocal = correctedRest ?? Self.freshRestScore(
             todayValue: restByDay[selectedDayKey], lastDay: restSeries.last?.day,
             lastValue: restSeries.last?.value, isTodaySelected: selectedDayOffset == 0,

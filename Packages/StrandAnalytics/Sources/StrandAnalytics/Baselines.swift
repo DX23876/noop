@@ -21,14 +21,21 @@ public struct MetricCfg: Equatable, Sendable {
     public let floorSpread: Double  // σ_floor: minimum dispersion
     public let halfLifeB: Double    // baseline-center half-life (nights)
     public let halfLifeS: Double    // spread half-life (nights, slower than center)
+    /// Spread half-life (nights) while the baseline is young (`Baselines.earlyAdaptNights`), the spread
+    /// twin of `Baselines.earlyHalfLifeB`. nil keeps `halfLifeS` throughout, which is every config except
+    /// Charge's (`ChargeBaselines.cfg(_:)`): the spread starts at `floorSpread`, and at a 21-night
+    /// half-life it needs about two months to leave it, so a short history read every deviation as larger
+    /// than it was (AI-34, real-data check in docs/fork/decisions.md).
+    public let earlyHalfLifeS: Double?
 
     public init(minVal: Double, maxVal: Double, floorSpread: Double,
-                halfLifeB: Double, halfLifeS: Double) {
+                halfLifeB: Double, halfLifeS: Double, earlyHalfLifeS: Double? = nil) {
         self.minVal = minVal
         self.maxVal = maxVal
         self.floorSpread = floorSpread
         self.halfLifeB = halfLifeB
         self.halfLifeS = halfLifeS
+        self.earlyHalfLifeS = earlyHalfLifeS
     }
 }
 
@@ -418,9 +425,11 @@ public enum Baselines {
         let clamped = max(lo, min(hi, value))
         let newBaseline = effLb * clamped + (1.0 - effLb) * state.baseline
 
-        // Spread uses the UNCLAMPED value so true deviations are tracked.
+        // Spread uses the UNCLAMPED value so true deviations are tracked. A config with `earlyHalfLifeS`
+        // learns it faster while young, as the center does above; nil keeps `halfLifeS` (byte-identical).
+        let effLs = isYoung ? (cfg.earlyHalfLifeS.map { lambda(halfLife: $0) } ?? ls) : ls
         let absDev = abs(value - newBaseline)
-        let newSpread = max(cfg.floorSpread, ls * absDev + (1.0 - ls) * state.spread)
+        let newSpread = max(cfg.floorSpread, effLs * absDev + (1.0 - effLs) * state.spread)
         let newN = state.nValid + 1
 
         return BaselineState(baseline: newBaseline, spread: newSpread, nValid: newN,

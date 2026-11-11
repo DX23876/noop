@@ -392,7 +392,7 @@ struct TrendsDashboardView: View {
         next.restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         for daily in allDays {
             if let corrected = DashboardRestScore.value(
-                day: daily.day, days: allDays, importedSleep: repo.importedSleep) {
+                day: daily.day, days: allDays, importedSleep: repo.importedSleep, restTraits: repo.restTraits) {
                 next.restByDay[daily.day] = corrected
             }
         }
@@ -465,7 +465,7 @@ struct TrendsDashboardView: View {
         lastLoadedAt = Date()
         DashboardMomentum.publish(
             context: DashboardMomentum.context(displayDay: next.displayDay, allDays: allDays,
-                                               hrvBaseline: repo.chargeBaselines?.hrv,
+                                               hrvBaseline: repo.chargeBaselines(forDay: selectedDayKey)?.hrv, restTraits: repo.restTraits,
                                                dayKey: selectedDayKey, isToday: selectedDayOffset == 0,
                                                steps: steps, stepGoal: momentumStepGoal, live: liveInput),
             allDays: allDays,

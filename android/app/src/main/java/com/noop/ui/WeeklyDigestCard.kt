@@ -74,6 +74,7 @@ internal fun effortDisplayFactor(scale: EffortScale): Double =
  */
 fun buildWeeklyDigest(
     days: List<DailyMetric>,
+    restTraits: com.noop.analytics.RestTraitLookup,
     anchorDay: String = logicalDayKeyNow(),
     effortDisplayFactor: Double = 1.0,
 ): WeeklyDigest {
@@ -86,7 +87,7 @@ fun buildWeeklyDigest(
         d.recovery?.let { charge[d.day] = it }
         d.strain?.let { effort[d.day] = it }
         // Rest = the sleep-performance composite recomputed on the persisted day.
-        RestScorer.restFromDaily(d)?.let { rest[d.day] = it }
+        RestScorer.restFromDaily(d, restTraits)?.let { rest[d.day] = it }
         d.restingHr?.let { rhr[d.day] = it.toDouble() }
         d.avgHrv?.let { hrv[d.day] = it }
     }
@@ -113,7 +114,8 @@ fun buildWeeklyDigest(
 fun WeeklyDigestCard(vm: AppViewModel, modifier: Modifier = Modifier) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
     val factor = effortDisplayFactor(UnitPrefs.effortScale(LocalContext.current))
-    val digest = buildWeeklyDigest(days, effortDisplayFactor = factor)
+    val traits by vm.restTraits.collectAsStateWithLifecycle()
+    val digest = buildWeeklyDigest(days, traits, effortDisplayFactor = factor)
     if (digest.isEmpty) return
     NoopCard(modifier = modifier) {
         WeeklyDigestContent(digest = digest, compact = true)
@@ -126,9 +128,10 @@ fun WeeklyDigestCard(vm: AppViewModel, modifier: Modifier = Modifier) {
 @Composable
 fun WeeklyDigestScreen(vm: AppViewModel) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
+    val traits by vm.restTraits.collectAsStateWithLifecycle()
     val factor = effortDisplayFactor(UnitPrefs.effortScale(LocalContext.current))
     ScreenScaffold(title = uiString(R.string.l10n_weekly_digest_card_week_in_review_66d95a07), subtitle = "Your Monday-to-Sunday, read in one glance.") {
-        val digest = buildWeeklyDigest(days, effortDisplayFactor = factor)
+        val digest = buildWeeklyDigest(days, traits, effortDisplayFactor = factor)
         if (digest.isEmpty) {
             DataPendingNote(
                 title = uiString(R.string.l10n_weekly_digest_card_no_readings_this_week_yet_0745a2df),

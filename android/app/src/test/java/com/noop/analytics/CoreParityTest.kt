@@ -318,7 +318,7 @@ class CoreParityTest {
                                                  "delta" to it.weekOverWeek.delta, "baseline" to it.baselineMean, "vs" to it.vsBaseline) })
         },
         "ChargeBaselines.resolve" to { i ->
-            val res = ChargeBaselines.resolve(dailies(i.getJSONArray("imported")), dailies(i.getJSONArray("own")), i.getString("anchor"),
+            val res = ChargeBaselines.resolve(dailies(i.getJSONArray("imported")), dailies(i.getJSONArray("own")), i.getString("scoredDay"),
                                               i.getDouble("hrvEpoch"), i.getDouble("recEpoch"))
             fun st(s: BaselineState) = obj("baseline" to s.baseline, "spread" to s.spread, "n" to s.nValid, "status" to s.status.name.lowercase())
             fun hist(h: ChargeBaselines.History) = obj("days" to h.dayKeys, "values" to h.values)

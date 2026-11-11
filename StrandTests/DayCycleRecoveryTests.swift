@@ -95,7 +95,7 @@ final class DayCycleRecoveryTests: XCTestCase {
 
         for (nightly, deviation) in [(34.804, 0.3), (34.196, -0.3)] {
             let result = IntelligenceEngine.recomputeRecoveryDaily(
-                daily, nightlySkinTempC: nightly, baselines: baselines)
+                daily, nightlySkinTempC: nightly, baselines: baselines, restInputs: .coldStart)
             let expected = try XCTUnwrap(expectedRecovery(daily, baselines: baselines, skinDev: deviation))
             XCTAssertNotEqual(expected, withoutSkin)
             XCTAssertEqual(result.recovery, expected)
@@ -119,7 +119,7 @@ final class DayCycleRecoveryTests: XCTestCase {
             let baselines = AnalyticsEngine.ProfileBaselines(
                 hrv: recoveryBaseline(50, spread: 6), skinTemp: skinBaseline)
             let result = IntelligenceEngine.recomputeRecoveryDaily(
-                daily, nightlySkinTempC: nightly, baselines: baselines)
+                daily, nightlySkinTempC: nightly, baselines: baselines, restInputs: .coldStart)
             XCTAssertNil(result.skinTempDevC)
             XCTAssertEqual(result.skinTempC, nightly)
             XCTAssertEqual(result.recovery, expectedRecovery(daily, baselines: baselines, skinDev: nil))
@@ -132,7 +132,7 @@ final class DayCycleRecoveryTests: XCTestCase {
             let result = IntelligenceEngine.recomputeRecoveryDaily(
                 recoveryDailyFixture(), nightlySkinTempC: 34.8,
                 baselines: AnalyticsEngine.ProfileBaselines(
-                    hrv: hrv, skinTemp: recoveryBaseline(34.5, spread: 0.4)))
+                    hrv: hrv, skinTemp: recoveryBaseline(34.5, spread: 0.4)), restInputs: .coldStart)
             XCTAssertNil(result.recovery)
             XCTAssertEqual(result.skinTempDevC, 0.3)
         }
@@ -158,7 +158,8 @@ final class DayCycleRecoveryTests: XCTestCase {
         RecoveryScorer.recovery(
             hrv: 48, rhr: 58, resp: 15, hrvBaseline: baselines.hrv!, rhrBaseline: nil,
             respBaseline: nil,
-            sleepPerf: AnalyticsEngine.Rest.composite(daily: daily).map { $0 / 100.0 } ?? daily.efficiency,
+            sleepPerf: AnalyticsEngine.Rest.composite(daily: daily, inputs: .coldStart).map { $0 / 100.0 }
+                ?? daily.efficiency,
             skinTempDev: skinDev)
     }
 }

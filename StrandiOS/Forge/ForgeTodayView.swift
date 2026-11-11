@@ -1682,7 +1682,7 @@ struct ForgeTodayView: View {
         next.charge = ChargeDisplay.resolve(days: allDays, displayDay: displayDay, selectedDayKey: todayKey, isToday: true)
         let restSeries = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource, days: 30)
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
-        next.rest = DashboardRestScore.value(day: todayKey, days: allDays, importedSleep: repo.importedSleep)
+        next.rest = DashboardRestScore.value(day: todayKey, days: allDays, importedSleep: repo.importedSleep, restTraits: repo.restTraits)
             ?? TodayView.freshRestScore(todayValue: displayDay.flatMap { restByDay[$0.day] },
                                         lastDay: restSeries.last?.day, lastValue: restSeries.last?.value,
                                         isTodaySelected: true, todayKey: todayKey)
@@ -1693,7 +1693,7 @@ struct ForgeTodayView: View {
         let chargeRow = TodayView.lastScoredRecoveryDay(days: allDays, selectedDayKey: todayKey, isToday: true,
                                                         todayScored: displayDay?.recovery != nil,
                                                         isCalibrating: calibrating) ?? displayDay
-        next.drivers = ChargeBreakdownFormat.compute(row: chargeRow, baselines: repo.chargeBaselines,
+        next.drivers = ChargeBreakdownFormat.compute(row: chargeRow, baselines: repo.chargeBaselines(forDay: chargeRow?.day),
                                                      restScore: next.rest)?.drivers ?? []
         // Each driver's night on the usual range, through the Charge page's own function.
         if let chargeRow {
@@ -1809,7 +1809,7 @@ struct ForgeTodayView: View {
         // The data's own notices: the Momentum signals worth an entry and a night still on the strap, each
         // through the week-long cooldown of its topic.
         let momentumContext = DashboardMomentum.context(
-            displayDay: displayDay, allDays: allDays, hrvBaseline: repo.chargeBaselines?.hrv,
+            displayDay: displayDay, allDays: allDays, hrvBaseline: repo.chargeBaselines?.hrv, restTraits: repo.restTraits,
             dayKey: todayKey, isToday: true,
             steps: DailyStepsReading.resolve(strapSteps: displayDay?.steps, appleSteps: nil, estimatedSteps: nil),
             stepGoal: momentumStepGoal, live: DashboardMomentum.LiveInput(model: model))
