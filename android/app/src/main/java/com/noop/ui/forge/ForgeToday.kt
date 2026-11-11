@@ -120,7 +120,10 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     // and a calendar date would open an empty new day until morning (#144).
     var date by rememberSaveable { mutableStateOf(com.noop.ui.logicalDayNow().toEpochDay()) }
     var model by remember { mutableStateOf<TodayModel?>(null) }
-    LaunchedEffect(date) {
+    // Read again whenever the core's data changes (a sync, an import, a new steps source) while Today stays open,
+    // not only when the day changes: the rings and tiles kept the figures of the moment the page opened.
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(date, coreRevision) {
         val d = LocalDate.ofEpochDay(date)
         model = withContext(Dispatchers.IO) {
             CoreRead.open(context)

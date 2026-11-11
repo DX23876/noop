@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -182,7 +183,8 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
             CoreEnergyDetail.today(context, dismissedTrainingWorkouts(context))?.total
         }
     }
-    val sparks by produceState<Map<KeyMetric, List<Double>>>(emptyMap(), date, metrics, detailed, windowDays) {
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val sparks by produceState<Map<KeyMetric, List<Double>>>(emptyMap(), date, metrics, detailed, windowDays, coreRevision) {
         value = if (!detailed) emptyMap() else withContext(Dispatchers.IO) {
             val cutoff = date.minusDays(windowDays - 1L).toString(); val to = date.toString()
             // The whole history up to the day, so a sparse series can fall back to its latest measurements.
@@ -201,7 +203,7 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
     // With [latestFallback] (the new design's tiles, as iOS's `ForgeMeasureWidget` reads `values.last`), a measure
     // the day has no value for yet shows its latest one, so the small hours and a morning before the sync read a
     // figure, not "No data yet".
-    val latest by produceState<Map<KeyMetric, Double>>(emptyMap(), date, metrics, latestFallback) {
+    val latest by produceState<Map<KeyMetric, Double>>(emptyMap(), date, metrics, latestFallback, coreRevision) {
         value = if (!latestFallback) emptyMap() else withContext(Dispatchers.IO) {
             val to = date.toString()
             metrics.mapNotNull { m ->
