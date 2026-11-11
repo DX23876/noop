@@ -104,6 +104,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     var hiddenTiles by remember { mutableStateOf(VitalTilePrefs.hidden(context)) }
     var tileColumns by remember { mutableStateOf(VitalTilePrefs.columns(context, if (width == ForgeWidth.Compact) 2 else 3)) }
     var weeklyOpen by remember { mutableStateOf(false) }
+    var cycleOpen by remember { mutableStateOf(false) }
     var focus by remember { mutableStateOf<FocusArea?>(null) }
     val selectTab = LocalForgeTabSelect.current
 
@@ -174,7 +175,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
 
         // The focus areas as six tiles, as iOS: each lists its pages; Sleep opens the Sleep tab.
         Heading(stringResource(R.string.forge_hf_focus))
-        HealthFocusGrid { area -> if (area == FocusArea.Sleep) selectTab(ForgeTab.Sleep) else focus = area }
+        HealthFocusGrid { area -> focus = area }
 
         Heading(stringResource(R.string.forge_health_long_term))
         val longTerm = listOf(MoreDest.AgeLess, MoreDest.RhythmAge).filter { it.shown(context) }
@@ -206,8 +207,9 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         ForgeOverlayPage(onDismiss = { focus = null }) {
             ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
                 androidx.activity.compose.BackHandler { focus = null }
-                FocusAreaPage(area, onBack = { focus = null }, onOpen = { focus = null; open(it) },
-                              onTrends = { focus = null; trendsOpen = true })
+                FocusAreaPage(area, viewModel, onBack = { focus = null }, onOpen = { focus = null; open(it) },
+                              onAction = { a -> focus = null; when (a) { "sleep" -> selectTab(ForgeTab.Sleep); "trends" -> trendsOpen = true
+                                  "cycle" -> cycleOpen = true } })
             }
         }
     }
@@ -222,6 +224,16 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
                 }
             }
         }
+    }
+    // The cycle, from a focus link, in the tracker the Today card opens.
+    if (cycleOpen) {
+        val v5 by viewModel.v5Signals.collectAsStateWithLifecycle()
+        val starts by viewModel.periodStarts.collectAsStateWithLifecycle()
+        v5?.cycle?.let { cycle ->
+            com.noop.ui.CycleTrackerDialog(result = cycle, starts = starts, onLog = viewModel::logPeriodStart,
+                onDelete = viewModel::deletePeriodStart, onDeleteAll = viewModel::deleteAllPeriodStarts,
+                onDismiss = { cycleOpen = false })
+        } ?: run { cycleOpen = false }
     }
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
     if (trendsOpen) {
