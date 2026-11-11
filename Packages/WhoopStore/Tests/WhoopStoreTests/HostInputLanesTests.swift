@@ -53,9 +53,9 @@ final class HostInputLanesTests: XCTestCase {
             row(["deviceId": "health-connect", "startTs": 300, "endTs": 400, "sport": "Running", "source": "health-connect"]),
         ])
         do {
-            try await store.putAndroidInputLaneRows(table: "workout", rows: [row(["deviceId": "x", "routePolyline": "abc"])])
+            try await store.putAndroidInputLaneRows(table: "workout", rows: [row(["deviceId": "x", "notAColumn": "abc"])])
             XCTFail("an unknown column must be refused")
-        } catch WhoopStore.InputLaneError.unknownColumn(let column) { XCTAssertEqual(column, "routePolyline") }
+        } catch WhoopStore.InputLaneError.unknownColumn(let column) { XCTAssertEqual(column, "notAColumn") }
         do {
             try await store.putAndroidInputLaneRows(table: "hrSample", rows: [])
             XCTFail("a table outside the lanes must be refused")
