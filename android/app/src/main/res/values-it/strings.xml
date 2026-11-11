@@ -5061,5 +5061,14 @@
     <string name="forge_w_week_plan_sub">Largo · giorni fatti e pianificati</string>
     <string name="forge_wp_days">Allenamenti in %1$d giorni su 7</string>
     <string name="forge_wp_a11y">%1$d giorni con allenamento questa settimana</string>
+    <string name="forge_w_breathe">Respira</string>
+    <string name="forge_w_breathe_sub">Piccolo · due minuti di calma, a un tocco</string>
+    <string name="forge_br_tap">Tocca per iniziare</string>
+    <string name="forge_w_strap">Fascia</string>
+    <string name="forge_w_strap_sub">Piccolo · batteria e ultima sincronizzazione</string>
+    <string name="forge_st_charging">In carica</string>
+    <string name="forge_st_not_synced">Non ancora sincronizzato</string>
+    <string name="forge_st_synced">Sincronizzato %1$s</string>
+    <string name="forge_pair_words">%1$s %2$s</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

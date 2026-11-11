@@ -119,7 +119,7 @@ private fun StageStrip(parts: List<Pair<Double, Color>>) {
 private fun StageLegend(name: String, minutes: Double, color: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).background(color, CircleShape))
-        Text("$name ${TodayTimeline.hoursMinutes(minutes)}", style = Forge.type.captionNumber, color = Forge.colors.textSecondary,
+        Text(stringResource(R.string.forge_pair_words, name, TodayTimeline.hoursMinutes(minutes)), style = Forge.type.captionNumber, color = Forge.colors.textSecondary,
              modifier = Modifier.padding(start = 4.dp))
     }
 }

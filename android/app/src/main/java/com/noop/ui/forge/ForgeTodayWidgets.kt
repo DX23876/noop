@@ -21,7 +21,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.BatteryFull
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.ChevronLeft
@@ -98,13 +100,14 @@ internal data class TodayWidget(
     enum class Kind(val raw: String) {
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
         Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle"), LastNight("lastNight"),
-        Tonight("tonight"), WeekPlan("weekPlan");
+        Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
     enum class Size { Small, Medium, Wide }
 
     val size: Size get() = when {
+        kind == Kind.Breathe || kind == Kind.Strap -> Size.Small
         kind != Kind.Measure && kind != Kind.LiveHeart -> Size.Wide
         kind == Kind.LiveHeart && wide -> Size.Wide
         span == 2 -> Size.Medium
@@ -221,7 +224,8 @@ internal object TodayWidgets {
      */
     const val DEMO_EXTRA = "demo_widgets"
     val demoSet: List<TodayWidget> = listOf(
-        TodayWidget(kind = TodayWidget.Kind.Tonight), TodayWidget(kind = TodayWidget.Kind.Cycle),
+        TodayWidget(kind = TodayWidget.Kind.Tonight), TodayWidget(kind = TodayWidget.Kind.Breathe),
+        TodayWidget(kind = TodayWidget.Kind.Strap), TodayWidget(kind = TodayWidget.Kind.Cycle),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.HRV.raw),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.RESTING_HR.raw),
         TodayWidget(kind = TodayWidget.Kind.Energy), TodayWidget(kind = TodayWidget.Kind.LastWorkout),
@@ -250,7 +254,8 @@ internal object TodayWidgets {
 @Composable
 internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, width: ForgeWidth, editing: Boolean,
                                   onEditing: (Boolean) -> Unit, onOpenTrainingLoad: () -> Unit, onOpenSleep: () -> Unit = {},
-                                  onOpenAlarms: () -> Unit = {}, onOpenTraining: () -> Unit = {}) {
+                                  onOpenAlarms: () -> Unit = {}, onOpenTraining: () -> Unit = {},
+                                  onOpenBreathe: () -> Unit = {}, onOpenStrap: () -> Unit = {}) {
     val context = LocalContext.current
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
@@ -395,6 +400,8 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.LastNight -> TodayLastNightForge(onOpenSleep)
                             TodayWidget.Kind.Tonight -> TodayTonightForge(viewModel, onOpenAlarms)
                             TodayWidget.Kind.WeekPlan -> TodayWeekPlanForge(viewModel, onOpenTraining)
+                            TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe)
+                            TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap)
                         }
                     }
                 }
@@ -520,6 +527,8 @@ private fun WidgetGallery(placed: List<TodayWidget>, onAdd: (TodayWidget) -> Uni
                 Triple(TodayWidget.Kind.LastNight, Icons.Rounded.Bedtime, R.string.forge_w_last_night to R.string.forge_w_last_night_sub),
                 Triple(TodayWidget.Kind.Tonight, Icons.Rounded.Bedtime, R.string.forge_w_tonight to R.string.forge_w_tonight_sub),
                 Triple(TodayWidget.Kind.WeekPlan, Icons.Rounded.BarChart, R.string.forge_w_week_plan to R.string.forge_w_week_plan_sub),
+                Triple(TodayWidget.Kind.Breathe, Icons.Rounded.Air, R.string.forge_w_breathe to R.string.forge_w_breathe_sub),
+                Triple(TodayWidget.Kind.Strap, Icons.Rounded.BatteryFull, R.string.forge_w_strap to R.string.forge_w_strap_sub),
                 Triple(TodayWidget.Kind.LastWorkout, Icons.Rounded.DirectionsRun, R.string.forge_w_last_workout to R.string.forge_w_last_workout_sub),
                 Triple(TodayWidget.Kind.Cycle, Icons.Rounded.WaterDrop, R.string.forge_w_cycle to R.string.forge_w_cycle_sub),
                 Triple(TodayWidget.Kind.Momentum, Icons.Rounded.Bolt, R.string.forge_w_momentum to R.string.forge_w_momentum_sub),

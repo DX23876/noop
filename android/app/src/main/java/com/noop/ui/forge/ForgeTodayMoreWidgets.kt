@@ -17,6 +17,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Battery5Bar
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
@@ -94,7 +97,7 @@ internal fun TodayTonightForge(viewModel: AppViewModel, onOpen: () -> Unit) {
             Text(stringResource(R.string.forge_tn_in_bed), style = Forge.type.subhead, color = colors.textSecondary,
                  modifier = Modifier.padding(start = 8.dp, bottom = 4.dp))
             Spacer(Modifier.weight(1f))
-            Text("${TodayTimeline.hoursMinutes(need.toDouble())} ${stringResource(R.string.forge_goals_u_h)}",
+            Text(stringResource(R.string.forge_pair_words, TodayTimeline.hoursMinutes(need.toDouble()), stringResource(R.string.forge_goals_u_h)),
                  style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.rest,
                  modifier = Modifier.padding(bottom = 4.dp))
         }
@@ -173,4 +176,34 @@ internal fun TodayWeekPlanForge(viewModel: AppViewModel, onOpen: () -> Unit) {
         Spacer(Modifier.height(ForgeMetrics.space2))
         Text(stringResource(R.string.forge_wp_days, done.size), style = Forge.type.caption, color = colors.textSecondary)
     }
+}
+
+/** Two calm minutes as a small tile beside the measures, as iOS's `ForgeBreatheWidget`. Opens the breathing exercise. */
+@Composable
+internal fun TodayBreatheTile(onOpen: () -> Unit) {
+    MetricTile(Icons.Rounded.Air, Forge.colors.charge, stringResource(R.string.forge_w_breathe),
+               "2", stringResource(R.string.forge_goals_u_min), "", Modifier.fillMaxWidth().clickable(onClick = onOpen),
+               delta = stringResource(R.string.forge_br_tap))
+}
+
+/**
+ * The strap's battery and its last sync as a small tile, as iOS's `ForgeStrapWidget`. iOS also says "Off the wrist"
+ * from a wrist event on this link; Android's live state keeps only the latest event of any kind, so that line is left
+ * out rather than guessed. Opens Settings, where the strap page sits (Android has no battery page of its own).
+ */
+@Composable
+internal fun TodayStrapTile(viewModel: AppViewModel, onOpen: () -> Unit) {
+    val live by viewModel.live.collectAsState()
+    val synced = live.lastSyncAt?.takeIf { it > 0 }
+    val caption = when {
+        live.charging == true -> stringResource(R.string.forge_st_charging)
+        synced == null -> stringResource(R.string.forge_st_not_synced)
+        else -> stringResource(R.string.forge_st_synced, android.text.format.DateUtils.getRelativeTimeSpanString(
+            synced * 1000, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString())
+    }
+    MetricTile(if (live.charging == true) Icons.Rounded.BatteryChargingFull
+               else Icons.Rounded.Battery5Bar,
+               if (live.connected) Forge.colors.charge else Forge.colors.textSecondary, stringResource(R.string.forge_w_strap),
+               live.batteryPct?.let { Math.round(it).toString() }, "%", caption, Modifier.fillMaxWidth().clickable(onClick = onOpen),
+               delta = caption.takeIf { live.batteryPct != null })
 }

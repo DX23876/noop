@@ -4996,5 +4996,14 @@
     <string name="forge_w_week_plan_sub">Широкий · выполненные и запланированные дни</string>
     <string name="forge_wp_days">Тренировки в %1$d из 7 дней</string>
     <string name="forge_wp_a11y">Дней с тренировкой на этой неделе: %1$d</string>
+    <string name="forge_w_breathe">Дыхание</string>
+    <string name="forge_w_breathe_sub">Маленький · две спокойные минуты в одно касание</string>
+    <string name="forge_br_tap">Нажмите, чтобы начать</string>
+    <string name="forge_w_strap">Браслет</string>
+    <string name="forge_w_strap_sub">Маленький · батарея и последняя синхронизация</string>
+    <string name="forge_st_charging">Зарядка</string>
+    <string name="forge_st_not_synced">Ещё не синхронизировано</string>
+    <string name="forge_st_synced">Синхронизировано %1$s</string>
+    <string name="forge_pair_words">%1$s %2$s</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

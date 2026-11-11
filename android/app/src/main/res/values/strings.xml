@@ -5128,5 +5128,14 @@
     <string name="forge_w_week_plan_sub">Wide · done and planned days</string>
     <string name="forge_wp_days">Workouts on %1$d of 7 days</string>
     <string name="forge_wp_a11y">%1$d days with a workout this week</string>
+    <string name="forge_w_breathe">Breathe</string>
+    <string name="forge_w_breathe_sub">Small · two calm minutes, one tap away</string>
+    <string name="forge_br_tap">Tap to start</string>
+    <string name="forge_w_strap">Strap</string>
+    <string name="forge_w_strap_sub">Small · battery and last sync</string>
+    <string name="forge_st_charging">Charging</string>
+    <string name="forge_st_not_synced">Not synced yet</string>
+    <string name="forge_st_synced">Synced %1$s</string>
+    <string name="forge_pair_words">%1$s %2$s</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

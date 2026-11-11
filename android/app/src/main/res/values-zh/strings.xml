@@ -5063,5 +5063,14 @@
     <string name="forge_w_week_plan_sub">宽 · 已完成和计划的日子</string>
     <string name="forge_wp_days">7 天中有 %1$d 天训练</string>
     <string name="forge_wp_a11y">本周有 %1$d 天训练</string>
+    <string name="forge_w_breathe">呼吸</string>
+    <string name="forge_w_breathe_sub">小 · 一点即可开始两分钟平静</string>
+    <string name="forge_br_tap">轻点开始</string>
+    <string name="forge_w_strap">手环</string>
+    <string name="forge_w_strap_sub">小 · 电量和上次同步</string>
+    <string name="forge_st_charging">充电中</string>
+    <string name="forge_st_not_synced">尚未同步</string>
+    <string name="forge_st_synced">%1$s已同步</string>
+    <string name="forge_pair_words">%1$s %2$s</string>
     <string name="forge_lw_when">%1$s %2$s · %3$s</string>
 </resources>

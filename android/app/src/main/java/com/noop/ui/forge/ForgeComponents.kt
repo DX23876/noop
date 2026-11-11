@@ -166,8 +166,9 @@ fun MetricTile(icon: ImageVector, tint: Color, label: String, value: String?, un
             Box(contentAlignment = Alignment.BottomStart) {
                 Text(noData, style = Forge.type.title1, color = Color.Transparent, maxLines = 1, softWrap = false,
                      modifier = Modifier.width(1.dp).clearAndSetSemantics {})
-                Text(noData, style = Forge.type.subhead, color = colors.textTertiary, maxLines = 1,
-                     modifier = Modifier.padding(bottom = 4.dp))
+                // Two lines, so a longer quiet line ("Not synced yet") wraps in a narrow tile instead of being cut.
+                Text(noData, style = Forge.type.subhead, color = colors.textTertiary, maxLines = 2,
+                     overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 4.dp))
             }
         } else {
             Row(verticalAlignment = Alignment.Bottom) {

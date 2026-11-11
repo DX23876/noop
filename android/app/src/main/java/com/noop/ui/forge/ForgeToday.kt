@@ -305,7 +305,9 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                                  onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) },
                                  onOpenSleep = { selectTab(ForgeTab.Sleep) },
                                  onOpenAlarms = { more.push(MoreRoute.Dest(MoreDest.Alarms)) },
-                                 onOpenTraining = { selectTab(ForgeTab.Training) })
+                                 onOpenTraining = { selectTab(ForgeTab.Training) },
+                                 onOpenBreathe = { more.push(MoreRoute.Dest(MoreDest.Breathe)) },
+                                 onOpenStrap = { more.push(MoreRoute.Dest(MoreDest.Settings)) })
             if (shown == today) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
         } else if (style != "liquid") {
             // The Trends and Overview styles (Settings › Dashboard) draw their own header and blocks.
