@@ -97,6 +97,8 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         if (ForgeDesign.openTrends) { ForgeDesign.openTrends = false; trendsOpen = true }
     }
     fun open(dest: MoreDest) = more.push(MoreRoute.Dest(dest))
+    var focus by remember { mutableStateOf<FocusArea?>(null) }
+    val selectTab = LocalForgeTabSelect.current
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding)
@@ -129,13 +131,17 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
             }
         }
 
-        Heading(stringResource(R.string.forge_health_heart_stress))
-        DestCard(listOf(MoreDest.Stress, MoreDest.Ecg, MoreDest.BeatRhythm, MoreDest.Live)) { open(it) }
+        // Today's food log, one tap from the page, as iOS's `FoodHealthCard`.
+        FoodTodayCard(onOpen = { open(MoreDest.Food) }, onAdd = { FoodArrival.requestAdd(); open(MoreDest.Food) })
 
-        Heading(stringResource(R.string.forge_health_body_energy))
-        DestCard(listOf(MoreDest.Body, MoreDest.Energy, MoreDest.Biomarkers)) { open(it) }
+        // The focus areas as six tiles, as iOS: each lists its pages; Sleep opens the Sleep tab.
+        Heading(stringResource(R.string.forge_hf_focus))
+        HealthFocusGrid { area -> if (area == FocusArea.Sleep) selectTab(ForgeTab.Sleep) else focus = area }
 
         Heading(stringResource(R.string.forge_health_long_term))
+        val longTerm = listOf(MoreDest.AgeLess, MoreDest.RhythmAge).filter { it.shown(context) }
+        if (longTerm.isNotEmpty()) DestCard(longTerm) { open(it) }
+        HealthWeekInRings(days) { trendsOpen = true }
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
             HubRow(Icons.Rounded.ShowChart, colors.charge, stringResource(R.string.nav_trends),
                    stringResource(R.string.forge_health_trends_sub)) { trendsOpen = true }
@@ -151,11 +157,18 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
                 open(MoreDest.Explore)
             }
         }
-        val longTerm = listOf(MoreDest.AgeLess, MoreDest.RhythmAge).filter { it.shown(context) }
-        if (longTerm.isNotEmpty()) DestCard(longTerm) { open(it) }
         Spacer(Modifier.height(ForgeMetrics.space4))
     }
 
+    focus?.let { area ->
+        ForgeOverlayPage(onDismiss = { focus = null }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
+                androidx.activity.compose.BackHandler { focus = null }
+                FocusAreaPage(area, onBack = { focus = null }, onOpen = { focus = null; open(it) },
+                              onTrends = { focus = null; trendsOpen = true })
+            }
+        }
+    }
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
     if (trendsOpen) {
         // On a backdrop of its own, clear of the system bars, with a way back: drawn bare, the Health tab and the

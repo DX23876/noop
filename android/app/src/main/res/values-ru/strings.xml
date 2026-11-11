@@ -5616,4 +5616,18 @@
     <string name="forge_tr_plan_library">План и библиотека</string>
     <string name="forge_tr_plan_library_sub">Расписание, программы, импорт, прошлые занятия</string>
     <string name="forge_tr_all_link">Все</string>
+    <string name="forge_hf_focus">Ключевые области</string>
+    <string name="forge_hf_fitness">Физическая форма</string>
+    <string name="forge_hf_fitness_sub">VO₂max, кардио, сила</string>
+    <string name="forge_hf_sleep">Сон</string>
+    <string name="forge_hf_sleep_sub">Часы, регулярность, долг</string>
+    <string name="forge_hf_vitals">Сердце и показатели</string>
+    <string name="forge_hf_vitals_sub">ВСР, пульс покоя, ЭКГ</string>
+    <string name="forge_hf_body">Тело и питание</string>
+    <string name="forge_hf_body_sub">Вес, энергия, медкарта</string>
+    <string name="forge_hf_mind">Психика и стресс</string>
+    <string name="forge_hf_mind_sub">Стресс, дыхание, что работает</string>
+    <string name="forge_hf_more">Ещё</string>
+    <string name="forge_hf_more_sub">Тренды, все показатели, сравнение</string>
+    <string name="forge_hf_week_rings">Твоя неделя в кольцах</string>
 </resources>

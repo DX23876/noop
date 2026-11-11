@@ -5663,4 +5663,18 @@
     <string name="forge_tr_plan_library">Plan i biblioteka</string>
     <string name="forge_tr_plan_library_sub">Harmonogram, plany, importy, minione sesje</string>
     <string name="forge_tr_all_link">Wszystko</string>
+    <string name="forge_hf_focus">Obszary</string>
+    <string name="forge_hf_fitness">Kondycja</string>
+    <string name="forge_hf_fitness_sub">VO₂max, cardio, siła</string>
+    <string name="forge_hf_sleep">Sen</string>
+    <string name="forge_hf_sleep_sub">Godziny, regularność, dług</string>
+    <string name="forge_hf_vitals">Serce i parametry życiowe</string>
+    <string name="forge_hf_vitals_sub">HRV, tętno spoczynkowe, EKG</string>
+    <string name="forge_hf_body">Ciało i odżywianie</string>
+    <string name="forge_hf_body_sub">Waga, energia, dokumentacja zdrowia</string>
+    <string name="forge_hf_mind">Umysł i stres</string>
+    <string name="forge_hf_mind_sub">Stres, oddech, co działa</string>
+    <string name="forge_hf_more">Więcej</string>
+    <string name="forge_hf_more_sub">Trendy, wszystkie wskaźniki, porównanie</string>
+    <string name="forge_hf_week_rings">Twój tydzień w pierścieniach</string>
 </resources>

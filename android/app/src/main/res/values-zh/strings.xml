@@ -5612,4 +5612,18 @@
     <string name="forge_tr_plan_library">计划与动作库</string>
     <string name="forge_tr_plan_library_sub">日程、训练计划、导入、过往训练</string>
     <string name="forge_tr_all_link">全部</string>
+    <string name="forge_hf_focus">重点领域</string>
+    <string name="forge_hf_fitness">体能</string>
+    <string name="forge_hf_fitness_sub">最大摄氧量、有氧、力量</string>
+    <string name="forge_hf_sleep">睡眠</string>
+    <string name="forge_hf_sleep_sub">时长、规律、睡眠债</string>
+    <string name="forge_hf_vitals">心脏与生命体征</string>
+    <string name="forge_hf_vitals_sub">HRV、静息心率、心电图</string>
+    <string name="forge_hf_body">身体与营养</string>
+    <string name="forge_hf_body_sub">体重、能量、健康档案</string>
+    <string name="forge_hf_mind">心理与压力</string>
+    <string name="forge_hf_mind_sub">压力、呼吸、什么有效</string>
+    <string name="forge_hf_more">更多</string>
+    <string name="forge_hf_more_sub">趋势、全部指标、比较</string>
+    <string name="forge_hf_week_rings">你这一周的圆环</string>
 </resources>
