@@ -129,8 +129,12 @@ Today
   edit controls in the corners.
 - The hint card under the rings ("You slept less today", "1 more").
 - Done 2026-11-11: Energy, Momentum and Training load drawn as iOS's; the cycle card only while tracking is on.
-- Still to draw as iOS's: Tonight (bedtime bar), Next up (routine), What changed (better and worse), What helps
-  your Charge (bars), Latest workout, Last night, This week's plan, Goals (journeys), Breathe, Strap.
+- Done 2026-11-11: Latest workout, Last night, Tonight (bedtime from the phone alarm's wake time and the
+  wind-down sleep need), This week's plan (agreed coach sessions ringed), Next session, Breathe and Strap.
+  `--ez demo_widgets true` seeds every card in a debug build, as iOS's `--demo-widgets`.
+- Strap opens Settings (Android has no battery page) and leaves out iOS's "Off the wrist" line, since Android's
+  live state keeps only the latest strap event of any kind.
+- Still to draw as iOS's: What changed (better and worse), What helps your Charge (bars), Goals (journeys).
 - The timeline's head "Tagesverlauf" with "Show all".
 
 Training
