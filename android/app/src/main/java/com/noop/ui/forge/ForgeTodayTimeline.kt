@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.WbTwilight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.MonitorWeight
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.DirectionsWalk
@@ -93,6 +94,9 @@ internal object TodayTimeline {
         data class Ecg(override val endTs: Long, val reading: com.noop.core.CoreEcg.Reading) : Entry
 
         data class Notice(override val endTs: Long, val notice: TodayNotices.Notice) : Entry
+
+        /** A weigh-in that records its time (only those reach the rail, as on iOS), with the 30-day change. */
+        data class Weight(override val endTs: Long, val kg: Double, val change30: Double?) : Entry
     }
 
     /** A walk that bundles: a walk from the strap, Health or detection, not one the wearer started or imported (iOS `bundlesAsWalk`). */
@@ -110,7 +114,8 @@ internal object TodayTimeline {
     fun entries(workouts: List<WorkoutRow>, nights: List<CoreRead.Night>, naps: List<CoreRead.Nap>, now: Long,
                 zone: ZoneId, meals: List<com.noop.core.CoreFood.Meal> = emptyList(),
                 ecgs: List<com.noop.core.CoreEcg.Reading> = emptyList(),
-                notices: List<TodayNotices.Notice> = emptyList()): List<Entry> {
+                notices: List<TodayNotices.Notice> = emptyList(),
+                weighIns: List<Pair<Long, Double>> = emptyList(), weightChange30: Double? = null): List<Entry> {
         val today = Instant.ofEpochSecond(now).atZone(zone).toLocalDate()
         fun inRange(ts: Long): Boolean {
             val day = Instant.ofEpochSecond(ts).atZone(zone).toLocalDate()
@@ -127,6 +132,7 @@ internal object TodayTimeline {
         meals.filter { inRange(it.start) }.forEach { out += Entry.Meal(it.start, it) }
         ecgs.filter { inRange(it.startTs) }.forEach { out += Entry.Ecg(it.startTs, it) }
         notices.filter { inRange(it.at) }.forEach { out += Entry.Notice(it.at, it) }
+        weighIns.filter { inRange(it.first) }.forEach { (at, kg) -> out += Entry.Weight(at, kg, weightChange30) }
         nights.filter { inRange(it.endTs) }.forEach { n ->
             val m = n.minutes
             val awake = m?.get("wake") ?: 0.0
@@ -165,6 +171,8 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
     var meals by remember { mutableStateOf<List<com.noop.core.CoreFood.Meal>>(emptyList()) }
     var ecgs by remember { mutableStateOf<List<com.noop.core.CoreEcg.Reading>>(emptyList()) }
     var notices by remember { mutableStateOf<List<TodayNotices.Notice>>(emptyList()) }
+    var weighIns by remember { mutableStateOf<List<Pair<Long, Double>>>(emptyList()) }
+    var weightChange by remember { mutableStateOf<Double?>(null) }
     var open by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val live = rememberMomentumLive(viewModel)
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
@@ -180,6 +188,10 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
             val today = java.time.LocalDate.now()
             meals = listOf(today.minusDays(1), today).flatMap { com.noop.core.CoreFood.day(it.toString())?.meals.orEmpty() }
             ecgs = com.noop.core.CoreEcg.readings().orEmpty()
+            com.noop.core.CoreBody.snapshot(context, days = 30)?.let { body ->
+                weighIns = body.weighIns.mapNotNull { r -> r.takenAt?.let { it to r.value } }
+                weightChange = body.weightChangeKg
+            }
             // The hint under the rings says its notice; the rail leaves that one out rather than say it twice.
             val (all, weighIn) = TodayHints.load(context, live, todayKey)
             val dismissed = TodayHints.dismissed(com.noop.ui.NoopPrefs.of(context).getString(TodayHints.DISMISSED_KEY, "") ?: "", todayKey)
@@ -188,8 +200,8 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
         }
     }
     val zone = ZoneId.systemDefault()
-    val all = remember(workouts, nights, naps, now, meals, ecgs, notices) {
-        TodayTimeline.entries(workouts, nights, naps, now, zone, meals, ecgs, notices)
+    val all = remember(workouts, nights, naps, now, meals, ecgs, notices, weighIns, weightChange) {
+        TodayTimeline.entries(workouts, nights, naps, now, zone, meals, ecgs, notices, weighIns, weightChange)
     }
     // "Yesterday" by the logical day, as iOS's rail (`logicalDayKey`): an evening workout seen after midnight
     // still belongs to today.
@@ -238,6 +250,12 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
                 is TodayTimeline.Entry.Ecg -> RailRow(time(context, e.endTs), Forge.colors.accent, last) {
                     FactRow(Icons.Rounded.MonitorHeart, Forge.colors.accent, stringResource(R.string.forge_tl_ecg), e.reading.title,
                             e.reading.averageHr?.toString(), "bpm")
+                }
+                is TodayTimeline.Entry.Weight -> RailRow(time(context, e.endTs), Forge.colors.rest, last) {
+                    FactRow(Icons.Rounded.MonitorWeight, Forge.colors.rest, stringResource(R.string.forge_tl_weight),
+                            e.change30?.let { c -> stringResource(R.string.forge_tl_weight_30,
+                                (if (c >= 0) "+" else "−") + "%.1f kg".format(java.util.Locale.getDefault(), kotlin.math.abs(c))) } ?: "",
+                            "%.1f".format(java.util.Locale.getDefault(), e.kg), "kg")
                 }
                 is TodayTimeline.Entry.Notice -> RailRow(time(context, e.endTs), Forge.colors.textTertiary, last) {
                     ForgeCard(Modifier.fillMaxWidth()) {

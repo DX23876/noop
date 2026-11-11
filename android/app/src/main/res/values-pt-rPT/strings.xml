@@ -5832,4 +5832,6 @@
     <string name="forge_vt_low">Baixo</string>
     <string name="forge_vt_medium">Médio</string>
     <string name="forge_vt_high">Alto</string>
+    <string name="forge_tl_weight">Peso registado</string>
+    <string name="forge_tl_weight_30">%1$s em 30 dias</string>
 </resources>

@@ -7,7 +7,11 @@ import WhoopStore
 /// comparisons, Navy estimate, labels and tape guidance. New readings are built here and written by the host
 /// through its input lane, so the classic screens and the core hold the same rows.
 enum CoreBody {
-    struct Reading: Encodable { var day: String; var value: Double; var source: String; var id: String? }
+    struct Reading: Encodable {
+        var day: String; var value: Double; var source: String; var id: String?
+        /// The instant of a weigh-in (unix seconds), so the Today timeline can place it; nil for a day value.
+        var takenAt: Int? = nil
+    }
     struct Site: Encodable { var key: String; var label: String; var current: Double?; var change: Double?; var guidance: String? }
     struct Change: Encodable { var key: String; var label: String; var fromDay: String; var deltaCm: Double }
     struct Output: Encodable {
@@ -46,7 +50,7 @@ enum CoreBody {
             today: today, weight: readings(WhoopStore.bodyWeightMetricKey),
             weighIns: ((try? await reader.store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId)) ?? [])
                 .sorted { $0.takenAt > $1.takenAt }.prefix(30)
-                .map { Reading(day: $0.day, value: $0.weightKg, source: $0.source, id: $0.id) },
+                .map { Reading(day: $0.day, value: $0.weightKg, source: $0.source, id: $0.id, takenAt: $0.takenAt) },
             bodyFat: readings("body_fat"),
             leanMass: readings("lean_mass"),
             height: metrics.asOf("height", day: today).map { Reading(day: $0.day, value: $0.value, source: $0.source, id: $0.id) },

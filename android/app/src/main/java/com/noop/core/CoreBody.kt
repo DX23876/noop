@@ -14,7 +14,8 @@ import org.json.JSONObject
  * thread.
  */
 object CoreBody {
-    data class Reading(val day: String, val value: Double, val source: String, val id: String?)
+    /** [takenAt] is a weigh-in's instant (unix seconds), null for a day value. */
+    data class Reading(val day: String, val value: Double, val source: String, val id: String?, val takenAt: Long? = null)
     data class Site(val key: String, val label: String, val current: Double?, val change: Double?, val guidance: String?)
     data class Change(val key: String, val label: String, val deltaCm: Double)
     data class Snapshot(
@@ -69,7 +70,8 @@ object CoreBody {
         fun JSONArray?.objects() = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
         fun JSONObject.dbl(k: String): Double? = if (has(k) && !isNull(k)) getDouble(k) else null
         fun JSONObject.str(k: String): String? = if (has(k) && !isNull(k)) getString(k) else null
-        fun reading(r: JSONObject) = Reading(r.getString("day"), r.getDouble("value"), r.optString("source"), r.str("id"))
+        fun reading(r: JSONObject) = Reading(r.getString("day"), r.getDouble("value"), r.optString("source"), r.str("id"),
+                                             if (r.has("takenAt") && !r.isNull("takenAt")) r.getLong("takenAt") else null)
         fun site(s: JSONObject) = Site(s.getString("key"), s.getString("label"), s.dbl("current"), s.dbl("change"), s.str("guidance"))
         val missing = o.optJSONArray("navyMissing")
         return Snapshot(

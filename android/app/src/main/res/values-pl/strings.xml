@@ -5860,4 +5860,6 @@
     <string name="forge_vt_low">Niski</string>
     <string name="forge_vt_medium">Średni</string>
     <string name="forge_vt_high">Wysoki</string>
+    <string name="forge_tl_weight">Waga zapisana</string>
+    <string name="forge_tl_weight_30">%1$s w 30 dni</string>
 </resources>

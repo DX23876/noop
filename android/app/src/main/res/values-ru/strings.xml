@@ -5813,4 +5813,6 @@
     <string name="forge_vt_low">Низкий</string>
     <string name="forge_vt_medium">Средний</string>
     <string name="forge_vt_high">Высокий</string>
+    <string name="forge_tl_weight">Вес записан</string>
+    <string name="forge_tl_weight_30">%1$s за 30 дней</string>
 </resources>

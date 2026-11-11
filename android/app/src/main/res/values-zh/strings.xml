@@ -5809,4 +5809,6 @@
     <string name="forge_vt_low">低</string>
     <string name="forge_vt_medium">中等</string>
     <string name="forge_vt_high">高</string>
+    <string name="forge_tl_weight">已记录体重</string>
+    <string name="forge_tl_weight_30">30 天内 %1$s</string>
 </resources>
