@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -424,10 +426,11 @@ private fun RangeCard(title: String, subtitle: String, unit: String, points: Lis
         val first = range.days?.let { today.minusDays(it - 1L) } ?: LocalDate.parse(points.first().day)
         val span = (today.toEpochDay() - first.toEpochDay() + 1).toInt()
         Row(Modifier.fillMaxWidth().height(if (tall) 200.dp else 150.dp)) {
-            Column(Modifier.width(32.dp).fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(format(hi), style = Forge.type.caption, color = colors.textTertiary)
-                Text(format((hi + lo) / 2), style = Forge.type.caption, color = colors.textTertiary)
-                Text(format(lo), style = Forge.type.caption, color = colors.textTertiary)
+            // As wide as its longest label, at least 32 dp: a fixed 32 dp broke five-digit steps ("1094" over "0").
+            Column(Modifier.widthIn(min = 32.dp).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
+                Text(format(hi), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
+                Text(format((hi + lo) / 2), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
+                Text(format(lo), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
             }
             LineChart(points, span, lo, hi, values.average(), tint, Modifier.weight(1f).fillMaxSize())
         }
@@ -523,10 +526,12 @@ private fun TrendCard(titleRes: Int, unit: String, stats: TrendStats, days: Int,
         val lo = floor(values.min() / 5) * 5
         val hi = ceil(values.max() / 5) * 5 + if (values.max() == values.min()) 5 else 0
         Row(Modifier.fillMaxWidth().height(if (tall) 200.dp else 150.dp)) {
-            Column(Modifier.width(32.dp).fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(hi.roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary)
-                Text(((hi + lo) / 2).roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary)
-                Text(lo.roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary)
+            // As wide as its longest label, at least 32 dp: a fixed 32 dp broke five-digit steps ("1094" over "0").
+            Column(Modifier.widthIn(min = 32.dp).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
+                Text(hi.roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
+                Text(((hi + lo) / 2).roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary,
+                     maxLines = 1, softWrap = false)
+                Text(lo.roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
             }
             LineChart(stats.current, days, lo, hi, avg, tint, Modifier.weight(1f).fillMaxSize())
         }
