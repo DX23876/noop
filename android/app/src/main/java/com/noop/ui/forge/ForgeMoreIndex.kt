@@ -481,6 +481,10 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         if (breakdown) ChargeBreakdownHost(viewModel, onDismiss = { breakdown = false })
         return
     }
+    if (dest == MoreDest.Workouts && ForgeDesign.preview) {
+        ForgeWorkoutsPage(viewModel, onBack)
+        return
+    }
     Hosted(title, onBack) {
         when (dest) {
             MoreDest.Insights -> InsightsHubScreen(viewModel)

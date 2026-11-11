@@ -6198,4 +6198,20 @@
     <string name="forge_en_today">Hoy</string>
     <string name="forge_en_yesterday">Ayer</string>
     <string name="forge_en_title">Energía</string>
+    <string name="forge_wk_add">Añadir entrenamiento</string>
+    <string name="forge_wk_manage">Gestionar sesiones</string>
+    <string name="forge_wk_13">Últimas 13 semanas</string>
+    <string name="forge_wk_13_sub">energía activa por día</string>
+    <string name="forge_wk_this_week_n">esta semana</string>
+    <string name="forge_wk_time">tiempo</string>
+    <string name="forge_wk_effort_total">Effort en total</string>
+    <string name="forge_wk_this_week">Esta semana</string>
+    <string name="forge_wk_last_week">La semana pasada</string>
+    <string name="forge_wk_week_of">Semana del %1$s</string>
+    <string name="forge_wk_empty">Los entrenos que registres o importes aparecen aquí.</string>
+    <string name="forge_wk_title">Entrenamientos</string>
+    <string name="forge_wk_min">%1$d min</string>
+    <string name="forge_wk_h_min">%1$d h %2$s min</string>
+    <string name="forge_wk_cal_label">Días de entrenamiento en las últimas 13 semanas</string>
+    <string name="forge_wk_cal_value">%1$d días con entrenamiento</string>
 </resources>

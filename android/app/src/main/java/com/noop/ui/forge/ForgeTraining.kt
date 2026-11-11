@@ -149,6 +149,7 @@ private sealed interface TrainingPage {
     data object Strength : TrainingPage
     data object Cardio : TrainingPage
     data object History : TrainingPage
+    data object Workouts : TrainingPage
     data object HevyRoutines : TrainingPage
     data object Import : TrainingPage
     data object Library : TrainingPage
@@ -176,6 +177,9 @@ private val STRENGTH_SPORTS = setOf("strength", "strength training", "bodybuildi
  */
 @Composable
 fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
+    // A recent session opened from the list, as iOS opens `ForgeRoute.workout`.
+    var recentOpen by remember { mutableStateOf<com.noop.data.WorkoutRow?>(null) }
+    recentOpen?.let { row -> com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { recentOpen = null }) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var snapshot by remember { mutableStateOf<CoreTraining.Snapshot?>(null) }
@@ -326,10 +330,11 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
 
         // The new design lists every recent activity with its Effort, as iOS's `recentActivities`.
         if (ForgeDesign.preview) Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+            // As iOS: "All" opens the Workouts page, a session opens itself.
             TrainingSectionHead(stringResource(R.string.forge_tr_recent), stringResource(R.string.forge_tr_all_link)) {
-                page = TrainingPage.History
+                page = TrainingPage.Workouts
             }
-            TrainingRecentList(workouts) { page = TrainingPage.History }
+            TrainingRecentList(workouts) { recentOpen = it }
         } else Section(stringResource(R.string.forge_th_recent), stringResource(R.string.forge_th_logged_in_noop)) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 if (s.sessions.isEmpty()) {
@@ -449,6 +454,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.HevyRoutines -> ForgeHevyRoutines(onClose = close, onConnect = { page = TrainingPage.Import })
                     TrainingPage.Import -> ForgeLiftingImport(onClose = close)
                     TrainingPage.History -> ForgeTrainingHistoryPage(onClose = close)
+                    TrainingPage.Workouts -> ForgeWorkoutsPage(viewModel, onBack = close)
                     TrainingPage.Intervals -> Hosted(stringResource(R.string.forge_th_interval_timer), close) {
                         com.noop.ui.IntervalsScreen(viewModel)
                     }

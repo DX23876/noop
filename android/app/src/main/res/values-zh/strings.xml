@@ -6167,4 +6167,20 @@
     <string name="forge_en_today">今天</string>
     <string name="forge_en_yesterday">昨天</string>
     <string name="forge_en_title">能量</string>
+    <string name="forge_wk_add">添加锻炼</string>
+    <string name="forge_wk_manage">管理训练</string>
+    <string name="forge_wk_13">最近 13 周</string>
+    <string name="forge_wk_13_sub">每日活动能量</string>
+    <string name="forge_wk_this_week_n">本星期</string>
+    <string name="forge_wk_time">时长</string>
+    <string name="forge_wk_effort_total">Effort 总计</string>
+    <string name="forge_wk_this_week">本周</string>
+    <string name="forge_wk_last_week">上周</string>
+    <string name="forge_wk_week_of">%1$s 当周</string>
+    <string name="forge_wk_empty">你记录或导入的训练会显示在这里。</string>
+    <string name="forge_wk_title">锻炼</string>
+    <string name="forge_wk_min">%1$d 分钟</string>
+    <string name="forge_wk_h_min">%1$d 小时 %2$s 分钟</string>
+    <string name="forge_wk_cal_label">最近 13 周的训练日</string>
+    <string name="forge_wk_cal_value">%1$d 天有训练</string>
 </resources>

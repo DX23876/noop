@@ -6171,4 +6171,20 @@
     <string name="forge_en_today">Сегодня</string>
     <string name="forge_en_yesterday">Вчера</string>
     <string name="forge_en_title">Энергия</string>
+    <string name="forge_wk_add">Добавить тренировку</string>
+    <string name="forge_wk_manage">Управление тренировками</string>
+    <string name="forge_wk_13">Последние 13 недель</string>
+    <string name="forge_wk_13_sub">активная энергия в день</string>
+    <string name="forge_wk_this_week_n">На этой неделе</string>
+    <string name="forge_wk_time">время</string>
+    <string name="forge_wk_effort_total">Effort всего</string>
+    <string name="forge_wk_this_week">На этой неделе</string>
+    <string name="forge_wk_last_week">Прошлая неделя</string>
+    <string name="forge_wk_week_of">Неделя с %1$s</string>
+    <string name="forge_wk_empty">Здесь появятся записанные или импортированные тренировки.</string>
+    <string name="forge_wk_title">Тренировки</string>
+    <string name="forge_wk_min">%1$d мин.</string>
+    <string name="forge_wk_h_min">%1$d ч %2$s мин</string>
+    <string name="forge_wk_cal_label">Дни тренировок за последние 13 недель</string>
+    <string name="forge_wk_cal_value">Дней с тренировкой: %1$d</string>
 </resources>

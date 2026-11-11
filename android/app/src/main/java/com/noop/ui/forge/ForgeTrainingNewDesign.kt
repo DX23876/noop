@@ -128,7 +128,7 @@ internal fun TrainingRoutineRow(routines: List<CoreTraining.Routine>, onStart: (
 
 /** The last five sessions of any kind as one grouped list, as iOS's `recentActivities`, Effort on the right. */
 @Composable
-internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: () -> Unit) {
+internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: (WorkoutRow) -> Unit) {
     val colors = Forge.colors
     val now = System.currentTimeMillis() / 1000
     val rows = workouts.filter { it.startTs >= now - 30 * 86_400 }.sortedByDescending { it.startTs }.take(5)
@@ -147,7 +147,7 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: () -> Unit) 
             if (i > 0) Box(Modifier.padding(start = 64.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
             val start = java.time.Instant.ofEpochSecond(row.startTs).atZone(zone)
             val minutes = ((row.durationS ?: (row.endTs - row.startTs).coerceAtLeast(0).toDouble()) / 60).toInt()
-            Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen).padding(horizontal = 14.dp, vertical = 12.dp)
+            Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(row) }.padding(horizontal = 14.dp, vertical = 12.dp)
                     .semantics(mergeDescendants = true) { }, verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(38.dp).background(colors.accent.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
                     Icon(com.noop.ui.sportIcon(row.sport), contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
