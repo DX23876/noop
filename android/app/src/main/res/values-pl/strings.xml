@@ -6067,4 +6067,13 @@
     <string name="forge_w_tiles_start">Kafelki zaczynają się</string>
     <string name="forge_w_under_rings">Pod pierścieniami</string>
     <string name="forge_w_after_timeline">Po przebiegu dnia</string>
+    <string name="forge_w_hydration">Uwodnienie</string>
+    <string name="forge_w_of_litres">z %1$s L</string>
+    <string name="forge_w_coach_note">Notatka trenera</string>
+    <string name="forge_w_no_note">Jeszcze nie ma notatki.</string>
+    <string name="forge_w_years">lat</string>
+    <string name="forge_w_age_n">Wiek %1$s</string>
+    <string name="forge_w_coach_note_sub">Szeroki · ostatnia linia trenera</string>
+    <string name="forge_w_water_sub">Mały · woda dziś względem celu</string>
+    <string name="forge_w_ageless_sub">Mały · twój wiek AgeLess</string>
 </resources>

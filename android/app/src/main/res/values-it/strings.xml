@@ -6015,4 +6015,13 @@
     <string name="forge_w_tiles_start">I riquadri iniziano</string>
     <string name="forge_w_under_rings">Sotto gli anelli</string>
     <string name="forge_w_after_timeline">Dopo la giornata</string>
+    <string name="forge_w_hydration">Idratazione</string>
+    <string name="forge_w_of_litres">di %1$s L</string>
+    <string name="forge_w_coach_note">Nota del coach</string>
+    <string name="forge_w_no_note">Ancora nessuna nota.</string>
+    <string name="forge_w_years">anni</string>
+    <string name="forge_w_age_n">Età %1$s</string>
+    <string name="forge_w_coach_note_sub">Largo · l\'ultima riga del coach</string>
+    <string name="forge_w_water_sub">Piccolo · acqua di oggi rispetto all\'obiettivo</string>
+    <string name="forge_w_ageless_sub">Piccolo · la tua età AgeLess</string>
 </resources>

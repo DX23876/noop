@@ -6086,4 +6086,13 @@
     <string name="forge_w_tiles_start">Tiles start</string>
     <string name="forge_w_under_rings">Under the rings</string>
     <string name="forge_w_after_timeline">After the timeline</string>
+    <string name="forge_w_hydration">Hydration</string>
+    <string name="forge_w_of_litres">of %1$s L</string>
+    <string name="forge_w_coach_note">Coach note</string>
+    <string name="forge_w_no_note">No note yet.</string>
+    <string name="forge_w_years">years</string>
+    <string name="forge_w_age_n">Age %1$s</string>
+    <string name="forge_w_coach_note_sub">Wide · the coach\'s latest line</string>
+    <string name="forge_w_water_sub">Small · water today against your goal</string>
+    <string name="forge_w_ageless_sub">Small · your AgeLess age</string>
 </resources>

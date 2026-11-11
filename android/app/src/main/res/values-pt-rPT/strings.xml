@@ -6039,4 +6039,13 @@
     <string name="forge_w_tiles_start">Os mosaicos começam</string>
     <string name="forge_w_under_rings">Sob os anéis</string>
     <string name="forge_w_after_timeline">Depois do dia</string>
+    <string name="forge_w_hydration">Hidratação</string>
+    <string name="forge_w_of_litres">de %1$s L</string>
+    <string name="forge_w_coach_note">Nota do coach</string>
+    <string name="forge_w_no_note">Ainda sem nota.</string>
+    <string name="forge_w_years">anos</string>
+    <string name="forge_w_age_n">Idade %1$s</string>
+    <string name="forge_w_coach_note_sub">Largo · a última linha do coach</string>
+    <string name="forge_w_water_sub">Pequeno · água de hoje face ao objetivo</string>
+    <string name="forge_w_ageless_sub">Pequeno · a tua idade AgeLess</string>
 </resources>

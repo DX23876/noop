@@ -6016,4 +6016,13 @@
     <string name="forge_w_tiles_start">卡片起始位置</string>
     <string name="forge_w_under_rings">圆环下方</string>
     <string name="forge_w_after_timeline">当日动态之后</string>
+    <string name="forge_w_hydration">水分</string>
+    <string name="forge_w_of_litres">/ %1$s 升</string>
+    <string name="forge_w_coach_note">教练笔记</string>
+    <string name="forge_w_no_note">还没有笔记。</string>
+    <string name="forge_w_years">年</string>
+    <string name="forge_w_age_n">年龄 %1$s</string>
+    <string name="forge_w_coach_note_sub">宽 · 教练的最新一句</string>
+    <string name="forge_w_water_sub">小 · 今日饮水与目标</string>
+    <string name="forge_w_ageless_sub">小 · 你的 AgeLess 年龄</string>
 </resources>

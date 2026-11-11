@@ -6063,4 +6063,13 @@
     <string name="forge_w_tiles_start">Kacheln beginnen</string>
     <string name="forge_w_under_rings">Unter den Ringen</string>
     <string name="forge_w_after_timeline">Nach dem Tagesverlauf</string>
+    <string name="forge_w_hydration">Flüssigkeit</string>
+    <string name="forge_w_of_litres">von %1$s L</string>
+    <string name="forge_w_coach_note">Coach-Notiz</string>
+    <string name="forge_w_no_note">Noch keine Notiz.</string>
+    <string name="forge_w_years">Jahre</string>
+    <string name="forge_w_age_n">Alter %1$s</string>
+    <string name="forge_w_coach_note_sub">Breit · die letzte Zeile des Coachs</string>
+    <string name="forge_w_water_sub">Klein · Wasser heute im Vergleich zum Ziel</string>
+    <string name="forge_w_ageless_sub">Klein · dein AgeLess-Alter</string>
 </resources>

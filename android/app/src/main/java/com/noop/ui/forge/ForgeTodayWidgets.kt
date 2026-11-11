@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.BatteryFull
@@ -109,20 +110,20 @@ internal data class TodayWidget(
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
         Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle"), LastNight("lastNight"),
         Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap"), NextSession("nextSession"), WhatWorks("whatWorks"),
-        Changes("changes");
+        Changes("changes"), Water("water"), CoachNote("coachNote"), AgeLess("ageless");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
     enum class Size { Small, Medium, Wide }
 
     val size: Size get() = when {
-        kind != Kind.Measure && kind != Kind.LiveHeart && kind != Kind.Breathe && kind != Kind.Strap -> Size.Wide
+        kind !in TILE_KINDS -> Size.Wide
         kind == Kind.LiveHeart && wide -> Size.Wide
         span == 2 -> Size.Medium
         else -> Size.Small
     }
 
-    val resizable: Boolean get() = kind == Kind.Measure || kind == Kind.LiveHeart || kind == Kind.Breathe || kind == Kind.Strap
+    val resizable: Boolean get() = kind in TILE_KINDS
 
     /** Drawn as a tile in a row (iOS's non-wide kinds), so its row takes the tallest tile's height. */
     val isTile: Boolean get() = size != Size.Wide
@@ -136,6 +137,8 @@ internal data class TodayWidget(
 
     companion object {
         const val SLEEP_KEY = "sleep_total_min"
+        /** iOS's kinds drawn as a tile, small or over two columns (`isWide` false). */
+        val TILE_KINDS = setOf(Kind.Measure, Kind.LiveHeart, Kind.Breathe, Kind.Strap, Kind.Water, Kind.AgeLess)
     }
 }
 
@@ -237,7 +240,8 @@ internal object TodayWidgets {
     val demoSet: List<TodayWidget> = listOf(
         TodayWidget(kind = TodayWidget.Kind.Tonight), TodayWidget(kind = TodayWidget.Kind.NextSession),
         TodayWidget(kind = TodayWidget.Kind.Changes), TodayWidget(kind = TodayWidget.Kind.WhatWorks),
-        TodayWidget(kind = TodayWidget.Kind.Breathe),
+        TodayWidget(kind = TodayWidget.Kind.Breathe), TodayWidget(kind = TodayWidget.Kind.Water),
+        TodayWidget(kind = TodayWidget.Kind.AgeLess), TodayWidget(kind = TodayWidget.Kind.CoachNote),
         TodayWidget(kind = TodayWidget.Kind.Strap), TodayWidget(kind = TodayWidget.Kind.Cycle),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.HRV.raw),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.RESTING_HR.raw),
@@ -291,7 +295,8 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                   onEditing: (Boolean) -> Unit, onOpenTrainingLoad: () -> Unit, onOpenSleep: () -> Unit = {},
                                   onOpenAlarms: () -> Unit = {}, onOpenTraining: () -> Unit = {},
                                   onOpenBreathe: () -> Unit = {}, onOpenStrap: () -> Unit = {},
-                                  onOpenInsights: () -> Unit = {}, onOpenTrends: () -> Unit = {}) {
+                                  onOpenInsights: () -> Unit = {}, onOpenTrends: () -> Unit = {},
+                                  onOpenHydration: () -> Unit = {}, onOpenAgeLess: () -> Unit = {}) {
     val context = LocalContext.current
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
@@ -437,7 +442,9 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
         val cycleOn by viewModel.cycleTrackingEnabled.collectAsState()
         val shown = if (editing) widgets.toList()
                     else widgets.filter {
-                        it.kind != TodayWidget.Kind.Cycle || cycleOn
+                        (it.kind != TodayWidget.Kind.Cycle || cycleOn) &&
+                            (it.kind != TodayWidget.Kind.AgeLess || com.noop.core.CoreFeatures.healthspan(context)) &&
+                            (it.kind != TodayWidget.Kind.CoachNote || com.noop.ui.BottomBarStyleStore.coachEnabled)
                     }
         TodayWidgets.rows(shown, columns).forEach { row ->
             // The row holding the dragged tile draws over the others, so the tile stays on top wherever it goes.
@@ -503,6 +510,9 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.WhatWorks -> TodayWhatWorksForge(viewModel, onOpenInsights)
                             TodayWidget.Kind.Changes -> TodayChangesForge(onOpenTrends, viewModel.activeStrapId)
                             TodayWidget.Kind.Strap -> TodayStrapTile(viewModel, onOpenStrap, dense = columns > 2, modifier = Modifier.fillMaxSize())
+                            TodayWidget.Kind.Water -> WaterTile(viewModel, dense = columns > 2, modifier = Modifier.fillMaxSize(), onOpen = onOpenHydration)
+                            TodayWidget.Kind.AgeLess -> AgeLessTile(dense = columns > 2, modifier = Modifier.fillMaxSize(), onOpen = onOpenAgeLess)
+                            TodayWidget.Kind.CoachNote -> CoachNoteCard()
                         }
                     }
                 } }
@@ -642,6 +652,12 @@ private fun WidgetGallery(placed: List<TodayWidget>, onAdd: (TodayWidget) -> Uni
                 Triple(TodayWidget.Kind.Cycle, Icons.Rounded.WaterDrop, R.string.forge_w_cycle to R.string.forge_w_cycle_sub),
                 Triple(TodayWidget.Kind.Momentum, Icons.Rounded.Bolt, R.string.forge_w_momentum to R.string.forge_w_momentum_sub),
                 Triple(TodayWidget.Kind.LiveHeart, Icons.Rounded.Favorite, R.string.forge_w_live_heart to R.string.forge_w_live_heart_sub),
+                Triple(TodayWidget.Kind.Water, Icons.Rounded.WaterDrop, R.string.forge_w_hydration to R.string.forge_w_water_sub),
+            ) + listOfNotNull(
+                if (com.noop.ui.BottomBarStyleStore.coachEnabled)
+                    Triple(TodayWidget.Kind.CoachNote, Icons.Rounded.Bolt, R.string.forge_w_coach_note to R.string.forge_w_coach_note_sub) else null,
+                if (com.noop.core.CoreFeatures.healthspan(LocalContext.current))
+                    Triple(TodayWidget.Kind.AgeLess, Icons.Rounded.HourglassBottom, R.string.forge_ageless_title to R.string.forge_w_ageless_sub) else null,
             ).filter { it.first !in placedKinds }
             if (cards.isNotEmpty()) {
                 GalleryHeading(stringResource(R.string.forge_w_cards))
@@ -692,4 +708,64 @@ private fun LiveHeartTile(viewModel: AppViewModel, showsCurve: Boolean, dense: B
     ForgeTodayTile(Icons.Rounded.MonitorHeart, rose, stringResource(R.string.forge_live), bpm?.toString(), "bpm",
                    if (bpm == null) stringResource(if (live.connected) R.string.forge_w_waiting_pulse else R.string.forge_w_strap_not_connected) else null,
                    "", dense, modifier.clickable(onClick = onOpen), trend = curve)
+}
+
+/** iOS's `ForgeWaterWidget`: water today in litres against the day's goal, the week as the trend. */
+@Composable
+private fun WaterTile(viewModel: AppViewModel, dense: Boolean, modifier: Modifier, onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val today by viewModel.today.collectAsState()
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val read by produceState<Pair<Double, List<Double>>?>(null, coreRevision) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { com.noop.analytics.HydrationStore.total(viewModel.repo) to
+                com.noop.analytics.HydrationStore.history(viewModel.repo, days = 7).map { it.second } }.getOrNull()
+        }
+    }
+    val goalMl = com.noop.analytics.HydrationGoal.dailyGoalMl(com.noop.ui.ProfileStore.from(context).sex, today?.strain)
+    val litres = { ml: Double -> String.format(java.util.Locale.getDefault(), "%.1f", ml / 1000) }
+    ForgeTodayTile(Icons.Rounded.WaterDrop, ForgeTokens.StrandPalette.metricCyan.resolve(), stringResource(R.string.forge_w_hydration),
+                   litres(read?.first ?: 0.0), "L", stringResource(R.string.forge_w_of_litres, litres(goalMl.toDouble())), "", dense,
+                   modifier.clickable(onClick = onOpen), trend = read?.second?.takeIf { it.size > 1 })
+}
+
+/** iOS's `ForgeAgeLessWidget`: the AgeLess age of the latest week against the actual age. */
+@Composable
+private fun AgeLessTile(dense: Boolean, modifier: Modifier, onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val week by produceState<com.noop.core.CoreAgeLess.Week?>(null) {
+        value = withContext(Dispatchers.IO) {
+            CoreRead.open(context); runCatching { com.noop.core.CoreAgeLess.snapshot(context)?.weeks?.lastOrNull() }.getOrNull()
+        }
+    }
+    val years = { v: Double -> String.format(java.util.Locale.getDefault(), "%.1f", v) }
+    val tint = week?.let { if (it.age <= it.actualAge) Forge.colors.charge else Forge.colors.effort } ?: Forge.colors.accent
+    ForgeTodayTile(Icons.Rounded.HourglassBottom, tint, stringResource(R.string.forge_ageless_title), week?.let { years(it.age) },
+                   stringResource(R.string.forge_w_years), week?.let { stringResource(R.string.forge_w_age_n, years(it.actualAge)) }, "",
+                   dense, modifier.clickable(onClick = onOpen))
+}
+
+/** iOS's `ForgeCoachNoteWidget`: the coach's latest line, the same note Today's rail shows first. */
+@Composable
+private fun CoachNoteCard() {
+    val colors = Forge.colors
+    val note by produceState<String?>(null) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { com.noop.core.CoreCoach.notes().maxByOrNull { it.date }?.headline?.replace("**", "")?.trim() }
+                .getOrNull()?.takeIf { it.isNotEmpty() }
+        }
+    }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).background(colors.accent.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Bolt, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(ForgeMetrics.space3))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.forge_w_coach_note), style = Forge.type.caption, color = colors.textSecondary)
+                Text(note ?: stringResource(R.string.forge_w_no_note), style = Forge.type.subhead.copy(fontWeight = FontWeight.Medium),
+                     color = if (note == null) colors.textSecondary else colors.text)
+            }
+        }
+    }
 }

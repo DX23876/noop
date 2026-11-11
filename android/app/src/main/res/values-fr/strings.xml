@@ -6046,4 +6046,13 @@
     <string name="forge_w_tiles_start">Les tuiles commencent</string>
     <string name="forge_w_under_rings">Sous les anneaux</string>
     <string name="forge_w_after_timeline">Après la journée</string>
+    <string name="forge_w_hydration">Hydratation</string>
+    <string name="forge_w_of_litres">de %1$s L</string>
+    <string name="forge_w_coach_note">Note du coach</string>
+    <string name="forge_w_no_note">Pas encore de note.</string>
+    <string name="forge_w_years">años</string>
+    <string name="forge_w_age_n">Âge %1$s</string>
+    <string name="forge_w_coach_note_sub">Large · la dernière ligne du coach</string>
+    <string name="forge_w_water_sub">Petit · l\'eau du jour par rapport à ton objectif</string>
+    <string name="forge_w_ageless_sub">Petit · ton âge AgeLess</string>
 </resources>

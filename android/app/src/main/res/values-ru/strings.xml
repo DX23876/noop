@@ -6020,4 +6020,13 @@
     <string name="forge_w_tiles_start">Плитки начинаются</string>
     <string name="forge_w_under_rings">Под кольцами</string>
     <string name="forge_w_after_timeline">После ленты дня</string>
+    <string name="forge_w_hydration">Гидратация</string>
+    <string name="forge_w_of_litres">из %1$s л</string>
+    <string name="forge_w_coach_note">Заметка коуча</string>
+    <string name="forge_w_no_note">Пока нет заметок.</string>
+    <string name="forge_w_years">лет</string>
+    <string name="forge_w_age_n">Возраст %1$s</string>
+    <string name="forge_w_coach_note_sub">Широкий · последняя строка коуча</string>
+    <string name="forge_w_water_sub">Маленький · вода сегодня относительно цели</string>
+    <string name="forge_w_ageless_sub">Маленький · ваш возраст AgeLess</string>
 </resources>
