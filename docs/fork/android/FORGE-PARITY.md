@@ -68,6 +68,7 @@ Fixed:
   jumps went to the More tab the new design lacks. The new design keeps its own Today and any jump to More
   opens the More page (read in the code and compiled, not run on screen).
 - The emulator launch extra wrote the switch in every build; it is now a debug-only override, as on iOS.
+- The coach page's arrow went back to Today but the system Back closed the app; Back now does what the arrow does.
 - Forge's Today (both designs) took the calendar date: opened between midnight and four it showed an empty new
   day, and kept open past midnight its title fell to the weekday (#144, solved long ago on the classic Today).
   Today and every part of it read the logical day now; seen on the emulator at 00:04.
