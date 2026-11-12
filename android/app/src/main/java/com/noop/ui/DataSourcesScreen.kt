@@ -468,7 +468,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         ) {
             val hasApple = (appleDays ?: 0) > 0 || (appleWorkouts ?: 0) > 0
             StatePill(
-                title = if (hasApple) "Imported" else "Nothing imported",
+                title = if (hasApple) uiString(R.string.cx_imported) else uiString(R.string.cx_nothing_imported),
                 tone = if (hasApple) StrandTone.Accent else StrandTone.Neutral,
                 showsDot = true,
             )
@@ -665,7 +665,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         ) {
             val hasNutrition = (nutritionDays ?: 0) > 0 || (nutritionWeighIns ?: 0) > 0
             StatePill(
-                title = if (hasNutrition) "Imported" else "Nothing imported",
+                title = if (hasNutrition) uiString(R.string.cx_imported) else uiString(R.string.cx_nothing_imported),
                 tone = if (hasNutrition) StrandTone.Accent else StrandTone.Neutral,
                 showsDot = true,
             )
@@ -695,7 +695,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         ) {
             val hasXiaomi = (xiaomiDays ?: 0) > 0
             StatePill(
-                title = if (hasXiaomi) "Imported" else "Nothing imported",
+                title = if (hasXiaomi) uiString(R.string.cx_imported) else uiString(R.string.cx_nothing_imported),
                 tone = if (hasXiaomi) StrandTone.Accent else StrandTone.Neutral,
                 showsDot = true,
             )
@@ -725,7 +725,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         ) {
             val hasLifting = (liftingWorkouts ?: 0) > 0
             StatePill(
-                title = if (hasLifting) "Imported" else "Nothing imported",
+                title = if (hasLifting) uiString(R.string.cx_imported) else uiString(R.string.cx_nothing_imported),
                 tone = if (hasLifting) StrandTone.Accent else StrandTone.Neutral,
                 showsDot = true,
             )
@@ -754,7 +754,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         ) {
             val hasFiles = (activityFiles ?: 0) > 0
             StatePill(
-                title = if (hasFiles) "Imported" else "Nothing imported",
+                title = if (hasFiles) uiString(R.string.cx_imported) else uiString(R.string.cx_nothing_imported),
                 tone = if (hasFiles) StrandTone.Accent else StrandTone.Neutral,
                 showsDot = true,
             )
@@ -785,7 +785,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         ) {
             val hasDays = (wearableDays ?: 0) > 0
             StatePill(
-                title = if (hasDays) "Imported" else "Nothing imported",
+                title = if (hasDays) uiString(R.string.cx_imported) else uiString(R.string.cx_nothing_imported),
                 tone = if (hasDays) StrandTone.Accent else StrandTone.Neutral,
                 showsDot = true,
             )

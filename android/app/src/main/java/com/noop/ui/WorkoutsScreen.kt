@@ -536,7 +536,7 @@ private fun FilterBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FilterPillMenu(
-                title = filter.sport ?: "All sports",
+                title = filter.sport ?: uiString(R.string.cx_all_sports),
                 active = filter.sport != null,
                 contentDescription = uiString(R.string.l10n_workouts_screen_filter_by_sport_bcbbcb3b),
             ) { dismiss ->
@@ -552,7 +552,7 @@ private fun FilterBar(
                 }
             }
             FilterPillMenu(
-                title = filter.sourceClass?.let { sourceFilterLabel(it) } ?: "All sources",
+                title = filter.sourceClass?.let { sourceFilterLabel(it) } ?: uiString(R.string.cx_all_sources),
                 active = filter.sourceClass != null,
                 contentDescription = uiString(R.string.l10n_workouts_screen_filter_by_source_db11bbb7),
             ) { dismiss ->
@@ -826,7 +826,7 @@ private fun CalorieHeatmapSection(recentDays: List<com.noop.data.DailyMetric>) {
     val labelArgb = Palette.textTertiary.toArgb()
     NoopCard(tint = Palette.effortColor) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Active calories", style = NoopType.title2, color = Palette.textPrimary)
+            Text(uiString(R.string.cx_active_calories), style = NoopType.title2, color = Palette.textPrimary)
             Text("Last 13 weeks · daily burn", style = NoopType.footnote, color = Palette.textTertiary)
             // Quarter total + current streak (streak reuses the Settings streak plural — no new string;
             // the "Active calories" title above supplies the kcal unit for the big number).
@@ -915,7 +915,7 @@ private fun CalorieHeatmapSection(recentDays: List<com.noop.data.DailyMetric>) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("Less", style = NoopType.caption, color = Palette.textTertiary)
+                Text(uiString(R.string.cx_less), style = NoopType.caption, color = Palette.textTertiary)
                 for (lvl in 0..4) {
                     Box(
                         Modifier
@@ -924,7 +924,7 @@ private fun CalorieHeatmapSection(recentDays: List<com.noop.data.DailyMetric>) {
                             .background(colorFor(lvl)),
                     )
                 }
-                Text("More", style = NoopType.caption, color = Palette.textTertiary)
+                Text(uiString(R.string.cx_more), style = NoopType.caption, color = Palette.textTertiary)
             }
         }
     }
@@ -1669,7 +1669,7 @@ internal fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: ()
                     val exportCtx = LocalContext.current
                     val exportScope = rememberCoroutineScope()
                     CardDivider()
-                    Text("Export route", style = NoopType.subhead, color = Palette.textPrimary)
+                    Text(uiString(R.string.cx_export_route), style = NoopType.subhead, color = Palette.textPrimary)
                     Text(
                         "Save this GPS route as a file to import into Strava, Garmin Connect, or another app. " +
                             "Built on your phone — nothing is uploaded until you choose to share it.",
@@ -2167,7 +2167,7 @@ internal fun ManualWorkoutDialog(
                     )
                 }
                 Spacer(Modifier.width(10.dp))
-                Text(if (editing == null) "Add Workout" else "Edit Workout",
+                Text(if (editing == null) uiString(R.string.cx_add_workout) else uiString(R.string.cx_edit_workout),
                     style = NoopType.title2, color = Palette.textPrimary)
             }
         },
@@ -2253,7 +2253,7 @@ internal fun ManualWorkoutDialog(
                     onSave(it, replacing)
                 }
             }, enabled = built != null) {
-                Text(if (editing == null) "Add" else "Save",
+                Text(if (editing == null) uiString(R.string.cx_add) else uiString(R.string.cx_save),
                     style = NoopType.body, color = if (built != null) Palette.accent else Palette.textTertiary)
             }
         },

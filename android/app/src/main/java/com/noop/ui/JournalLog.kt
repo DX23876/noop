@@ -420,7 +420,7 @@ private fun JournalItemEditControls(
                     onClick = { menuOpen = false; groupMenuOpen = true },
                 )
                 androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(if (item.kind.isNumeric) "Change to Yes/No" else "Change to Number") },
+                    text = { Text(if (item.kind.isNumeric) uiString(R.string.cx_change_to_yes_no) else uiString(R.string.cx_change_to_number)) },
                     onClick = {
                         menuOpen = false
                         onSetKind(if (item.kind.isNumeric) JournalKind.Bool else JournalKind.Numeric(null))

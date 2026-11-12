@@ -925,7 +925,7 @@ private fun DiagnosticToolsCard(vm: AppViewModel) {
             // each connect. Off by default. Diagnostic-only — nothing gates behaviour on it.
             polarIdentity?.let { identity ->
                 ToggleRowTC(
-                    title = "Polar debug logging",
+                    title = uiString(R.string.cx_polar_debug_logging),
                     description = "$identity.\nLogs this identification to the strap log on each connect, " +
                         "so a Polar bug report shows the model NOOP resolved your strap to.",
                     checked = polarDebugLogging,
@@ -935,7 +935,7 @@ private fun DiagnosticToolsCard(vm: AppViewModel) {
             // #1284 residual 3: experimental Oura 0x49-onset keying, only when an Oura ring is paired.
             if (ouraPaired) {
                 ToggleRowTC(
-                    title = "Oura onset keying (experimental)",
+                    title = uiString(R.string.cx_oura_onset_keying_experimental),
                     description = "Keys each Oura sleep night on its stable 0x49 onset and suppresses " +
                         "duplicate re-serves at the source, instead of the shipped end-anchored persist " +
                         "(#1284). Off by default — a hardware-validation toggle. Watch the strap log for " +

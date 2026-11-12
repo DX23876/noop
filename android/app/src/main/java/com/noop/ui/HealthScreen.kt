@@ -319,7 +319,7 @@ private fun SyncStatusSection(vm: AppViewModel, onSyncNow: () -> Unit) {
                         // sync", not pulsing, directly above a DISABLED Sync now — on exactly the strap
                         // that cannot sync. Before the button was gated the two agreed (both wrong);
                         // gating one without the other is what made them contradict.
-                        title = if (live.historyReady) "Ready to sync" else "Pairing…",
+                        title = if (live.historyReady) uiString(R.string.cx_ready_to_sync) else uiString(R.string.cx_pairing),
                         tone = StrandTone.Accent,
                         showsDot = true,
                         pulsing = !live.historyReady,
@@ -332,7 +332,7 @@ private fun SyncStatusSection(vm: AppViewModel, onSyncNow: () -> Unit) {
                 // connected+bonded and not already syncing; the gated BLE entry point is a safe no-op
                 // otherwise. (Total pending records are unknowable from the protocol, so no progress %.)
                 NoopButton(
-                    text = if (live.backfilling) "Syncing…" else "Sync now",
+                    text = if (live.backfilling) uiString(R.string.cx_syncing) else uiString(R.string.cx_sync_now),
                     leadingIcon = Icons.Filled.Sync,
                     kind = NoopButtonKind.Secondary,
                     fullWidth = true,
@@ -558,7 +558,7 @@ private fun HealthContributorsSection(day: DailyMetric?) {
                 SectionHeader("Contributors", overline = "Recovery")
             }
             StatePill(
-                title = if (solid) "SOLID" else "CALIBRATING",
+                title = if (solid) "SOLID" else uiString(R.string.cx_calibrating),
                 tone = if (solid) StrandTone.Accent else StrandTone.Neutral,
             )
         }
@@ -1977,7 +1977,7 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
     ScreenScaffold(
-        title = detail?.title ?: if (isStepsDetail) uiString(R.string.l10n_health_screen_steps_cdde4f20) else "Vital Signs",
+        title = detail?.title ?: if (isStepsDetail) uiString(R.string.l10n_health_screen_steps_cdde4f20) else uiString(R.string.cx_vital_signs),
         // The HRV page explains the gaps between heartbeats beside its title, as iOS's metric page does in the new design.
         trailing = if (forgeDesign && key == "hrv") ({
             com.noop.ui.forge.ExplainerInfoButton(R.string.forge_ex_hrv_title, R.string.forge_ex_hrv_text) {

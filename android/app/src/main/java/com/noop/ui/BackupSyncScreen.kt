@@ -195,7 +195,7 @@ fun BackupSyncScreen() {
                         )
                     }
                     NoopButton(
-                        text = if (treeUri == null) "Choose folder" else "Change folder",
+                        text = if (treeUri == null) uiString(R.string.cx_choose_folder) else uiString(R.string.cx_change_folder),
                         leadingIcon = Icons.Filled.FolderOpen,
                         kind = NoopButtonKind.Secondary,
                         enabled = !busy,
@@ -338,7 +338,7 @@ fun BackupSyncScreen() {
                         }
                     }
                     NoopButton(
-                        text = if (busy) "Working…" else "Back up now",
+                        text = if (busy) uiString(R.string.cx_working) else uiString(R.string.cx_back_up_now),
                         leadingIcon = Icons.Filled.CloudUpload,
                         fullWidth = true,
                         enabled = treeUri != null && !busy,

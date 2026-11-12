@@ -14,18 +14,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Back up now"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Change folder"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Choose folder"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
       "Last backup: ${DateUtils.getRelativeTimeSpanString(lastMs)}"
     ],
     [
@@ -39,10 +27,6 @@
     [
       "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
       "Saving to: ${folderLabel(it)}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Working…"
     ],
     [
       "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
@@ -98,10 +82,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Only if your server requires one"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "Paste your ${provider.displayName} key"
     ],
     [
@@ -154,15 +134,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
-      "Imported"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
       "No samples yet"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
-      "Nothing imported"
     ],
     [
       "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
@@ -206,10 +178,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "CALIBRATING"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "Estimated from R-R interval"
     ],
     [
@@ -222,23 +190,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Pairing…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Ready to sync"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "SOLID"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "Streaming live"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Sync now"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
@@ -251,14 +207,6 @@
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "Sync now. Pulls your strap's stored history immediately, without waiting "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Syncing…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Vital Signs"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
@@ -298,14 +246,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/JournalLog.kt",
-      "Change to Number"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
-      "Change to Yes/No"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
       "Delete"
     ],
     [
@@ -323,10 +263,6 @@
     [
       "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
       "$n reading${if (n == 1) \"\" else \"s\"} line up so far, not enough to read a trend yet "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
-      "Choose a signal"
     ],
     [
       "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
@@ -402,22 +338,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Browse files"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Change photo"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Choose from Photos"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Choose photo"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Fill"
     ],
     [
@@ -442,39 +362,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Re-scan"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Recent"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Remove image"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Replace from Photos"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Scaling"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Scores today's hour-by-hour stress timeline against YOUR own cross-day baseline "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Searching…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Show custom background"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Sleep chart"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -494,19 +382,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Transparent cards"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Wear the strap, tap once, then let it sync and share your strap log."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SkinTempCardsScreen.kt",
-      "Plan a trip or shift"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SkinTempCardsScreen.kt",
-      "View the full plan"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",
@@ -550,14 +426,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
-      "Oura onset keying (experimental)"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
-      "Polar debug logging"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/TestCentreScreen.kt",
       "Share captured log"
     ],
     [
@@ -598,27 +466,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "Active calories"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Active-calorie heatmap, last 13 weeks"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "Add"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "Add Workout"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "All sources"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "All sports"
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
@@ -626,15 +474,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "Edit Workout"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Effort (0-100)"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "Export route"
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
@@ -658,23 +498,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "Less"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Logged sessions across ${effectiveRange.caption}."
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "More"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Mostly ${WorkoutEditing.displaySport(modal.sport)} (${effectiveRange.caption})."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "Save"
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",

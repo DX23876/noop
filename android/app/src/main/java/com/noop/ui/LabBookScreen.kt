@@ -538,7 +538,7 @@ private fun SignalPicker(selected: LabSignal?, onSelect: (LabSignal?) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Icon(Icons.Filled.Add, contentDescription = null, tint = Palette.accent, modifier = Modifier.size(16.dp))
-            Text(selected?.title ?: "Choose a signal", style = NoopType.subhead, color = Palette.accent)
+            Text(selected?.title ?: uiString(R.string.cx_choose_a_signal), style = NoopType.subhead, color = Palette.accent)
         }
         androidx.compose.material3.DropdownMenu(
             expanded = expanded,

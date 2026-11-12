@@ -984,7 +984,7 @@ fun SettingsScreen(
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         NoopButton(
-                            text = if (ProfileAvatarStore.hasAvatar) "Change photo" else "Choose photo",
+                            text = if (ProfileAvatarStore.hasAvatar) uiString(R.string.cx_change_photo) else uiString(R.string.cx_choose_photo),
                             kind = NoopButtonKind.Secondary,
                             modifier = Modifier.weight(1f),
                             onClick = {
@@ -1666,7 +1666,7 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("Sleep chart", style = NoopType.body, color = Palette.textPrimary)
+                Text(uiString(R.string.cx_sleep_chart), style = NoopType.body, color = Palette.textPrimary)
                 SegmentedPillControl(
                     items = listOf(SleepChartStyle.CLASSIC, SleepChartStyle.FILLED,
                                    SleepChartStyle.GARMIN_FILLED, SleepChartStyle.RIBBON),
@@ -1802,7 +1802,7 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Transparent cards", style = NoopType.subhead, color = Palette.textPrimary)
+                    Text(uiString(R.string.cx_transparent_cards), style = NoopType.subhead, color = Palette.textPrimary)
                     Text(
                         "Let the background show through every card. Tune how much just below.",
                         style = NoopType.footnote,
@@ -2005,7 +2005,7 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 NoopButton(
-                    text = if (BackgroundImageStore.hasImage) "Replace from Photos" else "Choose from Photos",
+                    text = if (BackgroundImageStore.hasImage) uiString(R.string.cx_replace_from_photos) else uiString(R.string.cx_choose_from_photos),
                     kind = NoopButtonKind.Secondary,
                     modifier = Modifier.weight(1f),
                     onClick = {
@@ -2015,7 +2015,7 @@ fun SettingsScreen(
                     },
                 )
                 NoopButton(
-                    text = "Browse files",
+                    text = uiString(R.string.cx_browse_files),
                     kind = NoopButtonKind.Secondary,
                     modifier = Modifier.weight(1f),
                     onClick = { backgroundFileLauncher.launch(arrayOf("image/*")) },
@@ -2028,7 +2028,7 @@ fun SettingsScreen(
                 val recents = BackgroundImageStore.recents
                 if (recents.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Recent", style = NoopType.footnote, color = Palette.textSecondary)
+                        Text(uiString(R.string.cx_recent), style = NoopType.footnote, color = Palette.textSecondary)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             recents.forEachIndexed { i, r ->
                                 BackgroundRecentThumb(
@@ -2046,7 +2046,7 @@ fun SettingsScreen(
                 }
                 // Master gate + scaling only make sense once an image exists.
                 SettingsToggleRow(
-                    title = "Show custom background",
+                    title = uiString(R.string.cx_show_custom_background),
                     detail = "Draw your photo behind every tab, replacing the day-cycle sky.",
                     checked = BackgroundImageStore.enabled,
                     onCheckedChange = { BackgroundImageStore.setEnabled(context, it) },
@@ -2056,7 +2056,7 @@ fun SettingsScreen(
                 // to ~0px, which wrapped "Scaling" one letter per line and blew the row up to a tall
                 // empty gap. A stacked label sidesteps that entirely.
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Scaling", style = NoopType.footnote, color = Palette.textSecondary)
+                    Text(uiString(R.string.cx_scaling), style = NoopType.footnote, color = Palette.textSecondary)
                     SegmentedPillControl(
                         items = BackgroundFillMode.entries,
                         selection = BackgroundImageStore.fillMode,
@@ -2074,7 +2074,7 @@ fun SettingsScreen(
                     )
                 }
                 NoopButton(
-                    text = "Remove image",
+                    text = uiString(R.string.cx_remove_image),
                     kind = NoopButtonKind.Tertiary,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
@@ -2143,7 +2143,7 @@ fun SettingsScreen(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     NoopButton(
-                        text = if (live.scanning) "Searching…" else "Re-scan",
+                        text = if (live.scanning) uiString(R.string.cx_searching) else uiString(R.string.cx_re_scan),
                         leadingIcon = Icons.Filled.Refresh,
                         kind = NoopButtonKind.Primary,
                         enabled = !live.scanning,

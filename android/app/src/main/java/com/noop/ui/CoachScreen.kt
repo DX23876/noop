@@ -261,7 +261,7 @@ private fun CoachSetup(vm: CoachViewModel) {
                 CoachKeyField(
                     value = keyInput,
                     onValueChange = { keyInput = it },
-                    placeholder = if (isCustom) "Only if your server requires one"
+                    placeholder = if (isCustom) uiString(R.string.cx_only_if_your_server_requires)
                                   else "Paste your ${provider.displayName} key",
                 )
             }
