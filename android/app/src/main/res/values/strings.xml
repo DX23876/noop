@@ -6720,4 +6720,19 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="lw_effort_building">Effort building</string>
     <string name="lw_warming_up">Warming up: keep moving to climb into Zone 1.</string>
     <string name="lw_bpm">bpm</string>
+    <string name="cl_start_session">Start session</string>
+    <string name="cl_stop_session">Stop session</string>
+    <string name="cl_sweeping">Sweeping…</string>
+    <string name="cl_save">Save</string>
+    <string name="cl_saved">Saved</string>
+    <string name="cl_pause">Pause</string>
+    <string name="cl_restart">Restart</string>
+    <string name="cl_start">Start</string>
+    <string name="cl_connect">Connect</string>
+    <string name="cl_rescan">Re-scan</string>
+    <string name="cl_scan_connect">Scan &amp; Connect</string>
+    <string name="cl_searching">Searching…</string>
+    <string name="cl_sync_now">Sync now</string>
+    <string name="cl_syncing">Syncing…</string>
+    <string name="cl_waiting_rr">Waiting for R-R intervals.</string>
 </resources>

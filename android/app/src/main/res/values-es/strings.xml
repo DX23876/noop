@@ -6680,4 +6680,19 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="lw_effort_building">Effort en aumento</string>
     <string name="lw_warming_up">Calentando: sigue moviéndote para llegar a la zona 1.</string>
     <string name="lw_bpm">ppm</string>
+    <string name="cl_start_session">Iniciar sesión</string>
+    <string name="cl_stop_session">Detener sesión</string>
+    <string name="cl_sweeping">Barriendo…</string>
+    <string name="cl_save">Guardar</string>
+    <string name="cl_saved">Guardado</string>
+    <string name="cl_pause">Pausar</string>
+    <string name="cl_restart">Reiniciar</string>
+    <string name="cl_start">Iniciar</string>
+    <string name="cl_connect">Conectar</string>
+    <string name="cl_rescan">Volver a escanear</string>
+    <string name="cl_scan_connect">Escanear y conectar</string>
+    <string name="cl_searching">Buscando…</string>
+    <string name="cl_sync_now">Sincronizar ahora</string>
+    <string name="cl_syncing">Sincronizando…</string>
+    <string name="cl_waiting_rr">Esperando intervalos R-R.</string>
 </resources>

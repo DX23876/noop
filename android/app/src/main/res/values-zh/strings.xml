@@ -6649,4 +6649,19 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="lw_effort_building">Effort 累积中</string>
     <string name="lw_warming_up">热身中：继续活动以进入 1 区。</string>
     <string name="lw_bpm">bpm</string>
+    <string name="cl_start_session">开始训练</string>
+    <string name="cl_stop_session">停止会话</string>
+    <string name="cl_sweeping">扫描中…</string>
+    <string name="cl_save">保存</string>
+    <string name="cl_saved">已保存</string>
+    <string name="cl_pause">暂停</string>
+    <string name="cl_restart">重新启动</string>
+    <string name="cl_start">开始</string>
+    <string name="cl_connect">连接</string>
+    <string name="cl_rescan">重新扫描</string>
+    <string name="cl_scan_connect">扫描并连接</string>
+    <string name="cl_searching">搜索中…</string>
+    <string name="cl_sync_now">立即同步</string>
+    <string name="cl_syncing">同步中…</string>
+    <string name="cl_waiting_rr">正在等待 R-R 间期。</string>
 </resources>

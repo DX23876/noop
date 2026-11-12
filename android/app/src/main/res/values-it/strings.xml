@@ -6648,4 +6648,19 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="lw_effort_building">Effort in crescita</string>
     <string name="lw_warming_up">Riscaldamento: continua a muoverti per entrare in zona 1.</string>
     <string name="lw_bpm">bpm</string>
+    <string name="cl_start_session">Avvia sessione</string>
+    <string name="cl_stop_session">Termina sessione</string>
+    <string name="cl_sweeping">Scansione in corso…</string>
+    <string name="cl_save">Salva</string>
+    <string name="cl_saved">Salvato</string>
+    <string name="cl_pause">Pausa</string>
+    <string name="cl_restart">Riavvia</string>
+    <string name="cl_start">Avvia</string>
+    <string name="cl_connect">Collega</string>
+    <string name="cl_rescan">Scansiona di nuovo</string>
+    <string name="cl_scan_connect">Scansiona e collega</string>
+    <string name="cl_searching">Ricerca…</string>
+    <string name="cl_sync_now">Sincronizza ora</string>
+    <string name="cl_syncing">Sincronizzazione…</string>
+    <string name="cl_waiting_rr">In attesa degli intervalli R-R.</string>
 </resources>

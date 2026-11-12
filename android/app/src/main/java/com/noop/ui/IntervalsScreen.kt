@@ -286,7 +286,7 @@ fun IntervalsScreen(vm: AppViewModel) {
                                 modifier = Modifier.padding(end = 6.dp),
                             )
                             Text(
-                                if (running) "Pause" else if (isFinished) "Restart" else "Start",
+                                if (running) uiString(R.string.cl_pause) else if (isFinished) uiString(R.string.cl_restart) else uiString(R.string.cl_start),
                                 style = NoopType.headline,
                             )
                         }

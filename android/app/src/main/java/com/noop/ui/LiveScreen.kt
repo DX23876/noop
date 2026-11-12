@@ -604,9 +604,9 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                 )
                 Text(
                     when {
-                        live.scanning -> "Searching…"
-                        live.connected -> "Re-scan"
-                        else -> "Connect"
+                        live.scanning -> uiString(R.string.cl_searching)
+                        live.connected -> uiString(R.string.cl_rescan)
+                        else -> uiString(R.string.cl_connect)
                     },
                     style = NoopType.captionNumber,
                     maxLines = 1,
@@ -709,7 +709,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                     )
                 }
                 Text(
-                    if (live.backfilling) "Syncing…" else "Sync now",
+                    if (live.backfilling) uiString(R.string.cl_syncing) else uiString(R.string.cl_sync_now),
                     style = NoopType.captionNumber,
                     maxLines = 1,
                     softWrap = false,
@@ -942,7 +942,7 @@ private fun OfflineConnectCallout(scanning: Boolean, onConnect: () -> Unit) {
                     modifier = Modifier.size(18.dp).padding(end = 4.dp),
                 )
                 Text(
-                    if (scanning) "Searching…" else "Scan & Connect",
+                    if (scanning) uiString(R.string.cl_searching) else uiString(R.string.cl_scan_connect),
                     style = NoopType.captionNumber,
                     maxLines = 1,
                     softWrap = false,
@@ -1265,7 +1265,7 @@ private fun RRStrip(rrRecent: List<Int>) {
             }
         }
         Text(
-            if (values.isEmpty()) "Waiting for R-R intervals."
+            if (values.isEmpty()) uiString(R.string.cl_waiting_rr)
             else "Recent intervals: " + values.takeLast(5).joinToString(" · ") + " ms",
             style = NoopType.footnote,
             color = Palette.textTertiary,

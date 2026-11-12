@@ -49,18 +49,6 @@
       "%.1f br/min"
     ],
     [
-      "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
-      "Start session"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
-      "Stop session"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
-      "Sweeping…"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
       "About ${it.roundToInt()} mg may still be active"
     ],
@@ -285,14 +273,6 @@
       "Capturing. $value milliseconds RMSSD so far. $sub."
     ],
     [
-      "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
-      "Save"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
-      "Saved"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/HydrationScreen.kt",
       "of %.1f L"
     ],
@@ -311,18 +291,6 @@
     [
       "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
       " $it"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
-      "Pause"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
-      "Restart"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
-      "Start"
     ],
     [
       "android/app/src/main/java/com/noop/ui/JournalLog.kt",
@@ -366,31 +334,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Connect"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Re-scan"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
       "Recent intervals: "
     ],
     [
       "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Scan & Connect"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Searching…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
       "Strap buzzes when you climb into Zone 5 (≥ $zone5Bpm bpm). Manage it in Automations → Haptic coaching."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Sync now"
     ],
     [
       "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
@@ -402,15 +350,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Syncing…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
       "Turn on HR-zone coaching in Automations for a wrist buzz when you reach Zone 5 (≥ $zone5Bpm bpm)."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Waiting for R-R intervals."
     ],
     [
       "android/app/src/main/java/com/noop/ui/MindSection.kt",

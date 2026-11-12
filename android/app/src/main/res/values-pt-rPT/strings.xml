@@ -6672,4 +6672,19 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="lw_effort_building">Effort a subir</string>
     <string name="lw_warming_up">Aquecimento: continua a mexer-te para chegar à zona 1.</string>
     <string name="lw_bpm">bpm</string>
+    <string name="cl_start_session">Iniciar sessão</string>
+    <string name="cl_stop_session">Parar sessão</string>
+    <string name="cl_sweeping">Varrendo…</string>
+    <string name="cl_save">Guardar</string>
+    <string name="cl_saved">Salvo</string>
+    <string name="cl_pause">Pausa</string>
+    <string name="cl_restart">Reiniciar</string>
+    <string name="cl_start">Iniciar</string>
+    <string name="cl_connect">Ligar</string>
+    <string name="cl_rescan">Digitalizar novamente</string>
+    <string name="cl_scan_connect">Digitalizar e ligar</string>
+    <string name="cl_searching">A procurar…</string>
+    <string name="cl_sync_now">Sincronize agora</string>
+    <string name="cl_syncing">Sincronizando…</string>
+    <string name="cl_waiting_rr">Aguarda intervalos RR.</string>
 </resources>

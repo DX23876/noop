@@ -6696,4 +6696,19 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="lw_effort_building">Effort baut sich auf</string>
     <string name="lw_warming_up">Aufwärmen: bleib in Bewegung, um in Zone 1 zu kommen.</string>
     <string name="lw_bpm">bpm</string>
+    <string name="cl_start_session">Session starten</string>
+    <string name="cl_stop_session">Sitzung beenden</string>
+    <string name="cl_sweeping">Durchlauf läuft…</string>
+    <string name="cl_save">Sichern</string>
+    <string name="cl_saved">Gesichert</string>
+    <string name="cl_pause">Pause</string>
+    <string name="cl_restart">Neu starten</string>
+    <string name="cl_start">Start</string>
+    <string name="cl_connect">Verbinden</string>
+    <string name="cl_rescan">Erneut suchen</string>
+    <string name="cl_scan_connect">Suchen &amp; Verbinden</string>
+    <string name="cl_searching">Wird gesucht…</string>
+    <string name="cl_sync_now">Jetzt synchronisieren</string>
+    <string name="cl_syncing">Wird synchronisiert…</string>
+    <string name="cl_waiting_rr">Warte auf R-R-Intervalle.</string>
 </resources>

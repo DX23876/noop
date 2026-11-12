@@ -6700,4 +6700,19 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="lw_effort_building">Effort rośnie</string>
     <string name="lw_warming_up">Rozgrzewka: ruszaj się dalej, aby wejść w strefę 1.</string>
     <string name="lw_bpm">bpm</string>
+    <string name="cl_start_session">Rozpocznij sesję</string>
+    <string name="cl_stop_session">Zatrzymaj sesję</string>
+    <string name="cl_sweeping">Zamaszysty…</string>
+    <string name="cl_save">Zapisz</string>
+    <string name="cl_saved">Zapisano</string>
+    <string name="cl_pause">Pauza</string>
+    <string name="cl_restart">Uruchom ponownie</string>
+    <string name="cl_start">Start</string>
+    <string name="cl_connect">Łączyć</string>
+    <string name="cl_rescan">Zeskanuj ponownie</string>
+    <string name="cl_scan_connect">Skanuj i połącz</string>
+    <string name="cl_searching">Badawczy…</string>
+    <string name="cl_sync_now">Zsynchronizuj teraz</string>
+    <string name="cl_syncing">Synchronizowanie…</string>
+    <string name="cl_waiting_rr">Czekam na odstępy R-R.</string>
 </resources>

@@ -6679,4 +6679,19 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="lw_effort_building">Effort en hausse</string>
     <string name="lw_warming_up">Échauffement : continue de bouger pour atteindre la zone 1.</string>
     <string name="lw_bpm">bpm</string>
+    <string name="cl_start_session">Démarrer la session</string>
+    <string name="cl_stop_session">Arrêter la séance</string>
+    <string name="cl_sweeping">Balayage en cours…</string>
+    <string name="cl_save">Enregistrer</string>
+    <string name="cl_saved">Enregistré</string>
+    <string name="cl_pause">Pause</string>
+    <string name="cl_restart">Redémarrer</string>
+    <string name="cl_start">Démarrer</string>
+    <string name="cl_connect">Connecter</string>
+    <string name="cl_rescan">Nouveau scan</string>
+    <string name="cl_scan_connect">Scanner et connecter</string>
+    <string name="cl_searching">Recherche en cours…</string>
+    <string name="cl_sync_now">Synchroniser maintenant</string>
+    <string name="cl_syncing">Synchronisation…</string>
+    <string name="cl_waiting_rr">En attente des intervalles R-R.</string>
 </resources>

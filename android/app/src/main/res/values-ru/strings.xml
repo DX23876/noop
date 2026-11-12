@@ -6653,4 +6653,19 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="lw_effort_building">Effort растёт</string>
     <string name="lw_warming_up">Разминка: продолжай двигаться, чтобы выйти в зону 1.</string>
     <string name="lw_bpm">уд/мин</string>
+    <string name="cl_start_session">Начать сеанс</string>
+    <string name="cl_stop_session">Остановить сессию</string>
+    <string name="cl_sweeping">Развёртка…</string>
+    <string name="cl_save">Сохранить</string>
+    <string name="cl_saved">Сохранено</string>
+    <string name="cl_pause">Пауза</string>
+    <string name="cl_restart">Перезапустить</string>
+    <string name="cl_start">Старт</string>
+    <string name="cl_connect">Подключить</string>
+    <string name="cl_rescan">Сканировать заново</string>
+    <string name="cl_scan_connect">Найти и подключить</string>
+    <string name="cl_searching">Поиск…</string>
+    <string name="cl_sync_now">Синхронизировать сейчас</string>
+    <string name="cl_syncing">Синхронизация…</string>
+    <string name="cl_waiting_rr">Ожидание интервалов R-R.</string>
 </resources>
