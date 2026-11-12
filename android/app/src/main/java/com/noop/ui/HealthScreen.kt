@@ -1978,6 +1978,12 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
     ScreenScaffold(
         title = detail?.title ?: if (isStepsDetail) uiString(R.string.l10n_health_screen_steps_cdde4f20) else "Vital Signs",
+        // The HRV page explains the gaps between heartbeats beside its title, as iOS's metric page does in the new design.
+        trailing = if (forgeDesign && key == "hrv") ({
+            com.noop.ui.forge.ExplainerInfoButton(R.string.forge_ex_hrv_title, R.string.forge_ex_hrv_text) {
+                com.noop.ui.forge.ExplainerHeartbeats()
+            }
+        }) else null,
         // The new design names the page once and leaves storage words out, as iOS's metric page does.
         subtitle = when {
             isStepsDetail -> uiString(R.string.steps_history)

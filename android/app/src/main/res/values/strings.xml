@@ -6401,4 +6401,18 @@
     <string name="forge_md_ask_coach_about">Ask coach about %1$s</string>
     <string name="forge_sl_need_h">Need %1$s h</string>
     <string name="forge_sl_running_balance">running balance</string>
+    <string name="forge_ex_what_this_means">What this means</string>
+    <string name="forge_ex_night_title">How a night runs</string>
+    <string name="forge_ex_night_text">Sleep moves through cycles of about 90 minutes. Deep sleep comes mostly early in the night, REM mostly towards morning, and short wakings are normal. Your own night can look different.</string>
+    <string name="forge_ex_energy_title">Burned and eaten</string>
+    <string name="forge_ex_energy_text">Burned is what your body uses at rest plus what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.</string>
+    <string name="forge_ex_burned">Burned</string>
+    <string name="forge_ex_resting">Resting</string>
+    <string name="forge_ex_active">Active</string>
+    <string name="forge_ex_eaten">Eaten</string>
+    <string name="forge_ex_hrv_title">The gaps between heartbeats</string>
+    <string name="forge_ex_hrv_text">Your heart does not beat like a clock. The gap between two beats keeps changing, and a wider swing usually means a more rested body. NOOP compares yours with your own normal, never with anyone else\'s.</string>
+    <string name="forge_dir_raises">raises</string>
+    <string name="forge_dir_lowers">lowers</string>
+    <string name="forge_dir_neutral">neutral</string>
 </resources>

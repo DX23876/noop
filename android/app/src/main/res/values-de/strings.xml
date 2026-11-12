@@ -6378,4 +6378,18 @@
     <string name="forge_md_ask_coach_about">Coach zu %1$s fragen</string>
     <string name="forge_sl_need_h">Bedarf %1$s h</string>
     <string name="forge_sl_running_balance">laufende Bilanz</string>
+    <string name="forge_ex_what_this_means">Was das bedeutet</string>
+    <string name="forge_ex_night_title">So verläuft eine Nacht</string>
+    <string name="forge_ex_night_text">Schlaf verläuft in Zyklen von etwa 90 Minuten. Tiefschlaf kommt meist früh in der Nacht, REM meist gegen Morgen, und kurzes Aufwachen ist normal. Deine eigene Nacht kann anders aussehen.</string>
+    <string name="forge_ex_energy_title">Verbraucht und gegessen</string>
+    <string name="forge_ex_energy_text">Verbraucht ist, was dein Körper in Ruhe braucht, plus das, was Aktivität dazugibt. Gegessen ist, was du eingetragen hast. Die Bilanz liest man am besten über eine Woche, nicht an einem einzelnen Tag.</string>
+    <string name="forge_ex_burned">Verbraucht</string>
+    <string name="forge_ex_resting">Ruhend</string>
+    <string name="forge_ex_active">Aktiv</string>
+    <string name="forge_ex_eaten">Gegessen</string>
+    <string name="forge_ex_hrv_title">Die Abstände zwischen den Herzschlägen</string>
+    <string name="forge_ex_hrv_text">Dein Herz schlägt nicht wie ein Uhrwerk. Der Abstand zwischen zwei Schlägen ändert sich ständig, und größere Schwankung bedeutet meist einen erholteren Körper. NOOP vergleicht deinen Wert mit deinem eigenen Normalwert, nie mit dem anderer.</string>
+    <string name="forge_dir_raises">hebt</string>
+    <string name="forge_dir_lowers">senkt</string>
+    <string name="forge_dir_neutral">neutral</string>
 </resources>

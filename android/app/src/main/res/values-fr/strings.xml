@@ -6361,4 +6361,18 @@
     <string name="forge_md_ask_coach_about">Demander au coach à propos de %1$s</string>
     <string name="forge_sl_need_h">Besoin %1$s h</string>
     <string name="forge_sl_running_balance">solde cumulé</string>
+    <string name="forge_ex_what_this_means">Ce que cela signifie</string>
+    <string name="forge_ex_night_title">Le déroulement d\'une nuit</string>
+    <string name="forge_ex_night_text">Le sommeil suit des cycles d\'environ 90 minutes. Le sommeil profond vient surtout en début de nuit, le paradoxal plutôt vers le matin, et les brefs réveils sont normaux. Votre nuit peut être différente.</string>
+    <string name="forge_ex_energy_title">Dépensé et mangé</string>
+    <string name="forge_ex_energy_text">Dépensé correspond à ce que le corps utilise au repos plus ce qu\'ajoute l\'activité. Mangé est ce que vous avez saisi. Le bilan se lit mieux sur une semaine que sur un seul jour.</string>
+    <string name="forge_ex_burned">Combustion</string>
+    <string name="forge_ex_resting">Repos.</string>
+    <string name="forge_ex_active">Actif</string>
+    <string name="forge_ex_eaten">Mangé</string>
+    <string name="forge_ex_hrv_title">Les intervalles entre les battements</string>
+    <string name="forge_ex_hrv_text">Votre cœur ne bat pas comme une horloge. L\'intervalle entre deux battements change sans cesse, et une plus grande variation signifie souvent un corps plus reposé. NOOP compare votre valeur à votre propre norme, jamais à celle des autres.</string>
+    <string name="forge_dir_raises">augmente</string>
+    <string name="forge_dir_lowers">baisse</string>
+    <string name="forge_dir_neutral">neutre</string>
 </resources>

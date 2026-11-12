@@ -714,6 +714,26 @@ internal suspend fun nightDetailModel(viewModel: com.noop.ui.AppViewModel,
 }
 
 /**
+ * Steadiness of one night as iOS's `ForgeNightBreakdown.shaped` reads it (`SleepModel.consistencySeries` up to that
+ * night): the imported score for the night's wake day when there is one, else the bedtime-onset regularity of the
+ * sessions up to the night (`consistencySeries`, the same rule).
+ */
+internal suspend fun nightSteadiness(viewModel: com.noop.ui.AppViewModel, night: CoreRead.Night, wakeDay: String): Double? {
+    val repo = viewModel.repo
+    val strap = viewModel.activeStrapId
+    val imported = runCatching {
+        repo.resolvedSeries("sleep_consistency", "my-whoop", wakeDay, wakeDay, strapDeviceId = strap).points
+    }.getOrDefault(emptyList()).firstOrNull()?.value
+    if (imported != null) return imported
+    fun localEndDay(ts: Long): String =
+        com.noop.analytics.AnalyticsEngine.dayString(ts, (java.util.TimeZone.getDefault().getOffset(ts * 1000) / 1000).toLong())
+    val sleeps = com.noop.data.WhoopRepository.mergeSleepRichness(
+        repo.sleepSessionsUnion(strap, 0L, night.endTs), repo.computedSleepSessionsUnion(strap, 0L, night.endTs)) { localEndDay(it.endTs) }
+        .filter { it.effectiveStartTs <= night.startTs + 3600 }
+    return com.noop.ui.consistencySeries(sleeps).latest
+}
+
+/**
  * The new design's Sleep page under the summary, in iOS's order (`ForgeSleepView.body`): Tonight, the night, its naps,
  * the breakdown (stages against the typical night, what shaped it, sleep debt, body clock), the week's sleep goals,
  * the highlights, the body through the night, the history, the alarms and the night's marks.
@@ -759,8 +779,10 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
         })
         if (hasStageMinutes(night)) {
             SleepStagesVsTypical(night, tiles)
-            SleepShaped(night, tiles, traits.needHoursFor(key) * 60, days.lastOrNull { it.day == key },
-                        traits.consistencyFor(key)?.times(100))
+            val steadiness by produceState<Double?>(null, night.startTs) {
+                value = withContext(Dispatchers.IO) { runCatching { nightSteadiness(viewModel, night, key) }.getOrNull() }
+            }
+            SleepShaped(night, tiles, traits.needHoursFor(key) * 60, days.lastOrNull { it.day == key }, steadiness)
             SleepDebtLedger()
             if (bodyClock != null && bodyClock.confidence != com.noop.analytics.CircadianEngine.PhaseConfidence.UNREADABLE) {
                 Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {

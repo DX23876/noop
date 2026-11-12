@@ -6335,4 +6335,18 @@
     <string name="forge_md_ask_coach_about">Спросить тренера о %1$s</string>
     <string name="forge_sl_need_h">Нужно %1$s ч</string>
     <string name="forge_sl_running_balance">текущий баланс</string>
+    <string name="forge_ex_what_this_means">Что это значит</string>
+    <string name="forge_ex_night_title">Как проходит ночь</string>
+    <string name="forge_ex_night_text">Сон идёт циклами примерно по 90 минут. Глубокий сон бывает в основном в начале ночи, REM ближе к утру, а короткие пробуждения нормальны. Ваша ночь может выглядеть иначе.</string>
+    <string name="forge_ex_energy_title">Потрачено и съедено</string>
+    <string name="forge_ex_energy_text">Сожжено: то, что тело тратит в покое, плюс то, что добавляет активность. Съедено: то, что вы записали. Баланс лучше оценивать за неделю, а не за один день.</string>
+    <string name="forge_ex_burned">Высвобожденная энергия</string>
+    <string name="forge_ex_resting">регулярное восстановление</string>
+    <string name="forge_ex_active">Активно</string>
+    <string name="forge_ex_eaten">Съедено</string>
+    <string name="forge_ex_hrv_title">Промежутки между ударами сердца</string>
+    <string name="forge_ex_hrv_text">Сердце бьётся не как часы. Промежуток между ударами постоянно меняется, и больший разброс обычно означает более отдохнувшее тело. NOOP сравнивает значение с вашей собственной нормой, а не с чужой.</string>
+    <string name="forge_dir_raises">повышает</string>
+    <string name="forge_dir_lowers">снижает</string>
+    <string name="forge_dir_neutral">нейтрально</string>
 </resources>

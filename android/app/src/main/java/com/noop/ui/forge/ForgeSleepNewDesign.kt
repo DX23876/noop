@@ -297,7 +297,11 @@ internal fun SleepStagesVsTypical(night: CoreRead.Night, model: com.noop.ui.Slee
     val typical = listOf(model?.typicalDeepMin, model?.typicalRemMin, model?.typicalLightMin, null)
     val top = parts.indices.maxOf { maxOf(parts[it].minutes, typical[it] ?: 0.0) }.coerceAtLeast(1.0)
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-        SleepSectionTitle(stringResource(R.string.forge_sl_stages))
+        // The title with its explaining picture, as iOS's `ForgeNightBreakdown.stages`.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { SleepSectionTitle(stringResource(R.string.forge_sl_stages)) }
+            ExplainerInfoButton(R.string.forge_ex_night_title, R.string.forge_ex_night_text) { ExplainerNightStages() }
+        }
         ForgeCard(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 parts.forEachIndexed { i, p ->
@@ -427,6 +431,12 @@ private fun ShapedRow(r: Shaped) {
                                       color = colors.textSecondary) }
             }
             Text(value, style = Forge.type.title2.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+            // Which way tonight moved the score against the usual, as iOS's `shapedRow` (two points either way count).
+            if (r.higherIsBetter) {
+                val d = r.typical?.let { r.value - it }
+                Spacer(Modifier.width(ForgeMetrics.space2))
+                ForgeDirection(if (d == null || kotlin.math.abs(d) < 2) 0 else if (d > 0) 1 else -1)
+            }
         }
         if (r.unit == "%") {
             Spacer(Modifier.height(ForgeMetrics.space2))

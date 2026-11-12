@@ -1,5 +1,10 @@
 package com.noop.ui.forge
 
+import com.noop.R
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
@@ -372,5 +377,20 @@ private fun TrendArea(values: List<Double>, tint: Color) {
         drawPath(area, Brush.verticalGradient(listOf(tint.copy(alpha = 0.28f), tint.copy(alpha = 0f))))
         drawPath(line, Brush.horizontalGradient(listOf(tint.copy(alpha = 0.55f), tint)),
                  style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** iOS `ForgeDirection`: which way a figure moves its score, an arrow with "raises", "lowers" or "neutral". */
+@Composable
+internal fun ForgeDirection(delta: Int) {
+    val colors = Forge.colors
+    val (icon, word, tint) = when {
+        delta > 0 -> Triple(androidx.compose.material.icons.Icons.Rounded.ArrowUpward, R.string.forge_dir_raises, colors.charge)
+        delta < 0 -> Triple(androidx.compose.material.icons.Icons.Rounded.ArrowDownward, R.string.forge_dir_lowers, colors.effort)
+        else -> Triple(androidx.compose.material.icons.Icons.Rounded.Remove, R.string.forge_dir_neutral, colors.textSecondary)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        androidx.compose.material3.Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(12.dp))
+        Text(stringResource(word), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = tint, maxLines = 1)
     }
 }

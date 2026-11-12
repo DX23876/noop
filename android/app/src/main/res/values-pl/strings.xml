@@ -6382,4 +6382,18 @@
     <string name="forge_md_ask_coach_about">Zapytaj trenera o %1$s</string>
     <string name="forge_sl_need_h">Potrzeba %1$s h</string>
     <string name="forge_sl_running_balance">bilans biegowy</string>
+    <string name="forge_ex_what_this_means">Co to oznacza</string>
+    <string name="forge_ex_night_title">Jak przebiega noc</string>
+    <string name="forge_ex_night_text">Sen przebiega w cyklach trwających około 90 minut. Sen głęboki pojawia się głównie na początku nocy, REM głównie nad ranem, a krótkie wybudzenia są normalne. Twoja noc może wyglądać inaczej.</string>
+    <string name="forge_ex_energy_title">Spalone i zjedzone</string>
+    <string name="forge_ex_energy_text">Spalone to to, co ciało zużywa w spoczynku, plus to, co dodaje aktywność. Zjedzone to to, co zapisano. Bilans najlepiej czytać w skali tygodnia, nie jednego dnia.</string>
+    <string name="forge_ex_burned">Spalone.</string>
+    <string name="forge_ex_resting">Odpoczynek.</string>
+    <string name="forge_ex_active">Aktywny</string>
+    <string name="forge_ex_eaten">Zjedzone</string>
+    <string name="forge_ex_hrv_title">Odstępy między uderzeniami serca</string>
+    <string name="forge_ex_hrv_text">Serce nie bije jak zegar. Odstęp między uderzeniami ciągle się zmienia, a większa zmienność zwykle oznacza bardziej wypoczęte ciało. NOOP porównuje Twój wynik z Twoją normą, nigdy z innymi.</string>
+    <string name="forge_dir_raises">podnosi</string>
+    <string name="forge_dir_lowers">obniża</string>
+    <string name="forge_dir_neutral">neutralnie</string>
 </resources>

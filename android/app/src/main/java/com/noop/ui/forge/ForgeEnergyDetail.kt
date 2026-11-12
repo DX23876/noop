@@ -99,7 +99,10 @@ internal fun ForgeEnergyDetailPage(onBack: () -> Unit) {
         return
     }
     SettingsColumn {
-        PageTitle(stringResource(R.string.forge_en_title), onBack)
+        // The explaining picture in the title row, as iOS's Energy page carries it in its toolbar.
+        PageTitle(stringResource(R.string.forge_en_title), onBack) {
+            ExplainerInfoButton(R.string.forge_ex_energy_title, R.string.forge_ex_energy_text) { ExplainerEnergyBars() }
+        }
         val d = detail
         if (d == null) {
             if (!loaded) Text(stringResource(R.string.forge_goals_loading), style = Forge.type.body, color = Forge.sceneInk.secondary)

@@ -6331,4 +6331,18 @@
     <string name="forge_md_ask_coach_about">向教练询问%1$s</string>
     <string name="forge_sl_need_h">需要 %1$s 小时</string>
     <string name="forge_sl_running_balance">累计结余</string>
+    <string name="forge_ex_what_this_means">这意味着什么</string>
+    <string name="forge_ex_night_title">一夜如何度过</string>
+    <string name="forge_ex_night_text">睡眠以约 90 分钟为一个周期。深睡多在前半夜,快速眼动多在清晨前,短暂醒来很正常。你的夜晚可能有所不同。</string>
+    <string name="forge_ex_energy_title">消耗与摄入</string>
+    <string name="forge_ex_energy_text">消耗是身体静息所需加上活动增加的部分。摄入是你记录的内容。两者的平衡最好按一周来看,而不是单独一天。</string>
+    <string name="forge_ex_burned">消耗能量</string>
+    <string name="forge_ex_resting">休息</string>
+    <string name="forge_ex_active">活跃</string>
+    <string name="forge_ex_eaten">摄入</string>
+    <string name="forge_ex_hrv_title">心跳之间的间隔</string>
+    <string name="forge_ex_hrv_text">心脏不像时钟那样跳动。两次心跳之间的间隔不断变化,波动较大通常意味着身体休息得更好。NOOP 只与你自己的常态比较,绝不与他人比较。</string>
+    <string name="forge_dir_raises">拉高</string>
+    <string name="forge_dir_lowers">拉低</string>
+    <string name="forge_dir_neutral">中性</string>
 </resources>

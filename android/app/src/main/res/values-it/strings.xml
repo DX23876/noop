@@ -6330,4 +6330,18 @@
     <string name="forge_md_ask_coach_about">Chiedi all\'allenatore informazioni su %1$s</string>
     <string name="forge_sl_need_h">Bisogno %1$s h</string>
     <string name="forge_sl_running_balance">bilancio progressivo</string>
+    <string name="forge_ex_what_this_means">Cosa significa?</string>
+    <string name="forge_ex_night_title">Come si svolge una notte</string>
+    <string name="forge_ex_night_text">Il sonno procede per cicli di circa 90 minuti. Il sonno profondo arriva soprattutto a inizio notte, il REM verso il mattino, e i brevi risvegli sono normali. La tua notte può essere diversa.</string>
+    <string name="forge_ex_energy_title">Bruciato e mangiato</string>
+    <string name="forge_ex_energy_text">Bruciato è ciò che il corpo usa a riposo più ciò che aggiunge l\'attività. Mangiato è ciò che hai registrato. Il bilancio si legge meglio su una settimana, non su un solo giorno.</string>
+    <string name="forge_ex_burned">Bruciato</string>
+    <string name="forge_ex_resting">Riposo</string>
+    <string name="forge_ex_active">Attivo</string>
+    <string name="forge_ex_eaten">Mangiato</string>
+    <string name="forge_ex_hrv_title">Gli intervalli tra i battiti</string>
+    <string name="forge_ex_hrv_text">Il tuo cuore non batte come un orologio. L\'intervallo tra due battiti cambia di continuo e una variazione più ampia indica di solito un corpo più riposato. NOOP confronta il tuo valore con la tua normalità, mai con quella degli altri.</string>
+    <string name="forge_dir_raises">alza</string>
+    <string name="forge_dir_lowers">abbassa</string>
+    <string name="forge_dir_neutral">neutro</string>
 </resources>

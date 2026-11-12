@@ -6354,4 +6354,18 @@
     <string name="forge_md_ask_coach_about">Pergunte ao treinador sobre %1$s</string>
     <string name="forge_sl_need_h">Necessidade %1$s h</string>
     <string name="forge_sl_running_balance">equilíbrio em execução</string>
+    <string name="forge_ex_what_this_means">O que isto significa</string>
+    <string name="forge_ex_night_title">Como decorre uma noite</string>
+    <string name="forge_ex_night_text">O sono decorre em ciclos de cerca de 90 minutos. O sono profundo surge sobretudo no início da noite, o REM mais perto da manhã, e os despertares breves são normais. A sua noite pode ser diferente.</string>
+    <string name="forge_ex_energy_title">Gasto e ingerido</string>
+    <string name="forge_ex_energy_text">Queimado é o que o corpo usa em repouso mais o que a atividade acrescenta. Comido é o que registou. O balanço lê-se melhor ao longo de uma semana, não num só dia.</string>
+    <string name="forge_ex_burned">Queima</string>
+    <string name="forge_ex_resting">Descanso.</string>
+    <string name="forge_ex_active">Ativo</string>
+    <string name="forge_ex_eaten">Ingerido</string>
+    <string name="forge_ex_hrv_title">Os intervalos entre batimentos</string>
+    <string name="forge_ex_hrv_text">O seu coração não bate como um relógio. O intervalo entre dois batimentos muda sempre, e uma variação maior costuma indicar um corpo mais descansado. O NOOP compara o seu valor com o seu normal, nunca com o de outros.</string>
+    <string name="forge_dir_raises">sobe</string>
+    <string name="forge_dir_lowers">desce</string>
+    <string name="forge_dir_neutral">neutro</string>
 </resources>
