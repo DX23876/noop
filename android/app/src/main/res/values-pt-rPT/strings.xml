@@ -6600,4 +6600,5 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="wv_notif_off">As notificações estão desativadas para o NOOP nas definições do sistema, por isso um lembrete nunca chegaria. Não foi agendado nada.</string>
     <string name="wv_auto_pause">Pausa automática</string>
     <string name="wv_auto_pause_note">Apenas corrida e ciclismo com GPS. Pausa após cinco segundos parado e retoma após três segundos em movimento. Uma pausa manual mantém-se.</string>
+    <string name="body_site_edit">Editar</string>
 </resources>

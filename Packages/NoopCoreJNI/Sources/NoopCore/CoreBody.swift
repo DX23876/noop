@@ -50,7 +50,7 @@ enum CoreBody {
         let today = StoreReader.localDayKey(now)
         let from = StoreReader.localDayKey(now.addingTimeInterval(-Double(comparisonDays) * 86_400))
         func readings(_ key: String) -> [Reading] {
-            metrics.series(key).map { Reading(day: $0.day, value: $0.value, source: $0.source, id: $0.id) }
+            metrics.series(key).map { Reading(day: $0.day, value: $0.value, source: $0.source, id: $0.id, takenAt: $0.takenAt) }
         }
         func site(_ key: String) -> Site {
             Site(key: key, label: BodyPreparation.label(key), current: metrics.asOf(key, day: today)?.value,

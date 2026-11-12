@@ -6647,4 +6647,5 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="wv_notif_off">Notifications are turned off for NOOP in system settings, so a reminder would never arrive. Nothing was scheduled.</string>
     <string name="wv_auto_pause">Auto-pause</string>
     <string name="wv_auto_pause_note">GPS running and cycling only. Pauses after five seconds stopped, resumes after three seconds moving. A manual pause stays paused.</string>
+    <string name="body_site_edit">Edit</string>
 </resources>

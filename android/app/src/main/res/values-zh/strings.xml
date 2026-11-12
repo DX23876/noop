@@ -6577,4 +6577,5 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wv_notif_off">NOOP 的通知已在系统设置中关闭，提醒不会送达。未安排任何提醒。</string>
     <string name="wv_auto_pause">自动暂停</string>
     <string name="wv_auto_pause_note">仅适用于GPS跑步和骑行。静止五秒后暂停，移动三秒后继续。手动暂停不会自动恢复。</string>
+    <string name="body_site_edit">编辑</string>
 </resources>

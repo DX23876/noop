@@ -40,14 +40,23 @@ object CoreBody {
     }
 
     /** Writes one measurement session through the lab-marker lane; true when every row landed. */
-    suspend fun record(context: Context, values: Map<String, Double>): Boolean {
+    suspend fun record(context: Context, values: Map<String, Double>): Boolean = write(context, values, null, null)
+
+    /**
+     * Changes one reading's value in place, as iOS's `updateBodyMeasurement`: the same row id and instant, so the
+     * day and its history stay where they were.
+     */
+    suspend fun update(context: Context, id: String, key: String, value: Double, takenAt: Long): Boolean =
+        write(context, mapOf(key to value), id, takenAt)
+
+    private suspend fun write(context: Context, values: Map<String, Double>, id: String?, takenAt: Long?): Boolean {
         if (!SwiftCore.available || values.isEmpty()) return false
         val app = context.applicationContext as NoopApplication
         val json = SwiftCore.call("body.rows", JSONObject().put("values", JSONObject(values))
-            .put("deviceId", app.activeDeviceId).toString()) ?: return false
+            .put("deviceId", app.activeDeviceId).apply { takenAt?.let { put("takenAt", it) } }.toString()) ?: return false
         val rows = runCatching { JSONArray(json) }.getOrNull() ?: return false
         val markers = (0 until rows.length()).map { rows.getJSONObject(it) }.map {
-            LabMarkerRow(id = it.getString("id"), deviceId = it.getString("deviceId"), markerKey = it.getString("markerKey"),
+            LabMarkerRow(id = id ?: it.getString("id"), deviceId = it.getString("deviceId"), markerKey = it.getString("markerKey"),
                          category = it.getString("category"), day = it.getString("day"), takenAt = it.getLong("takenAt"),
                          value = it.getDouble("value"), unit = it.getString("unit"), source = it.getString("source"),
                          note = if (it.isNull("note")) null else it.optString("note"))

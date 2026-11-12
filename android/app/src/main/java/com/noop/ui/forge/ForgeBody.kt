@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
@@ -106,7 +107,9 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
             return@SettingsColumn
         }
         site?.let { key ->
-            BodySitePage(b, key, onDelete = { id -> after { CoreBody.deleteMeasurement(context, id) } })
+            BodySitePage(b, key, onDelete = { id -> after { CoreBody.deleteMeasurement(context, id) } },
+                         onEdit = { r, v -> after { CoreBody.update(context, r.id ?: return@after false, key, v,
+                                                                        r.takenAt ?: (System.currentTimeMillis() / 1000)) } })
             return@SettingsColumn
         }
         BodyTodayCard(b)
@@ -449,13 +452,15 @@ private fun SitesCard(b: CoreBody.Snapshot, onMeasure: () -> Unit, onOpen: (Stri
  * every reading, each deletable after a confirmation.
  */
 @Composable
-private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -> Unit) {
+private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -> Unit,
+                         onEdit: (CoreBody.Reading, Double) -> Unit) {
     val colors = Forge.colors
     val info = (b.measured + b.unmeasured).firstOrNull { it.key == key }
     val series = b.siteSeries[key].orEmpty()
     val longDay: (String) -> String = { d -> runCatching { java.time.LocalDate.parse(d).format(
         java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).withLocale(Locale.getDefault())) }.getOrDefault(d) }
     var pending by remember { mutableStateOf<CoreBody.Reading?>(null) }
+    var editing by remember { mutableStateOf<CoreBody.Reading?>(null) }
     Text(info?.label ?: key, style = Forge.type.title2, color = Forge.sceneInk.text)
     ForgeCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Bottom) {
@@ -511,11 +516,33 @@ private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -
                 Text(sourceLabel(r.source), style = Forge.type.caption, color = colors.textTertiary)
                 Text(stringResource(R.string.forge_body_cm, one(r.value)), style = Forge.type.subhead, color = colors.text,
                      textAlign = TextAlign.End, modifier = Modifier.width(76.dp))
-                if (r.id != null) androidx.compose.material3.IconButton(onClick = { pending = r }) {
-                    Icon(Icons.Rounded.DeleteOutline, contentDescription = stringResource(R.string.body_site_delete), tint = colors.textTertiary)
-                } else Spacer(Modifier.width(48.dp))
+                // Edit or delete, as iOS's menu on each reading; an imported reading has no id and stays as it came.
+                if (r.id != null) {
+                    androidx.compose.material3.IconButton(onClick = { editing = r }) {
+                        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.body_site_edit), tint = colors.textTertiary)
+                    }
+                    androidx.compose.material3.IconButton(onClick = { pending = r }) {
+                        Icon(Icons.Rounded.DeleteOutline, contentDescription = stringResource(R.string.body_site_delete), tint = colors.textTertiary)
+                    }
+                } else Spacer(Modifier.width(96.dp))
             }
         }
+    }
+    editing?.let { r ->
+        var text by remember(r) { mutableStateOf(one(r.value).replace(',', '.')) }
+        androidx.compose.material3.AlertDialog(onDismissRequest = { editing = null },
+            title = { Text("${info?.label ?: key} · ${longDay(r.day)}") },
+            text = {
+                OutlinedTextField(value = text, onValueChange = { v -> text = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6) },
+                                  singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                  suffix = { Text("cm") }, colors = forgeFieldColors())
+            },
+            confirmButton = {
+                val v = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it.isFinite() }
+                TextButton(enabled = v != null, onClick = { v?.let { onEdit(r, it) }; editing = null }) {
+                    Text(stringResource(R.string.forge_energy_save)) }
+            },
+            dismissButton = { TextButton(onClick = { editing = null }) { Text(stringResource(R.string.body_site_cancel)) } })
     }
     pending?.let { r ->
         androidx.compose.material3.AlertDialog(onDismissRequest = { pending = null },
