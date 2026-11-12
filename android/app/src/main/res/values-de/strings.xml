@@ -6294,4 +6294,8 @@
     <string name="forge_so_change_up">%1$d %% mehr als in den vier Wochen davor.</string>
     <string name="forge_so_change_down">%1$d %% weniger als in den vier Wochen davor.</string>
     <string name="forge_so_minutes">%1$d Min.</string>
+    <string name="forge_more_what_works">Was wirkt</string>
+    <string name="forge_more_heart_rhythm">Herzrhythmus</string>
+    <string name="forge_more_values_by_source">Werte nach Quelle</string>
+    <string name="forge_more_scoring_model">Dein Rechenmodell</string>
 </resources>

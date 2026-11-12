@@ -121,15 +121,17 @@ enum class MoreCategory(val titleRes: Int, val subtitleRes: Int, val icon: Image
  * Every place More opens, as iOS has them (`MoreCatalog`): the category whose tint the row takes (null for the
  * root rows), its title, icon and search words. Which rows each category page lists, and in what order, is
  * [MORE_GROUPS]; [searchOnly] destinations are found by the search but have no row, as iOS's `searchOnlyEntries`.
+ * Titles follow iOS's names since 2026-11 (Health records, What works, Heart rhythm, Values by source, Your scoring
+ * model); the former names stay as search words.
  */
 enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: ImageVector, val keywords: List<String>,
                     val searchOnly: Boolean = false) {
     Momentum(MoreCategory.Analysis, R.string.forge_momentum_title, Icons.Rounded.Bolt,
              listOf("today", "priority", "what matters", "insights", "goals")),
-    Insights(MoreCategory.Analysis, R.string.forge_more_insights, Icons.Rounded.AutoAwesome,
-             listOf("correlations", "weekly review", "patterns")),
-    Scoring(MoreCategory.Analysis, R.string.forge_more_scoring, Icons.Rounded.Psychology,
-            listOf("scoring", "charge", "effort", "rest", "on-device")),
+    Insights(MoreCategory.Analysis, R.string.forge_more_what_works, Icons.Rounded.AutoAwesome,
+             listOf("insights", "correlations", "weekly review", "patterns")),
+    Scoring(MoreCategory.Analysis, R.string.forge_more_scoring_model, Icons.Rounded.Psychology,
+            listOf("how scoring works", "scoring", "charge", "effort", "rest", "on-device")),
     Goals(null, R.string.forge_goals_more_title, Icons.Rounded.TrackChanges,
           listOf("goals", "weekly goal", "monthly goal", "journey", "plan", "progress", "coach")),
     Journal(MoreCategory.Analysis, R.string.forge_more_journal, Icons.Rounded.MenuBook,
@@ -138,8 +140,8 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
             listOf("metrics", "trends", "history", "every signal")),
     Compare(MoreCategory.Analysis, R.string.nav_compare, Icons.Rounded.CompareArrows,
             listOf("two metrics", "overlay", "correlation")),
-    Fused(MoreCategory.Analysis, R.string.nav_fused_record, Icons.Rounded.Layers,
-          listOf("merged record", "all sources", "one timeline")),
+    Fused(MoreCategory.Analysis, R.string.forge_more_values_by_source, Icons.Rounded.Layers,
+          listOf("your data, fused", "fused", "merged record", "all sources", "one timeline")),
     Training(MoreCategory.HealthBody, R.string.forge_training, Icons.Rounded.FitnessCenter,
              listOf("workouts", "strength", "cardio", "training load", "sessions", "exercise")),
     Body(MoreCategory.HealthBody, R.string.forge_body_title, Icons.Rounded.Accessibility,
@@ -154,11 +156,11 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
             listOf("healthspan", "biological age", "age", "levers")),
     RhythmAge(MoreCategory.HealthBody, R.string.forge_rhythm_title, Icons.Rounded.WbTwilight,
               listOf("rhythm age", "CosinorAge", "circadian", "movement", "day and night")),
-    Biomarkers(MoreCategory.HealthBody, R.string.forge_more_biomarkers, Icons.Rounded.Science,
-               listOf("blood", "blood pressure", "lab results", "body composition")),
+    Biomarkers(MoreCategory.HealthBody, R.string.forge_log_health_records, Icons.Rounded.Science,
+               listOf("lab book", "biomarkers", "blood", "blood pressure", "lab results", "body composition")),
     Stress(MoreCategory.HealthBody, R.string.nav_stress, Icons.Rounded.Bolt, listOf("strain", "load", "tension")),
-    BeatRhythm(MoreCategory.HealthBody, R.string.forge_more_beat_rhythm, Icons.Rounded.Waves,
-               listOf("beat-to-beat", "R-R", "regularity", "experimental")),
+    BeatRhythm(MoreCategory.HealthBody, R.string.forge_more_heart_rhythm, Icons.Rounded.Waves,
+               listOf("beat rhythm", "beat-to-beat", "R-R", "regularity", "experimental")),
     Ecg(MoreCategory.HealthBody, R.string.forge_ecg_title, Icons.Rounded.MonitorHeart,
         listOf("ECG", "EKG", "electrocardiogram", "WHOOP MG", "atrial fibrillation", "experimental")),
     Live(MoreCategory.Tools, R.string.nav_live, Icons.Rounded.MonitorHeart, listOf("heart rate", "BPM", "live console", "now")),

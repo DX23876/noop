@@ -6247,4 +6247,8 @@
     <string name="forge_so_change_up">比前四周增加 %1$d %%。</string>
     <string name="forge_so_change_down">比前四周减少 %1$d %%。</string>
     <string name="forge_so_minutes">%1$d 分钟</string>
+    <string name="forge_more_what_works">什么有效</string>
+    <string name="forge_more_heart_rhythm">心律</string>
+    <string name="forge_more_values_by_source">按来源查看数值</string>
+    <string name="forge_more_scoring_model">你的评分模型</string>
 </resources>

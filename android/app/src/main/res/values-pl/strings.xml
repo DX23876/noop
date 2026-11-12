@@ -6298,4 +6298,8 @@
     <string name="forge_so_change_up">O %1$d %% więcej niż w czterech poprzednich tygodniach.</string>
     <string name="forge_so_change_down">O %1$d %% mniej niż w czterech poprzednich tygodniach.</string>
     <string name="forge_so_minutes">%1$d min</string>
+    <string name="forge_more_what_works">Co działa</string>
+    <string name="forge_more_heart_rhythm">Rytm serca</string>
+    <string name="forge_more_values_by_source">Wartości według źródła</string>
+    <string name="forge_more_scoring_model">Twój model oceny</string>
 </resources>

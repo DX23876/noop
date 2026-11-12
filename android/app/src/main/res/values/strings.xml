@@ -6317,4 +6317,8 @@
     <string name="forge_so_change_up">Up %1$d %% on the four weeks before.</string>
     <string name="forge_so_change_down">Down %1$d %% on the four weeks before.</string>
     <string name="forge_so_minutes">%1$d min</string>
+    <string name="forge_more_what_works">What works</string>
+    <string name="forge_more_heart_rhythm">Heart rhythm</string>
+    <string name="forge_more_values_by_source">Values by source</string>
+    <string name="forge_more_scoring_model">Your scoring model</string>
 </resources>

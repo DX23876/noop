@@ -6251,4 +6251,8 @@
     <string name="forge_so_change_up">На %1$d %% больше, чем за четыре недели до этого.</string>
     <string name="forge_so_change_down">На %1$d %% меньше, чем за четыре недели до этого.</string>
     <string name="forge_so_minutes">%1$d мин.</string>
+    <string name="forge_more_what_works">Что работает</string>
+    <string name="forge_more_heart_rhythm">Сердечный ритм</string>
+    <string name="forge_more_values_by_source">Значения по источникам</string>
+    <string name="forge_more_scoring_model">Твоя модель расчёта</string>
 </resources>

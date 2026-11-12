@@ -72,7 +72,7 @@ MORE_WITNESS = {
     "intervals": (MORE, "IntervalsScreen("),
     "rhythm": (MORE, "RhythmRoute("),
     "ecg": (MORE, "ForgeEcgPage("),
-    "strength": (MORE, "ForgeStrengthPage("),
+    "strength": (MORE, "ForgeStrengthHub("),
     "cardio": (MORE, "ForgeCardioPage("),
     "trainingLoad": (MORE, "ForgeTrainingLoadPage("),
     "body": (MORE, "ForgeBodyPage("),
