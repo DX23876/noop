@@ -6677,4 +6677,16 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_first_detail">Verbinde ein Wearable, um Live-Vitalwerte und den Verlauf zu erfassen. Vorhandene Daten kannst du weiterhin über Datenquellen importieren.</string>
     <string name="forge_first_action">Gerät verbinden</string>
     <string name="forge_first_offline">Offline</string>
+    <string name="lw_time">Zeit</string>
+    <string name="lw_heart_rate">Herzfrequenz</string>
+    <string name="lw_zones">Herzfrequenzzonen</string>
+    <string name="lw_below_z1">Unter Zone 1</string>
+    <string name="lw_zn_recovery">Erholung</string>
+    <string name="lw_zn_fatburn">Fettverbrennung</string>
+    <string name="lw_zn_aerobic">Aerob</string>
+    <string name="lw_zn_threshold">Schwelle</string>
+    <string name="lw_zn_max">Maximum</string>
+    <string name="lw_zone_named">Zone %1$d · %2$s</string>
+    <string name="lw_band">Zone %1$d: %2$d-%3$d bpm (%4$d-%5$d%% max HR)</string>
+    <string name="lw_target_marker">Zielzone</string>
 </resources>

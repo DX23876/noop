@@ -6660,4 +6660,16 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_first_detail">Connectez un wearable pour commencer à collecter les signes vitaux en direct et l\'historique. Les données existantes peuvent toujours être importées depuis Sources de données.</string>
     <string name="forge_first_action">Connecter un appareil</string>
     <string name="forge_first_offline">Hors ligne</string>
+    <string name="lw_time">Heure</string>
+    <string name="lw_heart_rate">Fréquence cardiaque</string>
+    <string name="lw_zones">Zones de fréquence cardiaque</string>
+    <string name="lw_below_z1">Sous la zone 1</string>
+    <string name="lw_zn_recovery">Récupération</string>
+    <string name="lw_zn_fatburn">Combustion des graisses</string>
+    <string name="lw_zn_aerobic">Aérobie</string>
+    <string name="lw_zn_threshold">Seuil</string>
+    <string name="lw_zn_max">Maximum</string>
+    <string name="lw_zone_named">Zone %1$d · %2$s</string>
+    <string name="lw_band">Zone %1$d: %2$d-%3$d bpm (%4$d-%5$d%% max HR)</string>
+    <string name="lw_target_marker">Zone cible</string>
 </resources>

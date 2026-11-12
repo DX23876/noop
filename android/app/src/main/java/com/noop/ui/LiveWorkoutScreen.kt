@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -163,7 +164,7 @@ fun LiveWorkoutScreen(vm: AppViewModel, onClose: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Overline("Time", color = Palette.textSecondary)
+                Overline(androidx.compose.ui.res.stringResource(R.string.lw_time), color = Palette.textSecondary)
                 Text(
                     // elapsedClock, not a local %d:%02d — that one had no hour roll-over, so this hero
                     // read "90:00" for a 90-minute session while every card that opens this screen read
@@ -181,7 +182,7 @@ fun LiveWorkoutScreen(vm: AppViewModel, onClose: () -> Unit) {
             EffortGauge(liveStrain = w.liveStrain, effortScale = effortScale)
 
             // Zone section — the zone label capsule on the header row, the five-segment rail, and the band.
-            ZoneRail(zone = zone, zoneSet = zoneSet)
+            ZoneRail(zone = zone, zoneSet = zoneSet, targetZone = w.targetZone, samples = w.samples)
 
             // Live stats grid — avg / peak / effort, from the captured window.
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap), modifier = Modifier.fillMaxWidth()) {
@@ -367,22 +368,30 @@ private fun HeroHeartRate(bpm: Int?, zone: Int) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Overline("Heart rate", color = Palette.textSecondary)
+        Overline(androidx.compose.ui.res.stringResource(R.string.lw_heart_rate), color = Palette.textSecondary)
         Text(bpm?.toString() ?: "—", style = NoopType.number(72f), color = tint)
         Text("bpm", style = NoopType.subhead, color = Palette.textSecondary)
     }
 }
 
+/**
+ * The five heart-rate zones as iOS's `LiveWorkoutZoneSection` draws them: the current one lit in its colour, a
+ * small marker above the chosen target zone, and under each the time this workout has spent there so far.
+ */
 @Composable
-private fun ZoneRail(zone: Int, zoneSet: com.noop.analytics.HrZoneSet) {
+private fun ZoneRail(zone: Int, zoneSet: com.noop.analytics.HrZoneSet, targetZone: Int?,
+                     samples: List<com.noop.data.HrSample>) {
+    // Recounted when a sample arrives, not every second the screen redraws.
+    val inZone = remember(samples.size, zoneSet) { com.noop.analytics.HrZones.timeInZone(samples, zoneSet).seconds }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Header row: the section label with the current-zone capsule on the right (moved off the HR hero).
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Overline("HR zone")
+            Overline(androidx.compose.ui.res.stringResource(R.string.lw_zones))
             Spacer(Modifier.weight(1f))
             val capsuleTint = if (zone >= 1) Palette.hrZoneColor(zone) else Palette.effortColor
             Text(
-                if (zone >= 1) "Zone $zone · ${zoneName(zone)}" else "Below Zone 1",
+                if (zone >= 1) androidx.compose.ui.res.stringResource(R.string.lw_zone_named, zone, zoneName(zone))
+                else androidx.compose.ui.res.stringResource(R.string.lw_below_z1),
                 style = NoopType.captionNumber,
                 color = capsuleTint,
                 modifier = Modifier
@@ -390,30 +399,42 @@ private fun ZoneRail(zone: Int, zoneSet: com.noop.analytics.HrZoneSet) {
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
+        val targetLabel = androidx.compose.ui.res.stringResource(R.string.lw_target_marker)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
             (1..5).forEach { z ->
                 val active = z == zone
                 val color = Palette.hrZoneColor(z)
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(if (active) 44.dp else 34.dp)
-                        .background(
-                            if (active) color else color.copy(alpha = 0.18f),
-                            RoundedCornerShape(8.dp),
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
+                       verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // The target's marker, as iOS's small triangle; its room is kept on every bar so they line up.
+                    Box(Modifier.height(14.dp), contentAlignment = Alignment.Center) {
+                        if (z == targetZone) Text("▼", style = NoopType.caption, color = Palette.accent,
+                                                  modifier = Modifier.semantics { contentDescription = targetLabel })
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (active) 44.dp else 34.dp)
+                            .background(
+                                if (active) color else color.copy(alpha = 0.18f),
+                                RoundedCornerShape(8.dp),
+                            )
+                            .border(
+                                1.dp,
+                                if (active) color else Palette.hairline,
+                                RoundedCornerShape(8.dp),
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            uiString(R.string.l10n_live_workout_screen_z_z_d3991a28, z),
+                            style = NoopType.captionNumber,
+                            color = if (active) Palette.surfaceBase else Palette.textTertiary,
                         )
-                        .border(
-                            1.dp,
-                            if (active) color else Palette.hairline,
-                            RoundedCornerShape(8.dp),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        uiString(R.string.l10n_live_workout_screen_z_z_d3991a28, z),
-                        style = NoopType.captionNumber,
-                        color = if (active) Palette.surfaceBase else Palette.textTertiary,
-                    )
+                    }
+                    val secs = inZone.getOrElse(z - 1) { 0.0 }.toLong()
+                    Text(elapsedClock(secs), style = NoopType.captionNumber,
+                         color = if (secs > 0) Palette.textSecondary else Palette.textTertiary)
                 }
             }
         }
@@ -421,7 +442,8 @@ private fun ZoneRail(zone: Int, zoneSet: com.noop.analytics.HrZoneSet) {
         val band = zoneSet.zones.firstOrNull { it.number == zone }
         Text(
             if (band != null)
-                "Zone $zone: ${band.lower.toInt()} - ${band.upper.toInt()} bpm (${(band.lowerPct * 100).toInt()} - ${(band.upperPct * 100).toInt()}% max HR)"
+                androidx.compose.ui.res.stringResource(R.string.lw_band, zone, band.lower.toInt(), band.upper.toInt(),
+                                                       (band.lowerPct * 100).toInt(), (band.upperPct * 100).toInt())
             else "Warming up - keep moving to climb into Zone 1.",
             style = NoopType.footnote,
             color = Palette.textTertiary,
@@ -429,11 +451,11 @@ private fun ZoneRail(zone: Int, zoneSet: com.noop.analytics.HrZoneSet) {
     }
 }
 
-private fun zoneName(zone: Int): String = when (zone) {
-    1 -> "Recovery"
-    2 -> "Fat burn"
-    3 -> "Aerobic"
-    4 -> "Threshold"
-    5 -> "Maximum"
-    else -> ""
-}
+@Composable
+private fun zoneName(zone: Int): String = androidx.compose.ui.res.stringResource(when (zone) {
+    1 -> R.string.lw_zn_recovery
+    2 -> R.string.lw_zn_fatburn
+    3 -> R.string.lw_zn_aerobic
+    4 -> R.string.lw_zn_threshold
+    else -> R.string.lw_zn_max
+})

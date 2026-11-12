@@ -6661,4 +6661,16 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_first_detail">Conecta un wearable para empezar a registrar constantes en directo e historial. Los registros existentes se pueden seguir importando desde Fuentes de datos.</string>
     <string name="forge_first_action">Conectar un dispositivo</string>
     <string name="forge_first_offline">Sin conexión</string>
+    <string name="lw_time">Hora</string>
+    <string name="lw_heart_rate">Frecuencia cardíaca</string>
+    <string name="lw_zones">Zonas de frecuencia cardíaca</string>
+    <string name="lw_below_z1">Por debajo de la Zona 1</string>
+    <string name="lw_zn_recovery">Recuperación</string>
+    <string name="lw_zn_fatburn">Quema de grasa</string>
+    <string name="lw_zn_aerobic">Aeróbico</string>
+    <string name="lw_zn_threshold">Umbral</string>
+    <string name="lw_zn_max">Máximo</string>
+    <string name="lw_zone_named">Zona %1$d · %2$s</string>
+    <string name="lw_band">Zona %1$d: %2$d-%3$d lpm (%4$d-%5$d%% FC máx.)</string>
+    <string name="lw_target_marker">Zona objetivo</string>
 </resources>

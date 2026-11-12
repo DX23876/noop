@@ -6634,4 +6634,16 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_first_detail">Подключите носимое устройство, чтобы начать сбор показателей в реальном времени и истории. Существующие данные по-прежнему можно импортировать в разделе «Источники данных».</string>
     <string name="forge_first_action">Подключить устройство</string>
     <string name="forge_first_offline">Офлайн</string>
+    <string name="lw_time">Время</string>
+    <string name="lw_heart_rate">Пульс</string>
+    <string name="lw_zones">Зоны пульса</string>
+    <string name="lw_below_z1">Ниже зоны 1</string>
+    <string name="lw_zn_recovery">Восстановление</string>
+    <string name="lw_zn_fatburn">Жиросжигание</string>
+    <string name="lw_zn_aerobic">Аэробная</string>
+    <string name="lw_zn_threshold">Порог</string>
+    <string name="lw_zn_max">Максимум</string>
+    <string name="lw_zone_named">Зона %1$d · %2$s</string>
+    <string name="lw_band">Зона %1$d: %2$d-%3$d уд/мин (%4$d-%5$d%% от макс. пульса)</string>
+    <string name="lw_target_marker">Целевая зона</string>
 </resources>

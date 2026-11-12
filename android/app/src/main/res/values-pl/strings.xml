@@ -6681,4 +6681,16 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_first_detail">Połącz urządzenie, aby zacząć zbierać parametry na żywo i historię. Istniejące dane nadal można importować w sekcji Źródła danych.</string>
     <string name="forge_first_action">Połącz urządzenie</string>
     <string name="forge_first_offline">Nieaktywny</string>
+    <string name="lw_time">Czas</string>
+    <string name="lw_heart_rate">Tętno</string>
+    <string name="lw_zones">Strefy tętna</string>
+    <string name="lw_below_z1">Poniżej Strefy 1</string>
+    <string name="lw_zn_recovery">Regeneracja</string>
+    <string name="lw_zn_fatburn">Spalanie tłuszczu</string>
+    <string name="lw_zn_aerobic">Aerobik</string>
+    <string name="lw_zn_threshold">Próg</string>
+    <string name="lw_zn_max">Maksymalny</string>
+    <string name="lw_zone_named">Strefa %1$d · %2$s</string>
+    <string name="lw_band">Strefa %1$d: %2$d-%3$d bpm (%4$d-%5$d%% max HR)</string>
+    <string name="lw_target_marker">Strefa docelowa</string>
 </resources>

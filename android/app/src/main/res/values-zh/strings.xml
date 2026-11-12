@@ -6630,4 +6630,16 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_first_detail">连接可穿戴设备以开始收集实时生命体征和历史记录。现有记录仍可从“数据源”导入。</string>
     <string name="forge_first_action">连接设备</string>
     <string name="forge_first_offline">离线</string>
+    <string name="lw_time">时间</string>
+    <string name="lw_heart_rate">心率</string>
+    <string name="lw_zones">心率区间</string>
+    <string name="lw_below_z1">低于区间 1</string>
+    <string name="lw_zn_recovery">恢复</string>
+    <string name="lw_zn_fatburn">燃脂</string>
+    <string name="lw_zn_aerobic">有氧</string>
+    <string name="lw_zn_threshold">阈值</string>
+    <string name="lw_zn_max">最大值</string>
+    <string name="lw_zone_named">区间 %1$d · %2$s</string>
+    <string name="lw_band">区间 %1$d：%2$d-%3$d 次/分（最大心率的 %4$d-%5$d%%）</string>
+    <string name="lw_target_marker">目标区间</string>
 </resources>

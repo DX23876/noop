@@ -6701,4 +6701,16 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_first_detail">Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.</string>
     <string name="forge_first_action">Connect a device</string>
     <string name="forge_first_offline">Offline</string>
+    <string name="lw_time">Time</string>
+    <string name="lw_heart_rate">Heart rate</string>
+    <string name="lw_zones">Heart rate zones</string>
+    <string name="lw_below_z1">Below Zone 1</string>
+    <string name="lw_zn_recovery">Recovery</string>
+    <string name="lw_zn_fatburn">Fat burn</string>
+    <string name="lw_zn_aerobic">Aerobic</string>
+    <string name="lw_zn_threshold">Threshold</string>
+    <string name="lw_zn_max">Maximum</string>
+    <string name="lw_zone_named">Zone %1$d · %2$s</string>
+    <string name="lw_band">Zone %1$d: %2$d-%3$d bpm (%4$d-%5$d%% max HR)</string>
+    <string name="lw_target_marker">Target zone</string>
 </resources>

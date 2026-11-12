@@ -6653,4 +6653,16 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_first_detail">Ligue um wearable para começar a recolher sinais vitais em direto e histórico. Os registos existentes podem continuar a ser importados em Fontes de dados.</string>
     <string name="forge_first_action">Ligar um dispositivo</string>
     <string name="forge_first_offline">Off-line</string>
+    <string name="lw_time">Hora</string>
+    <string name="lw_heart_rate">Frequência cardíaca</string>
+    <string name="lw_zones">Zonas de frequência cardíaca</string>
+    <string name="lw_below_z1">Abaixo da Zona 1</string>
+    <string name="lw_zn_recovery">Recuperação</string>
+    <string name="lw_zn_fatburn">Queima de gordura</string>
+    <string name="lw_zn_aerobic">Aeróbico</string>
+    <string name="lw_zn_threshold">Limiar</string>
+    <string name="lw_zn_max">Máximo</string>
+    <string name="lw_zone_named">Zona %1$d · %2$s</string>
+    <string name="lw_band">Zona %1$d: %2$d-%3$d bpm (%4$d-%5$d%% FC máx.)</string>
+    <string name="lw_target_marker">Zona-alvo</string>
 </resources>
