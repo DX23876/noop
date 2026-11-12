@@ -6419,4 +6419,5 @@
     <string name="forge_cband_moderate">Moderat</string>
     <string name="forge_cband_primed">Bereit</string>
     <string name="forge_cband_peak">Spitze</string>
+    <string name="forge_ch_temp_vs_usual">%1$s °C zum Üblichen</string>
 </resources>

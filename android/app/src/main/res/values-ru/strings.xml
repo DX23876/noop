@@ -6376,4 +6376,5 @@
     <string name="forge_cband_moderate">Умеренный</string>
     <string name="forge_cband_primed">Заряжен</string>
     <string name="forge_cband_peak">Пик</string>
+    <string name="forge_ch_temp_vs_usual">%1$s °C к обычному</string>
 </resources>

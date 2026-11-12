@@ -6442,4 +6442,5 @@
     <string name="forge_cband_moderate">Moderate</string>
     <string name="forge_cband_primed">Primed</string>
     <string name="forge_cband_peak">Peak</string>
+    <string name="forge_ch_temp_vs_usual">%1$s °C vs usual</string>
 </resources>

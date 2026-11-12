@@ -448,7 +448,14 @@ internal fun ForgeChargePage(viewModel: AppViewModel, onBack: () -> Unit, onHist
                     val usual = range?.let {
                         stringResource(R.string.forge_ch_usually, stringResource(R.string.forge_ch_span, f(it.low), f(it.high)) + unit)
                     }
-                    WhyRow(driverLabel(d.label), driverValue(d), d.deltaPoints.coerceIn(-1, 1), usual,
+                    // The value as iOS's `ForgeToday.driverValue` words it: "/min" for breaths, "°C vs usual" for skin.
+                    val value = when (d.unit) {
+                        com.noop.analytics.ChargeDriverUnit.BREATHS_PER_MINUTE -> f(d.value) + " /min"
+                        com.noop.analytics.ChargeDriverUnit.CELSIUS_DEVIATION ->
+                            stringResource(R.string.forge_ch_temp_vs_usual, String.format(Locale.getDefault(), "%+.1f", d.value))
+                        else -> driverValue(d)
+                    }
+                    WhyRow(driverLabel(d.label), value, d.deltaPoints.coerceIn(-1, 1), usual,
                            range?.let { it.position to null }, range?.let { it.bandLow..it.bandHigh })
                 }
             }

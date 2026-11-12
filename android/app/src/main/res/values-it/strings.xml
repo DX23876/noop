@@ -6371,4 +6371,5 @@
     <string name="forge_cband_moderate">Moderato</string>
     <string name="forge_cband_primed">Pronto</string>
     <string name="forge_cband_peak">Picco</string>
+    <string name="forge_ch_temp_vs_usual">%1$s °C rispetto al solito</string>
 </resources>

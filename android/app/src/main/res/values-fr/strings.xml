@@ -6402,4 +6402,5 @@
     <string name="forge_cband_moderate">Modéré</string>
     <string name="forge_cband_primed">Préparé</string>
     <string name="forge_cband_peak">Pic</string>
+    <string name="forge_ch_temp_vs_usual">%1$s °C par rapport à l\'habitude</string>
 </resources>

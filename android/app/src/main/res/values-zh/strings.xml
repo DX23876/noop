@@ -6372,4 +6372,5 @@
     <string name="forge_cband_moderate">模拟</string>
     <string name="forge_cband_primed">私营</string>
     <string name="forge_cband_peak">峰值</string>
+    <string name="forge_ch_temp_vs_usual">较平常 %1$s °C</string>
 </resources>
