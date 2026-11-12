@@ -236,6 +236,15 @@ Compares the build before a restructuring with the build after it on a copy of t
 
 Everything on Bluetooth, background sync and real hardware. Phase A ran on an emulator only.
 
+Cold start (2026-11-12, emulator `noop-spike`, demo debug build). The "isn't responding" seen on every cold start had
+two causes. One was NOOP's: the core's resources were compared byte for byte on each start under the lock the
+main thread's first registry read waits on (`CoreShadow.installResources`); fixed in `004684a11`, the copy now runs
+once per installed APK. The other is the debug build itself: its unminified dex (about 30 MB in 14 files) is
+opened before any NOOP code runs, and on a freshly installed APK the system gave up on the process while the main
+thread was still in `DexFile.openDexFileNative` ("failed to complete startup"). Release builds go through R8
+(`forkMinify`), so this second cause does not carry over as such; a release cold start on a real phone is still
+unmeasured.
+
 ## Milestones
 
 ### A: spike · done, decided 2026-10-24 (D22 to D24)
