@@ -194,7 +194,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                           onHistory = { restPage = false; durationPage = CoreRead.Metric.Rest })
         }
     }
-    ForgeMetricDetail(durationPage) { durationPage = null }
+    ForgeMetricDetail(durationPage, viewModel) { durationPage = null }
     if (customizing) {
         ForgeOverlayPage(onDismiss = { customizing = false }) {
             ForgeSleepCustomization { saved -> customizing = false; if (saved) layoutRevision++ }
