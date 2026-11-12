@@ -200,4 +200,4 @@ Android reaches the same function; "missing" pages are the build list.
 | Where steps come from | Devices and data sources, `StepsSource` | has (2026-11-12): Data and backup; one steps reader (`MetricResolver.resolvedSteps`) for tiles, steps page and AgeLess |
 | Energy page | `ForgeEnergyView` | has, rebuilt 2026-11-11 (ring against a usual day, parts, 30-day bars) |
 | Workouts page | `ForgeWorkoutsView` | has, rebuilt 2026-11-12 (13 weeks, this week, sessions by week); a recent session opens itself |
-| Workouts list, Strength, Muscles | `ForgeWorkoutsView`, `ForgeStrengthView` | has (History, Strength, Muscles pages) |
+| Workouts list, Strength, Muscles | `ForgeWorkoutsView`, `ForgeStrengthView` | has; Strength opens an overview after `ForgeStrengthView` (next routine with Start, eight weeks of volume from the shared `StrengthWeeklyVolume`, latest sessions, plan, muscles and the full report) since 2026-11-12 |
