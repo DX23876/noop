@@ -122,10 +122,12 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
                 clip = true
             }.drawBehind { with(scene) { drawScene(position.value) } })
         }
+        // The surface and rim fill the whole card, not just its content: a card stretched to its row (Today's tiles)
+        // otherwise ended where its content did, its lower corners cut square under the full-size shadow and clip.
+        Box(Modifier.matchParentSize().background(surface)
+                .then(if (rim != null) Modifier.border(BorderStroke(ForgeMetrics.hairline, rim), shape) else Modifier))
         Column(
-            Modifier.fillMaxWidth().background(surface)
-                .then(if (rim != null) Modifier.border(BorderStroke(ForgeMetrics.hairline, rim), shape) else Modifier)
-                .padding(contentPadding),
+            Modifier.fillMaxWidth().padding(contentPadding),
             content = content,
         )
     }
