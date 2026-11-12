@@ -37,11 +37,11 @@ final class ForgeReviewRoundTwoTests: XCTestCase {
     // MARK: What correlates
 
     func testAScoreIsNotCorrelatedWithItsOwnInputs() {
-        XCTAssertTrue(MetricDetailView.isScoreAndInput("recovery", "hrv"))
-        XCTAssertTrue(MetricDetailView.isScoreAndInput("hrv", "recovery"))
-        XCTAssertTrue(MetricDetailView.isScoreAndInput("stress", "rhr"))
-        XCTAssertFalse(MetricDetailView.isScoreAndInput("hrv", "steps"))
-        XCTAssertFalse(MetricDetailView.isScoreAndInput("recovery", "steps"))
+        XCTAssertTrue(MetricDetailInsights.isScoreAndInput("recovery", "hrv"))
+        XCTAssertTrue(MetricDetailInsights.isScoreAndInput("hrv", "recovery"))
+        XCTAssertTrue(MetricDetailInsights.isScoreAndInput("stress", "rhr"))
+        XCTAssertFalse(MetricDetailInsights.isScoreAndInput("hrv", "steps"))
+        XCTAssertFalse(MetricDetailInsights.isScoreAndInput("recovery", "steps"))
     }
 
     // MARK: Goals name their sport

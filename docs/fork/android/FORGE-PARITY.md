@@ -207,7 +207,7 @@ Android reaches the same function; "missing" pages are the build list.
 | Coach notes on the timeline, "Why" sheet | `ForgeTodayView`, `ForgeCoachWhySheet` | has |
 | Vital tile editor (swap, reorder, up to nine) | `ForgeHealthTiles` | has (drag to reorder 2026-11-11) |
 | AgeLess page | `ForgeAgeLessView` | has, rebuilt 2026-11-11 (age line, domains, over time) |
-| Single-metric page | `MetricDetailView` | the vital tiles (HRV, resting HR, breathing rate, skin temperature, blood oxygen, VO₂max) open `VitalDetailScreen`: latest value, ranges, chart, minimum, average and maximum, readings with source (2026-11-12); steps and the remaining measures open Explore. Missing beside iOS: the coach card and correlations |
+| Single-metric page | `MetricDetailView` | has (2026-11-12): every vital tile, the steps tile and the measures on the focus pages open `VitalDetailScreen`, laid out as iOS: four windows (W, M, 6M, ALL), chart, Average with its trend line, Min, Max, Change against the window before, Latest, Ask coach, What correlates and the readings. Statistics, change and correlations come from the shared `MetricDetailInsights` in the core, which iOS calls too; steps follow the chosen steps source |
 | Effort of an imported workout from its heart rate | `WorkoutHeartRateFills.fillApple` (AI-16) | has (2026-11-12): `fillHealthConnect` from the strap trace or the minute heart rate the import files, on AI-35 |
 | Where steps come from | Devices and data sources, `StepsSource` | has (2026-11-12): Data and backup; one steps reader (`MetricResolver.resolvedSteps`) for tiles, steps page and AgeLess |
 | Energy page | `ForgeEnergyView` | has, rebuilt 2026-11-11 (ring against a usual day, parts, 30-day bars) |

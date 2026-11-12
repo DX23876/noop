@@ -34,6 +34,11 @@ object CorePrefs {
         JSONObject(SwiftCore.call("prefs.read", "{}") ?: "{}")
     }.getOrDefault(JSONObject())
 
+    /** Where daily steps come from (`automatic`, `strap` or `phone`), as the core holds it; the core must be open. */
+    fun stepsSource(): String = runCatching {
+        JSONObject(SwiftCore.call("prefs.read", "{}") ?: "{}").optString(STEPS_SOURCE, "automatic")
+    }.getOrDefault("automatic")
+
     /** Sets where daily steps come from; the core rebuilds the AgeLess weeks, which read steps. True when it took it. */
     fun setStepsSource(context: Context, source: String): Boolean = runCatching {
         CoreRead.open(context)

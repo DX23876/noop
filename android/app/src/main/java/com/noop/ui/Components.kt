@@ -610,6 +610,8 @@ fun StatTile(
     // The stress marker tiles clipped their reading AND their chip this way. The workouts feed went
     // full width, the stress tiles shortened the chip; both then wanted the natural-width path.
     compactDelta: Boolean = false,
+    // iOS `StatTile.sparkline`: a small trend line under the value, as the metric page's Average tile draws it.
+    sparkline: List<Double>? = null,
 ) {
     // Each tile borrows its accent as a faint card wash, so a metric reads as part of its
     // colour world while staying legible on the deep blue-black. Falls back to the accent.
@@ -641,6 +643,9 @@ fun StatTile(
                         modifier = if (compactDelta) Modifier.weight(1f, fill = false) else Modifier,
                     )
                 }
+            }
+            if (sparkline != null && sparkline.size > 1) {
+                Sparkline(sparkline, Modifier.fillMaxWidth().height(22.dp).padding(top = 4.dp), color = accent)
             }
             if (caption != null) {
                 Text(

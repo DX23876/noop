@@ -39,6 +39,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.abs
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -1887,7 +1891,8 @@ internal fun spo2EmptyState(
 }
 
 @Composable
-fun VitalDetailScreen(vm: AppViewModel, key: String) {
+fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String, summary: String) -> Unit)? = null) {
+    val forgeDesign = com.noop.ui.forge.ForgeDesign.preview
     val days by vm.recentDays.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val tempUnit = UnitPrefs.temperature(context)
@@ -2137,7 +2142,8 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
                     }
                 }
                 SegmentedPillControl(
-                    items = VitalDetailRange.entries,
+                    // The new design offers four windows, as iOS's `ExploreRange.displayCases`.
+                    items = if (forgeDesign) FORGE_VITAL_RANGES else VitalDetailRange.entries,
                     selection = effectiveRange,
                     label = { if (isStepsDetail) context.resources.getStringArray(R.array.steps_ranges)[it.ordinal] else it.label },
                     onSelect = { range = it },
@@ -2268,13 +2274,14 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
                         color = Palette.textTertiary,
                     )
                 }
-                Box(
+                // The new design moves the figures under the card, as iOS's metric page does (`statRow`).
+                if (!forgeDesign) Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(Metrics.divider)
                         .background(Palette.hairline),
                 )
-                Row(modifier = Modifier.fillMaxWidth()) {
+                if (!forgeDesign) Row(modifier = Modifier.fillMaxWidth()) {
                     listOf(
                         uiString(R.string.steps_min) to min,
                         uiString(R.string.steps_avg) to avg,
@@ -2301,7 +2308,53 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
         val readingRows = remember(filteredReadings, detail, strapId) {
             vitalReadingRows(filteredReadings, detail.unit, strapId, detail.format)
         }
-        VitalReadingsTable(rows = readingRows)
+        if (forgeDesign) {
+            // iOS `MetricDetailView` under its chart: the figures, "Ask coach", what moved with the measure, then the
+            // readings. The figures and correlations come from the shared core over the window shown here.
+            val revision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+            val (catalogKey, catalogSource) = vitalCatalogId(key)
+            val insights by produceState<com.noop.core.CoreMetricDetail.Insights?>(null, filteredPoints, effectiveRange, revision) {
+                value = withContext(Dispatchers.IO) {
+                    com.noop.core.CoreRead.open(context)
+                    com.noop.core.CoreMetricDetail.insights(catalogKey, catalogSource, detail.points, filteredPoints,
+                                                            effectiveRange == VitalDetailRange.ALL, revision.toInt())
+                }
+            }
+            val withUnit = { v: Double -> "${detail.format(v)} ${detail.unit}".trim() }
+            val signed = { d: Double ->
+                val magnitude = if (key == "skin") String.format(java.util.Locale.getDefault(), "%.1f",
+                    abs(d) * if (tempUnit == TemperatureUnit.FAHRENHEIT) 1.8 else 1.0) else detail.format(abs(d))
+                "${if (d >= 0) "+" else "−"}$magnitude ${detail.unit}".trim()
+            }
+            insights?.let { ins ->
+                VitalStatTiles(ins, values, effectiveRange, withUnit(latest.second), latestLabel, detail.color,
+                               vitalHigherIsBetter(key), withUnit, signed)
+                if (onAskCoach != null && ins.n > 0) {
+                    val summary = buildString {
+                        append("${detail.title}: ${withUnit(latest.second)} as of ${latest.first}.")
+                        val window = if (effectiveRange == VitalDetailRange.ALL) "all history" else "the last ${effectiveRange.name.lowercase()}"
+                        append(" Over $window (${ins.n} ${if (ins.n == 1) "reading" else "readings"}): average ${ins.mean?.let(withUnit)}, ")
+                        append("lowest ${ins.min?.let(withUnit)}, highest ${ins.max?.let(withUnit)}.")
+                        ins.delta?.let { d ->
+                            append(" Change vs the previous window: ${signed(d)}")
+                            ins.pctChange?.let { append(String.format(java.util.Locale.US, " (%+.1f%%)", it)) }
+                            append(".")
+                            val better = vitalHigherIsBetter(key)
+                            if (ins.direction != 0 && better != null) {
+                                append(" For this metric, ${if (better) "higher" else "lower"} is better, so this is ")
+                                append(if ((ins.direction > 0) == better) "a move in the good direction." else "a move in the unwanted direction.")
+                            }
+                        }
+                    }
+                    VitalAskCoach(detail.title) { onAskCoach(detail.title, summary) }
+                }
+            }
+            if (!isStepsDetail) VitalCorrelationsCard(detail.title, insights?.correlations)
+            VitalReadingsTable(rows = readingRows)
+            if (isStepsDetail) VitalCorrelationsCard(detail.title, insights?.correlations)
+        } else {
+            VitalReadingsTable(rows = readingRows)
+        }
     }
 }
 
@@ -2634,7 +2687,13 @@ internal suspend fun buildSeriesVitalDetail(vm: AppViewModel, key: String): Vita
             title = uiString(R.string.l10n_health_screen_steps_cdde4f20),
             unit = uiString(R.string.steps_unit),
             color = Palette.metricCyan,
-            readings = mergeStepsReadings(real, imported, est),
+            // The wearer's steps source, as the core's `MetricResolver.resolvedSteps` layers it: the strap's count then
+            // the estimate, the phone's alone, or (automatic) strap, phone, estimate.
+            readings = when (com.noop.core.CorePrefs.stepsSource()) {
+                "strap" -> mergeStepsReadings(real, emptyMap(), est)
+                "phone" -> mergeStepsReadings(emptyMap(), imported, emptyMap())
+                else -> mergeStepsReadings(real, imported, est)
+            },
             format = { java.text.NumberFormat.getIntegerInstance().format(it.roundToInt()) },
         )
     }
@@ -2677,3 +2736,7 @@ private fun HealthEmptyState() {
             "have it) in Data Sources to fill this in.",
     )
 }
+
+/** The windows the new design offers on a vital's page (iOS `ExploreRange.displayCases`: W, M, 6M, ALL). */
+private val FORGE_VITAL_RANGES = listOf(VitalDetailRange.WEEK, VitalDetailRange.MONTH, VitalDetailRange.SIX_MONTH,
+                                        VitalDetailRange.ALL)

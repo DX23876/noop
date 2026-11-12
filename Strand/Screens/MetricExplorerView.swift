@@ -1258,14 +1258,7 @@ struct MetricDetailView: View {
             return MetricDetailSteps.previousPresentation(
                 readings: series, range: effectiveRange, currentAnchorDay: anchorDay).series
         }
-        let size = windowed.count
-        guard size > 0 else { return [] }
-        // Index of the active window's first row, then step back `size` rows.
-        guard let firstDay = windowed.first?.day,
-              let lo = series.firstIndex(where: { $0.day == firstDay }) else { return [] }
-        let prevLo = max(0, lo - size)
-        guard prevLo < lo else { return [] }
-        return Array(series[prevLo..<lo])
+        return MetricDetailInsights.previousWindow(series: series, windowed: windowed, isAll: false)
     }
 
     private func trendPoints(_ windowed: [(day: String, value: Double)]) -> [TrendPoint] {
@@ -2289,37 +2282,14 @@ struct MetricDetailView: View {
         let n: Int
     }
 
-    /// Top |r| catalog metrics over a given window (|r| ≥ 0.30, n ≥ 10). Pure — takes
-    /// the window so the heavy scan can be driven from `recomputeCorrelations()` into
-    /// the `@State` cache instead of running inside `body`.
-    /// The measures each score is worked out from, by catalog key.
-    static let scoreInputs: [String: Set<String>] = [
-        "recovery": ["hrv", "rhr", "resp_rate", "skin_temp", "sleep_performance"],
-        "stress": ["hrv", "rhr"],
-    ]
-
-    /// Whether one of the two keys is a score and the other one of its inputs, in either order.
-    static func isScoreAndInput(_ a: String, _ b: String) -> Bool {
-        (scoreInputs[a]?.contains(b) ?? false) || (scoreInputs[b]?.contains(a) ?? false)
-    }
-
+    /// The shared scan (`MetricDetailInsights.correlations`, the same one Android's core runs), mapped back onto
+    /// the catalog descriptors for their icons.
     private func computeCorrelationRows(windowed: [(day: String, value: Double)]) -> [CorrRow] {
-        let myDays = Set(windowed.map(\.day))
-        guard !myDays.isEmpty else { return [] }
-        var rows: [CorrRow] = []
-        for entry in others {
-            // A score next to its own ingredients is no finding: Charge is computed from HRV, so the two
-            // moving together says nothing the wearer did not already know.
-            if Self.isScoreAndInput(metric.key, entry.metric.key) { continue }
-            let otherWindowed = entry.series.filter { myDays.contains($0.day) }
-            let pairs = CorrelationEngine.alignByDay(windowed, otherWindowed)
-            guard pairs.count >= 10, let c = CorrelationEngine.pearson(pairs) else { continue }
-            if abs(c.r) >= 0.3 {
-                rows.append(CorrRow(id: entry.metric.id, metric: entry.metric, r: c.r, n: c.n))
-            }
+        MetricDetailInsights.correlations(metricKey: metric.key, windowed: windowed, others: others).compactMap { row in
+            guard let descriptor = others.first(where: { $0.metric.key == row.key && $0.metric.source == row.source })?.metric
+            else { return nil }
+            return CorrRow(id: descriptor.id, metric: descriptor, r: row.r, n: row.n)
         }
-        rows.sort { abs($0.r) > abs($1.r) }
-        return Array(rows.prefix(6))
     }
 
     /// Rebuild the cached correlation scan for the CURRENT effective window, but only

@@ -43,6 +43,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -116,8 +119,8 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     // The tile the picker swaps ("" adds one), null while the picker is closed.
     var tilePick by remember { mutableStateOf<String?>(null) }
     // A tile opens its own measure, as iOS's `TabRoute.metricSourced`: the vital's own page (`VitalDetailScreen`, the
-    // Android side of iOS's `MetricDetailView`), else Explore on that measure, or the measure's own screen. Steps stay
-    // in Explore: the vital page predates the steps source choice.
+    // Android side of iOS's `MetricDetailView`), else Explore on that measure, or the measure's own screen. Steps
+    // follow the chosen steps source there too.
     var vitalKey by rememberSaveable { mutableStateOf<String?>(null) }
     fun openMeasure(key: String) = when (key) {
         "ageless" -> open(MoreDest.AgeLess); "weight" -> open(MoreDest.Body); "stress" -> open(MoreDest.Stress)
@@ -290,6 +293,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
             ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
                 androidx.activity.compose.BackHandler { focus = null }
                 FocusAreaPage(area, viewModel, onBack = { focus = null }, onOpen = { focus = null; open(it) },
+                              onOpenVital = { vitalKey = it },
                               onAction = { a -> focus = null; when (a) { "sleep" -> selectTab(ForgeTab.Sleep); "trends" -> trendsOpen = true
                                   "cycle" -> cycleOpen = true } })
             }
@@ -320,9 +324,18 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     }
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
     vitalKey?.let { key ->
+        // "Ask coach" while the coach is on and may read card figures, as iOS's `CoachCardButton` hides itself
+        // otherwise; the page's figures go to the chat, which opens in its tab.
+        val coachOn = com.noop.ui.NoopPrefs.coachEnabled(context) && com.noop.ai.AiKeyStore.readConsent(context)
+        val purposesOn by produceState(false, coachOn) {
+            value = coachOn && withContext(Dispatchers.IO) { com.noop.core.CoreCoach.cardAllowed() }
+        }
+        val ask: ((String, String) -> Unit)? = if (!purposesOn) null else { title, summary ->
+            com.noop.ui.CoachHandoff.pendingCard = title to summary; vitalKey = null; selectTab(ForgeTab.Coach)
+        }
         ForgeOverlayPage(onDismiss = { vitalKey = null }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {
-                Hosted(null, onBack = { vitalKey = null }) { com.noop.ui.VitalDetailScreen(viewModel, key) }
+                Hosted(null, onBack = { vitalKey = null }) { com.noop.ui.VitalDetailScreen(viewModel, key, ask) }
             }
         }
     }
@@ -610,4 +623,4 @@ private fun RemoveBadge(modifier: Modifier, onClick: () -> Unit) {
 
 /** Vital tiles whose measure has a page of its own, by tile key, to the page's key. */
 private val VITAL_PAGES = mapOf("rhr" to "rhr", "hrv" to "hrv", "resp" to "resp", "skin" to "skin",
-                                "spo2" to "spo2", "spo2raw" to "spo2", "vo2max" to "vo2max_est")
+                                "spo2" to "spo2", "spo2raw" to "spo2", "vo2max" to "vo2max_est", "steps" to "steps_est")

@@ -355,6 +355,19 @@ public enum CoreCall {
             return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,
                 activity: ActivityLevel(rawValue: string("activity")) ?? .light,
                 targetKgPerWeek: (args["targetKgPerWeek"] as? NSNumber)?.doubleValue ?? 0))
+        case "metric.detailInsights":
+            // A measure's detail page (`MetricDetailInsights`): statistics, change and correlations over the window
+            // the page shows. Series arrive as [[day, value], ...].
+            func points(_ name: String) -> [(day: String, value: Double)] {
+                ((args[name] as? [[Any]]) ?? []).compactMap { pair in
+                    guard pair.count == 2, let day = pair[0] as? String, let value = (pair[1] as? NSNumber)?.doubleValue
+                    else { return nil }
+                    return (day, value)
+                }
+            }
+            return CoreRead.json(await CoreMetricDetail.insights(reader: reader, catalogKey: string("key"),
+                catalogSource: string("source"), series: points("series"), windowed: points("windowed"),
+                isAll: (args["isAll"] as? Bool) ?? false, revision: int("revision", 0)))
         case "read.dailyRows":
             return CoreRead.json(await CoreRead.dailyRows(from: string("from"), to: string("to"), reader: reader))
         case "read.resolvedSeries":

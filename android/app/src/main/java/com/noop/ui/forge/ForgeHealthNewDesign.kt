@@ -161,7 +161,11 @@ internal fun FocusArea.measures(): List<FocusMeasure> = when (this) {
 /** A focus value as iOS's `ForgeFocusView.format`: minutes as h:mm, a change in skin temperature with its sign. */
 internal fun focusValue(v: Double, m: FocusMeasure): String {
     if (m.unit == "min") { val t = v.roundToInt(); return "%d:%02d".format(t / 60, t % 60) }
-    val text = "%.${if (m.unit == "/100") 0 else m.decimals}f".format(Locale.getDefault(), v)
+    // Grouped as the reader's locale writes numbers ("10.445" steps), as iOS's `.number` format does.
+    val text = java.text.NumberFormat.getNumberInstance(Locale.getDefault()).apply {
+        val places = if (m.unit == "/100") 0 else m.decimals
+        minimumFractionDigits = places; maximumFractionDigits = places
+    }.format(v)
     return if (m.key == "skin_temp" && v >= 0 && v < 20) "+$text" else text
 }
 
@@ -213,7 +217,7 @@ private fun focusLinks(area: FocusArea, context: android.content.Context): List<
  */
 @Composable
 internal fun FocusAreaPage(area: FocusArea, viewModel: com.noop.ui.AppViewModel, onBack: () -> Unit, onOpen: (MoreDest) -> Unit,
-                           onAction: (String) -> Unit) {
+                           onAction: (String) -> Unit, onOpenVital: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val colors = Forge.colors
     val tint = area.tint()
@@ -257,7 +261,10 @@ internal fun FocusAreaPage(area: FocusArea, viewModel: com.noop.ui.AppViewModel,
                         val values = t.values
                         MetricTile(area.icon, tint, t.label, t.value, t.unit.ifEmpty { null }, noData,
                                    Modifier.weight(1f).clickable(role = Role.Button) {
-                                       com.noop.ui.ExploreLaunch.pendingKey = key?.let(com.noop.ui.ExploreLaunch::exploreKey); onOpen(if (key == "energy") MoreDest.Energy else MoreDest.Explore)
+                                       // A measure with a page of its own opens it, as iOS opens `MetricDetailView`.
+                                       val vital = key?.let(CATALOG_VITAL_PAGES::get)
+                                       if (vital != null && onOpenVital != null) onOpenVital(vital)
+                                       else { com.noop.ui.ExploreLaunch.pendingKey = key?.let(com.noop.ui.ExploreLaunch::exploreKey); onOpen(if (key == "energy") MoreDest.Energy else MoreDest.Explore) }
                                    },
                                    below = values.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, tint) } })
                     }
@@ -331,3 +338,9 @@ private fun MiniRings(charge: Double?, effort: Double?, rest: Double?) {
         }
     }
 }
+
+/** Catalog measures (`MetricCatalog` keys) whose vital page (`VitalDetailScreen`) exists, to that page's key. */
+internal val CATALOG_VITAL_PAGES = mapOf("hrv" to "hrv", "rhr" to "rhr", "resp_rate" to "resp", "skin_temp" to "skin",
+    "spo2" to "spo2", "vo2max_est" to "vo2max_est", "steps" to "steps_est", "fitness_age" to "fitness_age",
+    "vitality" to "vitality", "recovery" to "recovery", "strain" to "strain", "sleep_performance" to "rest",
+    "active_kcal" to "active_kcal")
