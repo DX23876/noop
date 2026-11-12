@@ -1087,6 +1087,23 @@ private fun AppearanceSection(change: (() -> Unit) -> Unit) {
                           }) },
                           onSelect = { change { ForgeColorProfile.set(context, it) } })
             }
+            // iOS shows the accent choice only for the colourful profile; the calm ones bring their own.
+            if (ForgeColorProfile.current == ForgeColorProfile.Colorful) {
+                RowDivider()
+                SettingRow(stringResource(R.string.forge_ap_accent)) {
+                    // A custom colour chosen in the classic settings stays visible as its own choice, so the row never
+                    // claims System Blue while the app wears another colour.
+                    val accents = listOf("systemBlue", "mint", "whoopBlue") + listOfNotNull("custom".takeIf { ForgeAccent.raw == it })
+                    Segmented(accents, ForgeAccent.raw.takeIf { it in accents } ?: "systemBlue",
+                              label = { stringResource(when (it) {
+                                  "mint" -> R.string.forge_ap_mint
+                                  "whoopBlue" -> R.string.forge_ap_whoop_blue
+                                  "custom" -> R.string.forge_ap_custom
+                                  else -> R.string.forge_ap_system_blue
+                              }) },
+                              onSelect = { change { ForgeAccent.set(context, it) } })
+                }
+            }
         }
     }
     BackgroundCard()

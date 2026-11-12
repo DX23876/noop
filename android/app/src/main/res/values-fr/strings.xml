@@ -6608,4 +6608,8 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="wv_auto_pause">Pause automatique</string>
     <string name="wv_auto_pause_note">Course et vélo avec GPS uniquement. Pause après cinq secondes à l’arrêt, reprise après trois secondes de mouvement. Une pause manuelle reste active.</string>
     <string name="body_site_edit">Modifier</string>
+    <string name="forge_ap_accent">Accent</string>
+    <string name="forge_ap_mint">Mint</string>
+    <string name="forge_ap_whoop_blue">WHOOP Blue</string>
+    <string name="forge_ap_custom">Personnalisé</string>
 </resources>

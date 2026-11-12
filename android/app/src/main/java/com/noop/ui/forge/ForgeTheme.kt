@@ -15,6 +15,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -109,6 +110,39 @@ enum class ForgeColorProfile(val raw: String) {
     }
 }
 
+/**
+ * The accent the colourful profile wears, as iOS's `StrandPalette.accentChoice` under the forge skin: System Blue
+ * by default, or Mint, WHOOP Blue or the custom colour, under the same key as iOS (`accent.color`). The calm
+ * profiles keep their own accent.
+ */
+object ForgeAccent {
+    var raw by mutableStateOf("systemBlue")
+        private set
+
+    fun load(context: android.content.Context) {
+        raw = context.getSharedPreferences(com.noop.ui.NoopPrefs.NAME, android.content.Context.MODE_PRIVATE)
+            .getString("accent.color", null) ?: "systemBlue"
+    }
+
+    fun set(context: android.content.Context, value: String) {
+        context.getSharedPreferences(com.noop.ui.NoopPrefs.NAME, android.content.Context.MODE_PRIVATE).edit()
+            .putString("accent.color", value).apply()
+        raw = value
+        com.noop.ui.AccentPrefs.load(context)
+    }
+
+    internal fun pair(): ForgeColor = when (raw) {
+        "mint" -> ForgeColor(light = 0xFF149A78, dark = 0xFF69DDB8)
+        "whoopBlue" -> ForgeColor(light = 0xFF234F9E, dark = 0xFF60A0E0)
+        "custom" -> com.noop.ui.AccentPrefs.customHex.let { hex ->
+            val c = com.noop.ui.AccentColor.parseHex(hex, androidx.compose.ui.graphics.Color(0xFF149A78))
+            val argb = c.toArgb().toLong() and 0xFFFFFFFFL
+            ForgeColor(light = argb, dark = argb)
+        }
+        else -> ForgeTokens.Color.systemBlue
+    }
+}
+
 /** iOS's `ForgeHex` text: plain black and white with Apple's secondary and tertiary label alphas. */
 private object ForgeText {
     val primary = ForgeColor(light = 0xFF000000, dark = 0xFFFFFFFF)
@@ -133,7 +167,7 @@ fun forgeColors(dark: Boolean, newDesign: Boolean = ForgeDesign.preview,
     onDark = P.onDarkPrimary.pick(dark), onDarkSecondary = P.onDarkSecondary.pick(dark),
     onDarkTertiary = P.onDarkTertiary.pick(dark),
     heroFill = P.heroFill.pick(dark), heroBorder = P.heroBorder.pick(dark),
-    accent = (c.accent?.takeIf { newDesign } ?: ForgeTokens.Color.systemBlue).pick(dark),
+    accent = (c.accent?.takeIf { newDesign } ?: (if (newDesign) ForgeAccent.pair() else ForgeTokens.Color.systemBlue)).pick(dark),
     charge = P.chargeColor.pick(dark), effort = P.organicEffort.pick(dark), rest = P.organicRest.pick(dark),
     missing = P.organicMissing.pick(dark),
     // The Signature style's recovery ramp, the stops `StrandPalette.recoveryStops` gives the score ring.

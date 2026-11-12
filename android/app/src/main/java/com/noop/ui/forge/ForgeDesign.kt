@@ -38,6 +38,7 @@ object ForgeDesign {
         preview = override ?: prefs.getBoolean(KEY, DEFAULT)
         ForgeColorProfile.load(context)
         ScoreRingStyle.load(context)
+        ForgeAccent.load(context)
         TodayWidgets.seedDemoIfRequested(context, intent)
         com.noop.ingest.DebugHealthConnectSeed.seedIfRequested(context, intent)
     }

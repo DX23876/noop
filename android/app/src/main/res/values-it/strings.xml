@@ -6577,4 +6577,8 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="wv_auto_pause">Pausa automatica</string>
     <string name="wv_auto_pause_note">Solo corsa e ciclismo con GPS. Pausa dopo cinque secondi fermo, riprende dopo tre secondi in movimento. Una pausa manuale resta attiva.</string>
     <string name="body_site_edit">Modifica</string>
+    <string name="forge_ap_accent">Accento</string>
+    <string name="forge_ap_mint">Mint</string>
+    <string name="forge_ap_whoop_blue">WHOOP Blue</string>
+    <string name="forge_ap_custom">Personalizzato</string>
 </resources>

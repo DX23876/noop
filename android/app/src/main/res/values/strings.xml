@@ -6648,4 +6648,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="wv_auto_pause">Auto-pause</string>
     <string name="wv_auto_pause_note">GPS running and cycling only. Pauses after five seconds stopped, resumes after three seconds moving. A manual pause stays paused.</string>
     <string name="body_site_edit">Edit</string>
+    <string name="forge_ap_accent">Accent</string>
+    <string name="forge_ap_system_blue" translatable="false">System Blue</string>
+    <string name="forge_ap_mint">Mint</string>
+    <string name="forge_ap_whoop_blue">WHOOP Blue</string>
+    <string name="forge_ap_custom">Custom</string>
 </resources>
