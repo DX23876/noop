@@ -6565,4 +6565,5 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_ap_motion">Motion</string>
     <string name="forge_log_photo">Photo</string>
     <string name="forge_log_photo_question">Here is a photo I want to log, such as a meal or a workout screen. Say what you see and what I could log from it. Mark any estimate as an estimate and do not log anything yourself.</string>
+    <string name="forge_cd_bpm_avg">%1$d bpm avg</string>
 </resources>

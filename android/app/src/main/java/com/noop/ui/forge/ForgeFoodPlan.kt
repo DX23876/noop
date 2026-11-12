@@ -490,7 +490,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                             CoreDietPlan.save(context, saved); onSaved(saved)
                         }
                     }.padding(horizontal = 28.dp, vertical = 14.dp)) {
-                    Text(stringResource(if (step < steps - 1) R.string.diet_next else R.string.diet_start_plan), style = Forge.type.headline, color = Color.White)
+                    Text(stringResource(if (step < steps - 1) R.string.diet_next else R.string.diet_start_plan), style = Forge.type.headline, color = colors.onAccent)
                 }
             }
         }
@@ -626,7 +626,7 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
         }
         CheckRow(stringResource(R.string.diet_hide_numbers), plan.hideNumbers) { onPlanChange(plan.copy(hideNumbers = !plan.hideNumbers)) }
         Box(Modifier.fillMaxWidth().clip(CircleShape).background(colors.accent).clickable(role = Role.Button, onClick = onEdit).padding(14.dp),
-            contentAlignment = Alignment.Center) { Text(stringResource(R.string.diet_change_plan), style = Forge.type.headline, color = Color.White) }
+            contentAlignment = Alignment.Center) { Text(stringResource(R.string.diet_change_plan), style = Forge.type.headline, color = colors.onAccent) }
         TextButton(onClick = onEnd, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.diet_end_plan), color = colors.effort) }
     }
 }

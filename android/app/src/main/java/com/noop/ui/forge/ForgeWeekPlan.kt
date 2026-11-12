@@ -170,7 +170,7 @@ internal fun ForgeWeekPlanPage(viewModel: AppViewModel, onBack: () -> Unit, onSc
         }
         if (onAsk != null) {
             val prompt = stringResource(R.string.forge_wp_coach_prompt)
-            Text(stringResource(R.string.forge_wp_coach), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.surface,
+            Text(stringResource(R.string.forge_wp_coach), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.onAccent,
                  textAlign = TextAlign.Center,
                  modifier = Modifier.fillMaxWidth().background(colors.accent, CircleShape).clickable(role = Role.Button) { onAsk(prompt) }
                      .padding(vertical = 12.dp))

@@ -810,7 +810,8 @@ private fun ChatBubble(msg: ChatMsg, vm: CoachViewModel, groupStart: Boolean = t
                     .padding(horizontal = 16.dp, vertical = 12.dp)
                     .semantics { contentDescription = uiString(R.string.coach_you_said, msg.text) },
             ) {
-                Text(msg.text, style = NoopType.body, color = Palette.surfaceBase)
+                // White on the accent, as iOS's bubble: the canvas colour turned dark in the dark appearance.
+                Text(msg.text, style = NoopType.body, color = Color.White)
                 menu()
             }
         }
@@ -1339,7 +1340,7 @@ internal fun CoachPrimaryButton(label: String, enabled: Boolean, onClick: () -> 
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = NoopType.headline, color = Palette.surfaceBase)
+        Text(label, style = NoopType.headline, color = Color.White)
     }
 }
 

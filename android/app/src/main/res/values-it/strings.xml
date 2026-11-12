@@ -6494,4 +6494,5 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_ap_motion">Movimento</string>
     <string name="forge_log_photo">Foto</string>
     <string name="forge_log_photo_question">Ecco una foto che voglio registrare, come un pasto o una schermata di allenamento. Dimmi cosa vedi e cosa potrei registrare. Indica le stime come stime e non registrare nulla tu.</string>
+    <string name="forge_cd_bpm_avg">%1$d bpm avg</string>
 </resources>

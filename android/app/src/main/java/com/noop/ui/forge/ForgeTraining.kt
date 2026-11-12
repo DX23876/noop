@@ -637,9 +637,9 @@ private fun InProgressCard(subtitle: String?, onResume: () -> Unit) {
         Row(Modifier.fillMaxWidth().background(Forge.colors.accent, RoundedCornerShape(12.dp)).clickable(onClick = onResume)
                 .padding(vertical = ForgeMetrics.space3),
             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color.White)
+            Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Forge.colors.onAccent)
             Spacer(Modifier.width(ForgeMetrics.space2))
-            Text(stringResource(R.string.forge_th_resume), style = Forge.type.headline, color = Color.White)
+            Text(stringResource(R.string.forge_th_resume), style = Forge.type.headline, color = Forge.colors.onAccent)
         }
     }
 }

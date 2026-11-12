@@ -782,7 +782,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
                         onBack()
                     }
                 }, modifier = Modifier.fillMaxWidth().background(Forge.colors.accent, RoundedCornerShape(50))) {
-                    Text(stringResource(R.string.food_add_cart, cart.size, kcalText(kcal)), style = Forge.type.headline, color = Forge.colors.onDark)
+                    Text(stringResource(R.string.food_add_cart, cart.size, kcalText(kcal)), style = Forge.type.headline, color = Forge.colors.onAccent)
                 }
             }
         }

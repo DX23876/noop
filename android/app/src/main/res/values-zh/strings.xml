@@ -6495,4 +6495,5 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_ap_motion">运动</string>
     <string name="forge_log_photo">照片</string>
     <string name="forge_log_photo_question">这是一张我想记录的照片，比如一顿饭或训练屏幕。说说你看到了什么，以及我可以记录什么。估算请标明是估算，不要自行记录任何内容。</string>
+    <string name="forge_cd_bpm_avg">%1$d bpm 平均</string>
 </resources>

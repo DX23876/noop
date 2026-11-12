@@ -164,7 +164,7 @@ internal fun ForgePlateCalculator(targetKg: Double, onClose: () -> Unit) {
                             Box(Modifier.size(w.dp, h.dp).background(Forge.colors.accent, RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center) {
                                 Text(number(TrainingSetInput.massForInput(plate, units)),
-                                     style = Forge.type.subhead.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                                     style = Forge.type.subhead.copy(fontWeight = FontWeight.Bold), color = Forge.colors.onAccent)
                             }
                         }
                     }

@@ -50,6 +50,8 @@ data class ForgeColors(
     val food: Color, val protein: Color, val carbs: Color, val fat: Color,
     // The cycle page's phase colours, the values of iOS `ForgeColor.cyclePeriod`/`cycleFollicular`/`cycleShift`/`cycleFertile`.
     val cyclePeriod: Color, val cycleFollicular: Color, val cycleShift: Color, val cycleFertile: Color,
+    /** Text and icons on an accent fill (iOS `forgeOnAccent`): white, or the calm profile's own dark ink. */
+    val onAccent: Color = Color.White,
 )
 
 @Immutable
@@ -69,20 +71,21 @@ enum class ForgeColorProfile(val raw: String) {
     Colorful("colorful"), Stone("stone"), Slate("slate"), Sage("sage");
 
     internal class Chrome(val canvas: ForgeColor, val surface: ForgeColor, val surfaceTop: ForgeColor, val inset: ForgeColor,
-                          val border: ForgeColor, val divider: ForgeColor, val accent: ForgeColor?)
+                          val border: ForgeColor, val divider: ForgeColor, val accent: ForgeColor?,
+                          val onAccent: ForgeColor? = null)
 
     internal val chrome: Chrome get() = when (this) {
         Colorful -> Chrome(ForgeColor(0xFFF2F2F7, 0xFF000000), ForgeColor(0xFFFFFFFF, 0xFF1C1C1E), ForgeColor(0xFFFFFFFF, 0xFF1F1F21),
                            ForgeColor(0xFFE9E9EE, 0xFF2C2C2E), ForgeColor(0xFFAEAEB2, 0xFF636366), ForgeColor(0xFFAEAEB2, 0xFF636366), null)
         Stone -> Chrome(ForgeColor(0xFFF4EFE8, 0xFF0A0D12), ForgeColor(0xFFFFFDFA, 0xFF161A20), ForgeColor(0xFFFFFDFA, 0xFF191E25),
                         ForgeColor(0xFFF2ECE3, 0xFF1E232B), ForgeColor(0xFFB9AE9F, 0xFF454D59), ForgeColor(0xFFB9AE9F, 0xFF454D59),
-                        ForgeColor(0xFF9A3E1C, 0xFFE8B64A))
+                        ForgeColor(0xFF9A3E1C, 0xFFE8B64A), ForgeColor(0xFFFFFFFF, 0xFF2A1D00))
         Slate -> Chrome(ForgeColor(0xFFEEF1F5, 0xFF0B0F14), ForgeColor(0xFFFFFFFF, 0xFF161B22), ForgeColor(0xFFFFFFFF, 0xFF191F27),
                         ForgeColor(0xFFE4E8EE, 0xFF202730), ForgeColor(0xFFA3ADBB, 0xFF4D5764), ForgeColor(0xFFA3ADBB, 0xFF4D5764),
-                        ForgeColor(0xFF3F5F85, 0xFF8FB3DC))
+                        ForgeColor(0xFF3F5F85, 0xFF8FB3DC), ForgeColor(0xFFFFFFFF, 0xFF0B1B2B))
         Sage -> Chrome(ForgeColor(0xFFEFF2EC, 0xFF0B100D), ForgeColor(0xFFFFFFFF, 0xFF151B17), ForgeColor(0xFFFFFFFF, 0xFF181F1A),
                        ForgeColor(0xFFE4E9E0, 0xFF1F2721), ForgeColor(0xFFA0AB99, 0xFF4E5A52), ForgeColor(0xFFA0AB99, 0xFF4E5A52),
-                       ForgeColor(0xFF4A6B52, 0xFF9CC7A8))
+                       ForgeColor(0xFF4A6B52, 0xFF9CC7A8), ForgeColor(0xFFFFFFFF, 0xFF0D2214))
     }
 
     companion object {
@@ -145,6 +148,7 @@ fun forgeColors(dark: Boolean, newDesign: Boolean = ForgeDesign.preview,
     fat = FoodInk.fat.pick(dark),
     cyclePeriod = CycleInk.period.pick(dark), cycleFollicular = CycleInk.follicular.pick(dark),
     cycleShift = CycleInk.shift.pick(dark), cycleFertile = CycleInk.fertile.pick(dark),
+    onAccent = c.onAccent?.takeIf { newDesign }?.pick(dark) ?: Color.White,
     )
 }
 
@@ -300,10 +304,10 @@ fun forgeDark(): Boolean = when (AppearancePrefs.mode) {
 fun ForgeTheme(dark: Boolean = forgeDark(), content: @Composable () -> Unit) {
     val colors = forgeColors(dark)
     val material = if (dark) {
-        darkColorScheme(primary = colors.accent, background = colors.canvas, surface = colors.surface,
+        darkColorScheme(primary = colors.accent, onPrimary = colors.onAccent, background = colors.canvas, surface = colors.surface,
                         onBackground = colors.text, onSurface = colors.text, outline = colors.border)
     } else {
-        lightColorScheme(primary = colors.accent, background = colors.canvas, surface = colors.surface,
+        lightColorScheme(primary = colors.accent, onPrimary = colors.onAccent, background = colors.canvas, surface = colors.surface,
                          onBackground = colors.text, onSurface = colors.text, outline = colors.border)
     }
     CompositionLocalProvider(LocalForgeColors provides colors) {

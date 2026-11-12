@@ -6542,4 +6542,5 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_ap_motion">Bewegung</string>
     <string name="forge_log_photo">Foto</string>
     <string name="forge_log_photo_question">Hier ist ein Foto, das ich eintragen möchte, etwa eine Mahlzeit oder ein Trainingsbildschirm. Sag, was du siehst und was ich daraus eintragen könnte. Kennzeichne Schätzungen als Schätzungen und trage selbst nichts ein.</string>
+    <string name="forge_cd_bpm_avg">Ø %1$d bpm</string>
 </resources>

@@ -213,3 +213,22 @@ Android reaches the same function; "missing" pages are the build list.
 | Energy page | `ForgeEnergyView` | has, rebuilt 2026-11-11 (ring against a usual day, parts, 30-day bars) |
 | Workouts page | `ForgeWorkoutsView` | has, rebuilt 2026-11-12 (13 weeks, this week, sessions by week); a recent session opens itself |
 | Workouts list, Strength, Muscles | `ForgeWorkoutsView`, `ForgeStrengthView` | has; Strength opens an overview after `ForgeStrengthView` (next routine with Start, eight weeks of volume from the shared `StrengthWeeklyVolume`, latest sessions, plan, muscles and the full report) since 2026-11-12 |
+
+## Round 2026-11-12: page by page against iOS
+
+Each page below was read against its iOS file section by section; "open" lists what is still missing there.
+
+| Page | Done | Open |
+|---|---|---|
+| Training tab | coach quick asks (shorter, other routine, plan today, create a routine), Routines heading whose All opens the plan and library, each sport's own colour (`forgeSportTint`, iOS `AppleInspiredColors.role(forSport:)`) in Training, Workouts and Today, distance in the recent rows | routine pictures (`CoachPicture`) |
+| Cardio | iOS forge order: chart under the hero, one week-figures card with the kcal line, sessions per family as tile rows, history link last | bests as tile rows with icons |
+| Training load | one standing card with both lanes against their usual range (core `usualLow`, `usualHigh`), the verdict sentence, Last 8 weeks inline, Development rows (adaptation, recovery, session load), no subtitle | duplicate-session review card |
+| Section headings in the training reports | no kicker, headline size in the new design | |
+| Food | the plan's day from the shared `DietDayResolver` (core `food.planDay`): phase, training or rest day, active-day extra, goals per day; other-source note; completely-logged row (`food.planDayComplete`, `food.planSetDayComplete`) | week strip goals per day; iOS's `ForgeFoodModel` still computes the day itself and should adopt the resolver |
+| Diet plan page | burn card (real burn against the strap, base the plan on it), active-days switch | change card, advice card |
+| Diet plan data | Kotlin `Plan` keeps iOS's seven newer fields on save (it dropped them before) | planner steps for training weekdays, experience and recomposition deficit |
+| Body | iOS forge order: today's three figures, Measure, What changed (3 windows, tape against scale, diverging bars), body fat with Navy and sources, change since first reading chart, sites with sparklines, photos, weekly and daily reminders (`BodyMeasurementReminder`, new on Android) | a site's detail page |
+| Appearance | colour profiles (Colorful default, Stone, Slate, Sage) with iOS's values; the new design no longer wears the shipped bluish chrome; Motion card with Reduce motion and Living or Classic score rings (`ClassicScoreRing`) | accent colour choice, chart style rows, Motion effect, Coach animation, Coloured icons |
+| Lab | personal stress baseline switch | Continuous HRV "Nights only" (BLE, needs a strap) |
+| Log sheet | coach Photo while the provider reads images (`coach.acceptsPhotos`, `coach.sendPhoto`, PNG at most 1024 px) | Speak starts no dictation yet, it opens the chat |
+| Live workout | | voice feedback, zone and pace warnings, auto-pause (iOS `WorkoutFeedbackSettingsView`) |

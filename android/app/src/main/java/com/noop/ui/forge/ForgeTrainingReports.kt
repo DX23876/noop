@@ -412,12 +412,19 @@ private fun androidx.compose.foundation.layout.RowScope.CardioFigure(value: Stri
 private fun CardioSessionRow(session: CoreTrainingReports.CardioSession, units: UnitSystem, divider: Boolean, onOpen: () -> Unit) {
     val colors = Forge.colors
     if (divider) Box(Modifier.padding(start = 68.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
+    val context = LocalContext.current
+    val bpmAvg: (Int) -> String = { context.getString(R.string.forge_cd_bpm_avg, it) }
     val parts = buildList {
         add(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault())
                 .withZone(ZoneId.systemDefault()).format(Instant.ofEpochSecond(session.startTs)))
         add(minutes((session.durationS ?: 0.0) / 60))
         session.distanceM?.takeIf { it > 0 }?.let { add(UnitFormatter.distanceFromMeters(it, units)) }
-        session.paceSecPerKm?.let { add(reportPace(it, session.modality, units)) }
+        // The sport's own readout, as iOS's `sessionDetailLine`: pace on foot and in water, speed on a bike or a rower.
+        when (session.modality) {
+            "foot", "swimming" -> session.paceSecPerKm?.let { add(reportPace(it, session.modality, units)) }
+            "cycling", "rowing" -> UnitFormatter.speedFromKilometersPerHour(session.speedKmh, units)?.let { add(it) }
+        }
+        session.avgHr?.let { add(bpmAvg(it)) }
     }
     Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onOpen)
             .padding(horizontal = ForgeMetrics.space4, vertical = 12.dp).semantics(mergeDescendants = true) {},

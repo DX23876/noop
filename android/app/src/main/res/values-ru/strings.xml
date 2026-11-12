@@ -6499,4 +6499,5 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_ap_motion">Движение</string>
     <string name="forge_log_photo">Фото</string>
     <string name="forge_log_photo_question">Вот фото, которое я хочу записать, например еда или экран тренировки. Скажи, что ты видишь и что я могу из этого записать. Помечай оценки как оценки и ничего не записывай сам.</string>
+    <string name="forge_cd_bpm_avg">%1$d среднее число ударов в минуту</string>
 </resources>

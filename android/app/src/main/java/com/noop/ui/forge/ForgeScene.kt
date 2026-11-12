@@ -183,7 +183,9 @@ fun ForgeSceneBackdrop(kind: ForgeBackdrop, modifier: Modifier = Modifier, conte
     // cards" with the time-of-day sky on), then each tab's own band; with the sky off only the plain canvas.
     val image = BackgroundImageStore.isActive
     val fullScene = !image && kind != ForgeBackdrop.Canvas && ForgeBackground.dayCycle && ForgeBackground.behindCards
-    val plain = !image && (!ForgeBackground.dayCycle || kind == ForgeBackdrop.Canvas)
+    // The new design draws pushed pages on the plain canvas, as iOS's `ForgeBackground` (the sky is Today's own).
+    val plain = !image && (!ForgeBackground.dayCycle || kind == ForgeBackdrop.Canvas ||
+                           (kind == ForgeBackdrop.Sky && ForgeDesign.preview))
     val sceneHeight = if (fullScene) SCENE_BEHIND_CARDS_HEIGHT else SCENE_HEIGHT
     val sceneHeightPx = with(density) { sceneHeight.toPx() }
     val washStops = remember(colors.canvas) {

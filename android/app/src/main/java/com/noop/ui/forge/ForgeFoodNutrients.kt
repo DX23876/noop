@@ -71,6 +71,9 @@ internal fun nutrientName(key: String): String = when (val id = nutrientNameRes(
 
 private fun nutrientNameRes(key: String): Int? = when (key) {
     "protein_g" -> R.string.food_n_protein_g
+    // Carbohydrate and fat had no name here and printed their raw keys in the entry's nutrient list.
+    "carbs_g" -> R.string.food_carbs
+    "fat_g" -> R.string.food_fat
     "fiber_g" -> R.string.food_n_fiber_g
     "sugar_g" -> R.string.food_n_sugar_g
     "sat_fat_g" -> R.string.food_n_sat_fat_g

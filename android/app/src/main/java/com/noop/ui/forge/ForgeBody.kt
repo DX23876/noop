@@ -146,9 +146,9 @@ private fun BodyMeasureButton(onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = 46.dp).background(colors.accent, CircleShape)
             .clickable(role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = colors.onAccent, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(ForgeMetrics.space2))
-        Text(stringResource(R.string.forge_body_measure), style = Forge.type.headline, color = Color.White)
+        Text(stringResource(R.string.forge_body_measure), style = Forge.type.headline, color = colors.onAccent)
     }
 }
 
