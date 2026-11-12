@@ -413,22 +413,6 @@
       "Waiting for R-R intervals."
     ],
     [
-      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
-      "Below Zone 1"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
-      "Warming up - keep moving to climb into Zone 1."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
-      "Zone $zone · ${zoneName(zone)}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
-      "Zone $zone: ${band.lower.toInt()} - ${band.upper.toInt()} bpm (${(band.lowerPct * 100).toInt()} - ${(band.upperPct * 100).toInt()}% max HR)"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/MindSection.kt",
       "${face.word}, mood ${face.value.toInt()} of 5"
     ],

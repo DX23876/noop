@@ -6668,4 +6668,8 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
     <string name="diet_goal_in_one">Objetivo em cerca de uma semana.</string>
+    <string name="lw_sensor">Sensor</string>
+    <string name="lw_effort_building">Effort a subir</string>
+    <string name="lw_warming_up">Aquecimento: continua a mexer-te para chegar à zona 1.</string>
+    <string name="lw_bpm">bpm</string>
 </resources>

@@ -308,7 +308,7 @@ private fun SensorRow(sensor: StandardHrSource.SensorMetrics) {
     val power = StandardHrSource.formatPowerWatts(sensor.powerWatts)
     if (speed == null && cadence == null && power == null) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Overline("Sensor")
+        Overline(androidx.compose.ui.res.stringResource(R.string.lw_sensor))
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap), modifier = Modifier.fillMaxWidth()) {
             if (speed != null) {
                 StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_workout_screen_speed_2d2cb022), value = speed, accent = Palette.effortColor)
@@ -337,7 +337,7 @@ private fun EffortGauge(liveStrain: Double, effortScale: EffortScale) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Overline("Effort building", color = Palette.effortColor)
+        Overline(androidx.compose.ui.res.stringResource(R.string.lw_effort_building), color = Palette.effortColor)
         CountUpText(
             value = value,
             format = { v ->
@@ -370,7 +370,7 @@ private fun HeroHeartRate(bpm: Int?, zone: Int) {
     ) {
         Overline(androidx.compose.ui.res.stringResource(R.string.lw_heart_rate), color = Palette.textSecondary)
         Text(bpm?.toString() ?: "—", style = NoopType.number(72f), color = tint)
-        Text("bpm", style = NoopType.subhead, color = Palette.textSecondary)
+        Text(androidx.compose.ui.res.stringResource(R.string.lw_bpm), style = NoopType.subhead, color = Palette.textSecondary)
     }
 }
 
@@ -444,7 +444,7 @@ private fun ZoneRail(zone: Int, zoneSet: com.noop.analytics.HrZoneSet, targetZon
             if (band != null)
                 androidx.compose.ui.res.stringResource(R.string.lw_band, zone, band.lower.toInt(), band.upper.toInt(),
                                                        (band.lowerPct * 100).toInt(), (band.upperPct * 100).toInt())
-            else "Warming up - keep moving to climb into Zone 1.",
+            else androidx.compose.ui.res.stringResource(R.string.lw_warming_up),
             style = NoopType.footnote,
             color = Palette.textTertiary,
         )

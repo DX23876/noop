@@ -6675,4 +6675,8 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
     <string name="diet_goal_in_one">Objectif dans environ une semaine.</string>
+    <string name="lw_sensor">Capteur</string>
+    <string name="lw_effort_building">Effort en hausse</string>
+    <string name="lw_warming_up">Échauffement : continue de bouger pour atteindre la zone 1.</string>
+    <string name="lw_bpm">bpm</string>
 </resources>

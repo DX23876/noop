@@ -6716,4 +6716,8 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
     <string name="diet_goal_in_one">Goal in about a week.</string>
+    <string name="lw_sensor">Sensor</string>
+    <string name="lw_effort_building">Effort building</string>
+    <string name="lw_warming_up">Warming up: keep moving to climb into Zone 1.</string>
+    <string name="lw_bpm">bpm</string>
 </resources>

@@ -6645,4 +6645,8 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
     <string name="diet_goal_in_one">大约 1 周后达成目标。</string>
+    <string name="lw_sensor">传感器</string>
+    <string name="lw_effort_building">Effort 累积中</string>
+    <string name="lw_warming_up">热身中：继续活动以进入 1 区。</string>
+    <string name="lw_bpm">bpm</string>
 </resources>

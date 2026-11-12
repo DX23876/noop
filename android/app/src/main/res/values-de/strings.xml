@@ -6692,4 +6692,8 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
     <string name="diet_goal_in_one">Ziel in etwa einer Woche.</string>
+    <string name="lw_sensor">Sensor</string>
+    <string name="lw_effort_building">Effort baut sich auf</string>
+    <string name="lw_warming_up">Aufwärmen: bleib in Bewegung, um in Zone 1 zu kommen.</string>
+    <string name="lw_bpm">bpm</string>
 </resources>

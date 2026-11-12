@@ -6649,4 +6649,8 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
     <string name="diet_goal_in_one">Цель примерно через неделю.</string>
+    <string name="lw_sensor">Датчик</string>
+    <string name="lw_effort_building">Effort растёт</string>
+    <string name="lw_warming_up">Разминка: продолжай двигаться, чтобы выйти в зону 1.</string>
+    <string name="lw_bpm">уд/мин</string>
 </resources>
