@@ -98,18 +98,8 @@ struct ForgeStrengthView: View {
     /// without a session, so a gap reads as a gap). The running week is left out: a Monday would otherwise
     /// end the chart on an empty bar and read as a drop.
     private var weeklyTonnes: [Double] {
-        var cal = Calendar.current
-        cal.firstWeekday = weekStart == .monday ? 2 : 1
-        guard let thisWeek = cal.dateInterval(of: .weekOfYear, for: Date())?.start else { return [] }
-        var totals = Array(repeating: 0.0, count: 8)
-        for s in model.summaries {
-            let start = Date(timeIntervalSince1970: TimeInterval(s.startTs))
-            guard let week = cal.dateInterval(of: .weekOfYear, for: start)?.start,
-                  let back = cal.dateComponents([.weekOfYear], from: week, to: thisWeek).weekOfYear,
-                  (1...8).contains(back) else { continue }
-            totals[8 - back] += s.volumeLoadKg / 1000
-        }
-        return totals
+        StrengthWeeklyVolume.tonnes(model.summaries.map { .init(startTs: $0.startTs, volumeKg: $0.volumeLoadKg) },
+                                    now: Date(), firstWeekday: weekStart == .monday ? 2 : 1)
     }
 
     @ViewBuilder private var volume: some View {
@@ -144,10 +134,7 @@ struct ForgeStrengthView: View {
 
     /// The last four weeks against the four before them, in words. Nil without both halves.
     static func fourWeekChange(_ tonnes: [Double]) -> String? {
-        guard tonnes.count == 8 else { return nil }
-        let before = tonnes.prefix(4).reduce(0, +), after = tonnes.suffix(4).reduce(0, +)
-        guard before > 0, after > 0 else { return nil }
-        let pct = Int(((after / before) - 1) * 100)
+        guard let pct = StrengthWeeklyVolume.fourWeekChange(tonnes) else { return nil }
         if abs(pct) < 3 { return String(localized: "About the same as the four weeks before.") }
         return pct > 0 ? String(localized: "Up \(pct) % on the four weeks before.")
                        : String(localized: "Down \(-pct) % on the four weeks before.")

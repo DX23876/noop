@@ -449,7 +449,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     is TrainingPage.Detail -> ForgeTrainingSessionDetailPage(open.session.id, onClose = close)
                     TrainingPage.Muscles -> s?.let { MuscleAnalyticsPage(it.muscles, onClose = close) }
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
-                    TrainingPage.Strength -> ForgeStrengthPage(onClose = close)
+                    TrainingPage.Strength -> ForgeStrengthHub(onClose = close, onStart = { start(listOf(it)) },
+                                                              onOpenPlan = { page = TrainingPage.PlanLibrary })
                     TrainingPage.Cardio -> ForgeCardioPage(onClose = close)
                     TrainingPage.HevyRoutines -> ForgeHevyRoutines(onClose = close, onConnect = { page = TrainingPage.Import })
                     TrainingPage.Import -> ForgeLiftingImport(onClose = close)

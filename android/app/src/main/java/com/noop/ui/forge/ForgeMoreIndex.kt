@@ -50,6 +50,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.rounded.CalendarMonth
@@ -472,7 +475,19 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             }
             return
         }
-        MoreDest.Strength -> { ForgeStrengthPage(onBack); return }
+        MoreDest.Strength -> {
+            val select = LocalForgeTabSelect.current
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            val context = LocalContext.current
+            // From More a start opens the session on the Training tab, as the Today card's Start does.
+            ForgeStrengthHub(onBack, onStart = { id ->
+                scope.launch {
+                    withContext(Dispatchers.IO) { com.noop.core.CoreRead.open(context); com.noop.core.CoreTraining.startDraft(listOf(id)) }
+                    onBack(); select(ForgeTab.Training)
+                }
+            }, onOpenPlan = { onBack(); select(ForgeTab.Training) })
+            return
+        }
         MoreDest.Cardio -> { ForgeCardioPage(onBack); return }
         MoreDest.TrainingLoad -> { ForgeTrainingLoadPage(onBack); return }
         else -> Unit

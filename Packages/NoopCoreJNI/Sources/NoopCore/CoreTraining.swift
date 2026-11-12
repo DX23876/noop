@@ -18,6 +18,10 @@ public enum CoreTraining {
         public var workouts: [NativeWorkout]
         public var draft: WorkoutDraft?
         public var strength: [StrengthSession]
+        /// Tonnes per finished week, oldest first, and the latest four weeks against the four before
+        /// (`StrengthWeeklyVolume`), for the Strength page's volume card.
+        public var weeklyTonnes: [Double] = []
+        public var fourWeekChange: Int?
         public var muscleLoad: [String: Double]
         public var workingSets: Int, mappedSets: Int
         /// The seven days of the current week with the routines planned on each (`TrainingPlan.effectiveRoutineIds`:
@@ -198,7 +202,11 @@ public enum CoreTraining {
         }
         let observations = MuscleAnalyticsSnapshot.observations((try? await store.muscleRecoveryFeedback()) ?? [])
         let analytics = MuscleAnalyticsSnapshot.compute(history: history, observations: observations, now: now)
+        let tonnes = StrengthWeeklyVolume.tonnes(sessions.map { .init(startTs: $0.startTs, volumeKg: $0.volumeKg) },
+                                                 now: Date(timeIntervalSince1970: TimeInterval(now)),
+                                                 firstWeekday: weekStartsOn == .sunday ? 1 : 2)
         return Snapshot(exercises: exercises, plan: plan, workouts: workouts, draft: draft, strength: sessions,
+                        weeklyTonnes: tonnes, fourWeekChange: StrengthWeeklyVolume.fourWeekChange(tonnes),
                         muscleLoad: load.byMuscle, workingSets: load.workingSets, mappedSets: load.mappedSets,
                         week: week(plan: plan), routineMuscles: routineMuscles,
                         activity: TrainingActivityDay.pastYear(sessions: history.sessions, weekStart: weekStartsOn)

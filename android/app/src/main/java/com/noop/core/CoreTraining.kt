@@ -37,7 +37,9 @@ object CoreTraining {
                                val strength: List<Strength>, val strengthCoverage: Coverage)
     data class Snapshot(val exercises: List<Exercise>, val routines: List<Routine>, val week: List<PlannedDay>,
                         val sessions: List<Session>, val hasDraft: Boolean, val activity: List<ActivityDay>,
-                        val muscles: MuscleAnalytics)
+                        val muscles: MuscleAnalytics,
+                        /** Tonnes per finished week, oldest first, and the four-week change in percent (`StrengthWeeklyVolume`). */
+                        val weeklyTonnes: List<Double> = emptyList(), val fourWeekChange: Int? = null)
     data class Starter(val index: Int, val title: String, val exercises: List<String>)
 
     data class DraftSet(val id: String, val index: Int, val warmup: Boolean, val weightKg: Double?, val reps: Int?,
@@ -56,8 +58,9 @@ object CoreTraining {
         if (SwiftCore.available) SwiftCore.call(op, args.toString()) else null
 
     /** [days] bounds the sessions and history read; the routines and the week come whole either way. */
-    fun snapshot(dismissedWorkouts: List<String> = emptyList(), days: Int = 4_000): Snapshot? =
-        call("training.snapshot", JSONObject().put("days", days).put("dismissedWorkouts", JSONArray(dismissedWorkouts)))
+    fun snapshot(dismissedWorkouts: List<String> = emptyList(), days: Int = 4_000, weekStartsOn: String = "monday"): Snapshot? =
+        call("training.snapshot", JSONObject().put("days", days).put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+            .put("weekStartsOn", weekStartsOn))
             ?.let(::parseSnapshot)
 
     fun startDraft(routineIds: List<String>): Draft? =
@@ -252,7 +255,10 @@ object CoreTraining {
             },
             strengthCoverage = coverage("strengthCoverage"),
         )
-        return Snapshot(exercises, routines, week, sessions, o.has("draft") && !o.isNull("draft"), activity, muscles)
+        val tonnes = o.optJSONArray("weeklyTonnes")?.let { a -> (0 until a.length()).map { a.getDouble(it) } }.orEmpty()
+        val change = if (o.has("fourWeekChange") && !o.isNull("fourWeekChange")) o.getInt("fourWeekChange") else null
+        return Snapshot(exercises, routines, week, sessions, o.has("draft") && !o.isNull("draft"), activity, muscles,
+                        tonnes, change)
     }
 
     internal fun parseDraft(json: String): Draft? {
