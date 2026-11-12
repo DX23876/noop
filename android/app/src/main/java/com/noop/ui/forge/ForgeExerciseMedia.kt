@@ -141,12 +141,17 @@ internal fun ForgeLocalExerciseMedia(exerciseId: String, title: String, thumbnai
         val file = path?.let(::File) ?: return@LaunchedEffect
         if (file.extension.lowercase() !in listOf("mp4", "mov", "m4v")) {
             drawable = withContext(Dispatchers.IO) { runCatching {
-                val source = ImageDecoder.createSource(file)
                 val limit = if (thumbnail) 256 else 960
-                if (poseStill || thumbnail) BitmapDrawable(context.resources, ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                    decoder.setTargetSampleSize((maxOf(info.size.width, info.size.height) / limit).coerceAtLeast(1))
-                }) else ImageDecoder.decodeDrawable(source) { decoder, info, _ ->
-                    decoder.setTargetSampleSize((maxOf(info.size.width, info.size.height) / limit).coerceAtLeast(1))
+                // ImageDecoder is API 28; Android 8 (API 26, 27) gets the still frame through BitmapFactory.
+                if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.P) {
+                    sampledBitmap(file, limit)?.let { BitmapDrawable(context.resources, it) }
+                } else {
+                    val source = ImageDecoder.createSource(file)
+                    if (poseStill || thumbnail) BitmapDrawable(context.resources, ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                        decoder.setTargetSampleSize((maxOf(info.size.width, info.size.height) / limit).coerceAtLeast(1))
+                    }) else ImageDecoder.decodeDrawable(source) { decoder, info, _ ->
+                        decoder.setTargetSampleSize((maxOf(info.size.width, info.size.height) / limit).coerceAtLeast(1))
+                    }
                 }
             }.getOrNull() }
         }
@@ -166,8 +171,13 @@ internal fun ForgeLocalExerciseMedia(exerciseId: String, title: String, thumbnai
         } else drawable?.let { image ->
             AndroidView(factory = { ImageView(it).apply { scaleType = ImageView.ScaleType.FIT_CENTER; contentDescription = title } },
                 modifier = Modifier.fillMaxWidth().height(height),
-                update = { view -> view.setImageDrawable(image); (image as? AnimatedImageDrawable)?.let { if (poseStill || thumbnail) it.stop() else it.start() } },
-                onRelease = { (it.drawable as? AnimatedImageDrawable)?.stop(); it.setImageDrawable(null) })
+                // AnimatedImageDrawable is API 28: even the type check would fail to resolve on Android 8, which gets stills.
+                update = { view -> view.setImageDrawable(image)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P)
+                        (image as? AnimatedImageDrawable)?.let { if (poseStill || thumbnail) it.stop() else it.start() } },
+                onRelease = {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) (it.drawable as? AnimatedImageDrawable)?.stop()
+                    it.setImageDrawable(null) })
         }
         if (drawable != null || !videoFailed && File(local).extension.lowercase() in listOf("mp4", "mov", "m4v")) ReportNote(stringResource(R.string.forge_media_credit))
     }
@@ -189,7 +199,8 @@ internal fun rememberExerciseStill(exerciseId: String, sizePx: Int): androidx.co
             val file = CoreExerciseMedia.resolve(context, exerciseId, true)?.let(::File) ?: return@withContext null
             if (file.extension.lowercase() in listOf("mp4", "mov", "m4v")) return@withContext null
             runCatching {
-                ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
+                if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.P) sampledBitmap(file, sizePx)?.asImageBitmap()
+                else ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
                     decoder.setTargetSampleSize((maxOf(info.size.width, info.size.height) / sizePx).coerceAtLeast(1))
                 }.asImageBitmap()
             }.getOrNull()
@@ -205,4 +216,15 @@ private fun mediaErrorResource(code: String): Int = when (code) {
     "notEnoughSpace" -> R.string.forge_media_no_space
     "downloadFailed" -> R.string.forge_media_network_failed
     else -> R.string.forge_media_failed
+}
+
+/** A still of [file] scaled down by a power of two toward [limit] pixels on its long side, for API 26 and 27. */
+private fun sampledBitmap(file: java.io.File, limit: Int): android.graphics.Bitmap? {
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    android.graphics.BitmapFactory.decodeFile(file.path, bounds)
+    val longSide = maxOf(bounds.outWidth, bounds.outHeight)
+    if (longSide <= 0) return null
+    var sample = 1
+    while (longSide / (sample * 2) >= limit) sample *= 2
+    return android.graphics.BitmapFactory.decodeFile(file.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
 }
