@@ -6695,4 +6695,5 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="lw_target_marker">Strefa docelowa</string>
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
+    <string name="diet_goal_in_one">Cel za około tydzień.</string>
 </resources>

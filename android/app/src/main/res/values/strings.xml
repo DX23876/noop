@@ -6715,4 +6715,5 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="lw_target_marker">Target zone</string>
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
+    <string name="diet_goal_in_one">Goal in about a week.</string>
 </resources>

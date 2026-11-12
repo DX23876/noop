@@ -6674,4 +6674,5 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="lw_target_marker">Zone cible</string>
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
+    <string name="diet_goal_in_one">Objectif dans environ une semaine.</string>
 </resources>

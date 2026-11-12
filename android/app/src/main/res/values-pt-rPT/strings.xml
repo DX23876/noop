@@ -6667,4 +6667,5 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="lw_target_marker">Zona-alvo</string>
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
+    <string name="diet_goal_in_one">Objetivo em cerca de uma semana.</string>
 </resources>

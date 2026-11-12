@@ -6691,4 +6691,5 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="lw_target_marker">Zielzone</string>
     <string name="forge_body_change_cm">%1$s → %2$s cm</string>
     <string name="forge_percent_value">%1$s %%</string>
+    <string name="diet_goal_in_one">Ziel in etwa einer Woche.</string>
 </resources>

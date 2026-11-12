@@ -535,6 +535,8 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
 private fun forecastLine(r: CoreDietPlan.Resolved): String = when {
     r.goalWeightKg == null -> stringResource(R.string.diet_band_note)
     r.goalWeeks == null -> stringResource(R.string.diet_goal_beyond)
+    // One week has its own sentence, as on iOS: "about 1 weeks" read wrong in every language.
+    r.goalWeeks.first == r.goalWeeks.second && r.goalWeeks.first == 1 -> stringResource(R.string.diet_goal_in_one)
     r.goalWeeks.first == r.goalWeeks.second -> stringResource(R.string.diet_goal_in, r.goalWeeks.first)
     else -> stringResource(R.string.diet_goal_in_range, r.goalWeeks.first, r.goalWeeks.second)
 }

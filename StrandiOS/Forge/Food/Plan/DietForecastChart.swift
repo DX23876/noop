@@ -74,7 +74,11 @@ enum DietForecastText {
     static func goal(_ forecast: DietForecast.Forecast, hasGoal: Bool) -> String? {
         guard hasGoal else { return nil }
         guard let range = forecast.goalWeeks else { return String(localized: "Your goal lies beyond a year at this pace.") }
-        if range.lowerBound == range.upperBound { return String(localized: "Goal in about \(range.lowerBound) weeks.") }
+        if range.lowerBound == range.upperBound {
+            // One week has its own sentence: "about 1 weeks" read wrong in every language.
+            if range.lowerBound == 1 { return String(localized: "Goal in about a week.") }
+            return String(localized: "Goal in about \(range.lowerBound) weeks.")
+        }
         return String(localized: "Goal in about \(range.lowerBound) to \(range.upperBound) weeks.")
     }
 }
