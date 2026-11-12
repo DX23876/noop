@@ -182,11 +182,18 @@ struct ForgeRestDetailView: View {
                             .padding(.horizontal, 4)
                         // A factor that has never left zero (last night 0, usually 0) has no nights behind it
                         // yet; it is left out rather than shown as a result.
-                        let factors = [(String(localized: "Hours against your need"), m.hoursVsNeeded),
-                                       (String(localized: "Efficiency"), m.efficiency),
-                                       (String(localized: "Consistency"), m.consistency),
-                                       (String(localized: "Restorative sleep"), m.restorative)]
-                            .filter { !(($0.1.latest ?? 0) == 0 && ($0.1.typical ?? 0) == 0) }
+                        // Typed and filtered in two steps: as one untyped literal with the filter chained on, Xcode
+                        // 26's compiler gave up type-checking it ("unable to type-check … in reasonable time").
+                        let allFactors: [(String, SleepModel.Metric)] = [
+                            (String(localized: "Hours against your need"), m.hoursVsNeeded),
+                            (String(localized: "Efficiency"), m.efficiency),
+                            (String(localized: "Consistency"), m.consistency),
+                            (String(localized: "Restorative sleep"), m.restorative)]
+                        let factors = allFactors.filter { factor in
+                            let latest: Double = factor.1.latest ?? 0
+                            let typical: Double = factor.1.typical ?? 0
+                            return !(latest == 0 && typical == 0)
+                        }
                         VStack(spacing: 0) {
                             ForEach(Array(factors.enumerated()), id: \.offset) { i, f in
                                 if i > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
