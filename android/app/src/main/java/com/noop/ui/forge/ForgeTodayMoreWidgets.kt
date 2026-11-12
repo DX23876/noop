@@ -285,9 +285,9 @@ internal fun TodayNextSessionForge(onOpenTraining: () -> Unit) {
                                 }
                             }.padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = colors.onAccent, modifier = Modifier.size(16.dp))
                         Text(stringResource(R.string.forge_nx_start), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                             color = Color.White, modifier = Modifier.padding(start = 4.dp))
+                             color = colors.onAccent, modifier = Modifier.padding(start = 4.dp))
                     }
                 }
             }
