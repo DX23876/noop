@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -87,7 +88,8 @@ import kotlin.math.roundToInt
 /** A headline over a group of cards, as iOS's `ForgeSectionTitle`. */
 @Composable
 internal fun SleepSectionTitle(text: String) {
-    Text(text, style = Forge.type.headline, color = Forge.colors.text, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
+    // iOS `ForgeFont.section`: 20 pt bold.
+    Text(text, style = Forge.type.title2, color = Forge.colors.text, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
 }
 
 /** Tomorrow's wake time from the phone alarm, with its per-day override (`Calendar.DAY_OF_WEEK`, Sunday 1). */
@@ -231,24 +233,51 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
     }
 }
 
-/** Four lanes, awake at the top and deep at the bottom, each stage's stretches drawn where they fell in the night. */
+/**
+ * The night as iOS's `Hypnogram` draws it with its stage axis: four lanes named on the left (awake at the top, deep at
+ * the bottom), each lane washed in its stage colour, the stretches where they fell and a thin line where the night
+ * stepped from one stage to the next.
+ */
 @Composable
 private fun StageLanes(night: CoreRead.Night) {
     val colors = Forge.colors
-    val lanes = listOf("wake" to colors.sleepAwake, "rem" to colors.sleepRem, "light" to colors.sleepLight, "deep" to colors.sleepDeep)
-    val track = colors.inset
-    Canvas(Modifier.fillMaxWidth().height(132.dp).background(colors.inset.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
-               .padding(10.dp).clearAndSetSemantics { }) {
-        val span = (night.endTs - night.startTs).coerceAtLeast(1).toFloat()
-        val laneH = size.height / lanes.size
-        val bar = laneH * 0.62f
-        lanes.forEachIndexed { i, (stage, color) ->
-            val y = laneH * i + (laneH - bar) / 2
-            drawRoundRect(track.copy(alpha = 0.6f), Offset(0f, y), Size(size.width, bar), CornerRadius(bar / 3, bar / 3))
-            night.stages.filter { it.stage == stage }.forEach { s ->
+    val lanes = listOf(
+        Triple("wake", colors.sleepAwake, R.string.forge_stage_awake),
+        Triple("rem", colors.sleepRem, R.string.forge_stage_rem),
+        Triple("light", colors.sleepLight, R.string.forge_stage_light),
+        Triple("deep", colors.sleepDeep, R.string.forge_stage_deep),
+    )
+    val step = colors.textTertiary.copy(alpha = 0.5f)
+    Row(Modifier.fillMaxWidth().height(150.dp).background(colors.inset.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+            .padding(10.dp).clearAndSetSemantics { }) {
+        Column(Modifier.fillMaxHeight().padding(end = ForgeMetrics.space2)) {
+            lanes.forEach { (_, _, name) ->
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                    Text(stringResource(name), style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
+                }
+            }
+        }
+        Canvas(Modifier.weight(1f).fillMaxHeight()) {
+            val span = (night.endTs - night.startTs).coerceAtLeast(1).toFloat()
+            val laneH = size.height / lanes.size
+            val bar = laneH * 0.42f
+            fun laneOf(stage: String) = lanes.indexOfFirst { it.first == stage }
+            fun mid(i: Int) = laneH * i + laneH / 2
+            lanes.forEachIndexed { i, (_, color, _) ->
+                drawRoundRect(color.copy(alpha = 0.12f), Offset(0f, laneH * i + laneH * 0.12f), Size(size.width, laneH * 0.76f),
+                              CornerRadius(8f, 8f))
+            }
+            val stretches = night.stages.filter { laneOf(it.stage) >= 0 }.sortedBy { it.start }
+            stretches.zipWithNext().forEach { (a, b) ->
+                val x = (b.start - night.startTs) / span * size.width
+                drawLine(step, Offset(x, mid(laneOf(a.stage))), Offset(x, mid(laneOf(b.stage))), strokeWidth = 1.dp.toPx())
+            }
+            stretches.forEach { s ->
+                val i = laneOf(s.stage)
                 val x0 = (s.start - night.startTs) / span * size.width
                 val x1 = (s.end - night.startTs) / span * size.width
-                drawRoundRect(color, Offset(x0, y), Size((x1 - x0).coerceAtLeast(2f), bar), CornerRadius(bar / 4, bar / 4))
+                drawRoundRect(lanes[i].second, Offset(x0, mid(i) - bar / 2), Size((x1 - x0).coerceAtLeast(2f), bar),
+                              CornerRadius(bar / 3, bar / 3))
             }
         }
     }
@@ -644,13 +673,14 @@ private fun AlarmRow(icon: ImageVector, title: String, subtitle: String, onClick
     val colors = Forge.colors
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(horizontal = ForgeMetrics.space4, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(28.dp).background(colors.rest, RoundedCornerShape(7.dp)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        // iOS `ForgeRow` (not compact): the symbol in the tint on a round wash of it, the title semibold.
+        Box(Modifier.size(38.dp).background(colors.rest.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = colors.rest, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(ForgeMetrics.space3))
         Column(Modifier.weight(1f)) {
-            Text(title, style = Forge.type.body, color = colors.text)
-            Text(subtitle, style = Forge.type.caption, color = colors.textSecondary, maxLines = 2)
+            Text(title, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(subtitle, style = Forge.type.footnote, color = colors.textSecondary, maxLines = 2)
         }
         Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary,
              modifier = Modifier.size(18.dp))

@@ -6352,4 +6352,6 @@
     <string name="forge_md_all_time">o tempo todo</string>
     <string name="forge_md_one_day">1 dia</string>
     <string name="forge_md_ask_coach_about">Pergunte ao treinador sobre %1$s</string>
+    <string name="forge_sl_need_h">Necessidade %1$s h</string>
+    <string name="forge_sl_running_balance">equilíbrio em execução</string>
 </resources>

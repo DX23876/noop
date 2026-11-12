@@ -152,6 +152,10 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     }
     var customizing by remember { mutableStateOf(false) }
     var alarms by remember { mutableStateOf(false) }
+    // The summary tiles open the Rest page and the night's sleep over time, as iOS's tiles push `rest` and the metric.
+    var restPage by remember { mutableStateOf(false) }
+    var restValue by remember { mutableStateOf<Double?>(null) }
+    var durationPage by remember { mutableStateOf<CoreRead.Metric?>(null) }
     val v5 by viewModel.v5Signals.collectAsState()
     // The Night detail tiles' model, built as the former Android Sleep screen built it (`fallbackSleepModel`
     // over the daily rows, the export-verbatim sleep figures and the merged sessions with their naps).
@@ -183,6 +187,14 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             }
         }
     }
+    if (restPage) ForgeOverlayPage(onDismiss = { restPage = false }) {
+        ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+            androidx.activity.compose.BackHandler { restPage = false }
+            ForgeRestPage(viewModel, restValue, onBack = { restPage = false },
+                          onHistory = { restPage = false; durationPage = CoreRead.Metric.Rest })
+        }
+    }
+    ForgeMetricDetail(durationPage) { durationPage = null }
     if (customizing) {
         ForgeOverlayPage(onDismiss = { customizing = false }) {
             ForgeSleepCustomization { saved -> customizing = false; if (saved) layoutRevision++ }
@@ -226,7 +238,8 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             // The new design's summary, as iOS's `summaryTiles`: Rest and the night's sleep, each with its week; the
             // navigator above already carries the clock span, so the asleep and woke card stays in the shipped design.
             if (LocalForgeOpenMore.current != null) {
-                SleepSummaryTiles(night, rest, model)
+                SleepSummaryTiles(night, rest, model, need, onRest = { restValue = rest; restPage = true },
+                                  onDuration = { durationPage = CoreRead.Metric.SleepMinutes })
                 // While the coach is on, the night goes to it in one tap, as iOS's button under the tiles.
                 if (com.noop.ui.BottomBarStyleStore.coachEnabled) {
                     val select = LocalForgeTabSelect.current
@@ -354,19 +367,29 @@ object RestWord {
 
 /** Rest with its word and the night's sleep, each over its last seven days, side by side. */
 @Composable
-private fun SleepSummaryTiles(night: CoreRead.Night, rest: Double?, model: SleepModel?) {
+private fun SleepSummaryTiles(night: CoreRead.Night, rest: Double?, model: SleepModel?, need: Double,
+                              onRest: () -> Unit, onDuration: () -> Unit) {
     val colors = Forge.colors
-    val noData = stringResource(R.string.forge_no_data)
     val restWeek = model?.restByDay?.toSortedMap()?.values?.toList()?.takeLast(7).orEmpty()
     val asleepWeek = model?.days?.takeLast(7)?.map { (it.totalSleepMin ?: 0.0) / 60 }.orEmpty()
     val asleep = SleepSummary.of(night).asleepMin
+    // As iOS's `summaryTiles`: the week under each line with its weekday initials, the Rest word as a toned badge and
+    // the night's need beside the duration.
+    val locale = Locale.getDefault()
+    val today = LocalDate.now()
+    val weekdays = (6 downTo 0).map { today.minusDays(it.toLong()).dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, locale) }
     Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        MetricTile(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_rest), rest?.roundToInt()?.toString(), "%",
-                   noData, Modifier.weight(1f), delta = rest?.let { stringResource(RestWord.of(it)) },
-                   below = restWeek.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, colors.rest) } })
-        MetricTile(Icons.Rounded.Bedtime, colors.rest, stringResource(R.string.forge_sleep_duration_tile),
-                   asleep.takeIf { it > 0 }?.let { TodayTimeline.hoursMinutes(it.toDouble()) }, "h", noData, Modifier.weight(1f),
-                   below = asleepWeek.takeIf { it.size > 1 }?.let { v -> @Composable { KeyTileSpark(v, colors.rest) } })
+        ForgeTrendTile(stringResource(R.string.forge_rest), rest?.roundToInt()?.toString(), "%", restWeek, colors.rest,
+                       Modifier.weight(1f),
+                       badge = rest?.let { r ->
+                           stringResource(RestWord.of(r)) to when { r >= 80 -> ForgeBadgeTone.Good; r >= 60 -> ForgeBadgeTone.Neutral
+                                                                    else -> ForgeBadgeTone.Attention }
+                       }, axisLabels = weekdays, onClick = onRest)
+        ForgeTrendTile(stringResource(R.string.forge_sleep_duration_tile),
+                       asleep.takeIf { it > 0 }?.let { TodayTimeline.hoursMinutes(it.toDouble()) }, "h", asleepWeek, colors.rest,
+                       Modifier.weight(1f),
+                       badge = stringResource(R.string.forge_sl_need_h, TodayTimeline.hoursMinutes(need)) to ForgeBadgeTone.Attention,
+                       axisLabels = weekdays, onClick = onDuration)
     }
 }
 
@@ -610,17 +633,31 @@ private fun SleepDebtLedger() {
     val surplus = Forge.colors.accent
     val deficit = ForgeTokens.Color.systemPink.resolve()
     val line = Forge.colors.border
+    val newDesign = ForgeDesign.preview
     androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(ForgeMetrics.space2)) {
-        androidx.compose.foundation.layout.Row {
+        // The new design heads the section "Sleep debt" and names the ledger inside its card, the figures on an inset
+        // panel, as iOS's `ForgeNightBreakdown` hosts `SleepDebtLedgerCard`.
+        if (newDesign) SleepSectionTitle(stringResource(R.string.forge_sl_sleep_debt))
+        else androidx.compose.foundation.layout.Row {
             Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.colors.text,
                  modifier = Modifier.weight(1f))
             Text(stringResource(R.string.forge_sd_last14), style = Forge.type.footnote, color = Forge.colors.textSecondary)
         }
         ForgeCard(Modifier.fillMaxWidth()) {
+            if (newDesign) androidx.compose.foundation.layout.Row(Modifier.padding(bottom = ForgeMetrics.space3),
+                                                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.colors.text,
+                     modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.forge_sl_running_balance), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+            }
             if (l.nightCount == 0) {
                 Text(stringResource(R.string.forge_sd_empty), style = Forge.type.subhead, color = Forge.colors.textTertiary)
                 return@ForgeCard
             }
+            androidx.compose.foundation.layout.Column(
+                if (newDesign) Modifier.fillMaxWidth().background(Forge.colors.inset.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                    .padding(ForgeMetrics.space4) else Modifier,
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(ForgeMetrics.space2)) {
             androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
                 Text(l.headline, style = Forge.type.title1, color = tone, modifier = Modifier.weight(1f))
                 Text(l.tag, style = Forge.type.footnote, color = tone)
@@ -647,6 +684,7 @@ private fun SleepDebtLedger() {
                         Text(value, style = Forge.type.headline, color = Forge.colors.text)
                     }
                 }
+            }
             }
         }
     }

@@ -6380,4 +6380,6 @@
     <string name="forge_md_all_time">cały czas</string>
     <string name="forge_md_one_day">1 dzień</string>
     <string name="forge_md_ask_coach_about">Zapytaj trenera o %1$s</string>
+    <string name="forge_sl_need_h">Potrzeba %1$s h</string>
+    <string name="forge_sl_running_balance">bilans biegowy</string>
 </resources>

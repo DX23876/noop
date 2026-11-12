@@ -1,5 +1,15 @@
 package com.noop.ui.forge
 
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -220,8 +230,8 @@ private const val MIN_TILE_SCALE = 0.6f
 /** Small caps section header, as the iOS screens title their sections. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    // The new design heads its sections as iOS's ForgeSectionTitle: sentence case, bold, in the text colour.
-    if (ForgeDesign.preview) Text(text, style = Forge.type.headline.copy(fontWeight = FontWeight.Bold), color = Forge.colors.text,
+    // The new design heads its sections as iOS's ForgeSectionTitle (`ForgeFont.section`, 20 pt bold), in sentence case.
+    if (ForgeDesign.preview) Text(text, style = Forge.type.title2, color = Forge.colors.text,
                                   modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
     else Text(text.uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary,
               modifier = modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1))
@@ -292,5 +302,75 @@ fun ForgeOverlayPage(onDismiss: () -> Unit, content: @Composable () -> Unit) {
         overlay.page = { page() }
         overlay.dismiss = { dismiss() }
         onDispose { overlay.page = null }
+    }
+}
+
+/** The tone of a [ForgeBadgePill], as iOS's `ForgeBadge.Tone`. */
+internal enum class ForgeBadgeTone { Good, Attention, Neutral }
+
+/** iOS `ForgeBadge`: a short judgement on a tinted capsule, green for good, orange to look at, grey otherwise. */
+@Composable
+internal fun ForgeBadgePill(text: String, tone: ForgeBadgeTone) {
+    val colors = Forge.colors
+    val (ink, wash) = when (tone) {
+        ForgeBadgeTone.Good -> colors.charge to colors.charge.copy(alpha = 0.14f)
+        ForgeBadgeTone.Attention -> colors.effort to colors.effort.copy(alpha = 0.14f)
+        ForgeBadgeTone.Neutral -> colors.textSecondary to colors.inset
+    }
+    Text(text, style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = ink, maxLines = 1,
+         modifier = Modifier.background(wash, CircleShape).padding(horizontal = 10.dp, vertical = 3.dp))
+}
+
+/**
+ * iOS `ForgeMetricTile`: the label, the figure with its unit, the week as a filled line with its weekday initials
+ * under it, then a judgement badge. No line under a missing figure.
+ */
+@Composable
+internal fun ForgeTrendTile(label: String, value: String?, unit: String, trend: List<Double>?, tint: Color,
+                            modifier: Modifier = Modifier, badge: Pair<String, ForgeBadgeTone>? = null,
+                            axisLabels: List<String>? = null, onClick: (() -> Unit)? = null) {
+    val colors = Forge.colors
+    ForgeCard(modifier.let { if (onClick != null) it.clickable(role = Role.Button, onClick = onClick) else it },
+              contentPadding = 16.dp) {
+        Column(Modifier.heightIn(min = 100.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, style = Forge.type.footnote.copy(fontWeight = FontWeight.Medium), color = colors.textSecondary,
+                 maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(buildAnnotatedString {
+                append(value ?: "–")
+                if (value != null) withStyle(Forge.type.footnote.toSpanStyle().copy(color = colors.textSecondary)) {
+                    append(" " + unit)
+                }
+            }, style = Forge.type.title1, color = colors.text, maxLines = 1)
+            val line = trend?.takeIf { value != null && it.size > 1 }
+            if (line != null) TrendArea(line, tint) else Spacer(Modifier.height(30.dp))
+            if (line != null && axisLabels != null) Row(Modifier.fillMaxWidth().clearAndSetSemantics { }) {
+                axisLabels.forEach { l ->
+                    Text(l, style = Forge.type.caption, color = colors.textTertiary, textAlign = TextAlign.Center,
+                         modifier = Modifier.weight(1f))
+                }
+            }
+            badge?.let { (text, tone) -> ForgeBadgePill(text, tone) }
+        }
+    }
+}
+
+/** The filled trend line of [ForgeTrendTile]: the line in [tint] over a soft wash of it, the last point marked. */
+@Composable
+private fun TrendArea(values: List<Double>, tint: Color) {
+    Canvas(Modifier.fillMaxWidth().height(30.dp).clearAndSetSemantics { }) {
+        val lo = values.min(); val hi = values.max()
+        val span = (hi - lo).takeIf { it > 0 } ?: 1.0
+        val pad = 3.dp.toPx()
+        val w = size.width - 2 * pad; val h = size.height - 2 * pad
+        val step = w / (values.size - 1)
+        fun at(i: Int, v: Double) = Offset(pad + i * step, pad + h - ((v - lo) / span).toFloat() * h)
+        val line = Path()
+        values.forEachIndexed { i, v -> val p = at(i, v); if (i == 0) line.moveTo(p.x, p.y) else line.lineTo(p.x, p.y) }
+        val area = Path().apply {
+            addPath(line); lineTo(at(values.lastIndex, values.last()).x, size.height); lineTo(pad, size.height); close()
+        }
+        drawPath(area, Brush.verticalGradient(listOf(tint.copy(alpha = 0.28f), tint.copy(alpha = 0f))))
+        drawPath(line, Brush.horizontalGradient(listOf(tint.copy(alpha = 0.55f), tint)),
+                 style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }

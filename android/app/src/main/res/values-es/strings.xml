@@ -6360,4 +6360,6 @@
     <string name="forge_md_all_time">todo el tiempo</string>
     <string name="forge_md_one_day">1 día</string>
     <string name="forge_md_ask_coach_about">Preguntar al coach sobre %1$s</string>
+    <string name="forge_sl_need_h">Necesidad %1$s h</string>
+    <string name="forge_sl_running_balance">balance acumulado</string>
 </resources>

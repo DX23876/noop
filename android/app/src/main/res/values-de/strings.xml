@@ -6376,4 +6376,6 @@
     <string name="forge_md_all_time">gesamter Zeitraum</string>
     <string name="forge_md_one_day">1 Tag</string>
     <string name="forge_md_ask_coach_about">Coach zu %1$s fragen</string>
+    <string name="forge_sl_need_h">Bedarf %1$s h</string>
+    <string name="forge_sl_running_balance">laufende Bilanz</string>
 </resources>

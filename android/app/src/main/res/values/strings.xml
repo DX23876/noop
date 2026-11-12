@@ -6399,4 +6399,6 @@
     <string name="forge_md_all_time">all time</string>
     <string name="forge_md_one_day">1 day</string>
     <string name="forge_md_ask_coach_about">Ask coach about %1$s</string>
+    <string name="forge_sl_need_h">Need %1$s h</string>
+    <string name="forge_sl_running_balance">running balance</string>
 </resources>

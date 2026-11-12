@@ -6359,4 +6359,6 @@
     <string name="forge_md_all_time">tout le temps</string>
     <string name="forge_md_one_day">1 jour</string>
     <string name="forge_md_ask_coach_about">Demander au coach à propos de %1$s</string>
+    <string name="forge_sl_need_h">Besoin %1$s h</string>
+    <string name="forge_sl_running_balance">solde cumulé</string>
 </resources>

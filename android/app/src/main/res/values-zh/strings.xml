@@ -6329,4 +6329,6 @@
     <string name="forge_md_all_time">全部时间</string>
     <string name="forge_md_one_day">1 天</string>
     <string name="forge_md_ask_coach_about">向教练询问%1$s</string>
+    <string name="forge_sl_need_h">需要 %1$s 小时</string>
+    <string name="forge_sl_running_balance">累计结余</string>
 </resources>

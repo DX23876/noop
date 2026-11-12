@@ -6333,4 +6333,6 @@
     <string name="forge_md_all_time">за всё время</string>
     <string name="forge_md_one_day">1 день</string>
     <string name="forge_md_ask_coach_about">Спросить тренера о %1$s</string>
+    <string name="forge_sl_need_h">Нужно %1$s ч</string>
+    <string name="forge_sl_running_balance">текущий баланс</string>
 </resources>

@@ -6328,4 +6328,6 @@
     <string name="forge_md_all_time">da sempre</string>
     <string name="forge_md_one_day">1 giorno</string>
     <string name="forge_md_ask_coach_about">Chiedi all\'allenatore informazioni su %1$s</string>
+    <string name="forge_sl_need_h">Bisogno %1$s h</string>
+    <string name="forge_sl_running_balance">bilancio progressivo</string>
 </resources>

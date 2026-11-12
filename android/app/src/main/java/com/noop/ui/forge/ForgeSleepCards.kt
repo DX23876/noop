@@ -188,8 +188,12 @@ internal fun ForgeSleepMarkCard(viewModel: com.noop.ui.AppViewModel) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         Column {
-            Text(stringResource(R.string.forge_sl_tap_to_log).uppercase(), style = Forge.type.overline, color = colors.textSecondary)
-            Text(stringResource(R.string.l10n_sleep_screen_sleep_marks_8e9b86f0), style = Forge.type.title2, color = colors.text)
+            // The new design titles the card alone, as iOS's Sleep tab; the shipped design keeps its "Tap to log" line.
+            if (!ForgeDesign.preview) {
+                Text(stringResource(R.string.forge_sl_tap_to_log).uppercase(), style = Forge.type.overline, color = colors.textSecondary)
+            }
+            Text(stringResource(R.string.l10n_sleep_screen_sleep_marks_8e9b86f0), style = Forge.type.title2, color = colors.text,
+                 modifier = if (ForgeDesign.preview) Modifier.padding(horizontal = ForgeMetrics.space1) else Modifier)
         }
         ForgeCard(Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.l10n_sleep_screen_tap_when_you_re_heading_to_1f401690), style = Forge.type.footnote,
