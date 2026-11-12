@@ -252,6 +252,12 @@ thread was still in `DexFile.openDexFileNative` ("failed to complete startup"). 
 (`forkMinify`), so this second cause does not carry over as such; a release cold start on a real phone is still
 unmeasured.
 
+Release APK on the same emulator (2026-11-12, the signed `NOOP-Forge-android-13.0.0-testing.apk` from `testing-latest`,
+commit `33a36f2bd`): cold starts of 23, 16 and 14 s, the first with an "isn't responding" whose main thread sat in the
+system's `HardwareRenderer` (no NOOP frame). For scale, the emulator's own Settings app took 8 to 9 s per cold start,
+where a phone takes well under one. The emulator is several times too slow to judge start time; NOOP took about 1.6
+times as long as Settings. Real start times need a phone.
+
 Lint sweep (2026-11-12, `lintFullDebug`). Fixed: `LocalDate.ofInstant` (API 34) in three places, which threw
 on Android 8 to 13 (`b9964496c`); fine location requested without coarse, which Android 12+ drops without a
 dialog (`950e5dd12`); exercise pictures missing below API 28 (`5d7c30c77`). Checked and left: the
