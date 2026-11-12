@@ -13,7 +13,11 @@ enum CoreBody {
         var takenAt: Int? = nil
     }
     struct Site: Encodable { var key: String; var label: String; var current: Double?; var change: Double?; var guidance: String? }
-    struct Change: Encodable { var key: String; var label: String; var fromDay: String; var deltaCm: Double }
+    struct Change: Encodable {
+        var key: String; var label: String; var fromDay: String; var deltaCm: Double
+        /// The same site then and now, and whether the change beats the wearer's own tape scatter there.
+        var fromValue: Double = 0; var toValue: Double = 0; var exceedsTypicalStep = false
+    }
     struct Output: Encodable {
         var today: String
         var weight: [Reading]
@@ -27,6 +31,14 @@ enum CoreBody {
         var changes: [Change]
         var lostCm: Double?
         var gainedCm: Double?
+        /// `CircumferenceTotal`: sites beyond their scatter each way, and every site with a usable comparison.
+        /// Each measured site's readings in the window, for its sparkline and the comparison chart's waist line.
+        var siteSeries: [String: [Reading]] = [:]
+        var growingSites = 0
+        var shrinkingSites = 0
+        var comparedSites = 0
+        /// The Navy estimate's error against DEXA, in percentage points, for the line under it.
+        var navyErrorBand = NavyBodyFat.errorBandPercentagePoints
         var weightChangeKg: Double?
         var navyEstimate: Double?
         var navyMissing: [String]
@@ -56,8 +68,12 @@ enum CoreBody {
             height: metrics.asOf("height", day: today).map { Reading(day: $0.day, value: $0.value, source: $0.source, id: $0.id) },
             measured: BodyPreparation.measuredSites(metrics).map(site),
             unmeasured: (["height"] + BodyPreparation.unmeasuredSites(metrics)).filter { $0 != "height" || metrics.asOf("height", day: today) == nil }.map(site),
-            changes: changes.map { Change(key: $0.key, label: BodyPreparation.label($0.key), fromDay: $0.fromDay, deltaCm: $0.deltaCm) },
+            changes: changes.map { Change(key: $0.key, label: BodyPreparation.label($0.key), fromDay: $0.fromDay, deltaCm: $0.deltaCm,
+                                          fromValue: $0.fromValue, toValue: $0.toValue, exceedsTypicalStep: $0.exceedsTypicalStep) },
             lostCm: total?.lostCm, gainedCm: total?.gainedCm,
+            siteSeries: Dictionary(uniqueKeysWithValues: BodyPreparation.measuredSites(metrics).map { ($0, readings($0)) }),
+            growingSites: total?.growingSites ?? 0, shrinkingSites: total?.shrinkingSites ?? 0,
+            comparedSites: total?.comparedSites ?? 0,
             weightChangeKg: BodyPreparation.weightChangeKg(metrics, from: from, to: today),
             navyEstimate: equation.flatMap { BodyPreparation.navyEstimate(metrics, today: today, equation: $0) },
             navyMissing: equation.map { BodyPreparation.navyMissingSites(metrics, today: today, equation: $0).map(BodyPreparation.label) } ?? [])

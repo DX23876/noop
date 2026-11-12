@@ -17,19 +17,24 @@ object CoreBody {
     /** [takenAt] is a weigh-in's instant (unix seconds), null for a day value. */
     data class Reading(val day: String, val value: Double, val source: String, val id: String?, val takenAt: Long? = null)
     data class Site(val key: String, val label: String, val current: Double?, val change: Double?, val guidance: String?)
-    data class Change(val key: String, val label: String, val deltaCm: Double)
+    /** One site then and now; [exceedsTypicalStep] says whether it beats the wearer's own tape scatter there. */
+    data class Change(val key: String, val label: String, val deltaCm: Double, val fromValue: Double = 0.0,
+                      val toValue: Double = 0.0, val exceedsTypicalStep: Boolean = false)
     data class Snapshot(
         val weight: List<Reading>, val weighIns: List<Reading>, val bodyFat: List<Reading>, val height: Reading?,
         val measured: List<Site>, val unmeasured: List<Site>, val changes: List<Change>, val weightChangeKg: Double?,
         val navyEstimate: Double?, val navyMissing: List<String>,
+        val siteSeries: Map<String, List<Reading>> = emptyMap(), val growingSites: Int = 0, val shrinkingSites: Int = 0,
+        val comparedSites: Int = 0, val lostCm: Double? = null, val gainedCm: Double? = null, val navyErrorBand: Double = 4.0,
     )
 
-    fun snapshot(context: Context, days: Int = 120): Snapshot? {
+    /** [days] is the history shown, [comparisonDays] how far "What changed" reaches back (iOS's 3 weeks to 3 months). */
+    fun snapshot(context: Context, days: Int = 120, comparisonDays: Int = 42): Snapshot? {
         if (!SwiftCore.available) return null
         CoreUserInputs.ensure(context)
         val profile = ProfileStore.from(context)
         val equation = when (profile.sex.lowercase()) { "male" -> "male"; "female" -> "female"; else -> "" }
-        val json = SwiftCore.call("body.snapshot", JSONObject().put("days", days).put("comparisonDays", 42)
+        val json = SwiftCore.call("body.snapshot", JSONObject().put("days", days).put("comparisonDays", comparisonDays)
             .put("equation", equation).toString()) ?: return null
         return parse(json)
     }
@@ -78,9 +83,18 @@ object CoreBody {
             weight = o.optJSONArray("weight").objects().map(::reading), weighIns = o.optJSONArray("weighIns").objects().map(::reading),
             bodyFat = o.optJSONArray("bodyFat").objects().map(::reading), height = o.optJSONObject("height")?.let(::reading),
             measured = o.optJSONArray("measured").objects().map(::site), unmeasured = o.optJSONArray("unmeasured").objects().map(::site),
-            changes = o.optJSONArray("changes").objects().map { Change(it.getString("key"), it.getString("label"), it.getDouble("deltaCm")) },
+            changes = o.optJSONArray("changes").objects().map {
+                Change(it.getString("key"), it.getString("label"), it.getDouble("deltaCm"), it.optDouble("fromValue", 0.0),
+                       it.optDouble("toValue", 0.0), it.optBoolean("exceedsTypicalStep"))
+            },
             weightChangeKg = o.dbl("weightChangeKg"), navyEstimate = o.dbl("navyEstimate"),
             navyMissing = if (missing == null) emptyList() else (0 until missing.length()).map { missing.getString(it) },
+            siteSeries = o.optJSONObject("siteSeries")?.let { m ->
+                m.keys().asSequence().associateWith { k -> m.optJSONArray(k).objects().map(::reading) }
+            } ?: emptyMap(),
+            growingSites = o.optInt("growingSites"), shrinkingSites = o.optInt("shrinkingSites"),
+            comparedSites = o.optInt("comparedSites"), lostCm = o.dbl("lostCm"), gainedCm = o.dbl("gainedCm"),
+            navyErrorBand = o.optDouble("navyErrorBand", 4.0),
         )
     }
 }

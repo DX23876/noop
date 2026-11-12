@@ -6436,4 +6436,70 @@
     <string name="diet_burn_below">A tua pulseira marca cerca de %1$s abaixo do que a balança mostra.</string>
     <string name="diet_active_days">Mais em dias ativos</string>
     <string name="diet_active_days_note">Quando a tua pulseira mede mais do que o teu gasto habitual, metade do extra junta-se ao dia, como hidratos.</string>
+    <string name="body_waist">Cintura</string>
+    <string name="body_what_changed">O que mudou</string>
+    <string name="body_3_weeks">3 semanas</string>
+    <string name="body_6_weeks">6 semanas</string>
+    <string name="body_3_months">3 meses</string>
+    <string name="body_grew">%1$d cresceram</string>
+    <string name="body_decreased">%1$d diminuíram</string>
+    <string name="body_rows_note">Cada linha compara o mesmo ponto antes e agora. Só contam as alterações maiores do que a tua própria dispersão da fita.</string>
+    <string name="body_no_pairs">Nenhum ponto tem ainda duas medições suficientemente afastadas. Meça de novo dentro de algumas semanas e isto preenche-se.</string>
+    <string name="body_no_movement">Ainda nada se moveu mais do que a sua própria dispersão de fita. Isso não é o mesmo que nada acontecer: significa que estas medições ainda não distinguem uma mudança da forma como a fita foi segurada.</string>
+    <string name="body_navy_note">Estimativa por perímetros da Navy, ±%1$d pontos percentuais face ao DEXA. Serve para a tendência e não para o nível absoluto: repare em como se move, não no que diz.</string>
+    <string name="body_navy_choose">Hodgdon e Beckett ajustaram duas equações, numa coorte masculina e numa feminina, e usam medições diferentes: não há nada para calcular a média entre elas. Escolha qual se aplica em Fórmula de composição corporal, no seu perfil, e a estimativa aparece aqui.</string>
+    <string name="body_navy_implausible">Essas medidas não produzem uma estimativa plausível. Verifique se o pescoço e a cintura não foram trocados.</string>
+    <string name="body_navy_measure">Meça estes para estimar a gordura corporal:</string>
+    <string name="body_src_dexa">DEXA</string>
+    <string name="body_src_caliper">Adipómetro</string>
+    <string name="body_src_bia">Balança BIA</string>
+    <string name="body_src_inbody">InBody</string>
+    <string name="body_src_navy">Estimativa por fita</string>
+    <string name="body_src_profile">Do seu perfil</string>
+    <string name="body_src_entered">Introduzido</string>
+    <string name="body_change_since">Evolução desde a primeira medição</string>
+    <string name="body_1_year">1 ano</string>
+    <string name="body_all">Tudo</string>
+    <string name="body_chart_note">Cada linha é a variação dessa medida face à sua própria primeira leitura nesta janela, em percentagem. Unidades absolutas não podem partilhar um eixo: uma cintura em centímetros achataria uma percentagem de gordura ao lado.</string>
+    <string name="body_chart_empty">São precisas duas medições da mesma grandeza antes de haver uma evolução para desenhar.</string>
+    <string name="body_measurements">Medições</string>
+    <string name="body_no_tape">Ainda não há medidas com fita. Toque em Medir para registar uma sessão.</string>
+    <string name="body_last_measured">Última medição %1$s</string>
+    <string name="body_all_sites">Todos os pontos</string>
+    <string name="body_photos">Fotografias de progresso</string>
+    <string name="body_photos_note">Frente, perfil e costas, tiradas num enquadramento fixo para que dois meses de intervalo sejam realmente comparáveis. Ficam neste dispositivo.</string>
+    <string name="body_reminders">Lembretes</string>
+    <string name="body_weekly">Medição semanal</string>
+    <string name="body_weekly_note">Os perímetros mudam devagar e medem-se com erro. Semanal é a cadência a que uma mudança real ultrapassa a dispersão da própria fita.</string>
+    <string name="body_daily">Pesagem diária</string>
+    <string name="body_reminder_denied">As notificações estão desativadas para o NOOP nas definições do sistema, por isso um lembrete nunca chegaria. Não foi agendado nada.</string>
+    <string name="body_reminder_measure_title">Dia da medição</string>
+    <string name="body_reminder_measure_body">A mesma fita, os mesmos pontos, a mesma hora do dia: é essa consistência que torna a tendência legível.</string>
+    <string name="body_reminder_weigh_title">Pesagem</string>
+    <string name="body_reminder_weigh_body">Antes do pequeno-almoço, depois da casa de banho. A variação diária é normal: o que conta é a tendência.</string>
+    <string name="body_info_navy_title">A estimativa da Navy</string>
+    <string name="body_info_dev_title">O que conta como evolução</string>
+    <string name="body_info_cmp_title">Porquê variação percentual</string>
+    <string name="body_ctx_0">O seu peso mal se mexeu — %1$s kg — mas a fita mexeu-se nos dois sentidos. Descer num sítio enquanto sobe noutro é exatamente o aspeto de uma recomposição, e numa balança é invisível.</string>
+    <string name="body_ctx_1">O seu peso mal se mexeu neste período — %1$s kg — e mesmo assim a fita desceu. É este o aspeto de uma balança parada quando algo está de facto a acontecer.</string>
+    <string name="body_ctx_2">O seu peso mal se mexeu neste período — %1$s kg — e mesmo assim a fita subiu. Volume ganho sem peso na balança passa facilmente despercebido e desiste-se dele com facilidade.</string>
+    <string name="body_ctx_3">O seu peso subiu %1$s kg, e a fita confirma: os pontos que treina estão a crescer com ele.</string>
+    <string name="body_ctx_4">O seu peso subiu %1$s kg, e a fita foi nos dois sentidos: alguns pontos a crescer enquanto outros desceram.</string>
+    <string name="body_ctx_5">O seu peso subiu %1$s kg enquanto estes pontos desceram.</string>
+    <string name="body_ctx_6">O seu peso desceu %1$s kg, e a fita confirma.</string>
+    <string name="body_ctx_7">O seu peso desceu %1$s kg enquanto estes pontos cresceram: perder mantendo ou ganhando volume é a versão difícil, e é este o seu aspeto.</string>
+    <string name="body_ctx_8">O seu peso desceu %1$s kg no mesmo período.</string>
+    <string name="body_info_navy">O método por perímetros de Hodgdon e Beckett, publicado em 1984 e ainda hoje a estimativa por fita de referência. Face a um exame DEXA carrega cerca de ±4 pontos percentuais — e o erro é sobretudo um enviesamento pessoal e não ruído aleatório: quem lê três pontos a mais tende a continuar a ler três pontos a mais.
+
+É por isso que vale a pena acompanhá-la e não vale a pena compará-la. O seu próprio número descer ao longo de dois meses é real. O seu número ao lado do de outra pessoa, ou de uma categoria publicada, não é.
+
+As duas equações foram ajustadas em coortes distintas e usam medições diferentes, razão pela qual o NOOP pergunta qual aplicar em vez de decidir por si.</string>
+    <string name="body_info_dev">Uma fita repete uma medição com cerca de meio centímetro de variação, consoante a firmeza e a capacidade de encontrar o mesmo ponto. Por isso, +0,2 cm não é crescimento: é a fita.
+
+Em vez de impor um valor fixo, o NOOP lê-o na tua própria série: a diferença habitual entre medições consecutivas nesse ponto. Uma alteração menor aparece esbatida. Isso não significa que nada aconteceu, mas que a série ainda não o distingue da colocação da fita.
+
+O resumo só conta pontos que ultrapassam a própria dispersão. Cada linha compara o mesmo ponto antes e agora; medições de pontos diferentes nunca são somadas.</string>
+    <string name="body_info_cmp">O peso, a cintura e a gordura corporal medem-se em quilogramas, centímetros e pontos percentuais. Desenhados juntos nas suas próprias unidades, aquele com os números mais pequenos parece plano faça o que fizer: é o eixo a falar, não o corpo.
+
+Traçar cada série como variação face à sua própria primeira medição coloca-as honestamente na mesma escala, e responde à pergunta que as pessoas realmente têm: se a cintura se move enquanto o peso se mantém, que é o que separa a perda de gordura da água.</string>
 </resources>

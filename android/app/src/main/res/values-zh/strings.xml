@@ -6413,4 +6413,70 @@
     <string name="diet_burn_below">手环比体重秤显示的低约 %1$s。</string>
     <string name="diet_active_days">活跃日多吃一些</string>
     <string name="diet_active_days_note">当手环测得的消耗高于平常，多出部分的一半会以碳水的形式加到当天目标中。</string>
+    <string name="body_waist">腰围</string>
+    <string name="body_what_changed">有何变化</string>
+    <string name="body_3_weeks">3周</string>
+    <string name="body_6_weeks">6 周</string>
+    <string name="body_3_months">3 个月</string>
+    <string name="body_grew">%1$d 个部位增大</string>
+    <string name="body_decreased">%1$d 个部位减小</string>
+    <string name="body_rows_note">每一行都比较同一部位的过去与现在。只有大于你自身皮尺测量波动的变化才计为改变。</string>
+    <string name="body_no_pairs">还没有任何部位拥有间隔足够远的两次测量。过几周再测一次，这里就会填上。</string>
+    <string name="body_no_movement">目前还没有任何变化超过你自身的皮尺离散度。这不等于什么都没发生——而是说这些读数还无法把真实变化与握尺方式区分开。</string>
+    <string name="body_navy_note">Navy 围度估算，相对 DEXA 约 ±%1$d 个百分点。它适合看趋势，不适合看绝对水平——关注它如何变化，而不是它显示多少。</string>
+    <string name="body_navy_choose">Hodgdon 与 Beckett 分别在男性和女性队列上拟合了两个方程，二者所需的测量项不同——两者之间没有可取平均之处。请在个人资料的“身体成分公式”中选择适用的一个，估算就会出现在这里。</string>
+    <string name="body_navy_implausible">这些测量得不出合理的估算。请检查颈围和腰围是否填反了。</string>
+    <string name="body_navy_measure">测量以下项目以估算体脂：</string>
+    <string name="body_src_dexa">DEXA</string>
+    <string name="body_src_caliper">皮褶钳</string>
+    <string name="body_src_bia">体脂秤</string>
+    <string name="body_src_inbody">InBody</string>
+    <string name="body_src_navy">皮尺估算</string>
+    <string name="body_src_profile">来自你的个人资料</string>
+    <string name="body_src_entered">手动输入</string>
+    <string name="body_change_since">自首次测量以来的变化</string>
+    <string name="body_1_year">1 年</string>
+    <string name="body_all">全部</string>
+    <string name="body_chart_note">每条线表示该项相对于它在此窗口内首次读数的百分比变化。绝对单位无法共用一条坐标轴——以厘米计的腰围会把旁边的体脂百分比压平。</string>
+    <string name="body_chart_empty">同一项目需要两次测量，才有变化可画。</string>
+    <string name="body_measurements">测量记录</string>
+    <string name="body_no_tape">尚无皮尺测量。点按“测量”记录一次。</string>
+    <string name="body_last_measured">上次测量 %1$s</string>
+    <string name="body_all_sites">所有部位</string>
+    <string name="body_photos">进度照片</string>
+    <string name="body_photos_note">正面、侧面和背面，在固定取景框中拍摄，相隔两个月才真正可比。它们只保存在本设备上。</string>
+    <string name="body_reminders">提醒</string>
+    <string name="body_weekly">每周测量</string>
+    <string name="body_weekly_note">围度变化缓慢且测量存在误差。每周是真实变化超过皮尺自身离散度的节奏。</string>
+    <string name="body_daily">每日称重</string>
+    <string name="body_reminder_denied">NOOP 的通知已在系统设置中关闭，提醒不会送达。未安排任何提醒。</string>
+    <string name="body_reminder_measure_title">测量日期</string>
+    <string name="body_reminder_measure_body">同一把尺、同样的位置、同样的时间——正是这种一致性让趋势可读。</string>
+    <string name="body_reminder_weigh_title">称重</string>
+    <string name="body_reminder_weigh_body">早餐前、如厕后。日间波动很正常——真正有意义的是趋势。</string>
+    <string name="body_info_navy_title">Navy 估算法</string>
+    <string name="body_info_dev_title">什么才算变化</string>
+    <string name="body_info_cmp_title">为何采用百分比变化</string>
+    <string name="body_ctx_0">你的体重几乎没变——%1$s 公斤——但皮尺在两个方向上都动了。一处变小、另一处变大，正是身体重组的样子，而这在体重秤上是看不见的。</string>
+    <string name="body_ctx_1">这段时间你的体重几乎没变——%1$s 公斤——而皮尺仍然下降了。当事情其实在发生时，停滞的体重秤看起来就是这样。</string>
+    <string name="body_ctx_2">这段时间你的体重几乎没变——%1$s 公斤——而皮尺仍然上升了。体重没涨但围度增加，很容易被忽略，也很容易让人放弃。</string>
+    <string name="body_ctx_3">你的体重上升了 %1$s 公斤，皮尺也印证了这一点——你训练的部位随之增长。</string>
+    <string name="body_ctx_4">你的体重上升了 %1$s 公斤，皮尺则两个方向都有——有些部位在增长，有些在缩小。</string>
+    <string name="body_ctx_5">你的体重上升了 %1$s 公斤，而这些部位在缩小。</string>
+    <string name="body_ctx_6">你的体重下降了 %1$s 公斤，皮尺也印证了这一点。</string>
+    <string name="body_ctx_7">你的体重下降了 %1$s 公斤，而这些部位在增长——一边减重一边维持甚至增加围度是更难的路径，它就是这个样子。</string>
+    <string name="body_ctx_8">同期你的体重下降了 %1$s 公斤。</string>
+    <string name="body_info_navy">Hodgdon 与 Beckett 的围度法，发表于 1984 年，至今仍是标准的皮尺估算方法。相对 DEXA 扫描约有 ±4 个百分点的误差——而且这种误差主要是个人系统性偏差而非随机噪声：读数偏高三个点的人，往往会一直偏高三个点。
+
+因此它值得追踪，却不值得比较。你自己的数字在两个月内下降是真实的。你的数字与别人的、或与已发表的分类相比，则不是。
+
+这两个方程在不同队列上拟合、所需测量项也不同，所以 NOOP 会询问该采用哪一个，而不是替你决定。</string>
+    <string name="body_info_dev">皮尺重复测量时通常会有约半厘米的波动，取决于你握得是否稳定、每次是否找到同一位置。因此，+0.2 厘米并不代表增长，也可能只是皮尺误差。
+
+NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续测量之间的典型变化。小于该变化的结果会淡化显示。这并不表示什么都没发生，而是当前序列还无法将真实变化与皮尺放置方式区分开。
+
+摘要只统计超过自身波动的部位。每一行都比较同一部位的过去与现在；不同部位的测量值绝不会相加。</string>
+    <string name="body_info_cmp">体重、腰围和体脂分别以公斤、厘米和百分点为单位。若以各自单位画在一起，数值最小的那一项无论怎么变都显得平坦——那是坐标轴在说话，不是身体。
+
+把每条序列画成相对其自身首次测量的变化，能诚实地把它们放到同一尺度上，也回答了人们真正关心的问题：体重不动时腰围是否在变——而这正是脂肪减少与水分变化的区别所在。</string>
 </resources>

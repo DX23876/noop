@@ -6464,4 +6464,70 @@
     <string name="diet_burn_below">Opaska pokazuje około %1$s mniej niż waga.</string>
     <string name="diet_active_days">Więcej w aktywne dni</string>
     <string name="diet_active_days_note">Gdy opaska zmierzy więcej niż zwykłe spalanie, połowa nadwyżki dochodzi do dnia jako węglowodany.</string>
+    <string name="body_waist">Talia</string>
+    <string name="body_what_changed">Co się zmieniło</string>
+    <string name="body_3_weeks">3 tygodnie</string>
+    <string name="body_6_weeks">6 tygodni</string>
+    <string name="body_3_months">3 miesiące</string>
+    <string name="body_grew">%1$d zwiększyło się</string>
+    <string name="body_decreased">%1$d zmniejszyło się</string>
+    <string name="body_rows_note">Każdy wiersz porównuje to samo miejsce dawniej i dziś. Liczą się tylko zmiany większe niż twój własny rozrzut pomiarów taśmą.</string>
+    <string name="body_no_pairs">Żadne miejsce nie ma jeszcze dwóch pomiarów wystarczająco odległych. Zmierz ponownie za kilka tygodni, a to się wypełni.</string>
+    <string name="body_no_movement">Nic nie zmieniło się jeszcze bardziej niż twój własny rozrzut taśmy. To nie znaczy, że nic się nie dzieje — to znaczy, że te pomiary nie odróżniają jeszcze zmiany od sposobu trzymania taśmy.</string>
+    <string name="body_navy_note">Oszacowanie z obwodów metodą Navy, ±%1$d punktu procentowego względem DEXA. Dobre do trendu, słabe do poziomu bezwzględnego — patrz, jak się zmienia, nie co pokazuje.</string>
+    <string name="body_navy_choose">Hodgdon i Beckett dopasowali dwa równania, na kohorcie męskiej i żeńskiej, i używają one różnych pomiarów — nie ma czego między nimi uśredniać. Wybierz, które obowiązuje, w Formule składu ciała w swoim profilu, a oszacowanie pojawi się tutaj.</string>
+    <string name="body_navy_implausible">Te pomiary nie dają wiarygodnego oszacowania. Sprawdź, czy szyja i talia nie zostały zamienione.</string>
+    <string name="body_navy_measure">Zmierz te, aby oszacować tkankę tłuszczową:</string>
+    <string name="body_src_dexa">DEXA</string>
+    <string name="body_src_caliper">Fałdomierz</string>
+    <string name="body_src_bia">Waga BIA</string>
+    <string name="body_src_inbody">InBody</string>
+    <string name="body_src_navy">Oszacowanie taśmą</string>
+    <string name="body_src_profile">Z twojego profilu</string>
+    <string name="body_src_entered">Wprowadzone</string>
+    <string name="body_change_since">Zmiana od pierwszego pomiaru</string>
+    <string name="body_1_year">1 rok</string>
+    <string name="body_all">Wszystko</string>
+    <string name="body_chart_note">Każda linia to zmiana danego pomiaru względem jego własnego pierwszego odczytu w tym oknie, w procentach. Jednostki bezwzględne nie mogą dzielić osi — talia w centymetrach spłaszczyłaby obok siebie procent tkanki tłuszczowej.</string>
+    <string name="body_chart_empty">Potrzebne są dwa pomiary tej samej wielkości, zanim będzie zmiana do narysowania.</string>
+    <string name="body_measurements">Pomiary</string>
+    <string name="body_no_tape">Brak pomiarów taśmą. Dotknij Zmierz, aby zapisać sesję.</string>
+    <string name="body_last_measured">Ostatni pomiar %1$s</string>
+    <string name="body_all_sites">Wszystkie miejsca</string>
+    <string name="body_photos">Zdjęcia postępów</string>
+    <string name="body_photos_note">Przód, bok i tył, robione w stałym kadrze, żeby dwa miesiące różnicy dało się naprawdę porównać. Zostają na tym urządzeniu.</string>
+    <string name="body_reminders">Przypomnienia</string>
+    <string name="body_weekly">Cotygodniowy pomiar</string>
+    <string name="body_weekly_note">Obwody zmieniają się powoli i mierzy się je z błędem. Tygodniowo to rytm, w którym realna zmiana przewyższa rozrzut samej taśmy.</string>
+    <string name="body_daily">Codzienne ważenie</string>
+    <string name="body_reminder_denied">Powiadomienia dla NOOP są wyłączone w ustawieniach systemu, więc przypomnienie nigdy by nie dotarło. Nic nie zaplanowano.</string>
+    <string name="body_reminder_measure_title">Dzień pomiaru</string>
+    <string name="body_reminder_measure_body">Ta sama taśma, te same miejsca, ta sama pora dnia — to ta konsekwencja czyni trend czytelnym.</string>
+    <string name="body_reminder_weigh_title">Pomiar masy ciała</string>
+    <string name="body_reminder_weigh_body">Przed śniadaniem, po toalecie. Dzienne wahania są normalne — liczy się trend.</string>
+    <string name="body_info_navy_title">Oszacowanie Navy</string>
+    <string name="body_info_dev_title">Co liczy się jako zmiana</string>
+    <string name="body_info_cmp_title">Dlaczego zmiana procentowa</string>
+    <string name="body_ctx_0">Twoja waga ledwie drgnęła — %1$s kg — ale taśma poruszyła się w obie strony. Spadek w jednym miejscu przy wzroście w innym to dokładnie tak wygląda rekompozycja, a na wadze jest niewidoczna.</string>
+    <string name="body_ctx_1">Twoja waga ledwie drgnęła w tym okresie — %1$s kg — a taśma i tak zeszła. Tak wygląda stojąca waga, gdy coś jednak się dzieje.</string>
+    <string name="body_ctx_2">Twoja waga ledwie drgnęła w tym okresie — %1$s kg — a taśma i tak poszła w górę. Objętość zyskana bez wagi na wadze łatwo umyka i łatwo z niej zrezygnować.</string>
+    <string name="body_ctx_3">Twoja waga wzrosła o %1$s kg, a taśma to potwierdza — miejsca, które trenujesz, rosną razem z nią.</string>
+    <string name="body_ctx_4">Twoja waga wzrosła o %1$s kg, a taśma poszła w obie strony — jedne miejsca rosną, inne maleją.</string>
+    <string name="body_ctx_5">Twoja waga wzrosła o %1$s kg, podczas gdy te miejsca zmalały.</string>
+    <string name="body_ctx_6">Twoja waga spadła o %1$s kg, a taśma to potwierdza.</string>
+    <string name="body_ctx_7">Twoja waga spadła o %1$s kg, podczas gdy te miejsca urosły — chudnięcie przy utrzymaniu lub zysku objętości to trudniejsza wersja, i tak właśnie wygląda.</string>
+    <string name="body_ctx_8">Twoja waga spadła o %1$s kg w tym samym okresie.</string>
+    <string name="body_info_navy">Metoda obwodowa Hodgdona i Becketta, opublikowana w 1984 roku i wciąż standardowe oszacowanie taśmą. Wobec skanu DEXA obarczona jest około ±4 punktami procentowymi — a błąd to głównie osobiste obciążenie, a nie losowy szum: kto odczytuje trzy punkty za dużo, zwykle dalej odczytuje trzy punkty za dużo.
+
+Dlatego warto ją obserwować, a nie warto jej porównywać. To, że twoja własna liczba spada przez dwa miesiące, jest prawdziwe. Twoja liczba obok cudzej albo obok opublikowanej kategorii — nie.
+
+Oba równania dopasowano na odrębnych kohortach i używają różnych pomiarów, dlatego NOOP pyta, które zastosować, zamiast decydować za ciebie.</string>
+    <string name="body_info_dev">Taśma powtarza pomiar z rozrzutem około pół centymetra, zależnie od tego, jak stabilnie ją trzymasz i czy trafiasz w to samo miejsce. Dlatego +0,2 cm to nie wzrost — to taśma.
+
+Zamiast narzucać stałą wartość, NOOP odczytuje ją z twojej serii: typowej różnicy między kolejnymi pomiarami w tym miejscu. Mniejsza zmiana jest wyszarzona. Nie oznacza to, że nic się nie stało, lecz że seria nie odróżnia jeszcze zmiany od sposobu ułożenia taśmy.
+
+Podsumowanie liczy tylko miejsca przekraczające własny rozrzut. Każdy wiersz porównuje to samo miejsce dawniej i dziś; pomiary różnych miejsc nigdy nie są sumowane.</string>
+    <string name="body_info_cmp">Wagę, talię i tkankę tłuszczową mierzy się w kilogramach, centymetrach i punktach procentowych. Narysowane razem we własnych jednostkach, ta o najmniejszych liczbach wygląda płasko niezależnie od tego, co zrobiła — to mówi oś, nie ciało.
+
+Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiaru uczciwie sprowadza je do jednej skali i odpowiada na pytanie, które ludzie naprawdę mają: czy talia się zmienia, gdy waga stoi — a to właśnie oddziela utratę tłuszczu od wody.</string>
 </resources>

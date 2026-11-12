@@ -6483,4 +6483,70 @@
     <string name="diet_burn_below">Your strap reads about %1$s below what your scale shows.</string>
     <string name="diet_active_days">More on active days</string>
     <string name="diet_active_days_note">When your strap measures more than your usual burn, half of the extra is added to the day, as carbohydrate.</string>
+    <string name="body_waist">Waist</string>
+    <string name="body_what_changed">What changed</string>
+    <string name="body_3_weeks">3 weeks</string>
+    <string name="body_6_weeks">6 weeks</string>
+    <string name="body_3_months">3 months</string>
+    <string name="body_grew">%1$d grew</string>
+    <string name="body_decreased">%1$d decreased</string>
+    <string name="body_rows_note">Each row compares the same site then and now. Only changes larger than your own tape scatter count as movement.</string>
+    <string name="body_no_pairs">No site has two readings far enough apart yet. Measure again in a few weeks and this fills in.</string>
+    <string name="body_no_movement">Nothing has moved further than your own tape scatter yet. That is not the same as nothing happening — it means these readings cannot yet tell a change apart from how the tape was held.</string>
+    <string name="body_navy_note">Navy circumference estimate, ±%1$d percentage points against DEXA. It is good at showing a trend and poor at an absolute level — watch how it moves, not what it says.</string>
+    <string name="body_navy_choose">Hodgdon &amp; Beckett fitted two equations, on a male and a female cohort, and they take different measurements — so there is nothing to average between them. Choose which applies under Body-composition formula in your profile, and the estimate appears here.</string>
+    <string name="body_navy_implausible">Those measurements do not produce a plausible estimate. Check that neck and waist were not swapped.</string>
+    <string name="body_navy_measure">Measure these to estimate body fat:</string>
+    <string name="body_src_dexa">DEXA</string>
+    <string name="body_src_caliper">Caliper</string>
+    <string name="body_src_bia">BIA scale</string>
+    <string name="body_src_inbody">InBody</string>
+    <string name="body_src_navy">Tape estimate</string>
+    <string name="body_src_profile">From your profile</string>
+    <string name="body_src_entered">Entered</string>
+    <string name="body_change_since">Change since the first reading</string>
+    <string name="body_1_year">1 year</string>
+    <string name="body_all">All</string>
+    <string name="body_chart_note">Each line is that measurement\'s change from its own first reading in this window, in percent. Absolute units cannot share an axis — a waist in centimetres would flatten a body-fat percentage next to it.</string>
+    <string name="body_chart_empty">Two readings of the same measurement are needed before there is a change to draw.</string>
+    <string name="body_measurements">Measurements</string>
+    <string name="body_no_tape">No tape measurements yet. Tap Measure to record a session.</string>
+    <string name="body_last_measured">Last measured %1$s</string>
+    <string name="body_all_sites">All sites</string>
+    <string name="body_photos">Progress photos</string>
+    <string name="body_photos_note">Front, side and back, taken in a fixed frame so two months apart are actually comparable. They stay on this device.</string>
+    <string name="body_reminders">Reminders</string>
+    <string name="body_weekly">Weekly measurement</string>
+    <string name="body_weekly_note">Circumferences move slowly and are measured with error. Weekly is the cadence at which a real change outgrows the tape\'s own spread.</string>
+    <string name="body_daily">Daily weigh-in</string>
+    <string name="body_reminder_denied">Notifications are turned off for NOOP in system settings, so a reminder would never arrive. Nothing was scheduled.</string>
+    <string name="body_reminder_measure_title">Measurement day</string>
+    <string name="body_reminder_measure_body">Same tape, same spots, same time of day — that consistency is what makes the trend readable.</string>
+    <string name="body_reminder_weigh_title">Weigh-in</string>
+    <string name="body_reminder_weigh_body">Before breakfast, after the bathroom. Day-to-day noise is normal — the trend is what moves.</string>
+    <string name="body_info_navy_title">The Navy estimate</string>
+    <string name="body_info_dev_title">What counts as a change</string>
+    <string name="body_info_cmp_title">Why percent change</string>
+    <string name="body_ctx_0">Your weight barely moved — %1$s kg — but the tape moved in both directions. Coming down in one place while going up in another is exactly what recomposition looks like, and it is invisible on a scale.</string>
+    <string name="body_ctx_1">Your weight barely moved over this period — %1$s kg — and the tape still came down. That is what a stalled scale looks like when something is in fact happening.</string>
+    <string name="body_ctx_2">Your weight barely moved over this period — %1$s kg — and the tape still went up. Size added without scale weight is easy to miss and easy to give up on.</string>
+    <string name="body_ctx_3">Your weight is up %1$s kg, and the tape agrees — the sites you are training are growing with it.</string>
+    <string name="body_ctx_4">Your weight is up %1$s kg, and the tape went both ways — some sites growing while others came down.</string>
+    <string name="body_ctx_5">Your weight is up %1$s kg while these sites came down.</string>
+    <string name="body_ctx_6">Your weight is down %1$s kg, and the tape agrees.</string>
+    <string name="body_ctx_7">Your weight is down %1$s kg while these sites grew — losing while holding or adding size is the harder version, and this is what it looks like.</string>
+    <string name="body_ctx_8">Your weight is down %1$s kg over the same period.</string>
+    <string name="body_info_navy">Hodgdon &amp; Beckett\'s circumference method, published in 1984 and still the standard tape estimate. Against a DEXA scan it carries roughly ±4 percentage points — and the error is mostly a personal bias rather than random noise, so someone reading three points high tends to keep reading three points high.
+
+That is why it is worth watching and not worth comparing. Your own number falling over two months is real. Your number next to someone else\'s, or next to a published category, is not.
+
+The two equations were fitted on separate cohorts and take different measurements, so NOOP asks which one to apply rather than deciding for you.</string>
+    <string name="body_info_dev">A tape repeats to somewhere around half a centimetre, depending on how steadily you hold it and whether you find the same spot each time. So +0.2 cm is not growth — it is the tape.
+
+Rather than asserting a fixed figure for that, NOOP reads it out of your own series: the typical step between your consecutive readings at that site. A change smaller than your own typical step is shown greyed out. That does not mean nothing happened — it means this series cannot tell what happened apart from how the tape was held, which is a more useful thing to know.
+
+The summary counts only sites that beat their own scatter. Every row compares that same body site then and now; measurements from different sites are never added together.</string>
+    <string name="body_info_cmp">Weight, waist and body fat are measured in kilograms, centimetres and percentage points. Drawn together in their own units, the one with the smallest numbers looks flat regardless of what it did — that is the axis talking, not the body.
+
+Plotting each series as change from its own first reading puts them on one scale honestly, and answers the question people actually have: whether the waist is moving while the weight holds, which is what separates fat loss from water.</string>
 </resources>

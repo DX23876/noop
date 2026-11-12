@@ -6412,4 +6412,70 @@
     <string name="diet_burn_below">Il bracciale segna circa il %1$s in meno di quanto mostra la bilancia.</string>
     <string name="diet_active_days">Di più nei giorni attivi</string>
     <string name="diet_active_days_note">Quando il tuo bracciale misura più del tuo consumo abituale, metà dell\'extra si aggiunge alla giornata, come carboidrati.</string>
+    <string name="body_waist">Vita</string>
+    <string name="body_what_changed">Cosa è cambiato</string>
+    <string name="body_3_weeks">3 settimane</string>
+    <string name="body_6_weeks">6 settimane</string>
+    <string name="body_3_months">3 mesi</string>
+    <string name="body_grew">%1$d aumentati</string>
+    <string name="body_decreased">%1$d diminuiti</string>
+    <string name="body_rows_note">Ogni riga confronta lo stesso punto prima e adesso. Contano solo i cambiamenti superiori alla tua variabilità del metro.</string>
+    <string name="body_no_pairs">Nessun punto ha ancora due misurazioni abbastanza distanziate. Misura di nuovo tra qualche settimana e questo si riempirà.</string>
+    <string name="body_no_movement">Finora nulla si è mosso più della tua dispersione del metro. Non è come dire che non succede niente: significa che queste misurazioni non distinguono ancora un cambiamento da come è stato tenuto il metro.</string>
+    <string name="body_navy_note">Stima per circonferenze della Navy, ±%1$d punti percentuali rispetto al DEXA. Buona per la tendenza e scarsa per il livello assoluto: guarda come si muove, non cosa dice.</string>
+    <string name="body_navy_choose">Hodgdon e Beckett hanno adattato due equazioni, su una coorte maschile e una femminile, e usano misure diverse: non c\'è nulla da mediare tra loro. Scegli quale si applica in Formula di composizione corporea nel tuo profilo, e la stima comparirà qui.</string>
+    <string name="body_navy_implausible">Quelle misure non producono una stima plausibile. Controlla che collo e vita non siano stati invertiti.</string>
+    <string name="body_navy_measure">Misura questi per stimare il grasso corporeo:</string>
+    <string name="body_src_dexa">DEXA</string>
+    <string name="body_src_caliper">Plicometro</string>
+    <string name="body_src_bia">Bilancia BIA</string>
+    <string name="body_src_inbody">InBody</string>
+    <string name="body_src_navy">Stima con il metro</string>
+    <string name="body_src_profile">Dal tuo profilo</string>
+    <string name="body_src_entered">Inserito</string>
+    <string name="body_change_since">Variazione dalla prima misurazione</string>
+    <string name="body_1_year">1 anno</string>
+    <string name="body_all">Tutto</string>
+    <string name="body_chart_note">Ogni linea è la variazione di quella misura rispetto alla propria prima lettura in questa finestra, in percentuale. Unità assolute non possono condividere un asse: una vita in centimetri appiattirebbe una percentuale di grasso accanto.</string>
+    <string name="body_chart_empty">Servono due misurazioni della stessa grandezza prima che ci sia una variazione da disegnare.</string>
+    <string name="body_measurements">Misurazioni</string>
+    <string name="body_no_tape">Ancora nessuna misura con il metro. Tocca Misura per registrare una sessione.</string>
+    <string name="body_last_measured">Ultima misurazione %1$s</string>
+    <string name="body_all_sites">Tutti i punti</string>
+    <string name="body_photos">Foto dei progressi</string>
+    <string name="body_photos_note">Fronte, profilo e schiena, scattate in un\'inquadratura fissa perché due mesi di distanza siano davvero confrontabili. Restano su questo dispositivo.</string>
+    <string name="body_reminders">Promemoria</string>
+    <string name="body_weekly">Misurazione settimanale</string>
+    <string name="body_weekly_note">Le circonferenze cambiano lentamente e si misurano con errore. Settimanale è la cadenza alla quale un cambiamento reale supera la dispersione del metro.</string>
+    <string name="body_daily">Pesata quotidiana</string>
+    <string name="body_reminder_denied">Le notifiche sono disattivate per NOOP nelle impostazioni di sistema, quindi un promemoria non arriverebbe mai. Non è stato programmato nulla.</string>
+    <string name="body_reminder_measure_title">Giorno della misurazione</string>
+    <string name="body_reminder_measure_body">Stesso metro, stessi punti, stessa ora del giorno: è questa costanza a rendere leggibile la tendenza.</string>
+    <string name="body_reminder_weigh_title">Pesata</string>
+    <string name="body_reminder_weigh_body">Prima di colazione, dopo il bagno. La variazione quotidiana è normale: conta la tendenza.</string>
+    <string name="body_info_navy_title">La stima della Navy</string>
+    <string name="body_info_dev_title">Cosa conta come variazione</string>
+    <string name="body_info_cmp_title">Perché la variazione percentuale</string>
+    <string name="body_ctx_0">Il tuo peso si è mosso appena — %1$s kg — ma il metro si è mosso in entrambe le direzioni. Scendere in un punto mentre sale in un altro è esattamente l\'aspetto di una ricomposizione, ed è invisibile su una bilancia.</string>
+    <string name="body_ctx_1">Il tuo peso si è mosso appena in questo periodo — %1$s kg — e il metro è comunque sceso. Ecco l\'aspetto di una bilancia ferma quando qualcosa sta in realtà accadendo.</string>
+    <string name="body_ctx_2">Il tuo peso si è mosso appena in questo periodo — %1$s kg — e il metro è comunque salito. Il volume guadagnato senza peso sulla bilancia è facile da non notare e facile da abbandonare.</string>
+    <string name="body_ctx_3">Il tuo peso è salito di %1$s kg, e il metro lo conferma: i punti che alleni crescono con lui.</string>
+    <string name="body_ctx_4">Il tuo peso è salito di %1$s kg, e il metro è andato in entrambe le direzioni: alcuni punti crescono mentre altri calano.</string>
+    <string name="body_ctx_5">Il tuo peso è salito di %1$s kg mentre questi punti calavano.</string>
+    <string name="body_ctx_6">Il tuo peso è calato di %1$s kg, e il metro lo conferma.</string>
+    <string name="body_ctx_7">Il tuo peso è calato di %1$s kg mentre questi punti crescevano: perdere mantenendo o aggiungendo volume è la versione difficile, ed ecco il suo aspetto.</string>
+    <string name="body_ctx_8">Il tuo peso è calato di %1$s kg nello stesso periodo.</string>
+    <string name="body_info_navy">Il metodo per circonferenze di Hodgdon e Beckett, pubblicato nel 1984 e ancora oggi la stima con il metro di riferimento. Rispetto a una scansione DEXA porta circa ±4 punti percentuali — e l\'errore è soprattutto una distorsione personale più che rumore casuale: chi legge tre punti in più tende a continuare a leggerne tre in più.
+
+Per questo vale la pena seguirla e non vale la pena confrontarla. Che il tuo numero scenda nell\'arco di due mesi è reale. Il tuo numero accanto a quello di un altro, o a una categoria pubblicata, non lo è.
+
+Le due equazioni sono state adattate su coorti distinte e usano misure diverse, motivo per cui NOOP chiede quale applicare invece di deciderlo per te.</string>
+    <string name="body_info_dev">Un metro ripete una misura con una variabilità di circa mezzo centimetro, secondo quanto è stabile e se ritrovi lo stesso punto. Quindi +0,2 cm non è crescita: è il metro.
+
+Invece di imporre una cifra fissa, NOOP la ricava dalla tua serie: la variazione tipica tra misure consecutive in quel punto. Una variazione minore appare attenuata. Non significa che non sia successo nulla, ma che la serie non riesce ancora a distinguerlo da come è stato posizionato il metro.
+
+Il riepilogo conta solo i punti che superano la propria variabilità. Ogni riga confronta lo stesso punto prima e adesso; le misure di punti diversi non vengono mai sommate.</string>
+    <string name="body_info_cmp">Peso, vita e grasso corporeo si misurano in chilogrammi, centimetri e punti percentuali. Disegnati insieme nelle proprie unità, quello con i numeri più piccoli sembra piatto qualunque cosa abbia fatto: è l\'asse che parla, non il corpo.
+
+Tracciare ogni serie come variazione rispetto alla propria prima misurazione le mette onestamente sulla stessa scala, e risponde alla domanda che la gente si pone davvero: se la vita si muove mentre il peso tiene, che è ciò che separa la perdita di grasso dall\'acqua.</string>
 </resources>

@@ -62,6 +62,8 @@ class NoopApplication : Application() {
         // case it exists for is a strap that stopped talking. Scheduled here rather than beside a widget
         // so it does not inherit that widget's lifecycle. KEEP, so this is a no-op once scheduled.
         com.noop.notif.StaleBatteryWorker.ensureScheduled(this)
+        // The Body page's reminders re-arm at their clock time, as iOS refreshes them on launch.
+        com.noop.notif.BodyMeasurementReminder.refresh(this)
         // Fork (DX23876), Android plan D-5: load the shared Swift core on the main thread (its main actor binds
         // there) and log its recipe; nothing reads it yet.
         com.noop.core.SwiftCore.start(this)

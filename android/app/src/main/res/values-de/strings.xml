@@ -6460,4 +6460,70 @@
     <string name="diet_burn_below">Dein Strap liegt etwa %1$s unter dem, was deine Waage zeigt.</string>
     <string name="diet_active_days">Mehr an aktiven Tagen</string>
     <string name="diet_active_days_note">Misst dein Strap mehr als deinen üblichen Verbrauch, kommt die Hälfte davon zum Tag dazu, als Kohlenhydrate.</string>
+    <string name="body_waist">Taille</string>
+    <string name="body_what_changed">Was sich geändert hat</string>
+    <string name="body_3_weeks">3 Wochen</string>
+    <string name="body_6_weeks">6 Wochen</string>
+    <string name="body_3_months">3 Monate</string>
+    <string name="body_grew">%1$d gewachsen</string>
+    <string name="body_decreased">%1$d kleiner geworden</string>
+    <string name="body_rows_note">Jede Zeile vergleicht dieselbe Stelle damals und heute. Nur Veränderungen, die größer als deine eigene Maßbandstreuung sind, zählen als Bewegung.</string>
+    <string name="body_no_pairs">Noch hat keine Stelle zwei Messungen mit genug Abstand. Miss in ein paar Wochen erneut, dann füllt sich das hier.</string>
+    <string name="body_no_movement">Bisher hat sich nichts weiter bewegt als deine eigene Bandstreuung. Das heißt nicht, dass nichts passiert — es heißt, dass diese Messungen eine Veränderung noch nicht von der Bandhaltung unterscheiden können.</string>
+    <string name="body_navy_note">Navy-Umfangschätzung, ±%1$d Prozentpunkte gegenüber DEXA. Sie taugt für den Trend und nicht für das absolute Niveau — achte darauf, wie sie sich bewegt, nicht darauf, was sie sagt.</string>
+    <string name="body_navy_choose">Hodgdon &amp; Beckett haben zwei Gleichungen gefittet, an einer männlichen und einer weiblichen Kohorte, und sie nutzen unterschiedliche Messungen — es gibt also nichts, was man dazwischen mitteln könnte. Wähle unter Körperzusammensetzungs-Formel in deinem Profil, welche gilt, und die Schätzung erscheint hier.</string>
+    <string name="body_navy_implausible">Diese Messungen ergeben keine plausible Schätzung. Prüfe, ob Hals und Taille vertauscht wurden.</string>
+    <string name="body_navy_measure">Miss diese, um den Körperfettanteil zu schätzen:</string>
+    <string name="body_src_dexa">DEXA</string>
+    <string name="body_src_caliper">Caliper</string>
+    <string name="body_src_bia">BIA-Waage</string>
+    <string name="body_src_inbody">InBody</string>
+    <string name="body_src_navy">Bandschätzung</string>
+    <string name="body_src_profile">Aus deinem Profil</string>
+    <string name="body_src_entered">Eingetragen</string>
+    <string name="body_change_since">Veränderung seit der ersten Messung</string>
+    <string name="body_1_year">1 Jahr</string>
+    <string name="body_all">Alle</string>
+    <string name="body_chart_note">Jede Linie zeigt die Veränderung dieser Messgröße gegenüber ihrer eigenen ersten Messung in diesem Fenster, in Prozent. Absolute Einheiten können sich keine Achse teilen — eine Taille in Zentimetern würde einen Körperfettanteil daneben plattdrücken.</string>
+    <string name="body_chart_empty">Es braucht zwei Messungen derselben Größe, bevor es eine Veränderung zu zeichnen gibt.</string>
+    <string name="body_measurements">Messungen</string>
+    <string name="body_no_tape">Noch keine Bandmessungen. Tippe auf Messen, um eine Sitzung zu erfassen.</string>
+    <string name="body_last_measured">Zuletzt gemessen %1$s</string>
+    <string name="body_all_sites">Alle Stellen</string>
+    <string name="body_photos">Fortschrittsfotos</string>
+    <string name="body_photos_note">Vorne, seitlich und hinten, in einem festen Rahmen aufgenommen, damit zwei Monate Abstand wirklich vergleichbar sind. Sie bleiben auf diesem Gerät.</string>
+    <string name="body_reminders">Erinnerungen</string>
+    <string name="body_weekly">Wöchentliche Messung</string>
+    <string name="body_weekly_note">Umfänge ändern sich langsam und werden fehlerbehaftet gemessen. Wöchentlich ist der Takt, in dem eine echte Veränderung die Streuung des Maßbands überholt.</string>
+    <string name="body_daily">Tägliches Wiegen</string>
+    <string name="body_reminder_denied">Mitteilungen sind für NOOP in den Systemeinstellungen deaktiviert, eine Erinnerung käme also nie an. Es wurde nichts geplant.</string>
+    <string name="body_reminder_measure_title">Messtag</string>
+    <string name="body_reminder_measure_body">Gleiches Band, gleiche Stellen, gleiche Tageszeit — erst diese Beständigkeit macht den Verlauf lesbar.</string>
+    <string name="body_reminder_weigh_title">Gewichtsmessung</string>
+    <string name="body_reminder_weigh_body">Vor dem Frühstück, nach dem Bad. Tagesschwankungen sind normal — es zählt der Trend.</string>
+    <string name="body_info_navy_title">Die Navy-Schätzung</string>
+    <string name="body_info_dev_title">Was als Veränderung zählt</string>
+    <string name="body_info_cmp_title">Warum prozentuale Veränderung</string>
+    <string name="body_ctx_0">Dein Gewicht hat sich kaum bewegt — %1$s kg — aber das Maßband hat sich in beide Richtungen bewegt. An einer Stelle runter und an einer anderen hoch ist genau das, wonach Rekomposition aussieht, und auf einer Waage ist das unsichtbar.</string>
+    <string name="body_ctx_1">Dein Gewicht hat sich in diesem Zeitraum kaum bewegt — %1$s kg — und das Maßband ist trotzdem heruntergegangen. So sieht eine stehende Waage aus, wenn tatsächlich etwas passiert.</string>
+    <string name="body_ctx_2">Dein Gewicht hat sich in diesem Zeitraum kaum bewegt — %1$s kg — und das Maßband ist trotzdem hochgegangen. Umfang ohne Waagengewicht übersieht man leicht und gibt man leicht auf.</string>
+    <string name="body_ctx_3">Dein Gewicht ist um %1$s kg gestiegen, und das Maßband bestätigt es — die Stellen, die du trainierst, wachsen mit.</string>
+    <string name="body_ctx_4">Dein Gewicht ist um %1$s kg gestiegen, und das Maßband ging in beide Richtungen — manche Stellen wachsen, während andere heruntergingen.</string>
+    <string name="body_ctx_5">Dein Gewicht ist um %1$s kg gestiegen, während diese Stellen heruntergegangen sind.</string>
+    <string name="body_ctx_6">Dein Gewicht ist um %1$s kg gesunken, und das Maßband bestätigt es.</string>
+    <string name="body_ctx_7">Dein Gewicht ist um %1$s kg gesunken, während diese Stellen gewachsen sind — abnehmen und dabei Umfang halten oder aufbauen ist die schwierigere Variante, und so sieht sie aus.</string>
+    <string name="body_ctx_8">Dein Gewicht ist im selben Zeitraum um %1$s kg gesunken.</string>
+    <string name="body_info_navy">Die Umfangmethode von Hodgdon &amp; Beckett, 1984 veröffentlicht und bis heute die Standard-Bandschätzung. Gegenüber einem DEXA-Scan trägt sie etwa ±4 Prozentpunkte — und der Fehler ist überwiegend eine persönliche Verzerrung statt zufälligem Rauschen, wer also drei Punkte zu hoch liest, liest meist weiter drei Punkte zu hoch.
+
+Deshalb lohnt es sich, sie zu beobachten, und nicht, sie zu vergleichen. Dass deine eigene Zahl über zwei Monate fällt, ist echt. Deine Zahl neben der eines anderen oder neben einer publizierten Kategorie ist es nicht.
+
+Die beiden Gleichungen wurden an getrennten Kohorten gefittet und nutzen unterschiedliche Messungen, weshalb NOOP fragt, welche anzuwenden ist, statt es für dich zu entscheiden.</string>
+    <string name="body_info_dev">Ein Maßband wiederholt sich auf etwa einen halben Zentimeter genau, je nachdem, wie ruhig du es hältst und ob du jedes Mal dieselbe Stelle findest. +0,2 cm sind also kein Wachstum — das ist das Band.
+
+Statt dafür einen festen Wert zu behaupten, liest NOOP ihn aus deiner eigenen Reihe: dem typischen Schritt zwischen deinen aufeinanderfolgenden Messungen an dieser Stelle. Eine Veränderung, die kleiner ist als dein eigener typischer Schritt, wird ausgegraut. Das heißt nicht, dass nichts passiert ist — es heißt, dass diese Reihe das Geschehen noch nicht von der Haltung des Bandes unterscheiden kann.
+
+Die Zusammenfassung zählt nur Stellen, die ihre eigene Streuung übertreffen. Jede Zeile vergleicht dieselbe Körperstelle damals und heute; Messungen verschiedener Stellen werden nie addiert.</string>
+    <string name="body_info_cmp">Gewicht, Taille und Körperfett werden in Kilogramm, Zentimetern und Prozentpunkten gemessen. Zusammen in ihren eigenen Einheiten gezeichnet, sieht die mit den kleinsten Zahlen flach aus, egal was sie getan hat — das ist die Achse, die spricht, nicht der Körper.
+
+Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen bringt sie ehrlich auf einen Maßstab und beantwortet die Frage, die Menschen wirklich haben: ob sich die Taille bewegt, während das Gewicht hält — und genau das trennt Fettabbau von Wasser.</string>
 </resources>
