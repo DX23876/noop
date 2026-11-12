@@ -68,6 +68,11 @@ Fixed:
 - The same one-time read on Today's Energy ("so far" never grew), Training load and coach cards, and on the
   Training tab: all read again on the core's data revision now. These were in the shipped design too.
 - The older nights' line in Sleep's navigator ran past the width; it names the wake day only.
+- (2026-11-12) The water tile, its Your cards row and the Log sheet's Drink opened the journal, which cannot log
+  water; the drink log (`HydrationScreen`) was out of reach in the new design. A search-only More destination
+  opens it now, as iOS's `TabRoute.hydration`; seen on the emulator.
+- (2026-11-12) The drink log's "x% of today's goal" was fixed white on the white hero card in light mode; it takes
+  the secondary text colour now; seen on the emulator.
 - With the Classic dashboard style chosen the new design drew the classic Today, whose battery and devices
   jumps went to the More tab the new design lacks. The new design keeps its own Today and any jump to More
   opens the More page (read in the code and compiled, not run on screen).
