@@ -21,12 +21,23 @@ final class ForgeFoodModel {
 
     /// Any day's calorie goal: the plan's for that day (its fasting figure, its active-day extra), or the base goal.
     func calories(for day: String) -> FoodTargets.Calories? {
-        if let plan, let result = result(for: day) {
-            return FoodTargets.calories(plan: plan, result: result, day: day, activeBonusKcal: activeBonusKcal(for: day),
-                                        training: training)
-        }
+        if let resolved = planDay(day) { return resolved.calories }
         return baseCalories
     }
+
+    /// One day of the plan from the shared `DietDayResolver`, the resolver the Android core calls too: phase,
+    /// training-day shift, active-day extra and the burn the plan starts from. Nil without a plan or a person.
+    func planDay(_ day: String) -> DietDayResolver.Day? {
+        _ = burnRevision
+        guard let plan, let person, let strap = strapBurnKcal else { return nil }
+        let inputs = DietDayResolver.Inputs(plan: plan, person: person, strapBurnKcal: strap, kcalPerKg: kcalPerKg,
+                                            burnedByDay: burnedByDay, completeDays: trackerComplete,
+                                            intakeByDay: trackerIntake, weighIns: recentWeights, training: training,
+                                            today: Repository.localDayKey(.now))
+        return DietDayResolver.resolve(inputs, day: day)
+    }
+    @ObservationIgnored private var trackerComplete: Set<String> = []
+    @ObservationIgnored private var trackerIntake: [String: Double] = [:]
     private(set) var nutrients: FoodNutrientReport.Report?
     /// The shown day alone, for its nutrition facts and the pinned nutrients.
     private(set) var dayNutrients: FoodNutrientReport.Report?
@@ -35,10 +46,7 @@ final class ForgeFoodModel {
 
     /// Any day's macro goals, from the same resolver as `calories(for:)`.
     func macroGoals(for day: String) -> FoodTargets.Macros? {
-        if let plan, let result = result(for: day) {
-            return FoodTargets.macros(plan: plan, result: result, day: day, activeBonusKcal: activeBonusKcal(for: day),
-                                      training: training)
-        }
+        if let resolved = planDay(day) { return resolved.macros }
         guard let kcal = calories(for: day)?.kcal else { return nil }
         let d = UserDefaults.standard, split = FoodTargets.defaultSplit
         func share(_ key: String, _ fallback: Double) -> Double { d.object(forKey: key) as? Double ?? fallback }
@@ -109,20 +117,8 @@ final class ForgeFoodModel {
     /// The way to the goal weight, or holding, from the weight trend.
     private(set) var progress: DietProgress.Progress?
 
-    /// The real burn divided by the strap's, when both are known.
-    var realToStrap: Double? {
-        if case .estimate(let e) = expenditure { return e.realToStrap }
-        return nil
-    }
-
     /// The extra calories an active day brings for `day`; zero when the plan has it off.
-    func activeBonusKcal(for day: String) -> Double {
-        _ = burnRevision
-        guard let plan, let strap = strapBurnKcal else { return 0 }
-        return DietActiveDay.bonusKcal(plan: plan, day: day, burnedKcal: burnedByDay[day], usualStrapKcal: strap,
-                                       elapsedFraction: DietActiveDay.elapsedFraction(day: day, now: .now),
-                                       realToStrap: realToStrap, training: training)
-    }
+    func activeBonusKcal(for day: String) -> Double { planDay(day)?.activeBonusKcal ?? 0 }
     @ObservationIgnored private(set) var kcalPerKg: Double?
 
     /// Today's weight for the planner's starting point.
@@ -296,6 +292,8 @@ final class ForgeFoodModel {
         let intake = (await NutritionReads.nutritionByDay(store: store, from: from, to: today))
             .compactMapValues { $0.calories }
         let weights = await repo.weightDailyValues(days: 120).map { (day: $0.day, kg: $0.value) }
+        trackerComplete = complete
+        trackerIntake = intake
         expenditure = DietExpenditure.estimate(intakeByDay: intake, completeDays: complete, weighIns: weights,
                                                strapByDay: burnedByDay, today: today,
                                                kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg)
