@@ -50,6 +50,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeviceHub
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -313,7 +316,8 @@ internal fun ForgeColor.resolve(): Color = Color(if (Forge.colors.dark) dark els
  * last row hosts the whole classic Settings, so no Android setting is out of reach from here.
  */
 @Composable
-fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: ForgeSettingsPage? = null) {
+fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: ForgeSettingsPage? = null,
+                  onSearch: (() -> Unit)? = null) {
     // Opened on one page (More's profile row, as iOS opens `SettingsView(initialPage: .profile)`), Back from it closes.
     var stackRaw by rememberSaveable { mutableStateOf(initialPage?.let { listOf<Route>(Route.Page(it)).encode() } ?: "") }
     val stack = decodeRoutes(stackRaw)
@@ -338,7 +342,9 @@ fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: For
         ) { shown ->
             pageStates.SaveableStateProvider(shown.encode()) {
             when (val top = shown.lastOrNull()) {
-                null -> Hub(onClose, onOpen = { push(Route.Page(it)) }, onAll = { push(Route.Sub(ForgeSettingsSub.AllSettings)) })
+                null -> if (ForgeDesign.preview) NewDesignHub(onClose, onOpen = { push(Route.Page(it)) },
+                                                         onSub = { push(Route.Sub(it)) }, onSearch = onSearch)
+                        else Hub(onClose, onOpen = { push(Route.Page(it)) }, onAll = { push(Route.Sub(ForgeSettingsSub.AllSettings)) })
                 is Route.Page ->
                     if (top.page.hosted) HostedPage(top.page, viewModel, onBack = ::pop)
                     else Page(top.page, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) })
@@ -375,6 +381,76 @@ private fun Hub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Unit, onAll:
             HubRow(Icons.Rounded.Tune, ForgeTokens.Color.systemGray.resolve(), stringResource(R.string.forge_settings_all),
                    stringResource(R.string.forge_settings_all_detail), onAll)
         }
+    }
+}
+
+/**
+ * The new design's Settings, as iOS `ForgeSettingsView` opens them from the profile photo: the profile first, the one
+ * search, then the pages in the prototype's groups. The strap keeps its three Android pages in its group, and
+ * "All settings" stays last, since the classic screen still holds settings no page has.
+ */
+@Composable
+private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Unit, onSub: (ForgeSettingsSub) -> Unit,
+                         onSearch: (() -> Unit)?) {
+    val context = LocalContext.current
+    val colors = Forge.colors
+    LaunchedEffect(Unit) { ForgeBackground.load(context) }
+    @Composable
+    fun group(title: Int?, rows: List<@Composable () -> Unit>) {
+        if (title != null) SectionHeader(stringResource(title))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+            rows.forEachIndexed { i, row -> row(); if (i < rows.lastIndex) HubDivider() }
+        }
+    }
+    fun page(p: ForgeSettingsPage): @Composable () -> Unit = {
+        HubRow(p.icon, p.tint(), stringResource(p.titleRes), stringResource(p.subtitleRes)) { onOpen(p) }
+    }
+    SettingsColumn {
+        Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.l10n_settings_screen_settings_c7f73bb5), style = Forge.type.title1,
+                 color = Forge.sceneInk.text, modifier = Modifier.weight(1f))
+            androidx.compose.material3.TextButton(onClick = onClose) {
+                Text(stringResource(R.string.forge_set_done), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
+                     color = colors.accent)
+            }
+        }
+        Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(ForgeSettingsPage.Profile) }
+                .padding(horizontal = ForgeMetrics.space1, vertical = ForgeMetrics.space2),
+            horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            com.noop.ui.ProfileAvatar(size = 64.dp, contentDescription = null)
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.forge_set_your_profile), style = Forge.type.title2.copy(fontWeight = FontWeight.Bold),
+                     color = Forge.sceneInk.text)
+                Text(stringResource(R.string.forge_set_profile_detail), style = Forge.type.caption, color = Forge.sceneInk.secondary)
+            }
+        }
+        if (onSearch != null) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).background(colors.surfaceTop, RoundedCornerShape(ForgeMetrics.groupedRadius))
+                    .clickable(role = Role.Button, onClick = onSearch).padding(horizontal = ForgeMetrics.space3),
+                horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Search, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                Text(stringResource(R.string.forge_set_search), style = Forge.type.body, color = colors.textSecondary)
+            }
+        }
+        group(R.string.forge_settings_group_you, listOf(page(ForgeSettingsPage.Goals)))
+        group(R.string.forge_set_strap_devices, listOf(
+            page(ForgeSettingsPage.Strap), page(ForgeSettingsPage.BatteryRecording), page(ForgeSettingsPage.StrapActions),
+            { HubRow(Icons.Rounded.DeviceHub, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.forge_set_devices_sources),
+                     stringResource(R.string.forge_set_devices_sources_detail)) { onSub(ForgeSettingsSub.DataSources) } },
+        ))
+        group(R.string.forge_set_alerts, listOf(page(ForgeSettingsPage.Notifications)))
+        group(R.string.forge_set_app, listOf(page(ForgeSettingsPage.Appearance), page(ForgeSettingsPage.LanguageUnits),
+                                             page(ForgeSettingsPage.TodayTrends), page(ForgeSettingsPage.Training),
+                                             page(ForgeSettingsPage.Coach)))
+        group(R.string.forge_set_data_help, listOf(
+            page(ForgeSettingsPage.DataBackup), page(ForgeSettingsPage.Calculations),
+            { HubRow(Icons.Rounded.Speed, ForgeTokens.Color.systemGreen.resolve(), stringResource(R.string.forge_set_how_scores),
+                     stringResource(R.string.forge_set_how_scores_detail)) { onSub(ForgeSettingsSub.ScoringGuide) } },
+            page(ForgeSettingsPage.Help),
+        ))
+        group(null, listOf(page(ForgeSettingsPage.Lab), page(ForgeSettingsPage.About),
+            { HubRow(Icons.Rounded.Tune, ForgeTokens.Color.systemGray.resolve(), stringResource(R.string.forge_settings_all),
+                     stringResource(R.string.forge_settings_all_detail)) { onSub(ForgeSettingsSub.AllSettings) } }))
     }
 }
 

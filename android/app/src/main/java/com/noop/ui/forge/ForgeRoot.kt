@@ -53,9 +53,11 @@ fun ForgeRoot(viewModel: AppViewModel) {
     androidx.compose.runtime.LaunchedEffect(coreRevision) { viewModel.loadWorkouts() }
     // Settings and pairing open over the tabs in the same window (`ForgeOverlayHost`).
     var moreOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var settingsOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     ForgeOverlayHost {
         androidx.compose.runtime.CompositionLocalProvider(
             LocalForgeOpenMore provides (if (ForgeDesign.preview) ({ moreOpen = true }) else null),
+            LocalForgeOpenSettings provides (if (ForgeDesign.preview) ({ settingsOpen = true }) else null),
             // The tabs lie under the More page while it is open.
             LocalForgeCovered provides (LocalForgeCovered.current || (moreOpen && ForgeDesign.preview))) {
         ForgeShell { tab, padding, width ->
@@ -88,6 +90,13 @@ fun ForgeRoot(viewModel: AppViewModel) {
             enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.slideOutHorizontally { it } + androidx.compose.animation.fadeOut()) {
             ForgeMoreOverlay(viewModel, onDismiss = { moreOpen = false })
+        }
+        // The profile photo's Settings; its search field opens the one search on the More page, as iOS's does.
+        if (settingsOpen && ForgeDesign.preview) {
+            ForgeOverlayPage(onDismiss = { settingsOpen = false }) {
+                ForgeSettings(viewModel, onClose = { settingsOpen = false },
+                              onSearch = { settingsOpen = false; ForgeDesign.focusSearch = true; moreOpen = true })
+            }
         }
         // In the new design the coach has its own place while it is on (`ForgeTab.Coach`: a button beside the bar, a
         // rail entry on wide windows), as on iOS; the floating button is for the shipped tabs and a coach that is off.

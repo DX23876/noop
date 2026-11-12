@@ -68,6 +68,9 @@ object ForgeDesign {
  */
 val LocalForgeOpenMore = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
 
+/** Opens the new design's Settings over the tabs, as iOS's profile photo does (`ForgeSettingsView`); null in the shipped design. */
+val LocalForgeOpenSettings = androidx.compose.runtime.compositionLocalOf<(() -> Unit)?> { null }
+
 /**
  * The More page over the tabs, with its own search, profile, strap and every page it lists.
  *

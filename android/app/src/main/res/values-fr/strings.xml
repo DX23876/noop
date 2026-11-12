@@ -6237,4 +6237,20 @@
     <string name="forge_log_back_to_workout">Retour à l’entraînement</string>
     <string name="forge_log_add_entry">Ajouter</string>
     <string name="forge_log_add">Ajouter</string>
+    <string name="forge_set_your_profile">Ton profil</string>
+    <string name="forge_set_profile_detail">Corps, fréquence cardiaque et forme</string>
+    <string name="forge_set_search">Rechercher réglages et écrans</string>
+    <string name="forge_set_strap_devices">Bracelet et appareils</string>
+    <string name="forge_set_devices_sources">Appareils et sources de données</string>
+    <string name="forge_set_alerts">Alertes</string>
+    <string name="forge_set_app">App</string>
+    <string name="forge_set_data_help">Données et aide</string>
+    <string name="forge_set_how_scores">Comment NOOP calcule</string>
+    <string name="forge_set_how_scores_detail">Les trois scores expliqués et ton propre modèle</string>
+    <string name="forge_set_done">Terminé</string>
+    <string name="forge_set_devices_sources_detail">Health Connect, importations, autres appareils</string>
+    <string name="forge_search_metrics">Métriques</string>
+    <string name="forge_search_recent">Récent</string>
+    <string name="forge_search_clear">Effacer</string>
+    <string name="forge_search_screens">Écrans</string>
 </resources>

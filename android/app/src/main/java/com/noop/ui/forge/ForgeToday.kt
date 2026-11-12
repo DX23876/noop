@@ -159,6 +159,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     val more = rememberMoreNavigator()
     val selectTab = LocalForgeTabSelect.current
     val openMore = LocalForgeOpenMore.current
+    val openSettings = LocalForgeOpenSettings.current
     if (quickActions) {
         ForgeQuickActionSheet(viewModel, onDismiss = { quickActions = false }) { action ->
             quickActions = false
@@ -310,7 +311,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             // The new design's Today, as iOS's `ForgeTodayView`: the header, the rings, a detected activity and the
             // morning's suggestion, the widgets, then the day as a time rail. One Today, whatever the dashboard style.
             NewDesignHeader(shown, isToday = shown == today, backfilling = viewModel.live.collectAsState().value.backfilling,
-                            onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { logOpen = true },
+                            onProfile = { openSettings?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { logOpen = true },
                             onWorkout = { if (viewModel.activeWorkout.value != null) liveWorkout = true else startWorkout = true },
                             workoutRunning = viewModel.activeWorkout.collectAsState().value != null,
                             onCustomize = { editingWidgets = true })

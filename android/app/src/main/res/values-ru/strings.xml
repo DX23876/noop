@@ -6211,4 +6211,20 @@
     <string name="forge_log_back_to_workout">Вернуться к тренировке</string>
     <string name="forge_log_add_entry">Добавить</string>
     <string name="forge_log_add">Добавить</string>
+    <string name="forge_set_your_profile">Твой профиль</string>
+    <string name="forge_set_profile_detail">Тело, пульс и форма</string>
+    <string name="forge_set_search">Поиск настроек и экранов</string>
+    <string name="forge_set_strap_devices">Браслет и устройства</string>
+    <string name="forge_set_devices_sources">Устройства и источники данных</string>
+    <string name="forge_set_alerts">Оповещения</string>
+    <string name="forge_set_app">Приложение</string>
+    <string name="forge_set_data_help">Данные и помощь</string>
+    <string name="forge_set_how_scores">Как считает NOOP</string>
+    <string name="forge_set_how_scores_detail">Три показателя с объяснением и твоя модель</string>
+    <string name="forge_set_done">Готово</string>
+    <string name="forge_set_devices_sources_detail">Health Connect, импорт, другие устройства</string>
+    <string name="forge_search_metrics">Метрики</string>
+    <string name="forge_search_recent">Недавние</string>
+    <string name="forge_search_clear">Сбросить</string>
+    <string name="forge_search_screens">Экраны</string>
 </resources>

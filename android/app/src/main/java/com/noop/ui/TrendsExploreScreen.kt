@@ -138,6 +138,14 @@ private data class MetricSpec(
     }
 }
 
+/**
+ * The built-in measures whose title or category holds [query], as (Explore key, title, category), for the one search's
+ * "Metrics" section (iOS `ForgeSearchView` lists `MetricCatalog` hits there). At most eight, as iOS shows.
+ */
+internal fun exploreMetricHits(query: String): List<Triple<String, String, String>> =
+    builtInMetrics.filter { it.title.contains(query, ignoreCase = true) || it.category.contains(query, ignoreCase = true) }
+        .take(8).map { Triple(it.key, it.title, it.category) }
+
 /** The built-in DailyMetric-backed metrics, in the macOS ordering (Charge first). */
 private val builtInMetrics: List<MetricSpec> = listOf(
     MetricSpec(

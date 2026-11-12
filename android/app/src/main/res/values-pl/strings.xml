@@ -6258,4 +6258,20 @@
     <string name="forge_log_back_to_workout">Wróć do treningu</string>
     <string name="forge_log_add_entry">Dodaj</string>
     <string name="forge_log_add">Dodać</string>
+    <string name="forge_set_your_profile">Twój profil</string>
+    <string name="forge_set_profile_detail">Ciało, tętno i kondycja</string>
+    <string name="forge_set_search">Szukaj ustawień i ekranów</string>
+    <string name="forge_set_strap_devices">Opaska i urządzenia</string>
+    <string name="forge_set_devices_sources">Urządzenia i źródła danych</string>
+    <string name="forge_set_alerts">Alerty</string>
+    <string name="forge_set_app">Aplikacja</string>
+    <string name="forge_set_data_help">Dane i pomoc</string>
+    <string name="forge_set_how_scores">Jak liczy NOOP</string>
+    <string name="forge_set_how_scores_detail">Trzy wyniki wyjaśnione i twój własny model</string>
+    <string name="forge_set_done">Gotowe</string>
+    <string name="forge_set_devices_sources_detail">Health Connect, importy, inne urządzenia</string>
+    <string name="forge_search_metrics">Metryka</string>
+    <string name="forge_search_recent">Ostatni</string>
+    <string name="forge_search_clear">Jasne</string>
+    <string name="forge_search_screens">Ekrany</string>
 </resources>

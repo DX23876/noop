@@ -6207,4 +6207,20 @@
     <string name="forge_log_back_to_workout">返回训练</string>
     <string name="forge_log_add_entry">记录</string>
     <string name="forge_log_add">添加</string>
+    <string name="forge_set_your_profile">你的资料</string>
+    <string name="forge_set_profile_detail">身体、心率与体能</string>
+    <string name="forge_set_search">搜索设置和页面</string>
+    <string name="forge_set_strap_devices">手环与设备</string>
+    <string name="forge_set_devices_sources">设备与数据来源</string>
+    <string name="forge_set_alerts">提醒</string>
+    <string name="forge_set_app">App</string>
+    <string name="forge_set_data_help">数据与帮助</string>
+    <string name="forge_set_how_scores">NOOP 如何计算</string>
+    <string name="forge_set_how_scores_detail">三项分数说明及你的个人模型</string>
+    <string name="forge_set_done">完成</string>
+    <string name="forge_set_devices_sources_detail">Health Connect、导入、其他设备</string>
+    <string name="forge_search_metrics">指标</string>
+    <string name="forge_search_recent">最近</string>
+    <string name="forge_search_clear">清除</string>
+    <string name="forge_search_screens">页面</string>
 </resources>

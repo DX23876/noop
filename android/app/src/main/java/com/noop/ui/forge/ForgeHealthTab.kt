@@ -137,7 +137,8 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3),
     ) {
         val openMore = LocalForgeOpenMore.current
-        TabHeader(stringResource(R.string.nav_health), onProfile = { openMore?.invoke() ?: run { settingsOpen = true } },
+        val openSettings = LocalForgeOpenSettings.current ?: openMore
+        TabHeader(stringResource(R.string.nav_health), onProfile = { openSettings?.invoke() ?: run { settingsOpen = true } },
                   onSearch = rememberOpenSearch())
 
         // The tab's answer: how many of last night's vitals sat in the wearer's own range, then each by name.

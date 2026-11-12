@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -262,27 +263,45 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
     }
     SearchField(query, Modifier.focusRequester(searchFocus)) { query = it }
     if (query.isNotBlank()) {
-        val hits = MoreDest.entries.filter { it.shown(context) }.filter { d ->
-            (listOf(context.getString(d.titleRes)) + d.keywords).any { it.contains(query.trim(), ignoreCase = true) }
-        }
-        // Settings pages come after the screens, as iOS lists `SettingsSearchCatalog` hits under "Settings".
         val q = query.trim()
+        val hits = MoreDest.entries.filter { it.shown(context) }.filter { d ->
+            (listOf(context.getString(d.titleRes)) + d.keywords).any { it.contains(q, ignoreCase = true) }
+        }
+        // Metrics first, then screens, then settings pages, as iOS's one search lists them.
+        val metrics = com.noop.ui.exploreMetricHits(q)
         val pages = HUB_GROUPS.flatMap { it.second }.filter { p ->
             (listOf(context.getString(p.titleRes), context.getString(p.subtitleRes)) + SETTINGS_SEARCH_WORDS[p].orEmpty())
                 .any { it.contains(q, ignoreCase = true) }
         }
-        if (hits.isEmpty() && pages.isEmpty()) {
+        if (hits.isEmpty() && pages.isEmpty() && metrics.isEmpty()) {
             Text(stringResource(R.string.forge_more_no_results), style = Forge.type.subhead,
                  color = Forge.sceneInk.secondary, modifier = Modifier.padding(ForgeMetrics.space2))
             return
         }
-        if (hits.isNotEmpty()) DestCard(hits, ::open)
+        if (metrics.isNotEmpty()) {
+            SectionHeader(stringResource(R.string.forge_search_metrics))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                metrics.forEachIndexed { i, (key, title, category) ->
+                    HubRow(Icons.Rounded.ShowChart, Forge.colors.charge, title, category) {
+                        SearchRecents.remember(context, q)
+                        com.noop.ui.ExploreLaunch.pendingKey = key
+                        open(MoreDest.Explore)
+                    }
+                    if (i < metrics.lastIndex) HubDivider()
+                }
+            }
+        }
+        if (hits.isNotEmpty()) {
+            if (metrics.isNotEmpty()) SectionHeader(stringResource(R.string.forge_search_screens))
+            DestCard(hits) { SearchRecents.remember(context, q); open(it) }
+        }
         if (pages.isNotEmpty()) {
             SectionHeader(stringResource(R.string.nav_settings))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
                 pages.forEachIndexed { i, p ->
                     HubRow(p.icon, p.tint(), stringResource(p.titleRes), stringResource(p.subtitleRes)) {
                         dismissKeyboard()
+                        SearchRecents.remember(context, q)
                         onOpenSettingsPage(p)
                     }
                     if (i < pages.lastIndex) HubDivider()
@@ -290,6 +309,25 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
             }
         }
         return
+    }
+    // The last searches as chips, as iOS keeps them on the search page; one tap searches again.
+    var recents by remember { mutableStateOf(SearchRecents.load(context)) }
+    if (recents.isNotEmpty()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SectionHeader(stringResource(R.string.forge_search_recent), Modifier.weight(1f))
+            androidx.compose.material3.TextButton(onClick = { SearchRecents.clear(context); recents = emptyList() }) {
+                Text(stringResource(R.string.forge_search_clear), style = Forge.type.subhead, color = Forge.colors.accent)
+            }
+        }
+        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2),
+                                                   verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            recents.forEach { r ->
+                Text(r, style = Forge.type.subhead, color = Forge.colors.text,
+                     modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(Forge.colors.surfaceTop)
+                         .clickable(role = Role.Button) { query = r }.padding(horizontal = 14.dp, vertical = ForgeMetrics.space2))
+            }
+        }
     }
     DestCard(listOf(MoreDest.Goals), ::open)
     SectionHeader(stringResource(R.string.forge_more_browse))
@@ -542,4 +580,19 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
                         onOpenLive = { onOpen(MoreDest.Live) }, onOpenGoals = { sub = "goals" })
         }
     }
+}
+
+/** The last eight searches, newest first, kept on this phone as iOS keeps `forge.search.recent`. */
+internal object SearchRecents {
+    private const val KEY = "forge.search.recent"
+    private fun prefs(context: android.content.Context) =
+        context.getSharedPreferences(com.noop.ui.NoopPrefs.NAME, android.content.Context.MODE_PRIVATE)
+    fun load(context: android.content.Context): List<String> =
+        prefs(context).getString(KEY, "").orEmpty().split("|").filter { it.isNotBlank() }
+    fun remember(context: android.content.Context, term: String) {
+        val t = term.trim().takeIf { it.isNotEmpty() } ?: return
+        val list = (listOf(t) + load(context).filterNot { it.equals(t, ignoreCase = true) }).take(8)
+        prefs(context).edit().putString(KEY, list.joinToString("|")).apply()
+    }
+    fun clear(context: android.content.Context) { prefs(context).edit().remove(KEY).apply() }
 }
