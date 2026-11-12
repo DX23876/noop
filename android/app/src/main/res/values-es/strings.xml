@@ -6218,4 +6218,24 @@
     <string name="forge_steps_auto">Automático</string>
     <string name="forge_steps_strap">Pulsera</string>
     <string name="forge_steps_auto_note">Automático toma primero el recuento de la pulsera y después el del teléfono.</string>
+    <string name="forge_log_with_coach">Registrar con el coach</string>
+    <string name="forge_log_write">Escribir</string>
+    <string name="forge_log_speak">Hablar</string>
+    <string name="forge_log_yourself">Registrar tú mismo</string>
+    <string name="forge_log_add_workout">Añadir entrenamiento</string>
+    <string name="forge_log_weight">Peso</string>
+    <string name="forge_log_journal">Diario</string>
+    <string name="forge_log_drink">Bebida</string>
+    <string name="forge_log_food">Comida</string>
+    <string name="forge_log_sleep">Sueño</string>
+    <string name="forge_log_blood_pressure">Presión arterial</string>
+    <string name="forge_log_mood">Ánimo</string>
+    <string name="forge_log_health_records">Historial de salud</string>
+    <string name="forge_log_medication">Medicación</string>
+    <string name="forge_log_breathe">Respira</string>
+    <string name="forge_log_live_hr">Frecuencia cardíaca en vivo</string>
+    <string name="forge_log_title">Diario</string>
+    <string name="forge_log_back_to_workout">Volver al entrenamiento</string>
+    <string name="forge_log_add_entry">Añadir</string>
+    <string name="forge_log_add">Añadir</string>
 </resources>

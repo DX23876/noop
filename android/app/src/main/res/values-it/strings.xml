@@ -6186,4 +6186,24 @@
     <string name="forge_steps_auto">Automatico</string>
     <string name="forge_steps_strap">Fascia</string>
     <string name="forge_steps_auto_note">Automatico usa prima il conteggio della fascia, poi quello del telefono.</string>
+    <string name="forge_log_with_coach">Registra con il coach</string>
+    <string name="forge_log_write">Scrivi</string>
+    <string name="forge_log_speak">Parla</string>
+    <string name="forge_log_yourself">Registra da solo</string>
+    <string name="forge_log_add_workout">Aggiungi allenamento</string>
+    <string name="forge_log_weight">Peso</string>
+    <string name="forge_log_journal">Diario</string>
+    <string name="forge_log_drink">Bevanda</string>
+    <string name="forge_log_food">Cibo</string>
+    <string name="forge_log_sleep">Sonno</string>
+    <string name="forge_log_blood_pressure">Pressione sanguigna</string>
+    <string name="forge_log_mood">Umore</string>
+    <string name="forge_log_health_records">Cartella sanitaria</string>
+    <string name="forge_log_medication">Farmaci</string>
+    <string name="forge_log_breathe">Respira</string>
+    <string name="forge_log_live_hr">Frequenza cardiaca in diretta</string>
+    <string name="forge_log_title">Registro</string>
+    <string name="forge_log_back_to_workout">Torna all’allenamento</string>
+    <string name="forge_log_add_entry">Aggiungi</string>
+    <string name="forge_log_add">Aggiungi</string>
 </resources>

@@ -6191,4 +6191,24 @@
     <string name="forge_steps_auto">Автоматически</string>
     <string name="forge_steps_strap">Браслет</string>
     <string name="forge_steps_auto_note">Автоматически сначала берётся счёт браслета, затем телефона.</string>
+    <string name="forge_log_with_coach">Записать с коучем</string>
+    <string name="forge_log_write">Записать</string>
+    <string name="forge_log_speak">Сказать</string>
+    <string name="forge_log_yourself">Записать самому</string>
+    <string name="forge_log_add_workout">Добавить тренировку</string>
+    <string name="forge_log_weight">Вес</string>
+    <string name="forge_log_journal">Журнал</string>
+    <string name="forge_log_drink">Напиток</string>
+    <string name="forge_log_food">Еда</string>
+    <string name="forge_log_sleep">Сон</string>
+    <string name="forge_log_blood_pressure">Артериальное давление</string>
+    <string name="forge_log_mood">Настроение</string>
+    <string name="forge_log_health_records">Медкарта</string>
+    <string name="forge_log_medication">Лекарства</string>
+    <string name="forge_log_breathe">Дыхание</string>
+    <string name="forge_log_live_hr">Пульс в реальном времени</string>
+    <string name="forge_log_title">Журнал</string>
+    <string name="forge_log_back_to_workout">Вернуться к тренировке</string>
+    <string name="forge_log_add_entry">Добавить</string>
+    <string name="forge_log_add">Добавить</string>
 </resources>

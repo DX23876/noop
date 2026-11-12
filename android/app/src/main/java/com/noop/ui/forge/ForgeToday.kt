@@ -24,6 +24,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Air
@@ -142,6 +146,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         TodayLayoutDefaults.visibleSections(TodayLayoutPrefs.orderRaw(context), TodayLayoutPrefs.hiddenRaw(context))
     }
     var quickActions by remember { mutableStateOf(false) }
+    var logOpen by remember { mutableStateOf(false) }
+    var addingWorkout by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     var startWorkout by remember { mutableStateOf(false) }
     var liveWorkout by remember { mutableStateOf(false) }
@@ -170,6 +176,26 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             }
         }
     }
+    // The new design's "+" opens the Log sheet, as iOS's `ForgeLogSheet`: each choice goes to a screen that exists.
+    if (logOpen) {
+        ForgeLogSheet(coachOn = com.noop.ui.BottomBarStyleStore.coachEnabled, onDismiss = { logOpen = false }) { choice ->
+            logOpen = false
+            when (choice) {
+                ForgeLogChoice.CoachWrite, ForgeLogChoice.CoachSpeak -> selectTab(ForgeTab.Coach)
+                // Logging is for what already happened; a live session starts from the Training tab.
+                ForgeLogChoice.Workout -> addingWorkout = true
+                ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Body))
+                ForgeLogChoice.Journal, ForgeLogChoice.Drink -> more.push(MoreRoute.Dest(MoreDest.Journal))
+                ForgeLogChoice.Food -> { FoodArrival.requestAdd(); more.push(MoreRoute.Dest(MoreDest.Food)) }
+                ForgeLogChoice.Sleep -> selectTab(ForgeTab.Sleep)
+                ForgeLogChoice.LabMarkers -> more.push(MoreRoute.Dest(MoreDest.Biomarkers))
+                ForgeLogChoice.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
+                ForgeLogChoice.LiveHeartRate -> more.push(MoreRoute.Dest(MoreDest.Live))
+            }
+        }
+    }
+    if (addingWorkout) com.noop.ui.ManualWorkoutDialog(editing = null, onDismiss = { addingWorkout = false },
+        onSave = { row, replacing -> viewModel.saveManualWorkout(row, replacing); addingWorkout = false })
     if (liveSession) ForgeLiveSessionCover(viewModel, onClose = { liveSession = false })
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
     if (settingsOpen) {
@@ -284,7 +310,10 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             // The new design's Today, as iOS's `ForgeTodayView`: the header, the rings, a detected activity and the
             // morning's suggestion, the widgets, then the day as a time rail. One Today, whatever the dashboard style.
             NewDesignHeader(shown, isToday = shown == today, backfilling = viewModel.live.collectAsState().value.backfilling,
-                            onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { quickActions = true })
+                            onProfile = { openMore?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { logOpen = true },
+                            onWorkout = { if (viewModel.activeWorkout.value != null) liveWorkout = true else startWorkout = true },
+                            workoutRunning = viewModel.activeWorkout.collectAsState().value != null,
+                            onCustomize = { editingWidgets = true })
             // Holding a ring arranges the tiles, as on iOS. The rings' own tap claims the touch, so the hold rides
             // on the same click (a long-press detector around them never saw the press).
             // As iOS's rings: Charge carried from the latest scored day and Rest from the latest night while today has
@@ -374,7 +403,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
  */
 @Composable
 private fun NewDesignHeader(date: LocalDate, isToday: Boolean, backfilling: Boolean, onProfile: () -> Unit,
-                            onQuickActions: () -> Unit) {
+                            onQuickActions: () -> Unit, onWorkout: () -> Unit, workoutRunning: Boolean, onCustomize: () -> Unit) {
     val locale = Locale.getDefault()
     val sceneShadow = if (Forge.sceneInk.dark) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1f), 8f) else null
     Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4)) {
@@ -393,7 +422,14 @@ private fun NewDesignHeader(date: LocalDate, isToday: Boolean, backfilling: Bool
                 style = Forge.type.title2.copy(shadow = sceneShadow), color = Forge.sceneInk.text, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
-            TodayHeaderButtons(onProfile, onQuickActions)
+            // As iOS's `addMenu`: start (or return to) a workout, add an entry, customise Today behind one plus.
+            TodayHeaderButtons(onProfile, onQuickActions) { close ->
+                ForgeMenuItem(stringResource(if (workoutRunning) R.string.forge_log_back_to_workout else R.string.forge_qa_start_workout),
+                              Icons.AutoMirrored.Rounded.DirectionsRun) { close(); onWorkout() }
+                ForgeMenuItem(stringResource(R.string.forge_log_add_entry), Icons.Rounded.EditNote) { close(); onQuickActions() }
+                HorizontalDivider(color = Forge.colors.divider)
+                ForgeMenuItem(stringResource(R.string.forge_lay_customize_today), Icons.Rounded.GridView) { close(); onCustomize() }
+            }
         }
         ForgeSyncLine(backfilling)
     }

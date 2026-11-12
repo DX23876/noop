@@ -6257,4 +6257,24 @@
     <string name="forge_steps_auto">Automatic</string>
     <string name="forge_steps_strap">Strap</string>
     <string name="forge_steps_auto_note">Automatic takes the strap\'s count first, then the phone\'s.</string>
+    <string name="forge_log_with_coach">Log with the coach</string>
+    <string name="forge_log_write">Write</string>
+    <string name="forge_log_speak">Speak</string>
+    <string name="forge_log_yourself">Log yourself</string>
+    <string name="forge_log_add_workout">Add workout</string>
+    <string name="forge_log_weight">Weight</string>
+    <string name="forge_log_journal">Journal</string>
+    <string name="forge_log_drink">Drink</string>
+    <string name="forge_log_food">Food</string>
+    <string name="forge_log_sleep">Sleep</string>
+    <string name="forge_log_blood_pressure">Blood pressure</string>
+    <string name="forge_log_mood">Mood</string>
+    <string name="forge_log_health_records">Health records</string>
+    <string name="forge_log_medication">Medication</string>
+    <string name="forge_log_breathe">Breathe</string>
+    <string name="forge_log_live_hr">Live heart rate</string>
+    <string name="forge_log_title">Log</string>
+    <string name="forge_log_back_to_workout">Back to workout</string>
+    <string name="forge_log_add_entry">Add entry</string>
+    <string name="forge_log_add">Add</string>
 </resources>

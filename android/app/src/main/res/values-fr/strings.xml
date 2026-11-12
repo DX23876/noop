@@ -6217,4 +6217,24 @@
     <string name="forge_steps_auto">Automatique</string>
     <string name="forge_steps_strap">Bracelet</string>
     <string name="forge_steps_auto_note">Automatique prend d\'abord le compte du bracelet, puis celui du téléphone.</string>
+    <string name="forge_log_with_coach">Saisir avec le coach</string>
+    <string name="forge_log_write">Écrire</string>
+    <string name="forge_log_speak">Parler</string>
+    <string name="forge_log_yourself">Saisir soi-même</string>
+    <string name="forge_log_add_workout">Ajouter un entraînement</string>
+    <string name="forge_log_weight">Poids</string>
+    <string name="forge_log_journal">Journal</string>
+    <string name="forge_log_drink">Boisson</string>
+    <string name="forge_log_food">Repas</string>
+    <string name="forge_log_sleep">Sommeil</string>
+    <string name="forge_log_blood_pressure">Tension artérielle</string>
+    <string name="forge_log_mood">Humeur</string>
+    <string name="forge_log_health_records">Dossier de santé</string>
+    <string name="forge_log_medication">Médicaments</string>
+    <string name="forge_log_breathe">Respirer</string>
+    <string name="forge_log_live_hr">Fréquence cardiaque en direct</string>
+    <string name="forge_log_title">Journal</string>
+    <string name="forge_log_back_to_workout">Retour à l’entraînement</string>
+    <string name="forge_log_add_entry">Ajouter</string>
+    <string name="forge_log_add">Ajouter</string>
 </resources>

@@ -6234,4 +6234,24 @@
     <string name="forge_steps_auto">Automatisch</string>
     <string name="forge_steps_strap">Strap</string>
     <string name="forge_steps_auto_note">Automatisch nimmt zuerst die Zahl vom Strap, dann die vom Telefon.</string>
+    <string name="forge_log_with_coach">Mit dem Coach eintragen</string>
+    <string name="forge_log_write">Schreiben</string>
+    <string name="forge_log_speak">Sprechen</string>
+    <string name="forge_log_yourself">Selbst eintragen</string>
+    <string name="forge_log_add_workout">Workout hinzufügen</string>
+    <string name="forge_log_weight">Gewicht</string>
+    <string name="forge_log_journal">Tagebuch</string>
+    <string name="forge_log_drink">Trinken</string>
+    <string name="forge_log_food">Essen</string>
+    <string name="forge_log_sleep">Schlaf</string>
+    <string name="forge_log_blood_pressure">Blutdruck</string>
+    <string name="forge_log_mood">Stimmung</string>
+    <string name="forge_log_health_records">Gesundheitsakte</string>
+    <string name="forge_log_medication">Medikamente</string>
+    <string name="forge_log_breathe">Atmen</string>
+    <string name="forge_log_live_hr">Live-Herzfrequenz</string>
+    <string name="forge_log_title">Protokoll</string>
+    <string name="forge_log_back_to_workout">Zurück zum Workout</string>
+    <string name="forge_log_add_entry">Eintragen</string>
+    <string name="forge_log_add">Hinzufügen</string>
 </resources>

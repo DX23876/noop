@@ -6187,4 +6187,24 @@
     <string name="forge_steps_auto">自动</string>
     <string name="forge_steps_strap">手环</string>
     <string name="forge_steps_auto_note">自动：先用手环的计数，再用手机的。</string>
+    <string name="forge_log_with_coach">通过教练记录</string>
+    <string name="forge_log_write">写入</string>
+    <string name="forge_log_speak">语音</string>
+    <string name="forge_log_yourself">自行记录</string>
+    <string name="forge_log_add_workout">添加锻炼</string>
+    <string name="forge_log_weight">体重</string>
+    <string name="forge_log_journal">日志</string>
+    <string name="forge_log_drink">饮水</string>
+    <string name="forge_log_food">饮食</string>
+    <string name="forge_log_sleep">睡眠</string>
+    <string name="forge_log_blood_pressure">血压</string>
+    <string name="forge_log_mood">心情</string>
+    <string name="forge_log_health_records">健康档案</string>
+    <string name="forge_log_medication">用药</string>
+    <string name="forge_log_breathe">呼吸</string>
+    <string name="forge_log_live_hr">实时心率</string>
+    <string name="forge_log_title">记录</string>
+    <string name="forge_log_back_to_workout">返回训练</string>
+    <string name="forge_log_add_entry">记录</string>
+    <string name="forge_log_add">添加</string>
 </resources>
