@@ -94,7 +94,7 @@ enum ForgeToday {
 
     /// Tonight's bedtime from the wind-down planner's own inputs: tomorrow's wake time minus the sleep
     /// need. The wake times are set in Alarms; the need is the one the Sleep tab states
-    /// (`SleepModel.debtNeedMin`), which `WindDownNudge.adoptSleepNeed` keeps the planner in step with.
+    /// (`SleepModel.currentNeedMin`), which `WindDownNudge.adoptSleepNeed` keeps the planner in step with.
     /// Every screen that names a bedtime reads this one function.
     static func bedtime(now: Date, calendar: Calendar = .current,
                         wakeMinutes: (Int) -> Int, sleepNeedMinutes: Int) -> Date? {

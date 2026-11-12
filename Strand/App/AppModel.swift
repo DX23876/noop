@@ -500,7 +500,7 @@ final class AppModel: ObservableObject {
             // An empty history (a launch before the first load) is skipped so it cannot reset a learned
             // need to the cold-start 8 h and back. Writes and reschedules only when the need moves.
             if !days.isEmpty {
-                WindDownNudge.adoptSleepNeed(normativeNeedMin: SleepModel.debtNeedMin(days: days))
+                WindDownNudge.adoptSleepNeed(normativeNeedMin: SleepModel.currentNeedMin(days: days, restTraits: self?.repo.restTraits ?? .empty))
             }
         }.store(in: &hrCancellables)
         // P6: the Training Load alert reads the same lane bands Readiness does, as soon as they are re-read.

@@ -30,7 +30,7 @@ enum WindDownNudge {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: K.enabled) }
 
     /// The sleep need the nudge is timed from, in minutes: the SAME need the Sleep tab states and measures
-    /// sleep debt against (`SleepModel.debtNeedMin`), kept in step by `adoptSleepNeed` whenever the sleep
+    /// sleep debt against (`SleepModel.currentNeedMin`), kept in step by `adoptSleepNeed` whenever the sleep
     /// history changes. Stored rather than recomputed here because the scheduler has no repository and
     /// the notification centre keeps the trigger long after this process is gone. 8 h until the first
     /// history arrives, which is also that estimator's own cold-start default.

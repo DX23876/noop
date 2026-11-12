@@ -1,8 +1,9 @@
 import XCTest
+import StrandCore
 import WhoopStore
 @testable import Strand
 
-/// The wind-down nudge is timed from the sleep need the Sleep tab states (`SleepModel.debtNeedMin`), not
+/// The wind-down nudge is timed from the sleep need the Sleep tab states (`SleepModel.currentNeedMin`), not
 /// from a fixed 8 h nothing ever set. Pins the rounding rule, that the need is adopted only when it moves,
 /// that the nudge time follows it, and that the Alarms copy adds need and lead up correctly.
 @MainActor
@@ -51,8 +52,8 @@ final class WindDownSleepNeedTests: XCTestCase {
         XCTAssertEqual(WindDownNudge.sleepNeedMinutes, 480)
     }
 
-    /// The need the nudge uses is the Sleep tab's, from the same rows: 10 nights whose upper quartile is
-    /// 8h 40m give the Sleep tab's 520-minute need, and the reminder for a 07:00 wake moves to 21:50.
+    /// The need the nudge uses is the Sleep tab's: the need the newest night was scored with (AI-34,
+    /// `RestTraitLookup`), here 8h 40m, so the reminder for a 07:00 wake moves to 21:50.
     func testNudgeFollowsTheSleepTabNeed() {
         let totals: [Double] = [420, 450, 470, 480, 500, 510, 520, 520, 530, 540]
         let rows = totals.enumerated().map { index, minutes in
@@ -60,7 +61,8 @@ final class WindDownSleepNeedTests: XCTestCase {
                         deepMin: nil, remMin: nil, lightMin: nil, disturbances: nil, restingHr: nil, avgHrv: nil,
                         recovery: nil, strain: nil, exerciseCount: nil)
         }
-        let sleepTabNeed = SleepModel.debtNeedMin(days: rows)
+        let traits = RestTraitLookup(needMinByDay: [rows.last!.day: 520], consistencyPctByDay: [:])
+        let sleepTabNeed = SleepModel.currentNeedMin(days: rows, restTraits: traits)
         XCTAssertEqual(sleepTabNeed, 520, accuracy: 1e-6)
         WindDownNudge.adoptSleepNeed(normativeNeedMin: sleepTabNeed)
         XCTAssertEqual(WindDownNudge.sleepNeedMinutes, 520)
