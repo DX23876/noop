@@ -6656,4 +6656,8 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="tl_src_imported">Fichier importé</string>
     <string name="tl_src_activity">Fichier d’activité</string>
     <string name="tl_src_band">Bracelet NOOP</string>
+    <string name="forge_first_title">Pas encore de données biométriques</string>
+    <string name="forge_first_detail">Connectez un wearable pour commencer à collecter les signes vitaux en direct et l\'historique. Les données existantes peuvent toujours être importées depuis Sources de données.</string>
+    <string name="forge_first_action">Connecter un appareil</string>
+    <string name="forge_first_offline">Hors ligne</string>
 </resources>

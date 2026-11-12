@@ -6630,4 +6630,8 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="tl_src_imported">Импортированный файл</string>
     <string name="tl_src_activity">Файл активности</string>
     <string name="tl_src_band">Браслет NOOP</string>
+    <string name="forge_first_title">Биометрических данных пока нет</string>
+    <string name="forge_first_detail">Подключите носимое устройство, чтобы начать сбор показателей в реальном времени и истории. Существующие данные по-прежнему можно импортировать в разделе «Источники данных».</string>
+    <string name="forge_first_action">Подключить устройство</string>
+    <string name="forge_first_offline">Офлайн</string>
 </resources>

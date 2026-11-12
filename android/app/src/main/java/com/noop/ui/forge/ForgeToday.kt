@@ -1,5 +1,8 @@
 package com.noop.ui.forge
 
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Sensors
+import androidx.compose.ui.draw.clip
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -149,6 +152,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var logOpen by remember { mutableStateOf(false) }
     var addingWorkout by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var devicesOpen by remember { mutableStateOf(false) }
     var startWorkout by remember { mutableStateOf(false) }
     var liveWorkout by remember { mutableStateOf(false) }
     var liveSession by remember { mutableStateOf(false) }
@@ -217,6 +221,11 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         onSave = { row, replacing -> viewModel.saveManualWorkout(row, replacing); addingWorkout = false })
     if (liveSession) ForgeLiveSessionCover(viewModel, onClose = { liveSession = false })
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
+    if (devicesOpen) {
+        ForgeOverlayPage(onDismiss = { devicesOpen = false }) {
+            ForgeSettings(viewModel, onClose = { devicesOpen = false }, initialPage = ForgeSettingsPage.Strap)
+        }
+    }
     if (settingsOpen) {
         ForgeOverlayPage(onDismiss = { settingsOpen = false }) { ForgeSettings(viewModel, onClose = { settingsOpen = false }) }
     }
@@ -337,6 +346,17 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             // today, so a past day does not repeat it.
             val healthAlert by viewModel.healthAlert.collectAsState()
             if (shown == today) healthAlert?.let { com.noop.ui.IllnessBanner(it) }
+            // First run, as iOS's `WearableConnectionStateCard` on Today: nothing recorded or imported yet, and the
+            // one next step. Null while the store is still being read, so a full history never flashes it.
+            val firstRunRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+            val nothingYet by produceState<Boolean?>(null, firstRunRevision) {
+                value = withContext(Dispatchers.IO) {
+                    CoreRead.open(context)
+                    val from = today.minusYears(10).toString(); val to = today.toString()
+                    CoreRead.series(CoreRead.Metric.Rest, from, to).isEmpty() && CoreRead.series(CoreRead.Metric.Charge, from, to).isEmpty()
+                }
+            }
+            if (nothingYet == true) FirstRunCard { devicesOpen = true }
             // Holding a ring arranges the tiles, as on iOS. The rings' own tap claims the touch, so the hold rides
             // on the same click (a long-press detector around them never saw the press).
             // As iOS's rings: Charge carried from the latest scored day and Rest from the latest night while today has
@@ -872,6 +892,31 @@ internal fun ForgeDayHeartRatePage(date: LocalDate, onBack: () -> Unit) {
                          modifier = Modifier.weight(1f))
                 }
             }
+        }
+    }
+}
+
+/** iOS's `WearableConnectionStateCard` in the new design: the strap waiting for its link and the step to take. */
+@Composable
+private fun FirstRunCard(onConnect: () -> Unit) {
+    val colors = Forge.colors
+    val cyan = ForgeTokens.Color.systemTeal.resolve()
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(cyan.copy(alpha = 0.12f)).padding(20.dp),
+           horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(72.dp).clip(CircleShape).background(cyan.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+            Icon(androidx.compose.material.icons.Icons.Rounded.Sensors, null, tint = cyan, modifier = Modifier.size(36.dp))
+        }
+        Text(stringResource(R.string.forge_first_title), style = Forge.type.title2, color = colors.text)
+        Text(stringResource(R.string.forge_first_offline), style = Forge.type.caption, color = colors.textSecondary,
+             modifier = Modifier.clip(CircleShape).background(colors.inset).padding(horizontal = 10.dp, vertical = 4.dp))
+        Text(stringResource(R.string.forge_first_detail), style = Forge.type.body, color = colors.textSecondary,
+             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Row(Modifier.fillMaxWidth().clip(CircleShape).background(colors.accent).clickable(role = Role.Button, onClick = onConnect)
+                .padding(14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_first_action), style = Forge.type.headline, color = colors.onAccent)
+            Spacer(Modifier.width(8.dp))
+            Icon(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.ArrowForward, null, tint = colors.onAccent,
+                 modifier = Modifier.size(18.dp))
         }
     }
 }

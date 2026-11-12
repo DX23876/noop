@@ -6625,4 +6625,8 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="tl_src_imported">File importato</string>
     <string name="tl_src_activity">File attività</string>
     <string name="tl_src_band">Fascia NOOP</string>
+    <string name="forge_first_title">Ancora nessun dato biometrico</string>
+    <string name="forge_first_detail">Collega un wearable per iniziare a raccogliere parametri vitali in tempo reale e cronologia. I dati esistenti possono comunque essere importati da Origini dati.</string>
+    <string name="forge_first_action">Collega un dispositivo</string>
+    <string name="forge_first_offline">Offline</string>
 </resources>

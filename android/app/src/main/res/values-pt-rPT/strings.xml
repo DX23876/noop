@@ -6649,4 +6649,8 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="tl_src_imported">Ficheiro importado</string>
     <string name="tl_src_activity">Ficheiro de atividade</string>
     <string name="tl_src_band">Pulseira NOOP</string>
+    <string name="forge_first_title">Ainda sem dados biométricos</string>
+    <string name="forge_first_detail">Ligue um wearable para começar a recolher sinais vitais em direto e histórico. Os registos existentes podem continuar a ser importados em Fontes de dados.</string>
+    <string name="forge_first_action">Ligar um dispositivo</string>
+    <string name="forge_first_offline">Off-line</string>
 </resources>

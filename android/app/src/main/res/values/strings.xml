@@ -6697,4 +6697,8 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="tl_src_imported">Imported file</string>
     <string name="tl_src_activity">Activity file</string>
     <string name="tl_src_band">NOOP band</string>
+    <string name="forge_first_title">No biometrics yet</string>
+    <string name="forge_first_detail">Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.</string>
+    <string name="forge_first_action">Connect a device</string>
+    <string name="forge_first_offline">Offline</string>
 </resources>

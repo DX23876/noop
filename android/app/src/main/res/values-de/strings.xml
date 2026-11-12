@@ -6673,4 +6673,8 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="tl_src_imported">Importierte Datei</string>
     <string name="tl_src_activity">Aktivitätsdatei</string>
     <string name="tl_src_band">NOOP-Strap</string>
+    <string name="forge_first_title">Noch keine biometrischen Daten</string>
+    <string name="forge_first_detail">Verbinde ein Wearable, um Live-Vitalwerte und den Verlauf zu erfassen. Vorhandene Daten kannst du weiterhin über Datenquellen importieren.</string>
+    <string name="forge_first_action">Gerät verbinden</string>
+    <string name="forge_first_offline">Offline</string>
 </resources>

@@ -6626,4 +6626,8 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="tl_src_imported">导入的文件</string>
     <string name="tl_src_activity">活动文件</string>
     <string name="tl_src_band">NOOP 手环</string>
+    <string name="forge_first_title">尚无生物特征数据</string>
+    <string name="forge_first_detail">连接可穿戴设备以开始收集实时生命体征和历史记录。现有记录仍可从“数据源”导入。</string>
+    <string name="forge_first_action">连接设备</string>
+    <string name="forge_first_offline">离线</string>
 </resources>

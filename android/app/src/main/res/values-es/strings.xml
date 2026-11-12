@@ -6657,4 +6657,8 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="tl_src_imported">Archivo importado</string>
     <string name="tl_src_activity">Archivo de actividad</string>
     <string name="tl_src_band">Pulsera NOOP</string>
+    <string name="forge_first_title">Aún no hay datos biométricos</string>
+    <string name="forge_first_detail">Conecta un wearable para empezar a registrar constantes en directo e historial. Los registros existentes se pueden seguir importando desde Fuentes de datos.</string>
+    <string name="forge_first_action">Conectar un dispositivo</string>
+    <string name="forge_first_offline">Sin conexión</string>
 </resources>

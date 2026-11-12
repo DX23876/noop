@@ -6677,4 +6677,8 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="tl_src_imported">Zaimportowany plik</string>
     <string name="tl_src_activity">Plik aktywności</string>
     <string name="tl_src_band">Opaska NOOP</string>
+    <string name="forge_first_title">Brak jeszcze danych biometrycznych</string>
+    <string name="forge_first_detail">Połącz urządzenie, aby zacząć zbierać parametry na żywo i historię. Istniejące dane nadal można importować w sekcji Źródła danych.</string>
+    <string name="forge_first_action">Połącz urządzenie</string>
+    <string name="forge_first_offline">Nieaktywny</string>
 </resources>
