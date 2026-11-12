@@ -542,7 +542,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
         }
     }
     }
-    ForgeMetricDetail(open) { open = null }
+    ForgeMetricDetail(open, viewModel) { open = null }
     if (gallery) {
         ForgeOverlayPage(onDismiss = { gallery = false }) {
             WidgetGallery(cycleOn = viewModel.cycleTrackingEnabled.collectAsState().value, onAdd = { update(widgets + it); gallery = false },

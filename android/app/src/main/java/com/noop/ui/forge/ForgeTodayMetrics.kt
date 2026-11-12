@@ -259,7 +259,7 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
  * "Ask coach" handing the page to the chat, which then opens in its place.
  */
 @Composable
-internal fun ForgeMetricDetail(metric: CoreRead.Metric?, onDismiss: () -> Unit) {
+internal fun ForgeMetricDetail(metric: CoreRead.Metric?, viewModel: com.noop.ui.AppViewModel? = null, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val colors = Forge.colors
     var coachOpen by remember { mutableStateOf(false) }
@@ -275,7 +275,23 @@ internal fun ForgeMetricDetail(metric: CoreRead.Metric?, onDismiss: () -> Unit) 
         LaunchedEffect(coachOn) { purposesOn = coachOn && withContext(Dispatchers.IO) { CoreCoach.cardAllowed() } }
         val ask: ((String, String) -> Unit)? = if (!coachOn || !purposesOn) null
             else { title, summary -> com.noop.ui.CoachHandoff.pendingCard = title to summary; onDismiss(); coachOpen = true }
-        ForgeOverlayPage(onDismiss = onDismiss) {
+        // As iOS's measure tiles open `TabRoute.metricSourced`: a measure the single-metric page knows opens that page,
+        // the one Health's vital tiles open; the scores and sleep keep their trend page until it knows them.
+        val vitalKey = when (metric) {
+            CoreRead.Metric.Hrv -> "hrv"
+            CoreRead.Metric.RestingHr -> "rhr"
+            CoreRead.Metric.RespRate -> "resp"
+            CoreRead.Metric.Spo2 -> "spo2"
+            CoreRead.Metric.Steps -> "steps_est"
+            else -> null
+        }
+        if (viewModel != null && vitalKey != null) {
+            ForgeOverlayPage(onDismiss = onDismiss) {
+                ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                    Hosted(null, onBack = onDismiss) { com.noop.ui.VitalDetailScreen(viewModel, vitalKey, ask) }
+                }
+            }
+        } else ForgeOverlayPage(onDismiss = onDismiss) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {
                 when (metric) {
                     CoreRead.Metric.Hrv -> ForgeMetricTrendPage(metric, R.string.forge_hrv_long, unitMs, colors.accent, true, ask, onDismiss)
