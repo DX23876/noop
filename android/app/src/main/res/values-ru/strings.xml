@@ -6531,4 +6531,14 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="diet_train_all">Если каждый день тренировочный, нет дня отдыха, откуда переносить калории; все дни остаются одинаковыми.</string>
     <string name="diet_train_moved">Перенесено на тренировочные дни</string>
     <string name="diet_train_fasting">У поста свои дни, поэтому ничего не переносится между тренировочными днями и днями отдыха.</string>
+    <string name="body_site_over">по %1$d измерениям</string>
+    <string name="body_site_history">История</string>
+    <string name="body_site_one">Пока одно измерение. Второе даст этой точке тренд.</string>
+    <string name="body_site_how">Как измерять</string>
+    <string name="body_site_consistency">Измеренное иначе, это число меняется сильнее, чем за месяц тренировок. Здесь постоянство важнее точности.</string>
+    <string name="body_site_every">Все измерения</string>
+    <string name="body_site_delete_q">Удалить измерение %1$s %2$s от %3$s?</string>
+    <string name="body_site_delete_note">Это измерение нельзя повторить: день, к которому оно относится, прошёл.</string>
+    <string name="body_site_delete">Удалить</string>
+    <string name="body_site_cancel">Отмена</string>
 </resources>

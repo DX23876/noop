@@ -6526,4 +6526,14 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="diet_train_all">Se ogni giorno è di allenamento, non c\'è un giorno di riposo da cui spostare calorie; tutti i giorni restano uguali.</string>
     <string name="diet_train_moved">Spostato ai giorni di allenamento</string>
     <string name="diet_train_fasting">Una forma di digiuno ha i suoi giorni, quindi nulla si sposta tra giorni di allenamento e di riposo.</string>
+    <string name="body_site_over">su %1$d misurazioni</string>
+    <string name="body_site_history">Cronologia</string>
+    <string name="body_site_one">Per ora una misurazione. Una seconda dà a questo punto una tendenza da disegnare.</string>
+    <string name="body_site_how">Come misurare</string>
+    <string name="body_site_consistency">Misurato in modo diverso, questo numero si muove più di un mese di allenamento. Qui la costanza batte la precisione.</string>
+    <string name="body_site_every">Tutte le misurazioni</string>
+    <string name="body_site_delete_q">Eliminare la misurazione di %1$s %2$s del %3$s?</string>
+    <string name="body_site_delete_note">Questa misurazione non può essere ripetuta: il giorno a cui appartiene è passato.</string>
+    <string name="body_site_delete">Elimina</string>
+    <string name="body_site_cancel">Annulla</string>
 </resources>

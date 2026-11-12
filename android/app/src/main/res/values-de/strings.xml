@@ -6574,4 +6574,14 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="diet_train_all">Wenn jeder Tag ein Trainingstag ist, gibt es keinen Ruhetag, von dem Kalorien kommen könnten; alle Tage bleiben gleich.</string>
     <string name="diet_train_moved">Zu Trainingstagen verschoben</string>
     <string name="diet_train_fasting">Eine Fastenform hat ihre eigenen Tage, darum verschiebt sich nichts zwischen Trainings- und Ruhetagen.</string>
+    <string name="body_site_over">über %1$d Messungen</string>
+    <string name="body_site_history">Verlauf</string>
+    <string name="body_site_one">Bisher eine Messung. Eine zweite gibt dieser Stelle einen Verlauf.</string>
+    <string name="body_site_how">Wie man misst</string>
+    <string name="body_site_consistency">Anders gemessen bewegt sich diese Zahl weiter als ein Monat Training. Beständigkeit schlägt hier Genauigkeit.</string>
+    <string name="body_site_every">Alle Messungen</string>
+    <string name="body_site_delete_q">Messung %1$s %2$s vom %3$s löschen?</string>
+    <string name="body_site_delete_note">Diese Messung lässt sich nicht wiederholen — der Tag, zu dem sie gehört, ist vorbei.</string>
+    <string name="body_site_delete">Löschen</string>
+    <string name="body_site_cancel">Abbrechen</string>
 </resources>

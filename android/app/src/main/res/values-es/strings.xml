@@ -6558,4 +6558,14 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="diet_train_all">Si todos los días son de entrenamiento, no hay día de descanso del que mover calorías; todos los días quedan iguales.</string>
     <string name="diet_train_moved">Movido a días de entrenamiento</string>
     <string name="diet_train_fasting">Una forma de ayuno tiene sus propios días, así que nada se mueve entre días de entrenamiento y de descanso.</string>
+    <string name="body_site_over">en %1$d mediciones</string>
+    <string name="body_site_history">Historial</string>
+    <string name="body_site_one">Por ahora una medición. Una segunda le da a este punto una tendencia que dibujar.</string>
+    <string name="body_site_how">Cómo medirlo</string>
+    <string name="body_site_consistency">Medido de otra manera, este número se mueve más que un mes de entrenamiento. Aquí la constancia gana a la precisión.</string>
+    <string name="body_site_every">Todas las mediciones</string>
+    <string name="body_site_delete_q">¿Eliminar la medición de %1$s %2$s del %3$s?</string>
+    <string name="body_site_delete_note">Esta medición no se puede repetir: el día al que pertenece ya pasó.</string>
+    <string name="body_site_delete">Eliminar</string>
+    <string name="body_site_cancel">Cancelar</string>
 </resources>

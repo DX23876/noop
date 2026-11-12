@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
@@ -69,10 +70,14 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
     var loaded by remember { mutableStateOf(false) }
     var measuring by remember { mutableStateOf(false) }
     var photos by remember { mutableStateOf(false) }
+    // A site's own page (iOS `BodySiteDetailView`), opened from its row under Measurements.
+    var site by remember { mutableStateOf<String?>(null) }
     // iOS's two pickers: how far "What changed" reaches back, and how much history the comparison chart draws.
     var window by remember { mutableIntStateOf(1) }
     var range by remember { mutableIntStateOf(0) }
-    androidx.activity.compose.BackHandler(enabled = photos || measuring) { if (photos) photos = false else measuring = false }
+    androidx.activity.compose.BackHandler(enabled = photos || measuring || site != null) {
+        when { photos -> photos = false; site != null -> site = null; else -> measuring = false }
+    }
     if (photos) {
         ForgeBodyPhotosPage(onBack = { photos = false })
         return
@@ -100,12 +105,16 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
             }
             return@SettingsColumn
         }
+        site?.let { key ->
+            BodySitePage(b, key, onDelete = { id -> after { CoreBody.deleteMeasurement(context, id) } })
+            return@SettingsColumn
+        }
         BodyTodayCard(b)
         BodyMeasureButton { measuring = true }
         BodyDevelopmentCard(b, window) { window = it }
         BodyFatCard(b)
         BodyComparisonCard(b, range) { range = it }
-        SitesCard(b, onMeasure = { measuring = true })
+        SitesCard(b, onMeasure = { measuring = true }, onOpen = { site = it })
         BodyPhotosRow { photos = true }
         BodyRemindersCard()
     }
@@ -390,7 +399,7 @@ private fun BodyComparisonCard(b: CoreBody.Snapshot, range: Int, onRange: (Int) 
 
 /** Every measured site with its sparkline and value; the date shows only where it differs from the latest session. */
 @Composable
-private fun SitesCard(b: CoreBody.Snapshot, onMeasure: () -> Unit) {
+private fun SitesCard(b: CoreBody.Snapshot, onMeasure: () -> Unit, onOpen: (String) -> Unit) {
     val colors = Forge.colors
     val newest = b.measured.mapNotNull { b.siteSeries[it.key]?.lastOrNull()?.day }.maxOrNull()
     ForgeCard(Modifier.fillMaxWidth()) {
@@ -407,7 +416,8 @@ private fun SitesCard(b: CoreBody.Snapshot, onMeasure: () -> Unit) {
             b.measured.forEach { site ->
                 val points = b.siteSeries[site.key].orEmpty()
                 val reading = points.lastOrNull() ?: return@forEach
-                Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(site.key) }.semantics(mergeDescendants = true) {},
+                    verticalAlignment = Alignment.CenterVertically) {
                     Text(site.label, style = Forge.type.subhead, color = colors.text, modifier = Modifier.weight(1f))
                     if (points.size >= 2) {
                         val line = ForgeTokens.Color.systemCyan.resolve()
@@ -427,9 +437,93 @@ private fun SitesCard(b: CoreBody.Snapshot, onMeasure: () -> Unit) {
                     Text(stringResource(R.string.forge_body_cm, one(reading.value)), style = Forge.type.subhead, color = colors.text)
                     Text(if (reading.day == newest) "" else dayText(reading.day), style = Forge.type.caption,
                          color = ForgeTokens.Color.systemOrange.resolve(), textAlign = TextAlign.End, modifier = Modifier.width(52.dp))
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
                 }
             }
         }
+    }
+}
+
+/**
+ * One site's page, as iOS's `BodySiteDetailView`: the latest reading and its change, the history, how to measure it and
+ * every reading, each deletable after a confirmation.
+ */
+@Composable
+private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -> Unit) {
+    val colors = Forge.colors
+    val info = (b.measured + b.unmeasured).firstOrNull { it.key == key }
+    val series = b.siteSeries[key].orEmpty()
+    val longDay: (String) -> String = { d -> runCatching { java.time.LocalDate.parse(d).format(
+        java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).withLocale(Locale.getDefault())) }.getOrDefault(d) }
+    var pending by remember { mutableStateOf<CoreBody.Reading?>(null) }
+    Text(info?.label ?: key, style = Forge.type.title2, color = Forge.sceneInk.text)
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text(series.lastOrNull()?.let { stringResource(R.string.forge_body_cm, one(it.value)) } ?: "—",
+                     style = Forge.type.title1, color = colors.text)
+                Text(series.lastOrNull()?.let { longDay(it.day) } ?: " ", style = Forge.type.caption, color = colors.textTertiary)
+            }
+            info?.change?.let { change ->
+                Column(horizontalAlignment = Alignment.End) {
+                    Text((if (change > 0) "+" else "") + stringResource(R.string.forge_body_cm, one(change)), style = Forge.type.title2,
+                         color = colors.text)
+                    Text(stringResource(R.string.body_site_over, series.size), style = Forge.type.caption, color = colors.textTertiary)
+                }
+            }
+        }
+    }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        if (series.size >= 2) {
+            Text(stringResource(R.string.body_site_history), style = Forge.type.headline, color = colors.text)
+            Spacer(Modifier.height(ForgeMetrics.space2))
+            val values = series.map { it.value }
+            val pad = maxOf((values.max() - values.min()) * 0.2, 0.5)
+            val lo = values.min() - pad; val hi = values.max() + pad
+            val line = ForgeTokens.Color.systemCyan.resolve()
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(190.dp)) {
+                val path = androidx.compose.ui.graphics.Path()
+                values.forEachIndexed { i, v ->
+                    val x = i.toFloat() / (values.size - 1) * size.width
+                    val y = ((hi - v) / (hi - lo)).toFloat() * size.height
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    drawCircle(line, radius = 3.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y))
+                }
+                drawPath(path, line, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+            }
+        } else Text(stringResource(R.string.body_site_one), style = Forge.type.subhead, color = colors.textSecondary)
+    }
+    info?.guidance?.let { g ->
+        ForgeCard(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.body_site_how), style = Forge.type.headline, color = colors.text)
+            Text(g, style = Forge.type.subhead, color = colors.textSecondary)
+            Text(stringResource(R.string.body_site_consistency), style = Forge.type.caption, color = colors.textTertiary)
+        }
+    }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(stringResource(R.string.body_site_every), style = Forge.type.headline, color = colors.text, modifier = Modifier.weight(1f))
+            Text("${series.size}", style = Forge.type.footnote, color = colors.textSecondary)
+        }
+        series.reversed().forEach { r ->
+            Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {
+                Text(longDay(r.day), style = Forge.type.subhead, color = colors.textSecondary, modifier = Modifier.weight(1f))
+                Text(sourceLabel(r.source), style = Forge.type.caption, color = colors.textTertiary)
+                Text(stringResource(R.string.forge_body_cm, one(r.value)), style = Forge.type.subhead, color = colors.text,
+                     textAlign = TextAlign.End, modifier = Modifier.width(76.dp))
+                if (r.id != null) androidx.compose.material3.IconButton(onClick = { pending = r }) {
+                    Icon(Icons.Rounded.DeleteOutline, contentDescription = stringResource(R.string.body_site_delete), tint = colors.textTertiary)
+                } else Spacer(Modifier.width(48.dp))
+            }
+        }
+    }
+    pending?.let { r ->
+        androidx.compose.material3.AlertDialog(onDismissRequest = { pending = null },
+            title = { Text(stringResource(R.string.body_site_delete_q, one(r.value), "cm", longDay(r.day))) },
+            text = { Text(stringResource(R.string.body_site_delete_note)) },
+            confirmButton = { TextButton(onClick = { r.id?.let(onDelete); pending = null }) {
+                Text(stringResource(R.string.body_site_delete), color = ForgeTokens.Color.systemRed.resolve()) } },
+            dismissButton = { TextButton(onClick = { pending = null }) { Text(stringResource(R.string.body_site_cancel)) } })
     }
 }
 

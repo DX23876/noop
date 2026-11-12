@@ -6527,4 +6527,14 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="diet_train_all">如果每天都是训练日，就没有休息日可以挪出热量，所有日子保持一样。</string>
     <string name="diet_train_moved">移到训练日</string>
     <string name="diet_train_fasting">断食方式有自己的日程，所以训练日和休息日之间不做调整。</string>
+    <string name="body_site_over">共 %1$d 次测量</string>
+    <string name="body_site_history">历史</string>
+    <string name="body_site_one">目前仅一次测量。第二次才能为该部位画出趋势。</string>
+    <string name="body_site_how">如何测量</string>
+    <string name="body_site_consistency">换一种测法，这个数字的变化会超过一个月训练带来的变化。这里一致性比精确度更重要。</string>
+    <string name="body_site_every">全部测量</string>
+    <string name="body_site_delete_q">删除 %1$s %2$s 这条测量记录（%3$s）？</string>
+    <string name="body_site_delete_note">这次测量无法重来——它所属的那一天已经过去。</string>
+    <string name="body_site_delete">删除</string>
+    <string name="body_site_cancel">取消</string>
 </resources>

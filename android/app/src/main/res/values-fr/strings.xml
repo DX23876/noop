@@ -6557,4 +6557,14 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="diet_train_all">Si chaque jour est un jour d\'entraînement, il n\'y a pas de jour de repos d\'où déplacer des calories ; tous les jours restent pareils.</string>
     <string name="diet_train_moved">Déplacé vers les jours d\'entraînement</string>
     <string name="diet_train_fasting">Une forme de jeûne a ses propres jours, rien ne bouge donc entre jours d\'entraînement et de repos.</string>
+    <string name="body_site_over">sur %1$d mesures</string>
+    <string name="body_site_history">Historique</string>
+    <string name="body_site_one">Une mesure pour l\'instant. Une deuxième donnera une tendance à ce point.</string>
+    <string name="body_site_how">Comment mesurer</string>
+    <string name="body_site_consistency">Mesuré autrement, ce nombre bouge plus qu\'un mois d\'entraînement. Ici, la régularité l\'emporte sur la précision.</string>
+    <string name="body_site_every">Toutes les mesures</string>
+    <string name="body_site_delete_q">Supprimer la mesure de %1$s %2$s du %3$s ?</string>
+    <string name="body_site_delete_note">Cette mesure ne peut pas être reprise : le jour auquel elle appartient est passé.</string>
+    <string name="body_site_delete">Supprimer</string>
+    <string name="body_site_cancel">Annuler</string>
 </resources>

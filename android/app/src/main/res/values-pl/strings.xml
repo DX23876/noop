@@ -6578,4 +6578,14 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="diet_train_all">Gdy każdy dzień jest treningowy, nie ma dnia odpoczynku, z którego można przenieść kalorie; wszystkie dni zostają takie same.</string>
     <string name="diet_train_moved">Przeniesione na dni treningowe</string>
     <string name="diet_train_fasting">Forma postu ma własne dni, więc nic nie przesuwa się między dniami treningowymi a odpoczynku.</string>
+    <string name="body_site_over">na %1$d pomiarach</string>
+    <string name="body_site_history">Historia</string>
+    <string name="body_site_one">Na razie jeden pomiar. Drugi da temu miejscu trend do narysowania.</string>
+    <string name="body_site_how">Jak mierzyć</string>
+    <string name="body_site_consistency">Zmierzona inaczej, ta liczba zmienia się bardziej niż miesiąc treningu. Tu konsekwencja wygrywa z precyzją.</string>
+    <string name="body_site_every">Wszystkie pomiary</string>
+    <string name="body_site_delete_q">Usunąć pomiar %1$s %2$s z %3$s?</string>
+    <string name="body_site_delete_note">Tego pomiaru nie da się powtórzyć — dzień, do którego należy, już minął.</string>
+    <string name="body_site_delete">Usuń</string>
+    <string name="body_site_cancel">Anuluj</string>
 </resources>

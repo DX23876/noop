@@ -6597,4 +6597,14 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="diet_train_all">With every day a training day there is no rest day to move calories from, so all days stay the same.</string>
     <string name="diet_train_moved">Moved to training days</string>
     <string name="diet_train_fasting">A fasting form keeps its own days, so nothing moves between training and rest days.</string>
+    <string name="body_site_over">over %1$d readings</string>
+    <string name="body_site_history">History</string>
+    <string name="body_site_one">One reading so far. A second one gives this site a trend to draw.</string>
+    <string name="body_site_how">How to measure it</string>
+    <string name="body_site_consistency">Measured a different way, this number moves further than a month of training does. Consistency beats precision here.</string>
+    <string name="body_site_every">Every reading</string>
+    <string name="body_site_delete_q">Delete the %1$s %2$s reading from %3$s?</string>
+    <string name="body_site_delete_note">This measurement cannot be taken again — the day it belongs to has passed.</string>
+    <string name="body_site_delete">Delete</string>
+    <string name="body_site_cancel">Cancel</string>
 </resources>
