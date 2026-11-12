@@ -598,12 +598,21 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
     BackHandler(onBack = onBack)
     SettingsColumn {
         PageTitle(stringResource(R.string.diet_plan), onBack)
-        Box(Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(ForgeMetrics.cardRadius)), contentAlignment = Alignment.BottomStart) {
-            Image(painterResource(dietFormArt(context, plan.form)), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
-            Column(Modifier.padding(16.dp)) {
-                Text(goalName(resolved?.goal ?: plan.goal), style = Forge.type.title1, color = Color.White)
-                Text(listOfNotNull(formName(plan.form), plan.addon?.let { addonName(it) }).joinToString(" · "), style = Forge.type.body, color = Color.White.copy(alpha = 0.8f))
-            }
+        // As iOS's header: the goal's picture without a veil and the words under it, so a daylight picture keeps
+        // them as readable as the night one (white words on the light plate were barely legible).
+        val goal = resolved?.goal ?: plan.goal
+        val sex = com.noop.ui.ProfileStore.from(context).sex.lowercase()
+        val goalArt = dietArt(context, "diet_goal_$goal" + when (sex) { "male" -> "_m"; "female" -> "_f"; else -> "" },
+                              dietArt(context, "diet_goal_$goal", dietFormArt(context, plan.form)))
+        Image(painterResource(goalArt), null, contentScale = ContentScale.Crop,
+              modifier = Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(ForgeMetrics.cardRadius)))
+        Column(Modifier.padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(goalName(goal), style = Forge.type.title1, color = colors.text)
+            Text(listOfNotNull(formName(plan.form), plan.addon?.let { addonName(it) },
+                               resolved?.takeIf { goal != "maintain" && goal != "recomp" && !plan.hideNumbers }
+                                   ?.let { stringResource(R.string.diet_pace_a_week, pct(it.pacePercent)) },
+                               stringResource(if (plan.mode == "simple") R.string.diet_mode_simple else R.string.diet_mode_advanced))
+                     .joinToString(" · "), style = Forge.type.subhead, color = colors.textSecondary)
         }
         // iOS's `DietProgressCard` under the header: the way to the goal from the same core reading Today's card uses.
         val progress by androidx.compose.runtime.produceState<CoreDietPlan.Progress?>(null, plan) {
