@@ -290,6 +290,9 @@ final class LiquidSim {
 
     private var nudge: Double
     private var lastTime: Double?
+    /// The level the surface is chasing (minus the world tilt), kept so `settled` can tell a surface that has
+    /// reached it from one that only happens to be still for a frame.
+    private var surfaceTarget = 0.0
     let reduceMotion: Bool
 
     init(target: Double, reduceMotion: Bool = false) {
@@ -319,6 +322,7 @@ final class LiquidSim {
         guard dt > 0 else { return }
 
         let surfTarget = -tilt   // container one way, the surface stays level → the other
+        surfaceTarget = surfTarget
         av += (kSpring * (surfTarget - a) - cSpring * av) * dt
         a += av * dt; a = max(-0.6, min(0.6, a))
         abv += (kBack * (surfTarget - ab) - cBack * abv) * dt
@@ -377,7 +381,11 @@ final class LiquidSim {
     /// True once the liquid has effectively stopped moving — lets a paused
     /// TimelineView stand down under reduce-motion.
     var settled: Bool {
+        // The surface must also have reached the tilt it is chasing. Without that term a fresh tilt whose first
+        // impulse happened to cancel a residual sway (av from a random nudge) left the sim "settled" on the very
+        // frame that woke it, so the vessel stopped and looked stuck; LiquidSettleTests failed about one run in three.
         abs(av) < 0.01 && abs(abv) < 0.01 && abs(target - level) < 0.001 && energy < 0.03
+            && abs(surfaceTarget - a) < 0.005
     }
 
     /// A non-animating sim posed at its fill line, surface flat and still — for the small
