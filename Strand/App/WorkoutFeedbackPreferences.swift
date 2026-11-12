@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// Remembered, default-off feedback choices. All ranges are user targets, not medical thresholds.
 enum WorkoutFeedbackPreferences {
