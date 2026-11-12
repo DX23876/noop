@@ -245,6 +245,14 @@ thread was still in `DexFile.openDexFileNative` ("failed to complete startup"). 
 (`forkMinify`), so this second cause does not carry over as such; a release cold start on a real phone is still
 unmeasured.
 
+Lint sweep (2026-11-12, `lintFullDebug`). Fixed: `LocalDate.ofInstant` (API 34) in three places, which threw
+on Android 8 to 13 (`b9964496c`); fine location requested without coarse, which Android 12+ drops without a
+dialog (`950e5dd12`); exercise pictures missing below API 28 (`5d7c30c77`). Checked and left: the
+`StringFormatInvalid` and `StringFormatCount` reports are literal percent signs in strings read without
+arguments; `MissingQuantity` falls back to `other`, which reads right in every case looked at; the
+suspicious indentation is in `WhoopBleClient` and changes nothing at runtime (Bluetooth code is not touched
+without a strap); the `remember` returning Unit calls are deliberate one-time starts.
+
 ## Milestones
 
 ### A: spike · done, decided 2026-10-24 (D22 to D24)
