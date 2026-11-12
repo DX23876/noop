@@ -837,7 +837,7 @@ internal fun ForgeClassicToday(padding: androidx.compose.foundation.layout.Paddi
                 viewModel = viewModel,
                 onQuickActions = { quickActions = true },
                 onOpenSettings = { settingsOpen = true },
-                onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Journal)) },
+                onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Hydration)) },
                 onOpenStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) },
                 onOpenHealth = { more.push(MoreRoute.Dest(MoreDest.Health)) },
                 onOpenMetric = { more.push(MoreRoute.Dest(MoreDest.Health)) },

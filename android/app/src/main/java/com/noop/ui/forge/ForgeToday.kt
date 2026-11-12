@@ -186,7 +186,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 // Logging is for what already happened; a live session starts from the Training tab.
                 ForgeLogChoice.Workout -> addingWorkout = true
                 ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Body))
-                ForgeLogChoice.Journal, ForgeLogChoice.Drink -> more.push(MoreRoute.Dest(MoreDest.Journal))
+                ForgeLogChoice.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
+                ForgeLogChoice.Drink -> more.push(MoreRoute.Dest(MoreDest.Hydration))
                 ForgeLogChoice.Food -> { FoodArrival.requestAdd(); more.push(MoreRoute.Dest(MoreDest.Food)) }
                 ForgeLogChoice.Sleep -> selectTab(ForgeTab.Sleep)
                 ForgeLogChoice.LabMarkers -> more.push(MoreRoute.Dest(MoreDest.Biomarkers))
@@ -264,7 +265,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 TodaySection.YOUR_CARDS -> if (shown == today) TodayYourCardsForge(viewModel,
                     onOpenMetric = { more.push(MoreRoute.Dest(MoreDest.Health)) }, onOpenSleep = { selectTab(ForgeTab.Sleep) },
                     onOpenStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) },
-                    onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Journal)) },
+                    onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Hydration)) },
                     onOpenCoach = { more.push(MoreRoute.Dest(MoreDest.Coach)) },
                     onCustomise = { customizing = TodayCustomizationDestination.Today })
                 TodaySection.MENSTRUAL_CYCLE -> if (shown == today) TodayCycleForge(viewModel)
@@ -359,7 +360,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                                  onOpenStrap = { more.push(MoreRoute.Dest(MoreDest.Settings)) },
                                  onOpenInsights = { more.push(MoreRoute.Dest(MoreDest.Insights)) },
                                  onOpenTrends = { ForgeDesign.openTrends = true; selectTab(ForgeTab.Health) },
-                                 onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Journal)) },
+                                 onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Hydration)) },
                                  onOpenAgeLess = { more.push(MoreRoute.Dest(MoreDest.AgeLess)) },
                                  onOpenFood = { more.push(MoreRoute.Dest(MoreDest.Food)) })
             if (shown == today && showsTimeline != false && !timelineFirst) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })

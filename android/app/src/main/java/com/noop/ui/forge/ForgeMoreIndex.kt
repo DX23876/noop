@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Alarm
@@ -177,6 +178,9 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
     Cardio(MoreCategory.HealthBody, R.string.forge_more_cardio, Icons.Rounded.DirectionsRun,
            listOf("running", "cycling", "swimming", "pace", "distance", "endurance", "km", "speed", "rowing"),
            searchOnly = true),
+    // The drink log (iOS `TabRoute.hydration`): the water tile and the Log sheet's Drink open it.
+    Hydration(MoreCategory.HealthBody, R.string.nav_hydration, Icons.Rounded.WaterDrop,
+              listOf("water", "drink", "hydration", "fluid", "ml"), searchOnly = true),
     TrainingLoad(MoreCategory.HealthBody, R.string.forge_more_training_load, Icons.Rounded.BarChart,
                  listOf("strength load", "cardio load", "session RPE", "sRPE", "acute", "chronic", "training stress"),
                  searchOnly = true),
@@ -202,6 +206,7 @@ internal fun MoreDest.shown(context: android.content.Context): Boolean =
         MoreDest.RhythmAge -> com.noop.core.CoreFeatures.rhythmAge(context)
         // "Enable AI Coach" off hides the coach, as on iOS; Settings → AI Coach keeps the switch to bring it back.
         MoreDest.Coach -> com.noop.ui.BottomBarStyleStore.coachEnabled
+        MoreDest.Hydration -> com.noop.ui.NoopPrefs.hydrationTracking(context)
         else -> true
     }
 
@@ -552,6 +557,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Stress -> StressScreen(viewModel, onBreathe = { onOpen(MoreDest.Breathe) })
             MoreDest.BeatRhythm -> RhythmRoute(viewModel)
             MoreDest.Live -> LiveScreen(viewModel)
+            MoreDest.Hydration -> com.noop.ui.HydrationScreen(viewModel)
             MoreDest.Breathe -> BreatheScreen(viewModel)
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
