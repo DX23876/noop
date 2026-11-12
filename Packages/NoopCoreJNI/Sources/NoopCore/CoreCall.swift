@@ -85,6 +85,7 @@ public enum CoreCall {
         }
         let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
         if op.hasPrefix("math."), let answer = CoreMath.run(op, args) { return answer }
+        if op.hasPrefix("workout.voice."), let answer = CoreWorkoutVoice.run(op, args) { return answer }
         func string(_ k: String) -> String { args[k] as? String ?? "" }
         func int(_ k: String, _ fallback: Int) -> Int { (args[k] as? NSNumber)?.intValue ?? fallback }
         func ok(_ done: Bool) -> String { done ? #"{"ok":true}"# : #"{"ok":false}"# }

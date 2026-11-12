@@ -44,13 +44,8 @@ final class WorkoutVoiceCoach {
     private let speaker = WorkoutSpeaker()
     private var isActive = false
     private var workoutID: UUID?
-    private var schedule = WorkoutFeedbackSchedule()
-    private var wasEnabled = false
-    private var heartRateAlert = WorkoutRangeAlertEngine()
-    private var motionAlert = WorkoutRangeAlertEngine()
-    private var cadenceAlert = WorkoutRangeAlertEngine()
-    private var lastWarningAt = Date.distantPast
-    private var feedbackMutedUntil = Date.distantPast
+    /// The shared decision (`WorkoutVoiceDecider`), the one the Android core runs: schedule, warnings, cooldowns.
+    private var decider = WorkoutVoiceDecider()
     private var usesRoute = false
     private var system: UnitSystem = .metric
     private var loop: Task<Void, Never>?
@@ -62,14 +57,8 @@ final class WorkoutVoiceCoach {
         self.usesRoute = usesRoute
         system = Self.distanceSystem()
         isActive = true
-        wasEnabled = Self.isEnabled
-        schedule = WorkoutFeedbackSchedule()
-        if let state = snapshot?(.now) { primeSchedule(state) }
-        heartRateAlert = WorkoutRangeAlertEngine()
-        motionAlert = WorkoutRangeAlertEngine()
-        cadenceAlert = WorkoutRangeAlertEngine()
-        lastWarningAt = .distantPast
-        feedbackMutedUntil = .distantPast
+        decider = WorkoutVoiceDecider()
+        if let state = snapshot?(.now) { decider.begin(settings: settings(for: state), snapshot: deciderSnapshot(state)) }
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
@@ -94,7 +83,7 @@ final class WorkoutVoiceCoach {
 
     /// Phase cues take priority over range/split announcements; do not queue stale speech behind them.
     func phaseChanged(_ text: String, at now: Date) {
-        feedbackMutedUntil = now.addingTimeInterval(8)
+        decider.phaseCue(at: now.timeIntervalSince1970)
         speaker.stop()
         if Self.isEnabled { say(text) }
     }
@@ -136,89 +125,61 @@ final class WorkoutVoiceCoach {
         onTick?(now)
         guard isActive, let state = snapshot?(now) else { return }
         let enabled = Self.isEnabled
-        if enabled != wasEnabled {
-            speaker.stop()
-            primeSchedule(state)
-            wasEnabled = enabled
+        guard let decision = decider.tick(settings: settings(for: state), snapshot: deciderSnapshot(state)) else { return }
+        switch decision {
+        case .warning(let w):
+            let text = Self.warningText(w)
+            onWarning?(text, w == .zoneAbove || w == .zoneBelow)
+            if enabled { say(text) }
+        case .announce(let distance):
+            let split = state.completedSplit.flatMap { section in
+                guard let distance, let length = state.splitLengthM, distanceInterval == length,
+                      abs(distance - Double(section.index) * length) < 0.01 else { return nil as WorkoutRecordingTimeline.Section? }
+                return section
+            }
+            say(WorkoutAnnouncementText.feedback(distanceMeters: distance, elapsedSeconds: state.elapsedSeconds,
+                                                 speedMps: state.currentSpeedMps, bpm: state.bpm,
+                                                 usesSpeed: WorkoutCatalog.usesSpeedReadout(for: state.sport), system: system,
+                                                 splitSpeedMps: split?.speedMps,
+                                                 splitAverageBpm: split == nil ? nil : state.splitAverageBpm))
         }
-        let event = schedule.update(distance: state.distanceMeters ?? 0, seconds: Double(state.elapsedSeconds),
-                                    distanceFresh: state.distanceFresh, everyMeters: distanceInterval,
-                                    everySeconds: WorkoutFeedbackPreferences.timeInterval(), paused: state.isPaused)
-        // Zone > pace/speed > cadence; one cue per cooldown prevents overlapping phone warnings.
-        guard state.now >= feedbackMutedUntil else { return }
-        let warning = warning(state)
-        if let warning, state.now.timeIntervalSince(lastWarningAt) >= 60 {
-            lastWarningAt = state.now
-            onWarning?(warning.text, warning.isZone)
-            if enabled { say(warning.text) }
-            return
-        }
-        guard enabled, !state.isPaused, let event else { return }
-        let distance: Double? = if case .distance(let meters) = event { meters } else { nil }
-        let split = state.completedSplit.flatMap { section in
-            guard let distance, let length = state.splitLengthM, distanceInterval == length,
-                  abs(distance - Double(section.index) * length) < 0.01 else { return nil as WorkoutRecordingTimeline.Section? }
-            return section
-        }
-        say(WorkoutAnnouncementText.feedback(distanceMeters: distance, elapsedSeconds: state.elapsedSeconds,
-                                             speedMps: state.currentSpeedMps, bpm: state.bpm,
-                                             usesSpeed: WorkoutCatalog.usesSpeedReadout(for: state.sport), system: system,
-                                             splitSpeedMps: split?.speedMps,
-                                             splitAverageBpm: split == nil ? nil : state.splitAverageBpm))
     }
 
     private var distanceInterval: Double {
         usesRoute ? WorkoutFeedbackPreferences.distanceInterval() * (system == .imperial ? 1609.344 : 1000) : 0
     }
 
-    private func primeSchedule(_ state: Snapshot) {
-        schedule.prime(distance: state.distanceMeters ?? 0, seconds: Double(state.elapsedSeconds),
-                       everyMeters: distanceInterval, everySeconds: WorkoutFeedbackPreferences.timeInterval())
+    /// The wearer's choices as the shared decider reads them.
+    private func settings(for state: Snapshot) -> WorkoutVoiceDecider.Settings {
+        let defaults = UserDefaults.standard
+        return WorkoutVoiceDecider.Settings(
+            voiceEnabled: Self.isEnabled, distanceInterval: WorkoutFeedbackPreferences.distanceInterval(),
+            timeIntervalSeconds: WorkoutFeedbackPreferences.timeInterval(), imperial: system == .imperial,
+            usesRoute: usesRoute, heartRateAlert: defaults.bool(forKey: WorkoutFeedbackPreferences.heartRateAlertKey),
+            motionAlert: defaults.bool(forKey: WorkoutFeedbackPreferences.motionAlertKey),
+            paceRange: WorkoutFeedbackPreferences.range(low: WorkoutFeedbackPreferences.fastPaceKey,
+                high: WorkoutFeedbackPreferences.slowPaceKey, fallback: 300...420, bounds: 120...1800),
+            speedRangeKmh: WorkoutFeedbackPreferences.range(low: WorkoutFeedbackPreferences.lowSpeedKey,
+                high: WorkoutFeedbackPreferences.highSpeedKey, fallback: 15...30, bounds: 1...100))
     }
 
-    private func warning(_ state: Snapshot) -> (text: String, isZone: Bool)? {
-        let defaults = UserDefaults.standard
-        let now = state.now.timeIntervalSince1970
-        if state.coachingSuppressed {
-            _ = heartRateAlert.update(value: nil, range: nil, now: now, paused: true)
-            _ = motionAlert.update(value: nil, range: nil, now: now, paused: true)
-            _ = cadenceAlert.update(value: nil, range: nil, now: now, paused: true)
-            return nil
+    private func deciderSnapshot(_ state: Snapshot) -> WorkoutVoiceDecider.Snapshot {
+        // The canonical zone resolver, with its edge tolerance and inclusive top zone.
+        WorkoutVoiceDecider.Snapshot(
+            now: state.now.timeIntervalSince1970, elapsedSeconds: state.elapsedSeconds,
+            distanceMeters: state.distanceMeters, distanceFresh: state.distanceFresh, isPaused: state.isPaused,
+            zone: state.bpm.map { state.zoneSet.zoneNumber(forBPM: Double($0)) }, targetZone: state.targetZone,
+            speedMps: state.currentSpeedMps, usesSpeed: WorkoutCatalog.usesSpeedReadout(for: state.sport),
+            coachingSuppressed: state.coachingSuppressed)
+    }
+
+    static func warningText(_ w: WorkoutVoiceDecider.Warning) -> String {
+        switch w {
+        case .zoneAbove: String(localized: "Above your target zone. Ease off.")
+        case .zoneBelow: String(localized: "Below your target zone. Pick it up.")
+        case .faster: String(localized: "Faster than your target range.")
+        case .slower: String(localized: "Slower than your target range.")
         }
-        // Use the canonical zone resolver, including its edge tolerance and inclusive top zone.
-        let target = state.targetZone.flatMap { (1...5).contains($0) ? Double($0) : nil }
-        let hrRange = defaults.bool(forKey: WorkoutFeedbackPreferences.heartRateAlertKey)
-            ? target.map { $0...$0 } : nil
-        let hr = heartRateAlert.update(value: state.bpm.map { Double(state.zoneSet.zoneNumber(forBPM: Double($0))) },
-                                       range: hrRange, now: now, paused: state.isPaused)
-        var speedRange: ClosedRange<Double>?
-        if defaults.bool(forKey: WorkoutFeedbackPreferences.motionAlertKey), usesRoute {
-            if WorkoutCatalog.usesSpeedReadout(for: state.sport) {
-                speedRange = WorkoutFeedbackPreferences.range(low: WorkoutFeedbackPreferences.lowSpeedKey,
-                    high: WorkoutFeedbackPreferences.highSpeedKey, fallback: 15...30, bounds: 1...100).map { ($0.lowerBound / 3.6)...($0.upperBound / 3.6) }
-            } else {
-                let unit = system == .imperial ? 1609.344 : 1000
-                speedRange = WorkoutFeedbackPreferences.range(low: WorkoutFeedbackPreferences.fastPaceKey,
-                    high: WorkoutFeedbackPreferences.slowPaceKey, fallback: 300...420, bounds: 120...1800)
-                    .map { (unit / $0.upperBound)...(unit / $0.lowerBound) }
-            }
-        }
-        let motion = motionAlert.update(value: state.currentSpeedMps, range: speedRange, now: now, paused: state.isPaused)
-        let cadenceRange = WorkoutFeedbackPreferences.cadenceWarningRange(defaults)
-        let cadence = cadenceAlert.update(value: state.cadence, range: cadenceRange, now: now, paused: state.isPaused)
-        if let hr {
-            return (hr == .above ? String(localized: "Above your target zone. Ease off.")
-                                : String(localized: "Below your target zone. Pick it up."), true)
-        }
-        if let motion {
-            return (motion == .above ? String(localized: "Faster than your target range.")
-                                    : String(localized: "Slower than your target range."), false)
-        }
-        if let cadence {
-            return (cadence == .above ? String(localized: "Cadence above your target range.")
-                                     : String(localized: "Cadence below your target range."), false)
-        }
-        return nil
     }
 
     private func say(_ text: String) {

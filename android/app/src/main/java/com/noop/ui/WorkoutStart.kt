@@ -60,6 +60,8 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<Sport>(WorkoutSport.default) }
     var gpsOn by remember(selected) { mutableStateOf(selected.isDistanceSport) }
+    var feedbackOpen by remember { mutableStateOf(false) }
+    if (feedbackOpen) WorkoutFeedbackDialog(selected, gpsOn) { feedbackOpen = false }
     val filtered = WorkoutSport.all.filter { it.name.contains(query, ignoreCase = true) }
     // #297: the user's last selections, one tap away above the full catalogue. Only catalogue-resolvable
     // recents show here — a live start selects a typed [Sport], and the shared store can hold free-typed
@@ -129,6 +131,10 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
                     Text(uiString(R.string.l10n_workout_start_track_gps_route_133861c5), style = NoopType.body, color = Palette.textPrimary)
                     Spacer(Modifier.weight(1f))
                     Switch(checked = gpsOn, onCheckedChange = { gpsOn = it })
+                }
+                // Voice feedback and training warnings for this workout, as iOS's start panel opens them.
+                androidx.compose.material3.TextButton(onClick = { feedbackOpen = true }) {
+                    Text(androidx.compose.ui.res.stringResource(R.string.wv_voice), color = Palette.accent)
                 }
             }
         },

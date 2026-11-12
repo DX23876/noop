@@ -1705,6 +1705,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val startMs = System.currentTimeMillis()
         _activeWorkout.value = ActiveWorkout(startMs = startMs, sport = sport, gpsEnabled = gpsEnabled)
         buzz(1, HapticPrefs.WORKOUT)
+        startWorkoutVoice()
         // Workouts & GPS test mode (Test Centre): one session-start line tagged .workouts. Zero-cost when off.
         emitWorkoutsTrace {
             com.noop.analytics.WorkoutsTrace.sessionLine(
@@ -1723,6 +1724,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // it now (and on every captured sample) so an OS kill mid-session can be rehydrated + ended
             // on relaunch (#529). GPS sessions are already covered by GpsSession's process durability.
             persistNonGpsWorkout(_activeWorkout.value)
+        }
+    }
+
+    /** The live workout's voice (iOS `WorkoutVoiceCoach`): announcements and range warnings, decided in the core. */
+    private val workoutVoice by lazy { WorkoutVoice(appContext) }
+    private var voiceJob: kotlinx.coroutines.Job? = null
+
+    private fun workoutVoiceSnapshot(w: ActiveWorkout, nowMs: Long): WorkoutVoice.Snapshot {
+        val pausedNow = w.pausedAtMs?.let { nowMs - it } ?: 0L
+        val elapsed = ((nowMs - w.startMs - w.pausedDurationMs - pausedNow) / 1000).toInt().coerceAtLeast(0)
+        val hasRoute = w.gpsEnabled && w.track.size > 1
+        // Heart rate only when a sample arrived in the last five seconds, so a dropout is never spoken as a number.
+        val bpm = w.samples.lastOrNull()?.takeIf { nowMs / 1000 - it.ts <= 5 }?.bpm
+        return WorkoutVoice.Snapshot(elapsed, if (hasRoute) w.distanceM else null, hasRoute && w.paceSecPerKm != null,
+                                     w.pausedAtMs != null, w.paceSecPerKm?.takeIf { it > 0 }?.let { 1000.0 / it }, bpm,
+                                     w.sport.name, w.gpsEnabled)
+    }
+
+    /** Runs the voice each second while a workout is active; it primes first so nothing old is spoken. */
+    private fun startWorkoutVoice() {
+        voiceJob?.cancel()
+        val first = _activeWorkout.value ?: return
+        voiceJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            workoutVoice.begin(workoutVoiceSnapshot(first, System.currentTimeMillis()))
+            while (true) {
+                kotlinx.coroutines.delay(1_000)
+                val w = _activeWorkout.value ?: break
+                workoutVoice.tick(workoutVoiceSnapshot(w, System.currentTimeMillis()))
+            }
         }
     }
 
@@ -1775,6 +1805,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             pausedAtMs = s.pausedAtMs, pausedDurationMs = s.pausedDurationMs,
         )
         observeGpsSession()
+        startWorkoutVoice()
     }
 
     /**
@@ -1794,6 +1825,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             samples = snap.samples, avgHr = snap.avgHr, peakHr = snap.peakHr, liveStrain = snap.liveStrain,
             pausedAtMs = snap.pausedAtMs, pausedDurationMs = snap.pausedDurationMs,
         )
+        startWorkoutVoice()
     }
 
     fun toggleWorkoutPause() {
@@ -1801,9 +1833,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val now = System.currentTimeMillis()
         val updated = if (w.pausedAtMs == null) {
             if (w.gpsEnabled) GpsSession.pause()
+            workoutVoice.paused()
             w.copy(pausedAtMs = now)
         } else {
             if (w.gpsEnabled) GpsSession.resume()
+            workoutVoice.resumed()
             w.copy(pausedAtMs = null, pausedDurationMs = w.pausedDurationMs + (now - w.pausedAtMs))
         }
         _activeWorkout.value = updated
@@ -1814,6 +1848,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun discardWorkout() {
         val w = _activeWorkout.value ?: return
         _activeWorkout.value = null
+        voiceJob?.cancel(); voiceJob = null; workoutVoice.stop()
         gpsJob?.cancel(); gpsJob = null
         activeWorkoutStore.clear()
         if (w.gpsEnabled) {
@@ -1829,6 +1864,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun endWorkout() {
         val w = _activeWorkout.value ?: return
         _activeWorkout.value = null
+        voiceJob?.cancel(); voiceJob = null
+        run {
+            // The spoken recap, as iOS's `WorkoutVoiceCoach.ended`: active time, the route and the average heart rate.
+            val activeMs = System.currentTimeMillis() - w.startMs - w.pausedDurationMs
+            val dist = if (w.gpsEnabled) RouteMath.totalMeters(w.track) else null
+            workoutVoice.ended((activeMs / 1000).toInt(), dist, w.sport.name, w.avgHr.takeIf { it > 0 })
+        }
         gpsJob?.cancel(); gpsJob = null
         // Drop the durable non-GPS snapshot the instant the session ends — whether it saves below or is
         // discarded as too-short — so a relaunch never rehydrates an already-finished session (#529).
