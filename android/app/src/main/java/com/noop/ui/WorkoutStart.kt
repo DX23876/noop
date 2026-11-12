@@ -2,7 +2,9 @@ package com.noop.ui
 
 import com.noop.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -136,12 +138,23 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
                 var target by remember { mutableStateOf(WorkoutVoicePrefs.targetZone(context)) }
                 Text(androidx.compose.ui.res.stringResource(R.string.wv_target_zone), style = NoopType.body, color = Palette.textPrimary,
                      modifier = Modifier.padding(top = 8.dp))
-                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(2.dp)) {
+                // Six equal cells on one line: as TextButtons the last ones wrapped ("Z" over "4") and Z5 fell off a
+                // narrow dialog.
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
                     (listOf<Int?>(null) + (1..5).toList()).forEach { z ->
-                        androidx.compose.material3.TextButton(onClick = { target = z; WorkoutVoicePrefs.setTargetZone(context, z) },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
+                        val on = z == target
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.weight(1f).heightIn(min = 40.dp)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                                .background(if (on) Palette.accent.copy(alpha = 0.18f) else androidx.compose.ui.graphics.Color.Transparent)
+                                .clickable(role = androidx.compose.ui.semantics.Role.RadioButton) {
+                                    target = z; WorkoutVoicePrefs.setTargetZone(context, z)
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Text(if (z == null) androidx.compose.ui.res.stringResource(R.string.wv_off) else "Z$z",
-                                 color = if (z == target) Palette.accent else Palette.textSecondary)
+                                 color = if (on) Palette.accent else Palette.textSecondary, maxLines = 1, softWrap = false)
                         }
                     }
                 }
