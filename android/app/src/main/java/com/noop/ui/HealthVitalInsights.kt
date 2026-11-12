@@ -37,6 +37,7 @@ internal fun vitalCatalogId(key: String): Pair<String, String> = when (key) {
     "resp" -> "resp_rate" to "my-whoop"
     "skin" -> "skin_temp" to "my-whoop"
     "rest" -> "sleep_performance" to "my-whoop"
+    "sleep" -> "sleep_total_min" to "my-whoop"
     "steps_est" -> "steps" to "my-whoop"
     "active_kcal" -> "active_kcal" to "apple-health"
     else -> key to "my-whoop"
@@ -44,7 +45,7 @@ internal fun vitalCatalogId(key: String): Pair<String, String> = when (key) {
 
 /** Whether a higher reading is the better one, as `MetricCatalog` declares it; null where neither is. */
 internal fun vitalHigherIsBetter(key: String): Boolean? = when (key) {
-    "hrv", "spo2", "vo2max_est", "recovery", "rest", "vitality" -> true
+    "hrv", "spo2", "vo2max_est", "recovery", "rest", "vitality", "sleep" -> true
     "rhr", "fitness_age" -> false
     else -> null
 }

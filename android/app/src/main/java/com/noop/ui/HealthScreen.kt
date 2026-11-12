@@ -2510,6 +2510,15 @@ private fun buildVitalDetail(
         readings = days.mapNotNull { row -> row.restingHr?.toDouble()?.let { VitalReading(row.day, it, row.deviceId) } },
         format = { it.roundToInt().toString() },
     )
+    // Sleep duration, as iOS's single-metric page for `sleep_total_min`: hours and minutes, as on Today's tile.
+    "sleep" -> VitalDetailModel(
+        key = key,
+        title = uiString(R.string.forge_sleep),
+        unit = uiString(R.string.forge_goals_u_h),
+        color = Palette.restColor,
+        readings = days.mapNotNull { row -> row.totalSleepMin?.takeIf { it > 0 }?.let { VitalReading(row.day, it, row.deviceId) } },
+        format = { com.noop.ui.forge.TodayTimeline.hoursMinutes(it) },
+    )
     "hrv" -> VitalDetailModel(
         key = key,
         title = uiString(R.string.l10n_health_screen_heart_rate_variability_20f0069e),

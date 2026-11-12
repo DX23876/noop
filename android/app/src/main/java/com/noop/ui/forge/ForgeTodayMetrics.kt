@@ -283,6 +283,7 @@ internal fun ForgeMetricDetail(metric: CoreRead.Metric?, viewModel: com.noop.ui.
             CoreRead.Metric.RespRate -> "resp"
             CoreRead.Metric.Spo2 -> "spo2"
             CoreRead.Metric.Steps -> "steps_est"
+            CoreRead.Metric.SleepMinutes -> "sleep"
             else -> null
         }
         if (viewModel != null && vitalKey != null) {
