@@ -355,6 +355,15 @@ public enum CoreCall {
             return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,
                 activity: ActivityLevel(rawValue: string("activity")) ?? .light,
                 targetKgPerWeek: (args["targetKgPerWeek"] as? NSNumber)?.doubleValue ?? 0))
+        case "charge.usualRange":
+            // A Charge driver's usual range (`DriverUsualRange`): the middle half of the nights before, the night placed
+            // on a 0 to 100 track. `null` under seven nights, where the row keeps its single usual value.
+            let before = ((args["before"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.doubleValue }
+            guard let value = (args["value"] as? NSNumber)?.doubleValue,
+                  let q = DriverUsualRange.middleHalf(before) else { return "null" }
+            let placed = DriverUsualRange.place(value, low: q.low, high: q.high)
+            return CoreRead.json(["low": q.low, "high": q.high, "position": placed.position,
+                                  "bandLow": placed.band.lowerBound, "bandHigh": placed.band.upperBound])
         case "metric.detailInsights":
             // A measure's detail page (`MetricDetailInsights`): statistics, change and correlations over the window
             // the page shows. Series arrive as [[day, value], ...].

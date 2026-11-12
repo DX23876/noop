@@ -501,7 +501,14 @@ private fun Hero(day: CoreRead.Day?, width: ForgeWidth, onHold: (() -> Unit)? = 
     // trend stays behind each page's History. The shipped design keeps opening the trend.
     var history by remember { mutableStateOf<CoreRead.Metric?>(null) }
     if (ForgeDesign.preview && viewModel != null) when (open) {
-        CoreRead.Metric.Charge -> ChargeBreakdownHost(viewModel, onDismiss = { open = null })
+        // The new design opens Charge as a page of its own, as iOS's `ForgeChargeDetailView`; the shipped design keeps
+        // its breakdown sheet.
+        CoreRead.Metric.Charge -> if (ForgeDesign.preview) ForgeOverlayPage(onDismiss = { open = null }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                androidx.activity.compose.BackHandler { open = null }
+                ForgeChargePage(viewModel, onBack = { open = null }, onHistory = { history = CoreRead.Metric.Charge })
+            }
+        } else ChargeBreakdownHost(viewModel, onDismiss = { open = null })
         CoreRead.Metric.Effort -> ForgeOverlayPage(onDismiss = { open = null }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) {
                 androidx.activity.compose.BackHandler { open = null }

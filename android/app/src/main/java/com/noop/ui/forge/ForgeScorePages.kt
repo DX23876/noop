@@ -158,37 +158,50 @@ internal fun ScoreDailyChart(points: List<Pair<String, Double>>, maxValue: Doubl
 
 /** "How X is made": a heading and one short paragraph, as iOS's `ForgeExplainer`. */
 @Composable
-private fun ScoreExplainer(title: String, text: String) {
-    Column(Modifier.padding(horizontal = ForgeMetrics.space1), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, style = Forge.type.title2, color = Forge.sceneInk.text)
-        Text(text, style = Forge.type.body, color = Forge.sceneInk.secondary)
+private fun ScoreExplainer(title: String, text: String, picture: ExplainedScore? = null) {
+    // iOS `ForgeExplainer`: the score's inputs drawn above its title and text.
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        picture?.let { ExplainerScoreInputs(it) }
+        Column(Modifier.padding(horizontal = ForgeMetrics.space1), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, style = Forge.type.title2, color = Forge.sceneInk.text)
+            Text(text, style = Forge.type.body, color = Forge.sceneInk.secondary)
+        }
     }
 }
 
 /** One "Why N?" row, as iOS's `ForgeWhyRow`: the factor, its value, its direction, the 0 to 100 track with the usual. */
 @Composable
-private fun WhyRow(label: String, value: String, delta: Int, usual: String?, track: Pair<Double, Double?>?) {
+private fun WhyRow(label: String, value: String, delta: Int, usual: String?, track: Pair<Double, Double?>?,
+                   band: ClosedFloatingPointRange<Double>? = null) {
+    // iOS `ForgeWhyRow`: the factor, its value and which way it moved the score in words, then a track with the usual
+    // range as a band, the usual value as a mark and last night as a ringed dot.
     val colors = Forge.colors
     val dot = when { delta > 0 -> colors.charge; delta < 0 -> colors.effort; else -> colors.textSecondary }
-    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp).semantics(mergeDescendants = true) { }) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp).semantics(mergeDescendants = true) { },
+           verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text, modifier = Modifier.weight(1f))
-            Text(value, style = Forge.type.bodyNumber.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(value, style = Forge.type.bodyNumber.copy(fontWeight = FontWeight.SemiBold), color = colors.text, maxLines = 1)
             Spacer(Modifier.width(ForgeMetrics.space2))
-            Text(when { delta > 0 -> "↑"; delta < 0 -> "↓"; else -> "–" }, style = Forge.type.subhead, color = dot)
+            ForgeDirection(delta)
         }
         track?.let { (v, u) ->
-            Spacer(Modifier.height(6.dp))
             Canvas(Modifier.fillMaxWidth().height(14.dp)) {
                 val h = 6.dp.toPx(); val cy = size.height / 2
                 drawRoundRect(colors.inset, Offset(0f, cy - h / 2), Size(size.width, h), CornerRadius(h / 2, h / 2))
+                band?.let { b ->
+                    val bh = 10.dp.toPx()
+                    val x0 = (size.width * (b.start / 100)).toFloat().coerceIn(0f, size.width - 6.dp.toPx())
+                    val bw = (size.width * ((b.endInclusive - b.start) / 100)).toFloat().coerceAtLeast(6.dp.toPx())
+                    drawRoundRect(colors.charge.copy(alpha = 0.22f), Offset(x0, cy - bh / 2), Size(bw, bh), CornerRadius(bh / 2, bh / 2))
+                }
                 u?.let { drawRoundRect(colors.charge.copy(alpha = 0.55f), Offset((size.width * (it / 100)).toFloat() - 1.5f, 0f),
                                        Size(3.dp.toPx(), size.height), CornerRadius(1.5f, 1.5f)) }
                 val x = (size.width * (v / 100)).toFloat().coerceIn(7.dp.toPx(), size.width - 7.dp.toPx())
-                drawCircle(colors.surface, 7.dp.toPx(), Offset(x, cy)); drawCircle(dot, 5.dp.toPx(), Offset(x, cy))
+                drawCircle(colors.surfaceTop, 7.dp.toPx(), Offset(x, cy)); drawCircle(dot, 5.dp.toPx(), Offset(x, cy))
             }
         }
-        usual?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary, modifier = Modifier.padding(top = 4.dp)) }
+        usual?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary) }
     }
 }
 
@@ -205,6 +218,8 @@ internal fun ForgeEffortPage(viewModel: AppViewModel, effortStored: Double?, cha
     fun whole(v: Double) = shown(v).roundToInt().toString()
     val target = effortTargetStored(charge)
     val workouts by viewModel.workouts.collectAsState()
+    var openWorkout by remember { mutableStateOf<com.noop.data.WorkoutRow?>(null) }
+    openWorkout?.let { row -> com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { openWorkout = null }) }
     val today = LocalDate.now(ZoneId.systemDefault())
     val todays = workouts.filter { java.time.Instant.ofEpochSecond(it.startTs).atZone(ZoneId.systemDefault()).toLocalDate() == today }
         .sortedByDescending { it.startTs }
@@ -241,7 +256,9 @@ internal fun ForgeEffortPage(viewModel: AppViewModel, effortStored: Double?, cha
                 todays.forEachIndexed { i, row ->
                     if (i > 0) Box(Modifier.fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
                     val minutes = ((row.durationS ?: (row.endTs - row.startTs).toDouble()) / 60).toInt()
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // Each session opens itself, as iOS's rows push `ForgeRoute.workout`.
+                    Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button) { openWorkout = row }
+                            .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(com.noop.ui.WorkoutEditing.displaySport(row.sport), style = Forge.type.body, color = colors.text)
                             Text(stringResource(R.string.forge_pair_words,
@@ -262,7 +279,7 @@ internal fun ForgeEffortPage(viewModel: AppViewModel, effortStored: Double?, cha
         ScoreDailyChart(days.map { it.first to shown(it.second) }, max, colors.effort, bars = true,
                         bands = days.map { d -> effortTargetStored(d.third)?.let { shown(it.start)..shown(it.endInclusive) } },
                         caption = stringResource(R.string.forge_sp_band), onHistory = onHistory)
-        ScoreExplainer(stringResource(R.string.forge_sp_effort_how), stringResource(R.string.forge_sp_effort_how_text))
+        ScoreExplainer(stringResource(R.string.forge_sp_effort_how), stringResource(R.string.forge_sp_effort_how_text), ExplainedScore.Effort)
         Spacer(Modifier.height(ForgeMetrics.space6))
     }
 }
@@ -325,7 +342,7 @@ internal fun ForgeRestPage(viewModel: AppViewModel, rest: Double?, onBack: () ->
             }
         }
         ScoreDailyChart(days, 100.0, colors.rest, bars = false, onHistory = onHistory)
-        ScoreExplainer(stringResource(R.string.forge_sp_rest_how), stringResource(R.string.forge_sp_rest_how_text))
+        ScoreExplainer(stringResource(R.string.forge_sp_rest_how), stringResource(R.string.forge_sp_rest_how_text), ExplainedScore.Rest)
         Spacer(Modifier.height(ForgeMetrics.space6))
     }
 }
@@ -333,3 +350,123 @@ internal fun ForgeRestPage(viewModel: AppViewModel, rest: Double?, onBack: () ->
 /** A whole percent in the wearer's locale ("82 %" or "82%"). */
 private fun percentText(value: Double): String =
     java.text.NumberFormat.getPercentInstance(java.util.Locale.getDefault()).format(value.roundToInt() / 100.0)
+
+/**
+ * The new design's Charge page, as iOS `ForgeChargeDetailView`: the ring with its band word, today's Effort target,
+ * "Why N %?" with how sure the breakdown is, each driver with its usual range (`DriverUsualRange` in the core) and
+ * which way it moved the score, the coach's question, the last 14 days and how Charge is made. The drivers are the
+ * ones the breakdown sheet and the ring are scored with (`recoveryChargeDrivers`), against the row the ring shows.
+ */
+@Composable
+internal fun ForgeChargePage(viewModel: AppViewModel, onBack: () -> Unit, onHistory: () -> Unit) {
+    val context = LocalContext.current
+    val colors = Forge.colors
+    val inputs by viewModel.chargeBaselineInputs.collectAsState()
+    val today by viewModel.today.collectAsState()
+    val recent by viewModel.recentDays.collectAsState()
+    val traits by viewModel.restTraits.collectAsState()
+    val todayKey = LocalDate.now().toString()
+    // The row the ring reads: today's once scored, else the last scored night carried over.
+    val row = today?.takeIf { it.recovery != null } ?: recent.lastOrNull { it.recovery != null && it.day <= todayKey }
+    val pct = row?.recovery
+    val carried = row != null && row.day != todayKey
+    val baselines = remember(inputs, row) { row?.let { inputs?.resolve(it.day) } }
+    val drivers = remember(baselines, row, traits) { com.noop.ui.recoveryChargeDrivers(baselines, row, traits) }
+    val tier = remember(baselines, row) { com.noop.ui.chargeConfidenceTier(baselines, row) }
+    // Each driver's usual range from the 30 nights before the shown one, placed by the shared core.
+    val ranges by produceState(emptyMap<com.noop.analytics.ChargeDriverLabel, com.noop.core.CoreChargeRange.Range>(), row, recent) {
+        value = withContext(Dispatchers.IO) {
+            val r = row ?: return@withContext emptyMap()
+            val before = recent.filter { it.day < r.day }.takeLast(30)
+            fun figure(label: com.noop.analytics.ChargeDriverLabel, d: com.noop.data.DailyMetric): Double? = when (label) {
+                com.noop.analytics.ChargeDriverLabel.HEART_RATE_VARIABILITY -> d.avgHrv
+                com.noop.analytics.ChargeDriverLabel.RESTING_HEART_RATE -> d.restingHr?.toDouble()
+                com.noop.analytics.ChargeDriverLabel.RESPIRATORY_RATE -> d.respRateBpm
+                com.noop.analytics.ChargeDriverLabel.SKIN_TEMPERATURE -> d.skinTempDevC
+                com.noop.analytics.ChargeDriverLabel.SLEEP_QUALITY -> null
+            }
+            CoreRead.open(context)
+            com.noop.analytics.ChargeDriverLabel.entries.mapNotNull { label ->
+                val v = figure(label, r) ?: return@mapNotNull null
+                com.noop.core.CoreChargeRange.of(v, before.mapNotNull { figure(label, it) })?.let { label to it }
+            }.toMap()
+        }
+    }
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val days by produceState(emptyList<Pair<String, Double>>(), coreRevision) {
+        value = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            val now = LocalDate.now()
+            CoreRead.series(CoreRead.Metric.Charge, now.minusDays(30).toString(), now.toString()).takeLast(14).map { it.day to it.value }
+        }
+    }
+    val format = rememberEffortFormat()
+    val scale = remember { UnitPrefs.effortScale(context) }
+    fun whole(v: Double) = UnitFormatter.effortValue(v, scale).roundToInt().toString()
+    val bandWord = pct?.let {
+        stringResource(when (ChargeBand.of(it)) {
+            ChargeBand.Depleted -> R.string.forge_cband_depleted; ChargeBand.Low -> R.string.forge_cband_low
+            ChargeBand.Moderate -> R.string.forge_cband_moderate; ChargeBand.Primed -> R.string.forge_cband_primed
+            ChargeBand.Peak -> R.string.forge_cband_peak
+        })
+    }
+    val overline = if (carried && row != null) LocalDate.parse(row.day).format(
+        java.time.format.DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), WEEKDAY_DAY_MONTH), Locale.getDefault()))
+        else stringResource(R.string.forge_last_night)
+    SettingsColumn {
+        ScorePageHead(stringResource(R.string.forge_charge), overline, onBack)
+        ScoreHero(pct, colors.charge, OrganicMetric.Charge, bandWord, stringResource(R.string.forge_charge), null)
+        // Only today's own Charge sets today's target; a carried one names its night above instead.
+        if (!carried) effortTargetStored(pct)?.let { t ->
+            Text(stringResource(R.string.forge_ch_target, whole(t.start), whole(t.endInclusive)),
+                 style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.effort,
+                 textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        }
+        if (drivers.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.padding(horizontal = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {
+                Text(pct?.let { stringResource(R.string.forge_sp_why, percentText(it)) } ?: stringResource(R.string.forge_sp_shaped),
+                     style = Forge.type.title2, color = Forge.sceneInk.text, modifier = Modifier.weight(1f))
+                ForgeBadgePill(stringResource(when (tier) {
+                    com.noop.analytics.ScoreConfidence.CALIBRATING -> R.string.forge_ch_calibrating
+                    com.noop.analytics.ScoreConfidence.BUILDING -> R.string.forge_ch_building
+                    else -> R.string.forge_ch_reliable
+                }), ForgeBadgeTone.Neutral)
+            }
+            ForgeCard(Modifier.fillMaxWidth()) {
+                drivers.forEachIndexed { i, d ->
+                    if (i > 0) Box(Modifier.fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
+                    val range = ranges[d.label]
+                    val decimals = if (d.label == com.noop.analytics.ChargeDriverLabel.HEART_RATE_VARIABILITY ||
+                                       d.label == com.noop.analytics.ChargeDriverLabel.RESTING_HEART_RATE) 0 else 1
+                    val unit = when (d.label) {
+                        com.noop.analytics.ChargeDriverLabel.HEART_RATE_VARIABILITY -> " ms"
+                        com.noop.analytics.ChargeDriverLabel.RESTING_HEART_RATE -> " bpm"
+                        com.noop.analytics.ChargeDriverLabel.RESPIRATORY_RATE -> " /min"
+                        else -> " °C"
+                    }
+                    fun f(x: Double) = String.format(Locale.getDefault(), "%.${decimals}f", x)
+                    val usual = range?.let {
+                        stringResource(R.string.forge_ch_usually, stringResource(R.string.forge_ch_span, f(it.low), f(it.high)) + unit)
+                    }
+                    WhyRow(driverLabel(d.label), driverValue(d), d.deltaPoints.coerceIn(-1, 1), usual,
+                           range?.let { it.position to null }, range?.let { it.bandLow..it.bandHigh })
+                }
+            }
+        }
+        // While the coach is on, the one question iOS offers here.
+        if (com.noop.ui.BottomBarStyleStore.coachEnabled) {
+            val select = LocalForgeTabSelect.current
+            val prompt = stringResource(R.string.forge_ch_improve_prompt)
+            Text(stringResource(R.string.forge_ch_improve), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = colors.text, modifier = Modifier.background(colors.surfaceTop, CircleShape)
+                     .clickable(role = androidx.compose.ui.semantics.Role.Button) {
+                         com.noop.ui.CoachHandoff.pendingPrompt = prompt; onBack(); select(ForgeTab.Coach)
+                     }.padding(horizontal = 14.dp, vertical = 10.dp))
+        }
+        ScoreDailyChart(days, 100.0, colors.charge, bars = false, onHistory = onHistory)
+        ScoreExplainer(stringResource(R.string.forge_ch_how), stringResource(R.string.forge_ch_how_text), ExplainedScore.Charge)
+        Spacer(Modifier.height(ForgeMetrics.space6))
+    }
+}
+
+private const val WEEKDAY_DAY_MONTH = "EEEdMMM"

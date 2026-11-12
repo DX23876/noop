@@ -238,7 +238,7 @@ private fun SkinTempDeviationRow(deviationC: Double) {
 }
 
 @Composable
-private fun driverLabel(label: ChargeDriverLabel): String = stringResource(when (label) {
+internal fun driverLabel(label: ChargeDriverLabel): String = stringResource(when (label) {
     ChargeDriverLabel.HEART_RATE_VARIABILITY -> R.string.today_driver_hrv
     ChargeDriverLabel.RESTING_HEART_RATE -> R.string.today_driver_resting_hr
     ChargeDriverLabel.SLEEP_QUALITY -> R.string.today_driver_sleep_quality
@@ -247,7 +247,7 @@ private fun driverLabel(label: ChargeDriverLabel): String = stringResource(when 
 })
 
 @Composable
-private fun driverValue(d: ChargeDriver): String = when (d.unit) {
+internal fun driverValue(d: ChargeDriver): String = when (d.unit) {
     ChargeDriverUnit.MILLISECONDS -> stringResource(R.string.today_driver_value_ms, d.value.roundToInt())
     ChargeDriverUnit.BEATS_PER_MINUTE -> stringResource(R.string.today_driver_value_bpm, d.value.roundToInt())
     ChargeDriverUnit.PERCENT -> stringResource(R.string.today_driver_value_percent, d.value.roundToInt())

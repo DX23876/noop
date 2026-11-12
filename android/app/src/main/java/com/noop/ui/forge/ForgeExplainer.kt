@@ -213,3 +213,53 @@ internal fun ExplainerHeartbeats() {
         }
     }
 }
+
+/** Which score [ExplainerScoreInputs] explains, with the inputs iOS names for it. */
+internal enum class ExplainedScore(val title: Int, val inputs: List<Int>) {
+    Charge(R.string.forge_charge, listOf(R.string.forge_ex_in_hrv, R.string.forge_ex_in_rhr, R.string.forge_ex_in_sleep,
+                                         R.string.forge_ex_in_breathing, R.string.forge_ex_in_skin)),
+    Effort(R.string.forge_effort, listOf(R.string.forge_ex_in_hr, R.string.forge_ex_in_time, R.string.forge_ex_in_strength)),
+    Rest(R.string.forge_rest, listOf(R.string.forge_ex_in_how_long, R.string.forge_ex_in_how_well,
+                                     R.string.forge_ex_in_how_regular, R.string.forge_ex_in_deep_rem)),
+}
+
+/** iOS `ExplainerScoreInputs`: the score's inputs on the left, each a line curving into the score's ring. */
+@Composable
+internal fun ExplainerScoreInputs(score: ExplainedScore) {
+    val c = Forge.colors
+    val tint = when (score) { ExplainedScore.Charge -> c.charge; ExplainedScore.Effort -> c.effort; ExplainedScore.Rest -> c.rest }
+    ExplainerPanel(tint) {
+        BoxWithConstraints(Modifier.fillMaxWidth().fillMaxHeight()) {
+            val w = maxWidth; val h = maxHeight
+            val ring = minOf(h * 0.74f, 112.dp)
+            val startX = w * 0.46f
+            val rowH = h / score.inputs.size
+            Canvas(Modifier.fillMaxWidth().fillMaxHeight()) {
+                val r = ring.toPx(); val cx = size.width - r / 2 - 4.dp.toPx(); val cy = size.height / 2
+                val sx = startX.toPx(); val rh = size.height / score.inputs.size
+                score.inputs.indices.forEach { i ->
+                    val y = rh * (i + 0.5f)
+                    val path = Path().apply {
+                        moveTo(sx, y)
+                        cubicTo(sx + (cx - sx) * 0.4f, y, sx + (cx - sx) * 0.4f, cy, cx - r / 2 - 2.dp.toPx(), cy)
+                    }
+                    drawPath(path, tint.copy(alpha = 0.55f), style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round))
+                }
+                val stroke = 9.dp.toPx()
+                val tl = Offset(cx - r / 2, cy - r / 2)
+                drawArc(tint.copy(alpha = 0.18f), 0f, 360f, false, tl, Size(r, r), style = Stroke(stroke))
+                drawArc(tint.copy(alpha = 0.3f), -90f, 0.72f * 360f, false, tl, Size(r, r), style = Stroke(stroke * 1.8f, cap = StrokeCap.Round))
+                drawArc(tint, -90f, 0.72f * 360f, false, tl, Size(r, r), style = Stroke(stroke, cap = StrokeCap.Round))
+            }
+            Box(Modifier.padding(start = w - ring - 4.dp, top = (h - ring) / 2).size(ring), contentAlignment = Alignment.Center) {
+                Text(stringResource(score.title), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = c.text,
+                     maxLines = 1, modifier = Modifier.padding(horizontal = 11.dp))
+            }
+            score.inputs.forEachIndexed { i, input ->
+                Box(Modifier.padding(top = rowH * i).width(startX - 4.dp).height(rowH), contentAlignment = Alignment.CenterStart) {
+                    Text(stringResource(input), style = Forge.type.footnote.copy(fontWeight = FontWeight.Medium), color = c.text, maxLines = 1)
+                }
+            }
+        }
+    }
+}
