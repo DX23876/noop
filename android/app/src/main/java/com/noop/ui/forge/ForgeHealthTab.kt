@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,9 +115,13 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     var chosenTiles by remember { mutableStateOf(VitalTilePrefs.chosen(context)) }
     // The tile the picker swaps ("" adds one), null while the picker is closed.
     var tilePick by remember { mutableStateOf<String?>(null) }
-    // A tile opens its own measure, as iOS's `TabRoute.metricSourced`: Explore on that measure, or its own page.
+    // A tile opens its own measure, as iOS's `TabRoute.metricSourced`: the vital's own page (`VitalDetailScreen`, the
+    // Android side of iOS's `MetricDetailView`), else Explore on that measure, or the measure's own screen. Steps stay
+    // in Explore: the vital page predates the steps source choice.
+    var vitalKey by rememberSaveable { mutableStateOf<String?>(null) }
     fun openMeasure(key: String) = when (key) {
         "ageless" -> open(MoreDest.AgeLess); "weight" -> open(MoreDest.Body); "stress" -> open(MoreDest.Stress)
+        in VITAL_PAGES -> vitalKey = VITAL_PAGES.getValue(key)
         else -> {
             com.noop.ui.ExploreLaunch.pendingKey = when (key) {
                 "spo2raw" -> "spo2"; "skin" -> "skin_temp"; "vo2max" -> "vo2max_est"; else -> key
@@ -314,6 +319,13 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         } ?: run { cycleOpen = false }
     }
     MoreOverlay(more, viewModel, onOpenSettings = { settingsOpen = true })
+    vitalKey?.let { key ->
+        ForgeOverlayPage(onDismiss = { vitalKey = null }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) {
+                Hosted(null, onBack = { vitalKey = null }) { com.noop.ui.VitalDetailScreen(viewModel, key) }
+            }
+        }
+    }
     if (trendsOpen) {
         // On a backdrop of its own, clear of the system bars, with a way back: drawn bare, the Health tab and the
         // tab bar showed through it.
@@ -595,3 +607,7 @@ private fun RemoveBadge(modifier: Modifier, onClick: () -> Unit) {
         Icon(Icons.Rounded.Close, stringResource(R.string.forge_hv_remove), tint = Forge.colors.surface, modifier = Modifier.size(14.dp))
     }
 }
+
+/** Vital tiles whose measure has a page of its own, by tile key, to the page's key. */
+private val VITAL_PAGES = mapOf("rhr" to "rhr", "hrv" to "hrv", "resp" to "resp", "skin" to "skin",
+                                "spo2" to "spo2", "spo2raw" to "spo2", "vo2max" to "vo2max_est")

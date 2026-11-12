@@ -1973,10 +1973,12 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
     ScreenScaffold(
         title = detail?.title ?: if (isStepsDetail) uiString(R.string.l10n_health_screen_steps_cdde4f20) else "Vital Signs",
+        // The new design names the page once and leaves storage words out, as iOS's metric page does.
         subtitle = when {
             isStepsDetail -> uiString(R.string.steps_history)
             key == "fitness_age" && loadedPoints == 0 -> "What your Fitness Age still needs."
             loadedPoints == 1 -> "Your latest reading — trend to follow."
+            com.noop.ui.forge.ForgeDesign.preview -> null
             else -> "Historical trend from cached daily metrics."
         },
         topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
@@ -2098,12 +2100,13 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
         // across recompositions that do not change the window.
         val dayLabels = remember(filteredPoints) { filteredPoints.map { shortDayLabel(it.first) } }
         val latest = filteredPoints.last()
-        val latestLabel = stepsSeries?.selectionLabels?.lastOrNull() ?: latest.first
+        // The reading's day as the table below writes it ("Tue 10 Nov"), not the stored "2026-11-10".
+        val latestLabel = stepsSeries?.selectionLabels?.lastOrNull() ?: vitalReadingDateLabel(latest.first)
         val min = values.minOrNull()
         val max = values.maxOrNull()
         val avg = values.average()
 
-        if (!isStepsDetail) SectionHeader(
+        if (!isStepsDetail && !com.noop.ui.forge.ForgeDesign.preview) SectionHeader(
             detail.title,
             overline = "Vital Signs",
             trailing = stepsSeries?.let { "${it.buckets.size} bars" } ?: "${filteredReadings.size} readings",

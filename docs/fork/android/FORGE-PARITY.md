@@ -71,6 +71,13 @@ Fixed:
 - (2026-11-12) The water tile, its Your cards row and the Log sheet's Drink opened the journal, which cannot log
   water; the drink log (`HydrationScreen`) was out of reach in the new design. A search-only More destination
   opens it now, as iOS's `TabRoute.hydration`; seen on the emulator.
+- (2026-11-12) The vital page said "as of 2026-11-10" (the stored day) and named itself twice under a storage
+  subtitle; in the new design it reads "as of Tue 10 Nov" and names itself once.
+- Not changed, for a decision: the readings table names the imported strap source "Whoop", as iOS's
+  `MetricCatalog.sourceLabel` does.
+- Not an app fault found: the cold-start "isn't responding" on the emulator is "No response to onStartJob"
+  while the main thread waits on the emulated render thread; the system's Bluetooth service timed out in the
+  same minutes.
 - (2026-11-12) The drink log's "x% of today's goal" was fixed white on the white hero card in light mode; it takes
   the secondary text colour now; seen on the emulator.
 - With the Classic dashboard style chosen the new design drew the classic Today, whose battery and devices
@@ -200,7 +207,7 @@ Android reaches the same function; "missing" pages are the build list.
 | Coach notes on the timeline, "Why" sheet | `ForgeTodayView`, `ForgeCoachWhySheet` | has |
 | Vital tile editor (swap, reorder, up to nine) | `ForgeHealthTiles` | has (drag to reorder 2026-11-11) |
 | AgeLess page | `ForgeAgeLessView` | has, rebuilt 2026-11-11 (age line, domains, over time) |
-| Single-metric page | `MetricDetailView` | Explore opened on the measure stands in |
+| Single-metric page | `MetricDetailView` | the vital tiles (HRV, resting HR, breathing rate, skin temperature, blood oxygen, VO₂max) open `VitalDetailScreen`: latest value, ranges, chart, minimum, average and maximum, readings with source (2026-11-12); steps and the remaining measures open Explore. Missing beside iOS: the coach card and correlations |
 | Effort of an imported workout from its heart rate | `WorkoutHeartRateFills.fillApple` (AI-16) | has (2026-11-12): `fillHealthConnect` from the strap trace or the minute heart rate the import files, on AI-35 |
 | Where steps come from | Devices and data sources, `StepsSource` | has (2026-11-12): Data and backup; one steps reader (`MetricResolver.resolvedSteps`) for tiles, steps page and AgeLess |
 | Energy page | `ForgeEnergyView` | has, rebuilt 2026-11-11 (ring against a usual day, parts, 30-day bars) |
