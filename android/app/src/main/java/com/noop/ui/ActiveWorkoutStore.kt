@@ -32,14 +32,25 @@ class ActiveWorkoutStore(private val prefs: SharedPreferences) {
     fun load(): ActiveWorkoutPersistence.Snapshot? =
         ActiveWorkoutPersistence.decode(prefs.getString(KEY_SNAPSHOT, null))
 
+    /**
+     * The running workout's target zone (1 to 5, or null), kept for GPS and non-GPS sessions alike so a restore
+     * keeps zone coaching, as iOS's `ActiveWorkoutPersistence` carries `targetZone`.
+     */
+    fun saveTargetZone(zone: Int?) {
+        prefs.edit().apply { if (zone in 1..5) putInt(KEY_TARGET_ZONE, zone!!) else remove(KEY_TARGET_ZONE) }.apply()
+    }
+
+    fun targetZone(): Int? = prefs.getInt(KEY_TARGET_ZONE, 0).takeIf { it in 1..5 }
+
     /** Clear the snapshot — called the instant a session ends (saved or discarded). */
     fun clear() {
-        prefs.edit().remove(KEY_SNAPSHOT).apply()
+        prefs.edit().remove(KEY_SNAPSHOT).remove(KEY_TARGET_ZONE).apply()
     }
 
     companion object {
         private const val PREFS = "noop_active_workout"
         private const val KEY_SNAPSHOT = "activeWorkout.snapshot"
+        private const val KEY_TARGET_ZONE = "activeWorkout.targetZone"
 
         fun from(context: Context): ActiveWorkoutStore =
             ActiveWorkoutStore(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE))

@@ -1710,6 +1710,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val startMs = System.currentTimeMillis()
         _activeWorkout.value = ActiveWorkout(startMs = startMs, sport = sport, gpsEnabled = gpsEnabled,
                                              targetZone = targetZone?.takeIf { it in 1..5 })
+        runCatching { activeWorkoutStore.saveTargetZone(targetZone) }
         buzz(1, HapticPrefs.WORKOUT)
         startWorkoutVoice()
         // Workouts & GPS test mode (Test Centre): one session-start line tagged .workouts. Zero-cost when off.
@@ -1816,6 +1817,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             startMs = s.startMs, sport = sport, gpsEnabled = true,
             track = s.track, distanceM = s.distanceM, paceSecPerKm = s.paceSecPerKm,
             pausedAtMs = s.pausedAtMs, pausedDurationMs = s.pausedDurationMs,
+            targetZone = runCatching { activeWorkoutStore.targetZone() }.getOrNull(),
         )
         observeGpsSession()
         startWorkoutVoice()
@@ -1837,6 +1839,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             startMs = snap.startMs, sport = sport, gpsEnabled = false,
             samples = snap.samples, avgHr = snap.avgHr, peakHr = snap.peakHr, liveStrain = snap.liveStrain,
             pausedAtMs = snap.pausedAtMs, pausedDurationMs = snap.pausedDurationMs,
+            targetZone = runCatching { activeWorkoutStore.targetZone() }.getOrNull(),
         )
         startWorkoutVoice()
     }
