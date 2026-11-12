@@ -153,7 +153,7 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(if (z == null) androidx.compose.ui.res.stringResource(R.string.wv_off) else "Z$z",
+                            Text(if (z == null) androidx.compose.ui.res.stringResource(R.string.wv_off) else uiString(R.string.l10n_live_workout_screen_z_z_d3991a28, z),
                                  color = if (on) Palette.accent else Palette.textSecondary, maxLines = 1, softWrap = false)
                         }
                     }

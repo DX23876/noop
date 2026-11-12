@@ -74,9 +74,9 @@ internal fun ClassicScoreRing(score: Double?, tint: Color, diameter: Dp, modifie
     LaunchedEffect(Unit) { appeared = true }
     val target = if (score == null) 0f else (score / 100.0).toFloat().coerceIn(0f, 1f)
     val filled by animateFloatAsState(if (appeared) target else 0f,
-        if (still) snap() else spring(dampingRatio = 0.86f, stiffness = 120f), label = "classicRing")
+        if (still) snap() else spring(dampingRatio = 0.86f, stiffness = 120f))
     val shown by animateFloatAsState(if (appeared) (score ?: 0.0).toFloat() else 0f,
-        if (still) snap() else tween(850, easing = FastOutSlowInEasing), label = "classicValue")
+        if (still) snap() else tween(850, easing = FastOutSlowInEasing))
     val trackAlpha = if (colors.dark) 0.2f else 0.16f
     val shadowAlpha = if (colors.dark) 0.45f else 0.22f
     Box(modifier.size(diameter), contentAlignment = Alignment.Center) {

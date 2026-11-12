@@ -236,7 +236,7 @@ private fun ChangeRow(c: CoreBody.Change, scale: Double) {
            verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(c.label, style = Forge.type.subhead, color = ink, modifier = Modifier.weight(1f))
-            Text("${one(c.fromValue)} → ${one(c.toValue)} cm", style = Forge.type.caption, color = colors.textTertiary)
+            Text(stringResource(R.string.forge_body_change_cm, one(c.fromValue), one(c.toValue)), style = Forge.type.caption, color = colors.textTertiary)
             Text(signed(c.deltaCm), style = Forge.type.subhead, color = ink, textAlign = TextAlign.End,
                  modifier = Modifier.width(46.dp))
         }
@@ -507,7 +507,7 @@ private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -
     ForgeCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(stringResource(R.string.body_site_every), style = Forge.type.headline, color = colors.text, modifier = Modifier.weight(1f))
-            Text("${series.size}", style = Forge.type.footnote, color = colors.textSecondary)
+            Text(series.size.toString(), style = Forge.type.footnote, color = colors.textSecondary)
         }
         series.reversed().forEach { r ->
             Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically) {

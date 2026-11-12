@@ -6646,4 +6646,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="lw_zone_named">Зона %1$d · %2$s</string>
     <string name="lw_band">Зона %1$d: %2$d-%3$d уд/мин (%4$d-%5$d%% от макс. пульса)</string>
     <string name="lw_target_marker">Целевая зона</string>
+    <string name="forge_body_change_cm">%1$s → %2$s cm</string>
+    <string name="forge_percent_value">%1$s %%</string>
 </resources>

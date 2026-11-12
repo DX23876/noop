@@ -6642,4 +6642,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="lw_zone_named">区间 %1$d · %2$s</string>
     <string name="lw_band">区间 %1$d：%2$d-%3$d 次/分（最大心率的 %4$d-%5$d%%）</string>
     <string name="lw_target_marker">目标区间</string>
+    <string name="forge_body_change_cm">%1$s → %2$s cm</string>
+    <string name="forge_percent_value">%1$s %%</string>
 </resources>

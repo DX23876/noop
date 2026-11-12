@@ -814,7 +814,7 @@ private fun DietRecompStep(draft: CoreDietPlan.Plan, bodyFat: Double?, sex: Stri
     ForgeCard(Modifier.fillMaxWidth()) {
         if (bodyFat != null) {
             Row { Text(stringResource(R.string.diet_body_fat), Modifier.weight(1f), color = colors.text)
-                  Text(String.format(Locale.getDefault(), "%.1f %%", bodyFat), color = colors.textSecondary) }
+                  Text(stringResource(R.string.forge_percent_value, String.format(Locale.getDefault(), "%.1f", bodyFat)), color = colors.textSecondary) }
             Text(stringResource(R.string.diet_bf_known), style = Forge.type.footnote, color = colors.textSecondary)
         } else Text(stringResource(R.string.diet_bf_unknown), style = Forge.type.footnote, color = colors.textSecondary)
     }

@@ -6641,4 +6641,6 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="lw_zone_named">Zona %1$d · %2$s</string>
     <string name="lw_band">Zona %1$d: %2$d-%3$d bpm (%4$d-%5$d%% FC max)</string>
     <string name="lw_target_marker">Zona obiettivo</string>
+    <string name="forge_body_change_cm">%1$s → %2$s cm</string>
+    <string name="forge_percent_value">%1$s %%</string>
 </resources>
