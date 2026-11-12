@@ -330,15 +330,7 @@ final class ForgeFoodModel {
 
     /// Weekdays the wearer trained strength on at least twice in the last four weeks, at most the five most frequent
     /// (a shift needs rest days to take from), for the planner's proposal.
-    var usualTrainingWeekdays: [Int] {
-        let cutoff = Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -28, to: .now) ?? .now)
-        var counts: [Int: Int] = [:]
-        for day in strengthDays where day >= cutoff {
-            if let date = WeightSeries.date(forDay: day) { counts[Calendar.current.component(.weekday, from: date), default: 0] += 1 }
-        }
-        return counts.filter { $0.value >= 2 }.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
-            .prefix(5).map(\.key).sorted()
-    }
+    var usualTrainingWeekdays: [Int] { DietTrainingDays.usualWeekdays(logged: strengthDays) }
 
     // MARK: Suggestions (owner, 2026-11-10)
 

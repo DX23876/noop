@@ -221,12 +221,12 @@ Each page below was read against its iOS file section by section; "open" lists w
 | Page | Done | Open |
 |---|---|---|
 | Training tab | coach quick asks (shorter, other routine, plan today, create a routine), Routines heading whose All opens the plan and library, each sport's own colour (`forgeSportTint`, iOS `AppleInspiredColors.role(forSport:)`) in Training, Workouts and Today, distance in the recent rows | routine pictures (`CoachPicture`) |
-| Cardio | iOS forge order: chart under the hero, one week-figures card with the kcal line, sessions per family as tile rows, history link last | bests as tile rows with icons |
+| Cardio | iOS forge order: chart under the hero, one week-figures card with the kcal line, sessions per family as tile rows with speed or pace and average heart rate, bests as tile rows, history link last | |
 | Training load | one standing card with both lanes against their usual range (core `usualLow`, `usualHigh`), the verdict sentence, Last 8 weeks inline, Development rows (adaptation, recovery, session load), no subtitle | duplicate-session review card |
 | Section headings in the training reports | no kicker, headline size in the new design | |
 | Food | the plan's day from the shared `DietDayResolver` (core `food.planDay`): phase, training or rest day, active-day extra, goals per day; other-source note; completely-logged row (`food.planDayComplete`, `food.planSetDayComplete`) | week strip goals per day; iOS's `ForgeFoodModel` still computes the day itself and should adopt the resolver |
 | Diet plan page | burn card (real burn against the strap, base the plan on it), active-days switch | change card, advice card |
-| Diet plan data | Kotlin `Plan` keeps iOS's seven newer fields on save (it dropped them before) | planner steps for training weekdays, experience and recomposition deficit |
+| Diet plan data | Kotlin `Plan` keeps iOS's seven newer fields on save (it dropped them before); the planner offers recomposition with its experience step and deficit dial, and the training-day step (planner sessions and usual weekdays from the core's `food.planTraining`, `DietTrainingDays.usualWeekdays`) | |
 | Body | iOS forge order: today's three figures, Measure, What changed (3 windows, tape against scale, diverging bars), body fat with Navy and sources, change since first reading chart, sites with sparklines, photos, weekly and daily reminders (`BodyMeasurementReminder`, new on Android) | a site's detail page |
 | Appearance | colour profiles (Colorful default, Stone, Slate, Sage) with iOS's values; the new design no longer wears the shipped bluish chrome; Motion card with Reduce motion and Living or Classic score rings (`ClassicScoreRing`) | accent colour choice, chart style rows, Motion effect, Coach animation, Coloured icons |
 | Lab | personal stress baseline switch | Continuous HRV "Nights only" (BLE, needs a strap) |

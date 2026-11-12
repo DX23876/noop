@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -328,28 +331,47 @@ fun ForgeCardioPage(onClose: () -> Unit) {
                 }
                 ReportNote(stringResource(R.string.forge_report_heart_cost_method))
             }
+            if (ForgeDesign.preview) {
+                // As iOS's `forgeBests`: farthest and longest first, then the fastest per distance band, each a tile row
+                // with its day under the title and the figure at the end.
+                fun open(best: CoreTrainingReports.Best) { detail = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport } }
+                if (progress.farthest != null || progress.longest != null || progress.paceBests.isNotEmpty()) {
+                    ReportHeading(stringResource(R.string.forge_cd_bests))
+                    progress.farthest?.let { b -> CardioBestRow(Icons.Rounded.Route, stringResource(R.string.forge_cd_farthest), shortDate(b.day),
+                                                                UnitFormatter.distanceFromMeters(b.value, units)) { open(b) } }
+                    progress.longest?.let { b -> CardioBestRow(Icons.Rounded.Schedule, stringResource(R.string.forge_cd_longest), shortDate(b.day),
+                                                               minutes(b.value / 60)) { open(b) } }
+                    progress.paceBests.toSortedMap().forEach { (band, best) ->
+                        val session = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport }
+                        val value = if (progress.metric == "speed") UnitFormatter.speedFromKilometersPerHour(session?.speedKmh, units) ?: "—"
+                            else reportPace(best.value, progress.modality, units)
+                        CardioBestRow(Icons.Rounded.Bolt, distanceBandName(band), shortDate(best.day), value) { detail = session }
+                    }
+                }
+            } else {
             if (progress.paceBests.isNotEmpty()) {
-                ReportHeading(stringResource(if (ForgeDesign.preview) R.string.forge_cd_bests else R.string.forge_report_bests))
-                progress.paceBests.toSortedMap().forEach { (band, best) ->
-                    val session = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport }
-                    val value = if (progress.metric == "speed") UnitFormatter.speedFromKilometersPerHour(session?.speedKmh, units) ?: "—"
-                        else reportPace(best.value, progress.modality, units)
-                    ReportRow(distanceBandName(band), "$value · ${shortDate(best.day)}") { detail = session }
+                    ReportHeading(stringResource(if (ForgeDesign.preview) R.string.forge_cd_bests else R.string.forge_report_bests))
+                    progress.paceBests.toSortedMap().forEach { (band, best) ->
+                        val session = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport }
+                        val value = if (progress.metric == "speed") UnitFormatter.speedFromKilometersPerHour(session?.speedKmh, units) ?: "—"
+                            else reportPace(best.value, progress.modality, units)
+                        ReportRow(distanceBandName(band), "$value · ${shortDate(best.day)}") { detail = session }
+                    }
+                }
+                progress.farthest?.let { best ->
+                    ReportRow(stringResource(if (ForgeDesign.preview) R.string.forge_cd_farthest else R.string.forge_report_distance),
+                              "${UnitFormatter.distanceFromMeters(best.value, units)} · ${shortDate(best.day)}") {
+                        detail = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport }
+                    }
+                }
+                progress.longest?.let { best ->
+                    ReportRow(stringResource(if (ForgeDesign.preview) R.string.forge_cd_longest else R.string.forge_report_duration),
+                              "${minutes(best.value / 60)} · ${shortDate(best.day)}") {
+                        detail = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport }
+                    }
                 }
             }
-            progress.farthest?.let { best ->
-                ReportRow(stringResource(if (ForgeDesign.preview) R.string.forge_cd_farthest else R.string.forge_report_distance),
-                          "${UnitFormatter.distanceFromMeters(best.value, units)} · ${shortDate(best.day)}") {
-                    detail = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport }
-                }
             }
-            progress.longest?.let { best ->
-                ReportRow(stringResource(if (ForgeDesign.preview) R.string.forge_cd_longest else R.string.forge_report_duration),
-                          "${minutes(best.value / 60)} · ${shortDate(best.day)}") {
-                    detail = r.sessions.firstOrNull { it.startTs == best.startTs && it.sport == best.sport }
-                }
-            }
-        }
         if (forge) {
             // As iOS's `forgeSessions`: one heading and card per family, each session a tile row that opens it.
             listOf("endurance", "conditioning", "other").forEach { family ->
@@ -376,6 +398,24 @@ fun ForgeCardioPage(onClose: () -> Unit) {
             }
         }
         Spacer(Modifier.height(ForgeMetrics.space4))
+    }
+}
+
+/** One best as iOS's `forgeBestRow`: a tile in the Effort colour, the title over its day, the figure at the end. */
+@Composable
+private fun CardioBestRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, day: String, value: String, onOpen: () -> Unit) {
+    val colors = Forge.colors
+    Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onOpen)
+            .padding(vertical = ForgeMetrics.space2).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).background(colors.effort, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(ForgeMetrics.space3))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text, maxLines = 1)
+            Text(day, style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
+        }
+        Text(value, style = Forge.type.headline, color = colors.text, maxLines = 1)
     }
 }
 
@@ -436,7 +476,8 @@ private fun CardioSessionRow(session: CoreTrainingReports.CardioSession, units: 
         Column(Modifier.weight(1f)) {
             Text(com.noop.ui.WorkoutEditing.displaySport(session.sport), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
                  color = colors.text, maxLines = 1)
-            Text(parts.joinToString(" · "), style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
+            // Two lines, so a long readout keeps its unit instead of losing it at the edge.
+            Text(parts.joinToString(" · "), style = Forge.type.caption, color = colors.textSecondary, maxLines = 2)
         }
         Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary)
     }

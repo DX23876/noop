@@ -94,4 +94,20 @@ public struct DietTrainingDays: Equatable, Sendable {
     public init(planned: Set<String> = [], logged: Set<String> = []) {
         self.planned = planned; self.logged = logged
     }
+
+    /// The weekdays (1 Sunday … 7 Saturday) the wearer usually trains, from logged strength days of the last four
+    /// weeks: each weekday trained at least twice, the five most frequent, in week order. The planner proposes them.
+    public static func usualWeekdays(logged: Set<String>, today: Date = Date(), calendar: Calendar = .current) -> [Int] {
+        guard let cutoffDate = calendar.date(byAdding: .day, value: -28, to: today) else { return [] }
+        let f = DateFormatter()
+        f.calendar = calendar; f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = calendar.timeZone
+        f.dateFormat = "yyyy-MM-dd"
+        let cutoff = f.string(from: cutoffDate)
+        var counts: [Int: Int] = [:]
+        for day in logged where day >= cutoff {
+            if let date = WeightSeries.date(forDay: day) { counts[calendar.component(.weekday, from: date), default: 0] += 1 }
+        }
+        return counts.filter { $0.value >= 2 }.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .prefix(5).map(\.key).sorted()
+    }
 }

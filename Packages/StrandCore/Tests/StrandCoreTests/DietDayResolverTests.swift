@@ -30,4 +30,12 @@ final class DietDayResolverTests: XCTestCase {
         XCTAssertEqual(day.calories.kcal, FoodTargets.calories(plan: plan, result: result, day: "2026-11-10").kcal, accuracy: 0.001)
         if case .estimate = day.expenditure { XCTFail("no logged days, so no real burn") }
     }
+
+    func testUsualWeekdaysNeedTwoSessionsInFourWeeks() {
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        let today = WeightSeries.date(forDay: "2026-11-12")!
+        // Mondays 2026-11-02 and 11-09 count twice, a single Wednesday once, a Monday seven weeks back not at all.
+        let days: Set<String> = ["2026-11-02", "2026-11-09", "2026-11-04", "2026-09-21"]
+        XCTAssertEqual(DietTrainingDays.usualWeekdays(logged: days, today: today, calendar: cal), [2])
+    }
 }

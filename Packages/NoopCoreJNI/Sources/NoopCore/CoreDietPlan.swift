@@ -144,6 +144,16 @@ enum CoreDietPlan {
                 wire.completeDays = days; wire.weighIns = weighIns
             }
             return CoreRead.json(wire)
+        case "food.planTraining":
+            // The planner's training-day step: the planner's sessions in the coming week and the usual weekdays
+            // from logged strength training (`DietTrainingDays.usualWeekdays`), as iOS's `ForgeFoodModel` reads them.
+            let now = Date()
+            let training = await trainingDays(reader: reader, dismissed: args["dismissedWorkouts"] as? [String] ?? [],
+                                              now: Int(now.timeIntervalSince1970))
+            let until = Calendar.current.date(byAdding: .day, value: 6, to: now).map(StoreReader.localDayKey) ?? today
+            let planned = training.planned.filter { $0 >= today && $0 <= until }.sorted()
+            struct Wire: Encodable { var plannedThisWeek: [String]; var usualWeekdays: [Int] }
+            return CoreRead.json(Wire(plannedThisWeek: planned, usualWeekdays: DietTrainingDays.usualWeekdays(logged: training.logged)))
         case "food.planDayComplete":
             // Whether a day is marked as completely logged; the Food page shows the mark with or without a plan.
             let day = args["day"] as? String ?? today

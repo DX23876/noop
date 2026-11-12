@@ -142,6 +142,17 @@ object CoreDietPlan {
             json.optInt("needCompleteDays", 14), json.optInt("needWeighIns", 6))
     }
 
+    /** The planner's sessions in the coming week (day keys) and the usual training weekdays (1 Sunday … 7 Saturday). */
+    data class Training(val plannedThisWeek: List<String>, val usualWeekdays: List<Int>)
+
+    /** Blocking; for the planner's training-day step. */
+    fun training(dismissedWorkouts: List<String>): Training {
+        val json = call("food.planTraining", JSONObject().put("dismissedWorkouts", JSONArray(dismissedWorkouts)))
+            ?: return Training(emptyList(), emptyList())
+        val p = json.optJSONArray("plannedThisWeek") ?: JSONArray(); val u = json.optJSONArray("usualWeekdays") ?: JSONArray()
+        return Training((0 until p.length()).map { p.getString(it) }, (0 until u.length()).map { u.getInt(it) })
+    }
+
     /** Whether [day] is marked as completely logged. Blocking. */
     fun isDayComplete(day: String): Boolean = call("food.planDayComplete", JSONObject().put("day", day))?.optBoolean("complete") ?: false
 

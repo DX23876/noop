@@ -138,6 +138,7 @@ private fun formWhy(form: String): String = stringResource(when (form) {
 
 @Composable
 private fun goalName(goal: String): String = stringResource(when (goal) {
+    "recomp" -> R.string.diet_goal_recomp
     "maintain" -> R.string.diet_goal_maintain
     "gain" -> R.string.diet_goal_gain
     else -> R.string.diet_goal_lose
@@ -328,12 +329,24 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
     LaunchedEffect(draft.keep, draft.strength, draft.mode, likesRules) {
         suggestions = withContext(Dispatchers.IO) { CoreDietPlan.suggest(draft.keep, likesRules, draft.strength, draft.mode) }
     }
-    BackHandler { if (step > 0) step-- else onClose() }
-    val steps = 9
+    // The training-day step and recomposition need the planner's sessions and the usual weekdays (core `food.planTraining`)
+    // and the latest body fat, as iOS's planner reads them.
+    val training by androidx.compose.runtime.produceState(CoreDietPlan.Training(emptyList(), emptyList())) {
+        value = withContext(Dispatchers.IO) { CoreDietPlan.training(dismissedTrainingWorkouts(context)) }
+    }
+    val bodyFat by androidx.compose.runtime.produceState<Double?>(null) {
+        value = withContext(Dispatchers.IO) { com.noop.core.CoreBody.snapshot(context)?.bodyFat?.lastOrNull()?.value }
+    }
+    // iOS skips the training-day step when holding in the simple mode; recomposition needs two training days to go on.
+    fun skipped(s: Int) = s == 7 && draft.goal == "maintain" && draft.mode == "simple"
+    fun back() { if (step > 0) { step--; if (skipped(step)) step-- } else onClose() }
+    val blocked = step == 7 && draft.goal == "recomp" && (draft.trainingWeekdays.orEmpty().size < 2) && training.plannedThisWeek.size < 2
+    BackHandler { back() }
+    val steps = 10
     val r = resolved
     Column(Modifier.fillMaxWidth()) {
         SettingsColumn {
-            PageTitle(stringResource(R.string.diet_plan_your_diet), { if (step > 0) step-- else onClose() })
+            PageTitle(stringResource(R.string.diet_plan_your_diet), { back() })
             androidx.compose.material3.LinearProgressIndicator(progress = { (step + 1f) / steps }, color = colors.accent,
                 modifier = Modifier.fillMaxWidth())
             fun title(@androidx.annotation.StringRes id: Int): @Composable () -> Unit = { Text(stringResource(id), style = Forge.type.title1, color = Forge.sceneInk.text) }
@@ -349,10 +362,26 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                 }
                 1 -> {
                     title(R.string.diet_q_goal)()
-                    listOf("lose" to R.drawable.food_motif_vegetables, "maintain" to R.drawable.food_score_hero, "gain" to R.drawable.food_motif_poultry).forEach { (g, img) ->
+                    listOf("lose" to R.drawable.food_motif_vegetables, "maintain" to R.drawable.food_score_hero, "gain" to R.drawable.food_motif_poultry,
+                           "recomp" to R.drawable.food_motif_eggs).forEach { (g, img) ->
                         ChoiceCard(dietArt(context, "diet_goal_$g", img), goalName(g), stringResource(when (g) {
-                            "maintain" -> R.string.diet_goal_maintain_detail; "gain" -> R.string.diet_goal_gain_detail; else -> R.string.diet_goal_lose_detail
-                        }), draft.goal == g) { draft = draft.copy(goal = g, pacePercent = if (g == "gain") 0.25 else if (draft.pacePercent == 0.0) 0.5 else minOf(draft.pacePercent, 1.0)) }
+                            "maintain" -> R.string.diet_goal_maintain_detail; "gain" -> R.string.diet_goal_gain_detail
+                            "recomp" -> R.string.diet_goal_recomp_detail; else -> R.string.diet_goal_lose_detail
+                        }), draft.goal == g) {
+                            // As iOS: a goal weight from the other direction is dropped; gaining and recomposition need
+                            // strength training and take the usual weekdays; recomposition has no goal weight or pace.
+                            var next = draft.copy(goal = g)
+                            val gw = next.goalWeightKg
+                            if (gw != null && ((g == "gain" && gw <= person.weightKg) || (g == "lose" && gw >= person.weightKg))) next = next.copy(goalWeightKg = null)
+                            if (g == "recomp" || g == "gain") {
+                                next = next.copy(strength = true)
+                                if (next.trainingWeekdays == null && training.usualWeekdays.isNotEmpty()) next = next.copy(trainingWeekdays = training.usualWeekdays)
+                            }
+                            next = if (g == "recomp") next.copy(goalWeightKg = null)
+                                   else if (g == "gain") next.copy(pacePercent = 0.25)
+                                   else if (next.pacePercent == 0.0) next.copy(pacePercent = 0.5) else next.copy(pacePercent = minOf(next.pacePercent, 1.0))
+                            draft = next
+                        }
                     }
                     if (person.sex.lowercase() != "male") CheckRow(stringResource(R.string.diet_pregnant), draft.pregnantOrNursing) {
                         draft = draft.copy(pregnantOrNursing = !draft.pregnantOrNursing)
@@ -365,7 +394,7 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                         Row { Text(stringResource(R.string.diet_usual_burn), Modifier.weight(1f), color = colors.text); Text(stringResource(R.string.forge_ed_kcal, kcalText(r?.burnKcal)), color = colors.textSecondary) }
                         Text(stringResource(R.string.diet_start_note), style = Forge.type.footnote, color = colors.textSecondary)
                     }
-                    if (draft.goal != "maintain") {
+                    if (draft.goal != "maintain" && draft.goal != "recomp") {
                         title(R.string.diet_q_goal_weight)()
                         ForgeCard(Modifier.fillMaxWidth()) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -384,7 +413,9 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                         }
                     }
                 }
-                3 -> {
+                3 -> if (draft.goal == "recomp") {
+                    DietRecompStep(draft, bodyFat, person.sex) { draft = it }
+                } else {
                     title(R.string.diet_q_pace)()
                     if (draft.goal == "maintain") Text(stringResource(R.string.diet_no_pace), color = colors.textSecondary)
                     else if (draft.mode == "simple") {
@@ -442,7 +473,8 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                                    draft.addon == a, enabled = !blocked) { draft = draft.copy(addon = a) }
                     }
                 }
-                7 -> {
+                7 -> DietTrainingStep(draft, training) { draft = it }
+                8 -> {
                     title(R.string.diet_q_numbers)()
                     r?.let { NumbersCard(it, false) }
                     if (draft.mode == "advanced") ForgeCard(Modifier.fillMaxWidth()) {
@@ -479,12 +511,13 @@ internal fun ForgeDietPlanner(start: CoreDietPlan.Plan?, burnKcal: Double?, kcal
                 }
             }
             Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space3), verticalAlignment = Alignment.CenterVertically) {
-                if (step in 3..7 && r != null) Column(Modifier.weight(1f)) {
+                if (step in 3..8 && r != null) Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.forge_ed_kcal, kcalText(r.averageKcal)), style = Forge.type.headline, color = colors.text)
                     Text(effortName(r.effort), style = Forge.type.caption, color = effortTint(r.effortScore))
                 } else Spacer(Modifier.weight(1f))
-                Box(Modifier.clip(CircleShape).background(colors.accent).clickable(role = Role.Button) {
-                        if (step < steps - 1) step++ else {
+                Box(Modifier.clip(CircleShape).background(if (blocked) colors.accent.copy(alpha = 0.4f) else colors.accent)
+                        .clickable(role = Role.Button, enabled = !blocked) {
+                        if (step < steps - 1) { step++; if (skipped(step)) step++ } else {
                             val saved = draft.copy(startWeightKg = person.weightKg,
                                 startDay = if (start == null || start.goal != draft.goal || start.form != draft.form) LocalDate.now().toString() else draft.startDay)
                             CoreDietPlan.save(context, saved); onSaved(saved)
@@ -518,7 +551,7 @@ private fun Pill(text: String, on: Boolean, modifier: Modifier = Modifier, onCli
     Box(modifier.clip(CircleShape).background(if (on) Forge.colors.accent else Forge.colors.surface)
             .clickable(role = Role.Button, onClick = onClick).heightIn(min = 44.dp).padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center) {
-        Text(text, style = Forge.type.subhead, color = if (on) Color.White else Forge.colors.text)
+        Text(text, style = Forge.type.subhead, color = if (on) Forge.colors.onAccent else Forge.colors.text)
     }
 }
 
@@ -634,3 +667,86 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
 /** The energy plan's figures the planner needs: usual burn and the wearer's own cost per kilogram. */
 internal fun planInputs(plan: CoreEnergyPlan.Plan?): Pair<Double?, Double?> =
     (plan?.measuredMeanKcal ?: plan?.allDaysMeanKcal ?: plan?.formulaTdeeKcal) to plan?.observedKcalPerKg
+
+/** Recomposition in place of the pace, as iOS's `recompStep`: training experience, body fat, how well it fits. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DietRecompStep(draft: CoreDietPlan.Plan, bodyFat: Double?, sex: String, onChange: (CoreDietPlan.Plan) -> Unit) {
+    val colors = Forge.colors
+    Text(stringResource(R.string.diet_q_trained), style = Forge.type.title1, color = Forge.sceneInk.text)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("new" to R.string.diet_exp_new, "returning" to R.string.diet_exp_returning, "someYears" to R.string.diet_exp_some,
+               "manyYears" to R.string.diet_exp_many).forEach { (e, name) ->
+            Pill(stringResource(name), draft.experience == e) { onChange(draft.copy(experience = e)) }
+        }
+    }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        if (bodyFat != null) {
+            Row { Text(stringResource(R.string.diet_body_fat), Modifier.weight(1f), color = colors.text)
+                  Text(String.format(Locale.getDefault(), "%.1f %%", bodyFat), color = colors.textSecondary) }
+            Text(stringResource(R.string.diet_bf_known), style = Forge.type.footnote, color = colors.textSecondary)
+        } else Text(stringResource(R.string.diet_bf_unknown), style = Forge.type.footnote, color = colors.textSecondary)
+    }
+    // How well recomposition fits (iOS `DietText.recompFit`): the lean threshold is 24 % for women, 15 % otherwise.
+    val lean = bodyFat?.let { it < (if (sex.lowercase() == "female") 24.0 else 15.0) } ?: false
+    val fit = when (draft.experience) {
+        "new", "returning" -> R.string.diet_fit_good
+        "someYears" -> if (lean) R.string.diet_fit_slow else R.string.diet_fit_fat
+        "manyYears" -> if (lean) R.string.diet_fit_lean else R.string.diet_fit_slow
+        else -> R.string.diet_fit_unknown
+    }
+    Text(stringResource(fit), style = Forge.type.subhead, color = colors.text)
+    if (draft.mode == "advanced") ForgeCard(Modifier.fillMaxWidth()) {
+        Dial(stringResource(R.string.diet_under_burn), draft.recompDeficitPercent ?: 5.0, 0f..15f, { "${it.roundToInt()} %" }) {
+            onChange(draft.copy(recompDeficitPercent = it.roundToInt().toDouble()))
+        }
+    }
+    ExplainCard(stringResource(R.string.diet_explain_recomp_title),
+                stringResource(R.string.diet_explain_recomp) + "\n\n" + stringResource(R.string.diet_recomp_sources), "diet_goal_recomp")
+}
+
+/** The planned training days, proposed from the log, and (advanced) how much moves to them, as iOS's `trainingStep`. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DietTrainingStep(draft: CoreDietPlan.Plan, training: CoreDietPlan.Training, onChange: (CoreDietPlan.Plan) -> Unit) {
+    val colors = Forge.colors
+    val locale = Locale.getDefault()
+    // iOS counts weekdays 1 Sunday … 7 Saturday; java.time counts Monday as 1.
+    fun dayOf(w: Int) = java.time.DayOfWeek.of(((w + 5) % 7) + 1)
+    fun name(w: Int) = dayOf(w).getDisplayName(java.time.format.TextStyle.SHORT, locale)
+    val first = java.time.temporal.WeekFields.of(locale).firstDayOfWeek.value % 7 + 1
+    val order = (0 until 7).map { (first - 1 + it) % 7 + 1 }
+    Text(stringResource(R.string.diet_train_why), style = Forge.type.subhead, color = colors.textSecondary)
+    Text(stringResource(R.string.diet_q_train), style = Forge.type.title1, color = Forge.sceneInk.text)
+    Text(stringResource(if (draft.goal == "recomp") R.string.diet_train_note_recomp else R.string.diet_train_note),
+         style = Forge.type.footnote, color = colors.textSecondary)
+    if (training.plannedThisWeek.isNotEmpty()) {
+        ForgeCard(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.diet_train_from_plan), style = Forge.type.subhead, color = colors.text)
+            Text(training.plannedThisWeek.mapNotNull { runCatching { LocalDate.parse(it).dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale) }.getOrNull() }
+                     .joinToString(", "), style = Forge.type.title2, color = colors.text)
+            Text(stringResource(R.string.diet_train_follows), style = Forge.type.footnote, color = colors.textSecondary)
+        }
+        Text(stringResource(R.string.diet_train_without), style = Forge.type.subhead, color = colors.textSecondary)
+    }
+    val chosen = draft.trainingWeekdays.orEmpty()
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        order.forEach { w ->
+            Pill(name(w), w in chosen) { onChange(draft.copy(trainingWeekdays = (if (w in chosen) chosen - w else chosen + w).sorted())) }
+        }
+    }
+    val usual = training.usualWeekdays
+    if (usual.isNotEmpty() && usual != chosen) {
+        Text(stringResource(R.string.diet_train_use_log, usual.joinToString(", ") { name(it) }), style = Forge.type.subhead, color = colors.accent,
+             modifier = Modifier.clickable(role = Role.Button) { onChange(draft.copy(trainingWeekdays = usual)) })
+    }
+    Text(stringResource(R.string.diet_train_logged), style = Forge.type.footnote, color = colors.textSecondary)
+    if (chosen.size == 7) Text(stringResource(R.string.diet_train_all), style = Forge.type.subhead, color = colors.text)
+    // iOS's `DietForm.fasting`: the forms with fasting days keep their own days.
+    val fasting = draft.form == "fasting52" || draft.form == "alternateDay" || draft.form == "alternateDayFull"
+    if (draft.mode == "advanced" && !fasting) ForgeCard(Modifier.fillMaxWidth()) {
+        Dial(stringResource(R.string.diet_train_moved), draft.dayShift ?: (if (draft.goal == "recomp") 0.10 else 0.0), 0f..0.25f, { pct(it * 100) }) {
+            onChange(draft.copy(dayShift = (it * 100).roundToInt() / 100.0))
+        }
+    } else if (fasting) Text(stringResource(R.string.diet_train_fasting), style = Forge.type.subhead, color = colors.text)
+}
