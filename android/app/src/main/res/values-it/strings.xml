@@ -6568,4 +6568,8 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="wv_fast_pace">Passo più veloce: %1$s /%2$s</string>
     <string name="wv_slow_pace">Passo più lento: %1$s /%2$s</string>
     <string name="wv_time_only">Solo tempo</string>
+    <string name="wv_target_zone">Zona obiettivo</string>
+    <string name="wv_no_zone">Nessun coach delle zone</string>
+    <string name="wv_zone_warnings">Avvisi zona obiettivo</string>
+    <string name="wv_zone_needs_target">Scegli una zona obiettivo prima di iniziare per attivare gli avvisi.</string>
 </resources>

@@ -6599,4 +6599,8 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="wv_fast_pace">Allure la plus rapide : %1$s /%2$s</string>
     <string name="wv_slow_pace">Allure la plus lente : %1$s /%2$s</string>
     <string name="wv_time_only">Durée uniquement</string>
+    <string name="wv_target_zone">Zone cible</string>
+    <string name="wv_no_zone">Aucun coach de zone</string>
+    <string name="wv_zone_warnings">Alertes de zone cible</string>
+    <string name="wv_zone_needs_target">Choisissez une zone cible avant le départ pour activer les alertes de zone.</string>
 </resources>

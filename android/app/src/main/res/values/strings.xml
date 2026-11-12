@@ -6639,4 +6639,8 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="wv_fast_pace">Fastest pace: %1$s /%2$s</string>
     <string name="wv_slow_pace">Slowest pace: %1$s /%2$s</string>
     <string name="wv_time_only">Time only</string>
+    <string name="wv_target_zone">Target zone</string>
+    <string name="wv_no_zone">No zone coach</string>
+    <string name="wv_zone_warnings">Target-zone warnings</string>
+    <string name="wv_zone_needs_target">Choose a target zone before starting to enable zone warnings.</string>
 </resources>

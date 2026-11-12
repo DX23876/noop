@@ -132,6 +132,19 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
                     Spacer(Modifier.weight(1f))
                     Switch(checked = gpsOn, onCheckedChange = { gpsOn = it })
                 }
+                // The target zone, as iOS's zone picker on the start screen; remembered for the next workout.
+                var target by remember { mutableStateOf(WorkoutVoicePrefs.targetZone(context)) }
+                Text(androidx.compose.ui.res.stringResource(R.string.wv_target_zone), style = NoopType.body, color = Palette.textPrimary,
+                     modifier = Modifier.padding(top = 8.dp))
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(2.dp)) {
+                    (listOf<Int?>(null) + (1..5).toList()).forEach { z ->
+                        androidx.compose.material3.TextButton(onClick = { target = z; WorkoutVoicePrefs.setTargetZone(context, z) },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
+                            Text(if (z == null) androidx.compose.ui.res.stringResource(R.string.wv_off) else "Z$z",
+                                 color = if (z == target) Palette.accent else Palette.textSecondary)
+                        }
+                    }
+                }
                 // Voice feedback and training warnings for this workout, as iOS's start panel opens them.
                 androidx.compose.material3.TextButton(onClick = { feedbackOpen = true }) {
                     Text(androidx.compose.ui.res.stringResource(R.string.wv_voice), color = Palette.accent)

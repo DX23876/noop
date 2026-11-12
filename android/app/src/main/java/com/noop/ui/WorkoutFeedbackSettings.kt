@@ -45,6 +45,8 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
     var distance by remember { mutableDoubleStateOf(WorkoutVoicePrefs.distanceInterval(c)) }
     var time by remember { mutableDoubleStateOf(WorkoutVoicePrefs.timeInterval(c)) }
     var motion by remember { mutableStateOf(WorkoutVoicePrefs.motionAlert(c)) }
+    var zoneAlert by remember { mutableStateOf(WorkoutVoicePrefs.heartRateAlert(c)) }
+    val hasTarget = WorkoutVoicePrefs.targetZone(c) != null
     var fast by remember { mutableDoubleStateOf(WorkoutVoicePrefs.fastPace(c)) }
     var slow by remember { mutableDoubleStateOf(WorkoutVoicePrefs.slowPace(c)) }
     var low by remember { mutableDoubleStateOf(WorkoutVoicePrefs.lowSpeed(c)) }
@@ -69,9 +71,14 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
                     SwitchLine(stringResource(R.string.wv_speaker), speaker) { speaker = it; WorkoutVoicePrefs.setBool(c, WorkoutVoicePrefs.SPEAKER, it) }
                 }
                 Text(stringResource(R.string.wv_voice_note), style = NoopType.caption, color = Palette.textSecondary)
+                Text(stringResource(R.string.wv_warnings), style = NoopType.headline, color = Palette.textPrimary,
+                     modifier = Modifier.padding(top = 8.dp))
+                // Zone warnings need a target zone, as on iOS.
+                SwitchLine(stringResource(R.string.wv_zone_warnings), zoneAlert && hasTarget, enabled = hasTarget) {
+                    zoneAlert = it; WorkoutVoicePrefs.setBool(c, WorkoutVoicePrefs.HEART_RATE_ALERT, it)
+                }
+                if (!hasTarget) Text(stringResource(R.string.wv_zone_needs_target), style = NoopType.caption, color = Palette.textSecondary)
                 if (gpsEnabled) {
-                    Text(stringResource(R.string.wv_warnings), style = NoopType.headline, color = Palette.textPrimary,
-                         modifier = Modifier.padding(top = 8.dp))
                     SwitchLine(stringResource(R.string.wv_motion), motion) { motion = it; WorkoutVoicePrefs.setBool(c, WorkoutVoicePrefs.MOTION_ALERT, it) }
                     if (motion) {
                         if (usesSpeed) {
@@ -93,8 +100,8 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
                         val invalid = if (usesSpeed) low > high else fast > slow
                         if (invalid) Text(stringResource(R.string.wv_invalid), style = NoopType.caption, color = Palette.statusWarning)
                     }
-                    Text(stringResource(R.string.wv_warnings_note), style = NoopType.caption, color = Palette.textSecondary)
                 }
+                Text(stringResource(R.string.wv_warnings_note), style = NoopType.caption, color = Palette.textSecondary)
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_th_done)) } },
@@ -102,10 +109,10 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
 }
 
 @Composable
-private fun SwitchLine(title: String, on: Boolean, onChange: (Boolean) -> Unit) {
+private fun SwitchLine(title: String, on: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = NoopType.body, color = Palette.textPrimary, modifier = Modifier.weight(1f))
-        Switch(checked = on, onCheckedChange = onChange)
+        Text(title, style = NoopType.body, color = if (enabled) Palette.textPrimary else Palette.textTertiary, modifier = Modifier.weight(1f))
+        Switch(checked = on, onCheckedChange = onChange, enabled = enabled)
     }
 }
 

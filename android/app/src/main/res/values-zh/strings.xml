@@ -6569,4 +6569,8 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wv_fast_pace">最快配速：%1$s /%2$s</string>
     <string name="wv_slow_pace">最慢配速：%1$s /%2$s</string>
     <string name="wv_time_only">仅时间</string>
+    <string name="wv_target_zone">目标区间</string>
+    <string name="wv_no_zone">无区间教练</string>
+    <string name="wv_zone_warnings">目标心率区间提醒</string>
+    <string name="wv_zone_needs_target">开始前选择目标心率区间以启用区间提醒。</string>
 </resources>

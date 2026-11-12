@@ -1649,6 +1649,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val peakHr: Int = 0,
         val pausedAtMs: Long? = null,
         val pausedDurationMs: Long = 0L,
+        /** The zone (1 to 5) the wearer aims for, as iOS's target zone; null without one. */
+        val targetZone: Int? = null,
     )
 
     private val _activeWorkout = MutableStateFlow<ActiveWorkout?>(null)
@@ -1699,11 +1701,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Begin a workout for [sport]; start GPS route tracking when [gpsEnabled]. Single buzz confirms. */
-    fun startWorkout(sport: Sport = WorkoutSport.default, gpsEnabled: Boolean = false) {
+    fun startWorkout(sport: Sport = WorkoutSport.default, gpsEnabled: Boolean = false,
+                     targetZone: Int? = WorkoutVoicePrefs.targetZone(appContext)) {
         if (_activeWorkout.value != null) return
         _lastWorkout.value = null
         val startMs = System.currentTimeMillis()
-        _activeWorkout.value = ActiveWorkout(startMs = startMs, sport = sport, gpsEnabled = gpsEnabled)
+        _activeWorkout.value = ActiveWorkout(startMs = startMs, sport = sport, gpsEnabled = gpsEnabled,
+                                             targetZone = targetZone?.takeIf { it in 1..5 })
         buzz(1, HapticPrefs.WORKOUT)
         startWorkoutVoice()
         // Workouts & GPS test mode (Test Centre): one session-start line tagged .workouts. Zero-cost when off.
@@ -1737,9 +1741,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val hasRoute = w.gpsEnabled && w.track.size > 1
         // Heart rate only when a sample arrived in the last five seconds, so a dropout is never spoken as a number.
         val bpm = w.samples.lastOrNull()?.takeIf { nowMs / 1000 - it.ts <= 5 }?.bpm
+        // The profile's zones, the one zone model live heart rate and the zone bar read.
+        val zone = bpm?.let { ProfileStore.from(appContext).hrZoneSet.zoneNumber(it.toDouble()) }
         return WorkoutVoice.Snapshot(elapsed, if (hasRoute) w.distanceM else null, hasRoute && w.paceSecPerKm != null,
                                      w.pausedAtMs != null, w.paceSecPerKm?.takeIf { it > 0 }?.let { 1000.0 / it }, bpm,
-                                     w.sport.name, w.gpsEnabled)
+                                     w.sport.name, w.gpsEnabled, zone, w.targetZone)
     }
 
     /** Runs the voice each second while a workout is active; it primes first so nothing old is spoken. */

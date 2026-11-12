@@ -6620,4 +6620,8 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="wv_fast_pace">Najszybsze tempo: %1$s /%2$s</string>
     <string name="wv_slow_pace">Najwolniejsze tempo: %1$s /%2$s</string>
     <string name="wv_time_only">Tylko czas</string>
+    <string name="wv_target_zone">Strefa docelowa</string>
+    <string name="wv_no_zone">Bez trenera stref</string>
+    <string name="wv_zone_warnings">Alerty strefy docelowej</string>
+    <string name="wv_zone_needs_target">Wybierz strefę docelową przed startem, aby korzystać z alertów strefy.</string>
 </resources>

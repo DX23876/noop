@@ -6573,4 +6573,8 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="wv_fast_pace">Самый быстрый темп: %1$s /%2$s</string>
     <string name="wv_slow_pace">Самый медленный темп: %1$s /%2$s</string>
     <string name="wv_time_only">Только время</string>
+    <string name="wv_target_zone">Целевая зона</string>
+    <string name="wv_no_zone">Без тренера зон</string>
+    <string name="wv_zone_warnings">Предупреждения целевой зоны</string>
+    <string name="wv_zone_needs_target">Выберите целевую зону до старта, чтобы включить предупреждения.</string>
 </resources>

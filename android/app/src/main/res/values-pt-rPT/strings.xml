@@ -6592,4 +6592,8 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="wv_fast_pace">Ritmo mais rápido: %1$s /%2$s</string>
     <string name="wv_slow_pace">Ritmo mais lento: %1$s /%2$s</string>
     <string name="wv_time_only">Apenas tempo</string>
+    <string name="wv_target_zone">Zona-alvo</string>
+    <string name="wv_no_zone">Sem treinador de zonas</string>
+    <string name="wv_zone_warnings">Alertas da zona-alvo</string>
+    <string name="wv_zone_needs_target">Escolha uma zona-alvo antes de começar para ativar os alertas.</string>
 </resources>

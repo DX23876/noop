@@ -6616,4 +6616,8 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wv_fast_pace">Schnellstes Tempo: %1$s /%2$s</string>
     <string name="wv_slow_pace">Langsamstes Tempo: %1$s /%2$s</string>
     <string name="wv_time_only">Nur Zeit</string>
+    <string name="wv_target_zone">Zielzone</string>
+    <string name="wv_no_zone">Kein Zonen-Coach</string>
+    <string name="wv_zone_warnings">Hinweise zur Zielzone</string>
+    <string name="wv_zone_needs_target">Wähle vor dem Start eine Zielzone, um Zonenhinweise zu nutzen.</string>
 </resources>

@@ -6600,4 +6600,8 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="wv_fast_pace">Ritmo más rápido: %1$s /%2$s</string>
     <string name="wv_slow_pace">Ritmo más lento: %1$s /%2$s</string>
     <string name="wv_time_only">Solo tiempo</string>
+    <string name="wv_target_zone">Zona objetivo</string>
+    <string name="wv_no_zone">Sin entrenador de zonas</string>
+    <string name="wv_zone_warnings">Avisos de zona objetivo</string>
+    <string name="wv_zone_needs_target">Elige una zona objetivo antes de empezar para usar avisos de zona.</string>
 </resources>

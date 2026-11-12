@@ -25,6 +25,9 @@ object WorkoutVoicePrefs {
     const val DISTANCE_INTERVAL = "workout.voice.distanceInterval"
     const val TIME_INTERVAL = "workout.voice.timeInterval"
     const val MOTION_ALERT = "workout.alert.motion"
+    const val HEART_RATE_ALERT = "workout.alert.heartRate"
+    /** iOS's `ZoneTrainingPrefs.lastTargetZoneKey`: the target zone the last workout started with. */
+    const val TARGET_ZONE = "zoneTraining.lastTargetZone"
     const val FAST_PACE = "workout.alert.fastPace"
     const val SLOW_PACE = "workout.alert.slowPace"
     const val LOW_SPEED = "workout.alert.lowSpeed"
@@ -36,6 +39,11 @@ object WorkoutVoicePrefs {
     fun distanceInterval(c: Context) = prefs(c).getFloat(DISTANCE_INTERVAL, 1f).toDouble().takeIf { it in listOf(0.0, 0.5, 1.0, 2.0) } ?: 1.0
     fun timeInterval(c: Context) = prefs(c).getFloat(TIME_INTERVAL, 600f).toDouble().takeIf { it in listOf(300.0, 600.0, 900.0) } ?: 600.0
     fun motionAlert(c: Context) = prefs(c).getBoolean(MOTION_ALERT, false)
+    fun heartRateAlert(c: Context) = prefs(c).getBoolean(HEART_RATE_ALERT, false)
+    fun targetZone(c: Context): Int? = prefs(c).getInt(TARGET_ZONE, 0).takeIf { it in 1..5 }
+    fun setTargetZone(c: Context, zone: Int?) = prefs(c).edit().apply {
+        if (zone != null && zone in 1..5) putInt(TARGET_ZONE, zone) else remove(TARGET_ZONE)
+    }.apply()
     fun fastPace(c: Context) = prefs(c).getFloat(FAST_PACE, 300f).toDouble()
     fun slowPace(c: Context) = prefs(c).getFloat(SLOW_PACE, 420f).toDouble()
     fun lowSpeed(c: Context) = prefs(c).getFloat(LOW_SPEED, 15f).toDouble()
@@ -51,7 +59,8 @@ class WorkoutVoice(context: Context) {
 
     /** The running workout at one second, as the core's decider reads it. */
     data class Snapshot(val elapsedSeconds: Int, val distanceMeters: Double?, val distanceFresh: Boolean, val paused: Boolean,
-                        val speedMps: Double?, val bpm: Int?, val sport: String, val usesRoute: Boolean)
+                        val speedMps: Double?, val bpm: Int?, val sport: String, val usesRoute: Boolean,
+                        val zone: Int? = null, val targetZone: Int? = null)
 
     private fun words(): Context = AppLanguagePrefs.wrap(app)
     private fun locale(): Locale = words().resources.configuration.locales[0]
@@ -66,12 +75,13 @@ class WorkoutVoice(context: Context) {
         val imperial = UnitPrefs.distanceSystem(c) == UnitSystem.IMPERIAL
         return JSONObject().put("voice", WorkoutVoicePrefs.enabled(c)).put("distanceInterval", WorkoutVoicePrefs.distanceInterval(c))
             .put("timeInterval", WorkoutVoicePrefs.timeInterval(c)).put("imperial", imperial).put("usesRoute", s.usesRoute)
-            .put("heartRateAlert", false).put("motionAlert", WorkoutVoicePrefs.motionAlert(c))
+            .put("heartRateAlert", WorkoutVoicePrefs.heartRateAlert(c)).put("motionAlert", WorkoutVoicePrefs.motionAlert(c))
             .put("fastPace", WorkoutVoicePrefs.fastPace(c)).put("slowPace", WorkoutVoicePrefs.slowPace(c))
             .put("lowSpeed", WorkoutVoicePrefs.lowSpeed(c)).put("highSpeed", WorkoutVoicePrefs.highSpeed(c))
             .put("now", System.currentTimeMillis() / 1000.0).put("elapsed", s.elapsedSeconds)
             .apply { s.distanceMeters?.let { put("distance", it) }; s.speedMps?.let { put("speed", it) } }
             .put("distanceFresh", s.distanceFresh).put("paused", s.paused).put("sport", s.sport)
+            .apply { s.zone?.let { put("zone", it) }; s.targetZone?.let { put("targetZone", it) } }
     }
 
     /** A workout began (or was restored): no backlog is spoken. */
