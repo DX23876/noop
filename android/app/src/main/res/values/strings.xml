@@ -6549,4 +6549,18 @@ The summary counts only sites that beat their own scatter. Every row compares th
     <string name="body_info_cmp">Weight, waist and body fat are measured in kilograms, centimetres and percentage points. Drawn together in their own units, the one with the smallest numbers looks flat regardless of what it did — that is the axis talking, not the body.
 
 Plotting each series as change from its own first reading puts them on one scale honestly, and answers the question people actually have: whether the waist is moving while the weight holds, which is what separates fat loss from water.</string>
+    <string name="forge_lab_stress_baseline">Personal stress baseline</string>
+    <string name="forge_lab_stress_baseline_note">Compares your hourly stress with how your days usually run, instead of with the calm hours of the same day. Needs a few worn days. Tuned on one person so far. Never feeds recovery or illness scores.</string>
+    <string name="forge_ap_color_profile">Color profile</string>
+    <string name="forge_ap_colorful">Colorful</string>
+    <string name="forge_ap_stone">Stone</string>
+    <string name="forge_ap_slate">Slate</string>
+    <string name="forge_ap_sage">Sage</string>
+    <string name="forge_ap_reduce_motion">Reduce motion</string>
+    <string name="forge_ap_reduce_motion_note">Holds the liquid gauges, the sky and the tilt response still, and turns off the motion sensor that drives them. Saves battery. Low Power Mode and the system Reduce Motion setting already do this.</string>
+    <string name="forge_ap_score_rings">Score rings</string>
+    <string name="forge_ap_living">Living</string>
+    <string name="forge_ap_classic">Classic</string>
+    <string name="forge_ap_rings_note">Living rings move and breathe. Classic rings stand still and use less battery.</string>
+    <string name="forge_ap_motion">Motion</string>
 </resources>

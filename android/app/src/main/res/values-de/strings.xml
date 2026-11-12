@@ -6526,4 +6526,18 @@ Die Zusammenfassung zählt nur Stellen, die ihre eigene Streuung übertreffen. J
     <string name="body_info_cmp">Gewicht, Taille und Körperfett werden in Kilogramm, Zentimetern und Prozentpunkten gemessen. Zusammen in ihren eigenen Einheiten gezeichnet, sieht die mit den kleinsten Zahlen flach aus, egal was sie getan hat — das ist die Achse, die spricht, nicht der Körper.
 
 Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen bringt sie ehrlich auf einen Maßstab und beantwortet die Frage, die Menschen wirklich haben: ob sich die Taille bewegt, während das Gewicht hält — und genau das trennt Fettabbau von Wasser.</string>
+    <string name="forge_lab_stress_baseline">Persönliche Stress-Basis</string>
+    <string name="forge_lab_stress_baseline_note">Vergleicht deinen Stress pro Stunde mit deinen üblichen Tagen statt mit den ruhigen Stunden desselben Tages. Braucht ein paar getragene Tage. Bisher an einer Person abgestimmt. Fließt nie in Erholung oder Krankheitswerte ein.</string>
+    <string name="forge_ap_color_profile">Farbprofil</string>
+    <string name="forge_ap_colorful">Bunt</string>
+    <string name="forge_ap_stone">Stein</string>
+    <string name="forge_ap_slate">Schiefer</string>
+    <string name="forge_ap_sage">Salbei</string>
+    <string name="forge_ap_reduce_motion">Bewegung reduzieren</string>
+    <string name="forge_ap_reduce_motion_note">Hält die Flüssigkeitsanzeigen, den Himmel und die Neigungsreaktion still und schaltet den Bewegungssensor ab, der sie antreibt. Spart Akku. Der Stromsparmodus und die Systemeinstellung „Bewegung reduzieren“ tun dies bereits.</string>
+    <string name="forge_ap_score_rings">Ringe</string>
+    <string name="forge_ap_living">Lebendig</string>
+    <string name="forge_ap_classic">Klassisch</string>
+    <string name="forge_ap_rings_note">Lebendige Ringe bewegen sich und atmen. Klassische Ringe stehen still und sparen Akku.</string>
+    <string name="forge_ap_motion">Bewegung</string>
 </resources>

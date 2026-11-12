@@ -6510,4 +6510,18 @@ El resumen solo cuenta los puntos que superan su propia variación. Cada fila co
     <string name="body_info_cmp">El peso, la cintura y la grasa corporal se miden en kilogramos, centímetros y puntos porcentuales. Dibujados juntos en sus propias unidades, el que tiene los números más pequeños parece plano haga lo que haga: eso es el eje hablando, no el cuerpo.
 
 Trazar cada serie como cambio respecto a su propia primera medición los pone en una misma escala de forma honesta, y responde a la pregunta que la gente realmente tiene: si la cintura se mueve mientras el peso se mantiene, que es lo que separa la pérdida de grasa del agua.</string>
+    <string name="forge_lab_stress_baseline">Línea base de estrés personal</string>
+    <string name="forge_lab_stress_baseline_note">Compara tu estrés por horas con cómo suelen ser tus días, en lugar de con las horas tranquilas del mismo día. Necesita algunos días de uso. Ajustado con una sola persona por ahora. Nunca afecta a la recuperación ni a las alertas de enfermedad.</string>
+    <string name="forge_ap_color_profile">Perfil de color</string>
+    <string name="forge_ap_colorful">Colorido</string>
+    <string name="forge_ap_stone">Piedra</string>
+    <string name="forge_ap_slate">Pizarra</string>
+    <string name="forge_ap_sage">Salvia</string>
+    <string name="forge_ap_reduce_motion">Reducir movimiento</string>
+    <string name="forge_ap_reduce_motion_note">Mantiene quietos los medidores líquidos, el cielo y la respuesta a la inclinación, y apaga el sensor de movimiento que los impulsa. Ahorra batería. El modo de bajo consumo y el ajuste del sistema «Reducir movimiento» ya hacen esto.</string>
+    <string name="forge_ap_score_rings">Anillos de puntuación</string>
+    <string name="forge_ap_living">Vivos</string>
+    <string name="forge_ap_classic">Clásico</string>
+    <string name="forge_ap_rings_note">Los anillos vivos se mueven y respiran. Los clásicos se quedan quietos y gastan menos batería.</string>
+    <string name="forge_ap_motion">Movimiento</string>
 </resources>

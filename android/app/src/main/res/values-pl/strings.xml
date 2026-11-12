@@ -6530,4 +6530,18 @@ Podsumowanie liczy tylko miejsca przekraczające własny rozrzut. Każdy wiersz 
     <string name="body_info_cmp">Wagę, talię i tkankę tłuszczową mierzy się w kilogramach, centymetrach i punktach procentowych. Narysowane razem we własnych jednostkach, ta o najmniejszych liczbach wygląda płasko niezależnie od tego, co zrobiła — to mówi oś, nie ciało.
 
 Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiaru uczciwie sprowadza je do jednej skali i odpowiada na pytanie, które ludzie naprawdę mają: czy talia się zmienia, gdy waga stoi — a to właśnie oddziela utratę tłuszczu od wody.</string>
+    <string name="forge_lab_stress_baseline">Osobista linia bazowa stresu</string>
+    <string name="forge_lab_stress_baseline_note">Porównuje stres godzinowy z twoimi typowymi dniami zamiast ze spokojnymi godzinami tego samego dnia. Wymaga kilku dni noszenia. Na razie dostrojone na jednej osobie. Nigdy nie wpływa na regenerację ani wyniki choroby.</string>
+    <string name="forge_ap_color_profile">Profil kolorów</string>
+    <string name="forge_ap_colorful">Kolorowy</string>
+    <string name="forge_ap_stone">Kamień</string>
+    <string name="forge_ap_slate">Łupek</string>
+    <string name="forge_ap_sage">Szałwia</string>
+    <string name="forge_ap_reduce_motion">Ogranicz ruch</string>
+    <string name="forge_ap_reduce_motion_note">Utrzymuje wskaźniki cieczy, niebo i reakcję pochylenia w bezruchu oraz wyłącza czujnik ruchu, który je napędza. Oszczędza baterię. Tryb niskiego zużycia energii i ustawienie Systemu Redukuj ruch już to robią.</string>
+    <string name="forge_ap_score_rings">Pierścienie wyników</string>
+    <string name="forge_ap_living">Żywe</string>
+    <string name="forge_ap_classic">Klasyczny</string>
+    <string name="forge_ap_rings_note">Żywe pierścienie poruszają się i oddychają. Klasyczne stoją w miejscu i zużywają mniej baterii.</string>
+    <string name="forge_ap_motion">Ruch</string>
 </resources>

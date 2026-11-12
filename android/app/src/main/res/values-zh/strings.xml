@@ -6479,4 +6479,18 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="body_info_cmp">体重、腰围和体脂分别以公斤、厘米和百分点为单位。若以各自单位画在一起，数值最小的那一项无论怎么变都显得平坦——那是坐标轴在说话，不是身体。
 
 把每条序列画成相对其自身首次测量的变化，能诚实地把它们放到同一尺度上，也回答了人们真正关心的问题：体重不动时腰围是否在变——而这正是脂肪减少与水分变化的区别所在。</string>
+    <string name="forge_lab_stress_baseline">个人压力基线</string>
+    <string name="forge_lab_stress_baseline_note">将你每小时的压力与你平常的日子比较，而不是与同一天的平静时段比较。需要佩戴几天。目前仅基于一个人调校。从不影响恢复或疾病评分。</string>
+    <string name="forge_ap_color_profile">颜色配置</string>
+    <string name="forge_ap_colorful">多彩</string>
+    <string name="forge_ap_stone">石色</string>
+    <string name="forge_ap_slate">板岩</string>
+    <string name="forge_ap_sage">鼠尾草</string>
+    <string name="forge_ap_reduce_motion">减弱动态效果</string>
+    <string name="forge_ap_reduce_motion_note">让液态仪表、天空和倾斜响应保持静止，并关闭驱动它们的运动传感器。省电。低电量模式和系统的“减弱动态效果”设置已经会这样做。</string>
+    <string name="forge_ap_score_rings">评分圆环</string>
+    <string name="forge_ap_living">灵动</string>
+    <string name="forge_ap_classic">经典</string>
+    <string name="forge_ap_rings_note">灵动圆环会移动和呼吸。经典圆环保持静止，更省电。</string>
+    <string name="forge_ap_motion">运动</string>
 </resources>

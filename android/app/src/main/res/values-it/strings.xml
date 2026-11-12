@@ -6478,4 +6478,18 @@ Il riepilogo conta solo i punti che superano la propria variabilità. Ogni riga 
     <string name="body_info_cmp">Peso, vita e grasso corporeo si misurano in chilogrammi, centimetri e punti percentuali. Disegnati insieme nelle proprie unità, quello con i numeri più piccoli sembra piatto qualunque cosa abbia fatto: è l\'asse che parla, non il corpo.
 
 Tracciare ogni serie come variazione rispetto alla propria prima misurazione le mette onestamente sulla stessa scala, e risponde alla domanda che la gente si pone davvero: se la vita si muove mentre il peso tiene, che è ciò che separa la perdita di grasso dall\'acqua.</string>
+    <string name="forge_lab_stress_baseline">Linea di base dello stress personale</string>
+    <string name="forge_lab_stress_baseline_note">Confronta lo stress orario con come vanno di solito le tue giornate, invece che con le ore tranquille dello stesso giorno. Servono alcuni giorni indossata. Tarato finora su una sola persona. Non influisce mai su recupero o malattia.</string>
+    <string name="forge_ap_color_profile">Profilo colore</string>
+    <string name="forge_ap_colorful">Colorato</string>
+    <string name="forge_ap_stone">Pietra</string>
+    <string name="forge_ap_slate">Ardesia</string>
+    <string name="forge_ap_sage">Salvia</string>
+    <string name="forge_ap_reduce_motion">Riduci movimento</string>
+    <string name="forge_ap_reduce_motion_note">Blocca gli indicatori liquidi, il cielo e la risposta all’inclinazione e spegne il sensore di movimento che li anima. Risparmia batteria. La modalità Risparmio energetico e l’impostazione di sistema «Riduci movimento» lo fanno già.</string>
+    <string name="forge_ap_score_rings">Anelli dei punteggi</string>
+    <string name="forge_ap_living">Vivi</string>
+    <string name="forge_ap_classic">Classico</string>
+    <string name="forge_ap_rings_note">Gli anelli vivi si muovono e respirano. Quelli classici restano fermi e consumano meno batteria.</string>
+    <string name="forge_ap_motion">Movimento</string>
 </resources>

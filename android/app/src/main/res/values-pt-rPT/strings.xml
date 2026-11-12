@@ -6502,4 +6502,18 @@ O resumo só conta pontos que ultrapassam a própria dispersão. Cada linha comp
     <string name="body_info_cmp">O peso, a cintura e a gordura corporal medem-se em quilogramas, centímetros e pontos percentuais. Desenhados juntos nas suas próprias unidades, aquele com os números mais pequenos parece plano faça o que fizer: é o eixo a falar, não o corpo.
 
 Traçar cada série como variação face à sua própria primeira medição coloca-as honestamente na mesma escala, e responde à pergunta que as pessoas realmente têm: se a cintura se move enquanto o peso se mantém, que é o que separa a perda de gordura da água.</string>
+    <string name="forge_lab_stress_baseline">Linha de base de stress pessoal</string>
+    <string name="forge_lab_stress_baseline_note">Compara o stress hora a hora com o seu dia habitual, em vez das horas calmas do mesmo dia. Precisa de alguns dias de uso. Ajustado só a uma pessoa até agora. Nunca entra na recuperação nem nas pontuações de doença.</string>
+    <string name="forge_ap_color_profile">Perfil de cor</string>
+    <string name="forge_ap_colorful">Colorido</string>
+    <string name="forge_ap_stone">Pedra</string>
+    <string name="forge_ap_slate">Ardósia</string>
+    <string name="forge_ap_sage">Salva</string>
+    <string name="forge_ap_reduce_motion">Reduzir movimento</string>
+    <string name="forge_ap_reduce_motion_note">Mantém parados os medidores líquidos, o céu e a resposta à inclinação, e desliga o sensor de movimento que os anima. Poupa bateria. O Modo de Baixo Consumo e a definição de sistema «Reduzir movimento» já fazem isto.</string>
+    <string name="forge_ap_score_rings">Anéis de pontuação</string>
+    <string name="forge_ap_living">Vivos</string>
+    <string name="forge_ap_classic">Clássico</string>
+    <string name="forge_ap_rings_note">Os anéis vivos movem-se e respiram. Os clássicos ficam parados e gastam menos bateria.</string>
+    <string name="forge_ap_motion">Movimento</string>
 </resources>

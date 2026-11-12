@@ -108,6 +108,11 @@ private class RingCache(val preparation: OrganicPreparation) {
 @Composable
 fun OrganicRing(score: Double?, tint: Color, diameter: Dp, metric: OrganicMetric, modifier: Modifier = Modifier,
                 format: (Double) -> String = WHOLE_NUMBER) {
+    // Settings, Motion, Rings: the classic ring draws instead, everywhere a score ring is shown (iOS `ScoreRing`).
+    if (ScoreRingStyle.current == ScoreRingStyle.Classic) {
+        ClassicScoreRing(score, if (score == null) Forge.colors.missing else tint, diameter, modifier, format)
+        return
+    }
     val colors = Forge.colors
     val onLight = !colors.dark
     val model = remember(metric, score == null, score) { OrganicScoreModel.resolve(metric, score) }

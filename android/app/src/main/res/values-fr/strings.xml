@@ -6509,4 +6509,18 @@ Le résumé ne compte que les points qui dépassent leur propre dispersion. Chaq
     <string name="body_info_cmp">Le poids, la taille et la masse grasse se mesurent en kilogrammes, en centimètres et en points de pourcentage. Tracés ensemble dans leurs propres unités, celui qui a les plus petits nombres paraît plat quoi qu\'il ait fait : c\'est l\'axe qui parle, pas le corps.
 
 Tracer chaque série comme évolution par rapport à sa propre première mesure les met honnêtement sur une même échelle, et répond à la question que les gens se posent vraiment : la taille bouge-t-elle pendant que le poids tient ? C\'est cela qui sépare la perte de gras de l\'eau.</string>
+    <string name="forge_lab_stress_baseline">Référence de stress personnelle</string>
+    <string name="forge_lab_stress_baseline_note">Compare votre stress heure par heure à vos journées habituelles plutôt qu\'aux heures calmes du même jour. Nécessite quelques jours portés. Réglé sur une seule personne pour l\'instant. N\'alimente jamais la récupération ni les scores de maladie.</string>
+    <string name="forge_ap_color_profile">Profil de couleurs</string>
+    <string name="forge_ap_colorful">Coloré</string>
+    <string name="forge_ap_stone">Pierre</string>
+    <string name="forge_ap_slate">Ardoise</string>
+    <string name="forge_ap_sage">Sauge</string>
+    <string name="forge_ap_reduce_motion">Réduire les animations</string>
+    <string name="forge_ap_reduce_motion_note">Fige les jauges liquides, le ciel et la réaction à l’inclinaison, et coupe le capteur de mouvement qui les anime. Économise la batterie. Le mode économie d’énergie et le réglage système « Réduire les animations » font déjà cela.</string>
+    <string name="forge_ap_score_rings">Anneaux de score</string>
+    <string name="forge_ap_living">Vivants</string>
+    <string name="forge_ap_classic">Classique</string>
+    <string name="forge_ap_rings_note">Les anneaux vivants bougent et respirent. Les classiques restent immobiles et consomment moins de batterie.</string>
+    <string name="forge_ap_motion">Mouvement</string>
 </resources>

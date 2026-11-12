@@ -1074,8 +1074,36 @@ private fun AppearanceSection(change: (() -> Unit) -> Unit) {
                       label = { stringResource(if (it) R.string.forge_settings_icon_blue else R.string.forge_settings_icon_titanium) },
                       onSelect = { navy -> change { setAppIcon(context, navy) } })
         }
+        // The new design's colour profiles, as iOS's Design card: colourful by default, Stone, Slate and Sage calm.
+        if (ForgeDesign.preview) {
+            RowDivider()
+            SettingRow(stringResource(R.string.forge_ap_color_profile)) {
+                Segmented(ForgeColorProfile.entries.toList(), ForgeColorProfile.current,
+                          label = { stringResource(when (it) {
+                              ForgeColorProfile.Colorful -> R.string.forge_ap_colorful
+                              ForgeColorProfile.Stone -> R.string.forge_ap_stone
+                              ForgeColorProfile.Slate -> R.string.forge_ap_slate
+                              ForgeColorProfile.Sage -> R.string.forge_ap_sage
+                          }) },
+                          onSelect = { change { ForgeColorProfile.set(context, it) } })
+            }
+        }
     }
     BackgroundCard()
+    // iOS's Motion card: hold every looping surface still, and choose living or classic score rings.
+    SettingsCard(title = stringResource(R.string.forge_ap_motion), blurb = null) {
+        var quiet by remember { mutableStateOf(NoopPrefs.quietMotion(context)) }
+        ToggleRow(stringResource(R.string.forge_ap_reduce_motion), stringResource(R.string.forge_ap_reduce_motion_note), quiet) { on ->
+            quiet = on; change { NoopPrefs.setQuietMotion(context, on) }
+        }
+        RowDivider()
+        SettingRow(stringResource(R.string.forge_ap_score_rings)) {
+            Segmented(ScoreRingStyle.entries.toList(), ScoreRingStyle.current,
+                      label = { stringResource(if (it == ScoreRingStyle.Classic) R.string.forge_ap_classic else R.string.forge_ap_living) },
+                      onSelect = { change { ScoreRingStyle.set(context, it) } })
+        }
+        Text(stringResource(R.string.forge_ap_rings_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
+    }
 }
 
 /** The iOS Settings › Dashboard card: which dashboard Today shows, and for Trends its four metric slots. */
@@ -1222,6 +1250,12 @@ private fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) ->
         ToggleRow(stringResource(R.string.l10n_settings_screen_motion_aware_wake_refinement_67a91e47),
                   stringResource(R.string.l10n_settings_screen_reviews_each_scored_wake_block_for_537924ea),
                   experiment.motionAwareWake) { on -> change { experiment.motionAwareWake = on } }
+        // iOS's Lab switch beside the wake check: hourly stress against the wearer's usual days (display only).
+        RowDivider()
+        val stressContext = androidx.compose.ui.platform.LocalContext.current
+        var stressBaseline by remember { mutableStateOf(com.noop.ui.NoopPrefs.stressPersonalBaseline(stressContext)) }
+        ToggleRow(stringResource(R.string.forge_lab_stress_baseline), stringResource(R.string.forge_lab_stress_baseline_note),
+                  stressBaseline) { on -> stressBaseline = on; com.noop.ui.NoopPrefs.setStressPersonalBaseline(stressContext, on) }
     }
     SettingsCard(title = null, blurb = null) {
         LinkRow(stringResource(R.string.l10n_settings_screen_charge_d4e1aee4), stringResource(R.string.forge_settings_charge_detail)) {

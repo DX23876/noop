@@ -8,6 +8,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -58,16 +61,76 @@ data class ForgeType(
 
 private fun ForgeColor.pick(dark: Boolean) = Color(if (dark) this.dark else this.light)
 
-fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
+/**
+ * The new design's colour profiles, as iOS's `NoopVisualStyle.ForgeColorProfile` (2026-11-03): colourful (Apple's
+ * neutral greys and white cards, the default), and the calm Stone, Slate and Sage. Same key and values as iOS.
+ */
+enum class ForgeColorProfile(val raw: String) {
+    Colorful("colorful"), Stone("stone"), Slate("slate"), Sage("sage");
+
+    internal class Chrome(val canvas: ForgeColor, val surface: ForgeColor, val surfaceTop: ForgeColor, val inset: ForgeColor,
+                          val border: ForgeColor, val divider: ForgeColor, val accent: ForgeColor?)
+
+    internal val chrome: Chrome get() = when (this) {
+        Colorful -> Chrome(ForgeColor(0xFFF2F2F7, 0xFF000000), ForgeColor(0xFFFFFFFF, 0xFF1C1C1E), ForgeColor(0xFFFFFFFF, 0xFF1F1F21),
+                           ForgeColor(0xFFE9E9EE, 0xFF2C2C2E), ForgeColor(0xFFAEAEB2, 0xFF636366), ForgeColor(0xFFAEAEB2, 0xFF636366), null)
+        Stone -> Chrome(ForgeColor(0xFFF4EFE8, 0xFF0A0D12), ForgeColor(0xFFFFFDFA, 0xFF161A20), ForgeColor(0xFFFFFDFA, 0xFF191E25),
+                        ForgeColor(0xFFF2ECE3, 0xFF1E232B), ForgeColor(0xFFB9AE9F, 0xFF454D59), ForgeColor(0xFFB9AE9F, 0xFF454D59),
+                        ForgeColor(0xFF9A3E1C, 0xFFE8B64A))
+        Slate -> Chrome(ForgeColor(0xFFEEF1F5, 0xFF0B0F14), ForgeColor(0xFFFFFFFF, 0xFF161B22), ForgeColor(0xFFFFFFFF, 0xFF191F27),
+                        ForgeColor(0xFFE4E8EE, 0xFF202730), ForgeColor(0xFFA3ADBB, 0xFF4D5764), ForgeColor(0xFFA3ADBB, 0xFF4D5764),
+                        ForgeColor(0xFF3F5F85, 0xFF8FB3DC))
+        Sage -> Chrome(ForgeColor(0xFFEFF2EC, 0xFF0B100D), ForgeColor(0xFFFFFFFF, 0xFF151B17), ForgeColor(0xFFFFFFFF, 0xFF181F1A),
+                       ForgeColor(0xFFE4E9E0, 0xFF1F2721), ForgeColor(0xFFA0AB99, 0xFF4E5A52), ForgeColor(0xFFA0AB99, 0xFF4E5A52),
+                       ForgeColor(0xFF4A6B52, 0xFF9CC7A8))
+    }
+
+    companion object {
+        const val KEY = "noop.forgeDesign.colorProfile"
+        fun resolve(raw: String?) = entries.firstOrNull { it.raw == raw } ?: Colorful
+
+        /** Observed by [ForgeTheme], so a new profile redraws every screen at once. */
+        var current by mutableStateOf(Colorful)
+            private set
+
+        fun load(context: android.content.Context) {
+            current = resolve(context.getSharedPreferences(com.noop.ui.NoopPrefs.NAME, android.content.Context.MODE_PRIVATE)
+                .getString(KEY, null))
+        }
+
+        fun set(context: android.content.Context, profile: ForgeColorProfile) {
+            context.getSharedPreferences(com.noop.ui.NoopPrefs.NAME, android.content.Context.MODE_PRIVATE).edit()
+                .putString(KEY, profile.raw).apply()
+            current = profile
+        }
+    }
+}
+
+/** iOS's `ForgeHex` text: plain black and white with Apple's secondary and tertiary label alphas. */
+private object ForgeText {
+    val primary = ForgeColor(light = 0xFF000000, dark = 0xFFFFFFFF)
+    val secondary = ForgeColor(light = 0xD83C3C43, dark = 0xB8EBEBF5)
+    val tertiary = ForgeColor(light = 0xC43C3C43, dark = 0x94EBEBF5)
+}
+
+/**
+ * The palette for one appearance. The new design ([newDesign]) wears the chosen colour profile and iOS's forge text,
+ * as iOS's tokens resolve under the forge skin; the shipped design keeps the standard chrome.
+ */
+fun forgeColors(dark: Boolean, newDesign: Boolean = ForgeDesign.preview,
+                profile: ForgeColorProfile = ForgeColorProfile.current): ForgeColors {
+    val c = profile.chrome
+    fun chrome(standard: ForgeColor, forge: ForgeColor) = (if (newDesign) forge else standard).pick(dark)
+    return ForgeColors(
     dark = dark,
-    canvas = Chrome.canvas.pick(dark), surface = Chrome.surface.pick(dark), surfaceTop = Chrome.surfaceTop.pick(dark),
-    inset = Chrome.inset.pick(dark), border = Chrome.border.pick(dark), divider = Chrome.divider.pick(dark),
-    text = Chrome.primaryText.pick(dark), textSecondary = Chrome.secondaryText.pick(dark),
-    textTertiary = Chrome.tertiaryText.pick(dark),
+    canvas = chrome(Chrome.canvas, c.canvas), surface = chrome(Chrome.surface, c.surface), surfaceTop = chrome(Chrome.surfaceTop, c.surfaceTop),
+    inset = chrome(Chrome.inset, c.inset), border = chrome(Chrome.border, c.border), divider = chrome(Chrome.divider, c.divider),
+    text = chrome(Chrome.primaryText, ForgeText.primary), textSecondary = chrome(Chrome.secondaryText, ForgeText.secondary),
+    textTertiary = chrome(Chrome.tertiaryText, ForgeText.tertiary),
     onDark = P.onDarkPrimary.pick(dark), onDarkSecondary = P.onDarkSecondary.pick(dark),
     onDarkTertiary = P.onDarkTertiary.pick(dark),
     heroFill = P.heroFill.pick(dark), heroBorder = P.heroBorder.pick(dark),
-    accent = ForgeTokens.Color.systemBlue.pick(dark),
+    accent = (c.accent?.takeIf { newDesign } ?: ForgeTokens.Color.systemBlue).pick(dark),
     charge = P.chargeColor.pick(dark), effort = P.organicEffort.pick(dark), rest = P.organicRest.pick(dark),
     missing = P.organicMissing.pick(dark),
     // The Signature style's recovery ramp, the stops `StrandPalette.recoveryStops` gives the score ring.
@@ -82,7 +145,8 @@ fun forgeColors(dark: Boolean): ForgeColors = ForgeColors(
     fat = FoodInk.fat.pick(dark),
     cyclePeriod = CycleInk.period.pick(dark), cycleFollicular = CycleInk.follicular.pick(dark),
     cycleShift = CycleInk.shift.pick(dark), cycleFertile = CycleInk.fertile.pick(dark),
-)
+    )
+}
 
 /** The cycle phases' hues (iOS `ForgeTheme.swift`); hand-set there too, not design-system tokens. */
 private object CycleInk {

@@ -36,6 +36,8 @@ object ForgeDesign {
         // a release build ignores it, so no other app can flip the wearer's choice through the launcher.
         val override = intent?.takeIf { com.noop.BuildConfig.DEBUG && it.hasExtra(EXTRA) }?.getBooleanExtra(EXTRA, DEFAULT)
         preview = override ?: prefs.getBoolean(KEY, DEFAULT)
+        ForgeColorProfile.load(context)
+        ScoreRingStyle.load(context)
         TodayWidgets.seedDemoIfRequested(context, intent)
         com.noop.ingest.DebugHealthConnectSeed.seedIfRequested(context, intent)
     }
