@@ -93,19 +93,29 @@ object CoreShadow {
 
     /**
      * The core's protocol schema and exercise catalogue, shipped as APK assets because Android has
-     * no SwiftPM resource bundle, copied into the files directory when their bytes change and announced to the core
+     * no SwiftPM resource bundle, copied into the files directory once per installed APK and announced to the core
      * before anything reads them.
+     *
+     * Assets change only with the APK, so the copy is keyed to the install's update time ([apkStamp]) rather than
+     * compared byte for byte: that comparison read about three megabytes twice on every cold start under this
+     * object's lock, and the main thread's first registry read (`NoopApplication.activeDeviceId`) waited behind it
+     * long enough to trip an "isn't responding" on a debug build (2026-11-12).
      */
     private fun installResources(context: Context): Boolean {
         val dir = File(context.filesDir, "core-resources").apply { mkdirs() }
-        for (name in RESOURCES) {
-            val target = File(dir, name)
-            val installed = runCatching {
-                val bytes = context.assets.open(name).use { it.readBytes() }
-                // Length alone cannot detect an updated schema whose replacement happens to be the same size.
-                if (!target.isFile || !target.readBytes().contentEquals(bytes)) target.writeBytes(bytes)
-            }.onFailure { Log.e(TAG, "resource $name not unpacked; core session not started: ${it.message}") }
-            if (installed.isFailure) return false
+        val stamp = apkStamp(context)
+        val marker = File(dir, ".installed")
+        val current = stamp != null && RESOURCES.all { File(dir, it).isFile } &&
+            runCatching { marker.readText() }.getOrNull() == stamp
+        if (!current) {
+            for (name in RESOURCES) {
+                val target = File(dir, name)
+                val installed = runCatching {
+                    context.assets.open(name).use { input -> target.outputStream().use { input.copyTo(it) } }
+                }.onFailure { Log.e(TAG, "resource $name not unpacked; core session not started: ${it.message}") }
+                if (installed.isFailure) return false
+            }
+            stamp?.let { runCatching { marker.writeText(it) } }
         }
         val args = org.json.JSONObject().put("dir", dir.path)
             .put("home", File(context.filesDir, "core-home").apply { mkdirs() }.path)
@@ -129,12 +139,21 @@ object CoreShadow {
         val code = tag.substringBefore('-').lowercase()
         if (code == "en") return null
         val target = File(dir, "l10n.json")
+        // Keyed like the other resources, with the language: a new APK or another language copies the table again.
+        val key = apkStamp(context)?.let { "$it:$code" }
+        val marker = File(dir, ".l10n-installed")
+        if (key != null && target.isFile && runCatching { marker.readText() }.getOrNull() == key) return target
         return runCatching {
-            val bytes = context.assets.open("core-l10n/$code.l10n").use { it.readBytes() }
-            if (!target.isFile || !target.readBytes().contentEquals(bytes)) target.writeBytes(bytes)
+            context.assets.open("core-l10n/$code.l10n").use { input -> target.outputStream().use { input.copyTo(it) } }
+            key?.let { runCatching { marker.writeText(it) } }
             target
         }.getOrNull()
     }
+
+    /** The installed APK's update time: it changes with every install or update, and with it the bundled assets. */
+    private fun apkStamp(context: Context): String? = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString()
+    }.getOrNull()
 
     /** Re-reads the language after the wearer picked another one in Settings, without restarting the core. */
     fun applyLanguage(context: Context) {
