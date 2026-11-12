@@ -46,6 +46,8 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
     var time by remember { mutableDoubleStateOf(WorkoutVoicePrefs.timeInterval(c)) }
     var motion by remember { mutableStateOf(WorkoutVoicePrefs.motionAlert(c)) }
     var zoneAlert by remember { mutableStateOf(WorkoutVoicePrefs.heartRateAlert(c)) }
+    var notify by remember { mutableStateOf(WorkoutVoicePrefs.notifications(c)) }
+    var notifyDenied by remember { mutableStateOf(false) }
     val hasTarget = WorkoutVoicePrefs.targetZone(c) != null
     var fast by remember { mutableDoubleStateOf(WorkoutVoicePrefs.fastPace(c)) }
     var slow by remember { mutableDoubleStateOf(WorkoutVoicePrefs.slowPace(c)) }
@@ -78,6 +80,13 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
                     zoneAlert = it; WorkoutVoicePrefs.setBool(c, WorkoutVoicePrefs.HEART_RATE_ALERT, it)
                 }
                 if (!hasTarget) Text(stringResource(R.string.wv_zone_needs_target), style = NoopType.caption, color = Palette.textSecondary)
+                // A refusal is said, not hidden: with notifications off for NOOP nothing would arrive.
+                SwitchLine(stringResource(R.string.wv_minimized), notify) { on ->
+                    val allowed = !on || androidx.core.app.NotificationManagerCompat.from(c).areNotificationsEnabled()
+                    notify = on && allowed; notifyDenied = !allowed
+                    WorkoutVoicePrefs.setBool(c, WorkoutVoicePrefs.NOTIFICATIONS, on && allowed)
+                }
+                if (notifyDenied) Text(stringResource(R.string.wv_notif_off), style = NoopType.caption, color = Palette.statusWarning)
                 if (gpsEnabled) {
                     SwitchLine(stringResource(R.string.wv_motion), motion) { motion = it; WorkoutVoicePrefs.setBool(c, WorkoutVoicePrefs.MOTION_ALERT, it) }
                     if (motion) {

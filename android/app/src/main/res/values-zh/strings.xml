@@ -6573,4 +6573,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wv_no_zone">无区间教练</string>
     <string name="wv_zone_warnings">目标心率区间提醒</string>
     <string name="wv_zone_needs_target">开始前选择目标心率区间以启用区间提醒。</string>
+    <string name="wv_minimized">后台训练提醒</string>
+    <string name="wv_notif_off">NOOP 的通知已在系统设置中关闭，提醒不会送达。未安排任何提醒。</string>
 </resources>

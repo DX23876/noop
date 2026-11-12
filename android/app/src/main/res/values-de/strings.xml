@@ -6620,4 +6620,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wv_no_zone">Kein Zonen-Coach</string>
     <string name="wv_zone_warnings">Hinweise zur Zielzone</string>
     <string name="wv_zone_needs_target">Wähle vor dem Start eine Zielzone, um Zonenhinweise zu nutzen.</string>
+    <string name="wv_minimized">Hinweise bei minimiertem Training</string>
+    <string name="wv_notif_off">Mitteilungen sind für NOOP in den Systemeinstellungen deaktiviert, eine Erinnerung käme also nie an. Es wurde nichts geplant.</string>
 </resources>

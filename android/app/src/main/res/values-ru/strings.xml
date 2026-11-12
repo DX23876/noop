@@ -6577,4 +6577,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="wv_no_zone">Без тренера зон</string>
     <string name="wv_zone_warnings">Предупреждения целевой зоны</string>
     <string name="wv_zone_needs_target">Выберите целевую зону до старта, чтобы включить предупреждения.</string>
+    <string name="wv_minimized">Предупреждения в фоне</string>
+    <string name="wv_notif_off">Уведомления для NOOP отключены в настройках системы, поэтому напоминание никогда бы не пришло. Ничего не запланировано.</string>
 </resources>

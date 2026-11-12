@@ -26,6 +26,8 @@ object WorkoutVoicePrefs {
     const val TIME_INTERVAL = "workout.voice.timeInterval"
     const val MOTION_ALERT = "workout.alert.motion"
     const val HEART_RATE_ALERT = "workout.alert.heartRate"
+    /** iOS's `WorkoutFeedbackPreferences.notificationsKey`: warnings as a notification while NOOP is not in front. */
+    const val NOTIFICATIONS = "workout.alert.notifications"
     /** iOS's `ZoneTrainingPrefs.lastTargetZoneKey`: the target zone the last workout started with. */
     const val TARGET_ZONE = "zoneTraining.lastTargetZone"
     const val FAST_PACE = "workout.alert.fastPace"
@@ -40,6 +42,7 @@ object WorkoutVoicePrefs {
     fun timeInterval(c: Context) = prefs(c).getFloat(TIME_INTERVAL, 600f).toDouble().takeIf { it in listOf(300.0, 600.0, 900.0) } ?: 600.0
     fun motionAlert(c: Context) = prefs(c).getBoolean(MOTION_ALERT, false)
     fun heartRateAlert(c: Context) = prefs(c).getBoolean(HEART_RATE_ALERT, false)
+    fun notifications(c: Context) = prefs(c).getBoolean(NOTIFICATIONS, false)
     fun targetZone(c: Context): Int? = prefs(c).getInt(TARGET_ZONE, 0).takeIf { it in 1..5 }
     fun setTargetZone(c: Context, zone: Int?) = prefs(c).edit().apply {
         if (zone != null && zone in 1..5) putInt(TARGET_ZONE, zone) else remove(TARGET_ZONE)
@@ -100,12 +103,16 @@ class WorkoutVoice(context: Context) {
         val usesSpeed = out.optBoolean("usesSpeed")
         val r = words()
         when {
-            out.has("warning") -> if (enabled) say(r.getString(when (out.getString("warning")) {
-                "zoneAbove" -> R.string.wv_zone_above
-                "zoneBelow" -> R.string.wv_zone_below
-                "faster" -> R.string.wv_faster
-                else -> R.string.wv_slower
-            }))
+            out.has("warning") -> {
+                val text = r.getString(when (out.getString("warning")) {
+                    "zoneAbove" -> R.string.wv_zone_above
+                    "zoneBelow" -> R.string.wv_zone_below
+                    "faster" -> R.string.wv_faster
+                    else -> R.string.wv_slower
+                })
+                if (enabled) say(text)
+                notifyIfAway(text)
+            }
             out.optBoolean("announce") -> say(feedback(
                 if (out.has("distance")) out.getDouble("distance") else null, s.elapsedSeconds, s.speedMps, s.bpm, usesSpeed))
         }
@@ -138,6 +145,39 @@ class WorkoutVoice(context: Context) {
     }
 
     fun stop() { tts?.stop() }
+
+    /**
+     * The warning as a quiet notification while NOOP is not in front, as iOS's `WorkoutWarningNotifier`: opt-in, no
+     * sound of its own so it never competes with the voice, one at a time.
+     */
+    @android.annotation.SuppressLint("MissingPermission") // checked through areNotificationsEnabled below
+    private fun notifyIfAway(text: String) {
+        if (!WorkoutVoicePrefs.notifications(app)) return
+        val state = android.app.ActivityManager.RunningAppProcessInfo()
+        android.app.ActivityManager.getMyMemoryState(state)
+        if (state.importance <= android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) return
+        runCatching {
+            val n = androidx.core.app.NotificationManagerCompat.from(app)
+            if (!n.areNotificationsEnabled()) return
+            val r = words()
+            app.getSystemService(android.app.NotificationManager::class.java).createNotificationChannel(
+                android.app.NotificationChannel(WARNING_CHANNEL, r.getString(R.string.wv_warnings),
+                                                android.app.NotificationManager.IMPORTANCE_DEFAULT).apply { setSound(null, null) })
+            val pending = android.app.PendingIntent.getActivity(app, 0, appLaunchIntent(app),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+            n.notify(WARNING_ID, 0, androidx.core.app.NotificationCompat.Builder(app, WARNING_CHANNEL)
+                .setSmallIcon(R.drawable.ic_stat_heart).setContentTitle(r.getString(R.string.wv_warnings)).setContentText(text)
+                .setContentIntent(pending).setAutoCancel(true).setSilent(true).build())
+        }
+    }
+
+    /** Clears a warning notification once the workout is over. */
+    fun clearWarning() { runCatching { androidx.core.app.NotificationManagerCompat.from(app).cancel(WARNING_ID, 0) } }
+
+    private companion object {
+        const val WARNING_CHANNEL = "noop_workout_warnings"
+        const val WARNING_ID = "noop-live-workout-warning"
+    }
 
     fun shutdown() { tts?.shutdown(); tts = null; ready = false }
 

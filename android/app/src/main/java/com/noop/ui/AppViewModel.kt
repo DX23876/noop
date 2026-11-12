@@ -1854,7 +1854,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun discardWorkout() {
         val w = _activeWorkout.value ?: return
         _activeWorkout.value = null
-        voiceJob?.cancel(); voiceJob = null; workoutVoice.stop()
+        voiceJob?.cancel(); voiceJob = null; workoutVoice.stop(); workoutVoice.clearWarning()
         gpsJob?.cancel(); gpsJob = null
         activeWorkoutStore.clear()
         if (w.gpsEnabled) {
@@ -1871,6 +1871,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val w = _activeWorkout.value ?: return
         _activeWorkout.value = null
         voiceJob?.cancel(); voiceJob = null
+        workoutVoice.clearWarning()
         run {
             // The spoken recap, as iOS's `WorkoutVoiceCoach.ended`: active time, the route and the average heart rate.
             val activeMs = System.currentTimeMillis() - w.startMs - w.pausedDurationMs
