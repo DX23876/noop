@@ -6586,4 +6586,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_ap_mint">Mint</string>
     <string name="forge_ap_whoop_blue">WHOOP Blue</string>
     <string name="forge_ap_custom">Другое</string>
+    <string name="body_edit_title">Изменить измерение</string>
+    <string name="body_edit_taken">Снято</string>
+    <string name="body_edit_note">Изменение даты сдвигает это измерение на тренде. Измерение, внесённое позже, относится к дню, когда оно было сделано, а не когда набрано.</string>
 </resources>

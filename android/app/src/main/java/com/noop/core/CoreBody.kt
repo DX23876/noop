@@ -43,8 +43,8 @@ object CoreBody {
     suspend fun record(context: Context, values: Map<String, Double>): Boolean = write(context, values, null, null)
 
     /**
-     * Changes one reading's value in place, as iOS's `updateBodyMeasurement`: the same row id and instant, so the
-     * day and its history stay where they were.
+     * Changes one reading in place, as iOS's `updateBodyMeasurement`: the same row id with the new value and the
+     * instant it was taken, so a new date moves the reading to that day on the trend.
      */
     suspend fun update(context: Context, id: String, key: String, value: Double, takenAt: Long): Boolean =
         write(context, mapOf(key to value), id, takenAt)

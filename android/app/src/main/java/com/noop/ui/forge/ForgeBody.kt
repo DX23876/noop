@@ -108,8 +108,7 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
         }
         site?.let { key ->
             BodySitePage(b, key, onDelete = { id -> after { CoreBody.deleteMeasurement(context, id) } },
-                         onEdit = { r, v -> after { CoreBody.update(context, r.id ?: return@after false, key, v,
-                                                                        r.takenAt ?: (System.currentTimeMillis() / 1000)) } })
+                         onEdit = { r, v, at -> after { CoreBody.update(context, r.id ?: return@after false, key, v, at) } })
             return@SettingsColumn
         }
         BodyTodayCard(b)
@@ -453,7 +452,7 @@ private fun SitesCard(b: CoreBody.Snapshot, onMeasure: () -> Unit, onOpen: (Stri
  */
 @Composable
 private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -> Unit,
-                         onEdit: (CoreBody.Reading, Double) -> Unit) {
+                         onEdit: (CoreBody.Reading, Double, Long) -> Unit) {
     val colors = Forge.colors
     val info = (b.measured + b.unmeasured).firstOrNull { it.key == key }
     val series = b.siteSeries[key].orEmpty()
@@ -529,17 +528,38 @@ private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -
         }
     }
     editing?.let { r ->
+        // As iOS's edit sheet: the value and the day it was taken, never later than today. A new day keeps the
+        // reading's time of day, so only the day moves on the trend.
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val zone = java.time.ZoneId.systemDefault()
         var text by remember(r) { mutableStateOf(one(r.value).replace(',', '.')) }
+        var at by remember(r) { mutableStateOf(r.takenAt ?: (System.currentTimeMillis() / 1000)) }
+        val day = java.time.Instant.ofEpochSecond(at).atZone(zone)
         androidx.compose.material3.AlertDialog(onDismissRequest = { editing = null },
-            title = { Text("${info?.label ?: key} · ${longDay(r.day)}") },
+            title = { Text(stringResource(R.string.body_edit_title)) },
             text = {
-                OutlinedTextField(value = text, onValueChange = { v -> text = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6) },
-                                  singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                  suffix = { Text("cm") }, colors = forgeFieldColors())
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(value = text, onValueChange = { v -> text = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6) },
+                                      singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                      label = { Text(info?.label ?: key) }, suffix = { Text("cm") }, colors = forgeFieldColors())
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.body_edit_taken), style = Forge.type.body, color = colors.text,
+                             modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            android.app.DatePickerDialog(context, { _, y, m, d ->
+                                at = day.withYear(y).withMonth(m + 1).withDayOfMonth(d).toEpochSecond()
+                                    .coerceAtMost(System.currentTimeMillis() / 1000)
+                            }, day.year, day.monthValue - 1, day.dayOfMonth).apply {
+                                datePicker.maxDate = System.currentTimeMillis()
+                            }.show()
+                        }) { Text(longDay(day.toLocalDate().toString())) }
+                    }
+                    Text(stringResource(R.string.body_edit_note), style = Forge.type.caption, color = colors.textSecondary)
+                }
             },
             confirmButton = {
                 val v = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it.isFinite() }
-                TextButton(enabled = v != null, onClick = { v?.let { onEdit(r, it) }; editing = null }) {
+                TextButton(enabled = v != null, onClick = { v?.let { onEdit(r, it, at) }; editing = null }) {
                     Text(stringResource(R.string.forge_energy_save)) }
             },
             dismissButton = { TextButton(onClick = { editing = null }) { Text(stringResource(R.string.body_site_cancel)) } })

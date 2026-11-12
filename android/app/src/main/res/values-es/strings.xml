@@ -6613,4 +6613,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_ap_mint">Mint</string>
     <string name="forge_ap_whoop_blue">WHOOP Blue</string>
     <string name="forge_ap_custom">Personalizado</string>
+    <string name="body_edit_title">Editar medición</string>
+    <string name="body_edit_taken">Tomada</string>
+    <string name="body_edit_note">Cambiar la fecha mueve esta medición en la tendencia. Una medición introducida tarde pertenece al día en que se tomó, no al día en que se escribió.</string>
 </resources>
