@@ -506,7 +506,10 @@ private fun AverageRing(labelRes: Int, stats: TrendStats, tint: Color, higherIsB
 
 @Composable
 private fun TrendCard(titleRes: Int, unit: String, stats: TrendStats, days: Int, tint: Color, higherIsBetter: Boolean,
-                      tall: Boolean) {
+                      tall: Boolean, hours: Boolean = false) {
+    // A duration in minutes reads as hours and minutes ("6:53 h"), as its Today tile shows it.
+    val hoursUnit = stringResource(R.string.forge_goals_u_h)
+    val axis: (Double) -> String = { v -> if (hours) TodayTimeline.hoursMinutes(v) else v.roundToInt().toString() }
     val colors = Forge.colors
     val locale = Locale.getDefault()
     ForgeCard(Modifier.fillMaxWidth()) {
@@ -518,7 +521,9 @@ private fun TrendCard(titleRes: Int, unit: String, stats: TrendStats, days: Int,
             Text(stringResource(R.string.forge_not_enough_days), style = Forge.type.body, color = colors.textTertiary)
             return@ForgeCard
         }
-        Text(stringResource(R.string.forge_average_value, stringResource(R.string.forge_value_unit, avg.roundToInt(), unit)), style = Forge.type.title2,
+        val avgText = if (hours) stringResource(R.string.forge_pair_words, TodayTimeline.hoursMinutes(avg), hoursUnit)
+                      else stringResource(R.string.forge_value_unit, avg.roundToInt(), unit)
+        Text(stringResource(R.string.forge_average_value, avgText), style = Forge.type.title2,
              color = colors.text, maxLines = 1)
         stats.change?.let { change ->
             Text(stringResource(R.string.forge_vs_previous, signed(change), days), style = Forge.type.caption,
@@ -531,10 +536,10 @@ private fun TrendCard(titleRes: Int, unit: String, stats: TrendStats, days: Int,
         Row(Modifier.fillMaxWidth().height(if (tall) 200.dp else 150.dp)) {
             // As wide as its longest label, at least 32 dp: a fixed 32 dp broke five-digit steps ("1094" over "0").
             Column(Modifier.widthIn(min = 32.dp).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(hi.roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
-                Text(((hi + lo) / 2).roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary,
+                Text(axis(hi), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
+                Text(axis((hi + lo) / 2), style = Forge.type.caption, color = colors.textTertiary,
                      maxLines = 1, softWrap = false)
-                Text(lo.roundToInt().toString(), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
+                Text(axis(lo), style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, softWrap = false)
             }
             LineChart(stats.current, days, lo, hi, avg, tint, Modifier.weight(1f).fillMaxSize())
         }
@@ -587,6 +592,7 @@ private fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: D
 @Composable
 internal fun ForgeMetricTrendPage(metric: CoreRead.Metric, titleRes: Int, unit: String, tint: Color, higherIsBetter: Boolean,
                                   onAskCoach: ((title: String, summary: String) -> Unit)? = null, onBack: () -> Unit) {
+    val hours = metric == CoreRead.Metric.SleepMinutes
     val context = LocalContext.current
     var days by rememberSaveable { mutableIntStateOf(30) }
     var points by remember { mutableStateOf<List<CoreRead.Point>?>(null) }
@@ -601,7 +607,7 @@ internal fun ForgeMetricTrendPage(metric: CoreRead.Metric, titleRes: Int, unit: 
         PageTitle(stringResource(titleRes), onBack)
         WindowPicker(days) { days = it }
         val stats = TrendStats.of(points.orEmpty(), days, LocalDate.now())
-        TrendCard(titleRes, unit, stats, days, tint, higherIsBetter, tall = true)
+        TrendCard(titleRes, unit, stats, days, tint, higherIsBetter, tall = true, hours = hours)
         // "Ask coach" (`TodayView`'s card context): what the page shows, as the line the coach reads.
         val title = stringResource(titleRes)
         val latest = stats.current.lastOrNull()
