@@ -69,6 +69,16 @@ enum CoreCoach {
             guard !text.isEmpty, !coach.sending else { return #"{"ok":false}"# }
             coach.startSend(text)
             return #"{"ok":true}"#
+        case "coach.acceptsPhotos":
+            // Log by photo, as iOS's Log sheet offers it: only while the coach is on and its provider reads images.
+            return #"{"accepts":\#(CoachFeaturePrefs.isEnabled && coach.acceptsPhotos)}"#
+        case "coach.sendPhoto":
+            // One PNG with the question (`AICoachEngine.sendPhoto`): the photo travels with that request only.
+            let image = args["image"] as? String ?? ""
+            let question = (args["question"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !image.isEmpty, !question.isEmpty, coach.acceptsPhotos, !coach.sending else { return #"{"ok":false}"# }
+            Task { await coach.sendPhoto(image, question: question) }
+            return #"{"ok":true}"#
         case "coach.state":
             return CoreRead.json(State(coach))
         case "coach.notes":

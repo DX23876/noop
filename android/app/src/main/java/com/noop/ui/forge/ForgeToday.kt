@@ -178,11 +178,28 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         }
     }
     // The new design's "+" opens the Log sheet, as iOS's `ForgeLogSheet`: each choice goes to a screen that exists.
+    // Log by photo (iOS `coachPhoto`): the picked image goes to the coach with one question, then the chat opens.
+    val photoQuestion = stringResource(R.string.forge_log_photo_question)
+    val photoContext = LocalContext.current
+    val photoScope = rememberCoroutineScope()
+    val coachPhoto = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) photoScope.launch {
+            withContext(Dispatchers.IO) { coachPhotoPng(photoContext, uri)?.let { com.noop.core.CoreCoach.sendPhoto(it, photoQuestion) } }
+            selectTab(ForgeTab.Coach)
+        }
+    }
     if (logOpen) {
-        ForgeLogSheet(coachOn = com.noop.ui.BottomBarStyleStore.coachEnabled, onDismiss = { logOpen = false }) { choice ->
+        val coachOn = com.noop.ui.BottomBarStyleStore.coachEnabled
+        val photos by androidx.compose.runtime.produceState(false, coachOn) {
+            value = coachOn && withContext(Dispatchers.IO) { com.noop.core.CoreCoach.acceptsPhotos() }
+        }
+        ForgeLogSheet(coachOn = coachOn, onDismiss = { logOpen = false }, coachPhotos = photos) { choice ->
             logOpen = false
             when (choice) {
                 ForgeLogChoice.CoachWrite, ForgeLogChoice.CoachSpeak -> selectTab(ForgeTab.Coach)
+                ForgeLogChoice.CoachPhoto -> coachPhoto.launch(androidx.activity.result.PickVisualMediaRequest(
+                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
                 // Logging is for what already happened; a live session starts from the Training tab.
                 ForgeLogChoice.Workout -> addingWorkout = true
                 ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Body))

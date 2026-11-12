@@ -6544,4 +6544,6 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_ap_classic">Klasyczny</string>
     <string name="forge_ap_rings_note">Żywe pierścienie poruszają się i oddychają. Klasyczne stoją w miejscu i zużywają mniej baterii.</string>
     <string name="forge_ap_motion">Ruch</string>
+    <string name="forge_log_photo">Zdjęcie</string>
+    <string name="forge_log_photo_question">Oto zdjęcie, które chcę zapisać, np. posiłek albo ekran treningu. Powiedz, co widzisz i co mogę z niego zapisać. Oznacz szacunki jako szacunki i niczego sam nie zapisuj.</string>
 </resources>

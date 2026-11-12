@@ -6524,4 +6524,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_ap_classic">Clásico</string>
     <string name="forge_ap_rings_note">Los anillos vivos se mueven y respiran. Los clásicos se quedan quietos y gastan menos batería.</string>
     <string name="forge_ap_motion">Movimiento</string>
+    <string name="forge_log_photo">Foto</string>
+    <string name="forge_log_photo_question">Aquí tienes una foto que quiero registrar, como una comida o una pantalla de entreno. Di qué ves y qué podría registrar. Marca cualquier estimación como estimación y no registres nada tú.</string>
 </resources>

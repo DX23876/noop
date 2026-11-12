@@ -6523,4 +6523,6 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_ap_classic">Classique</string>
     <string name="forge_ap_rings_note">Les anneaux vivants bougent et respirent. Les classiques restent immobiles et consomment moins de batterie.</string>
     <string name="forge_ap_motion">Mouvement</string>
+    <string name="forge_log_photo">Photo</string>
+    <string name="forge_log_photo_question">Voici une photo que je veux enregistrer, comme un repas ou un écran d\'entraînement. Dis ce que tu vois et ce que je pourrais en saisir. Indique toute estimation comme telle et n\'enregistre rien toi-même.</string>
 </resources>

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.MedicalServices
 import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Mood
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Science
@@ -48,10 +49,10 @@ import com.noop.R
 
 /**
  * What the new design's Log sheet can open, after iOS `ForgeLogChoice`. The Today shell maps each to a screen that
- * already exists, so the sheet only gathers the entry points. The coach's photo choice is left out: the Android coach
- * cannot read a photo, and iOS shows that button only when its provider can.
+ * already exists, so the sheet only gathers the entry points. The coach's Photo shows only while its provider reads
+ * images, as on iOS.
  */
-enum class ForgeLogChoice { CoachWrite, CoachSpeak, Workout, Weight, Journal, Drink, Food, Sleep, LabMarkers, Breathe, LiveHeartRate }
+enum class ForgeLogChoice { CoachWrite, CoachSpeak, CoachPhoto, Workout, Weight, Journal, Drink, Food, Sleep, LabMarkers, Breathe, LiveHeartRate }
 
 private class LogItem(val choice: ForgeLogChoice, val title: Int, val icon: ImageVector, val tint: Color)
 
@@ -62,7 +63,7 @@ private class LogItem(val choice: ForgeLogChoice, val title: Int, val icon: Imag
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun ForgeLogSheet(coachOn: Boolean, onDismiss: () -> Unit, onPick: (ForgeLogChoice) -> Unit) {
+internal fun ForgeLogSheet(coachOn: Boolean, onDismiss: () -> Unit, coachPhotos: Boolean = false, onPick: (ForgeLogChoice) -> Unit) {
     val colors = Forge.colors
     val direct = listOf(
         LogItem(ForgeLogChoice.Workout, R.string.forge_log_add_workout, Icons.AutoMirrored.Rounded.DirectionsWalk, colors.effort),
@@ -88,6 +89,9 @@ internal fun ForgeLogSheet(coachOn: Boolean, onDismiss: () -> Unit, onPick: (For
                 Row(Modifier.fillMaxWidth()) {
                     CoachButton(R.string.forge_log_write, Icons.Rounded.ChatBubble, Modifier.weight(1f)) { onPick(ForgeLogChoice.CoachWrite) }
                     CoachButton(R.string.forge_log_speak, Icons.Rounded.Mic, Modifier.weight(1f)) { onPick(ForgeLogChoice.CoachSpeak) }
+                    if (coachPhotos) CoachButton(R.string.forge_log_photo, Icons.Rounded.PhotoCamera, Modifier.weight(1f)) {
+                        onPick(ForgeLogChoice.CoachPhoto)
+                    }
                 }
                 Box(Modifier.fillMaxWidth().height(0.5.dp).background(colors.divider))
             }
@@ -130,3 +134,14 @@ internal fun ForgeMenuItem(title: String, icon: ImageVector, onClick: () -> Unit
         onClick = onClick,
     )
 }
+
+/** A picked photo as base64 PNG with its long side at most 1024 px, as iOS scales it before the coach reads it. */
+internal fun coachPhotoPng(context: android.content.Context, uri: android.net.Uri): String? = runCatching {
+    val source = context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: return null
+    val scale = kotlin.math.min(1.0, 1_024.0 / kotlin.math.max(source.width, source.height).coerceAtLeast(1))
+    val bitmap = android.graphics.Bitmap.createScaledBitmap(source, (source.width * scale).toInt().coerceAtLeast(1),
+                                                            (source.height * scale).toInt().coerceAtLeast(1), true)
+    val out = java.io.ByteArrayOutputStream()
+    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+    android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP)
+}.getOrNull()

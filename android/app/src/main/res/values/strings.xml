@@ -6563,4 +6563,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_ap_classic">Classic</string>
     <string name="forge_ap_rings_note">Living rings move and breathe. Classic rings stand still and use less battery.</string>
     <string name="forge_ap_motion">Motion</string>
+    <string name="forge_log_photo">Photo</string>
+    <string name="forge_log_photo_question">Here is a photo I want to log, such as a meal or a workout screen. Say what you see and what I could log from it. Mark any estimate as an estimate and do not log anything yourself.</string>
 </resources>

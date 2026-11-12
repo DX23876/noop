@@ -85,6 +85,13 @@ object CoreCoach {
 
     fun send(text: String): Boolean = call("coach.send", JSONObject().put("text", text).toString())?.optBoolean("ok") ?: false
 
+    /** Whether the coach can read a photo now (on, and a provider that reads images), as iOS's Log sheet asks. */
+    fun acceptsPhotos(): Boolean = call("coach.acceptsPhotos", "{}")?.optBoolean("accepts") ?: false
+
+    /** Sends one PNG (base64) with [question]; the reply lands in the chat. The photo is not kept. */
+    fun sendPhoto(pngBase64: String, question: String): Boolean =
+        call("coach.sendPhoto", JSONObject().put("image", pngBase64).put("question", question).toString())?.optBoolean("ok") ?: false
+
     fun state(): State? = call("coach.state", "{}")?.let(::parse)
 
     /** One of the coach's own notes for the Today rail (`coach.notes`), already split as iOS splits it. */

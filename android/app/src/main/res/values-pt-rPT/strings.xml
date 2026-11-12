@@ -6516,4 +6516,6 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_ap_classic">Clássico</string>
     <string name="forge_ap_rings_note">Os anéis vivos movem-se e respiram. Os clássicos ficam parados e gastam menos bateria.</string>
     <string name="forge_ap_motion">Movimento</string>
+    <string name="forge_log_photo">Foto</string>
+    <string name="forge_log_photo_question">Aqui está uma foto que quero registar, como uma refeição ou um ecrã de treino. Diz o que vês e o que posso registar a partir dela. Marca qualquer estimativa como estimativa e não registes nada tu.</string>
 </resources>
