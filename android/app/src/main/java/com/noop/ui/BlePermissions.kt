@@ -99,16 +99,18 @@ fun rememberRequestAdvertise(onGranted: () -> Unit): () -> Unit {
 @Composable
 fun rememberRequestLocation(onResult: (granted: Boolean) -> Unit): () -> Unit {
     val context = LocalContext.current
+    // Fine and coarse together: on Android 12+ (targetSdk 31+) the system ignores a request for fine location
+    // alone and shows no dialog. A route needs precise fixes, so only a granted fine location counts.
     val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted -> onResult(granted) }
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result -> onResult(result[Manifest.permission.ACCESS_FINE_LOCATION] == true) }
     return {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED
         ) {
             onResult(true)
         } else {
-            launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            launcher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }
     }
 }
