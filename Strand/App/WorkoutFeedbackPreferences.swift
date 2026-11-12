@@ -28,7 +28,7 @@ enum WorkoutFeedbackPreferences {
     }
 
     static func supportsAutoPause(sport: String, gps: Bool) -> Bool {
-        gps && ["Running", "Cycling", "Mountain biking"].contains(sport)
+        WorkoutVoiceDecider.supportsAutoPause(sport: sport, gps: gps)
     }
 
     static func cadenceKind(sport: String) -> String? {

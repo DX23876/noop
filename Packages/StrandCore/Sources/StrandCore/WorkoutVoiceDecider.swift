@@ -71,6 +71,11 @@ public struct WorkoutVoiceDecider: Sendable {
 
     public init() {}
 
+    /// Auto-pause is for GPS running and cycling only, where standing still means a real stop.
+    public static func supportsAutoPause(sport: String, gps: Bool) -> Bool {
+        gps && ["Running", "Cycling", "Mountain biking"].contains(sport)
+    }
+
     /// Starts a workout (or a restore) without speaking a backlog.
     public mutating func begin(settings: Settings, snapshot: Snapshot) {
         self = WorkoutVoiceDecider()

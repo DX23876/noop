@@ -599,7 +599,7 @@ class WhoopConnectionService : Service() {
                             // LocationTracker fails SAFE (no permission / no provider just ends the
                             // stream); runCatching guards an OEM throw so it can't tear down the FGS.
                             runCatching {
-                                locationTracker.stream().collect { pt -> GpsSession.append(pt) }
+                                locationTracker.stream(onMotion = GpsSession::noteMotion).collect { pt -> GpsSession.append(pt) }
                             }
                         }
                     } else {

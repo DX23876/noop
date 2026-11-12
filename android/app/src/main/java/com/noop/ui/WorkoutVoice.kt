@@ -26,6 +26,8 @@ object WorkoutVoicePrefs {
     const val TIME_INTERVAL = "workout.voice.timeInterval"
     const val MOTION_ALERT = "workout.alert.motion"
     const val HEART_RATE_ALERT = "workout.alert.heartRate"
+    /** iOS's `WorkoutFeedbackPreferences.autoPauseKey`. */
+    const val AUTO_PAUSE = "workout.autoPause"
     /** iOS's `WorkoutFeedbackPreferences.notificationsKey`: warnings as a notification while NOOP is not in front. */
     const val NOTIFICATIONS = "workout.alert.notifications"
     /** iOS's `ZoneTrainingPrefs.lastTargetZoneKey`: the target zone the last workout started with. */
@@ -43,6 +45,7 @@ object WorkoutVoicePrefs {
     fun motionAlert(c: Context) = prefs(c).getBoolean(MOTION_ALERT, false)
     fun heartRateAlert(c: Context) = prefs(c).getBoolean(HEART_RATE_ALERT, false)
     fun notifications(c: Context) = prefs(c).getBoolean(NOTIFICATIONS, false)
+    fun autoPause(c: Context) = prefs(c).getBoolean(AUTO_PAUSE, false)
     fun targetZone(c: Context): Int? = prefs(c).getInt(TARGET_ZONE, 0).takeIf { it in 1..5 }
     fun setTargetZone(c: Context, zone: Int?) = prefs(c).edit().apply {
         if (zone != null && zone in 1..5) putInt(TARGET_ZONE, zone) else remove(TARGET_ZONE)
@@ -116,6 +119,21 @@ class WorkoutVoice(context: Context) {
             out.optBoolean("announce") -> say(feedback(
                 if (out.has("distance")) out.getDouble("distance") else null, s.elapsedSeconds, s.speedMps, s.bpm, usesSpeed))
         }
+    }
+
+    /**
+     * One second of GPS auto-pause from the core (`WorkoutAutoPauseEngine`): "pause", "resume" or null. Motion older
+     * than five seconds counts as none, which decides nothing.
+     */
+    fun autoPauseAction(sport: String, gps: Boolean, paused: Boolean, autoPaused: Boolean): String? {
+        if (!SwiftCore.available) return null
+        val now = System.currentTimeMillis()
+        val m = com.noop.location.GpsSession.motion?.takeIf { now - it.tMs in 0..5_000 }
+        val args = JSONObject().put("enabled", WorkoutVoicePrefs.autoPause(app)).put("sport", sport).put("gps", gps)
+            .put("paused", paused).put("autoPaused", autoPaused).put("now", now / 1000.0).put("moving", m?.moving ?: false)
+            .apply { m?.stationary?.let { put("stationary", it) } }
+        return SwiftCore.call("workout.voice.autoPause", args.toString())
+            ?.let { runCatching { JSONObject(it).optString("action").ifEmpty { null } }.getOrNull() }
     }
 
     fun paused() { stop(); if (WorkoutVoicePrefs.enabled(app)) say(words().getString(R.string.wv_paused)) }

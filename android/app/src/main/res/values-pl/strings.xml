@@ -6626,4 +6626,6 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="wv_zone_needs_target">Wybierz strefę docelową przed startem, aby korzystać z alertów strefy.</string>
     <string name="wv_minimized">Alerty po zminimalizowaniu</string>
     <string name="wv_notif_off">Powiadomienia dla NOOP są wyłączone w ustawieniach systemu, więc przypomnienie nigdy by nie dotarło. Nic nie zaplanowano.</string>
+    <string name="wv_auto_pause">Automatyczna pauza</string>
+    <string name="wv_auto_pause_note">Tylko bieganie i jazda na rowerze z GPS. Pauza po pięciu sekundach postoju, wznowienie po trzech sekundach ruchu. Ręczna pauza pozostaje aktywna.</string>
 </resources>

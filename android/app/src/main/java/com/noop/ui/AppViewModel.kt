@@ -1651,6 +1651,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val pausedDurationMs: Long = 0L,
         /** The zone (1 to 5) the wearer aims for, as iOS's target zone; null without one. */
         val targetZone: Int? = null,
+        /** Paused by auto-pause rather than by the wearer, so moving again may resume it. */
+        val autoPaused: Boolean = false,
     )
 
     private val _activeWorkout = MutableStateFlow<ActiveWorkout?>(null)
@@ -1758,6 +1760,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 kotlinx.coroutines.delay(1_000)
                 val w = _activeWorkout.value ?: break
                 workoutVoice.tick(workoutVoiceSnapshot(w, System.currentTimeMillis()))
+                // GPS auto-pause, decided in the core as on iOS; a manual pause never resumes by itself.
+                when (workoutVoice.autoPauseAction(w.sport.name, w.gpsEnabled, w.pausedAtMs != null, w.autoPaused)) {
+                    "pause" -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { setWorkoutPaused(true, automatically = true) }
+                    "resume" -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { setWorkoutPaused(false, automatically = true) }
+                }
             }
         }
     }
@@ -1834,17 +1841,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         startWorkoutVoice()
     }
 
-    fun toggleWorkoutPause() {
+    fun toggleWorkoutPause() = setWorkoutPaused(_activeWorkout.value?.pausedAtMs == null, automatically = false)
+
+    /** Pauses or resumes; [automatically] marks an auto-pause, which only moving again (or the wearer) undoes. */
+    private fun setWorkoutPaused(pause: Boolean, automatically: Boolean) {
         val w = _activeWorkout.value ?: return
+        if (pause == (w.pausedAtMs != null)) return
         val now = System.currentTimeMillis()
-        val updated = if (w.pausedAtMs == null) {
+        val updated = if (pause) {
             if (w.gpsEnabled) GpsSession.pause()
             workoutVoice.paused()
-            w.copy(pausedAtMs = now)
+            w.copy(pausedAtMs = now, autoPaused = automatically)
         } else {
             if (w.gpsEnabled) GpsSession.resume()
             workoutVoice.resumed()
-            w.copy(pausedAtMs = null, pausedDurationMs = w.pausedDurationMs + (now - w.pausedAtMs))
+            w.copy(pausedAtMs = null, pausedDurationMs = w.pausedDurationMs + (now - (w.pausedAtMs ?: now)), autoPaused = false)
         }
         _activeWorkout.value = updated
         persistNonGpsWorkout(updated)

@@ -6598,4 +6598,6 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="wv_zone_needs_target">Escolha uma zona-alvo antes de começar para ativar os alertas.</string>
     <string name="wv_minimized">Alertas quando minimizado</string>
     <string name="wv_notif_off">As notificações estão desativadas para o NOOP nas definições do sistema, por isso um lembrete nunca chegaria. Não foi agendado nada.</string>
+    <string name="wv_auto_pause">Pausa automática</string>
+    <string name="wv_auto_pause_note">Apenas corrida e ciclismo com GPS. Pausa após cinco segundos parado e retoma após três segundos em movimento. Uma pausa manual mantém-se.</string>
 </resources>

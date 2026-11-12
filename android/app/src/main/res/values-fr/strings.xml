@@ -6605,4 +6605,6 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="wv_zone_needs_target">Choisissez une zone cible avant le départ pour activer les alertes de zone.</string>
     <string name="wv_minimized">Alertes lorsque l’app est réduite</string>
     <string name="wv_notif_off">Les notifications sont désactivées pour NOOP dans les réglages système : un rappel n\'arriverait jamais. Rien n\'a été programmé.</string>
+    <string name="wv_auto_pause">Pause automatique</string>
+    <string name="wv_auto_pause_note">Course et vélo avec GPS uniquement. Pause après cinq secondes à l’arrêt, reprise après trois secondes de mouvement. Une pause manuelle reste active.</string>
 </resources>

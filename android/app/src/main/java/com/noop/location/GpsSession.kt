@@ -52,8 +52,20 @@ object GpsSession {
      *  the raw stream, passes a real count). L4. */
     var workoutsLog: ((String) -> Unit)? = null
 
+    /**
+     * The latest motion evidence from the phone's GPS, for auto-pause (iOS `GpsWorkoutRecorder.onMotion`): stopped
+     * when speed plus its accuracy stays under 0.3 m/s, moving when speed minus its accuracy reaches 0.8 m/s. It is
+     * kept while paused, since that is when a resume has to be noticed; [tMs] dates it.
+     */
+    data class Motion(val stationary: Boolean?, val moving: Boolean, val tMs: Long)
+    @Volatile var motion: Motion? = null
+        private set
+
+    fun noteMotion(m: Motion) { if (_state.value.active) motion = m }
+
     /** Begin a route for [sportName]'s workout started at [startMs]. A re-arm just resets the track. */
     fun start(startMs: Long, sportName: String) {
+        motion = null
         _state.value = State(active = true, startMs = startMs, sportName = sportName)
     }
 

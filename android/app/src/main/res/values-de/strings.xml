@@ -6622,4 +6622,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wv_zone_needs_target">Wähle vor dem Start eine Zielzone, um Zonenhinweise zu nutzen.</string>
     <string name="wv_minimized">Hinweise bei minimiertem Training</string>
     <string name="wv_notif_off">Mitteilungen sind für NOOP in den Systemeinstellungen deaktiviert, eine Erinnerung käme also nie an. Es wurde nichts geplant.</string>
+    <string name="wv_auto_pause">Automatisch pausieren</string>
+    <string name="wv_auto_pause_note">Nur beim Laufen und Radfahren mit GPS. Nach fünf Sekunden Stillstand pausiert das Training, nach drei Sekunden Bewegung geht es weiter. Eine manuelle Pause bleibt bestehen.</string>
 </resources>

@@ -36,10 +36,12 @@ import com.noop.analytics.Sport
 fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Unit) {
     val c = LocalContext.current
     val imperial = UnitPrefs.distanceSystem(c) == UnitSystem.IMPERIAL
-    val usesSpeed = remember(sport) {
+    // Speed or pace, and whether auto-pause applies, are the core's call for this sport.
+    val sportInfo = remember(sport) {
         com.noop.core.SwiftCore.call("workout.voice.sport", org.json.JSONObject().put("sport", sport.name).toString())
-            ?.let { runCatching { org.json.JSONObject(it).optBoolean("usesSpeed") }.getOrNull() } ?: false
+            ?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
     }
+    val usesSpeed = sportInfo?.optBoolean("usesSpeed") ?: false
     var voice by remember { mutableStateOf(WorkoutVoicePrefs.enabled(c)) }
     var speaker by remember { mutableStateOf(WorkoutVoicePrefs.speaker(c)) }
     var distance by remember { mutableDoubleStateOf(WorkoutVoicePrefs.distanceInterval(c)) }
@@ -47,6 +49,9 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
     var motion by remember { mutableStateOf(WorkoutVoicePrefs.motionAlert(c)) }
     var zoneAlert by remember { mutableStateOf(WorkoutVoicePrefs.heartRateAlert(c)) }
     var notify by remember { mutableStateOf(WorkoutVoicePrefs.notifications(c)) }
+    var autoPause by remember { mutableStateOf(WorkoutVoicePrefs.autoPause(c)) }
+    // Auto-pause is offered only where iOS offers it: GPS running and cycling (`supportsAutoPause`).
+    val offersAutoPause = gpsEnabled && sportInfo?.optBoolean("autoPause") == true
     var notifyDenied by remember { mutableStateOf(false) }
     val hasTarget = WorkoutVoicePrefs.targetZone(c) != null
     var fast by remember { mutableDoubleStateOf(WorkoutVoicePrefs.fastPace(c)) }
@@ -111,6 +116,10 @@ fun WorkoutFeedbackDialog(sport: Sport, gpsEnabled: Boolean, onDismiss: () -> Un
                     }
                 }
                 Text(stringResource(R.string.wv_warnings_note), style = NoopType.caption, color = Palette.textSecondary)
+                if (offersAutoPause) {
+                    SwitchLine(stringResource(R.string.wv_auto_pause), autoPause) { autoPause = it; WorkoutVoicePrefs.setBool(c, WorkoutVoicePrefs.AUTO_PAUSE, it) }
+                    Text(stringResource(R.string.wv_auto_pause_note), style = NoopType.caption, color = Palette.textSecondary)
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_th_done)) } },

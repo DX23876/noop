@@ -96,11 +96,19 @@ class LocationTracker(private val context: Context) {
     // so TrackFilter does the gating. A non-zero platform minDistance compounds with the accuracy gate
     // and suppressed fixes on a weak-signal run, contributing to the under-collected route (#324).
     // Each accepted fix carries its own time and, with a barometer, its height (see [PressureAltimeter]).
-    fun stream(minIntervalMs: Long = 2000, minDistanceM: Float = 0f): Flow<RoutePoint> = callbackFlow {
+    fun stream(minIntervalMs: Long = 2000, minDistanceM: Float = 0f,
+               onMotion: ((GpsSession.Motion) -> Unit)? = null): Flow<RoutePoint> = callbackFlow {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val filter = TrackFilter()
         val altimeter = PressureAltimeter(context).apply { start() }
         val listener = LocationListener { loc: Location ->
+            // Every raw fix tells auto-pause whether the phone stands or moves, before the route filter drops it.
+            onMotion?.let { report ->
+                val speed = if (loc.hasSpeed()) loc.speed.toDouble() else null
+                val acc = if (loc.hasSpeedAccuracy()) loc.speedAccuracyMetersPerSecond.toDouble() else 0.0
+                report(GpsSession.Motion(stationary = speed?.let { it + acc <= 0.3 }?.takeIf { it },
+                                         moving = speed != null && speed - acc >= 0.8, tMs = loc.time))
+            }
             filter.accept(RawFix(loc.latitude, loc.longitude, if (loc.hasAccuracy()) loc.accuracy else 0f, loc.time))
                 ?.let { trySend(RoutePoint(it.lat, it.lon, loc.time, altimeter.altitudeFor(loc))) }
         }

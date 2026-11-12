@@ -6606,4 +6606,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="wv_zone_needs_target">Elige una zona objetivo antes de empezar para usar avisos de zona.</string>
     <string name="wv_minimized">Avisos al minimizar</string>
     <string name="wv_notif_off">Las notificaciones están desactivadas para NOOP en los ajustes del sistema, así que un recordatorio nunca llegaría. No se ha programado nada.</string>
+    <string name="wv_auto_pause">Pausa automática</string>
+    <string name="wv_auto_pause_note">Solo carrera y ciclismo con GPS. Pausa tras cinco segundos parado y continúa tras tres segundos en movimiento. Una pausa manual no se reanuda sola.</string>
 </resources>
