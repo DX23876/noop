@@ -1,10 +1,10 @@
-#if os(iOS)
 import Foundation
 
 /// The training planner's days as the diet plan reads them (owner, 2026-11-10): a session counts when it is still
 /// on (not declined, skipped or paused) and is strength work or a hard session, the days that use the most
 /// carbohydrate. A rescheduled session counts on the day it moved to. Read here, passed to the core as
-/// `DietTrainingDays.planned`, so the core reads no store.
+/// `DietTrainingDays.planned`, so the core reads no store. Shared with the Android core (`CoreFood`), which reads the
+/// same planner store.
 enum DietTrainingPlan {
     /// Words in the planner's free-text sport that mean strength work, in the languages the coach writes in.
     static let strengthWords = ["strength", "weight", "lift", "gym", "squat", "deadlift", "bench", "hypertrophy",
@@ -26,4 +26,3 @@ enum DietTrainingPlan {
         return strengthWords.contains { sport.contains($0) }
     }
 }
-#endif

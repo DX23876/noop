@@ -21,6 +21,10 @@ object CoreDietPlan {
         val dietBreakEveryWeeks: Int? = null, val keep: List<String> = emptyList(), val startDay: String, val startWeightKg: Double,
         val adjustmentKcal: Double = 0.0, val lastAdjustedDay: String? = null, val hideNumbers: Boolean = false,
         val pregnantOrNursing: Boolean = false,
+        // The fields iOS added on 2026-11-10 (`DietPlan`); kept on every save so an Android edit never drops them.
+        val activeDays: Boolean? = null, val burnSource: String? = null, val recompDeficitPercent: Double? = null,
+        val trainingWeekdays: List<Int>? = null, val dayShift: Double? = null, val experience: String? = null,
+        val breakFromDay: String? = null,
     ) {
         fun json(): String = JSONObject().apply {
             put("goal", goal); put("mode", mode); put("pacePercent", pacePercent); put("form", form)
@@ -30,6 +34,9 @@ object CoreDietPlan {
             put("keep", JSONArray(keep)); put("startDay", startDay); put("startWeightKg", startWeightKg)
             put("adjustmentKcal", adjustmentKcal); lastAdjustedDay?.let { put("lastAdjustedDay", it) }
             put("hideNumbers", hideNumbers); put("pregnantOrNursing", pregnantOrNursing)
+            activeDays?.let { put("activeDays", it) }; burnSource?.let { put("burnSource", it) }
+            recompDeficitPercent?.let { put("recompDeficitPercent", it) }; trainingWeekdays?.let { put("trainingWeekdays", JSONArray(it)) }
+            dayShift?.let { put("dayShift", it) }; experience?.let { put("experience", it) }; breakFromDay?.let { put("breakFromDay", it) }
         }.toString()
 
         companion object {
@@ -43,7 +50,11 @@ object CoreDietPlan {
                      num("fixedKcal"), if (o.has("dietBreakEveryWeeks")) o.optInt("dietBreakEveryWeeks") else null,
                      (0 until (keep?.length() ?: 0)).map { keep!!.optString(it) }, o.getString("startDay"),
                      o.getDouble("startWeightKg"), o.optDouble("adjustmentKcal", 0.0), o.optString("lastAdjustedDay").ifEmpty { null },
-                     o.optBoolean("hideNumbers"), o.optBoolean("pregnantOrNursing"))
+                     o.optBoolean("hideNumbers"), o.optBoolean("pregnantOrNursing"),
+                     if (o.has("activeDays") && !o.isNull("activeDays")) o.optBoolean("activeDays") else null,
+                     o.optString("burnSource").ifEmpty { null }, num("recompDeficitPercent"),
+                     o.optJSONArray("trainingWeekdays")?.let { a -> (0 until a.length()).map { a.optInt(it) } },
+                     num("dayShift"), o.optString("experience").ifEmpty { null }, o.optString("breakFromDay").ifEmpty { null })
             }.getOrNull()
         }
     }
@@ -57,6 +68,19 @@ object CoreDietPlan {
         val paceKgPerWeek: Double, val adjustmentKcal: Double, val effortScore: Double, val effort: String, val goalWeightKg: Double?,
         val notes: List<String>, val weeks: List<Week>, val goalWeeks: Pair<Int, Int>?, val dayKcal: Double,
         val dayProteinG: Double, val dayCarbsG: Double, val dayFatG: Double,
+    )
+    /**
+     * One day of the plan as the Food page shows it (core `food.planDay`, `DietDayResolver`): the day's goal with its
+     * phase, training-day shift and active-day extra, the burn the plan starts from and the real burn from completely
+     * logged days and the weight trend.
+     */
+    data class PlanDay(
+        val dayKcal: Double, val proteinG: Double, val carbsG: Double, val fatG: Double, val burnKcal: Double,
+        val averageKcal: Double, val phase: String, val activeBonusKcal: Double, val isTrainingDay: Boolean,
+        val planBurnKcal: Double, val dayComplete: Boolean, val expenditure: String, val realBurnKcal: Double?,
+        val realBurnLowKcal: Double?, val realBurnHighKcal: Double?, val strapKcal: Double?, val trendKgPerWeek: Double?,
+        val completeDays: Int, val weighIns: Int?, val showsTrainingLabel: Boolean, val showsActiveBonus: Boolean,
+        val needCompleteDays: Int = 14, val needWeighIns: Int = 6,
     )
     data class Suggestion(val form: String, val reason: String)
     data class Outcome(val changeKcal: Double, val hold: String?, val trendKgPerWeek: Double?, val plannedKgPerWeek: Double)
@@ -98,6 +122,32 @@ object CoreDietPlan {
             } },
             if (range != null && range.length() == 2) range.optInt(0) to range.optInt(1) else null,
             json.optDouble("dayKcal"), m?.optDouble("proteinG") ?: 0.0, m?.optDouble("carbsG") ?: 0.0, m?.optDouble("fatG") ?: 0.0)
+    }
+
+    /** Blocking; call off the main thread. [burnKcal] is the strap's usual whole-day burn, [burnedByDay] each day's. */
+    fun day(plan: Plan, person: Person, burnKcal: Double?, kcalPerKg: Double?, burnedByDay: Map<String, Double>, day: String,
+            dismissedWorkouts: List<String>): PlanDay? {
+        val args = base(person, burnKcal, kcalPerKg).put("plan", plan.json()).put("day", day)
+            .put("burnedByDay", JSONObject(burnedByDay as Map<*, *>)).put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+        val json = call("food.planDay", args) ?: return null
+        val r = json.optJSONObject("result") ?: return null
+        val m = json.optJSONObject("dayMacros")
+        return PlanDay(json.optDouble("dayKcal"), m?.optDouble("proteinG") ?: 0.0, m?.optDouble("carbsG") ?: 0.0,
+            m?.optDouble("fatG") ?: 0.0, r.optDouble("burnKcal"), r.optDouble("averageKcal"), json.optString("phase", "main"),
+            json.optDouble("activeBonusKcal", 0.0), json.optBoolean("isTrainingDay"), json.optDouble("planBurnKcal"),
+            json.optBoolean("dayComplete"), json.optString("expenditure", "missing"), json.num("realBurnKcal"),
+            json.num("realBurnLowKcal"), json.num("realBurnHighKcal"), json.num("strapKcal"), json.num("trendKgPerWeek"),
+            json.optInt("completeDays"), if (json.has("weighIns") && !json.isNull("weighIns")) json.optInt("weighIns") else null,
+            json.optBoolean("showsTrainingLabel"), json.optBoolean("showsActiveBonus"),
+            json.optInt("needCompleteDays", 14), json.optInt("needWeighIns", 6))
+    }
+
+    /** Whether [day] is marked as completely logged. Blocking. */
+    fun isDayComplete(day: String): Boolean = call("food.planDayComplete", JSONObject().put("day", day))?.optBoolean("complete") ?: false
+
+    /** Marks [day] as completely logged, or takes it back; only marked days count toward the real burn. Blocking. */
+    fun setDayComplete(day: String, complete: Boolean) {
+        call("food.planSetDayComplete", JSONObject().put("day", day).put("complete", complete))
     }
 
     fun suggest(keep: List<String>, likesRules: Boolean, strength: Boolean, mode: String): List<Suggestion> {

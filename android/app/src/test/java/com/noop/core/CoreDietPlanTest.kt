@@ -20,6 +20,23 @@ class CoreDietPlanTest {
         assertEquals(plan, CoreDietPlan.Plan.parse(plan.json()))
     }
 
+    @Test fun aPlanFromIOSKeepsItsNewerFieldsThroughAnAndroidSave() {
+        val raw = """{"goal":"recomp","mode":"advanced","pacePercent":0.5,"form":"highProtein","strength":true,
+            "steering":"coached","keep":[],"startDay":"2026-10-13","startWeightKg":92,"adjustmentKcal":0,
+            "hideNumbers":false,"pregnantOrNursing":false,"activeDays":true,"burnSource":"scale",
+            "recompDeficitPercent":10,"trainingWeekdays":[2,4,6],"dayShift":0.1,"experience":"returning",
+            "breakFromDay":"2026-11-03"}"""
+        val plan = CoreDietPlan.Plan.parse(raw)!!
+        val saved = JSONObject(plan.copy(hideNumbers = true).json())
+        assertEquals(true, saved.getBoolean("activeDays"))
+        assertEquals("scale", saved.getString("burnSource"))
+        assertEquals(10.0, saved.getDouble("recompDeficitPercent"), 0.0)
+        assertEquals(3, saved.getJSONArray("trainingWeekdays").length())
+        assertEquals(0.1, saved.getDouble("dayShift"), 0.0)
+        assertEquals("returning", saved.getString("experience"))
+        assertEquals("2026-11-03", saved.getString("breakFromDay"))
+    }
+
     @Test fun brokenJsonIsNoPlan() {
         assertNull(CoreDietPlan.Plan.parse("not json"))
         assertNull(CoreDietPlan.Plan.parse(null))

@@ -555,7 +555,7 @@ internal fun DietPlanLine(plan: CoreDietPlan.Plan?, resolved: CoreDietPlan.Resol
 /** The plan page: where the plan heads, this week's look, every day's numbers and the foods that suit it. */
 @Composable
 internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.Resolved?, week: CoreDietPlan.Outcome?, weekApplied: Boolean,
-                               onBack: () -> Unit, onEdit: () -> Unit, onEnd: () -> Unit, onPlanChange: (CoreDietPlan.Plan) -> Unit,
+                               planDay: CoreDietPlan.PlanDay? = null, onBack: () -> Unit, onEdit: () -> Unit, onEnd: () -> Unit, onPlanChange: (CoreDietPlan.Plan) -> Unit,
                                onWeekAccept: () -> Unit, onWeekDecline: () -> Unit) {
     val context = LocalContext.current
     val colors = Forge.colors
@@ -607,9 +607,22 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
                     Text(stringResource(R.string.diet_band_note), style = Forge.type.footnote, color = colors.textSecondary)
                 }
             }
+            // The real burn beside the strap's, and the choice to base the plan on it, as iOS's `DietBurnCard`.
+            if (!plan.hideNumbers && plan.steering != "manual") planDay?.let { d ->
+                ForgeDietBurnCard(d, onScale = plan.burnSource == "scale") { scale ->
+                    onPlanChange(plan.copy(burnSource = if (scale) "scale" else "strap", adjustmentKcal = 0.0))
+                }
+            }
             FoodSectionHeader(stringResource(R.string.diet_every_day))
             NumbersCard(r, plan.hideNumbers)
             r.notes.forEach { n -> noteText(n)?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary) } }
+        }
+        if (plan.steering != "manual") {
+            CheckRow(stringResource(R.string.diet_active_days), plan.activeDays == true) {
+                onPlanChange(plan.copy(activeDays = plan.activeDays != true))
+            }
+            Text(stringResource(R.string.diet_active_days_note), style = Forge.type.footnote, color = colors.textSecondary,
+                 modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         }
         CheckRow(stringResource(R.string.diet_hide_numbers), plan.hideNumbers) { onPlanChange(plan.copy(hideNumbers = !plan.hideNumbers)) }
         Box(Modifier.fillMaxWidth().clip(CircleShape).background(colors.accent).clickable(role = Role.Button, onClick = onEdit).padding(14.dp),

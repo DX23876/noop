@@ -112,7 +112,12 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     var planInputs by remember { mutableStateOf<Pair<Double?, Double?>>(null to null) }
     var planning by remember { mutableStateOf(false) }
     var showPlan by remember { mutableStateOf(false) }
-    val goals = planResolved?.let { r ->
+    // The day as the plan reads it (core `food.planDay`): its phase, training-day shift and active-day extra.
+    var planDay by remember { mutableStateOf<CoreDietPlan.PlanDay?>(null) }
+    var dayComplete by remember { mutableStateOf(false) }
+    val goals = planDay?.let { d ->
+        CoreFood.Goals(d.dayKcal, "plan", d.burnKcal, d.averageKcal - d.burnKcal, d.proteinG, d.carbsG, d.fatG)
+    } ?: planResolved?.let { r ->
         CoreFood.Goals(r.dayKcal, "plan", r.burnKcal, r.averageKcal - r.burnKcal, r.dayProteinG, r.dayCarbsG, r.dayFatG)
     } ?: baseGoals
     val goal = goals?.kcal
@@ -165,8 +170,17 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             withContext(Dispatchers.IO) { CoreDietPlan.resolve(p, dietPerson(context), planInputs.first, planInputs.second, day.toString()) }
         }
     }
+    LaunchedEffect(day, dietPlan, planInputs, burnedByDay, revision) {
+        planDay = dietPlan?.let { p ->
+            withContext(Dispatchers.IO) {
+                CoreDietPlan.day(p, dietPerson(context), planInputs.first, planInputs.second, burnedByDay, day.toString(),
+                                 dismissedTrainingWorkouts(context))
+            }
+        }
+    }
     LaunchedEffect(day, revision, goal) {
         summary = withContext(Dispatchers.IO) { CoreFood.day(day.toString()) }
+        dayComplete = withContext(Dispatchers.IO) { CoreDietPlan.isDayComplete(day.toString()) }
         nutrients = withContext(Dispatchers.IO) {
             val profile = com.noop.ui.ProfileStore.from(context)
             CoreFood.nutrients(day.toString(), profile.sex, profile.age, profile.weightKg, profile.heightCm, goal)
@@ -209,7 +223,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     }
     val currentPlan = dietPlan
     if (showPlan && currentPlan != null) {
-        ForgeDietPlanPage(currentPlan, planResolved, planWeek, planWeekApplied, onBack = { showPlan = false }, onEdit = { planning = true },
+        ForgeDietPlanPage(currentPlan, planResolved, planWeek, planWeekApplied, planDay = planDay, onBack = { showPlan = false }, onEdit = { planning = true },
             onEnd = { CoreDietPlan.save(context, null); dietPlan = null; planResolved = null; showPlan = false },
             onPlanChange = { CoreDietPlan.save(context, it); dietPlan = it },
             onWeekAccept = { planWeek?.let { w ->
@@ -296,7 +310,9 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             Text(dayTitle(day).uppercase(Locale.getDefault()), style = Forge.type.overline, color = Forge.sceneInk.secondary)
             DietPlanLine(dietPlan, planResolved) { if (dietPlan == null) planning = true else showPlan = true }
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
+            planDay?.let { FoodPlanDayLines(it) }
             if (sentence.isNotEmpty()) FoodSentence(sentence)
+            summary?.otherKcal?.let { kcal -> FoodOtherIntakeNote(kcal, summary?.otherSource ?: "") }
             week?.let { w ->
                 FoodSectionHeader(stringResource(R.string.food_week))
                 FoodWeekStrip(w.days, day.toString(), goals) { day = LocalDate.parse(it) }
@@ -331,6 +347,15 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
                             reload()
                         }
                     })
+                }
+                // With a plan, the day can be marked as completely logged, as iOS's `FoodCompleteDayRow`.
+                val asks = day == LocalDate.now() && !dayComplete && java.time.LocalTime.now().hour >= 18
+                FoodCompleteDayRow(dayComplete, asks) {
+                    val next = !dayComplete
+                    scope.launch {
+                        withContext(Dispatchers.IO) { CoreDietPlan.setDayComplete(day.toString(), next) }
+                        reload()
+                    }
                 }
             } else {
                 ForgeCard(Modifier.fillMaxWidth()) {
