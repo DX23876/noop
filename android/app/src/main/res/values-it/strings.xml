@@ -6372,4 +6372,18 @@
     <string name="forge_cband_primed">Pronto</string>
     <string name="forge_cband_peak">Picco</string>
     <string name="forge_ch_temp_vs_usual">%1$s °C rispetto al solito</string>
+    <string name="forge_tr_coach_shorter">Più breve, per favore</string>
+    <string name="forge_tr_coach_other">Altra routine</string>
+    <string name="forge_tr_coach_plan_today">Pianifica oggi con il coach</string>
+    <string name="forge_tr_coach_create">Crea con il coach</string>
+    <string name="forge_tr_coach_from_goals">dai tuoi obiettivi</string>
+    <string name="forge_tr_coach_shorter_prompt">Accorcia la sessione prevista per oggi, circa a metà, e dimmi cosa tenere.</string>
+    <string name="forge_tr_coach_other_prompt">Suggeriscimi un\'altra routine del mio piano per oggi, in base alla mia Charge e all\'allenamento di questa settimana.</string>
+    <string name="forge_tr_coach_plan_prompt">Guarda la mia Charge, l\'allenamento di questa settimana e le mie routine, e suggerisci cosa dovrei allenare oggi.</string>
+    <string name="forge_tr_coach_create_prompt">Aiutami a creare una nuova routine di forza adatta alla mia settimana e ai miei obiettivi.</string>
+    <string name="forge_cd_kcal_burned">%1$s kcal bruciate in queste sessioni.</string>
+    <string name="forge_cd_farthest">Il più lontano</string>
+    <string name="forge_cd_longest">Il più lungo</string>
+    <string name="forge_cd_bests">I tuoi migliori</string>
+    <string name="forge_tl_development">Evoluzione</string>
 </resources>

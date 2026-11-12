@@ -18,6 +18,8 @@ public enum CoreTrainingLoad {
         public var monotony: Double?, strain: Double?
         public var weekOverWeek: Double?
         public var measuredCount: Int, possibleCount: Int
+        /// The wearer's usual seven-day range for this lane (`relative.personalRange`), for the bar iOS draws.
+        public var usualLow: Double?, usualHigh: Double?
 
         init(_ lane: TrainingLoadPreparation.Lane) {
             sevenDayTotal = lane.sevenDayTotal; sevenDayWorkingSets = lane.sevenDayWorkingSets
@@ -29,6 +31,8 @@ public enum CoreTrainingLoad {
             monotony = lane.distribution?.monotony; strain = lane.distribution?.strain
             weekOverWeek = lane.weekOverWeek
             measuredCount = lane.measuredCount; possibleCount = lane.possibleCount
+            usualLow = lane.relative.personalRange?.usualLowerBound
+            usualHigh = lane.relative.personalRange?.usualUpperBound
         }
     }
 

@@ -229,8 +229,9 @@ private fun SessionRow(viewModel: AppViewModel, row: WorkoutRow, onOpen: () -> U
         Row(Modifier.fillMaxWidth().combinedClickable(role = Role.Button, onClick = onOpen, onLongClick = { menu = true })
                 .padding(horizontal = 14.dp, vertical = 12.dp).semantics(mergeDescendants = true) {},
             verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(38.dp).background(colors.effort.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(com.noop.ui.sportIcon(row.sport), contentDescription = null, tint = colors.effort, modifier = Modifier.size(18.dp))
+            val tint = forgeSportTint(row.sport)
+            Box(Modifier.size(38.dp).background(tint.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(com.noop.ui.sportIcon(row.sport), contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(ForgeMetrics.space3))
             Column(Modifier.weight(1f)) {

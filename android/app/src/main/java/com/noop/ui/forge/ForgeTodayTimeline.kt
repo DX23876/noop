@@ -407,7 +407,8 @@ private fun WorkoutEntry(row: WorkoutRow) {
         add(stringResource(R.string.forge_timeline_minutes, minutes))
         row.distanceM?.takeIf { it > 0 }?.let { add(UnitFormatter.distanceFromMeters(it, system)) }
     }.joinToString(" · ")
-    FactRow(Icons.Rounded.FitnessCenter, Forge.colors.effort, WorkoutEditing.displaySport(row.sport), detail,
+    // Its sport's own symbol and colour, as iOS's `workoutCard`.
+    FactRow(com.noop.ui.sportIcon(row.sport), forgeSportTint(row.sport), WorkoutEditing.displaySport(row.sport), detail,
             row.strain?.let { UnitFormatter.effortDisplay(it, scale).removeSuffix(".0") }, stringResource(R.string.forge_effort))
 }
 

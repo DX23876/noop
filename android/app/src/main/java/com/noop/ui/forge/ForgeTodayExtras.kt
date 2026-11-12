@@ -260,7 +260,7 @@ private fun LatestWorkoutCard(workouts: List<com.noop.data.WorkoutRow>) {
             val day = start.format(java.time.format.DateTimeFormatter.ofPattern(
                 android.text.format.DateFormat.getBestDateTimePattern(locale, "dMMM"), locale))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp).background(colors.accent, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(40.dp).background(forgeSportTint(row.sport), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
                     Icon(com.noop.ui.sportIcon(row.sport), contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(ForgeMetrics.space3))

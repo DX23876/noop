@@ -6377,4 +6377,18 @@
     <string name="forge_cband_primed">Заряжен</string>
     <string name="forge_cband_peak">Пик</string>
     <string name="forge_ch_temp_vs_usual">%1$s °C к обычному</string>
+    <string name="forge_tr_coach_shorter">Покороче, пожалуйста</string>
+    <string name="forge_tr_coach_other">Другая программа</string>
+    <string name="forge_tr_coach_plan_today">Спланировать день с коучем</string>
+    <string name="forge_tr_coach_create">Создать с коучем</string>
+    <string name="forge_tr_coach_from_goals">из твоих целей</string>
+    <string name="forge_tr_coach_shorter_prompt">Сократи сегодняшнюю тренировку примерно вдвое и скажи, что оставить.</string>
+    <string name="forge_tr_coach_other_prompt">Предложи другую программу из моего плана на сегодня с учётом моего Charge и тренировок этой недели.</string>
+    <string name="forge_tr_coach_plan_prompt">Посмотри на мой Charge, тренировки этой недели и мои программы и предложи, что тренировать сегодня.</string>
+    <string name="forge_tr_coach_create_prompt">Помоги составить новую силовую программу под мою неделю и мои цели.</string>
+    <string name="forge_cd_kcal_burned">%1$s ккал сожжено за эти занятия.</string>
+    <string name="forge_cd_farthest">Самый дальний</string>
+    <string name="forge_cd_longest">Самый длинный</string>
+    <string name="forge_cd_bests">Ваши лучшие результаты</string>
+    <string name="forge_tl_development">Динамика</string>
 </resources>

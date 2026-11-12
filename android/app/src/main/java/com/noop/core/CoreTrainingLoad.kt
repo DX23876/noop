@@ -14,6 +14,7 @@ object CoreTrainingLoad {
         val band: String?, val guardState: String?, val daysBelowUsual: Int, val readingDay: String?,
         val maturity: String, val isLowerBound: Boolean, val monotony: Double?, val strain: Double?,
         val weekOverWeek: Double?, val measuredCount: Int, val possibleCount: Int,
+        val usualLow: Double? = null, val usualHigh: Double? = null,
     )
     data class Verdict(val kind: String, val value: String)
     data class Statement(val kind: String, val lane: String?, val verdict: Verdict?, val low: String?,
@@ -101,7 +102,7 @@ object CoreTrainingLoad {
         x.getDouble("sevenDayTotal"), x.getInt("sevenDayWorkingSets"), x.dbl("percent"),
         x.str("band"), x.str("guardState"), x.optInt("daysBelowUsual"), x.str("readingDay"),
         x.optString("maturity", "immediate"), x.optBoolean("isLowerBound"), x.dbl("monotony"), x.dbl("strain"),
-        x.dbl("weekOverWeek"), x.optInt("measuredCount"), x.optInt("possibleCount"))
+        x.dbl("weekOverWeek"), x.optInt("measuredCount"), x.optInt("possibleCount"), x.dbl("usualLow"), x.dbl("usualHigh"))
 
     private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else (0 until length()).map { getJSONObject(it) }
     private fun JSONArray?.strings(): List<String> = if (this == null) emptyList() else (0 until length()).map { getString(it) }

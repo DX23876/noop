@@ -6396,4 +6396,18 @@
     <string name="forge_cband_primed">Primado</string>
     <string name="forge_cband_peak">Pico</string>
     <string name="forge_ch_temp_vs_usual">%1$s °C face ao habitual</string>
+    <string name="forge_tr_coach_shorter">Mais curto, por favor</string>
+    <string name="forge_tr_coach_other">Outra rotina</string>
+    <string name="forge_tr_coach_plan_today">Planear hoje com o coach</string>
+    <string name="forge_tr_coach_create">Criar com o coach</string>
+    <string name="forge_tr_coach_from_goals">a partir dos teus objetivos</string>
+    <string name="forge_tr_coach_shorter_prompt">Encurta a sessão planeada para hoje, para cerca de metade, e diz-me o que manter.</string>
+    <string name="forge_tr_coach_other_prompt">Sugere-me outra rotina do meu plano para hoje, tendo em conta a minha Charge e o treino desta semana.</string>
+    <string name="forge_tr_coach_plan_prompt">Vê a minha Charge, o treino desta semana e as minhas rotinas, e sugere o que devo treinar hoje.</string>
+    <string name="forge_tr_coach_create_prompt">Ajuda-me a criar uma nova rotina de força que encaixe na minha semana e nos meus objetivos.</string>
+    <string name="forge_cd_kcal_burned">%1$s kcal queimadas nestas sessões.</string>
+    <string name="forge_cd_farthest">Mais longe</string>
+    <string name="forge_cd_longest">Mais tempo</string>
+    <string name="forge_cd_bests">Os teus melhores</string>
+    <string name="forge_tl_development">Evolução</string>
 </resources>

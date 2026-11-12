@@ -6443,4 +6443,18 @@
     <string name="forge_cband_primed">Primed</string>
     <string name="forge_cband_peak">Peak</string>
     <string name="forge_ch_temp_vs_usual">%1$s °C vs usual</string>
+    <string name="forge_tr_coach_shorter">Shorter, please</string>
+    <string name="forge_tr_coach_other">Other routine</string>
+    <string name="forge_tr_coach_plan_today">Plan today with the coach</string>
+    <string name="forge_tr_coach_create">Create with the coach</string>
+    <string name="forge_tr_coach_from_goals">from your goals</string>
+    <string name="forge_tr_coach_shorter_prompt">Make today\'s planned session shorter, about half the time, and tell me what to keep.</string>
+    <string name="forge_tr_coach_other_prompt">Suggest a different routine for today from my plan, given my Charge and this week\'s training.</string>
+    <string name="forge_tr_coach_plan_prompt">Look at my Charge, this week\'s training and my routines, and suggest what I should train today.</string>
+    <string name="forge_tr_coach_create_prompt">Help me create a new strength routine that fits my week and my goals.</string>
+    <string name="forge_cd_kcal_burned">%1$s kcal burned in these sessions.</string>
+    <string name="forge_cd_farthest">Farthest</string>
+    <string name="forge_cd_longest">Longest</string>
+    <string name="forge_cd_bests">Your bests</string>
+    <string name="forge_tl_development">Development</string>
 </resources>

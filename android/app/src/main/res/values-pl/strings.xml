@@ -6424,4 +6424,18 @@
     <string name="forge_cband_primed">Gruntowany</string>
     <string name="forge_cband_peak">Szczyt</string>
     <string name="forge_ch_temp_vs_usual">%1$s °C wobec normy</string>
+    <string name="forge_tr_coach_shorter">Krócej, proszę</string>
+    <string name="forge_tr_coach_other">Inna rutyna</string>
+    <string name="forge_tr_coach_plan_today">Zaplanuj dzień z coachem</string>
+    <string name="forge_tr_coach_create">Utwórz z coachem</string>
+    <string name="forge_tr_coach_from_goals">z twoich celów</string>
+    <string name="forge_tr_coach_shorter_prompt">Skróć dzisiejszą zaplanowaną sesję mniej więcej o połowę i powiedz, co zostawić.</string>
+    <string name="forge_tr_coach_other_prompt">Zaproponuj na dziś inną rutynę z mojego planu, biorąc pod uwagę mój Charge i treningi z tego tygodnia.</string>
+    <string name="forge_tr_coach_plan_prompt">Spójrz na moją Charge, treningi z tego tygodnia i moje plany, i zaproponuj, co dziś trenować.</string>
+    <string name="forge_tr_coach_create_prompt">Pomóż mi stworzyć nową rutynę siłową, która pasuje do mojego tygodnia i celów.</string>
+    <string name="forge_cd_kcal_burned">%1$s kcal spalone w tych sesjach.</string>
+    <string name="forge_cd_farthest">Najdalej</string>
+    <string name="forge_cd_longest">Najdłuższy</string>
+    <string name="forge_cd_bests">Twoje najlepsze</string>
+    <string name="forge_tl_development">Rozwój</string>
 </resources>

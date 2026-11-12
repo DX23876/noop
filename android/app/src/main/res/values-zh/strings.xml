@@ -6373,4 +6373,18 @@
     <string name="forge_cband_primed">私营</string>
     <string name="forge_cband_peak">峰值</string>
     <string name="forge_ch_temp_vs_usual">较平常 %1$s °C</string>
+    <string name="forge_tr_coach_shorter">请短一些</string>
+    <string name="forge_tr_coach_other">换个训练</string>
+    <string name="forge_tr_coach_plan_today">和教练规划今天</string>
+    <string name="forge_tr_coach_create">与教练一起创建</string>
+    <string name="forge_tr_coach_from_goals">来自你的目标</string>
+    <string name="forge_tr_coach_shorter_prompt">把今天计划的训练缩短到一半左右，并告诉我保留哪些内容。</string>
+    <string name="forge_tr_coach_other_prompt">根据我的 Charge 和本周训练，从我的计划里为今天推荐另一个训练。</string>
+    <string name="forge_tr_coach_plan_prompt">看看我的 Charge、本周训练和我的训练计划，建议我今天练什么。</string>
+    <string name="forge_tr_coach_create_prompt">帮我制定一个适合我这周和目标的新力量训练。</string>
+    <string name="forge_cd_kcal_burned">这些训练消耗 %1$s 千卡。</string>
+    <string name="forge_cd_farthest">最远</string>
+    <string name="forge_cd_longest">最长</string>
+    <string name="forge_cd_bests">你最好的</string>
+    <string name="forge_tl_development">变化趋势</string>
 </resources>

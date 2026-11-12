@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
@@ -221,6 +222,11 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     }
 
     val s = snapshot
+    // While the coach is on, a quick ask goes to it with its prompt, as iOS's `onAsk`.
+    val selectTab = LocalForgeTabSelect.current
+    val askCoach: ((String) -> Unit)? = if (com.noop.ui.BottomBarStyleStore.coachEnabled) { p ->
+        com.noop.ui.CoachHandoff.pendingPrompt = p; selectTab(ForgeTab.Coach)
+    } else null
     // Goals and the other pages behind More, opened over the tab as Today opens them (new design).
     val more = rememberMoreNavigator()
     val workouts by viewModel.workouts.collectAsState()
@@ -260,7 +266,15 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             }
             // Today's routine from the plan, ready to start, as iOS's `todayPlan`.
             val todayIds = s.week.firstOrNull { it.isToday }?.routineIds.orEmpty()
-            s.routines.firstOrNull { it.id in todayIds }?.let { routine -> TrainingPlannedToday(routine) { start(listOf(routine.id)) } }
+            val planned = s.routines.firstOrNull { it.id in todayIds }
+            if (planned != null) TrainingPlannedToday(planned, onStart = { start(listOf(planned.id)) }, onAsk = askCoach)
+            else if (askCoach != null) {
+                // With nothing planned, the coach offers to plan today, as iOS's prominent chip.
+                val prompt = stringResource(R.string.forge_tr_coach_plan_prompt)
+                ForgeCapsuleChip(stringResource(R.string.forge_tr_coach_plan_today), Icons.Rounded.AutoAwesome, prominent = true) {
+                    askCoach(prompt)
+                }
+            }
         } else {
             val today = s.week.firstOrNull { it.isToday }?.routineIds.orEmpty()
             QuickStartCard(
@@ -286,7 +300,16 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             WeekStrip(s.week) { page = TrainingPage.Schedule }
         }
 
-        Section(stringResource(R.string.forge_th_routines), stringResource(R.string.forge_th_your_training), trailing = {
+        // The new design shows its routines only when there are some, with "All" opening the plan and library, as iOS.
+        if (ForgeDesign.preview) {
+            if (s.routines.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+                TrainingSectionHead(stringResource(R.string.forge_th_routines), stringResource(R.string.forge_tr_all_link)) {
+                    page = TrainingPage.PlanLibrary
+                }
+                TrainingRoutineRow(s.routines, onStart = { start(listOf(it.id)) }, onEdit = { page = TrainingPage.Routine(it) },
+                                   onAsk = askCoach)
+            }
+        } else Section(stringResource(R.string.forge_th_routines), stringResource(R.string.forge_th_your_training), trailing = {
             var menu by remember { mutableStateOf(false) }
             Box {
                 TintButton(stringResource(R.string.forge_th_add), Icons.Rounded.Add) { menu = true }
@@ -312,8 +335,6 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                          modifier = Modifier.background(Forge.colors.accent.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                              .clickable { page = TrainingPage.Starters }.padding(horizontal = 12.dp, vertical = 7.dp))
                 }
-            } else if (ForgeDesign.preview) {
-                TrainingRoutineRow(s.routines, onStart = { start(listOf(it.id)) }, onEdit = { page = TrainingPage.Routine(it) })
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
                     s.routines.forEach { routine ->
@@ -448,7 +469,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     TrainingPage.Starters -> StarterPlans(onClose = close)
                     is TrainingPage.Detail -> ForgeTrainingSessionDetailPage(open.session.id, onClose = close)
                     TrainingPage.Muscles -> s?.let { MuscleAnalyticsPage(it.muscles, onClose = close) }
-                    TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close)
+                    TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close, onStrength = { page = TrainingPage.Strength },
+                                                               onCardio = { page = TrainingPage.Cardio })
                     TrainingPage.Strength -> ForgeStrengthHub(onClose = close, onStart = { start(listOf(it)) },
                                                               onOpenPlan = { page = TrainingPage.PlanLibrary })
                     TrainingPage.Cardio -> ForgeCardioPage(onClose = close)

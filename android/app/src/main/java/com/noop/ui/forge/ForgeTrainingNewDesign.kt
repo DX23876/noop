@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.EventNote
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
@@ -54,6 +55,47 @@ import com.noop.data.WorkoutRow
  * grouped analysis rows under Key metrics and the Tools group.
  */
 
+/**
+ * A sport's colour, as iOS's `AppleInspiredColors.role(forSport:)` picks it in the new design: walks mint, runs green,
+ * rides yellow, water sports cyan, strength teal, combat and intervals pink, mind and body purple, ball games indigo,
+ * snow and climbing teal, anything else grey.
+ */
+@Composable
+internal fun forgeSportTint(sport: String): Color {
+    val s = sport.lowercase()
+    fun has(vararg t: String) = t.any { s.contains(it) }
+    val c = ForgeTokens.Color
+    return when {
+        has("walk", "hik", "stroll", "rucking") -> c.systemMint
+        has("run", "jog", "sprint") -> c.systemGreen
+        has("cycl", "bike", "biking", "spin") -> c.systemYellow
+        has("swim", "row", "paddl", "kayak", "canoe", "surf", "water", "sail", "dive", "diving") -> c.systemCyan
+        has("strength", "weight", "lift", "bodybuild", "functional", "crossfit", "powerlift", "calisthen") -> c.systemTeal
+        has("hiit", "interval", "box", "kick", "martial", "muay", "judo", "jiu", "karate", "wrestl", "mma") -> c.systemPink
+        has("yoga", "pilates", "stretch", "barre", "ballet", "danc", "mobility", "meditat", "tai chi") -> c.systemPurple
+        has("ball", "tennis", "padel", "squash", "golf", "hockey", "cricket", "rugby", "lacrosse", "badminton",
+            "racquet", "pickle", "volley", "soccer", "football") -> c.systemIndigo
+        has("ski", "snowboard", "skat", "climb", "boulder") -> c.systemTeal
+        else -> c.systemGray
+    }.resolve()
+}
+
+/** A light capsule chip, as iOS's `ForgeChip`: prominent ones read in the accent colour. */
+@Composable
+internal fun ForgeCapsuleChip(title: String, icon: ImageVector? = null, prominent: Boolean = false, onClick: () -> Unit) {
+    val colors = Forge.colors
+    val ink = if (prominent) colors.accent else colors.text
+    Row(Modifier.heightIn(min = 36.dp).background(colors.inset, CircleShape)
+            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(title, style = Forge.type.subhead.copy(fontWeight = FontWeight.Medium), color = ink, maxLines = 1)
+    }
+}
+
 /** A section head with a link on the right, as iOS's `sectionHeader(_:link:route:)`. */
 @Composable
 internal fun TrainingSectionHead(title: String, link: String?, onLink: () -> Unit = {}) {
@@ -67,7 +109,7 @@ internal fun TrainingSectionHead(title: String, link: String?, onLink: () -> Uni
 
 /** Today's routine from the plan with its Start, as iOS's `todayPlan`; nothing when no routine is planned today. */
 @Composable
-internal fun TrainingPlannedToday(routine: CoreTraining.Routine, onStart: () -> Unit) {
+internal fun TrainingPlannedToday(routine: CoreTraining.Routine, onStart: () -> Unit, onAsk: ((String) -> Unit)? = null) {
     val colors = Forge.colors
     ForgeCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -98,6 +140,16 @@ internal fun TrainingPlannedToday(routine: CoreTraining.Routine, onStart: () -> 
                      color = Color.White)
             }
         }
+        // While the coach is on, its two quick asks sit under the routine, as on iOS.
+        if (onAsk != null) {
+            val shorter = stringResource(R.string.forge_tr_coach_shorter_prompt)
+            val other = stringResource(R.string.forge_tr_coach_other_prompt)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ForgeCapsuleChip(stringResource(R.string.forge_tr_coach_shorter)) { onAsk(shorter) }
+                ForgeCapsuleChip(stringResource(R.string.forge_tr_coach_other)) { onAsk(other) }
+            }
+        }
     }
 }
 
@@ -105,7 +157,7 @@ internal fun TrainingPlannedToday(routine: CoreTraining.Routine, onStart: () -> 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun TrainingRoutineRow(routines: List<CoreTraining.Routine>, onStart: (CoreTraining.Routine) -> Unit,
-                                onEdit: (CoreTraining.Routine) -> Unit) {
+                                onEdit: (CoreTraining.Routine) -> Unit, onAsk: ((String) -> Unit)? = null) {
     val colors = Forge.colors
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         routines.forEach { routine ->
@@ -121,6 +173,20 @@ internal fun TrainingRoutineRow(routines: List<CoreTraining.Routine>, onStart: (
                      maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(pluralStringResource(R.plurals.forge_nx_exercises, routine.exerciseIds.size, routine.exerciseIds.size),
                      style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
+            }
+        }
+        // While the coach is on, the row ends on a card that builds a new routine with it, as on iOS.
+        if (onAsk != null) {
+            val prompt = stringResource(R.string.forge_tr_coach_create_prompt)
+            Column(Modifier.width(150.dp).height(140.dp).background(colors.surface, RoundedCornerShape(12.dp))
+                       .clickable(role = Role.Button) { onAsk(prompt) }.padding(14.dp)) {
+                Box(Modifier.size(40.dp).background(colors.effort.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.effort, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                Text(stringResource(R.string.forge_tr_coach_create), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                     color = colors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.forge_tr_coach_from_goals), style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
             }
         }
     }
@@ -142,6 +208,7 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: (WorkoutRow)
     val locale = java.util.Locale.getDefault()
     val dayFormat = java.time.format.DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, "EEEdMMM"), locale)
     val clock = rememberClockFormatter()
+    val distanceSystem = com.noop.ui.UnitPrefs.distanceSystem(androidx.compose.ui.platform.LocalContext.current)
     ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
         rows.forEachIndexed { i, row ->
             if (i > 0) Box(Modifier.padding(start = 64.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
@@ -149,15 +216,17 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: (WorkoutRow)
             val minutes = ((row.durationS ?: (row.endTs - row.startTs).coerceAtLeast(0).toDouble()) / 60).toInt()
             Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(row) }.padding(horizontal = 14.dp, vertical = 12.dp)
                     .semantics(mergeDescendants = true) { }, verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(38.dp).background(colors.accent.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(com.noop.ui.sportIcon(row.sport), contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                val tint = forgeSportTint(row.sport)
+                Box(Modifier.size(38.dp).background(tint.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(com.noop.ui.sportIcon(row.sport), contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(ForgeMetrics.space3))
                 Column(Modifier.weight(1f)) {
                     Text(com.noop.ui.WorkoutEditing.displaySport(row.sport), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                          color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val distance = row.distanceM?.takeIf { it > 0 }?.let { " · " + com.noop.ui.UnitFormatter.distanceFromMeters(it, distanceSystem) }.orEmpty()
                     Text(stringResource(R.string.forge_lw_when, start.format(dayFormat), start.format(clock),
-                                        stringResource(R.string.forge_tw_min, minutes)),
+                                        stringResource(R.string.forge_tw_min, minutes)) + distance,
                          style = Forge.type.caption, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 row.strain?.let { e ->

@@ -3,6 +3,9 @@ package com.noop.ui.forge
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,7 +101,7 @@ private enum class LoadDetail { Adaptation, Recovery, History, Session, Maturity
  * `TrainingLoadPreparation.prepare`, the computation the iPhone runs.
  */
 @Composable
-fun ForgeTrainingLoadPage(onClose: () -> Unit) {
+fun ForgeTrainingLoadPage(onClose: () -> Unit, onStrength: (() -> Unit)? = null, onCardio: (() -> Unit)? = null) {
     val context = LocalContext.current
     var output by remember { mutableStateOf<CoreTrainingLoad.Output?>(null) }
     var loaded by remember { mutableStateOf(false) }
@@ -121,10 +124,27 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
     }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_tl_title), onClose)
-        Text(stringResource(R.string.forge_tl_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary,
-             modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
+        // iOS writes the subtitle in the shipped design only (`classicOnlySubtitle`).
+        if (!ForgeDesign.preview) Text(stringResource(R.string.forge_tl_subtitle), style = Forge.type.subhead,
+                                       color = Forge.sceneInk.secondary, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         if (!loaded) return@SettingsColumn
         if (o == null) return@SettingsColumn
+        if (ForgeDesign.preview) {
+            // The new design as iOS's `forgeBody`: where the week stands, what is left of it, how it got here and
+            // what it builds toward.
+            ForgeStandingCard(o, onStrength, onCardio)
+            RoomCard(o)
+            MaturityLine(o)
+            SustainedCard(o)
+            ForgeHistoryCard(o)
+            ShapeCard(o)
+            ForgeDevelopment(o) { detail = it }
+            StrengthDevelopment(o)
+            CardioDevelopment(o)
+            TrainingHistoryButton { history = true }
+            LoadExplainers(o) { detail = it }
+            return@SettingsColumn
+        }
         HeroLanes(o)
         StatementCard(o)
         RoomCard(o)
@@ -135,6 +155,13 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
         CardioDevelopment(o)
         ShapeCard(o)
         TrainingHistoryButton { history = true }
+        LoadExplainers(o) { detail = it }
+    }
+}
+
+@Composable
+private fun LoadExplainers(o: CoreTrainingLoad.Output, open: (LoadDetail) -> Unit) {
+    run {
         val maturity = maturity(o)
         ExplainerRows(listOf(
             ExplainerItem("maturity", maturityIcon(maturity), maturityTitle(maturity), maturityDetail(maturity)),
@@ -143,8 +170,148 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit) {
             ExplainerItem("method", Icons.Rounded.Functions, stringResource(R.string.forge_tl_each_number),
                           stringResource(R.string.forge_tl_transparent)),
         )) { item ->
-            detail = when (item.id) { "maturity" -> LoadDetail.Maturity; "basis" -> LoadDetail.Basis; else -> LoadDetail.Method }
+            open(when (item.id) { "maturity" -> LoadDetail.Maturity; "basis" -> LoadDetail.Basis; else -> LoadDetail.Method })
         }
+    }
+}
+
+/** Both lanes on their own usual range with the verdict sentence under them, as iOS's `forgeStandingCard`. */
+@Composable
+private fun ForgeStandingCard(o: CoreTrainingLoad.Output, onStrength: (() -> Unit)?, onCardio: (() -> Unit)?) {
+    val a = advice(o)
+    val colors = Forge.colors
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+            ForgeLaneRow(TrainingLane.Strength, o.strength, o.strengthVerdict, strengthFigure(o.strength),
+                         strengthEvidence(o.strength), strengthCaveat(o), provisionalNote(o) ?: capNote(o.strength), onStrength)
+            Box(Modifier.fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
+            ForgeLaneRow(TrainingLane.Cardio, o.cardio, o.cardioVerdict, cardioFigure(o.cardio), cardioEvidence(o.cardio),
+                         cardioCaveat(o), capNote(o.cardio), onCardio)
+            Box(Modifier.fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
+            Row(verticalAlignment = Alignment.Top) {
+                StatusBadge(a.icon, a.color, 32.dp)
+                Spacer(Modifier.width(ForgeMetrics.space2))
+                Text(a.text, style = Forge.type.subhead, color = colors.text, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ForgeLaneRow(lane: TrainingLane, l: CoreTrainingLoad.Lane, verdict: CoreTrainingLoad.Verdict?, figure: String?,
+                         evidence: String?, caveat: String?, note: String?, onOpen: (() -> Unit)?) {
+    val colors = Forge.colors
+    Column(Modifier.fillMaxWidth().then(if (onOpen != null) Modifier.clickable(role = Role.Button, onClick = onOpen) else Modifier),
+           verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(lane.title, style = Forge.type.headline, color = colors.text, modifier = Modifier.weight(1f))
+            Text(verdictLabel(verdict), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = lane.color, maxLines = 1)
+            l.percent?.let {
+                Spacer(Modifier.width(ForgeMetrics.space2))
+                Text(signedPercent(it), style = Forge.type.captionNumber, color = colors.textSecondary)
+            }
+        }
+        val low = l.usualLow; val high = l.usualHigh
+        if (low != null && high != null) {
+            val top = maxOf(high * 1.35, l.sevenDayTotal, 1.0)
+            TypicalRangeBar((l.sevenDayTotal / top).toFloat(), (low / top).toFloat(), (high / top).toFloat(), lane.color)
+        }
+        figure?.let { Text(it, style = Forge.type.captionNumber, color = colors.text) }
+        evidence?.let { Text(it, style = Forge.type.caption, color = colors.textSecondary) }
+        caveat?.let {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(Icons.Rounded.Report, contentDescription = null, tint = TrainingTint.warning, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(it, style = Forge.type.caption, color = colors.text)
+            }
+        }
+        note?.let {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(Icons.Rounded.Info, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(it, style = Forge.type.caption, color = colors.textTertiary)
+            }
+        }
+    }
+}
+
+/** iOS's `TypicalRangeBar`: an inset track, the usual range hatched, the value as a solid fill from the start. */
+@Composable
+private fun TypicalRangeBar(value: Float, low: Float, high: Float, color: Color) {
+    val inset = Forge.colors.inset
+    val hatch = Forge.colors.textTertiary.copy(alpha = 0.55f)
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape)) {
+        val w = size.width; val h = size.height
+        drawRect(inset)
+        val lo = low.coerceIn(0f, 1f) * w; val hi = high.coerceIn(0f, 1f) * w
+        if (hi > lo) {
+            val step = 5.dp.toPx()
+            var x = lo - h
+            while (x < hi) {
+                val x0 = maxOf(x, lo); val x1 = minOf(x + h, hi)
+                if (x1 > x0) drawLine(hatch, Offset(x0, h - (x0 - x)), Offset(x1, h - (x1 - x)), strokeWidth = 1.dp.toPx())
+                x += step
+            }
+        }
+        drawRoundRect(color, size = androidx.compose.ui.geometry.Size(maxOf(h, value.coerceIn(0f, 1f) * w), h),
+                      cornerRadius = androidx.compose.ui.geometry.CornerRadius(h / 2, h / 2))
+    }
+}
+
+/** The last eight weeks as a chart over the weekly status strip, as iOS's `historyCard`. */
+@Composable
+private fun ForgeHistoryCard(o: CoreTrainingLoad.Output) {
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+        OverlineHeader(stringResource(R.string.forge_tl_last_8_weeks), stringResource(R.string.forge_tl_status_history))
+        ForgeCard(Modifier.fillMaxWidth()) {
+            LoadRatioChart(o.ratios.map { it.day }, o.ratios.map { it.strength }, o.ratios.map { it.cardio })
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            Box(Modifier.fillMaxWidth().height(ForgeMetrics.hairline).background(Forge.colors.divider))
+            Spacer(Modifier.height(ForgeMetrics.space3))
+            StatusHistoryStrip(o.history.map { Triple(it.day, it.strength, it.cardio) })
+            Spacer(Modifier.height(ForgeMetrics.space2))
+            Text(stringResource(R.string.forge_tl_history_caption), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
+    }
+}
+
+/** What the load is doing to the body, each line opening its reading, as iOS's `forgeDevelopment`. */
+@Composable
+private fun ForgeDevelopment(o: CoreTrainingLoad.Output, open: (LoadDetail) -> Unit) {
+    val colors = Forge.colors
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+        TrainingSectionHead(stringResource(R.string.forge_tl_development), null)
+        ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+            Column(Modifier.fillMaxWidth().clickable(role = Role.Button) { open(LoadDetail.Adaptation) }
+                       .padding(horizontal = ForgeMetrics.space4, vertical = 12.dp),
+                   verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                AdaptationMini(TrainingLane.Strength, o.strengthAdaptation)
+                AdaptationMini(TrainingLane.Cardio, o.cardioAdaptation)
+            }
+            DevelopmentRow(Icons.Rounded.Bedtime, recoveryTint(o), stringResource(R.string.forge_tl_recovery), recoverySummary(o)) {
+                open(LoadDetail.Recovery)
+            }
+            DevelopmentRow(Icons.Rounded.HowToReg, TrainingTint.cyan, stringResource(R.string.forge_tl_session_load),
+                           sessionText(o.session)) { open(LoadDetail.Session) }
+        }
+    }
+}
+
+@Composable
+private fun DevelopmentRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onClick: () -> Unit) {
+    val colors = Forge.colors
+    Box(Modifier.padding(start = 68.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
+    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = ForgeMetrics.space4, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).background(tint, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(ForgeMetrics.space3))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(subtitle, style = Forge.type.caption, color = colors.textSecondary, maxLines = 2)
+        }
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary)
     }
 }
 

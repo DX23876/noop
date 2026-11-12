@@ -445,8 +445,9 @@ fun ExplainerRows(items: List<ExplainerItem>, onOpen: (ExplainerItem) -> Unit) {
 @Composable
 fun OverlineHeader(title: String, overline: String) {
     Column(Modifier.padding(horizontal = ForgeMetrics.space1), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(overline.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
-        Text(title, style = Forge.type.title2, color = Forge.sceneInk.text)
+        // The new design drops the kicker and writes the heading small and semibold, as iOS's `SectionHeader`.
+        if (!ForgeDesign.preview) Text(overline.uppercase(), style = Forge.type.overline, color = Forge.sceneInk.secondary)
+        Text(title, style = if (ForgeDesign.preview) Forge.type.headline else Forge.type.title2, color = Forge.sceneInk.text)
     }
 }
 
