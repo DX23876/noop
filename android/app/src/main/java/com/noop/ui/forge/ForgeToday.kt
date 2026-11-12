@@ -333,6 +333,10 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             onWorkout = { if (viewModel.activeWorkout.value != null) liveWorkout = true else startWorkout = true },
                             workoutRunning = viewModel.activeWorkout.collectAsState().value != null,
                             onCustomize = { editingWidgets = true })
+            // The illness early warning above the rings, as iOS's `HealthAlertBanner` on its Today; it belongs to
+            // today, so a past day does not repeat it.
+            val healthAlert by viewModel.healthAlert.collectAsState()
+            if (shown == today) healthAlert?.let { com.noop.ui.IllnessBanner(it) }
             // Holding a ring arranges the tiles, as on iOS. The rings' own tap claims the touch, so the hold rides
             // on the same click (a long-press detector around them never saw the press).
             // As iOS's rings: Charge carried from the latest scored day and Rest from the latest night while today has

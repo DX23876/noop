@@ -7239,7 +7239,7 @@ private fun SparkStatTile(
 // MARK: - Illness banner (ported from HealthAlertBanner.swift)
 
 @Composable
-private fun IllnessBanner(message: String) {
+internal fun IllnessBanner(message: String) {
     // Frosted Bevel warning card (amber tint), matches the Swift HealthAlertBanner.
     Row(
         modifier = Modifier
