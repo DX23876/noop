@@ -260,7 +260,8 @@ fun HydrationScreen(viewModel: AppViewModel) {
                     Text(
                         uiString(R.string.l10n_hydration_screen_kotlin_math_min_100_fraction_100_72f2dfde, kotlin.math.min(100, (fraction * 100).toInt())),
                         style = NoopType.footnote,
-                        color = Color.White.copy(alpha = 0.6f),
+                        // On the card, not over the vessel: white vanished on the light hero fill.
+                        color = Palette.textSecondary,
                     )
                 }
             }
