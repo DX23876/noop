@@ -38,7 +38,19 @@ object CoreTrainingLoad {
         val provisionalBand: String?, val cardioMeasured: Boolean, val appleSource: String, val trustedShare: Double,
         /** The Lab's training-based estimate; null while its switch is off. */
         val exerciseVO2max: ExerciseVO2max? = null,
+        /** Records that may be one session, for the "Are these the same session?" card; empty when none. */
+        val ambiguous: List<Candidate> = emptyList(),
     )
+
+    /** One record of a possibly doubled session: its sport as named on screen, its start and its source kind. */
+    data class Candidate(val id: String, val sport: String, val startTs: Long, val source: String)
+
+    /** The wearer's answer to the card (`training.decidePair`): one session, or two kept apart. Blocking. */
+    fun decidePair(ids: List<String>, merge: Boolean): Boolean {
+        if (!SwiftCore.available) return false
+        val text = SwiftCore.call("training.decidePair", JSONObject().put("ids", JSONArray(ids)).put("merge", merge).toString())
+        return runCatching { JSONObject(text ?: return false).optBoolean("ok") }.getOrDefault(false)
+    }
 
     /** `ExerciseVO2maxOut`: the latest weekly estimate, what it rests on and how it compares with Apple Watch. */
     data class ExerciseVO2max(
@@ -94,6 +106,9 @@ object CoreTrainingLoad {
                 ExerciseVO2max(x.dbl("value"), x.str("mondayKey"), x.int("weekSessions"), x.int("weekSessionsWithGrade"),
                                x.optInt("sessionsUsed"), x.optInt("sessionsOnFoot"), x.optInt("pairs"), x.optInt("pairsNeeded"),
                                x.dbl("meanAbsoluteError"), x.dbl("directionAgreement"), x.optBoolean("passes"))
+            },
+            ambiguous = o.optJSONArray("ambiguous").objects().map {
+                Candidate(it.optString("id"), it.optString("sport"), it.optLong("startTs"), it.optString("source"))
             },
         )
     }

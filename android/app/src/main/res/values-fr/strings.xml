@@ -6650,4 +6650,10 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="diet_prot_p_legumes">Lentilles, haricots ou pois chiches cuits, 200 g</string>
     <string name="diet_prot_p_eggs">Deux œufs</string>
     <string name="diet_prot_done">Terminé</string>
+    <string name="tl_same_q">S’agit-il de la même séance ?</string>
+    <string name="tl_keep_separate">Garder séparées</string>
+    <string name="tl_merge">Fusionner</string>
+    <string name="tl_src_imported">Fichier importé</string>
+    <string name="tl_src_activity">Fichier d’activité</string>
+    <string name="tl_src_band">Bracelet NOOP</string>
 </resources>

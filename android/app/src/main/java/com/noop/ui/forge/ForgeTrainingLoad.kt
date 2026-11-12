@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -107,7 +108,9 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit, onStrength: (() -> Unit)? = null,
     var loaded by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<LoadDetail?>(null) }
-    LaunchedEffect(Unit) {
+    var reload by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    LaunchedEffect(reload) {
         output = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             val profile = ProfileStore.from(context)
@@ -135,6 +138,14 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit, onStrength: (() -> Unit)? = null,
             ForgeStandingCard(o, onStrength, onCardio)
             RoomCard(o)
             MaturityLine(o)
+            // iOS's `duplicateReviewCard`: two records that may be one session, answered here.
+            SameSessionCard(o.ambiguous) { merge ->
+                scope.launch {
+                    withContext(Dispatchers.IO) { com.noop.core.CoreTrainingLoad.decidePair(o.ambiguous.map { it.id }, merge) }
+                    com.noop.core.CoreShadow.noteDataChanged()
+                    reload++
+                }
+            }
             SustainedCard(o)
             ForgeHistoryCard(o)
             ShapeCard(o)
@@ -149,6 +160,13 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit, onStrength: (() -> Unit)? = null,
         StatementCard(o)
         RoomCard(o)
         MaturityLine(o)
+        SameSessionCard(o.ambiguous) { merge ->
+            scope.launch {
+                withContext(Dispatchers.IO) { com.noop.core.CoreTrainingLoad.decidePair(o.ambiguous.map { it.id }, merge) }
+                com.noop.core.CoreShadow.noteDataChanged()
+                reload++
+            }
+        }
         SustainedCard(o)
         SummaryGrid(o) { detail = it }
         StrengthDevelopment(o)
@@ -1120,4 +1138,55 @@ private fun cardioCoverage(l: CoreTrainingLoad.Lane): String = when {
     l.possibleCount <= 0 -> stringResource(R.string.forge_tl_cov_no_cardio)
     l.measuredCount < l.possibleCount -> stringResource(R.string.forge_tl_cov_partial_cardio, l.measuredCount, l.possibleCount)
     else -> stringResource(R.string.forge_tl_cov_all_cardio, l.possibleCount)
+}
+
+/**
+ * iOS's `duplicateReviewCard`: records that may be one session, each with its sport, start and source, and the
+ * wearer's answer. The start time is what makes it answerable: two records of one ride begin minutes apart.
+ */
+@Composable
+private fun SameSessionCard(candidates: List<com.noop.core.CoreTrainingLoad.Candidate>, onAnswer: (Boolean) -> Unit) {
+    if (candidates.size < 2) return
+    val colors = Forge.colors
+    val warning = ForgeTokens.Color.systemOrange.resolve()
+    val time = java.time.format.DateTimeFormatter.ofLocalizedTime(java.time.format.FormatStyle.SHORT)
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(stringResource(R.string.tl_same_q), style = Forge.type.headline, color = colors.text)
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                candidates.forEach { c ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(warning.copy(alpha = 0.75f)))
+                        Text(c.sport, style = Forge.type.subhead, color = colors.text)
+                        Text(java.time.Instant.ofEpochSecond(c.startTs).atZone(java.time.ZoneId.systemDefault()).format(time),
+                             style = Forge.type.captionNumber, color = colors.textSecondary)
+                        Spacer(Modifier.weight(1f))
+                        Text(sourceName(c.source), style = Forge.type.caption, color = colors.textTertiary)
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.clip(CircleShape).border(1.dp, colors.divider, CircleShape).clickable(role = Role.Button) { onAnswer(false) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)) {
+                    Text(stringResource(R.string.tl_keep_separate), style = Forge.type.subhead, color = colors.text)
+                }
+                Box(Modifier.clip(CircleShape).background(colors.accent).clickable(role = Role.Button) { onAnswer(true) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)) {
+                    Text(stringResource(R.string.tl_merge), style = Forge.type.subhead, color = colors.onAccent)
+                }
+            }
+        }
+    }
+}
+
+/** The source's name as iOS's `sourceName` gives it; Android's phone store is Health Connect. */
+@Composable
+private fun sourceName(kind: String): String = when (kind) {
+    "apple" -> stringResource(R.string.today_source_health_connect)
+    "hevy" -> "Hevy"
+    "lifting" -> stringResource(R.string.tl_src_imported)
+    "activityFile" -> stringResource(R.string.tl_src_activity)
+    "manual" -> "NOOP"
+    "oura" -> "Oura"
+    else -> stringResource(R.string.tl_src_band)
 }

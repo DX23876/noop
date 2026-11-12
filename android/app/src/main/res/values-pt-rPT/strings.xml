@@ -6643,4 +6643,10 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="diet_prot_p_legumes">Lentilhas, feijão ou grão cozidos, 200 g</string>
     <string name="diet_prot_p_eggs">Dois ovos</string>
     <string name="diet_prot_done">Concluído</string>
+    <string name="tl_same_q">São a mesma sessão?</string>
+    <string name="tl_keep_separate">Manter separadas</string>
+    <string name="tl_merge">Mesclar</string>
+    <string name="tl_src_imported">Ficheiro importado</string>
+    <string name="tl_src_activity">Ficheiro de atividade</string>
+    <string name="tl_src_band">Pulseira NOOP</string>
 </resources>

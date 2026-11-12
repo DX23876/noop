@@ -100,6 +100,32 @@ public enum CoreTrainingLoad {
         public var trustedShare: Double
         /// The Lab's training-based estimate (`PuffinExperiment.exerciseVO2maxKey`); nil while the switch is off.
         public var exerciseVO2max: ExerciseVO2maxOut?
+        /// Records that may be one session (`TrainingSessionFusionResult.ambiguous`, the first group), for iOS's
+        /// "Are these the same session?" card; empty when nothing is in doubt.
+        public var ambiguous: [Candidate] = []
+    }
+
+    /// One record of a possibly doubled session: its sport as the screens name it, its start and its source kind.
+    public struct Candidate: Encodable {
+        public var id: String, sport: String, startTs: Int, source: String
+    }
+
+    /// The wearer's answer to the card, as iOS's `Repository.decideTrainingSessionPair`: the pair decision for each
+    /// record against the first, and on merge the user links that join them into one session.
+    static func decidePair(store: WhoopStore, ids: [String], merge: Bool, now: Int = Int(Date().timeIntervalSince1970)) async -> Bool {
+        let sorted = Array(Set(ids)).sorted()
+        guard sorted.count >= 2 else { return false }
+        for index in 1..<sorted.count {
+            try? await store.upsertTrainingSessionPairDecision(.init(
+                leftKey: sorted[0], rightKey: sorted[index], decision: merge ? "merge" : "separate", updatedAtTs: now))
+        }
+        if merge {
+            let sessionId = "session|\(sorted[0])"
+            try? await store.upsertTrainingSessionLinks(sorted.map {
+                .init(componentKey: $0, sessionId: sessionId, origin: "user", updatedAtTs: now)
+            })
+        }
+        return true
     }
 
     /// `TrainingLoadModel.ExerciseVO2maxReading`: the latest weekly estimate, what it rests on and how it compares
@@ -163,6 +189,12 @@ public enum CoreTrainingLoad {
         let prepared = r.prepared, fusion = r.fusion, resolution = r.resolution
         let from = r.from, today = r.today, offset = r.offset
         var out = output(prepared)
+        if let group = fusion.ambiguous.first, group.count >= 2 {
+            out.ambiguous = group.map {
+                Candidate(id: $0.id, sport: WorkoutSource.localizedDisplaySport($0.row.sport), startTs: $0.row.startTs,
+                          source: String(describing: WorkoutSource.classify($0.row.source)))
+            }
+        }
         if exerciseVO2max {
             // As `TrainingLoadModel.snapshot`: the cardio load's resting rates and maximum, measured climbs, and
             // Apple Watch's readings of the whole window to compare against.

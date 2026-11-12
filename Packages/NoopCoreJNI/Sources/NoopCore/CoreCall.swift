@@ -554,6 +554,9 @@ public enum CoreCall {
             return CoreRead.json(await CoreTrainingLoad.read(reader: reader, maxHR: maxHR, sex: string("sex"),
                                                              dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? [],
                                                              exerciseVO2max: args["exerciseVO2max"] as? Bool ?? false))
+        case "training.decidePair":
+            return ok(await CoreTrainingLoad.decidePair(store: store, ids: args["ids"] as? [String] ?? [],
+                                                        merge: args["merge"] as? Bool ?? false))
         case "training.history":
             return CoreRead.json(await CoreTrainingHistory.read(reader: reader, span: string("span"),
                 jumpDay: args["jumpDay"] as? String, lifts: args["lifts"] as? [String] ?? [],

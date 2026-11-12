@@ -6624,4 +6624,10 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="diet_prot_p_legumes">Варёная чечевица, фасоль или нут, 200 г</string>
     <string name="diet_prot_p_eggs">Два яйца</string>
     <string name="diet_prot_done">Готово</string>
+    <string name="tl_same_q">Это одна и та же тренировка?</string>
+    <string name="tl_keep_separate">Оставить раздельно</string>
+    <string name="tl_merge">Объединить</string>
+    <string name="tl_src_imported">Импортированный файл</string>
+    <string name="tl_src_activity">Файл активности</string>
+    <string name="tl_src_band">Браслет NOOP</string>
 </resources>

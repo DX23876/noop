@@ -6651,4 +6651,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="diet_prot_p_legumes">Lentejas, alubias o garbanzos cocidos, 200 g</string>
     <string name="diet_prot_p_eggs">Dos huevos</string>
     <string name="diet_prot_done">Listo</string>
+    <string name="tl_same_q">¿Son la misma sesión?</string>
+    <string name="tl_keep_separate">Mantener separadas</string>
+    <string name="tl_merge">fusionar</string>
+    <string name="tl_src_imported">Archivo importado</string>
+    <string name="tl_src_activity">Archivo de actividad</string>
+    <string name="tl_src_band">Pulsera NOOP</string>
 </resources>

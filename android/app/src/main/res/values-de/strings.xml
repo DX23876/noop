@@ -6667,4 +6667,10 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="diet_prot_p_legumes">Gekochte Linsen, Bohnen oder Kichererbsen, 200 g</string>
     <string name="diet_prot_p_eggs">Zwei Eier</string>
     <string name="diet_prot_done">Fertig</string>
+    <string name="tl_same_q">Ist das dieselbe Einheit?</string>
+    <string name="tl_keep_separate">Getrennt lassen</string>
+    <string name="tl_merge">Zusammenführen</string>
+    <string name="tl_src_imported">Importierte Datei</string>
+    <string name="tl_src_activity">Aktivitätsdatei</string>
+    <string name="tl_src_band">NOOP-Strap</string>
 </resources>

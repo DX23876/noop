@@ -6620,4 +6620,10 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="diet_prot_p_legumes">煮熟的扁豆、豆子或鹰嘴豆，200 克</string>
     <string name="diet_prot_p_eggs">两个鸡蛋</string>
     <string name="diet_prot_done">完成</string>
+    <string name="tl_same_q">这是同一次训练吗？</string>
+    <string name="tl_keep_separate">保持分开</string>
+    <string name="tl_merge">合并</string>
+    <string name="tl_src_imported">导入的文件</string>
+    <string name="tl_src_activity">活动文件</string>
+    <string name="tl_src_band">NOOP 手环</string>
 </resources>

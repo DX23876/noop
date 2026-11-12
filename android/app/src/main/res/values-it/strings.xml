@@ -6619,4 +6619,10 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="diet_prot_p_legumes">Lenticchie, fagioli o ceci cotti, 200 g</string>
     <string name="diet_prot_p_eggs">Due uova</string>
     <string name="diet_prot_done">Fatto</string>
+    <string name="tl_same_q">È la stessa sessione?</string>
+    <string name="tl_keep_separate">Mantieni separate</string>
+    <string name="tl_merge">Unisci</string>
+    <string name="tl_src_imported">File importato</string>
+    <string name="tl_src_activity">File attività</string>
+    <string name="tl_src_band">Fascia NOOP</string>
 </resources>

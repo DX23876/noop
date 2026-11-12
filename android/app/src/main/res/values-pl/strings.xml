@@ -6671,4 +6671,10 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="diet_prot_p_legumes">Gotowana soczewica, fasola lub ciecierzyca, 200 g</string>
     <string name="diet_prot_p_eggs">Dwa jajka</string>
     <string name="diet_prot_done">Gotowe</string>
+    <string name="tl_same_q">Czy to ta sama sesja?</string>
+    <string name="tl_keep_separate">Zachowaj osobno</string>
+    <string name="tl_merge">Scal</string>
+    <string name="tl_src_imported">Zaimportowany plik</string>
+    <string name="tl_src_activity">Plik aktywności</string>
+    <string name="tl_src_band">Opaska NOOP</string>
 </resources>
