@@ -11,11 +11,9 @@ struct DietProteinSheet: View {
     let addon: DietAddon?
     @Environment(\.dismiss) private var dismiss
 
-    /// The groups and a portion's protein, from ordinary food tables, rounded.
-    private static let sources: [(FoodGroupMotif, Int)] = [(.poultry, 35), (.meat, 32), (.fish, 30), (.dairy, 25), (.legumes, 18), (.eggs, 13)]
-
+    /// The groups and a portion's protein, shared with Android (`DietProteinSources`).
     private var groups: [(FoodGroupMotif, Int)] {
-        Self.sources.filter { !(addon?.leavesOut.contains($0.0) ?? false) }
+        DietProteinSources.groups(addon: addon).map { ($0.group, $0.grams) }
     }
 
     var body: some View {
@@ -28,7 +26,7 @@ struct DietProteinSheet: View {
                             Text("Last week on average \(Int(meanG.rounded())) g, about \(Int(max(0, goalG - meanG).rounded())) g short.")
                                 .font(.subheadline).foregroundStyle(ForgeColor.secondary)
                             // A portion from the list brings about 30 g.
-                            let portions = Int((max(0, goalG - meanG) / 30).rounded(.up))
+                            let portions = DietProteinSources.portionsToClose(goalG: goalG, meanG: meanG)
                             if portions > 0 {
                                 Text(portions == 1 ? String(localized: "One more portion from this list a day closes it.")
                                                    : String(localized: "About \(portions) more portions from this list a day close it."))

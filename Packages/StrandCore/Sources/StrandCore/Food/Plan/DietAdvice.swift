@@ -25,6 +25,8 @@ public enum DietAdvice {
         public var kind: Kind
         public var action: Action
         public var id: String { kind.rawValue }
+
+        public init(kind: Kind, action: Action) { self.kind = kind; self.action = action }
     }
 
     public struct Inputs: Equatable, Sendable {

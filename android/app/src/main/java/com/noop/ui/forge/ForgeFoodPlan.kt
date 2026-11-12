@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
@@ -588,7 +589,9 @@ internal fun DietPlanLine(plan: CoreDietPlan.Plan?, resolved: CoreDietPlan.Resol
 /** The plan page: where the plan heads, this week's look, every day's numbers and the foods that suit it. */
 @Composable
 internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.Resolved?, week: CoreDietPlan.Outcome?, weekApplied: Boolean,
-                               planDay: CoreDietPlan.PlanDay? = null, onBack: () -> Unit, onEdit: () -> Unit, onEnd: () -> Unit, onPlanChange: (CoreDietPlan.Plan) -> Unit,
+                               planDay: CoreDietPlan.PlanDay? = null, advice: CoreDietPlan.AdviceReport? = null,
+                               onAdvice: (CoreDietPlan.Advice) -> Unit = {}, onAdviceDismiss: (CoreDietPlan.Advice) -> Unit = {},
+                               onBack: () -> Unit, onEdit: () -> Unit, onEnd: () -> Unit, onPlanChange: (CoreDietPlan.Plan) -> Unit,
                                onWeekAccept: () -> Unit, onWeekDecline: () -> Unit) {
     val context = LocalContext.current
     val colors = Forge.colors
@@ -631,6 +634,7 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
                 }
             }
         }
+        advice?.takeIf { it.suggestions.isNotEmpty() }?.let { DietAdviceCard(it.suggestions, onAdvice, onAdviceDismiss) }
         resolved?.let { r ->
             if (!plan.hideNumbers && r.goal != "maintain") {
                 FoodSectionHeader(stringResource(R.string.diet_heading))
@@ -662,6 +666,124 @@ internal fun ForgeDietPlanPage(plan: CoreDietPlan.Plan, resolved: CoreDietPlan.R
             contentAlignment = Alignment.Center) { Text(stringResource(R.string.diet_change_plan), style = Forge.type.headline, color = colors.onAccent) }
         TextButton(onClick = onEnd, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.diet_end_plan), color = colors.effort) }
     }
+}
+
+/** iOS's `DietAdviceCard`: this week's suggestions, each with its one action and "Not this week". */
+@Composable
+private fun DietAdviceCard(items: List<CoreDietPlan.Advice>, onTake: (CoreDietPlan.Advice) -> Unit,
+                           onDismiss: (CoreDietPlan.Advice) -> Unit) {
+    val colors = Forge.colors
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Lightbulb, null,
+                                                tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                Text(stringResource(R.string.diet_adv_heading), style = Forge.type.subhead, color = colors.textSecondary)
+            }
+            items.forEachIndexed { i, s ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(adviceTitle(s.kind)), style = Forge.type.headline, color = colors.text)
+                    Text(stringResource(adviceReason(s.kind)), style = Forge.type.subhead, color = colors.textSecondary)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.clip(CircleShape).background(colors.accent).clickable(role = Role.Button) { onTake(s) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)) {
+                            Text(stringResource(adviceAction(s.action)), style = Forge.type.subhead, color = colors.onAccent)
+                        }
+                        TextButton(onClick = { onDismiss(s) }) {
+                            Text(stringResource(R.string.diet_adv_not_now), style = Forge.type.subhead, color = colors.textSecondary)
+                        }
+                    }
+                }
+                if (i < items.lastIndex) androidx.compose.material3.HorizontalDivider(color = colors.divider)
+            }
+        }
+    }
+}
+
+private fun adviceTitle(kind: String) = when (kind) {
+    "proteinLow" -> R.string.diet_adv_t_protein
+    "weighMore" -> R.string.diet_adv_t_weigh
+    "logMore" -> R.string.diet_adv_t_log
+    "strengthStalled" -> R.string.diet_adv_t_strength
+    else -> R.string.diet_adv_t_loss
+}
+
+private fun adviceReason(kind: String) = when (kind) {
+    "proteinLow" -> R.string.diet_adv_r_protein
+    "weighMore" -> R.string.diet_adv_r_weigh
+    "logMore" -> R.string.diet_adv_r_log
+    "strengthStalled" -> R.string.diet_adv_r_strength
+    else -> R.string.diet_adv_r_loss
+}
+
+private fun adviceAction(action: String) = when (action) {
+    "showProteinFoods" -> R.string.diet_adv_a_protein
+    "openWeight" -> R.string.diet_adv_a_weigh
+    "openLog" -> R.string.diet_adv_a_log
+    "addKcal" -> R.string.diet_adv_a_kcal
+    else -> R.string.diet_adv_a_break
+}
+
+/**
+ * iOS's `DietProteinSheet`, opened by the protein suggestion: the plan's goal beside last week's mean and the food
+ * groups richest in protein with an everyday portion, from the shared `DietProteinSources`.
+ */
+@Composable
+internal fun ForgeDietProteinPage(a: CoreDietPlan.AdviceReport, onBack: () -> Unit) {
+    val colors = Forge.colors
+    BackHandler(onBack = onBack)
+    SettingsColumn {
+        PageTitle(stringResource(R.string.diet_adv_t_protein), onBack)
+        ForgeCard(Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.diet_prot_goal, kotlin.math.round(a.proteinGoalG).toInt()), style = Forge.type.title2,
+                     color = colors.text)
+                a.proteinMeanG?.let { mean ->
+                    Text(stringResource(R.string.diet_prot_mean, kotlin.math.round(mean).toInt(),
+                                        kotlin.math.round(maxOf(0.0, a.proteinGoalG - mean)).toInt()),
+                         style = Forge.type.subhead, color = colors.textSecondary)
+                    if (a.proteinPortions > 0) Text(if (a.proteinPortions == 1) stringResource(R.string.diet_prot_one)
+                                                    else stringResource(R.string.diet_prot_many, a.proteinPortions),
+                                                    style = Forge.type.subhead, color = colors.textSecondary)
+                }
+            }
+        }
+        ForgeCard(Modifier.fillMaxWidth()) {
+            Column {
+                a.proteinFoods.forEachIndexed { i, f ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        foodMotifDrawable(f.group)?.let { FoodMotifPicture(it, Modifier.size(width = 56.dp, height = 44.dp)) }
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(proteinGroupName(f.group)), style = Forge.type.headline, color = colors.text)
+                            Text(stringResource(proteinPortion(f.group)), style = Forge.type.footnote, color = colors.textSecondary)
+                        }
+                        Text(stringResource(R.string.food_grams_value, f.grams.toString()), style = Forge.type.headline, color = colors.text)
+                    }
+                    if (i < a.proteinFoods.lastIndex) androidx.compose.material3.HorizontalDivider(color = colors.divider)
+                }
+            }
+        }
+        Text(stringResource(R.string.diet_prot_note), style = Forge.type.footnote, color = colors.textSecondary)
+    }
+}
+
+private fun proteinGroupName(group: String) = when (group) {
+    "poultry" -> R.string.diet_prot_poultry
+    "meat" -> R.string.diet_prot_meat
+    "fish" -> R.string.diet_prot_fish
+    "dairy" -> R.string.diet_prot_dairy
+    "legumes" -> R.string.diet_prot_legumes
+    else -> R.string.diet_prot_eggs
+}
+
+private fun proteinPortion(group: String) = when (group) {
+    "poultry" -> R.string.diet_prot_p_poultry
+    "meat" -> R.string.diet_prot_p_meat
+    "fish" -> R.string.diet_prot_p_fish
+    "dairy" -> R.string.diet_prot_p_dairy
+    "legumes" -> R.string.diet_prot_p_legumes
+    else -> R.string.diet_prot_p_eggs
 }
 
 /** The energy plan's figures the planner needs: usual burn and the wearer's own cost per kilogram. */

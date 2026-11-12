@@ -554,4 +554,19 @@ public enum StrengthSession {
     public static func dayKeys(_ workouts: [HevyWorkout], tzOffsetSeconds: Int = 0) -> Set<String> {
         Set(workouts.map { AnalyticsEngine.dayString($0.startTs, offsetSec: tzOffsetSeconds) })
     }
+
+    /// The main lifts' change since `since` (a day key), in percent: the three most-trained exercises, each from its
+    /// first best estimated maximum on or after `since` to its latest, averaged over those with at least two such
+    /// sessions. Nil when none qualifies. One reading for iOS's diet plan and the Android core.
+    public static func mainLiftChangePercent(workouts: [HevyWorkout], templates: [String: HevyExerciseTemplate],
+                                             since: String, tzOffsetSeconds: Int) -> Double? {
+        let changes: [Double] = exerciseFrequency(workouts).prefix(3).compactMap { choice in
+            let points = exerciseHistory(templateId: choice.templateId, workouts: workouts, templates: templates,
+                                         tzOffsetSeconds: tzOffsetSeconds)
+                .filter { $0.day >= since }.compactMap(\.bestE1RMKg).filter { $0 > 0 }
+            guard let first = points.first, let last = points.last, points.count >= 2 else { return nil }
+            return (last / first - 1) * 100
+        }
+        return changes.isEmpty ? nil : changes.reduce(0, +) / Double(changes.count)
+    }
 }

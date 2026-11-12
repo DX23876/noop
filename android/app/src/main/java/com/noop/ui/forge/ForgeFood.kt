@@ -98,7 +98,7 @@ import kotlin.math.roundToInt
  * a quick calorie entry and, with the coach on, a described meal. Every figure comes from the core.
  */
 @Composable
-internal fun ForgeFoodPage(onBack: () -> Unit) {
+internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var day by remember { mutableStateOf(LocalDate.now()) }
@@ -114,6 +114,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
     var showPlan by remember { mutableStateOf(false) }
     // The day as the plan reads it (core `food.planDay`): its phase, training-day shift and active-day extra.
     var planDay by remember { mutableStateOf<CoreDietPlan.PlanDay?>(null) }
+    var advice by remember { mutableStateOf<CoreDietPlan.AdviceReport?>(null) }
+    var proteinFoods by remember { mutableStateOf(false) }
     var dayComplete by remember { mutableStateOf(false) }
     val goals = planDay?.let { d ->
         CoreFood.Goals(d.dayKcal, "plan", d.burnKcal, d.averageKcal - d.burnKcal, d.proteinG, d.carbsG, d.fatG)
@@ -178,6 +180,15 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
             }
         }
     }
+    // This week's suggestions (iOS `DietAdviceCard`), from the shared core over the same reads as the plan's day.
+    LaunchedEffect(dietPlan, planInputs, burnedByDay, revision) {
+        advice = dietPlan?.let { p ->
+            withContext(Dispatchers.IO) {
+                CoreDietPlan.advice(context, p, dietPerson(context), planInputs.first, planInputs.second, burnedByDay,
+                                    dismissedTrainingWorkouts(context))
+            }
+        }
+    }
     LaunchedEffect(day, revision, goal) {
         summary = withContext(Dispatchers.IO) { CoreFood.day(day.toString()) }
         dayComplete = withContext(Dispatchers.IO) { CoreDietPlan.isDayComplete(day.toString()) }
@@ -222,8 +233,31 @@ internal fun ForgeFoodPage(onBack: () -> Unit) {
         return
     }
     val currentPlan = dietPlan
+    if (showPlan && currentPlan != null && proteinFoods) {
+        advice?.let { a -> ForgeDietProteinPage(a, onBack = { proteinFoods = false }); return }
+    }
     if (showPlan && currentPlan != null) {
-        ForgeDietPlanPage(currentPlan, planResolved, planWeek, planWeekApplied, planDay = planDay, onBack = { showPlan = false }, onEdit = { planning = true },
+        ForgeDietPlanPage(currentPlan, planResolved, planWeek, planWeekApplied, planDay = planDay, advice = advice,
+            onAdvice = { a ->
+                when (a.action) {
+                    "showProteinFoods" -> proteinFoods = true
+                    "openWeight" -> onOpenBody()
+                    "openLog" -> { showPlan = false; adding = true }
+                    else -> scope.launch {
+                        val next = withContext(Dispatchers.IO) { CoreDietPlan.applyAdvice(currentPlan, a) }
+                        if (next != null) {
+                            CoreDietPlan.save(context, next); dietPlan = next
+                            advice?.let { r -> CoreDietPlan.dismissAdvice(context, r.week, a.kind) }
+                            revision++
+                        }
+                    }
+                }
+            },
+            onAdviceDismiss = { a -> advice?.let { r ->
+                CoreDietPlan.dismissAdvice(context, r.week, a.kind)
+                advice = r.copy(suggestions = r.suggestions.filter { it.kind != a.kind })
+            } },
+            onBack = { showPlan = false }, onEdit = { planning = true },
             onEnd = { CoreDietPlan.save(context, null); dietPlan = null; planResolved = null; showPlan = false },
             onPlanChange = { CoreDietPlan.save(context, it); dietPlan = it },
             onWeekAccept = { planWeek?.let { w ->

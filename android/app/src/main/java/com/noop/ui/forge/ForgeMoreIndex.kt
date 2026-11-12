@@ -508,7 +508,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         return
     }
     if (dest == MoreDest.Food) {
-        ForgeFoodPage(onBack)
+        ForgeFoodPage(onBack, onOpenBody = { onOpen(MoreDest.Body) })
         return
     }
     if (dest == MoreDest.Energy) {

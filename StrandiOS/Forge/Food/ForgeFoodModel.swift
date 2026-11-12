@@ -394,25 +394,12 @@ final class ForgeFoodModel {
         let offset = TimeZone.current.secondsFromGMT()
         strengthDays = Set(TrainingLoadLanes.strengthByDay(history.workouts, tzOffsetSeconds: offset).filter { $0.value > 0 }.keys)
         strengthChangePercent = plan.flatMap { p in
-            Self.strengthChange(workouts: history.workouts, templates: history.templates, since: p.startDay, offset: offset)
+            StrengthSession.mainLiftChangePercent(workouts: history.workouts, templates: history.templates, since: p.startDay,
+                                                  tzOffsetSeconds: offset)
         }
-        strengthChange4Weeks = Self.strengthChange(workouts: history.workouts, templates: history.templates,
-                                                   since: Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -28, to: .now) ?? .now),
-                                                   offset: offset)
-    }
-
-    /// The main lifts' change since `since`, in percent: the three most-trained exercises, each from its first best
-    /// estimated maximum in the plan to its latest, averaged over those with at least two sessions in the plan.
-    static func strengthChange(workouts: [HevyWorkout], templates: [String: HevyExerciseTemplate], since: String,
-                               offset: Int) -> Double? {
-        let changes: [Double] = StrengthSession.exerciseFrequency(workouts).prefix(3).compactMap { choice in
-            let points = StrengthSession.exerciseHistory(templateId: choice.templateId, workouts: workouts,
-                                                         templates: templates, tzOffsetSeconds: offset)
-                .filter { $0.day >= since }.compactMap(\.bestE1RMKg).filter { $0 > 0 }
-            guard let first = points.first, let last = points.last, points.count >= 2 else { return nil }
-            return (last / first - 1) * 100
-        }
-        return changes.isEmpty ? nil : changes.reduce(0, +) / Double(changes.count)
+        strengthChange4Weeks = StrengthSession.mainLiftChangePercent(
+            workouts: history.workouts, templates: history.templates,
+            since: Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -28, to: .now) ?? .now), tzOffsetSeconds: offset)
     }
 
     #if DEBUG

@@ -193,6 +193,52 @@ object CoreDietPlan {
             o.num("bodyFatChange"), o.num("waistChangeCm"), o.num("strengthChangePercent"))
     }
 
+    /**
+     * This week's suggestions on the plan page (core `food.planAdvice`, the shared `DietAdvice`): kind and action, at
+     * most three, without those dismissed this week, plus what the protein page shows. [dismissed] holds the stored
+     * "week:kind" entries under iOS's key [ADVICE_DISMISSED_KEY].
+     */
+    data class Advice(val kind: String, val action: String)
+    data class ProteinFood(val group: String, val grams: Int)
+    data class AdviceReport(val suggestions: List<Advice>, val week: String, val proteinGoalG: Double, val proteinMeanG: Double?,
+                            val proteinFoods: List<ProteinFood>, val proteinPortions: Int)
+
+    const val ADVICE_DISMISSED_KEY = "food.advice.dismissed"
+
+    /** Blocking; call off the main thread. */
+    fun advice(context: Context, plan: Plan, person: Person, burnKcal: Double?, kcalPerKg: Double?,
+               burnedByDay: Map<String, Double>, dismissedWorkouts: List<String>): AdviceReport? {
+        val args = base(person, burnKcal, kcalPerKg).put("plan", plan.json())
+            .put("burnedByDay", JSONObject(burnedByDay as Map<*, *>)).put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+            .put("dismissed", JSONArray(dismissedAdvice(context)))
+        val o = call("food.planAdvice", args) ?: return null
+        val a = o.optJSONArray("suggestions") ?: JSONArray()
+        val f = o.optJSONArray("proteinFoods") ?: JSONArray()
+        return AdviceReport((0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { Advice(it.optString("kind"), it.optString("action")) },
+            o.optString("week"), o.optDouble("proteinGoalG", 0.0), o.num("proteinMeanG"),
+            (0 until f.length()).mapNotNull { f.optJSONObject(it) }.map { ProteinFood(it.optString("group"), it.optInt("grams")) },
+            o.optInt("proteinPortions"))
+    }
+
+    /** The plan after taking a suggestion that changes it; null for one that opens a page. Blocking. */
+    fun applyAdvice(plan: Plan, advice: Advice): Plan? {
+        if (!SwiftCore.available) return null
+        val text = SwiftCore.call("food.planApplyAdvice", JSONObject().put("plan", plan.json()).put("kind", advice.kind)
+            .put("action", advice.action).toString())
+        return if (text == null || text == "null") null else Plan.parse(text)
+    }
+
+    private fun dismissedAdvice(context: Context): List<String> = runCatching {
+        val a = JSONArray(NoopPrefs.of(context).getString(ADVICE_DISMISSED_KEY, null) ?: "[]")
+        (0 until a.length()).map { a.getString(it) }
+    }.getOrDefault(emptyList())
+
+    /** Hides a suggestion for the rest of [week] (this week's Monday), as iOS's `dismissAdvice`. */
+    fun dismissAdvice(context: Context, week: String, kind: String) {
+        val kept = dismissedAdvice(context).filter { it.startsWith("$week:") } + "$week:$kind"
+        NoopPrefs.of(context).edit().putString(ADVICE_DISMISSED_KEY, JSONArray(kept).toString()).apply()
+    }
+
     fun fit(plan: Plan, foodId: String, group: String?): Int {
         val args = JSONObject().put("plan", plan.json()).put("foodId", foodId)
         group?.let { args.put("group", it) }
