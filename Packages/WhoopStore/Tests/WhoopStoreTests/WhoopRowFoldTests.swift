@@ -103,6 +103,89 @@ final class WhoopRowFoldTests: XCTestCase {
         XCTAssertEqual(statuses, ["apple-health": .active, "my-whoop": .paired])
     }
 
+    /// The step a host without a progress closure runs (Android, over the JSON bridge) does the same
+    /// work as `fold`: the loop ends with every row under the one WHOOP and nothing left to do.
+    func testFoldStepLoopEndsWithEverythingUnderTheOneWhoop() throws {
+        let dbq = try makeDB()
+        var moved = 0
+        var steps = 0
+        while true {
+            let step = try WhoopRowFold.foldStep(writer: dbq, identityFrom: newStrap, chunkSize: 2)
+            moved += step.moved
+            steps += 1
+            XCTAssertLessThan(steps, 50, "the step loop does not terminate")
+            if step.done { break }
+        }
+        // 5 heart-rate rows, the computed day and the day-owner override; the clashing reading is moved
+        // and then dropped in favour of the canonical one, so it counts here and not in the table below.
+        XCTAssertEqual(moved, 7)
+        try dbq.read { db in
+            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT DISTINCT deviceId FROM hrSample"), ["my-whoop"])
+            XCTAssertEqual(try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM hrSample"), 6)
+            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT DISTINCT deviceId FROM dailyMetric"), ["my-whoop-noop"])
+            XCTAssertFalse(try WhoopRowFold.isNeeded(in: db))
+        }
+        XCTAssertEqual(try DeviceRegistryStore(dbQueue: dbq).all().map(\.id), ["my-whoop"])
+        // Asking again is a no-op, as the Devices screen does after a resumed run.
+        XCTAssertEqual(try WhoopRowFold.foldStep(writer: dbq, identityFrom: nil, chunkSize: 2),
+                       WhoopRowFold.Step(moved: 0, done: true))
+    }
+
+    /// The offer the screens make: it names the strap that stays, and the id `bind` takes on.
+    func testOfferNamesTheKeeperAndWhatBindTakesOn() throws {
+        let dbq = try makeDB()
+        let offer = try DeviceRegistryStore(dbQueue: dbq).whoopFoldOffer()
+        XCTAssertTrue(offer.needed)
+        // The old strap is the active one in this fixture, so it is the strap in use.
+        XCTAssertEqual(offer.keeperId, oldStrap)
+        XCTAssertEqual(offer.keeperName, "WHOOP 5.0 MG")
+        XCTAssertEqual(offer.identityFrom, oldStrap)
+        // With no WHOOP active the newest extra pairing stays, and the canonical row needs no identity.
+        try dbq.write { db in try db.execute(sql: "UPDATE pairedDevice SET status = 'paired'") }
+        XCTAssertEqual(try DeviceRegistryStore(dbQueue: dbq).whoopFoldOffer().keeperId, newStrap)
+        XCTAssertNil(WhoopRowFold.identity(of: PairedDevice(id: "my-whoop", brand: "WHOOP", model: "WHOOP",
+                                                            sourceKind: .liveBLE, capabilities: [],
+                                                            status: .active, addedAt: 1, lastSeenAt: 1)))
+        // Nothing to fold, nothing to offer.
+        try WhoopRowFold.fold(writer: dbq, identityFrom: nil)
+        XCTAssertEqual(try DeviceRegistryStore(dbQueue: dbq).whoopFoldOffer(), .none)
+    }
+
+    /// One WHOOP entry at pairing: the replacing strap takes over the canonical row, and a row that was
+    /// already active only needs the live link re-pointed.
+    func testTakeOverAdoptsTheStrapAndSaysWhenToRetarget() throws {
+        let dbq = try makeDB()
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        let first = try store.takeOverWhoopEntry(peripheralId: "PAIRED-1", model: "5.0 MG",
+                                                 nickname: "  ", makeActive: true)
+        XCTAssertEqual(first, WhoopRowFold.TakeOver(took: true, needsRetarget: false))
+        var canonical = try XCTUnwrap(store.all().first { $0.id == WhoopRowFold.canonicalId })
+        XCTAssertEqual(canonical.peripheralId, "PAIRED-1")
+        XCTAssertEqual(canonical.model, "5.0 MG")
+        XCTAssertNil(canonical.nickname)          // blank is no nickname, as renaming treats it
+        XCTAssertEqual(canonical.status, .active)
+        XCTAssertEqual(try store.all().filter { $0.status == .active }.count, 1)
+
+        // The same entry, another strap: no active-device change fires, so the caller re-targets.
+        let again = try store.takeOverWhoopEntry(peripheralId: "PAIRED-2", model: "4.0",
+                                                 nickname: "Night strap", makeActive: true)
+        XCTAssertEqual(again, WhoopRowFold.TakeOver(took: true, needsRetarget: true))
+        canonical = try XCTUnwrap(store.all().first { $0.id == WhoopRowFold.canonicalId })
+        XCTAssertEqual(canonical.peripheralId, "PAIRED-2")
+        XCTAssertEqual(canonical.nickname, "Night strap")
+    }
+
+    /// An install whose WHOOP entry was forgotten has nothing to take over; the caller adds its own row.
+    func testTakeOverRefusesWithoutTheOneWhoopEntry() throws {
+        let dbq = try makeDB()
+        try dbq.write { db in try db.execute(sql: "DELETE FROM pairedDevice WHERE id = 'my-whoop'") }
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        XCTAssertEqual(try store.takeOverWhoopEntry(peripheralId: "PAIRED-1", model: "4.0",
+                                                    nickname: nil, makeActive: true),
+                       WhoopRowFold.TakeOver(took: false, needsRetarget: false))
+        XCTAssertFalse(try store.all().contains { $0.id == WhoopRowFold.canonicalId })
+    }
+
     /// An interrupted fold leaves every row under exactly one id; running it again finishes the job.
     func testFoldIsResumableAndIdempotent() throws {
         let dbq = try makeDB()

@@ -56,6 +56,22 @@ final class DeviceRegistry: ObservableObject {
         reload()
     }
 
+    /// One WHOOP entry (fork decision 2026-10-03): a strap that replaces the previous one takes over the
+    /// canonical WHOOP row instead of becoming a second card (`WhoopRowFold.takeOver`, the same rule the
+    /// Android app calls over the core bridge). `took == false` means there is no canonical row to take
+    /// over, so the caller registers the strap's own row. `needsRetarget` means the row was already the
+    /// active one and now names another strap, so no active-device change fires and the caller re-targets
+    /// the live link itself.
+    @discardableResult
+    func takeOverWhoopEntry(peripheralId: String, model: String, nickname: String?,
+                            makeActive: Bool) -> WhoopRowFold.TakeOver {
+        let outcome = (try? store.takeOverWhoopEntry(peripheralId: peripheralId, model: model,
+                                                     nickname: nickname, makeActive: makeActive))
+            ?? WhoopRowFold.TakeOver(took: false, needsRetarget: false)
+        if outcome.took { reload() }
+        return outcome
+    }
+
     /// #771: re-point the active Oura device off its transient CoreBluetooth-UUID id onto its stable
     /// `oura-<serial>` id (read from the ring on connect), folding ONLY the active row's data + registry into
     /// the serial id — other past `oura-*` pairings are left untouched. Best-effort; returns true when a

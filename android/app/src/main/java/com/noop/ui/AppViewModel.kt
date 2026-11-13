@@ -192,6 +192,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { registerDevice(device, makeActive) }
     }
 
+    /**
+     * One WHOOP entry (fork): pair a WHOOP from the Forge page or the classic wizard. [replaces] true asks
+     * the core to let this strap take over the one WHOOP entry; it answers false when there is none to
+     * take over (a forgotten entry), and then the strap gets its own row, as a second person's strap
+     * always does. Outlives the page, like [registerDeviceInBackground].
+     */
+    fun registerWhoopInBackground(device: com.noop.data.PairedDeviceRow, replaces: Boolean,
+                                  makeActive: Boolean) {
+        viewModelScope.launch {
+            val took = replaces && takeOverWhoopEntry(
+                peripheralId = device.peripheralId ?: "", model = device.model,
+                nickname = device.nickname, makeActive = makeActive,
+            )
+            if (took) {
+                ble.externalLog("One WHOOP: the paired strap now backs the WHOOP entry")
+            } else {
+                registerDevice(device, makeActive)
+            }
+        }
+    }
+
     private val _strapLogSharing = MutableStateFlow(false)
     /** True while the strap log is being written for the share sheet. */
     val strapLogSharing: StateFlow<Boolean> = _strapLogSharing.asStateFlow()
@@ -471,6 +492,48 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         addPairedDevice(device)
         if (makeActive) setActiveDevice(device.id)
     }
+
+    /**
+     * One WHOOP entry (fork): a paired WHOOP that REPLACES the previous strap takes over the one WHOOP
+     * entry instead of becoming a second card, so replacing a strap never splits the list or the history.
+     * The rule is the core's (`WhoopRowFold.takeOver`, the same the Apple wizard calls); here only the
+     * live link follows. False when there is no WHOOP entry to take over (it was forgotten), and the
+     * caller registers the strap's own row as before.
+     *
+     * Extra WHOOP entries are NOT merged here: merging moves data for good, so it only runs from the
+     * Devices offer, after a typed confirmation and a backup.
+     */
+    suspend fun takeOverWhoopEntry(peripheralId: String, model: String, nickname: String?,
+                                   makeActive: Boolean): Boolean {
+        val outcome = withContext(Dispatchers.IO) {
+            com.noop.core.CoreDeviceData.takeOver(peripheralId, model, nickname, makeActive)
+        }
+        if (outcome == null || !outcome.took) return false
+        // Same id, another strap: no active-device change fires, so the link is re-pointed by hand.
+        // Otherwise the core promoted the row and the coordinator just follows that change.
+        if (outcome.retarget) {
+            noopApp.sourceCoordinator.retargetActiveWhoop()
+        } else if (makeActive && noopApp.sourceCoordinator.reconcileActiveDevice(WhoopBleClient.DEFAULT_DEVICE_ID)) {
+            refreshActiveDeviceName()
+        }
+        return true
+    }
+
+    /** One WHOOP entry: whether the Devices screen offers to merge extra WHOOP entries, and which strap
+     *  would stay connected. Read from the core, which decides it for both platforms. */
+    suspend fun whoopMergeOffer(): com.noop.core.CoreDeviceData.MergeOffer? = withContext(Dispatchers.IO) {
+        com.noop.core.CoreDeviceData.mergeOffer()
+    }
+
+    /** One WHOOP entry: how far a running merge has got. Lives on the application, so leaving the Devices
+     *  screen does not stop it. */
+    val whoopMerge: StateFlow<WhoopMergeRunner.State> get() = noopApp.whoopMerge.state
+
+    /** The name of the safety copy the next merge writes, so a picked destination carries the same one. */
+    fun whoopMergeBackupName(): String = noopApp.whoopMerge.backupName()
+
+    /** Start the merge. [backup] writes the full `.noopbak` first; nothing moves if it fails. */
+    fun startWhoopMerge(backup: WhoopMergeRunner.Backup) = noopApp.whoopMerge.start(backup)
 
     /**
      * Store the 16-byte Oura application install key for a ring (keyed by its registry device id) in the

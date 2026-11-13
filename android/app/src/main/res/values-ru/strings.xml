@@ -6721,4 +6721,20 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="cx_state_expanded">Развёрнуто</string>
     <string name="cx_state_collapsed">Свёрнуто</string>
     <string name="cx_compare_max_four">Макс. 4</string>
+    <string name="cx_whoop_merge_title">Несколько записей WHOOP</string>
+    <string name="cx_whoop_merge_body">Если это браслеты, которые вы со временем заменяли, объедините их в одну запись WHOOP. Все показания сохранятся, а активный браслет останется подключённым. Оставьте их раздельно, если они принадлежат разным людям.</string>
+    <string name="cx_whoop_merge_action">Объединить</string>
+    <string name="cx_whoop_merge_keep_separate">Оставить раздельно</string>
+    <string name="cx_whoop_merge_confirm_title">Объединить записи WHOOP?</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s остаётся подключённым. Показания всех остальных записей WHOOP переносятся в него.</string>
+    <string name="cx_whoop_merge_confirm_backup">Это нельзя отменить в приложении. NOOP сначала сохраняет полную резервную копию и ничего не объединяет, если это не удалось.</string>
+    <string name="cx_whoop_merge_confirm_type">Введите %1$s для подтверждения.</string>
+    <string name="cx_whoop_merge_confirm_word">ОБЪЕДИНИТЬ</string>
+    <string name="cx_whoop_merge_progress_title">Объединение записей WHOOP</string>
+    <string name="cx_whoop_merge_progress_body">История браслета переносится в одну запись WHOOP. Ничего не удаляется. Пока перенесено показаний: %1$d.</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP не удалось сначала сохранить резервную копию, поэтому ничего не объединено. Освободите место и повторите попытку.</string>
+    <string name="cx_whoop_merge_core_failed">NOOP не удалось завершить объединение. Ничего не потеряно, следующее объединение продолжится с того же места.</string>
+    <string name="cx_pair_replaces_whoop">Заменяет мой прежний WHOOP</string>
+    <string name="cx_pair_replaces_on">Ваша запись WHOOP вместе с историей переходит на этот браслет.</string>
+    <string name="cx_pair_replaces_off">Этот браслет получит отдельную запись, например браслет другого человека.</string>
 </resources>

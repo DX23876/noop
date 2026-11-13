@@ -1916,12 +1916,12 @@ final class AppModel: ObservableObject {
     }
 
     /// The WHOOP whose strap stays connected after combining: the active WHOOP, which is the strap in
-    /// use; with none active, the newest extra pairing.
+    /// use; with none active, the newest extra pairing. The rule itself lives in the core
+    /// (`WhoopRowFold.keeper`), which is also what the Android screen asks, so the two platforms cannot
+    /// name different straps.
     var whoopFoldKeeper: PairedDevice? {
         guard let devices = deviceRegistry?.devices else { return nil }
-        let whoops = devices.filter { $0.id == WhoopRowFold.canonicalId || $0.id.hasPrefix("whoop-") }
-        return whoops.first(where: { $0.status == .active })
-            ?? whoops.filter { $0.id.hasPrefix("whoop-") }.max(by: { $0.addedAt < $1.addedAt })
+        return WhoopRowFold.keeper(among: devices)
     }
 
     /// "Keep separate": remembered, so the offer does not return.
@@ -1947,18 +1947,14 @@ final class AppModel: ObservableObject {
                            makeActive: makeActive)
             return
         }
-        registry.setPeripheralId(canonical, peripheralId: peripheralId)
-        registry.setModel(canonical, model: model)
-        registry.rename(canonical, to: nickname)
+        // The takeover rule itself is in the core (`WhoopRowFold.takeOver`), which the Android pairing
+        // calls over the bridge: the canonical row adopts the strap, and a row that was already active
+        // reports back that only the live link needs re-targeting.
+        let takeOver = registry.takeOverWhoopEntry(peripheralId: peripheralId, model: model,
+                                                   nickname: nickname, makeActive: makeActive)
         live.append(log: "[\(AppModel.logTimeFormatter.string(from: Date()))] One WHOOP: the paired strap now backs the WHOOP entry")
-        if makeActive {
-            // `activeDeviceId` keeps its last value when no row is active, so ask the row itself.
-            if registry.devices.first(where: { $0.id == canonical })?.status == .active {
-                sourceCoordinator?.retargetActiveWhoop()   // same id, new strap: no change event fires
-            } else {
-                registry.setActive(canonical)              // the coordinator follows the change itself
-            }
-        }
+        // Same id, new strap: no active-device change fires, so the coordinator is pointed by hand.
+        if takeOver.needsRetarget { sourceCoordinator?.retargetActiveWhoop() }
         // Extra WHOOP entries are not folded here: combining moves data for good, so it only runs from
         // the Devices offer, after a typed confirmation and a backup.
         Task { [weak self] in
@@ -1979,7 +1975,7 @@ final class AppModel: ObservableObject {
         let writer = store.registryWriter
         guard (try? await writer.read({ try WhoopRowFold.isNeeded(in: $0) })) == true else { return }
         let keeper = whoopFoldKeeper
-        let identityId = keeper?.id == WhoopRowFold.canonicalId ? nil : keeper?.id
+        let identityId = WhoopRowFold.identity(of: keeper)
         func note(_ line: String) { live.append(log: "[\(AppModel.logTimeFormatter.string(from: Date()))] \(line)") }
         whoopFoldError = nil
         whoopFoldMoved = 0

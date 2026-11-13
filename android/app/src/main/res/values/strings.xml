@@ -6788,4 +6788,20 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="cx_state_expanded">Expanded</string>
     <string name="cx_state_collapsed">Collapsed</string>
     <string name="cx_compare_max_four">Max 4</string>
+    <string name="cx_whoop_merge_title">Several WHOOP entries</string>
+    <string name="cx_whoop_merge_body">If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.</string>
+    <string name="cx_whoop_merge_action">Merge</string>
+    <string name="cx_whoop_merge_keep_separate">Keep separate</string>
+    <string name="cx_whoop_merge_confirm_title">Merge WHOOP entries?</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s stays connected. The readings of every other WHOOP entry move into it.</string>
+    <string name="cx_whoop_merge_confirm_backup">This can\'t be undone in the app. NOOP saves a full backup first, and merges nothing if that fails.</string>
+    <string name="cx_whoop_merge_confirm_type">Type %1$s to confirm.</string>
+    <string name="cx_whoop_merge_confirm_word">MERGE</string>
+    <string name="cx_whoop_merge_progress_title">Merging your WHOOP entries</string>
+    <string name="cx_whoop_merge_progress_body">Your strap\'s history is moving into one WHOOP entry. Nothing is deleted. %1$d readings so far.</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP couldn\'t save a backup first, so nothing was merged. Free up some storage and try again.</string>
+    <string name="cx_whoop_merge_core_failed">NOOP couldn\'t finish merging. Nothing was lost, and the next merge continues where it stopped.</string>
+    <string name="cx_pair_replaces_whoop">Replaces my previous WHOOP</string>
+    <string name="cx_pair_replaces_on">Your WHOOP entry and its history carry over to this strap.</string>
+    <string name="cx_pair_replaces_off">This strap gets its own entry, for example a second person\'s strap.</string>
 </resources>

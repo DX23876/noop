@@ -28,9 +28,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +46,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.R
+import com.noop.ble.SourceCoordinator
 import com.noop.ble.WhoopBleClient
 import com.noop.ble.WhoopModel
 import com.noop.data.DeviceStatus
@@ -83,6 +86,16 @@ fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: ()
     val colors = Forge.colors
     val live by viewModel.live.collectAsStateWithLifecycle()
     var model by remember { mutableStateOf<WhoopModel?>(null) }
+    // One WHOOP entry (fork): a strap that replaces the previous one takes over the WHOOP entry with its
+    // history instead of becoming a second card. Asked only while a WHOOP already carries a strap, which
+    // is the only case where there is something to take over. Same question as the Apple wizard.
+    var replaces by remember { mutableStateOf(true) }
+    var hasPairedWhoop by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        hasPairedWhoop = viewModel.pairedDevices().any {
+            SourceCoordinator.isWhoop(it) && !it.peripheralId.isNullOrEmpty()
+        }
+    }
     val startScan = rememberRequestScan { model?.let { viewModel.presentWhoopScan(it) } }
     DisposableEffect(Unit) { onDispose { viewModel.stopWhoopScan() } }
 
@@ -116,6 +129,21 @@ fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: ()
                     Text(stringResource(if (chosen == WhoopModel.WHOOP4) R.string.forge_pair_prep4 else R.string.forge_pair_prep5),
                          style = Forge.type.body, color = colors.textSecondary)
                 }
+                if (hasPairedWhoop) {
+                    ForgeCard(Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.cx_pair_replaces_whoop), style = Forge.type.headline,
+                                     color = colors.text)
+                                Text(stringResource(if (replaces) R.string.cx_pair_replaces_on
+                                                    else R.string.cx_pair_replaces_off),
+                                     style = Forge.type.subhead, color = colors.textSecondary)
+                            }
+                            Spacer(Modifier.width(ForgeMetrics.space4))
+                            Switch(checked = replaces, onCheckedChange = { replaces = it })
+                        }
+                    }
+                }
                 val found by viewModel.discoveredWhoops.collectAsStateWithLifecycle()
                 ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                     Row(Modifier.fillMaxWidth().padding(ForgeMetrics.cardPadding), verticalAlignment = Alignment.CenterVertically) {
@@ -130,7 +158,8 @@ fun ForgePairing(viewModel: AppViewModel, onClose: () -> Unit, onOtherDevice: ()
                         StrapRow(strap) {
                             viewModel.stopWhoopScan()
                             val row = forgeWhoopRow(strap, chosen, System.currentTimeMillis() / 1000)
-                            viewModel.registerDeviceInBackground(row, makeActive = true)
+                            viewModel.registerWhoopInBackground(row, replaces = replaces || !hasPairedWhoop,
+                                                               makeActive = true)
                             onClose()
                         }
                     }

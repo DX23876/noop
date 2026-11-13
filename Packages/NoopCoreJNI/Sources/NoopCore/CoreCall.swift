@@ -157,6 +157,54 @@ public enum CoreCall {
             guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
             do { try await store.reKeyDeviceData(from: from, to: to); return #"{"ok":true}"# }
             catch { return #"{"error":"reKeyFailed"}"# }
+        case "device.whoopMergeOffer":
+            // One WHOOP entry: whether extra WHOOP entries can be folded in, and which strap stays
+            // connected. The rule is `WhoopRowFold.keeper`, the same one the Apple Devices screen asks.
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            struct Wire: Encodable { let needed: Bool; let keeperId: String?; let keeperName: String?; let identityFrom: String? }
+            do {
+                let offer = try DeviceRegistryStore(dbQueue: store.registryWriter).whoopFoldOffer()
+                return CoreRead.json(Wire(needed: offer.needed, keeperId: offer.keeperId,
+                                          keeperName: offer.keeperName, identityFrom: offer.identityFrom))
+            } catch { return #"{"error":"offerFailed"}"# }
+        case "device.whoopMergeBind":
+            // Step 1 of the merge: the canonical row adopts the keeper's strap BEFORE any row moves, so
+            // the live link can be re-targeted and nothing is written under an id being emptied.
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            let identity = args["identityFrom"] as? String
+            let writer = store.registryWriter
+            do {
+                try await Task.detached { try WhoopRowFold.bind(writer: writer, identityFrom: identity) }.value
+                return #"{"ok":true}"#
+            } catch { return #"{"error":"bindFailed"}"# }
+        case "device.whoopMergeStep":
+            // One chunk of the merge. A chunk at a time rather than one call with a progress closure,
+            // which cannot cross this bridge; `done` says when to stop asking. Interrupting between
+            // steps is safe, the next step continues.
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            let identity = args["identityFrom"] as? String
+            let chunk = max(1, int("chunk", WhoopRowFold.defaultChunkSize))
+            let writer = store.registryWriter
+            struct Wire: Encodable { let moved: Int; let done: Bool }
+            do {
+                let step = try await Task.detached(priority: .utility) {
+                    try WhoopRowFold.foldStep(writer: writer, identityFrom: identity, chunkSize: chunk)
+                }.value
+                return CoreRead.json(Wire(moved: step.moved, done: step.done))
+            } catch { return #"{"error":"mergeFailed"}"# }
+        case "device.whoopTakeOver":
+            // One WHOOP entry at pairing: the strap that replaces the previous one takes over the
+            // canonical row instead of becoming a second card.
+            let peripheralId = string("peripheralId")
+            guard !peripheralId.isEmpty else { return #"{"error":"invalid"}"# }
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            struct Wire: Encodable { let took: Bool; let retarget: Bool }
+            do {
+                let outcome = try WhoopRowFold.takeOver(writer: store.registryWriter, peripheralId: peripheralId,
+                                                        model: string("model"), nickname: args["nickname"] as? String,
+                                                        makeActive: args["makeActive"] as? Bool ?? false)
+                return CoreRead.json(Wire(took: outcome.took, retarget: outcome.needsRetarget))
+            } catch { return #"{"error":"takeOverFailed"}"# }
         case "media.configure":
             guard let root = args["root"] as? String, root.hasPrefix("/") else { return #"{"error":"mediaRootMissing"}"# }
             return CoreRead.json(await CoreExerciseMedia.shared.configure(root: URL(fileURLWithPath: root), disabled: args["disabled"] as? Bool ?? false))

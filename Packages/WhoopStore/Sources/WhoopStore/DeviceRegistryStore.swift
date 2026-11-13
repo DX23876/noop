@@ -18,9 +18,28 @@ public struct DeviceRegistryStore: Sendable {
     public init(dbQueue: any DatabaseWriter) { self.dbQueue = dbQueue }
 
     public func all() throws -> [PairedDevice] {
-        try dbQueue.read { db in
-            try Row.fetchAll(db, sql: "SELECT * FROM pairedDevice ORDER BY addedAt ASC").map(Self.decode)
-        }
+        try dbQueue.read { db in try Self.devices(db) }
+    }
+
+    /// The device list inside a read the caller already holds. One decode path, so a reader that needs
+    /// the rows mid-transaction (`WhoopRowFold.offer`) cannot see them differently from `all()`.
+    static func devices(_ db: Database) throws -> [PairedDevice] {
+        try Row.fetchAll(db, sql: "SELECT * FROM pairedDevice ORDER BY addedAt ASC").map(Self.decode)
+    }
+
+    /// Whether extra WHOOP entries can be folded into the one WHOOP entry, and which strap would stay
+    /// connected (`WhoopRowFold.offer`).
+    public func whoopFoldOffer() throws -> WhoopRowFold.Offer {
+        try dbQueue.read { db in try WhoopRowFold.offer(in: db) }
+    }
+
+    /// One WHOOP entry at pairing (`WhoopRowFold.takeOver`): the strap that replaces the previous one
+    /// takes over the canonical row.
+    @discardableResult
+    public func takeOverWhoopEntry(peripheralId: String, model: String, nickname: String?,
+                                   makeActive: Bool) throws -> WhoopRowFold.TakeOver {
+        try WhoopRowFold.takeOver(writer: dbQueue, peripheralId: peripheralId, model: model,
+                                  nickname: nickname, makeActive: makeActive)
     }
 
     /// The one query that answers "which strap is active".

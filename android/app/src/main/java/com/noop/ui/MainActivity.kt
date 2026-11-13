@@ -1104,6 +1104,18 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_SKY_BEHIND_CARDS, enabled).apply()
     }
 
+    /** One WHOOP entry (fork): "Keep separate" on the Devices offer, remembered so the offer does not come
+     *  back — two people's straps are a reason to keep them apart. Same key as the Apple apps
+     *  (`AppModel.whoopFoldDeclinedKey`), so an install reads the choice it made on either platform. */
+    const val KEY_WHOOP_MERGE_DECLINED = "devices.whoopFoldDeclined"
+
+    fun whoopMergeDeclined(context: Context): Boolean =
+        of(context).getBoolean(KEY_WHOOP_MERGE_DECLINED, false)
+
+    fun setWhoopMergeDeclined(context: Context, declined: Boolean) {
+        of(context).edit().putBoolean(KEY_WHOOP_MERGE_DECLINED, declined).apply()
+    }
+
     /** Custom background image (#custom-background): a user-picked photo drawn full-bleed behind every
      *  screen, REPLACING the day-cycle sky when enabled (precedence: image > sky > flat canvas). The
      *  image itself is a device-local file (see [BackgroundImageStore]) — like the avatar it is

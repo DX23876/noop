@@ -68,6 +68,14 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import com.noop.ble.WhoopBleClient
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.CircularProgressIndicator
+import com.noop.data.DataBackup
+import java.text.Normalizer
+import java.util.Locale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -167,6 +175,33 @@ fun DevicesScreen(
     // After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     var pickNewActive by remember { mutableStateOf(false) }
 
+    // ONE WHOOP ENTRY (fork): offered, never automatic, when the install holds more than one WHOOP entry.
+    // Two people's straps are a reason to keep them apart, so "Keep separate" is remembered. Whether there
+    // is anything to merge and which strap stays connected is the core's answer, the same one the Apple
+    // Devices screen shows; the merge itself runs on the application, so leaving this page cannot stop it.
+    val mergeState by viewModel.whoopMerge.collectAsStateWithLifecycle()
+    var mergeDeclined by remember { mutableStateOf(NoopPrefs.whoopMergeDeclined(context)) }
+    var mergeOffer by remember { mutableStateOf<com.noop.core.CoreDeviceData.MergeOffer?>(null) }
+    var showMergeConfirm by remember { mutableStateOf(false) }
+    var mergeTyped by remember { mutableStateOf("") }
+    // A finished merge removed registry rows: re-read the list, whose size change re-reads the offer below.
+    LaunchedEffect(mergeState) {
+        if (mergeState !is WhoopMergeRunner.State.Working) devices = viewModel.pairedDevices()
+    }
+    LaunchedEffect(devices?.size, mergeDeclined) {
+        mergeOffer = if (mergeDeclined) null else viewModel.whoopMergeOffer()
+    }
+    // Nothing moves before a full backup is written. It goes to the backup folder when one is set, else the
+    // wearer picks the file and the merge starts in the callback, never before.
+    val mergeBackupPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(BackupSync.MIME),
+    ) { uri -> if (uri != null) viewModel.startWhoopMerge(pickedMergeBackup(context, uri)) }
+    fun startMerge() {
+        val folder = BackupSyncPrefs.treeUri(context)
+        if (folder != null) viewModel.startWhoopMerge(folderMergeBackup(context, folder))
+        else mergeBackupPicker.launch(viewModel.whoopMergeBackupName())
+    }
+
     val all = devices.orEmpty()
     val activeDevices = all.filter { it.status != DeviceStatus.archived.name }
     // #1300 tier 2: recompute the two-strap comparison when the strap set changes.
@@ -226,6 +261,23 @@ fun DevicesScreen(
             )
             }
             return@LazyScreenScaffold
+        }
+
+        // One WHOOP entry: the running merge, or the offer to start one. Above the list, as on Apple.
+        when (val merge = mergeState) {
+            is WhoopMergeRunner.State.Working -> item { WhoopMergeProgressCard(merge.moved) }
+            else -> if (mergeOffer?.needed == true) {
+                item {
+                    WhoopMergeOfferCard(
+                        failure = (merge as? WhoopMergeRunner.State.Failed)?.why,
+                        onMerge = { mergeTyped = ""; showMergeConfirm = true },
+                        onKeepSeparate = {
+                            NoopPrefs.setWhoopMergeDeclined(context, true)
+                            mergeDeclined = true
+                        },
+                    )
+                }
+            }
         }
 
         // #1300: a prominent switcher to flip which strap is active — the "switch, don't combine" option
@@ -381,6 +433,18 @@ fun DevicesScreen(
         }
 
         item { WhoopFirstFooter() }
+    }
+
+    // One WHOOP entry: merging moves data for good, so it takes the localized word typed out, and a full
+    // backup is written before anything moves.
+    if (showMergeConfirm) {
+        WhoopMergeConfirmDialog(
+            keeperName = mergeOffer?.keeperName,
+            typed = mergeTyped,
+            onTyped = { mergeTyped = it },
+            onDismiss = { showMergeConfirm = false },
+            onConfirm = { showMergeConfirm = false; startMerge() },
+        )
     }
 
     // --- Add a device (guided, branching wizard: WHOOP family · HR strap · coming-soon rows) ---
@@ -1155,6 +1219,147 @@ private fun AddDeviceButton(onClick: () -> Unit) {
         onClick = onClick,
     )
 }
+
+// MARK: - One WHOOP entry (fork)
+//
+// Faithful twin of the Apple `DevicesView.whoopFoldOffer` / `mergeConfirmSheet` / `whoopFoldBanner`: the
+// same copy (lifted from the shared catalogue), the same typed-word gate and the same promise that nothing
+// is deleted. What differs is where the safety backup goes, because Android has no Files › NOOP › Backups:
+// the folder the wearer set for Backup & Sync, else a file they pick.
+
+/** The safety copy into the wearer's backup folder, under a name the snapshot rotation never prunes. */
+private fun folderMergeBackup(context: Context, folder: Uri) = object : WhoopMergeRunner.Backup {
+    override fun write(name: String): String? =
+        if (BackupSync.writeNamed(context, folder, name) != null) name else null
+}
+
+/** The safety copy into the file the wearer picked. `exportTo` throws on a torn or unwritable archive,
+ *  which answers null here, and then nothing is merged. */
+private fun pickedMergeBackup(context: Context, destination: Uri) = object : WhoopMergeRunner.Backup {
+    override fun write(name: String): String? =
+        runCatching { DataBackup.exportTo(context, destination); name }.getOrNull()
+}
+
+@Composable
+private fun WhoopMergeOfferCard(
+    failure: WhoopMergeRunner.Failure?,
+    onMerge: () -> Unit,
+    onKeepSeparate: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Palette.surfaceRaised, RoundedCornerShape(Metrics.cardRadius))
+            .padding(Metrics.cardPadding),
+        verticalArrangement = Arrangement.spacedBy(Metrics.space8),
+    ) {
+        Text(uiString(R.string.cx_whoop_merge_title), style = NoopType.subhead, color = Palette.textPrimary)
+        Text(uiString(R.string.cx_whoop_merge_body), style = NoopType.footnote, color = Palette.textSecondary)
+        failure?.let {
+            Text(
+                uiString(
+                    when (it) {
+                        WhoopMergeRunner.Failure.BACKUP -> R.string.cx_whoop_merge_backup_failed
+                        WhoopMergeRunner.Failure.CORE -> R.string.cx_whoop_merge_core_failed
+                    },
+                ),
+                style = NoopType.footnote,
+                color = Palette.statusWarning,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(Metrics.space8)) {
+            NoopButton(text = uiString(R.string.cx_whoop_merge_action), kind = NoopButtonKind.Primary,
+                       onClick = onMerge)
+            NoopButton(text = uiString(R.string.cx_whoop_merge_keep_separate),
+                       kind = NoopButtonKind.Secondary, onClick = onKeepSeparate)
+        }
+    }
+}
+
+/** Shown while extra WHOOP entries are moving into the one WHOOP entry. */
+@Composable
+private fun WhoopMergeProgressCard(moved: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Palette.surfaceRaised, RoundedCornerShape(Metrics.cardRadius))
+            .padding(Metrics.cardPadding),
+        horizontalArrangement = Arrangement.spacedBy(Metrics.space10),
+    ) {
+        CircularProgressIndicator(Modifier.size(Metrics.space24), color = Palette.accent)
+        Column(verticalArrangement = Arrangement.spacedBy(Metrics.space2)) {
+            Text(uiString(R.string.cx_whoop_merge_progress_title), style = NoopType.subhead,
+                 color = Palette.textPrimary)
+            Text(uiString(R.string.cx_whoop_merge_progress_body, moved), style = NoopType.footnote,
+                 color = Palette.textSecondary)
+        }
+    }
+}
+
+@Composable
+private fun WhoopMergeConfirmDialog(
+    keeperName: String?,
+    typed: String,
+    onTyped: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val word = uiString(R.string.cx_whoop_merge_confirm_word)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = {
+            Text(uiString(R.string.cx_whoop_merge_confirm_title), style = NoopType.title2,
+                 color = Palette.textPrimary)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Metrics.space12)) {
+                keeperName?.let {
+                    Text(uiString(R.string.cx_whoop_merge_confirm_keeper, it), style = NoopType.subhead,
+                         color = Palette.textPrimary)
+                }
+                Text(uiString(R.string.cx_whoop_merge_confirm_backup), style = NoopType.footnote,
+                     color = Palette.textSecondary)
+                Text(uiString(R.string.cx_whoop_merge_confirm_type, word), style = NoopType.footnote,
+                     color = Palette.textSecondary)
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = onTyped,
+                    singleLine = true,
+                    placeholder = { Text(word, style = NoopType.body, color = Palette.textSecondary) },
+                    colors = devicesFieldColors(),      // the same field look as Rename, in one place
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = word },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = confirmWordMatches(typed, word)) {
+                Text(
+                    uiString(R.string.cx_whoop_merge_action),
+                    style = NoopType.body,
+                    color = if (confirmWordMatches(typed, word)) Palette.accent else Palette.textSecondary,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.forge_cancel), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** The typed word against the expected one, ignoring case, surrounding space and accents — so a wearer
+ *  who types "bestatigen" is not refused over an umlaut. Same comparison as the Apple sheet. */
+private fun confirmWordMatches(typed: String, word: String): Boolean =
+    foldForConfirm(typed) == foldForConfirm(word) && word.isNotEmpty()
+
+private fun foldForConfirm(text: String): String =
+    Normalizer.normalize(text.trim(), Normalizer.Form.NFD)
+        .replace("\\p{Mn}+".toRegex(), "")
+        .lowercase(Locale.ROOT)
 
 @Composable
 private fun WhoopFirstFooter() {

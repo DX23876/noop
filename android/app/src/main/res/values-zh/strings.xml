@@ -6717,4 +6717,20 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="cx_state_expanded">已展开</string>
     <string name="cx_state_collapsed">已折叠</string>
     <string name="cx_compare_max_four">最多 4 个</string>
+    <string name="cx_whoop_merge_title">多个 WHOOP 条目</string>
+    <string name="cx_whoop_merge_body">如果这些是你陆续更换过的手环，请将它们合并为一个 WHOOP 条目。所有读数都会保留，当前手环保持连接。如果它们属于不同的人，请保持分开。</string>
+    <string name="cx_whoop_merge_action">合并</string>
+    <string name="cx_whoop_merge_keep_separate">保持分开</string>
+    <string name="cx_whoop_merge_confirm_title">合并 WHOOP 条目？</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s 保持连接。其他所有 WHOOP 条目的读数都会移入其中。</string>
+    <string name="cx_whoop_merge_confirm_backup">此操作无法在应用内撤销。NOOP 会先保存完整备份，若备份失败则不会合并任何内容。</string>
+    <string name="cx_whoop_merge_confirm_type">输入 %1$s 以确认。</string>
+    <string name="cx_whoop_merge_confirm_word">合并</string>
+    <string name="cx_whoop_merge_progress_title">正在合并 WHOOP 条目</string>
+    <string name="cx_whoop_merge_progress_body">手环的历史记录正在移入一个 WHOOP 条目。不会删除任何内容。目前已处理 %1$d 条读数。</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP 未能先保存备份，因此没有合并任何内容。请释放一些存储空间后重试。</string>
+    <string name="cx_whoop_merge_core_failed">NOOP 未能完成合并。没有任何内容丢失，下次合并会从中断处继续。</string>
+    <string name="cx_pair_replaces_whoop">替换我之前的 WHOOP</string>
+    <string name="cx_pair_replaces_on">你的 WHOOP 条目及其历史记录将转移到此手环。</string>
+    <string name="cx_pair_replaces_off">此手环将获得单独的条目，例如另一个人的手环。</string>
 </resources>

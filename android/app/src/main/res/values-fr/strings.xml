@@ -6747,4 +6747,20 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="cx_state_expanded">Développé</string>
     <string name="cx_state_collapsed">Réduit</string>
     <string name="cx_compare_max_four">Max 4</string>
+    <string name="cx_whoop_merge_title">Plusieurs entrées WHOOP</string>
+    <string name="cx_whoop_merge_body">S\'il s\'agit de bracelets que vous avez remplacés au fil du temps, fusionnez-les en une seule entrée WHOOP. Toutes les mesures sont conservées et votre bracelet actif reste connecté. Gardez-les séparés s\'ils appartiennent à des personnes différentes.</string>
+    <string name="cx_whoop_merge_action">Fusionner</string>
+    <string name="cx_whoop_merge_keep_separate">Garder séparées</string>
+    <string name="cx_whoop_merge_confirm_title">Fusionner les entrées WHOOP ?</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s reste connecté. Les mesures de toutes les autres entrées WHOOP y sont transférées.</string>
+    <string name="cx_whoop_merge_confirm_backup">Cette action est irréversible dans l\'app. NOOP enregistre d\'abord une sauvegarde complète et ne fusionne rien en cas d\'échec.</string>
+    <string name="cx_whoop_merge_confirm_type">Tapez %1$s pour confirmer.</string>
+    <string name="cx_whoop_merge_confirm_word">FUSIONNER</string>
+    <string name="cx_whoop_merge_progress_title">Fusion de vos entrées WHOOP</string>
+    <string name="cx_whoop_merge_progress_body">L\'historique de votre bracelet est transféré vers une seule entrée WHOOP. Rien n\'est supprimé. %1$d mesures pour l\'instant.</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP n\'a pas pu enregistrer de sauvegarde au préalable, rien n\'a donc été fusionné. Libérez de l\'espace et réessayez.</string>
+    <string name="cx_whoop_merge_core_failed">NOOP n\'a pas pu terminer la fusion. Rien n\'est perdu, la prochaine fusion reprend où elle s\'est arrêtée.</string>
+    <string name="cx_pair_replaces_whoop">Remplace mon WHOOP précédent</string>
+    <string name="cx_pair_replaces_on">Votre entrée WHOOP et son historique passent à ce bracelet.</string>
+    <string name="cx_pair_replaces_off">Ce bracelet aura sa propre entrée, par exemple celui d\'une autre personne.</string>
 </resources>

@@ -39,6 +39,7 @@ object BackupSync {
     enum class Destination { FOLDER /* , GOOGLE_DRIVE */ }
 
     private const val PREFIX = "noop-backup-"
+    private const val MERGE_PREFIX = "noop-before-merge-"
     private const val SUFFIX = ".noopbak"
 
     /** Generic binary MIME for the SAF createDocument call (the bytes are a ZIP container). */
@@ -80,6 +81,11 @@ object BackupSync {
 
     /** Canonical snapshot filename for an instant: `noop-backup-YYYYMMDD-HHMMSS.noopbak` (UTC). */
     fun snapshotName(epochMs: Long): String = PREFIX + fmt().format(Date(epochMs)) + SUFFIX
+
+    /** The safety copy written before WHOOP entries are merged (one WHOOP entry; the Apple apps name
+     *  theirs the same way). Deliberately NOT a canonical snapshot name: [snapshotsToPrune] then never
+     *  takes it away, while [isBackupFile] still offers it for a restore. */
+    fun mergeBackupName(epochMs: Long): String = MERGE_PREFIX + fmt().format(Date(epochMs)) + SUFFIX
 
     /** The UTC instant (ms) encoded in a snapshot filename, or null if [name] is not one of ours. */
     fun snapshotTimeMs(name: String): Long? {
@@ -178,14 +184,18 @@ object BackupSync {
     // ── Folder destination I/O (SAF tree via DocumentsContract - no extra dep) ──
 
     /** Create + write one snapshot into the chosen [treeUri]; returns the new file Uri, or null on failure. */
-    fun writeSnapshot(context: Context, treeUri: Uri, nowMs: Long = System.currentTimeMillis()): Uri? {
+    fun writeSnapshot(context: Context, treeUri: Uri, nowMs: Long = System.currentTimeMillis()): Uri? =
+        writeNamed(context, treeUri, snapshotName(nowMs))
+
+    /** Create + write ONE `.noopbak` called [name] into [treeUri]; the new file Uri, or null on failure. */
+    fun writeNamed(context: Context, treeUri: Uri, name: String): Uri? {
         val resolver = context.contentResolver
         val parentDoc = DocumentsContract.buildDocumentUriUsingTree(
             treeUri,
             DocumentsContract.getTreeDocumentId(treeUri),
         )
         val fileUri = runCatching {
-            DocumentsContract.createDocument(resolver, parentDoc, MIME, snapshotName(nowMs))
+            DocumentsContract.createDocument(resolver, parentDoc, MIME, name)
         }.getOrNull() ?: return null
         // exportTo throws on failure; on a partial write delete the half-written doc so prune/latest
         // never picks up a corrupt snapshot.

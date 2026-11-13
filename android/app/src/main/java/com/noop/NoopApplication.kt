@@ -213,6 +213,27 @@ class NoopApplication : Application() {
         )
     }
 
+    /**
+     * One WHOOP entry (fork): the merge of extra WHOOP entries into the one WHOOP entry. It sits here and
+     * not on the Devices screen because a merge of a large history runs for minutes and leaving the screen
+     * must not abort it. Decides nothing itself; the core does (`WhoopRowFold`).
+     */
+    val whoopMerge: com.noop.ui.WhoopMergeRunner by lazy {
+        com.noop.ui.WhoopMergeRunner(
+            core = com.noop.ui.WhoopMergeRunner.coreCalls,
+            // Bound first, then the live link: the strap records under the surviving id while older rows
+            // are still moving.
+            retarget = { sourceCoordinator.retargetActiveWhoop() },
+            // A merge is a rare event, so its evidence goes into the strap log the wearer can share
+            // whether or not Test Centre is on.
+            log = { ble.externalLog(it) },
+            onFinished = {
+                val active = deviceRegistry.activeDeviceId() ?: activeDeviceId
+                sourceCoordinator.reconcileActiveDevice(active)
+            },
+        )
+    }
+
     /** The WHOOP family last seen advertising, persisted by [WhoopBleClient.persistSelectedModel] under
      *  "noop.selectedWhoopModel" in the shared noop_prefs store. Defaults to [WhoopModel.WHOOP4] when
      *  unset or unparseable (the historical connect() default), so a fresh install is unchanged. Used to

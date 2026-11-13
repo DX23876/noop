@@ -41,6 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.material3.Switch
+import com.noop.ble.SourceCoordinator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -181,6 +183,16 @@ fun AddDeviceWizard(
     var pickedHuami by remember { mutableStateOf<com.noop.ble.HuamiHrSource.DiscoveredDevice?>(null) }
 
     var nameDraft by remember { mutableStateOf("") }
+    // One WHOOP entry (fork): whether the picked WHOOP replaces the previous strap, as the Apple wizard
+    // asks. Only asked while a WHOOP already carries a strap, which is the only case where there is
+    // something to take over.
+    var replacesWhoop by remember { mutableStateOf(true) }
+    var hasPairedWhoop by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        hasPairedWhoop = viewModel.pairedDevices().any {
+            SourceCoordinator.isWhoop(it) && !it.peripheralId.isNullOrEmpty()
+        }
+    }
     var askMakeActive by remember { mutableStateOf(false) }
 
     // Discovery-only HR source for the strap path (also Garmin Broadcast HR). Never persists, never
@@ -353,7 +365,15 @@ fun AddDeviceWizard(
             else -> null
         }
         if (device == null) { onClose(); return }
-        scope.launch { viewModel.registerDevice(device, makeActive = makeActive) }
+        // One WHOOP entry: a replacing WHOOP takes over the WHOOP entry (the core decides and falls back
+        // to its own row when there is none); every other device registers as before. Both run on the
+        // view model's scope, so pairing outlives this page.
+        if (pw != null && type?.whoopModel != null) {
+            viewModel.registerWhoopInBackground(device, replaces = replacesWhoop || !hasPairedWhoop,
+                                                makeActive = makeActive)
+        } else {
+            scope.launch { viewModel.registerDevice(device, makeActive = makeActive) }
+        }
         onClose()
     }
 
@@ -572,6 +592,8 @@ fun AddDeviceWizard(
                         rssi = confirmRssi,
                         name = nameDraft,
                         onName = { nameDraft = it },
+                        replaces = if (type?.whoopModel != null && hasPairedWhoop) replacesWhoop else null,
+                        onReplaces = { replacesWhoop = it },
                         onAdd = { askMakeActive = true },
                     )
                 }
@@ -1656,6 +1678,10 @@ private fun ConfirmStep(
     rssi: Int,
     name: String,
     onName: (String) -> Unit,
+    /** One WHOOP entry: the state of "Replaces my previous WHOOP", or null where the question does not
+     *  apply (not a WHOOP, or no WHOOP carries a strap yet). */
+    replaces: Boolean? = null,
+    onReplaces: (Boolean) -> Unit = {},
     onAdd: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1686,6 +1712,28 @@ private fun ConfirmStep(
                 .fillMaxWidth()
                 .semantics { contentDescription = uiString(R.string.l10n_add_device_wizard_device_name_79d7a157) },
         )
+
+        // One WHOOP entry (fork): a WHOOP that replaces the previous strap takes over the one WHOOP entry
+        // with its history instead of becoming a second card. Only offered for a WHOOP while another WHOOP
+        // already carries a strap; anything else never sees it. Twin of the Apple wizard's toggle.
+        replaces?.let { on ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(uiString(R.string.cx_pair_replaces_whoop), style = NoopType.body,
+                         color = Palette.textPrimary)
+                    Text(
+                        uiString(if (on) R.string.cx_pair_replaces_on else R.string.cx_pair_replaces_off),
+                        style = NoopType.caption,
+                        color = Palette.textSecondary,
+                    )
+                }
+                Switch(checked = on, onCheckedChange = onReplaces)
+            }
+        }
 
         TextButton(
             onClick = onAdd,

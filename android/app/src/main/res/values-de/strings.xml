@@ -6764,4 +6764,20 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="cx_state_expanded">Ausgeklappt</string>
     <string name="cx_state_collapsed">Eingeklappt</string>
     <string name="cx_compare_max_four">Max. 4</string>
+    <string name="cx_whoop_merge_title">Mehrere WHOOP-Einträge</string>
+    <string name="cx_whoop_merge_body">Wenn das Straps sind, die du nach und nach ersetzt hast, führe sie zu einem WHOOP-Eintrag zusammen. Alle Messwerte bleiben erhalten und dein aktiver Strap bleibt verbunden. Lass sie getrennt, wenn sie verschiedenen Personen gehören.</string>
+    <string name="cx_whoop_merge_action">Zusammenführen</string>
+    <string name="cx_whoop_merge_keep_separate">Getrennt lassen</string>
+    <string name="cx_whoop_merge_confirm_title">WHOOP-Einträge zusammenführen?</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s bleibt verbunden. Die Messwerte aller anderen WHOOP-Einträge werden dorthin übernommen.</string>
+    <string name="cx_whoop_merge_confirm_backup">Das lässt sich in der App nicht rückgängig machen. NOOP speichert vorher ein vollständiges Backup und führt nichts zusammen, falls das fehlschlägt.</string>
+    <string name="cx_whoop_merge_confirm_type">Tippe %1$s ein, um zu bestätigen.</string>
+    <string name="cx_whoop_merge_confirm_word">BESTÄTIGEN</string>
+    <string name="cx_whoop_merge_progress_title">WHOOP-Einträge werden zusammengeführt</string>
+    <string name="cx_whoop_merge_progress_body">Der Verlauf deines Straps wird in einen WHOOP-Eintrag übernommen. Nichts wird gelöscht. Bisher %1$d Messwerte.</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP konnte vorher kein Backup speichern, daher wurde nichts zusammengeführt. Gib etwas Speicher frei und versuche es erneut.</string>
+    <string name="cx_whoop_merge_core_failed">NOOP konnte das Zusammenführen nicht abschließen. Nichts ist verloren, das nächste Zusammenführen macht dort weiter.</string>
+    <string name="cx_pair_replaces_whoop">Ersetzt mein bisheriges WHOOP</string>
+    <string name="cx_pair_replaces_on">Dein WHOOP-Eintrag samt Verlauf geht auf diesen Strap über.</string>
+    <string name="cx_pair_replaces_off">Dieser Strap bekommt einen eigenen Eintrag, zum Beispiel für den Strap einer zweiten Person.</string>
 </resources>

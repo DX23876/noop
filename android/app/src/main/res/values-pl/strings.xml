@@ -6768,4 +6768,20 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="cx_state_expanded">Rozszerzony</string>
     <string name="cx_state_collapsed">Zwinięty</string>
     <string name="cx_compare_max_four">Maks. 4</string>
+    <string name="cx_whoop_merge_title">Kilka wpisów WHOOP</string>
+    <string name="cx_whoop_merge_body">Jeśli to opaski, które z czasem wymieniałeś, scal je w jeden wpis WHOOP. Wszystkie pomiary zostaną zachowane, a aktywna opaska pozostanie połączona. Zostaw je osobno, jeśli należą do różnych osób.</string>
+    <string name="cx_whoop_merge_action">Scal</string>
+    <string name="cx_whoop_merge_keep_separate">Zachowaj osobno</string>
+    <string name="cx_whoop_merge_confirm_title">Scalić wpisy WHOOP?</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s pozostaje połączony. Pomiary ze wszystkich pozostałych wpisów WHOOP zostaną do niego przeniesione.</string>
+    <string name="cx_whoop_merge_confirm_backup">Tego nie da się cofnąć w aplikacji. NOOP najpierw zapisuje pełną kopię zapasową i niczego nie scala, jeśli to się nie uda.</string>
+    <string name="cx_whoop_merge_confirm_type">Wpisz %1$s, aby potwierdzić.</string>
+    <string name="cx_whoop_merge_confirm_word">SCAL</string>
+    <string name="cx_whoop_merge_progress_title">Scalanie wpisów WHOOP</string>
+    <string name="cx_whoop_merge_progress_body">Historia opaski jest przenoszona do jednego wpisu WHOOP. Nic nie jest usuwane. Dotąd %1$d pomiarów.</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP nie mógł najpierw zapisać kopii zapasowej, więc niczego nie scalono. Zwolnij trochę miejsca i spróbuj ponownie.</string>
+    <string name="cx_whoop_merge_core_failed">NOOP nie mógł ukończyć scalania. Nic nie zostało utracone, a następne scalanie będzie kontynuowane od tego miejsca.</string>
+    <string name="cx_pair_replaces_whoop">Zastępuje mój poprzedni WHOOP</string>
+    <string name="cx_pair_replaces_on">Twój wpis WHOOP wraz z historią przechodzi na tę opaskę.</string>
+    <string name="cx_pair_replaces_off">Ta opaska otrzyma własny wpis, na przykład opaska drugiej osoby.</string>
 </resources>

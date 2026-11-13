@@ -224,6 +224,37 @@ class SourceCoordinator(
             }
         }
 
+    /**
+     * The ACTIVE WHOOP row now names another strap under the same id, so no active-device change fires and
+     * [reconcile] would short-circuit on [lastSeenId]: drop the link, re-point at the address the row holds
+     * now and reconnect. Twin of Swift `SourceCoordinator.retargetActiveWhoop`.
+     *
+     * Raised by the one-WHOOP paths: the merge after `bind` (so the strap records under the surviving id
+     * while older rows still move) and a pairing whose strap took over the WHOOP entry. A no-op while a
+     * generic strap, a machine or a ring is the live source — that source owns the link, not the WHOOP.
+     * Serialized with the ordinary switch through [reconcileLock], so a re-target and a device switch can
+     * never interleave their stop/start pairs.
+     */
+    suspend fun retargetActiveWhoop() {
+        reconcileLock.withLock {
+            if (onStrap) return@withLock
+            val id = registry.activeDeviceId() ?: return@withLock
+            val devices = registry.all()
+            if (!isWhoop(id, devices)) return@withLock
+            stopWhoop()
+            // `repointSamples` even for the canonical id, which [pointWhoop] otherwise leaves alone: this
+            // path runs because the active row changed strap, and after a merge the id the client was
+            // pointed at is a row that no longer exists. Swift's `pointWhoop` re-points unconditionally.
+            pointWhoop(id, devices.firstOrNull { it.id == id }?.peripheralId, repointSamples = true)
+            startWhoop()
+            // The published id and the registry's active row must not be able to disagree: a merge moved
+            // the active row onto the canonical id without an active-device change, and every screen that
+            // reads [activeDeviceId] would otherwise keep a deleted id.
+            lastSeenId = id
+            _activeDeviceId.value = id
+        }
+    }
+
     /** Stamp the row belonging to the strap that just DISCONNECTED, resolved by the identity it adopted
      *  rather than by whatever is active now. On a multi-WHOOP install those are not the same row: make
      *  another strap active while this one is live, and stamping "the active row" would record a sighting of
@@ -376,9 +407,10 @@ class SourceCoordinator(
      * calls setActiveDeviceId. Records [activeWhoopId] for future change detection. Mirrors macOS
      * `pointWhoop`.
      */
-    private fun pointWhoop(id: String, peripheralId: String?) {
+    private fun pointWhoop(id: String, peripheralId: String?,
+                           repointSamples: Boolean = id != WhoopBleClient.DEFAULT_DEVICE_ID) {
         setWhoopPreferredAddress(peripheralId)
-        if (id != WhoopBleClient.DEFAULT_DEVICE_ID) {
+        if (repointSamples) {
             setWhoopActiveDeviceId(id)
         }
         activeWhoopId = id

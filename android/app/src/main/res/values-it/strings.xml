@@ -6716,4 +6716,20 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="cx_state_expanded">Espanso</string>
     <string name="cx_state_collapsed">Compresso</string>
     <string name="cx_compare_max_four">Max 4</string>
+    <string name="cx_whoop_merge_title">Più voci WHOOP</string>
+    <string name="cx_whoop_merge_body">Se sono fasce che hai sostituito nel tempo, uniscile in un\'unica voce WHOOP. Tutte le misurazioni vengono conservate e la fascia attiva resta connessa. Tienile separate se appartengono a persone diverse.</string>
+    <string name="cx_whoop_merge_action">Unisci</string>
+    <string name="cx_whoop_merge_keep_separate">Mantieni separate</string>
+    <string name="cx_whoop_merge_confirm_title">Unire le voci WHOOP?</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s resta connesso. Le misurazioni di tutte le altre voci WHOOP vengono spostate qui.</string>
+    <string name="cx_whoop_merge_confirm_backup">Non si può annullare nell\'app. NOOP salva prima un backup completo e non unisce nulla se non riesce.</string>
+    <string name="cx_whoop_merge_confirm_type">Digita %1$s per confermare.</string>
+    <string name="cx_whoop_merge_confirm_word">UNISCI</string>
+    <string name="cx_whoop_merge_progress_title">Unione delle voci WHOOP in corso</string>
+    <string name="cx_whoop_merge_progress_body">La cronologia della fascia viene spostata in un\'unica voce WHOOP. Non viene eliminato nulla. Finora %1$d misurazioni.</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP non è riuscito a salvare prima un backup, quindi non è stato unito nulla. Libera spazio e riprova.</string>
+    <string name="cx_whoop_merge_core_failed">NOOP non è riuscito a completare l\'unione. Non è andato perso nulla e la prossima unione riprende da dove si era fermata.</string>
+    <string name="cx_pair_replaces_whoop">Sostituisce il mio WHOOP precedente</string>
+    <string name="cx_pair_replaces_on">La tua voce WHOOP e la sua cronologia passano a questa fascia.</string>
+    <string name="cx_pair_replaces_off">Questa fascia avrà una voce propria, ad esempio quella di un\'altra persona.</string>
 </resources>

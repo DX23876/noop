@@ -6748,4 +6748,20 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="cx_state_expanded">Expandido</string>
     <string name="cx_state_collapsed">Contraído</string>
     <string name="cx_compare_max_four">Máx 4</string>
+    <string name="cx_whoop_merge_title">Varias entradas WHOOP</string>
+    <string name="cx_whoop_merge_body">Si son pulseras que has ido sustituyendo, combínalas en una sola entrada WHOOP. Se conservan todas las lecturas y tu pulsera activa sigue conectada. Mantenlas separadas si pertenecen a personas distintas.</string>
+    <string name="cx_whoop_merge_action">fusionar</string>
+    <string name="cx_whoop_merge_keep_separate">Mantener separadas</string>
+    <string name="cx_whoop_merge_confirm_title">¿Combinar las entradas WHOOP?</string>
+    <string name="cx_whoop_merge_confirm_keeper">%1$s sigue conectado. Las lecturas de las demás entradas WHOOP se trasladan a él.</string>
+    <string name="cx_whoop_merge_confirm_backup">No se puede deshacer en la app. NOOP guarda antes una copia de seguridad completa y no combina nada si falla.</string>
+    <string name="cx_whoop_merge_confirm_type">Escribe %1$s para confirmar.</string>
+    <string name="cx_whoop_merge_confirm_word">FUSIONAR</string>
+    <string name="cx_whoop_merge_progress_title">Combinando tus entradas WHOOP</string>
+    <string name="cx_whoop_merge_progress_body">El historial de tu pulsera se está trasladando a una sola entrada WHOOP. No se borra nada. %1$d lecturas hasta ahora.</string>
+    <string name="cx_whoop_merge_backup_failed">NOOP no pudo guardar antes una copia de seguridad, así que no se combinó nada. Libera espacio e inténtalo de nuevo.</string>
+    <string name="cx_whoop_merge_core_failed">NOOP no pudo terminar de combinar. No se ha perdido nada y la próxima vez continúa donde se quedó.</string>
+    <string name="cx_pair_replaces_whoop">Sustituye a mi WHOOP anterior</string>
+    <string name="cx_pair_replaces_on">Tu entrada WHOOP y su historial pasan a esta pulsera.</string>
+    <string name="cx_pair_replaces_off">Esta pulsera tendrá su propia entrada, por ejemplo la de otra persona.</string>
 </resources>
