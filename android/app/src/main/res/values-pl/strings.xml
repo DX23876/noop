@@ -6767,4 +6767,5 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="cx_compare_add_metric">Dodaj metrykę</string>
     <string name="cx_state_expanded">Rozszerzony</string>
     <string name="cx_state_collapsed">Zwinięty</string>
+    <string name="cx_compare_max_four">Maks. 4</string>
 </resources>

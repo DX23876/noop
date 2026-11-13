@@ -6716,4 +6716,5 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="cx_compare_add_metric">添加指标</string>
     <string name="cx_state_expanded">已展开</string>
     <string name="cx_state_collapsed">已折叠</string>
+    <string name="cx_compare_max_four">最多 4 个</string>
 </resources>

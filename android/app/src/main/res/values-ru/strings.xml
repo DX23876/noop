@@ -6720,4 +6720,5 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="cx_compare_add_metric">Добавить метрику</string>
     <string name="cx_state_expanded">Развёрнуто</string>
     <string name="cx_state_collapsed">Свёрнуто</string>
+    <string name="cx_compare_max_four">Макс. 4</string>
 </resources>

@@ -6739,4 +6739,5 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="cx_compare_add_metric">Adicionar métrica</string>
     <string name="cx_state_expanded">Expandido</string>
     <string name="cx_state_collapsed">Recolhido</string>
+    <string name="cx_compare_max_four">Máx. 4</string>
 </resources>

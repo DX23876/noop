@@ -6715,4 +6715,5 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="cx_compare_add_metric">Aggiungi metrica</string>
     <string name="cx_state_expanded">Espanso</string>
     <string name="cx_state_collapsed">Compresso</string>
+    <string name="cx_compare_max_four">Max 4</string>
 </resources>
