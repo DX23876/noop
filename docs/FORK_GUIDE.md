@@ -116,6 +116,19 @@ Tools/resolve-android-merge.py --apply
 
 A commit that deletes a path under `android/` adds it to the list in the same commit.
 
+**A new upstream migration needs a bridge pair.** When the merge brings a `registerMigration` the fork
+renumbers (upstream `v48-ecg-waveform` runs here as `v81-ecg-waveform`), add the pair to
+`UpstreamMigrationBridge.equivalents` in the same merge, after comparing the two bodies. Without it a store
+or `.noopbak` from that upstream build no longer opens here: the fork re-runs the step and fails on a
+table or column that already exists. The v47/v48 pairs were missed this way from 2026-10-26 to
+2026-11-13, so no backup from upstream's 12.1.0 staging build restored. To list upstream identifiers the
+bridge does not know yet:
+
+```bash
+for f in $(git ls-tree -r --name-only upstream/main Packages/WhoopStore/Sources/WhoopStore/); do
+  git show upstream/main:$f; done | grep -o 'registerMigration("[^"]*"' | sort -u
+```
+
 An upstream change to a Swift analytics file whose Kotlin twin also changed is still worth reading
 for intent — their Kotlin diff often explains what the Swift one is doing.
 
