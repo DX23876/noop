@@ -188,7 +188,7 @@ struct RootTabView: View {
                 if let route = routes[key] {
                     paths[0].append(route)
                     _tabPaths = State(initialValue: paths)
-                } else if let (tab, push) = shared[key] {
+                } else if let (tab, push) = shared[key] ?? Self.demoAuditRoute(key) {
                     push(&paths[tab])
                     _tabPaths = State(initialValue: paths)
                     _selectedTab = State(initialValue: tab)
@@ -1650,5 +1650,49 @@ extension View {
         } else {
             self
         }
+    }
+}
+
+extension RootTabView {
+    /// Every remaining pushed page by name, for the screen audit: `more-<case>`, `tab-<case>`,
+    /// `settings-page-<rawValue>`, `metric-<key>`, `category-<case>` and `forge-rest`. Pages that need a
+    /// stored record (a workout, a period goal) are left to taps. The audit routes exist in a debug build
+    /// only, but the DECLARATION has to exist in every configuration: the one caller is ordinary code, so
+    /// guarding the extension instead of the body breaks the release build. Analysis migration required: no.
+    static func demoAuditRoute(_ key: String) -> (Int, (inout NavigationPath) -> Void)? {
+        #if !DEBUG
+        return nil
+        #else
+        let more: [String: MoreDestination] = [
+            "profile": .profile, "devices": .devices, "training": .training, "momentum": .momentum,
+            "insightshub": .insightsHub, "intelligence": .intelligence, "coach": .coach, "coachsettings": .coachSettings,
+            "goaljourney": .goalJourney, "insights": .insights, "explore": .explore, "compare": .compare, "live": .live,
+            "workouts": .workouts, "health": .health, "labbook": .labBook, "stress": .stress, "breathe": .breathe,
+            "intervals": .intervals, "rhythm": .rhythm, "ecg": .ecg, "strength": .strength, "cardio": .cardio,
+            "trainingload": .trainingLoad, "body": .body, "energyplan": .energyPlan, "ageless": .ageless,
+            "rhythmage": .rhythmAge, "fusedrecord": .fusedRecord, "applehealth": .appleHealth, "miband": .miBand,
+            "datasources": .dataSources, "backupsync": .backupSync, "shortcutsexport": .shortcutsExport,
+            "nooplimitations": .noopLimitations, "alarms": .alarms, "automations": .automations,
+            "testcentre": .testCentre, "sirishortcuts": .siriShortcuts, "powersaving": .powerSaving,
+            "settings": .settings, "settingssearch": .settingsSearch("")]
+        let tab: [String: TabRoute] = [
+            "fulldaychart": .fullDayChart, "battery": .battery, "metricexplorer": .metricExplorer, "workouts": .workouts,
+            "datasources": .dataSources, "stress": .stress, "sleep": .sleep, "health": .health, "hydration": .hydration,
+            "coupled": .coupled, "weight": .weight, "energy": .energy, "strength": .strength, "cardio": .cardio,
+            "trainingload": .trainingLoad, "coach": .coach, "goals": .goals, "trends": .trends]
+        if key.hasPrefix("more-"), let d = more[String(key.dropFirst(5))] { return (1, { $0.append(d) }) }
+        if key.hasPrefix("tab-"), let r = tab[String(key.dropFirst(4))] { return (1, { $0.append(r) }) }
+        if key.hasPrefix("settings-page-"), let p = SettingsPage(rawValue: String(key.dropFirst(14))) {
+            return (4, { $0.append(MoreDestination.settingsPage(p)) })
+        }
+        if key.hasPrefix("metric-") { let k = String(key.dropFirst(7)); return (1, { $0.append(TabRoute.metric(k)) }) }
+        if key.hasPrefix("category-") {
+            let c: [String: MoreCategory] = ["analysis": .analysis, "healthbody": .healthBody, "tools": .tools]
+            if let cat = c[String(key.dropFirst(9))] { return (1, { $0.append(MoreDestination.category(cat)) }) }
+        }
+        if key == "forge-rest" { return (0, { $0.append(ForgeRoute.rest(72)) }) }
+        if key == "forge-effort" { return (0, { $0.append(ForgeRoute.effort(stored: 13.5, charge: 38)) }) }
+        return nil
+        #endif
     }
 }
