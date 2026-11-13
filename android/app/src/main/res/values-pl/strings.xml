@@ -6772,6 +6772,10 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="cx_whoop_merge_body">Jeśli to opaski, które z czasem wymieniałeś, scal je w jeden wpis WHOOP. Wszystkie pomiary zostaną zachowane, a aktywna opaska pozostanie połączona. Zostaw je osobno, jeśli należą do różnych osób.</string>
     <string name="cx_whoop_merge_action">Scal</string>
     <string name="cx_whoop_merge_keep_separate">Zachowaj osobno</string>
+    <string name="cx_strap_choice_title">W pobliżu jest więcej niż jedna opaska WHOOP</string>
+    <string name="cx_strap_choice_body">NOOP nie wie jeszcze, która opaska jest twoja, a pierwsza połączona zajmuje wpis. Wybierz swoją — najsilniejszy sygnał jest na górze.</string>
+    <string name="cx_strap_choice_unnamed">Opaska bez nazwy</string>
+    <string name="cx_strap_choice_later">Nie teraz</string>
     <string name="cx_whoop_merge_confirm_title">Scalić wpisy WHOOP?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s pozostaje połączony. Pomiary ze wszystkich pozostałych wpisów WHOOP zostaną do niego przeniesione.</string>
     <string name="cx_whoop_merge_confirm_backup">Tego nie da się cofnąć w aplikacji. NOOP najpierw zapisuje pełną kopię zapasową i niczego nie scala, jeśli to się nie uda.</string>

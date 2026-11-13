@@ -519,6 +519,42 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
+    /**
+     * More than one WHOOP answered a scan this install names no strap for, so nothing connected and the
+     * wearer picks (`StrapClaim`). Null whenever there is nothing to ask, which is every ordinary scan.
+     */
+    val strapChoice: StateFlow<com.noop.ble.WhoopBleClient.StrapQuestion?> = ble.strapChoice
+
+    /**
+     * Pair the strap the wearer picked out of that question. It takes over the one WHOOP entry, exactly
+     * as a strap picked in the Add-a-device wizard does, so the entry names this strap from now on and
+     * the scan stops asking. The core falls back to a row of its own when there is no entry to take over.
+     */
+    fun pickStrap(model: WhoopModel, strap: com.noop.ble.WhoopBleClient.DiscoveredWhoop) {
+        ble.clearStrapChoice()
+        val now = System.currentTimeMillis() / 1000
+        val label = if (model == WhoopModel.WHOOP4) "4.0" else "5.0 MG"
+        registerWhoopInBackground(
+            com.noop.data.PairedDeviceRow(
+                id = "whoop-${strap.address}",
+                brand = "WHOOP",
+                model = label,
+                nickname = strap.name,
+                peripheralId = strap.address,
+                sourceKind = com.noop.data.SourceKind.liveBLE.name,
+                capabilities = com.noop.data.WhoopLiveCapabilities.encoded(label),
+                status = com.noop.data.DeviceStatus.paired.name,
+                addedAt = now,
+                lastSeenAt = now,
+            ),
+            replaces = true, makeActive = true,
+        )
+    }
+
+    /** Put the question away without naming a strap. Nothing connects until one is named: falling back
+     *  to the loudest strap is the behaviour the question exists to end. */
+    fun dismissStrapChoice() { ble.clearStrapChoice() }
+
     /** One WHOOP entry: whether the Devices screen offers to merge extra WHOOP entries, and which strap
      *  would stay connected. Read from the core, which decides it for both platforms. */
     suspend fun whoopMergeOffer(): com.noop.core.CoreDeviceData.MergeOffer? = withContext(Dispatchers.IO) {

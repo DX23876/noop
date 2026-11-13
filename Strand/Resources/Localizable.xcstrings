@@ -364260,6 +364260,180 @@
         }
       }
     },
+    "More than one WHOOP nearby" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehrere WHOOPs in der Nähe"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay varias WHOOP cerca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plusieurs WHOOP à proximité"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più WHOOP nelle vicinanze"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W pobliżu jest więcej niż jedna opaska WHOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há mais do que uma WHOOP por perto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рядом несколько WHOOP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附近有多个 WHOOP"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附近有多個 WHOOP"
+          }
+        }
+      }
+    },
+    "NOOP has not been told which strap is yours, and the first one it connects to keeps the entry. Pick yours — the strongest signal is listed first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP weiß noch nicht, welcher Strap deiner ist, und der erste verbundene behält den Eintrag. Wähle deinen aus, das stärkste Signal steht oben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP aún no sabe cuál es tu pulsera, y la primera a la que se conecte se queda con la entrada. Elige la tuya: la señal más fuerte aparece primero."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP ne sait pas encore quel bracelet est le vôtre, et le premier auquel il se connecte garde l'entrée. Choisissez le vôtre : le signal le plus fort est en haut."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP non sa ancora quale fascia è la tua, e la prima a cui si connette si tiene la voce. Scegli la tua: il segnale più forte è in cima."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP nie wie jeszcze, która opaska jest twoja, a pierwsza połączona zajmuje wpis. Wybierz swoją — najsilniejszy sygnał jest na górze."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP ainda não sabe qual é a tua pulseira, e a primeira a que se ligar fica com a entrada. Escolhe a tua: o sinal mais forte aparece primeiro."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP пока не знает, какой браслет ваш, а первый подключённый займёт запись. Выберите свой — самый сильный сигнал вверху."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 还不知道哪个手环是你的，而第一个连上的会占用该条目。请选择你的手环，信号最强的排在最前面。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 還不知道哪個手環是你的，而第一個連上的會佔用該條目。請選擇你的手環，訊號最強的排在最前面。"
+          }
+        }
+      }
+    },
+    "Unnamed strap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strap ohne Namen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulsera sin nombre"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bracelet sans nom"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fascia senza nome"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska bez nazwy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulseira sem nome"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет без имени"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未命名手环"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未命名手環"
+          }
+        }
+      }
+    },
     "Not now" : {
       "localizations" : {
         "de" : {

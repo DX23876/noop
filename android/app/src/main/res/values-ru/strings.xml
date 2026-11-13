@@ -6725,6 +6725,10 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="cx_whoop_merge_body">Если это браслеты, которые вы со временем заменяли, объедините их в одну запись WHOOP. Все показания сохранятся, а активный браслет останется подключённым. Оставьте их раздельно, если они принадлежат разным людям.</string>
     <string name="cx_whoop_merge_action">Объединить</string>
     <string name="cx_whoop_merge_keep_separate">Оставить раздельно</string>
+    <string name="cx_strap_choice_title">Рядом несколько WHOOP</string>
+    <string name="cx_strap_choice_body">NOOP пока не знает, какой браслет ваш, а первый подключённый займёт запись. Выберите свой — самый сильный сигнал вверху.</string>
+    <string name="cx_strap_choice_unnamed">Браслет без имени</string>
+    <string name="cx_strap_choice_later">Не сейчас</string>
     <string name="cx_whoop_merge_confirm_title">Объединить записи WHOOP?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s остаётся подключённым. Показания всех остальных записей WHOOP переносятся в него.</string>
     <string name="cx_whoop_merge_confirm_backup">Это нельзя отменить в приложении. NOOP сначала сохраняет полную резервную копию и ничего не объединяет, если это не удалось.</string>

@@ -6768,6 +6768,10 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="cx_whoop_merge_body">Wenn das Straps sind, die du nach und nach ersetzt hast, führe sie zu einem WHOOP-Eintrag zusammen. Alle Messwerte bleiben erhalten und dein aktiver Strap bleibt verbunden. Lass sie getrennt, wenn sie verschiedenen Personen gehören.</string>
     <string name="cx_whoop_merge_action">Zusammenführen</string>
     <string name="cx_whoop_merge_keep_separate">Getrennt lassen</string>
+    <string name="cx_strap_choice_title">Mehrere WHOOPs in der Nähe</string>
+    <string name="cx_strap_choice_body">NOOP weiß noch nicht, welcher Strap deiner ist, und der erste verbundene behält den Eintrag. Wähle deinen aus, das stärkste Signal steht oben.</string>
+    <string name="cx_strap_choice_unnamed">Strap ohne Namen</string>
+    <string name="cx_strap_choice_later">Jetzt nicht</string>
     <string name="cx_whoop_merge_confirm_title">WHOOP-Einträge zusammenführen?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s bleibt verbunden. Die Messwerte aller anderen WHOOP-Einträge werden dorthin übernommen.</string>
     <string name="cx_whoop_merge_confirm_backup">Das lässt sich in der App nicht rückgängig machen. NOOP speichert vorher ein vollständiges Backup und führt nichts zusammen, falls das fehlschlägt.</string>

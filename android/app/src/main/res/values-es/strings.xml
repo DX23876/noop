@@ -6752,6 +6752,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="cx_whoop_merge_body">Si son pulseras que has ido sustituyendo, combínalas en una sola entrada WHOOP. Se conservan todas las lecturas y tu pulsera activa sigue conectada. Mantenlas separadas si pertenecen a personas distintas.</string>
     <string name="cx_whoop_merge_action">fusionar</string>
     <string name="cx_whoop_merge_keep_separate">Mantener separadas</string>
+    <string name="cx_strap_choice_title">Hay varias WHOOP cerca</string>
+    <string name="cx_strap_choice_body">NOOP aún no sabe cuál es tu pulsera, y la primera a la que se conecte se queda con la entrada. Elige la tuya: la señal más fuerte aparece primero.</string>
+    <string name="cx_strap_choice_unnamed">Pulsera sin nombre</string>
+    <string name="cx_strap_choice_later">Ahora no</string>
     <string name="cx_whoop_merge_confirm_title">¿Combinar las entradas WHOOP?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s sigue conectado. Las lecturas de las demás entradas WHOOP se trasladan a él.</string>
     <string name="cx_whoop_merge_confirm_backup">No se puede deshacer en la app. NOOP guarda antes una copia de seguridad completa y no combina nada si falla.</string>

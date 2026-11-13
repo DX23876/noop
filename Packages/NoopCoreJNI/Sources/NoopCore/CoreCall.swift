@@ -39,6 +39,20 @@ public enum CoreCall {
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
         }
+        if op == "ble.strapChoice" {
+            // Which strap a scan may take while the WHOOP entry names none (`StrapClaim`). Pure: the host
+            // collects the advertisements and holds the timer, the rule lives in one place for both apps.
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            let heard = (args["heard"] as? [[String: Any]])?.map {
+                HeardStrap(address: $0["address"] as? String ?? "", name: $0["name"] as? String,
+                           rssi: ($0["rssi"] as? NSNumber)?.intValue ?? 0)
+            } ?? []
+            let choice = StrapClaim.choose(heard: heard.filter { !$0.address.isEmpty },
+                                           claimed: args["claimed"] as? String)
+            struct Wire: Encodable { let verdict: String; let address: String?; let choices: [HeardStrap] }
+            return CoreRead.json(Wire(verdict: choice.verdict.rawValue, address: choice.address,
+                                      choices: choice.choices))
+        }
         if op == "core.setResources" {
             // Validate the protocol asset before any notification can reach the collector. Android has no
             // SwiftPM bundle; asking Bundle.module on the first bonded event otherwise terminates the app.

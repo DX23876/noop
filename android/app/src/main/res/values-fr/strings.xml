@@ -6751,6 +6751,10 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="cx_whoop_merge_body">S\'il s\'agit de bracelets que vous avez remplacés au fil du temps, fusionnez-les en une seule entrée WHOOP. Toutes les mesures sont conservées et votre bracelet actif reste connecté. Gardez-les séparés s\'ils appartiennent à des personnes différentes.</string>
     <string name="cx_whoop_merge_action">Fusionner</string>
     <string name="cx_whoop_merge_keep_separate">Garder séparées</string>
+    <string name="cx_strap_choice_title">Plusieurs WHOOP à proximité</string>
+    <string name="cx_strap_choice_body">NOOP ne sait pas encore quel bracelet est le vôtre, et le premier auquel il se connecte garde l\'entrée. Choisissez le vôtre : le signal le plus fort est en haut.</string>
+    <string name="cx_strap_choice_unnamed">Bracelet sans nom</string>
+    <string name="cx_strap_choice_later">Pas maintenant</string>
     <string name="cx_whoop_merge_confirm_title">Fusionner les entrées WHOOP ?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s reste connecté. Les mesures de toutes les autres entrées WHOOP y sont transférées.</string>
     <string name="cx_whoop_merge_confirm_backup">Cette action est irréversible dans l\'app. NOOP enregistre d\'abord une sauvegarde complète et ne fusionne rien en cas d\'échec.</string>

@@ -6721,6 +6721,10 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="cx_whoop_merge_body">如果这些是你陆续更换过的手环，请将它们合并为一个 WHOOP 条目。所有读数都会保留，当前手环保持连接。如果它们属于不同的人，请保持分开。</string>
     <string name="cx_whoop_merge_action">合并</string>
     <string name="cx_whoop_merge_keep_separate">保持分开</string>
+    <string name="cx_strap_choice_title">附近有多个 WHOOP</string>
+    <string name="cx_strap_choice_body">NOOP 还不知道哪个手环是你的，而第一个连上的会占用该条目。请选择你的手环，信号最强的排在最前面。</string>
+    <string name="cx_strap_choice_unnamed">未命名手环</string>
+    <string name="cx_strap_choice_later">暂不</string>
     <string name="cx_whoop_merge_confirm_title">合并 WHOOP 条目？</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s 保持连接。其他所有 WHOOP 条目的读数都会移入其中。</string>
     <string name="cx_whoop_merge_confirm_backup">此操作无法在应用内撤销。NOOP 会先保存完整备份，若备份失败则不会合并任何内容。</string>

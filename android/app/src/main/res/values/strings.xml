@@ -6792,6 +6792,10 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="cx_whoop_merge_body">If these are straps you replaced over time, merge them into one WHOOP entry. All readings are kept and your active strap stays connected. Keep them separate if they belong to different people.</string>
     <string name="cx_whoop_merge_action">Merge</string>
     <string name="cx_whoop_merge_keep_separate">Keep separate</string>
+    <string name="cx_strap_choice_title">More than one WHOOP nearby</string>
+    <string name="cx_strap_choice_body">NOOP has not been told which strap is yours, and the first one it connects to keeps the entry. Pick yours — the strongest signal is listed first.</string>
+    <string name="cx_strap_choice_unnamed">Unnamed strap</string>
+    <string name="cx_strap_choice_later">Not now</string>
     <string name="cx_whoop_merge_confirm_title">Merge WHOOP entries?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s stays connected. The readings of every other WHOOP entry move into it.</string>
     <string name="cx_whoop_merge_confirm_backup">This can\'t be undone in the app. NOOP saves a full backup first, and merges nothing if that fails.</string>

@@ -68,6 +68,7 @@ import com.noop.protocol.extractStreams
 import com.noop.protocol.WhoopGattServiceFamily
 import com.noop.protocol.whoopGattScanDecision
 import com.noop.protocol.toHexLower
+import com.noop.core.CoreBle
 import com.noop.analytics.Baselines
 import com.noop.analytics.BatterySocLine
 import com.noop.analytics.ConnectionReadout
@@ -2222,6 +2223,138 @@ class WhoopBleClient(
      *  auto-connecting. Cleared at the start of each [scanForWhoops]. Empty/unused on the default path. */
     val discoveredWhoops: StateFlow<List<DiscoveredWhoop>> = _discoveredWhoops.asStateFlow()
 
+    // MARK: - Which strap an unnamed WHOOP entry takes (StrapClaim)
+    //
+    // A WHOOP entry that names no strap used to take the FIRST advertisement it heard, and the first
+    // connect then stamped that strap's address onto the entry for good (SourceCoordinator's identity
+    // adoption). In a two-strap household that is a coin toss with no way back: the entry holds the other
+    // person's address and refuses to overwrite it. So an unnamed entry listens for a moment instead and
+    // lets the core decide — one strap still connects without a question, several are handed to the
+    // wearer. The radio, the collecting and the timer are this client's; the rule is the core's.
+
+    // Whether the entry names a strap is READ FROM THE REGISTRY at the first sighting of each scan, not
+    // held in a flag: the coordinator resolves the active row on its own scope, so a flag could still say
+    // "named" while the row is empty on the very launch this protects. It is deliberately not derived
+    // from [preferredAddress] either — that pin is also cleared to escape a strap that keeps refusing the
+    // bond, and that escape has to go on taking whatever answers.
+
+    /** What this scan heard, by lowercased address. Touched on the scan callback and on the main looper;
+     *  the registry read posts its answer back to that same looper. */
+    private val heardStraps = LinkedHashMap<String, Pair<BluetoothDevice, CoreBle.Heard>>()
+    /** Null until this scan has read whether the active entry names a strap; see [resolveStrapClaim]. */
+    private var entryNamesStrap: Boolean? = null
+    private var strapClaimReadInFlight = false
+    private var strapListening = false
+
+    /** More than one WHOOP answered a scan this install names no strap for: the straps to choose from,
+     *  strongest signal first, and the family they answered on (a scan is filtered to one service, so
+     *  every strap in one question is of that family). */
+    data class StrapQuestion(val model: WhoopModel, val straps: List<DiscoveredWhoop>)
+
+    private val _strapChoice = MutableStateFlow<StrapQuestion?>(null)
+    /** The question to put to the wearer, or null when there is nothing to ask. */
+    val strapChoice: StateFlow<StrapQuestion?> = _strapChoice.asStateFlow()
+
+    /** Drop a pending question, e.g. once a strap has been picked and the entry names one. */
+    fun clearStrapChoice() { _strapChoice.value = null }
+
+    private val strapListenRunnable = Runnable { resolveHeardStraps() }
+
+    /** A sighting from the scan callback, now on the main looper. Opens the question on the first one
+     *  and keeps the later ones until the window closes. */
+    private fun noteHeardStrap(device: BluetoothDevice, heard: CoreBle.Heard, safeName: String) {
+        if (entryNamesStrap == true) return          // settled while this sighting was in the queue
+        if (_strapChoice.value != null) return       // the wearer is being asked; nothing answers for them
+        heardStraps[heard.address.lowercase()] = device to heard
+        if (entryNamesStrap == null) {
+            log("Discovered $safeName (rssi ${heard.rssi}) — checking which strap this install names")
+            resolveStrapClaim()
+        } else if (!strapListening) {
+            // The window closed on an earlier answer and this is a later advertisement: decide again
+            // rather than leaving the strap sitting in the map unanswered.
+            strapListening = true
+            handler.postDelayed(strapListenRunnable, CoreBle.LISTEN_MS)
+        }
+    }
+
+    /**
+     * First sighting of a scan with no pin: find out whether the WHOOP entry already names a strap, then
+     * either connect straight away (it does — today's behaviour, and the bond-refusal escape) or open the
+     * listening window (it does not). One registry read per scan, off the callback thread.
+     */
+    private fun resolveStrapClaim() {
+        if (strapClaimReadInFlight) return
+        strapClaimReadInFlight = true
+        ioScope.launch {
+            val named = runCatching {
+                repository.pairedDevices().firstOrNull { it.status == "active" }?.peripheralId
+            }.getOrNull()
+            handler.post {
+                strapClaimReadInFlight = false
+                entryNamesStrap = !named.isNullOrEmpty()
+                val first = heardStraps.values.firstOrNull() ?: return@post
+                if (entryNamesStrap == true) {
+                    heardStraps.clear()
+                    connectHeard(first.first, first.second)
+                } else if (!strapListening) {
+                    strapListening = true
+                    log("This install names no strap yet — listening ${CoreBle.LISTEN_MS} ms for other " +
+                            "straps before connecting")
+                    handler.postDelayed(strapListenRunnable, CoreBle.LISTEN_MS)
+                }
+            }
+        }
+    }
+
+    /** Close the listening window and ask the core; its verdict is acted on back on the main looper. */
+    private fun resolveHeardStraps() {
+        strapListening = false
+        val heard = heardStraps.values.toList()
+        heardStraps.clear()
+        if (heard.isEmpty()) return
+        ioScope.launch {
+            val choice = CoreBle.strapChoice(heard.map { it.second }, claimed = null)
+            handler.post { applyStrapChoice(heard, choice) }
+        }
+    }
+
+    private fun applyStrapChoice(heard: List<Pair<BluetoothDevice, CoreBle.Heard>>, choice: CoreBle.Choice?) {
+        if (choice == null) {
+            // No core in this build: fall back to what the app always did rather than invent a rule here.
+            connectHeard(heard.first().first, heard.first().second)
+            return
+        }
+        when (choice.verdict) {
+            CoreBle.VERDICT_CONNECT ->
+                heard.firstOrNull { it.second.address.equals(choice.address, ignoreCase = true) }
+                    ?.let { connectHeard(it.first, it.second) }
+            CoreBle.VERDICT_ASK -> {
+                stopScan()
+                _strapChoice.value = StrapQuestion(selectedModel,
+                    choice.choices.map { DiscoveredWhoop(it.address, it.name, it.rssi) })
+                // Always-on, not Test Centre: this is a rare event, it costs nothing when it never
+                // happens, and it is exactly what is missing from a log that says "connected to the
+                // wrong strap". Names are collapsed to the model, as every other scan line is.
+                log("Heard ${choice.choices.size} WHOOPs and this install names none — " +
+                        "asking which one is the wearer's: " +
+                        choice.choices.joinToString { "${logSafeDeviceName(it.name ?: "unknown")} ${it.rssi}" })
+                _state.update { it.copy(scanning = false, statusNote = "More than one WHOOP nearby") }
+            }
+            else -> Unit
+        }
+    }
+
+    /** Connect to a strap the scan settled on, from the point [onScanResult] would have. */
+    private fun connectHeard(device: BluetoothDevice, heard: CoreBle.Heard) {
+        handler.removeCallbacks(scanTimeoutRunnable)
+        handler.removeCallbacks(scanFallbackRunnable)
+        persistSelectedModel(selectedModel)
+        log("Connecting to ${logSafeDeviceName(heard.name ?: "unknown")} (rssi ${heard.rssi})")
+        _state.update { it.copy(statusNote = "Found ${heard.name ?: "WHOOP"}, connecting…") }
+        stopScan()
+        connectToDevice(device, alreadyAuthorised = true)
+    }
+
     // #592 extended-battery probe result text (raw hex + payload triage), null until a probe reply lands.
     // Drives the Devices result dialog so a capture is readable/copyable without a full log export.
     private val _extendedBatteryProbe = MutableStateFlow<String?>(null)
@@ -3990,6 +4123,13 @@ class WhoopBleClient(
         // before it was put into pairing mode against one after — so the latch has to reopen here.
         advertisementLogged = false
         handler.removeCallbacks(scanFallbackRunnable)
+        // Each scan asks the registry again and listens again: between two scans the wearer can have
+        // named a strap (a pairing, a merge) or forgotten one, and a stale answer here is exactly the
+        // kind of readout that outlives the thing it read.
+        handler.removeCallbacks(strapListenRunnable)
+        strapListening = false
+        entryNamesStrap = null
+        heardStraps.clear()
         stopScan()
         // Defensive: the normal auto-connect scan is NEVER a present-scan. Clearing the flag here means a
         // leaked wizard present-scan (e.g. the wizard was dismissed without stopWhoopScan) can't divert
@@ -6699,6 +6839,22 @@ class WhoopBleClient(
             val preferred = preferredAddress
             if (preferred != null && !device.address.equals(preferred, ignoreCase = true)) {
                 log("Discovered $safeName (${device.address}) — not the preferred strap; ignoring")
+                return
+            }
+            // An entry that names no strap must not decide on one advertisement: listen for a moment and
+            // let the core choose between the one strap present and a question (StrapClaim). The
+            // not-found timeout and the family rotation are cancelled here rather than at the connect,
+            // because a strap of the selected family HAS answered — only which one is still open.
+            val addr = device.address
+            if (preferred == null && addr != null && entryNamesStrap != true) {
+                // A strap of the selected family HAS answered, so the not-found timeout and the family
+                // rotation have done their job; only WHICH strap is still open. Everything after this
+                // runs on the main looper, where the heard-straps map and the window live: this callback
+                // arrives on a binder thread, and a plain map written from both is a race.
+                handler.removeCallbacks(scanTimeoutRunnable)
+                handler.removeCallbacks(scanFallbackRunnable)
+                val heard = CoreBle.Heard(addr, name.takeIf { it != "unknown" }, result.rssi)
+                handler.post { noteHeardStrap(device, heard, safeName) }
                 return
             }
             log("Discovered $safeName (rssi ${result.rssi}) — connecting")

@@ -1050,6 +1050,77 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Multi-WHOOP Add-a-WHOOP wizard surface: straps seen while `isPresentingScan` is true, WITHOUT
     /// auto-connecting. Cleared at the start of each `scanForWhoops()`. Empty/unused on the default path.
     @Published public private(set) var discoveredWhoops: [(uuid: String, name: String, rssi: Int)] = []
+
+    // MARK: - Which strap an entry that names none takes (StrapClaim)
+    //
+    // A WHOOP entry with no strap of its own used to take the FIRST advertisement it heard, and the
+    // first connect then stamped that strap onto the entry for good (`adoptSourceIdentity` /
+    // `setPeripheralId`). In a two-strap household that is a coin toss with no way back: the entry holds
+    // the other person's strap and refuses to overwrite it. So an entry that names no strap listens for
+    // a moment and lets the core choose — one strap still connects without a question, several are put
+    // to the wearer. The radio, the collecting and the timer are this manager's; the rule is the core's
+    // (`StrapClaim`), so an iPhone and an Android install choose the same strap from the same air.
+
+    /// More than one WHOOP answered a scan this install names no strap for: the straps to choose from,
+    /// strongest signal first. Empty whenever there is nothing to ask, which is every ordinary scan.
+    @Published public private(set) var strapChoice: [(uuid: String, name: String, rssi: Int)] = []
+    /// What this scan heard, by peripheral identifier, with the peripheral kept so the pick can connect.
+    private var heardStraps: [String: (peripheral: CBPeripheral, strap: HeardStrap)] = [:]
+    /// Nil until this scan has read whether the active entry names a strap; reset by `startScan`.
+    private var entryNamesStrap: Bool?
+    private var strapListenWork: DispatchWorkItem?
+
+    /// Put the question away without naming a strap. Nothing connects until one is named: falling back
+    /// to the loudest strap is the behaviour the question exists to end.
+    public func clearStrapChoice() { strapChoice = [] }
+
+    /// Whether the active registry row already names a strap. Read per scan rather than cached: between
+    /// two scans the wearer can have paired, merged or forgotten one.
+    private func activeEntryNamesStrap() -> Bool {
+        guard let rs = registryStore, let rows = try? rs.all() else { return true }
+        let peripheralId = rows.first { $0.status == .active }?.peripheralId
+        return !(peripheralId ?? "").isEmpty
+    }
+
+    /// Close the listening window and act on the core's verdict.
+    private func resolveHeardStraps() {
+        strapListenWork = nil
+        let heard = heardStraps
+        heardStraps = [:]
+        guard !heard.isEmpty else { return }
+        let choice = StrapClaim.choose(heard: heard.values.map(\.strap), claimed: nil)
+        switch choice.verdict {
+        case .connect:
+            if let pick = heard.values.first(where: { $0.strap.address == choice.address }) {
+                connectHeard(pick.peripheral, pick.strap)
+            }
+        case .ask:
+            central.stopScan()
+            strapChoice = choice.choices.map {
+                (uuid: $0.address, name: $0.name ?? "", rssi: $0.rssi)
+            }
+            // Always on, not Test Centre: a rare event that costs nothing when it never happens, and
+            // exactly what is missing from a log that says "it connected to the wrong strap". Names are
+            // collapsed to the model, as every other scan line is.
+            log("Heard \(choice.choices.count) WHOOPs and this install names none — asking which one is "
+                + "the wearer's: "
+                + choice.choices.map { "\(LiveState.logSafeDeviceName($0.name ?? "unknown")) \($0.rssi)" }
+                    .joined(separator: ", "))
+        case .keepLooking:
+            break
+        }
+    }
+
+    /// Connect to a strap the scan settled on, from the point `didDiscover` would have.
+    private func connectHeard(_ peripheral: CBPeripheral, _ heard: HeardStrap) {
+        cancelScanFallback()
+        persistSelectedModel(selectedModel)
+        stampSeededModelIfNeeded()
+        log("Connecting to \(LiveState.logSafeDeviceName(heard.name ?? "unknown")) (rssi \(heard.rssi))")
+        central.stopScan()
+        preparePeripheral(peripheral)
+        central.connect(peripheral, options: nil)
+    }
     /// Peripheral captured during `willRestoreState`; cleared in `didConnect`.
     /// Non-nil signals that `centralManagerDidUpdateState` should reconnect this
     /// specific peripheral rather than starting a fresh scan.
@@ -5428,6 +5499,13 @@ public final class BLEManager: NSObject, ObservableObject {
     private func startScan(for model: WhoopModel, allowFallback: Bool) {
         advertisementLogged = false
         cancelScanFallback()
+        // Each scan asks the registry again and listens again: between two scans the wearer can have
+        // named a strap (a pairing, a merge) or forgotten one, and a stale answer here is exactly the
+        // kind of readout that outlives the thing it read.
+        strapListenWork?.cancel()
+        strapListenWork = nil
+        entryNamesStrap = nil
+        heardStraps = [:]
         selectedModel = model
         reassembler = Reassembler(family: model.deviceFamily)
         router.family = model.deviceFamily
@@ -6320,6 +6398,32 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // below is byte-for-byte unchanged.
         if let preferred = preferredPeripheralUUID, peripheral.identifier != preferred {
             log("Discovered \(safeName) (\(peripheral.identifier)) — not the preferred strap; ignoring")
+            return
+        }
+        // An entry that names no strap must not decide on one advertisement: listen for a moment and let
+        // the core choose between the one strap present and a question (`StrapClaim`). The family
+        // rotation is cancelled here rather than at the connect, because a strap of the selected family
+        // HAS answered — only which one is still open.
+        if preferredPeripheralUUID == nil, entryNamesStrap != true {
+            cancelScanFallback()
+            let uuid = peripheral.identifier.uuidString
+            heardStraps[uuid] = (peripheral, HeardStrap(address: uuid, name: name, rssi: RSSI.intValue))
+            if entryNamesStrap == nil { entryNamesStrap = activeEntryNamesStrap() }
+            if entryNamesStrap == true {
+                let heard = heardStraps.values.first!
+                heardStraps = [:]
+                connectHeard(heard.peripheral, heard.strap)
+            } else if !strapChoice.isEmpty {
+                // The wearer is being asked right now; a late advertisement must not answer for them.
+                heardStraps = [:]
+            } else if strapListenWork == nil {
+                log("Discovered \(safeName) (rssi \(RSSI)) — this install names no strap yet, listening "
+                    + "\(StrapClaim.listenMilliseconds) ms for other straps before connecting")
+                let work = DispatchWorkItem { [weak self] in self?.resolveHeardStraps() }
+                strapListenWork = work
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + .milliseconds(StrapClaim.listenMilliseconds), execute: work)
+            }
             return
         }
         // No gate here for the same reason as `startScan`: reaching a discovery means a scan is running,

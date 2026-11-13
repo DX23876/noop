@@ -1191,3 +1191,31 @@ components per 100 g, so a full catalogue now ships in the app. Requested by the
 Analysis migration required: no. Nutrition is resolved at read time; the new tables are wearer input and no
 stored score reads them.
 
+
+## A strap nobody named is chosen by the wearer, not by whoever advertises first (2026-11-13)
+
+A WHOOP entry that names no strap took the FIRST advertisement it heard, on both platforms, and the first
+connect then stamped that strap onto the entry for good (identity adoption). In a household with two
+straps that is a coin toss, and the loser cannot be undone from the Devices screen: the entry holds the
+other person's address and the adoption path refuses to overwrite it with another strap. A tester
+reinstalled, was put on his wife's WHOOP 5 within seconds and had no route back to his own 4.0.
+
+- **An entry that names no strap listens before it connects.** Four seconds, then the rule decides. One
+  strap still connects without a question, so the ordinary first run is unchanged; two or more are put to
+  the wearer on the Devices screen, strongest signal first, and nothing connects until one is picked.
+- **The rule is the core's** (`StrapClaim` in `Packages/WhoopProtocol`), reached from Android over
+  `ble.strapChoice`. The hosts own the radio, the collecting and the timer; neither owns the rule, so the
+  two platforms cannot choose different straps from the same air.
+- **Whether the entry names a strap is read from the registry per scan**, not held in a flag: the
+  coordinator resolves the active row on its own scope, so a flag can still say "named" while the row is
+  empty on the very launch this protects. It is deliberately not derived from the preferred-peripheral pin
+  either, which is also cleared to escape a strap that keeps refusing the bond; that escape goes on taking
+  whatever answers.
+- **Dismissing the question connects to nothing.** Falling back to the loudest strap is the behaviour the
+  question exists to end.
+- Picking a strap pairs it the way the Add-a-device wizard does, so it takes over the one WHOOP entry.
+
+Not covered by any test that runs without hardware: the scan path itself. The rule, the bridge and the
+ordering are tested; which strap a real radio hears first is not.
+
+Analysis migration required: no. Nothing about scoring, stored values or their meaning changes.
