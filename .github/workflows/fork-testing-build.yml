@@ -247,7 +247,9 @@ jobs:
     needs: meta
     # iOS 26 Liquid Glass (glassEffect) needs the iOS 26 SDK → Xcode 26 → macos-26.
     runs-on: macos-26
-    timeout-minutes: 40
+    # 40 was the limit until 2026-11-13: the build took 38 min 41 s on e0c6ff901 and ran out of time on the
+    # next run, so the iOS files never reached the release.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Install XcodeGen
