@@ -6785,4 +6785,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="cx_backup_none_yet">No backup yet.</string>
     <string name="cx_coach_refresh_models">Refresh models</string>
     <string name="cx_compare_add_metric">Add metric</string>
+    <string name="cx_state_expanded">Expanded</string>
+    <string name="cx_state_collapsed">Collapsed</string>
 </resources>

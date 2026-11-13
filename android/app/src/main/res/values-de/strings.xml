@@ -6761,4 +6761,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="cx_backup_none_yet">Noch keine Sicherung.</string>
     <string name="cx_coach_refresh_models">Modelle aktualisieren</string>
     <string name="cx_compare_add_metric">Metrik hinzufügen</string>
+    <string name="cx_state_expanded">Ausgeklappt</string>
+    <string name="cx_state_collapsed">Eingeklappt</string>
 </resources>

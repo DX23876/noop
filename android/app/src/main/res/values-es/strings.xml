@@ -6745,4 +6745,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="cx_backup_none_yet">Aún no hay copia de seguridad.</string>
     <string name="cx_coach_refresh_models">Actualizar modelos</string>
     <string name="cx_compare_add_metric">Añadir métrica</string>
+    <string name="cx_state_expanded">Expandido</string>
+    <string name="cx_state_collapsed">Contraído</string>
 </resources>

@@ -6765,4 +6765,6 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="cx_backup_none_yet">Nie ma jeszcze kopii zapasowej.</string>
     <string name="cx_coach_refresh_models">Odśwież modele</string>
     <string name="cx_compare_add_metric">Dodaj metrykę</string>
+    <string name="cx_state_expanded">Rozszerzony</string>
+    <string name="cx_state_collapsed">Zwinięty</string>
 </resources>

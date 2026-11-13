@@ -6713,4 +6713,6 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="cx_backup_none_yet">Ancora nessun backup.</string>
     <string name="cx_coach_refresh_models">Aggiorna modelli</string>
     <string name="cx_compare_add_metric">Aggiungi metrica</string>
+    <string name="cx_state_expanded">Espanso</string>
+    <string name="cx_state_collapsed">Compresso</string>
 </resources>

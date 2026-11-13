@@ -970,6 +970,7 @@ private fun MoreScreen(onNavigate: (String) -> Unit) {
  *  collapsible More sections. Tapping toggles the group; the whole row is the tap target. */
 @Composable
 private fun MoreGroupHeader(title: String, expanded: Boolean, onToggle: () -> Unit) {
+    val stateLabel = stringResource(if (expanded) R.string.cx_state_expanded else R.string.cx_state_collapsed)
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 0f else -90f,
         animationSpec = tween(durationMillis = 240, easing = NavEasing),
@@ -982,7 +983,7 @@ private fun MoreGroupHeader(title: String, expanded: Boolean, onToggle: () -> Un
             .clickable(onClick = onToggle)
             .semantics {
                 contentDescription = title
-                stateDescription = if (expanded) "Expanded" else "Collapsed"
+                stateDescription = stateLabel
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {

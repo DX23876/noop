@@ -6744,4 +6744,6 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="cx_backup_none_yet">Aucune sauvegarde pour l\'instant.</string>
     <string name="cx_coach_refresh_models">Actualiser les modèles</string>
     <string name="cx_compare_add_metric">Ajouter une métrique</string>
+    <string name="cx_state_expanded">Développé</string>
+    <string name="cx_state_collapsed">Réduit</string>
 </resources>
