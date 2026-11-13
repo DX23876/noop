@@ -28,6 +28,8 @@ enum UpstreamMigrationBridge {
         ("v44-ppg-waveform-base-code", "v57-ppg-waveform-base-code"),
         ("v45-rr-source-index", "v68-rr-source-index"),
         ("v46-lift-log", "v69-lift-log"),
+        ("v47-rr-whoop5-fill", "v74-rr-whoop5-fill"),
+        ("v48-ecg-waveform", "v81-ecg-waveform"),
     ]
 
     /// Records the fork identifiers for already-applied upstream migrations. A no-op on a fresh file,

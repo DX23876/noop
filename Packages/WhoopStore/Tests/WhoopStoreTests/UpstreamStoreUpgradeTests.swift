@@ -48,6 +48,32 @@ final class UpstreamStoreUpgradeTests: XCTestCase {
         try await assertHistoryIntact(store, expectedBeats: 20)
     }
 
+    /// An upstream 12.x store has also run upstream's v47 (R-R fill mark) and v48 (the ECG table). Unbridged,
+    /// the fork's v81 created `ecgWaveformSample` a second time and the store never opened ("table
+    /// ecgWaveformSample already exists"), so no backup from the current upstream app could be restored.
+    func testAnUpstreamStoreWithTheEcgTableOpens() async throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "upstream_v11_7_0_store", withExtension: "sql"))
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent("ecg-\(UUID().uuidString).sqlite").path
+        addTeardownBlock {
+            for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
+        }
+        let queue = try DatabaseQueue(path: path)
+        try queue.inDatabase { db in
+            try db.execute(sql: try String(contentsOf: url, encoding: .utf8))
+            try db.execute(sql: """
+                CREATE TABLE ecgWaveformSample (deviceId TEXT NOT NULL, ts INTEGER NOT NULL,
+                    sequence INTEGER NOT NULL, record BLOB NOT NULL, PRIMARY KEY (deviceId, ts, sequence));
+                INSERT INTO ecgWaveformSample VALUES ('my-whoop', \(base), 1, x'00');
+                INSERT INTO grdb_migrations(identifier) VALUES ('v47-rr-whoop5-fill'), ('v48-ecg-waveform');
+                """)
+        }
+        try queue.close()
+        let store = try await WhoopStore(path: path)
+        try await assertHistoryIntact(store, expectedBeats: 20)
+        let ecgRows = try await store.syncRead { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM ecgWaveformSample") }
+        XCTAssertEqual(ecgRows, 1, "the upstream ECG rows stay")
+    }
+
     /// Re-opening must be a no-op: the bridge records identifiers once and the migrator finds nothing to do.
     func testReopeningABridgedStoreIsStable() async throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "upstream_v11_7_0_store", withExtension: "sql"))
