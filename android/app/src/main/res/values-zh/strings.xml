@@ -6707,4 +6707,11 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="cx_less">更少</string>
     <string name="cx_more">更多</string>
     <string name="cx_save">保存</string>
+    <string name="cx_caffeine_about_mg">约 %1$d mg 可能仍在起效</string>
+    <string name="cx_caffeine_may_active">咖啡因可能仍在起作用</string>
+    <string name="cx_caffeine_none_logged">未记录咖啡因。记录一次摄入以查看估算。</string>
+    <string name="cx_caffeine_cleared">估计大部分已代谢。你记录的物质可能都已不再起作用。</string>
+    <string name="cx_backup_none_yet">尚无备份。</string>
+    <string name="cx_coach_refresh_models">刷新模型</string>
+    <string name="cx_compare_add_metric">添加指标</string>
 </resources>

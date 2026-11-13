@@ -6738,4 +6738,11 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="cx_less">Menos</string>
     <string name="cx_more">Más</string>
     <string name="cx_save">Guardar</string>
+    <string name="cx_caffeine_about_mg">Unos %1$d mg pueden seguir activos</string>
+    <string name="cx_caffeine_may_active">La cafeína puede seguir activa</string>
+    <string name="cx_caffeine_none_logged">No hay cafeína registrada. Registra una ingesta para ver una estimación.</string>
+    <string name="cx_caffeine_cleared">Estimado como mayormente eliminado. Probablemente nada de lo registrado sigue activo.</string>
+    <string name="cx_backup_none_yet">Aún no hay copia de seguridad.</string>
+    <string name="cx_coach_refresh_models">Actualizar modelos</string>
+    <string name="cx_compare_add_metric">Añadir métrica</string>
 </resources>

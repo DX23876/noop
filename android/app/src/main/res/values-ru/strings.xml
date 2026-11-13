@@ -6711,4 +6711,11 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="cx_less">Меньше</string>
     <string name="cx_more">Ещё</string>
     <string name="cx_save">Сохранить</string>
+    <string name="cx_caffeine_about_mg">Ещё может действовать около %1$d мг</string>
+    <string name="cx_caffeine_may_active">Кофеин ещё может действовать</string>
+    <string name="cx_caffeine_none_logged">Кофеин не отмечен. Добавьте приём, чтобы увидеть оценку.</string>
+    <string name="cx_caffeine_cleared">По оценке, в основном выведено. То, что не отмечено, вероятно, уже не действует.</string>
+    <string name="cx_backup_none_yet">Резервной копии пока нет.</string>
+    <string name="cx_coach_refresh_models">Обновить модели</string>
+    <string name="cx_compare_add_metric">Добавить метрику</string>
 </resources>

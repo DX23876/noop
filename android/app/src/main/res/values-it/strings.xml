@@ -6706,4 +6706,11 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="cx_less">Meno</string>
     <string name="cx_more">Altro</string>
     <string name="cx_save">Salva</string>
+    <string name="cx_caffeine_about_mg">Circa %1$d mg potrebbero essere ancora attivi</string>
+    <string name="cx_caffeine_may_active">La caffeina potrebbe essere ancora attiva</string>
+    <string name="cx_caffeine_none_logged">Nessuna caffeina registrata. Registra un\'assunzione per vedere una stima.</string>
+    <string name="cx_caffeine_cleared">Stimato per lo più smaltito. È probabile che nulla di registrato sia ancora attivo.</string>
+    <string name="cx_backup_none_yet">Ancora nessun backup.</string>
+    <string name="cx_coach_refresh_models">Aggiorna modelli</string>
+    <string name="cx_compare_add_metric">Aggiungi metrica</string>
 </resources>

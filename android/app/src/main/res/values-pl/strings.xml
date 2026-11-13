@@ -6758,4 +6758,11 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="cx_less">Mniej</string>
     <string name="cx_more">Więcej</string>
     <string name="cx_save">Zapisz</string>
+    <string name="cx_caffeine_about_mg">Około %1$d mg może być nadal aktywne</string>
+    <string name="cx_caffeine_may_active">Kofeina może nadal być aktywna</string>
+    <string name="cx_caffeine_none_logged">Nie zarejestrowano żadnej kofeiny. Zarejestruj spożycie, aby zobaczyć oszacowanie.</string>
+    <string name="cx_caffeine_cleared">Szacunkowo w większości wyczyszczone. Nic, co zostało zarejestrowane, prawdopodobnie nie jest nadal aktywne.</string>
+    <string name="cx_backup_none_yet">Nie ma jeszcze kopii zapasowej.</string>
+    <string name="cx_coach_refresh_models">Odśwież modele</string>
+    <string name="cx_compare_add_metric">Dodaj metrykę</string>
 </resources>

@@ -18,10 +18,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "No backup yet."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
       "No folder chosen yet. Pick one your cloud app already syncs, or any local folder."
     ],
     [
@@ -31,22 +27,6 @@
     [
       "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
       "%.1f br/min"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
-      "About ${it.roundToInt()} mg may still be active"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
-      "Caffeine may still be active"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
-      "Estimated mostly cleared. Nothing logged is likely still active."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
-      "No caffeine logged. Log an intake to see an estimate."
     ],
     [
       "android/app/src/main/java/com/noop/ui/Charts.kt",
@@ -94,10 +74,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Refresh models"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "The coach talks only to the server URL you set. Point it at a local model to "
     ],
     [
@@ -111,10 +87,6 @@
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "dot$i"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "Add metric"
     ],
     [
       "android/app/src/main/java/com/noop/ui/CompareScreen.kt",

@@ -6778,4 +6778,11 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="cx_less">Less</string>
     <string name="cx_more">More</string>
     <string name="cx_save">Save</string>
+    <string name="cx_caffeine_about_mg">About %1$d mg may still be active</string>
+    <string name="cx_caffeine_may_active">Caffeine may still be active</string>
+    <string name="cx_caffeine_none_logged">No caffeine logged. Log an intake to see an estimate.</string>
+    <string name="cx_caffeine_cleared">Estimated mostly cleared. Nothing logged is likely still active.</string>
+    <string name="cx_backup_none_yet">No backup yet.</string>
+    <string name="cx_coach_refresh_models">Refresh models</string>
+    <string name="cx_compare_add_metric">Add metric</string>
 </resources>

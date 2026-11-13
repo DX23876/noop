@@ -310,7 +310,7 @@ fun BackupSyncScreen() {
                         if (lastMs > 0L) {
                             "Last backup: ${DateUtils.getRelativeTimeSpanString(lastMs)}"
                         } else {
-                            "No backup yet."
+                            stringResource(R.string.cx_backup_none_yet)
                         },
                         style = NoopType.caption, color = Palette.textTertiary,
                     )

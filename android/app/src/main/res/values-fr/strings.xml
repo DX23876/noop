@@ -6737,4 +6737,11 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="cx_less">Moins</string>
     <string name="cx_more">Plus</string>
     <string name="cx_save">Enregistrer</string>
+    <string name="cx_caffeine_about_mg">Environ %1$d mg peuvent encore être actifs</string>
+    <string name="cx_caffeine_may_active">La caféine peut encore être active</string>
+    <string name="cx_caffeine_none_logged">Aucune caféine enregistrée. Enregistrez une prise pour voir une estimation.</string>
+    <string name="cx_caffeine_cleared">Estimation : majoritairement éliminé. Rien de ce qui est enregistré n\'est probablement encore actif.</string>
+    <string name="cx_backup_none_yet">Aucune sauvegarde pour l\'instant.</string>
+    <string name="cx_coach_refresh_models">Actualiser les modèles</string>
+    <string name="cx_compare_add_metric">Ajouter une métrique</string>
 </resources>
