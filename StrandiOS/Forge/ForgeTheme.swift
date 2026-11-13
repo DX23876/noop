@@ -235,7 +235,7 @@ struct ForgeStatusBarScrim: View {
             .accessibilityHidden(true)
     }
 
-    private static var statusBarHeight: CGFloat {
+    static var statusBarHeight: CGFloat {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let window = scenes.flatMap(\.windows).first(where: \.isKeyWindow) ?? scenes.first?.windows.first
         return window?.safeAreaInsets.top ?? 0
@@ -255,7 +255,10 @@ struct ForgeScrollingMotif: View {
 
     var body: some View {
         if sky && !behindCards && !photo.isActive {
-            ForgeTodayMotif()
+            // Scroll content starts under the status bar and `ignoresSafeArea` does not carry a background of
+            // it above that, so the picture is raised over the bar itself; without that a black band stood
+            // under the clock wherever the scene was not already raised (every hour but the night's).
+            ForgeTodayMotif(raise: ForgeStatusBarScrim.statusBarHeight)
                 .ignoresSafeArea(edges: .top)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
@@ -268,17 +271,23 @@ private struct ForgeTodayMotif: View {
     /// On: the scene fills the page behind every card. Off: as in the shipped design, it stands behind the
     /// rings and fades into the canvas, so the cards below rest on a quiet ground.
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var behindCards = false
+    /// How far above its frame the picture must reach: the status bar's height when the frame starts below it
+    /// (the scroll content), zero when the frame already covers the whole screen (`ForgeBackground`).
+    var raise: CGFloat = 0
 
     var body: some View {
         let hour = Calendar.current.component(.hour, from: Date())
         let height = behindCards ? Self.height : Self.heroHeight
         let fades = !behindCards
         if colorScheme == .light {
-            SceneScreenBackground(hour: ForgeToday.lightPageSceneHour(hour), height: height, fades: fades)
+            SceneScreenBackground(hour: ForgeToday.lightPageSceneHour(hour), height: height + raise, fades: fades)
+                .offset(y: -raise)
         } else if hour >= 21 || hour <= 4 {
-            SceneScreenBackground(hour: hour, height: height + 110, fades: fades).offset(y: -110)
+            // The night is raised past the title already, further than any status bar is tall.
+            let lift = max(110, raise)
+            SceneScreenBackground(hour: hour, height: height + lift, fades: fades).offset(y: -lift)
         } else {
-            SceneScreenBackground(hour: hour, height: height, fades: fades)
+            SceneScreenBackground(hour: hour, height: height + raise, fades: fades).offset(y: -raise)
         }
     }
 
