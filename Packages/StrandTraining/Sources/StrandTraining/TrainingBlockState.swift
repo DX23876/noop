@@ -88,7 +88,9 @@ public enum TrainingBlockState {
                      isFinished: isFinished, loadFactor: deload ? block.deloadFactor : 1)
     }
 
-    static func isDeloadWeek(_ week: Int, block: TrainingProgramBlock) -> Bool {
+    /// Whether a given week of a block is a lighter one. Public so a screen naming the NEXT lighter
+    /// week reads it from the same rule the state itself uses rather than counting again.
+    public static func isDeloadWeek(_ week: Int, block: TrainingProgramBlock) -> Bool {
         if block.deloadInFinalWeek, week == block.weeks { return true }
         if let every = block.deloadEveryWeeks, week % every == 0 { return true }
         return false

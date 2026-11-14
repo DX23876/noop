@@ -29,6 +29,9 @@ final class TrainingHubModel: ObservableObject {
     @Published private(set) var loaded = false
     @Published private(set) var exercises: [TrainingExercise] = []
     @Published private(set) var plan = TrainingPlan()
+    /// Every plan the wearer holds, resting ones included. `plan` above is what is being FOLLOWED,
+    /// and stays the one answer to what to train today.
+    @Published private(set) var programs: [TrainingProgram] = []
     @Published private(set) var workouts: [NativeWorkout] = []
     @Published private(set) var resolvedHistory = ResolvedStrengthHistory(
         sessions: [], workouts: [], templates: [:])
@@ -50,11 +53,13 @@ final class TrainingHubModel: ObservableObject {
         await repo.prepareNativeTraining()
         async let exercises = repo.nativeTrainingExercises()
         async let plan = repo.nativeTrainingPlan(weekStartsOn: weekStartsOn)
+        async let programs = repo.nativeTrainingPrograms()
         async let workouts = repo.nativeWorkouts()
         async let trackers = repo.nativeTrainingTrackers()
         async let resolved = repo.resolvedStrengthHistory(days: ResolvedStrengthHistory.allHistoryDays)
         self.exercises = await exercises
         self.plan = await plan
+        self.programs = await programs
         self.workouts = await workouts
         self.trackers = await trackers
         self.resolvedHistory = await resolved
@@ -90,12 +95,115 @@ final class TrainingHubModel: ObservableObject {
         return plan.routines(day: day, weekday: weekday)
     }
 
+    /// What is followed and what is held, read again after any write that can change either. One
+    /// helper rather than two lines at every call site, so a mutator cannot refresh one and forget
+    /// the other and leave the plan list disagreeing with the week.
+    private func refreshPlans(repo: Repository) async {
+        async let plan = repo.nativeTrainingPlan(weekStartsOn: self.plan.weekStartsOn)
+        async let programs = repo.nativeTrainingPrograms()
+        self.plan = await plan
+        self.programs = await programs
+    }
+
+    /// The plan being followed, which is where a new routine goes unless the wearer says otherwise.
+    var activeStrengthProgram: TrainingProgram? {
+        TrainingProgramActivation.active(.strength, in: programs)
+    }
+
+    func program(_ id: UUID?) -> TrainingProgram? {
+        guard let id else { return nil }
+        return programs.first { $0.id == id }
+    }
+
+    /// One plan's routines. The followed plan answers out of `plan`, which is already in memory; a
+    /// resting plan is read from the store, since nothing else holds it.
+    func routines(ofProgram id: UUID, repo: Repository) async -> [TrainingRoutine] {
+        if programs.first(where: { $0.id == id })?.isActive == true {
+            return plan.routines.filter { $0.programId == id }
+        }
+        return await repo.nativeTrainingRoutines(programId: id)
+    }
+
     func addStarter(_ routine: TrainingRoutine, repo: Repository) async {
         do {
-            try await repo.saveNativeTrainingRoutine(routine)
-            plan = await repo.nativeTrainingPlan()
+            var placed = routine
+            placed.programId = routine.programId ?? activeStrengthProgram?.id
+            try await repo.saveNativeTrainingRoutine(placed)
+            await refreshPlans(repo: repo)
         } catch {
             errorMessage = String(localized: "The routine could not be saved.")
+        }
+    }
+
+    func saveProgram(_ program: TrainingProgram, repo: Repository) async {
+        do {
+            var updated = program
+            updated.updatedAt = Int(Date().timeIntervalSince1970)
+            try await repo.saveNativeTrainingProgram(updated)
+            await refreshPlans(repo: repo)
+        } catch {
+            errorMessage = String(localized: "The plan could not be saved.")
+        }
+    }
+
+    func activateProgram(_ id: UUID, repo: Repository) async {
+        do {
+            try await repo.activateNativeTrainingProgram(id)
+            await refreshPlans(repo: repo)
+        } catch {
+            errorMessage = String(localized: "The plan could not be saved.")
+        }
+    }
+
+    func deactivateProgram(_ id: UUID, repo: Repository) async {
+        do {
+            try await repo.deactivateNativeTrainingProgram(id)
+            await refreshPlans(repo: repo)
+        } catch {
+            errorMessage = String(localized: "The plan could not be saved.")
+        }
+    }
+
+    func deleteProgram(_ id: UUID, repo: Repository) async {
+        do {
+            try await repo.deleteNativeTrainingProgram(id)
+            await refreshPlans(repo: repo)
+        } catch {
+            errorMessage = String(localized: "The plan could not be deleted.")
+        }
+    }
+
+    /// A copy of a plan, its routines included, resting until the wearer takes it up. Fresh ids
+    /// throughout, so editing the copy never reaches back into the plan it came from.
+    func duplicateProgram(_ program: TrainingProgram, repo: Repository) async {
+        let now = Int(Date().timeIntervalSince1970)
+        let source = await routines(ofProgram: program.id, repo: repo)
+        var copy = TrainingProgram(title: String(localized: "\(program.title) copy"),
+                                   kind: program.kind, notes: program.notes,
+                                   targets: program.targets, block: program.block,
+                                   isActive: false, origin: program.origin,
+                                   createdAt: now, updatedAt: now)
+        copy.block?.startedOn = nil
+        var idMap: [UUID: UUID] = [:]
+        var copied: [TrainingRoutine] = []
+        for routine in source {
+            let duplicate = RoutineEditing.duplicate(routine, title: routine.title, now: now)
+            idMap[routine.id] = duplicate.id
+            var placed = duplicate
+            placed.programId = copy.id
+            copied.append(placed)
+        }
+        copy.schedule = program.schedule.reduce(into: [TrainingWeekday: [UUID]]()) { out, entry in
+            out[entry.key] = entry.value.compactMap { idMap[$0] }
+        }
+        do {
+            try await repo.saveNativeTrainingProgram(copy)
+            for routine in copied { try await repo.saveNativeTrainingRoutine(routine) }
+            // The week is written again now that the routines exist, since a schedule row points at one.
+            try await repo.saveNativeTrainingSchedule(copy.schedule, programId: copy.id)
+            await refreshPlans(repo: repo)
+        } catch {
+            errorMessage = String(localized: "The plan could not be saved.")
         }
     }
 
@@ -111,20 +219,32 @@ final class TrainingHubModel: ObservableObject {
 
     func saveRoutine(_ routine: TrainingRoutine, repo: Repository) async {
         do {
-            try await repo.saveNativeTrainingRoutine(routine)
-            plan = await repo.nativeTrainingPlan(weekStartsOn: plan.weekStartsOn)
+            var placed = routine
+            placed.programId = routine.programId ?? activeStrengthProgram?.id
+            try await repo.saveNativeTrainingRoutine(placed)
+            await refreshPlans(repo: repo)
         } catch {
             errorMessage = String(localized: "The routine could not be saved.")
         }
     }
 
-    /// Saves the routine, then its weekday assignment. Other routines keep their days and order.
+    /// Saves the routine, then its weekday assignment within ITS OWN plan. Other routines keep their
+    /// days and order, and a routine in a resting plan is scheduled in that plan rather than in the
+    /// week being followed.
     func saveRoutine(_ routine: TrainingRoutine, weekdays: Set<TrainingWeekday>, repo: Repository) async {
         do {
-            try await repo.saveNativeTrainingRoutine(routine)
-            let schedule = RoutineEditing.schedule(plan.schedule, assigning: routine.id, to: weekdays)
-            if schedule != plan.schedule { try await repo.saveNativeTrainingSchedule(schedule) }
-            plan = await repo.nativeTrainingPlan(weekStartsOn: plan.weekStartsOn)
+            var placed = routine
+            let owner = routine.programId ?? activeStrengthProgram?.id
+            placed.programId = owner
+            try await repo.saveNativeTrainingRoutine(placed)
+            if let owner, let program = programs.first(where: { $0.id == owner }) {
+                let schedule = RoutineEditing.schedule(program.schedule, assigning: routine.id,
+                                                       to: weekdays)
+                if schedule != program.schedule {
+                    try await repo.saveNativeTrainingSchedule(schedule, programId: owner)
+                }
+            }
+            await refreshPlans(repo: repo)
         } catch {
             errorMessage = String(localized: "The routine could not be saved.")
         }
@@ -140,10 +260,17 @@ final class TrainingHubModel: ObservableObject {
     func deleteRoutine(_ id: UUID, repo: Repository) async {
         do {
             try await repo.deleteNativeTrainingRoutine(id)
-            plan = await repo.nativeTrainingPlan(weekStartsOn: plan.weekStartsOn)
+            await refreshPlans(repo: repo)
         } catch {
             errorMessage = String(localized: "The routine could not be deleted.")
         }
+    }
+
+    /// The weekdays a routine is scheduled on, read from the plan it belongs to rather than from the
+    /// week being followed. A resting plan's routine has days too, and they are its own.
+    func weekdays(of routine: TrainingRoutine) -> Set<TrainingWeekday> {
+        let schedule = program(routine.programId)?.schedule ?? plan.schedule
+        return RoutineEditing.weekdays(of: routine.id, in: schedule)
     }
 
     func planArchiveData() throws -> Data {
@@ -250,10 +377,14 @@ final class TrainingHubModel: ObservableObject {
         }
     }
 
-    func saveSchedule(_ schedule: [TrainingWeekday: [UUID]], repo: Repository) async {
+    /// Writes ONE plan's week. Without a plan named it is the plan being followed, which is what the
+    /// hub's own week editor means.
+    func saveSchedule(_ schedule: [TrainingWeekday: [UUID]], programId: UUID? = nil,
+                      repo: Repository) async {
         do {
-            try await repo.saveNativeTrainingSchedule(schedule)
-            plan = await repo.nativeTrainingPlan(weekStartsOn: plan.weekStartsOn)
+            try await repo.saveNativeTrainingSchedule(schedule,
+                                                      programId: programId ?? activeStrengthProgram?.id)
+            await refreshPlans(repo: repo)
         } catch {
             errorMessage = String(localized: "The schedule could not be saved.")
         }
@@ -262,7 +393,7 @@ final class TrainingHubModel: ObservableObject {
     func saveOverride(_ override: TrainingDayOverride, repo: Repository) async {
         do {
             try await repo.saveNativeTrainingOverride(override)
-            plan = await repo.nativeTrainingPlan(weekStartsOn: plan.weekStartsOn)
+            await refreshPlans(repo: repo)
         } catch {
             errorMessage = String(localized: "The day could not be changed.")
         }
@@ -271,7 +402,7 @@ final class TrainingHubModel: ObservableObject {
     func clearOverride(day: String, repo: Repository) async {
         do {
             try await repo.deleteNativeTrainingOverride(day: day)
-            plan = await repo.nativeTrainingPlan(weekStartsOn: plan.weekStartsOn)
+            await refreshPlans(repo: repo)
         } catch {
             errorMessage = String(localized: "The day could not be reset.")
         }

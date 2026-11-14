@@ -25,7 +25,9 @@ struct TrainingHubView: View {
     @State private var showingOpenGymImporter = false
     @State private var showingPastWorkout = false
     @State private var editingDay: TrainingDaySelection?
-    @State private var editingRoutine: TrainingRoutine?
+    @State private var editingRoutine: RoutineEditorRequest?
+    @State private var editingProgram: TrainingProgram?
+    @State private var openProgram: TrainingProgram?
     @State private var previewRoutine: TrainingRoutine?
     @State private var showingAddRoutineSheet = false
     @State private var routineActionsFor: TrainingRoutine?
@@ -44,6 +46,7 @@ struct TrainingHubView: View {
                         startCard
                         GoalsContextCard(context: .training)
                         weekCard
+                        plansCard
                         routinesCard
                         recentCard
                         TrainingActivityHeatmap(days: model.activityDays)
@@ -106,8 +109,16 @@ struct TrainingHubView: View {
         }
         .sheet(isPresented: $showingSchedule) {
             NavigationStack {
-                TrainingScheduleEditorView(plan: model.plan) { schedule in
-                    Task { await model.saveSchedule(schedule, repo: repo) }
+                // The week belongs to ONE plan. Editing the merged week of several active plans and
+                // writing the result back would move another plan's days into this one.
+                TrainingScheduleEditorView(
+                    program: model.activeStrengthProgram,
+                    routines: model.plan.routines.filter { $0.programId == model.activeStrengthProgram?.id }
+                ) { schedule in
+                    Task {
+                        await model.saveSchedule(schedule, programId: model.activeStrengthProgram?.id,
+                                                 repo: repo)
+                    }
                 }
             }
         }
@@ -131,21 +142,31 @@ struct TrainingHubView: View {
                     onReset: { day in Task { await model.clearOverride(day: day, repo: repo) } })
             }
         }
-        .sheet(item: $editingRoutine) { routine in
+        .sheet(item: $editingRoutine) { request in
             NavigationStack {
-                RoutineEditorView(routine: routine,
-                    weekdays: RoutineEditing.weekdays(of: routine.id, in: model.plan.schedule),
+                RoutineEditorView(routine: request.routine, isNew: request.isNew,
+                    weekdays: request.isNew ? [] : model.weekdays(of: request.routine),
                     exercises: model.exercises,
+                    programTitle: model.program(request.routine.programId)?.title,
                     onSave: { updated, weekdays in
                         Task { await model.saveRoutine(updated, weekdays: weekdays, repo: repo) }
                     },
                     onDelete: { id in Task { await model.deleteRoutine(id, repo: repo) } })
             }
         }
+        .sheet(item: $editingProgram) { program in
+            NavigationStack {
+                TrainingProgramEditorView(program: program) { updated in
+                    Task { await model.saveProgram(updated, repo: repo) }
+                }
+            }
+        }
         .sheet(isPresented: $showingAddRoutineSheet) {
             NavigationStack {
                 AddRoutineActionsSheet(
                     onLibrary: { showingLibrary = true },
+                    onNewRoutine: { editingRoutine = .new(in: model.activeStrengthProgram?.id) },
+                    onNewPlan: { editingProgram = TrainingProgram(title: "") },
                     onAddRoutine: { showingStarterPlans = true },
                     onShare: { exportPlan() },
                     onExportPDF: { exportPlanPDF() },
@@ -161,7 +182,7 @@ struct TrainingHubView: View {
                 RoutineActionsSheet(
                     routine: routine,
                     onPreview: { previewRoutine = routine },
-                    onEdit: { editingRoutine = routine },
+                    onEdit: { editingRoutine = .existing(routine) },
                     onDuplicate: { Task { await model.duplicateRoutine(routine, repo: repo) } })
             }
         }
@@ -283,10 +304,83 @@ struct TrainingHubView: View {
         }
     }
 
+    /// The plans the wearer holds. The one being followed is named first and marked, because which
+    /// plan is active is the fact that decides what every other training surface shows.
+    private var plansCard: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            HStack {
+                SectionHeader("Plans", overline: "Your training")
+                Spacer()
+                Button { editingProgram = TrainingProgram(title: "") } label: {
+                    Label("New plan", systemImage: "plus")
+                        .font(StrandFont.subhead.weight(.semibold))
+                }
+            }
+            NoopCard {
+                VStack(spacing: NoopMetrics.space2) {
+                    ForEach(Array(sortedPrograms.enumerated()), id: \.element.id) { index, program in
+                        if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                        NavigationLink {
+                            TrainingProgramDetailView(program: program, model: model)
+                                .environmentObject(repo)
+                        } label: {
+                            planRow(program)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Followed plans first, then the resting ones by name, so the page opens on what is running.
+    private var sortedPrograms: [TrainingProgram] {
+        model.programs.sorted {
+            $0.isActive == $1.isActive
+                ? $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+                : $0.isActive
+        }
+    }
+
+    private func planRow(_ program: TrainingProgram) -> some View {
+        HStack(spacing: NoopMetrics.space3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(program.title.isEmpty ? String(localized: "Unnamed plan") : program.title)
+                    .font(StrandFont.subhead.weight(.semibold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text(planSubtitle(program))
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
+            Spacer(minLength: 8)
+            if program.isActive {
+                Text("Following").font(StrandFont.caption.weight(.semibold))
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            Image(systemName: "chevron.right").font(.footnote.bold())
+                .foregroundStyle(StrandPalette.textTertiary)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func planSubtitle(_ program: TrainingProgram) -> String {
+        var parts: [String] = []
+        let days = program.schedule.values.filter { !$0.isEmpty }.count
+        if days > 0 { parts.append(String(localized: "\(days) days a week")) }
+        if let state = TrainingBlockState.resolve(block: program.block,
+                                                  today: Repository.localDayKey(Date())) {
+            parts.append(state.isFinished
+                         ? String(localized: "Block finished")
+                         : String(localized: "Week \(state.week) of \(state.weeks)"))
+        } else if let block = program.block {
+            parts.append(String(localized: "\(block.weeks) week block"))
+        }
+        return parts.isEmpty ? String(localized: "Resting") : parts.joined(separator: " · ")
+    }
+
     private var routinesCard: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             HStack {
-                SectionHeader("Routines", overline: "Your training")
+                SectionHeader("Routines", overline: "In the plan you follow")
                 Spacer()
                 Button { showingAddRoutineSheet = true } label: {
                     Label("Add", systemImage: "plus")
@@ -297,10 +391,16 @@ struct TrainingHubView: View {
                 NoopCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Build a repeatable plan").font(StrandFont.headline)
-                        Text("Start with a template, then change exercises, sets, rest and progression to fit you.")
+                        Text("Start from scratch or from a template, then change exercises, sets, rest and progression to fit you.")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
-                        Button("Browse starter plans") { showingStarterPlans = true }
-                            .buttonStyle(.bordered).tint(StrandPalette.accent)
+                        HStack(spacing: NoopMetrics.space2) {
+                            Button("New routine") {
+                                editingRoutine = .new(in: model.activeStrengthProgram?.id)
+                            }
+                            .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
+                            Button("Browse starter plans") { showingStarterPlans = true }
+                                .buttonStyle(.bordered).tint(StrandPalette.accent)
+                        }
                     }
                 }
             } else if forgeHubSkin {
@@ -3470,6 +3570,8 @@ private struct TrainingPlateCalculatorView: View {
 private struct AddRoutineActionsSheet: View {
     @Environment(\.dismiss) private var dismiss
     let onLibrary: () -> Void
+    let onNewRoutine: () -> Void
+    let onNewPlan: () -> Void
     let onAddRoutine: () -> Void
     let onShare: () -> Void
     let onExportPDF: () -> Void
@@ -3482,8 +3584,10 @@ private struct AddRoutineActionsSheet: View {
     var body: some View {
         List {
             Section {
+                actionRow("New routine", systemImage: "plus.rectangle.on.rectangle", action: onNewRoutine)
+                actionRow("Start from a template", systemImage: "square.grid.2x2", action: onAddRoutine)
+                actionRow("New plan", systemImage: "calendar.badge.plus", action: onNewPlan)
                 actionRow("Exercise library", systemImage: "books.vertical", action: onLibrary)
-                actionRow("Add routine", systemImage: "plus.rectangle.on.rectangle", action: onAddRoutine)
             }
             Section("Import & export") {
                 actionRow("Share training plan", systemImage: "square.and.arrow.up", action: onShare)
@@ -3558,12 +3662,22 @@ private struct ForgeWeekdayChip: View {
 private struct RoutineEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State var routine: TrainingRoutine
+    /// A routine that does not exist yet: nothing to delete, and nothing scheduled.
+    let isNew: Bool
     @State var weekdays: Set<TrainingWeekday>
     let exercises: [TrainingExercise]
+    /// The plan this routine belongs to, named so the wearer can see where it will appear.
+    let programTitle: String?
     let onSave: (TrainingRoutine, Set<TrainingWeekday>) -> Void
     let onDelete: (UUID) -> Void
     @State private var showingExercises = false
     @State private var confirmingDelete = false
+    @AppStorage(TrainingPreferences.newExerciseSetsKey) private var newExerciseSets =
+        TrainingPreferences.defaultNewExerciseSets
+    @AppStorage(TrainingPreferences.defaultRestKey) private var defaultRest =
+        TrainingPreferences.defaultRestSeconds
+    @AppStorage(TrainingPreferences.warmupRestKey) private var warmupRest =
+        TrainingPreferences.defaultWarmupRestSeconds
     @AppStorage(TrainingPreferences.weightUnitKey) private var weightUnitRaw = TrainingWeightUnit.kilograms.rawValue
     private var weightUnit: TrainingWeightUnit {
         TrainingWeightUnit(rawValue: weightUnitRaw) ?? .kilograms
@@ -3571,11 +3685,17 @@ private struct RoutineEditorView: View {
 
     var body: some View {
         Form {
-            Section("Routine") {
+            Section {
                 TextField("Name", text: $routine.title)
                 TextField("Notes", text: Binding(get: { routine.notes ?? "" },
                                                   set: { routine.notes = $0.isEmpty ? nil : $0 }), axis: .vertical)
                 Toggle("Exclude from automatic progression", isOn: $routine.excludeFromProgression)
+            } header: {
+                Text("Routine")
+            } footer: {
+                if let programTitle, !programTitle.isEmpty {
+                    Text("Goes into \(programTitle).")
+                }
             }
             Section {
                 let muscles = TrainingMuscleProjection.routine(routine, exercises: exerciseById)
@@ -3674,12 +3794,14 @@ private struct RoutineEditorView: View {
                             value: $routine.defaultProgression.failuresBeforeDeload, in: 1...8)
                 }
             }
-            Section {
-                Button("Delete routine", role: .destructive) { confirmingDelete = true }
+            if !isNew {
+                Section {
+                    Button("Delete routine", role: .destructive) { confirmingDelete = true }
+                }
             }
         }
         .forgeListBackground()
-        .navigationTitle(Text("Edit routine"))
+        .navigationTitle(isNew ? Text("New routine") : Text("Edit routine"))
         #if os(iOS)
         .toolbar { EditButton() }
         #endif
@@ -3693,8 +3815,14 @@ private struct RoutineEditorView: View {
         .sheet(isPresented: $showingExercises) {
             NavigationStack {
                 TrainingExerciseLibraryView(exercises: exercises, mode: .addToRoutine, onPick: { exercise in
-                    routine.exercises.append(.init(exerciseId: exercise.id,
-                        sets: RoutineSetPlan.defaults(for: exercise.mode)))
+                    // Settings › Training already says how many sets and how long a rest a new
+                    // exercise should get, and the live session has always honoured it. The editor
+                    // wrote three sets and two minutes regardless, so one wearer's two answers to
+                    // the same question disagreed depending on where the exercise was added.
+                    routine.exercises.append(.init(
+                        exerciseId: exercise.id,
+                        sets: RoutineSetPlan.defaults(for: exercise.mode, count: newExerciseSets),
+                        restSeconds: defaultRest, warmupRestSeconds: warmupRest))
                     showingExercises = false
                 })
             }
@@ -3988,13 +4116,16 @@ private struct RoutineSetEditor: View {
 private struct TrainingScheduleEditorView: View {
     @Environment(\.dismiss) private var dismiss
     let routines: [TrainingRoutine]
+    let planTitle: String?
     let onSave: ([TrainingWeekday: [UUID]]) -> Void
     @State private var schedule: [TrainingWeekday: [UUID]]
 
-    init(plan: TrainingPlan, onSave: @escaping ([TrainingWeekday: [UUID]]) -> Void) {
-        routines = plan.routines
+    init(program: TrainingProgram?, routines: [TrainingRoutine],
+         onSave: @escaping ([TrainingWeekday: [UUID]]) -> Void) {
+        self.routines = routines
+        planTitle = program?.title
         self.onSave = onSave
-        _schedule = State(initialValue: plan.schedule)
+        _schedule = State(initialValue: program?.schedule ?? [:])
     }
 
     var body: some View {
@@ -4022,7 +4153,7 @@ private struct TrainingScheduleEditorView: View {
             }
         }
         .forgeListBackground()
-        .navigationTitle(Text("Weekly schedule"))
+        .navigationTitle(planTitle.map { Text(verbatim: $0) } ?? Text("Weekly schedule"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {

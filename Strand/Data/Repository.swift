@@ -948,9 +948,54 @@ final class Repository: ObservableObject {
         try await store.upsertTrainingRoutine(routine)
     }
 
-    func importNativeTrainingPlan(_ archive: TrainingPlanArchive) async throws {
+    /// Every plan the wearer holds, the resting ones included. What they TRAIN is `nativeTrainingPlan`,
+    /// which resolves the active plans alone.
+    func nativeTrainingPrograms() async -> [TrainingProgram] {
+        guard let store = await ensureStore() else { return [] }
+        return (try? await store.trainingPrograms()) ?? []
+    }
+
+    /// One plan's routines, which is how a resting plan is read: the plan being followed answers
+    /// through `nativeTrainingPlan` like everything else.
+    func nativeTrainingRoutines(programId: UUID) async -> [TrainingRoutine] {
+        guard let store = await ensureStore() else { return [] }
+        return (try? await store.trainingRoutines(programId: programId)) ?? []
+    }
+
+    func saveNativeTrainingProgram(_ program: TrainingProgram) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
-        try await store.mergeTrainingPlan(archive, nowTs: Int(Date().timeIntervalSince1970))
+        try await store.upsertTrainingProgram(program)
+    }
+
+    func deleteNativeTrainingProgram(_ id: UUID) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.deleteTrainingProgram(id: id)
+    }
+
+    /// Takes a plan up. The day is this device's local day, which is what a block counts from.
+    func activateNativeTrainingProgram(_ id: UUID, now: Date = Date()) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.activateTrainingProgram(id: id, day: Repository.localDayKey(now),
+                                                now: Int(now.timeIntervalSince1970))
+    }
+
+    func deactivateNativeTrainingProgram(_ id: UUID, now: Date = Date()) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.deactivateTrainingProgram(id: id, day: Repository.localDayKey(now),
+                                                  now: Int(now.timeIntervalSince1970))
+    }
+
+    func nativeTrainingBlockRuns(programId: UUID? = nil) async -> [TrainingBlockRun] {
+        guard let store = await ensureStore() else { return [] }
+        return (try? await store.trainingBlockRuns(programId: programId)) ?? []
+    }
+
+    /// An imported plan file lands in one plan: the one named, or the plan being followed when none
+    /// is. Other plans keep their routines and their week.
+    func importNativeTrainingPlan(_ archive: TrainingPlanArchive, into programId: UUID? = nil) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.mergeTrainingPlan(archive, into: programId,
+                                          nowTs: Int(Date().timeIntervalSince1970))
     }
 
     func importNativeTrainingHistory(_ result: TrainingHistoryImport) async throws {
@@ -968,9 +1013,10 @@ final class Repository: ObservableObject {
         try await store.deleteTrainingRoutine(id: id)
     }
 
-    func saveNativeTrainingSchedule(_ schedule: [TrainingWeekday: [UUID]]) async throws {
+    func saveNativeTrainingSchedule(_ schedule: [TrainingWeekday: [UUID]],
+                                    programId: UUID? = nil) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
-        try await store.replaceTrainingSchedule(schedule)
+        try await store.replaceTrainingSchedule(schedule, programId: programId)
     }
 
     func saveNativeTrainingOverride(_ override: TrainingDayOverride) async throws {

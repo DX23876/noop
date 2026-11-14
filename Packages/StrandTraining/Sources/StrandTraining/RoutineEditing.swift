@@ -72,9 +72,12 @@ public enum RoutineEditing {
                                    barWeightKg: entry.barWeightKg,
                                    loadSemantics: entry.loadSemantics, note: entry.note)
         }
+        // The copy stays in the plan it was copied from unless the caller moves it, which is what
+        // duplicating a routine inside a plan means.
         return TrainingRoutine(title: title, notes: routine.notes, exercises: copiedExercises,
                                defaultProgression: routine.defaultProgression,
                                excludeFromProgression: routine.excludeFromProgression,
+                               programId: routine.programId,
                                createdAt: now, updatedAt: now)
     }
 }
