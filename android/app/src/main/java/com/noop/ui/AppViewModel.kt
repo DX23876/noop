@@ -334,6 +334,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val devices = runCatching { noopApp.deviceRegistry.all() }.getOrDefault(emptyList())
         noopApp.deviceRegistry.archive(id)
         if (com.noop.ble.SourceCoordinator.isWhoop(id, devices)) ble.releaseStrap()
+        // Forgetting the active device leaves the published name naming a row that is gone.
+        refreshActiveDeviceName()
     }
 
     /** Rename a device (blank clears the nickname → falls back to brand+model). */
@@ -513,9 +515,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Otherwise the core promoted the row and the coordinator just follows that change.
         if (outcome.retarget) {
             noopApp.sourceCoordinator.retargetActiveWhoop()
-        } else if (makeActive && noopApp.sourceCoordinator.reconcileActiveDevice(WhoopBleClient.DEFAULT_DEVICE_ID)) {
-            refreshActiveDeviceName()
+        } else if (makeActive) {
+            noopApp.sourceCoordinator.reconcileActiveDevice(WhoopBleClient.DEFAULT_DEVICE_ID)
         }
+        // Both branches, not one: a takeover always changes which strap the active row names, and the
+        // re-target branch is the ordinary case (the WHOOP entry was already active). Refreshing only in
+        // the other branch left the published name on its old value for the rest of the process, and the
+        // screens that read it then said "connect a wearable" while the strap was streaming.
+        refreshActiveDeviceName()
         return true
     }
 

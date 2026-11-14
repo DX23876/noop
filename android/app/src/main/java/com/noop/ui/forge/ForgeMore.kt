@@ -191,11 +191,14 @@ private fun DeviceRow(viewModel: AppViewModel, onClick: () -> Unit) {
     val connected = live.connected
     // While strap history syncs the row says so (debounced across chunk gaps), as the quick-action sheet does.
     val syncing = rememberDebouncedSyncing(live.backfilling)
-    val status = when {
-        name == null -> stringResource(R.string.forge_more_device_none)
-        !connected -> stringResource(R.string.forge_strap_disconnected)
-        syncing -> stringResource(R.string.forge_qa_syncing)
-        live.batteryPct != null -> stringResource(R.string.forge_qa_connected_battery, live.batteryPct!!.roundToInt())
+    // The rule is [StrapRowStatus], shared with the quick-action sheet, so the two cannot state different
+    // things about one link. This row waits for the stream and says nothing of its own about charging.
+    val status = when (StrapRowStatus.of(named = name != null, onAir = connected, syncing = syncing,
+                                         charging = null, batteryPct = live.batteryPct)) {
+        StrapRow.None -> stringResource(R.string.forge_more_device_none)
+        StrapRow.Disconnected -> stringResource(R.string.forge_strap_disconnected)
+        StrapRow.Syncing -> stringResource(R.string.forge_qa_syncing)
+        StrapRow.Battery -> stringResource(R.string.forge_qa_connected_battery, live.batteryPct!!.roundToInt())
         else -> stringResource(R.string.forge_strap_connected)
     }
     LargeRow(Icons.Rounded.SettingsInputAntenna, ForgeTokens.Color.systemGreen.resolve(),

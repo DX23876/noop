@@ -105,14 +105,18 @@ internal fun ForgeQuickActionSheet(viewModel: AppViewModel, onDismiss: () -> Uni
     val colors = Forge.colors
     val live by viewModel.live.collectAsState()
     val name by viewModel.activeDeviceName.collectAsState()
-    // The device row's line as iOS resolves it (`StrapBatteryDisplayState`); no row without a strap.
-    val status: String? = when {
-        name == null -> null
-        !(live.connected || live.bonded) -> stringResource(R.string.forge_qa_not_connected)
-        live.backfilling -> stringResource(R.string.forge_qa_syncing)
-        live.charging == true -> stringResource(R.string.forge_qa_charging)
-        live.batteryPct != null -> stringResource(R.string.forge_qa_connected_battery, live.batteryPct!!.roundToInt())
-        else -> stringResource(R.string.forge_qa_connected)
+    // The device row's line as iOS resolves it (`StrapBatteryDisplayState`); no row without a strap. The
+    // rule is [StrapRowStatus], shared with the device row behind the profile: this sheet counts a bonded
+    // strap as present and names charging, which the rule carries, so only the wording differs here.
+    val status: String? = when (StrapRowStatus.of(named = name != null, onAir = live.connected || live.bonded,
+                                                  syncing = live.backfilling, charging = live.charging,
+                                                  batteryPct = live.batteryPct)) {
+        StrapRow.None -> null
+        StrapRow.Disconnected -> stringResource(R.string.forge_qa_not_connected)
+        StrapRow.Syncing -> stringResource(R.string.forge_qa_syncing)
+        StrapRow.Charging -> stringResource(R.string.forge_qa_charging)
+        StrapRow.Battery -> stringResource(R.string.forge_qa_connected_battery, live.batteryPct!!.roundToInt())
+        StrapRow.Connected -> stringResource(R.string.forge_qa_connected)
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                      containerColor = colors.surface) {
