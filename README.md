@@ -788,6 +788,13 @@ You can also download the file directly from the
 `NOOP-ios-unsigned-v12.2.1-dx.ipa` includes the widgets, and
 `NOOP-ios-full-unsigned-v12.2.1-dx.ipa` also contains the Apple Watch app.
 
+**Feather or a bought certificate?** These usually come with one wildcard profile. Apple allows no App
+Groups or HealthKit on such a profile, so NOOP runs, but the widgets stay empty ("No shared data"),
+Apple Health stays off and the Watch gets nothing from the phone. For widgets, use AltStore or
+SideStore: they sign with your own Apple ID and create the App Group for you. If you have profiles with
+fixed App IDs that share one App Group, the [Forge Signer](https://dx23876.github.io/forge/sign/) signs
+every part with its own profile and links the App Group for you.
+
 More in the [iOS guide](docs/IOS.md).
 
 </td>
@@ -825,8 +832,10 @@ Android 8 or later. This is a **testing build**: see
 
 ### ⌚ Apple Watch and 🧪 the testing build
 
-The watch app comes inside the `full` IPA; install that one and the watch app appears in the Watch app
-on your iPhone.
+The watch app comes inside the `full` IPA. It needs four profiles with fixed App IDs that share one App
+Group (iPhone app, widgets, Watch app, Watch complication), for example from your own Apple developer
+account. Sign it with the [Forge Signer](https://dx23876.github.io/forge/sign/), and the watch app
+appears in the Watch app on your iPhone. AltStore and SideStore leave the watch app out.
 
 Want the redesigned 13.0 early? The
 [testing release](https://github.com/DX23876/noop/releases/tag/testing-latest) has builds for iPhone,
