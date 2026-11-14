@@ -295,8 +295,10 @@ struct ForgeTrainingView: View {
                     HStack(spacing: 10) {
                         ForEach(hub.plan.routines) { routine in
                             Button { session.requestStrength(routines: [routine]) } label: {
-                                routineCard(title: routine.title, subtitle: String(localized: "\(routine.exercises.count) exercises"),
-                                            systemImage: "dumbbell.fill")
+                                routineCard(title: routine.title,
+                                            subtitle: String(localized: "\(routine.exercises.count) exercises"),
+                                            systemImage: "dumbbell.fill",
+                                            muscles: TrainingMuscleProjection.routine(routine, exercises: hub.exerciseById))
                             }
                             .buttonStyle(LiquidPressStyle())
                             .accessibilityLabel(Text("Start \(routine.title)"))
@@ -319,13 +321,22 @@ struct ForgeTrainingView: View {
     }
 
     /// Every routine in one light wash of Effort, the tab's colour: the title tells them apart.
-    private func routineCard(title: String, subtitle: String, systemImage: String) -> some View {
+    /// `muscles` lights the card's figure with what the routine trains; without it the card falls back
+    /// to the glowing disc, which is all a routine with no mapped exercises can honestly show.
+    private func routineCard(title: String, subtitle: String, systemImage: String,
+                             muscles: [String: Double] = [:]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            // The routine's picture: its symbol on a glowing disc in the tab's Effort colour.
-            CoachPicture(main: systemImage, accentA: "flame.fill", accentB: "sparkle", tint: ForgeColor.trainingData)
-                .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
-                .padding(.leading, -4)
-            Spacer(minLength: 6)
+            if muscles.values.contains(where: { $0 > 0 }) {
+                // The routine's own picture: the body it works, in the training colour. It is the card's
+                // subject, so it takes the room a subject gets.
+                TrainingMusclePicture(values: muscles, showsBack: true, height: 76)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                CoachPicture(main: systemImage, accentA: "flame.fill", accentB: "sparkle", tint: ForgeColor.trainingData)
+                    .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
+                    .padding(.leading, -4)
+            }
+            Spacer(minLength: 4)
             Text(title)
                 .font(.system(.callout, weight: .semibold))
                 .foregroundStyle(ForgeColor.text)
@@ -334,7 +345,7 @@ struct ForgeTrainingView: View {
             Text(subtitle).font(.system(.caption)).foregroundStyle(ForgeColor.secondary).lineLimit(1)
         }
         .padding(14)
-        .frame(width: 150, height: 140, alignment: .topLeading)
+        .frame(width: 150, height: 158, alignment: .topLeading)
         .background(ForgeCardSurface(radius: ForgeRadius.inner))
     }
 

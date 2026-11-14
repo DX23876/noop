@@ -80,15 +80,10 @@ struct ExerciseLibraryRow: View {
         }
     }
 
-    @ViewBuilder private var thumbnail: some View {
-        if media.isAvailable, let still = media.mediaURL(for: exercise, variant: .still) {
-            ExerciseMediaThumbnail(url: still, side: 48)
-        } else {
-            Image(systemName: Self.modeIcon(exercise.mode))
-                .frame(width: 48, height: 48)
-                .foregroundStyle(StrandPalette.accent)
-                .background(StrandPalette.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
-        }
+    /// The demonstration where the media pack is downloaded, otherwise the body with this exercise's
+    /// muscles lit. A dumbbell glyph said the same thing for a bench press and a curl.
+    private var thumbnail: some View {
+        TrainingExercisePicture(exercise: exercise, side: 60)
     }
 
     static func metadata(_ exercise: TrainingExercise) -> String {
@@ -98,14 +93,6 @@ struct ExerciseLibraryRow: View {
         return "\(muscle) · \(equipment)"
     }
 
-    static func modeIcon(_ mode: TrainingMeasurementMode) -> String {
-        switch mode {
-        case .duration, .weightDuration: return "timer"
-        case .distanceDuration, .distanceWeight: return "point.topleft.down.to.point.bottomright.curvepath"
-        case .bodyweightReps, .repetitions: return "figure.strengthtraining.traditional"
-        default: return "dumbbell.fill"
-        }
-    }
 }
 
 /// Find exercises by tapping a muscle on the body. The tapped group is outlined on the front and back

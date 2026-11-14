@@ -260,7 +260,7 @@ public enum PlanBuilder {
             return (exercise, anatomy)
         }
         let templates = split(days: request.daysPerWeek, emphasis: request.emphasis)
-        let days = weekdays(for: request.daysPerWeek)
+        let days = weekShape(daysPerWeek: request.daysPerWeek, emphasis: request.emphasis).map(\.weekday)
 
         var program = TrainingProgram(
             title: request.title ?? defaultTitle(request),
@@ -338,6 +338,22 @@ public enum PlanBuilder {
             trimmed.exercises.removeLast()
         }
         return trimmed
+    }
+
+    /// One day of the week a plan would run, as the questions can show it before anything is built.
+    public struct PlannedDay: Equatable, Sendable, Identifiable {
+        public let weekday: TrainingWeekday
+        public let title: String
+        public var id: Int { weekday.rawValue }
+    }
+
+    /// The shape of the week these answers produce: which days train, and what each session is.
+    ///
+    /// `build` pairs its sessions with days through this same function, so a picture of the week
+    /// drawn before the build cannot promise a week the plan does not have.
+    public static func weekShape(daysPerWeek: Int, emphasis: TrainingEmphasis) -> [PlannedDay] {
+        zip(weekdays(for: daysPerWeek), split(days: daysPerWeek, emphasis: emphasis))
+            .map { PlannedDay(weekday: $0, title: $1.title) }
     }
 
     /// Training days spread through the week with rest between them where the number allows it.

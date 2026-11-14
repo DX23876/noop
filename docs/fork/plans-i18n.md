@@ -1,6 +1,6 @@
 # Trainingspläne — Übersetzungen einspielen
 
-Die Planliste, die Planseite, der Assistent, die fertigen Pläne und die Blockanzeige bringen **105 neue
+Die Planliste, die Planseite, der Assistent, die fertigen Pläne und die Blockanzeige bringen **108 neue
 Katalog-Keys** mit. Dieses Dokument listet sie mit vorbereiteter deutscher Fassung und beschreibt den
 Ablauf.
 
@@ -174,3 +174,13 @@ Nur sichtbar, wenn der Coach eingeschaltet und eingerichtet ist.
 | `Does this plan fit what I have been training lately?` | `Passt dieser Plan zu dem, was ich zuletzt trainiert habe?` |
 | `What would you change about this plan?` | `Was würdest du an diesem Plan ändern?` |
 | `What should the next block look like?` | `Wie sollte der nächste Block aussehen?` |
+
+## Bilder im Assistenten und in den fertigen Plänen
+
+Die Wochenleiste und ihre Kopfzeile im Assistenten.
+
+| Englisch | Deutsch |
+|---|---|
+| `Your week` | `Deine Woche` |
+| `\(daysPerWeek) sessions, about \(minutes) minutes each` | `\(daysPerWeek) Einheiten, etwa \(minutes) Minuten lang` |
+| `\(days.count) training days a week` | `\(days.count) Trainingstage pro Woche` |

@@ -508,8 +508,22 @@ struct TrainingHubView: View {
     private func forgeRoutineRow(_ routine: TrainingRoutine) -> some View {
         HStack(spacing: NoopMetrics.space2) {
             Button { routineActionsFor = routine } label: {
-                ForgeTileRow(symbol: "dumbbell.fill", tint: StrandPalette.restColor, title: routine.title,
-                             subtitle: String(localized: "\(routine.exercises.count) exercises")) { EmptyView() }
+                HStack(spacing: NoopMetrics.space3) {
+                    // The routine's own picture rather than one dumbbell for all of them: three routines
+                    // called Push, Pull and Legs looked identical in this list.
+                    TrainingMusclePicture(
+                        values: TrainingMuscleProjection.routine(routine, exercises: model.exerciseById),
+                        showsBack: true, height: 54)
+                        .frame(width: 96, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(routine.title).font(StrandFont.subhead.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("\(routine.exercises.count) exercises")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 4)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityHint(Text("Routine options"))

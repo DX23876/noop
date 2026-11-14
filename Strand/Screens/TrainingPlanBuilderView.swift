@@ -55,7 +55,31 @@ struct TrainingPlanBuilderView: View {
 
     // MARK: Questions
 
+    /// The week the current answers would run, from the builder's own resolver.
+    private var shape: [PlanBuilder.PlannedDay] {
+        PlanBuilder.weekShape(daysPerWeek: daysPerWeek, emphasis: emphasis)
+    }
+
     @ViewBuilder private var questions: some View {
+        Section {
+            // The answers as a picture: a plan is a shape in a week before it is a list of exercises,
+            // and these questions used to produce nothing to look at until the whole plan appeared.
+            HStack(alignment: .center, spacing: 14) {
+                CoachPicture(main: "figure.strengthtraining.traditional", accentA: "calendar",
+                             accentB: "sparkle", tint: TrainingMuscleMapAppearance.accent)
+                    .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Your week").font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text("\(daysPerWeek) sessions, about \(minutes) minutes each")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .listRowSeparator(.hidden)
+            TrainingWeekStrip(days: Set(shape.map(\.weekday)), titles: shape.map(\.title))
+                .padding(.vertical, 2)
+        }
         Section {
             Stepper("\(daysPerWeek) days a week", value: $daysPerWeek, in: 2...6)
             Stepper("About \(minutes) minutes a session", value: $minutes, in: 20...150, step: 10)
@@ -121,19 +145,37 @@ struct TrainingPlanBuilderView: View {
         ForEach(built.routines) { routine in
             Section {
                 ForEach(routine.exercises) { entry in
-                    HStack {
+                    HStack(spacing: 14) {
+                        if let exercise = model.exerciseById[entry.exerciseId] {
+                            TrainingExercisePicture(exercise: exercise, side: 58)
+                        }
                         Text(model.exerciseById[entry.exerciseId]?.title ?? entry.exerciseId)
-                        Spacer()
+                            .font(StrandFont.subhead.weight(.medium))
+                        Spacer(minLength: 8)
+                        // The prescription is what the row is for; it carries the weight of the line.
                         Text(setSummary(entry))
-                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                            .font(StrandFont.subhead.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(StrandPalette.textPrimary)
                     }
+                    .padding(.vertical, 4)
                 }
             } header: {
-                HStack {
-                    Text(routine.title)
-                    Spacer()
-                    Text("\(SessionEstimate.minutes(routine)) min")
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(routine.title)
+                            .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        Text("\(SessionEstimate.minutes(routine)) min")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 8)
+                    // The session's own muscles: what it looks like before it has been done.
+                    TrainingMusclePicture(
+                        values: TrainingMuscleProjection.routine(routine, exercises: model.exerciseById),
+                        showsBack: true, height: 64)
                 }
+                .textCase(nil)
+                .padding(.top, 10)
+                .padding(.bottom, 4)
             }
         }
         Section {
@@ -207,6 +249,10 @@ struct TrainingTemplateListView: View {
     @Environment(\.dismiss) private var dismiss
     var onSaved: (TrainingProgram) -> Void = { _ in }
     @State private var saving = false
+    /// Each template's own training days, read from the plan it makes rather than guessed from the
+    /// number of days: a strip that lit the wrong days would be a picture of a plan nobody gets.
+    /// Filled after the list is up, so the list still costs nothing to show.
+    @State private var weeks: [String: Set<TrainingWeekday>] = [:]
 
     private var templates: [TrainingProgramCatalog.Template] {
         TrainingProgramCatalog.templates(exercises: model.exercises)
@@ -223,27 +269,48 @@ struct TrainingTemplateListView: View {
             }
         }
         .forgeListBackground()
+        .task { loadWeeks() }
         .navigationTitle(Text("Ready-made plans"))
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
     }
 
+    private func loadWeeks() {
+        guard weeks.isEmpty else { return }
+        let now = Int(Date().timeIntervalSince1970)
+        let step = TrainingPreferences.weightStep(for: ["barbell"])
+        weeks = Dictionary(templates.map { ($0.id, Set($0.make(now, step).program.schedule.keys)) },
+                           uniquingKeysWith: { first, _ in first })
+    }
+
     private func row(_ template: TrainingProgramCatalog.Template) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(template.title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
             Text(template.summary).font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
-            HStack(spacing: 6) {
-                Text("\(template.daysPerWeek) days a week")
-                if let name = template.origin.name, let by = template.origin.attribution {
-                    Text("·")
-                    Text("\(name), \(by)")
-                }
-                if let missing = missingEquipment(template) {
-                    Text("·")
-                    Text("Needs \(missing)").foregroundStyle(StrandPalette.statusWarningForeground)
-                }
+            if let days = weeks[template.id] {
+                TrainingWeekStrip(days: days, height: 30)
             }
-            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            // The strip already counts the days; saying it again underneath is a second readout of
+            // one fact, so the count is only written out while the strip is still being worked out.
+            let countsDays = weeks[template.id] == nil
+            let credit = template.origin.name.flatMap { name in
+                template.origin.attribution.map { "\(name), \($0)" }
+            }
+            let missing = missingEquipment(template)
+            if countsDays || credit != nil || missing != nil {
+                HStack(spacing: 6) {
+                    if countsDays { Text("\(template.daysPerWeek) days a week") }
+                    if let credit {
+                        if countsDays { Text("·") }
+                        Text(credit)
+                    }
+                    if let missing {
+                        if countsDays || credit != nil { Text("·") }
+                        Text("Needs \(missing)").foregroundStyle(StrandPalette.statusWarningForeground)
+                    }
+                }
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
         }
         .padding(.vertical, 2)
     }

@@ -10,6 +10,10 @@ enum TrainingMuscleMapAppearance {
     /// Training's data teal (OpenGym's), matched to the green controls around it; the violet clashed.
     private static let forgeStrength = Color(light: "#0E8AA3", dark: "#40C8E0")
 
+    /// The colour training work is drawn in: the lit muscles, a plan's training days, a session's
+    /// figure. One place, so the pictures of one subject are one colour.
+    static var accent: Color { forge ? forgeStrength : StrandPalette.strengthColor }
+
     static var scale: HeatmapColorScale {
         forge
             ? HeatmapColorScale(colors: [StrandPalette.hairline, forgeStrength.opacity(0.45), forgeStrength],

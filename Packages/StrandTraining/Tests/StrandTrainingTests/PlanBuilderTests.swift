@@ -31,6 +31,26 @@ final class PlanBuilderTests: XCTestCase {
         }
     }
 
+    /// The week a plan would run can be shown before it is built, and what is shown must be what is
+    /// then built: a picture that promises Monday, Wednesday and Friday for a plan that trains on
+    /// Tuesday is worse than no picture.
+    func testTheShownWeekIsTheWeekThatGetsBuilt() {
+        for days in 2...6 {
+            for emphasis in [TrainingEmphasis.balanced, .strength, .lowerBody] {
+                let shape = PlanBuilder.weekShape(daysPerWeek: days, emphasis: emphasis)
+                XCTAssertEqual(shape.count, days)
+                let (program, routines) = build(PlanRequest(daysPerWeek: days, emphasis: emphasis))
+                let byId = Dictionary(routines.map { ($0.id, $0.title) },
+                                      uniquingKeysWith: { first, _ in first })
+                let built = program.schedule
+                    .sorted { $0.key.rawValue < $1.key.rawValue }
+                    .flatMap { entry in entry.value.map { (entry.key, byId[$0] ?? "") } }
+                XCTAssertEqual(built.map(\.0), shape.map(\.weekday), "\(days) days")
+                XCTAssertEqual(built.map(\.1), shape.map(\.title), "\(days) days")
+            }
+        }
+    }
+
     /// Building the same plan twice must give the same plan. Anything else and a test cannot pin the
     /// builder down, and two wearers answering alike would get different sessions.
     func testBuildingTwiceGivesTheSameSessions() {
