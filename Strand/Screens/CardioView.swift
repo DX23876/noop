@@ -260,7 +260,7 @@ struct CardioView: View {
                     Button {
                         openDetail = DetailTarget(startTs: session.startTs, sport: session.sport)
                     } label: {
-                        ForgeTileRow(symbol: sportSymbol(session), tint: StrandPalette.effortColor,
+                        ForgeTileRow(symbol: sportSymbol(session), tint: sportColor(session.sport),
                                      title: sportName(session.sport),
                                      subtitle: sessionRowLine(session),
                                      showsChevron: true) {
@@ -412,7 +412,8 @@ struct CardioView: View {
         LoadHistoryChart(lane: .cardio, title: String(localized: "Cardio load"), unit: String(localized: "cardio points"),
                          byDay: model.laneSeries?.byDay ?? [:], unknownDays: model.laneSeries?.unknownDays ?? [],
                          readingDay: model.laneReadingDay,
-                         usualWeek: model.lane?.relative.personalRange.map { $0.usualLowerBound...$0.usualUpperBound })
+                         usualWeek: model.lane?.relative.personalRange.map { $0.usualLowerBound...$0.usualUpperBound },
+                         showsScale: false)
     }
 
     private func step(_ delta: Int) {
@@ -428,7 +429,7 @@ struct CardioView: View {
                                 GridItem(.flexible(), spacing: NoopMetrics.gap)],
                       spacing: NoopMetrics.gap) {
                 if let top {
-                    SummaryTile(symbol: CardioView.symbol(for: top.modality), tint: TrainingLane.cardio.color,
+                    SummaryTile(symbol: CardioView.symbol(for: top.modality), tint: sportColor(top.sport),
                                 title: String(localized: "Most used activity"), headline: sportName(top.sport),
                                 detail: activityDetail(top),
                                 action: {
@@ -571,10 +572,13 @@ struct CardioView: View {
                 NoopCard {
                     VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                         GeometryReader { geo in
-                            HStack(spacing: 2) {
+                            // A gap, not a hairline: two sports can sit next to each other in hue
+                            // (walking is mint, rowing cyan), and the boundary has to hold anyway.
+                            HStack(spacing: NoopMetrics.space1) {
+                                let colors = sportMixColors
                                 ForEach(Array(model.week.bySport.enumerated()), id: \.offset) { index, total in
                                     Rectangle()
-                                        .fill(sportColor(index))
+                                        .fill(colors[index])
                                         .frame(width: max(2, geo.size.width * total.minutes / model.week.minutes))
                                 }
                             }
@@ -584,9 +588,10 @@ struct CardioView: View {
                         .accessibilityHidden(true)
 
                         VStack(spacing: 8) {
+                            let colors = sportMixColors
                             ForEach(Array(model.week.bySport.enumerated()), id: \.offset) { index, total in
                                 HStack(spacing: 8) {
-                                    Circle().fill(sportColor(index)).frame(width: 8, height: 8)
+                                    Circle().fill(colors[index]).frame(width: 8, height: 8)
                                     Text(sportName(total.sport))
                                         .font(StrandFont.subhead)
                                         .foregroundStyle(StrandPalette.textPrimary)
@@ -618,11 +623,24 @@ struct CardioView: View {
 
     /// A stable palette across the legend and the bar. Index-based rather than hashed off the sport
     /// name so the same week always draws the same colours.
-    private func sportColor(_ index: Int) -> Color {
-        let ramp: [Color] = [DomainTheme.effort.color, StrandPalette.metricCyan,
-                             StrandPalette.accent, StrandPalette.metricAmber,
-                             StrandPalette.metricRose, StrandPalette.zone2]
-        return ramp[index % ramp.count]
+    /// A sport's own colour, the one the app already gives it everywhere else
+    /// (`AppleInspiredColors.role(forSport:)`): walking mint, running green, cycling yellow, the water
+    /// sports cyan. It used to be a ramp indexed by position in the week, so a sport changed colour
+    /// when another one joined the week and two screens drew the same run differently.
+    private func sportColor(_ sport: String) -> Color {
+        AppleInspiredColors.role(forSport: sport).color
+    }
+
+    /// The mix bar's colours. Two sports can share one colour, since rowing and swimming are both the
+    /// water colour; a repeat is stepped down so the bar does not show one block where there are two.
+    private var sportMixColors: [Color] {
+        var seen: [String: Int] = [:]
+        return model.week.bySport.map { total in
+            let role = AppleInspiredColors.role(forSport: total.sport)
+            let repeats = seen[role.rawValue, default: 0]
+            seen[role.rawValue] = repeats + 1
+            return repeats == 0 ? role.color : role.color.opacity(max(0.4, 1 - Double(repeats) * 0.3))
+        }
     }
 
     // MARK: - One sport over time

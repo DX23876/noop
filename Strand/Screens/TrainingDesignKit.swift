@@ -624,6 +624,10 @@ struct LoadHistoryChart: View {
     var unknownDays: Set<String> = []
     let readingDay: String
     var usualWeek: ClosedRange<Double>? = nil
+    /// Whether the figures on the axis mean anything outside the app. Strength counts sets, so they do.
+    /// Cardio counts its own heart-rate load, which the page deliberately never names: numbers nobody
+    /// can read are left off, and the bars are compared with each other and with the usual-week band.
+    var showsScale = true
 
     @State private var span: LoadHistorySpan = .fourWeeks
 
@@ -669,7 +673,9 @@ struct LoadHistoryChart: View {
         .chartYAxis {
             AxisMarks(position: .leading) { _ in
                 AxisGridLine().foregroundStyle(StrandPalette.hairline)
-                AxisValueLabel().font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                if showsScale {
+                    AxisValueLabel().font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
             }
         }
         .chartXAxis {
@@ -721,8 +727,11 @@ struct LoadHistoryChart: View {
     }
 
     private func accessibilitySummary(_ bars: [LoadHistoryBuckets.Bar]) -> String {
+        // Without a scale on screen the unit is not said here either: it would be the one word the
+        // page took care never to put in front of anybody.
         bars.compactMap { bar in
-            bar.value.map { "\(axisLabel(bar.start)): \(Int($0.rounded())) \(unit)" }
+            bar.value.map { showsScale ? "\(axisLabel(bar.start)): \(Int($0.rounded())) \(unit)"
+                                       : "\(axisLabel(bar.start)): \(Int($0.rounded()))" }
         }.joined(separator: ", ")
     }
 }
