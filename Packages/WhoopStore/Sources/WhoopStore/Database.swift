@@ -2156,12 +2156,16 @@ extension WhoopStore {
 
             let programId = UUID().uuidString
             let now = Int(Date().timeIntervalSince1970)
+            // No name. A migration runs in no language, and a title written here cannot be translated
+            // afterwards the way a catalogue key can, so every wearer would carry an English "My plan"
+            // for good. An unnamed plan is shown under the app's own default name, in the reader's
+            // language, until they call it something.
             try db.execute(sql: """
                 INSERT INTO trainingProgram
                   (id, title, kind, notes, targetsJSON, blockJSON, isActive, originJSON,
                    createdAtTs, updatedAtTs)
-                VALUES (?, ?, 'strength', NULL, '{}', NULL, 1, '{"kind":"own"}', ?, ?)
-                """, arguments: [programId, "My plan", now, now])
+                VALUES (?, '', 'strength', NULL, '{}', NULL, 1, '{"kind":"own"}', ?, ?)
+                """, arguments: [programId, now, now])
             try db.execute(sql: "UPDATE trainingRoutineNative SET programId = ?", arguments: [programId])
 
             try db.create(table: "trainingSchedule_new") { t in

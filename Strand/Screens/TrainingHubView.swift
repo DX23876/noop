@@ -38,6 +38,91 @@ struct TrainingHubView: View {
     @AppStorage("training.weekStartsOn") private var weekStartRaw = TrainingWeekStart.monday.rawValue
 
     var body: some View {
+        // The plan and routine sheets hang off wrappers rather than one chain: with string extraction
+        // on, the type checker gives up on a modifier chain this long, and these screens are a layer
+        // of their own anyway.
+        routineSheets
+    }
+
+    private var routineSheets: some View {
+        planSheets
+        .sheet(item: $routineActionsFor) { routine in
+            NavigationStack {
+                RoutineActionsSheet(
+                    routine: routine,
+                    onPreview: { previewRoutine = routine },
+                    onEdit: { editingRoutine = .existing(routine) },
+                    onDuplicate: { Task { await model.duplicateRoutine(routine, repo: repo) } })
+            }
+        }
+        .sheet(item: $previewRoutine) { routine in
+            NavigationStack {
+                TrainingRoutinePreviewView(routine: routine, exercises: model.exerciseById,
+                    weekdays: RoutineEditing.weekdays(of: routine.id, in: model.plan.schedule)) {
+                    previewRoutine = nil
+                    start([routine])
+                }
+            }
+        }
+        .sheet(isPresented: $showingPastWorkout) {
+            NavigationStack {
+                PastWorkoutStartView(routines: model.plan.routines, trackers: model.trackers) {
+                    routines, tracker, date, duration in
+                    showingPastWorkout = false
+                    Task {
+                        try? await Task.sleep(nanoseconds: 250_000_000)
+                        await session.startRetrospective(routines: routines, tracker: tracker,
+                                                         date: date, durationS: duration)
+                    }
+                }
+            }
+        }
+    }
+
+    private var planSheets: some View {
+        importSheets
+        .sheet(isPresented: $showingPlanBuilder) {
+            NavigationStack {
+                TrainingPlanBuilderView(model: model) { saved in openProgramId = .init(id: saved.id) }
+                    .environmentObject(repo)
+            }
+        }
+        .sheet(isPresented: $showingTemplates) {
+            NavigationStack {
+                TrainingTemplateListView(model: model) { saved in openProgramId = .init(id: saved.id) }
+                    .environmentObject(repo)
+            }
+        }
+        .sheet(item: $openProgramId) { opened in
+            NavigationStack {
+                if let program = model.program(opened.id) {
+                    TrainingProgramDetailView(program: program, model: model)
+                        .environmentObject(repo)
+                }
+            }
+        }
+        .sheet(item: $editingProgram) { program in
+            NavigationStack {
+                TrainingProgramEditorView(program: program) { updated in
+                    Task { await model.saveProgram(updated, repo: repo) }
+                }
+            }
+        }
+    }
+
+    /// The week belongs to ONE plan. Editing the merged week of several active plans and writing the
+    /// result back would move another plan's days into this one.
+    private var scheduleEditor: some View {
+        let program = model.activeStrengthProgram
+        let routines = model.plan.routines.filter { $0.programId == program?.id }
+        return NavigationStack {
+            TrainingScheduleEditorView(program: program, routines: routines) { schedule in
+                Task { await model.saveSchedule(schedule, programId: program?.id, repo: repo) }
+            }
+        }
+    }
+
+    private var hubBody: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
@@ -111,21 +196,13 @@ struct TrainingHubView: View {
         .workoutSelectionCover(isPresented: $showingStart) {
             StartWorkoutSheet(session: session)
         }
-        .sheet(isPresented: $showingSchedule) {
-            NavigationStack {
-                // The week belongs to ONE plan. Editing the merged week of several active plans and
-                // writing the result back would move another plan's days into this one.
-                TrainingScheduleEditorView(
-                    program: model.activeStrengthProgram,
-                    routines: model.plan.routines.filter { $0.programId == model.activeStrengthProgram?.id }
-                ) { schedule in
-                    Task {
-                        await model.saveSchedule(schedule, programId: model.activeStrengthProgram?.id,
-                                                 repo: repo)
-                    }
-                }
-            }
-        }
+        .sheet(isPresented: $showingSchedule) { scheduleEditor }
+    }
+
+    /// The second half of the page's sheets. One chain holding all of them is more than the
+    /// type checker will take, especially with string extraction switched on.
+    private var importSheets: some View {
+        hubBody
         .sheet(isPresented: $showingLibrary) {
             NavigationStack {
                 TrainingExerciseLibraryView(
@@ -158,33 +235,6 @@ struct TrainingHubView: View {
                     onDelete: { id in Task { await model.deleteRoutine(id, repo: repo) } })
             }
         }
-        .sheet(isPresented: $showingPlanBuilder) {
-            NavigationStack {
-                TrainingPlanBuilderView(model: model) { saved in openProgramId = .init(id: saved.id) }
-                    .environmentObject(repo)
-            }
-        }
-        .sheet(isPresented: $showingTemplates) {
-            NavigationStack {
-                TrainingTemplateListView(model: model) { saved in openProgramId = .init(id: saved.id) }
-                    .environmentObject(repo)
-            }
-        }
-        .sheet(item: $openProgramId) { opened in
-            NavigationStack {
-                if let program = model.program(opened.id) {
-                    TrainingProgramDetailView(program: program, model: model)
-                        .environmentObject(repo)
-                }
-            }
-        }
-        .sheet(item: $editingProgram) { program in
-            NavigationStack {
-                TrainingProgramEditorView(program: program) { updated in
-                    Task { await model.saveProgram(updated, repo: repo) }
-                }
-            }
-        }
         .sheet(isPresented: $showingAddRoutineSheet) {
             NavigationStack {
                 AddRoutineActionsSheet(
@@ -200,37 +250,6 @@ struct TrainingHubView: View {
                     onImportHevyRoutines: { Task { await model.prepareHevyImport(repo: repo) } },
                     onImportOpenGymPlan: { showingOpenGymImporter = true },
                     onLogPastWorkout: { showingPastWorkout = true })
-            }
-        }
-        .sheet(item: $routineActionsFor) { routine in
-            NavigationStack {
-                RoutineActionsSheet(
-                    routine: routine,
-                    onPreview: { previewRoutine = routine },
-                    onEdit: { editingRoutine = .existing(routine) },
-                    onDuplicate: { Task { await model.duplicateRoutine(routine, repo: repo) } })
-            }
-        }
-        .sheet(item: $previewRoutine) { routine in
-            NavigationStack {
-                TrainingRoutinePreviewView(routine: routine, exercises: model.exerciseById,
-                    weekdays: RoutineEditing.weekdays(of: routine.id, in: model.plan.schedule)) {
-                    previewRoutine = nil
-                    start([routine])
-                }
-            }
-        }
-        .sheet(isPresented: $showingPastWorkout) {
-            NavigationStack {
-                PastWorkoutStartView(routines: model.plan.routines, trackers: model.trackers) {
-                    routines, tracker, date, duration in
-                    showingPastWorkout = false
-                    Task {
-                        try? await Task.sleep(nanoseconds: 250_000_000)
-                        await session.startRetrospective(routines: routines, tracker: tracker,
-                                                         date: date, durationS: duration)
-                    }
-                }
             }
         }
         .fileImporter(isPresented: $showingPlanImporter, allowedContentTypes: [.json]) { result in
@@ -374,7 +393,7 @@ struct TrainingHubView: View {
     private func planRow(_ program: TrainingProgram) -> some View {
         HStack(spacing: NoopMetrics.space3) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(program.title.isEmpty ? String(localized: "Unnamed plan") : program.title)
+                Text(program.displayName)
                     .font(StrandFont.subhead.weight(.semibold))
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text(planSubtitle(program))

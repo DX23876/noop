@@ -100,6 +100,11 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
             }
             ReportFact(stringResource(R.string.forge_report_source), if (s.kind == "strength" && s.summary != null) strengthSource(s.source) else s.source)
         }
+        // A session logged in NOOP can become a routine; one from Hevy or an import has no stored
+        // sets of ours to turn into a prescription.
+        if (s.source == "noop_native") {
+            KeepSessionAsRoutineCard(s.id, s.title)
+        }
         OverlineHeader(stringResource(R.string.forge_session_heart_rate), stringResource(R.string.forge_session_body_response))
         ForgeCard(Modifier.fillMaxWidth()) {
             if (s.heartRate.isEmpty()) ReportNote(stringResource(R.string.forge_session_no_hr))

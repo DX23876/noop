@@ -33,7 +33,9 @@ final class PlanReviewTests: XCTestCase {
         // Four sets twice a week on the chest, and the triceps at half credit, as the muscle map counts.
         XCTAssertEqual(review.weeklySetsByRegion[.chest], 8)
         XCTAssertEqual(review.weeklySetsByRegion[.arms], 4)
-        XCTAssertEqual(review.weeklySessionCount, 1)
+        // Two sessions, not one routine: a plan whose target says three a week must not be read
+        // back as one beside it.
+        XCTAssertEqual(review.weeklySessionCount, 2)
         XCTAssertEqual(review.sessionMinutes[push.id], SessionEstimate.minutes(push))
     }
 
@@ -61,7 +63,7 @@ final class PlanReviewTests: XCTestCase {
         var program = TrainingProgram(title: "Plan")
         program.schedule = [.monday: [push.id], .thursday: [push.id]]
         // Sixteen sets of chest a week against a recent average of six.
-        let history = PlanHistory(setsByRegion: [.chest: 24], weeks: 4)
+        let history = PlanHistory(setsByRegion: [.chest: 24], weeks: 4, trainedWeeks: 4)
         let review = PlanReview.evaluate(program: program, routines: [push], exercises: exercises,
                                          history: history)
         XCTAssertTrue(review.findings.contains { finding in
@@ -72,7 +74,7 @@ final class PlanReviewTests: XCTestCase {
         })
 
         // The same plan against someone who already trains that much says nothing.
-        let used = PlanHistory(setsByRegion: [.chest: 60], weeks: 4)
+        let used = PlanHistory(setsByRegion: [.chest: 60], weeks: 4, trainedWeeks: 4)
         let quiet = PlanReview.evaluate(program: program, routines: [push], exercises: exercises,
                                         history: used)
         XCTAssertFalse(quiet.findings.contains { if case .regionAboveUsual = $0 { return true }; return false })
@@ -84,10 +86,49 @@ final class PlanReviewTests: XCTestCase {
         let push = routine("Push", bench.id, workSets: 8)
         var program = TrainingProgram(title: "Plan")
         program.schedule = [.monday: [push.id], .thursday: [push.id]]
-        let history = PlanHistory(setsByRegion: [.chest: 2], weeks: 1)
+        let history = PlanHistory(setsByRegion: [.chest: 2], weeks: 1, trainedWeeks: 1)
         let review = PlanReview.evaluate(program: program, routines: [push], exercises: exercises,
                                          history: history)
         XCTAssertFalse(review.findings.contains { if case .regionAboveUsual = $0 { return true }; return false })
+    }
+
+    /// The window is always as long as it is, so it cannot be what the silence is judged on. One
+    /// session three weeks ago is thin history, however long the window around it was.
+    func testOneSessionInTheWindowIsStillThinHistory() {
+        let now = 1_000_000
+        let lonely = workout(bench.id, sets: 3, startedAt: now - 20 * 86_400)
+        let history = PlanHistory.from(workouts: [lonely], exercises: exercises, windowDays: 28,
+                                       now: now)
+        XCTAssertEqual(history.weeks, 4, "the window is four weeks whatever is in it")
+        XCTAssertEqual(history.trainedWeeks, 1, "and one of them holds a session")
+
+        let push = routine("Push", bench.id, workSets: 8)
+        var program = TrainingProgram(title: "Plan")
+        program.schedule = [.monday: [push.id], .thursday: [push.id]]
+        let review = PlanReview.evaluate(program: program, routines: [push], exercises: exercises,
+                                         history: history)
+        XCTAssertFalse(review.findings.contains { if case .regionAboveUsual = $0 { return true }; return false },
+                       "sixteen sets against one logged session is not a finding about the plan")
+
+        // Sessions in two different weeks are enough, and then the comparison does run.
+        let second = workout(bench.id, sets: 3, startedAt: now - 3 * 86_400)
+        let enough = PlanHistory.from(workouts: [lonely, second], exercises: exercises,
+                                      windowDays: 28, now: now)
+        XCTAssertEqual(enough.trainedWeeks, 2)
+        let spoken = PlanReview.evaluate(program: program, routines: [push], exercises: exercises,
+                                         history: enough)
+        XCTAssertTrue(spoken.findings.contains { if case .regionAboveUsual = $0 { return true }; return false })
+    }
+
+    /// A completed session of `sets` working sets of one exercise.
+    private func workout(_ exerciseId: String, sets: Int, startedAt: Int) -> NativeWorkout {
+        var set = NativeWorkoutSet(index: 0, weightKg: 100, reps: 5)
+        set.isCompleted = true
+        return NativeWorkout(id: UUID(), title: "Session", startedAt: startedAt,
+                             endedAt: startedAt + 3_600, plannedDay: "2026-11-14", routineIds: [],
+                             exercises: [NativeWorkoutExercise(exerciseId: exerciseId,
+                                                               sets: (0..<sets).map { _ in set })],
+                             tracker: nil)
     }
 
     /// A small region stays quiet whatever the multiple: one set to three is three times and also
@@ -96,7 +137,7 @@ final class PlanReviewTests: XCTestCase {
         let core = routine("Core", bench.id, workSets: 2)
         var program = TrainingProgram(title: "Plan")
         program.schedule = [.monday: [core.id]]
-        let history = PlanHistory(setsByRegion: [.chest: 2], weeks: 4)
+        let history = PlanHistory(setsByRegion: [.chest: 2], weeks: 4, trainedWeeks: 4)
         let review = PlanReview.evaluate(program: program, routines: [core], exercises: exercises,
                                          history: history)
         XCTAssertFalse(review.findings.contains { if case .regionAboveUsual = $0 { return true }; return false })
@@ -139,6 +180,7 @@ final class PlanReviewTests: XCTestCase {
         let history = PlanHistory.from(workouts: [workout], exercises: exercises,
                                        windowDays: 28, now: 1_000_000 + 86_400)
         XCTAssertEqual(history.weeks, 4)
+        XCTAssertEqual(history.trainedWeeks, 1)
         XCTAssertEqual(history.setsByRegion[.chest], 4)
         XCTAssertEqual(history.weeklySets(.chest), 1)
         // A session outside the window does not count.

@@ -1073,6 +1073,17 @@ final class Repository: ObservableObject {
         try await store.upsertNativeWorkouts([renamed])
     }
 
+    /// One logged session, looked for in a day either side of when it started.
+    ///
+    /// A page that knows when its session was has no business reading the whole log to find it: the
+    /// plain list is capped at two thousand sessions, so beyond that a session simply was not found,
+    /// and every one of those carries its exercises and sets.
+    func nativeWorkout(id: UUID, startedAt: Int) async -> NativeWorkout? {
+        guard let store = await ensureStore() else { return nil }
+        return (try? await store.nativeWorkouts(from: startedAt - 86_400, to: startedAt + 86_400,
+                                                limit: 200))?.first { $0.id == id }
+    }
+
     func nativeWorkouts(days: Int = 4_000) async -> [NativeWorkout] {
         guard let store = await ensureStore() else { return [] }
         let now = Int(Date().timeIntervalSince1970)

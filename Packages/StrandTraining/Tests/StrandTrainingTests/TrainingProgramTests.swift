@@ -75,6 +75,18 @@ final class TrainingProgramTests: XCTestCase {
         XCTAssertEqual(targets.effortHigh, 16)
     }
 
+    /// A bound given on its own stays on its own side. An upper bound stored as a lower one says the
+    /// opposite of what was asked for: "up to 8" would become "from 8".
+    func testALoneBoundKeepsTheSideItWasGiven() {
+        let ceiling = TrainingProgramTargets(effortHigh: 8)
+        XCTAssertNil(ceiling.effortLow)
+        XCTAssertEqual(ceiling.effortHigh, 8)
+
+        let floor = TrainingProgramTargets(effortLow: 8)
+        XCTAssertEqual(floor.effortLow, 8)
+        XCTAssertNil(floor.effortHigh)
+    }
+
     // MARK: Block state
 
     func testBlockWeeksCountFromTheDayThePlanWasTakenUp() {

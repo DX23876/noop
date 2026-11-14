@@ -32,14 +32,16 @@ public struct PlanReview: Equatable, Sendable {
     /// Minutes per session, by routine.
     public let sessionMinutes: [UUID: Int]
     public let findings: [Finding]
-
-    public var weeklySessionCount: Int { sessionMinutes.count }
+    /// Sessions the week holds: a routine on two days is two of them. Counting the routines instead
+    /// would have a plan state "two sessions a week" beside its own target of three.
+    public let weeklySessionCount: Int
 
     public init(weeklySetsByRegion: [TrainingBodyRegion: Double], sessionMinutes: [UUID: Int],
-                findings: [Finding]) {
+                findings: [Finding], weeklySessionCount: Int) {
         self.weeklySetsByRegion = weeklySetsByRegion
         self.sessionMinutes = sessionMinutes
         self.findings = findings
+        self.weeklySessionCount = weeklySessionCount
     }
 }
 
@@ -48,13 +50,19 @@ public struct PlanHistory: Equatable, Sendable {
     /// Working sets per region over the window, and how many weeks that window spans.
     public let setsByRegion: [TrainingBodyRegion: Double]
     public let weeks: Double
+    /// How many of those weeks actually hold a session. The window is always as long as it is, so it
+    /// says nothing about how much was logged in it: a wearer with one session in four weeks has
+    /// `weeks` four and `trainedWeeks` one, and a comparison against one session is a statement
+    /// about thin data rather than about the plan.
+    public let trainedWeeks: Double
 
-    public init(setsByRegion: [TrainingBodyRegion: Double], weeks: Double) {
+    public init(setsByRegion: [TrainingBodyRegion: Double], weeks: Double, trainedWeeks: Double = 0) {
         self.setsByRegion = setsByRegion
         self.weeks = weeks
+        self.trainedWeeks = trainedWeeks
     }
 
-    public static let none = PlanHistory(setsByRegion: [:], weeks: 0)
+    public static let none = PlanHistory(setsByRegion: [:], weeks: 0, trainedWeeks: 0)
 
     public func weeklySets(_ region: TrainingBodyRegion) -> Double? {
         guard weeks > 0, let total = setsByRegion[region] else { return nil }
@@ -68,12 +76,17 @@ public struct PlanHistory: Equatable, Sendable {
         -> PlanHistory {
         let cutoff = now - windowDays * 86_400
         var totals: [TrainingBodyRegion: Double] = [:]
-        for workout in workouts where workout.startedAt >= cutoff {
+        // Which seven-day stretch of the window a session fell in, counted back from now, so that
+        // "how many weeks of this did they actually train" is read off the sessions themselves.
+        var trained = Set<Int>()
+        for workout in workouts where workout.startedAt >= cutoff && workout.startedAt <= now {
             for (muscleId, sets) in TrainingMuscleProjection.workout(workout, exercises: exercises) {
                 totals[TrainingBodyRegion.forMuscle(muscleId), default: 0] += sets
             }
+            trained.insert((now - workout.startedAt) / (7 * 86_400))
         }
-        return PlanHistory(setsByRegion: totals, weeks: Double(windowDays) / 7)
+        return PlanHistory(setsByRegion: totals, weeks: Double(windowDays) / 7,
+                           trainedWeeks: Double(trained.count))
     }
 }
 
@@ -88,9 +101,10 @@ extension PlanReview {
     /// Below this many sets a week the multiple means nothing: one set to three is 3 times and also
     /// unremarkable.
     public static let aboveUsualFloor = 6.0
-    /// Weeks of history needed before the comparison runs at all. With less, "unusual" is a statement
-    /// about how thin the data is dressed up as one about the plan, and a warning that fires on
-    /// everyone teaches people to ignore warnings.
+    /// Weeks that must actually hold a session before the comparison runs at all (`trainedWeeks`,
+    /// never the window's own length). With less, "unusual" is a statement about how thin the data is
+    /// dressed up as one about the plan, and a warning that fires on everyone teaches people to
+    /// ignore warnings.
     public static let minimumHistoryWeeks = 2.0
     /// A session may run this much over the time asked for before it is worth saying. Rounding and a
     /// slow set should not raise a finding.
@@ -108,10 +122,12 @@ extension PlanReview {
         let byId = Dictionary(routines.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var weekly: [TrainingBodyRegion: Double] = [:]
         var minutes: [UUID: Int] = [:]
+        var sessions = 0
 
         for weekday in TrainingWeekday.allCases {
             for id in program.schedule[weekday] ?? [] {
                 guard let routine = byId[id] else { continue }
+                sessions += 1
                 for (muscleId, sets) in TrainingMuscleProjection.routine(routine, exercises: exercises) {
                     weekly[TrainingBodyRegion.forMuscle(muscleId), default: 0] += sets
                 }
@@ -126,7 +142,8 @@ extension PlanReview {
         if let asked = askedMinutesPerSession {
             findings += overTime(minutes, asked: asked, routines: routines)
         }
-        return PlanReview(weeklySetsByRegion: weekly, sessionMinutes: minutes, findings: findings)
+        return PlanReview(weeklySetsByRegion: weekly, sessionMinutes: minutes, findings: findings,
+                          weeklySessionCount: sessions)
     }
 
     /// Regions the week never touches. Reported in a fixed order so the list does not reshuffle
@@ -140,7 +157,10 @@ extension PlanReview {
 
     private static func aboveUsual(_ weekly: [TrainingBodyRegion: Double],
                                    history: PlanHistory) -> [Finding] {
-        guard history.weeks >= minimumHistoryWeeks else { return [] }
+        // The weeks that hold a session, not the window's length: the window is four weeks long for a
+        // wearer who trained once in it, and their "average" would then be that one session spread
+        // thin, against which almost any plan reads as a big step up.
+        guard history.trainedWeeks >= minimumHistoryWeeks else { return [] }
         return TrainingBodyRegion.allCases.compactMap { region in
             guard let prescribed = weekly[region], prescribed >= aboveUsualFloor,
                   let usual = history.weeklySets(region), usual > 0,

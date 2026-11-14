@@ -79,6 +79,23 @@ final class PlanBuilderTests: XCTestCase {
                              short.map { $0.exercises.count }.reduce(0, +))
     }
 
+    /// Time never costs a main lift. A full body day is three of them, so at twenty minutes the
+    /// session stays over its time rather than coming back without its pulling; the plan review is
+    /// what says it runs long.
+    func testTooLittleTimeStillKeepsEveryMainLift() {
+        let routines = build(PlanRequest(daysPerWeek: 3, minutesPerSession: 20)).1
+        XCTAssertEqual(routines.count, 3)
+        for routine in routines {
+            XCTAssertEqual(routine.exercises.count, 3, routine.title)
+            let patterns = routine.exercises.compactMap { entry -> TrainingMovementPattern? in
+                guard let exercise = library.first(where: { $0.id == entry.exerciseId }) else { return nil }
+                return TrainingMuscleProjection.anatomy(for: exercise)?.movementPattern
+            }
+            XCTAssertTrue(patterns.contains { $0 == .horizontalPull || $0 == .verticalPull },
+                          "\(routine.title) came back without anything to pull")
+        }
+    }
+
     func testABeginnerAddsWeightWhileAnyonePastThatEarnsTheStep() {
         let beginner = build(PlanRequest(daysPerWeek: 3, experience: .beginner)).1
         let intermediate = build(PlanRequest(daysPerWeek: 3, experience: .intermediate)).1

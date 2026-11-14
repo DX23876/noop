@@ -122,7 +122,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /** Runs [block] on the IO dispatcher with the core's store open. */
-private suspend fun <T> core(context: android.content.Context, block: () -> T): T =
+internal suspend fun <T> core(context: android.content.Context, block: () -> T): T =
     withContext(Dispatchers.IO) { CoreRead.open(context); block() }
 
 /** The same active-strap dismissal spans supplied to the daily core pass. */
@@ -159,6 +159,12 @@ private sealed interface TrainingPage {
     data object Live : TrainingPage
     /** The new design's "Plan and library", as iOS's training page behind Tools: plan, routines, library, past sessions. */
     data object PlanLibrary : TrainingPage
+    /** The plans the wearer holds, and one plan's own page. */
+    data object Plans : TrainingPage
+    data class PlanDetail(val id: String) : TrainingPage
+    data object PlanBuilder : TrainingPage
+    data object PlanTemplates : TrainingPage
+    data class PlanEditor(val plan: com.noop.core.CorePlans.Plan?) : TrainingPage
     /** The new design's "This week's plan" (iOS `ForgeWeekPlanView`). */
     data object WeekPlan : TrainingPage
 }
@@ -422,7 +428,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         // shipped design keeps under More only.
         if (ForgeDesign.preview) Section(stringResource(R.string.forge_th_tools), overline = null) {
             ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-                TrainingPlanRows(onWeekPlan = { page = TrainingPage.WeekPlan }, onLibrary = { page = TrainingPage.PlanLibrary })
+                TrainingPlanRows(onWeekPlan = { page = TrainingPage.WeekPlan },
+                                 onLibrary = { page = TrainingPage.PlanLibrary },
+                                 onPlans = { page = TrainingPage.Plans })
                 TrainingGroupRow(Icons.Rounded.Timer, ForgeTokens.Color.systemOrange.resolve(),
                                  stringResource(R.string.forge_th_interval_timer), stringResource(R.string.forge_th_interval_timer_sub),
                                  true) { page = TrainingPage.Intervals }
@@ -464,9 +472,29 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                         onStrapBuzz = { viewModel.buzz(3, RestTimerPrefs.STRAP_BUZZ) },
                         strap = remember(viewModel) { StrapTapHost(claim = { viewModel.strapDoubleTapOverride = it },
                                              confirm = { viewModel.buzz(1) }, log = viewModel::strapLog) })
-                    is TrainingPage.Routine -> RoutineEditor(s?.exercises.orEmpty(), open.routine, onClose = close)
+                    // A routine with no plan named joins the plan being followed, which the store
+                    // decides once for both platforms.
+                    is TrainingPage.Routine -> ForgeRoutineEditorPage(
+                        routineId = open.routine?.id, planId = null, onClose = close)
                     TrainingPage.Schedule -> ScheduleEditor(s?.routines.orEmpty(), onClose = close)
                     TrainingPage.Starters -> StarterPlans(onClose = close)
+                    TrainingPage.Plans -> ForgePlanLibrary(
+                        onBack = close, onOpen = { page = TrainingPage.PlanDetail(it) },
+                        onBuild = { page = TrainingPage.PlanBuilder },
+                        onTemplates = { page = TrainingPage.PlanTemplates },
+                        onNewPlan = { page = TrainingPage.PlanEditor(null) })
+                    is TrainingPage.PlanDetail -> ForgePlanDetail(
+                        open.id, onBack = { page = TrainingPage.Plans },
+                        onEdit = { page = TrainingPage.PlanEditor(it) })
+                    TrainingPage.PlanBuilder -> ForgePlanBuilder(
+                        onBack = { page = TrainingPage.Plans },
+                        onSaved = { page = TrainingPage.PlanDetail(it) })
+                    TrainingPage.PlanTemplates -> ForgePlanTemplates(
+                        onBack = { page = TrainingPage.Plans },
+                        onSaved = { page = TrainingPage.PlanDetail(it) })
+                    is TrainingPage.PlanEditor -> ForgePlanEditor(open.plan, onClose = {
+                        page = open.plan?.let { TrainingPage.PlanDetail(it.id) } ?: TrainingPage.Plans
+                    })
                     is TrainingPage.Detail -> ForgeTrainingSessionDetailPage(open.session.id, onClose = close)
                     TrainingPage.Muscles -> s?.let { MuscleAnalyticsPage(it.muscles, onClose = close) }
                     TrainingPage.Load -> ForgeTrainingLoadPage(onClose = close, onStrength = { page = TrainingPage.Strength },
@@ -555,7 +583,7 @@ private object QuickStartPrefs {
 
 /** A section as iOS heads it (`SectionHeader(title, overline:)`): small caps over a title, an action on the right. */
 @Composable
-private fun Section(title: String, overline: String?, trailing: (@Composable () -> Unit)? = null,
+internal fun Section(title: String, overline: String?, trailing: (@Composable () -> Unit)? = null,
                     content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         Row(verticalAlignment = Alignment.Bottom) {
@@ -615,7 +643,7 @@ private fun AnalysisRow(title: String, subtitle: String, icon: ImageVector, onCl
 
 /** A secondary button on the raised panel surface (`NoopButton(kind: .secondary)`). */
 @Composable
-private fun PanelButton(label: String, icon: ImageVector, onClick: () -> Unit) {
+internal fun PanelButton(label: String, icon: ImageVector, onClick: () -> Unit) {
     Row(Modifier.heightIn(min = 48.dp)
             .background(Forge.colors.surfaceTop, RoundedCornerShape(ForgeTokens.NoopButtonMetrics.cornerRadius.dp))
             .border(BorderStroke(ForgeMetrics.hairline, Forge.colors.divider.copy(alpha = 0.4f)),
@@ -1342,88 +1370,10 @@ private fun Modifier.onFocusLost(action: () -> Unit): Modifier = composed {
 // MARK: - Exercise picker and routine editor
 
 @Composable
-private fun ExercisePicker(multiple: Boolean, onBack: () -> Unit, onPicked: (List<String>) -> Unit) {
+internal fun ExercisePicker(multiple: Boolean, onBack: () -> Unit, onPicked: (List<String>) -> Unit) {
     ForgeExerciseLibrary(onClose = onBack, multiple = multiple, onPicked = onPicked)
 }
 
-/**
- * A routine's name, exercises and weekdays (iOS `RoutineEditorView`, its first section): a new routine when [routine] is
- * null, otherwise that one, its exercises keeping their planned sets.
- */
-@Composable
-private fun RoutineEditor(exercises: List<CoreTraining.Exercise>, routine: CoreTraining.Routine?, onClose: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var title by remember { mutableStateOf(routine?.title ?: "") }
-    val chosen = remember { mutableStateListOf<String>().apply { routine?.exerciseIds?.let(::addAll) } }
-    val weekdays = remember { mutableStateListOf<Int>().apply { routine?.weekdays?.let(::addAll) } }
-    var picking by remember { mutableStateOf(false) }
-    val titles = remember(exercises) { exercises.associate { it.id to it.title } }
-    if (picking) {
-        BackHandler { picking = false }
-        ExercisePicker(multiple = true, onBack = { picking = false }) { ids ->
-            picking = false
-            ids.filterNot { it in chosen }.forEach(chosen::add)
-        }
-        return
-    }
-    BackHandler { onClose() }
-    val locale = Locale.getDefault()
-    SettingsColumn {
-        PageTitle(routine?.title ?: stringResource(R.string.forge_training_new_routine), onClose, trailing = {
-            TextButton(enabled = title.isNotBlank() && chosen.isNotEmpty(), onClick = {
-                scope.launch {
-                    core(context) { CoreTraining.createRoutine(title.trim(), chosen.toList(), routine?.id, weekdays.sorted()) }
-                    onClose()
-                }
-            }) { Text(stringResource(R.string.forge_training_save), color = Forge.colors.charge,
-                      style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold)) }
-        })
-        OutlinedTextField(
-            value = title, onValueChange = { title = it }, singleLine = true,
-            label = { Text(stringResource(R.string.forge_training_routine_name)) },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Forge.colors.surface, unfocusedContainerColor = Forge.colors.surface,
-                focusedTextColor = Forge.colors.text, unfocusedTextColor = Forge.colors.text),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (day in 1..7) {
-                val on = day in weekdays
-                Box(Modifier.weight(1f).height(36.dp)
-                        .background(if (on) Forge.colors.accent else Forge.colors.surface, RoundedCornerShape(10.dp))
-                        .clickable { if (on) weekdays.remove(day) else weekdays.add(day) },
-                    contentAlignment = Alignment.Center) {
-                    Text(DayOfWeek.of(day).getDisplayName(TextStyle.SHORT, locale), style = Forge.type.caption,
-                         color = if (on) Color.White else Forge.colors.text, maxLines = 1)
-                }
-            }
-        }
-        if (chosen.isNotEmpty()) {
-            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-                chosen.forEachIndexed { i, id ->
-                    Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.cardPadding, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(titles[id] ?: id, style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { chosen.remove(id) }) {
-                            Icon(Icons.Rounded.Delete, stringResource(R.string.forge_training_remove_exercise),
-                                 tint = Forge.colors.textTertiary)
-                        }
-                    }
-                    if (i < chosen.lastIndex) HubDivider()
-                }
-            }
-        }
-        PanelButton(stringResource(R.string.forge_training_add_exercise), Icons.Rounded.Add) { picking = true }
-        if (routine != null) {
-            TextButton(onClick = {
-                scope.launch { core(context) { CoreTraining.deleteRoutine(routine.id) }; onClose() }
-            }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.forge_training_delete_routine), color = ForgeTokens.Color.systemRed.resolve())
-            }
-        }
-    }
-}
 
 /**
  * The new design's "Plan and library", as iOS's training page behind Tools ("Schedule, routines, imports, past

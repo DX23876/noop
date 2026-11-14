@@ -163,4 +163,52 @@ final class TrainingProgramStoreTests: XCTestCase {
         let imported = try await store.trainingRoutines(programId: target.id)
         XCTAssertEqual(imported.map(\.title), ["From a file"])
     }
+
+    /// The order a built plan has to be written in: the plan without its week, then its routines,
+    /// then the week. A scheduled day points at a routine and the store holds that, so a plan written
+    /// WITH its week while the routines were still to come was refused outright and nothing was
+    /// saved at all, which took the plan builder, the ready-made plans and every copy with it.
+    func testAPlanAndItsWeekAreSavedTheWayABuiltPlanArrives() async throws {
+        let store = try await WhoopStore.inMemory()
+        let built = TrainingProgram(title: "Built")
+        let session = TrainingRoutine(title: "Full body A", programId: built.id)
+        let week: [TrainingWeekday: [UUID]] = [.monday: [session.id]]
+
+        var resting = built
+        resting.schedule = [:]
+        try await store.upsertTrainingProgram(resting)
+        try await store.upsertTrainingRoutine(session)
+        try await store.replaceTrainingSchedule(week, programId: built.id)
+
+        let stored = try await store.trainingPrograms().first { $0.id == built.id }
+        XCTAssertEqual(stored?.schedule[.monday], [session.id])
+        let routines = try await store.trainingRoutines(programId: built.id)
+        XCTAssertEqual(routines.map(\.title), ["Full body A"])
+    }
+
+    /// Why that order is not a matter of taste: a week naming a routine that does not exist is
+    /// refused, and the plan does not land half written either.
+    func testAWeekNamingARoutineThatDoesNotExistIsRefusedWhole() async throws {
+        let store = try await WhoopStore.inMemory()
+        var early = TrainingProgram(title: "Too early")
+        early.schedule = [.monday: [UUID()]]
+
+        do {
+            try await store.upsertTrainingProgram(early)
+            XCTFail("a week pointing at a routine that does not exist must not be stored")
+        } catch {
+            // expected
+        }
+        let stored = try await store.trainingPrograms().first { $0.id == early.id }
+        XCTAssertNil(stored, "the plan itself must not be left behind either")
+    }
+
+    /// The migration cannot name the plan in the wearer's language, so it does not name it at all and
+    /// the screens show their own default. An English title stored here would outlive every
+    /// translation.
+    func testTheMigratedPlanCarriesNoName() async throws {
+        let store = try await WhoopStore.inMemory()
+        let programs = try await store.trainingPrograms()
+        XCTAssertEqual(programs.map(\.title), [""])
+    }
 }

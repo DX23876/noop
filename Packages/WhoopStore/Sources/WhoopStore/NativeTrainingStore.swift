@@ -131,7 +131,8 @@ extension WhoopStore {
             """) { return active }
         if let oldest = try String.fetchOne(db, sql:
             "SELECT id FROM trainingProgram ORDER BY createdAtTs LIMIT 1") { return oldest }
-        let program = TrainingProgram(title: "My plan", isActive: true)
+        // Unnamed, for the reason the v90 migration gives: the store has no language to name it in.
+        let program = TrainingProgram(title: "", isActive: true)
         try Self.writeProgram(program, in: db)
         return program.id.uuidString
     }

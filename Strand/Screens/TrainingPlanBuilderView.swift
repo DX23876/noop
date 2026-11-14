@@ -187,9 +187,12 @@ struct TrainingPlanBuilderView: View {
         guard let built, !saving else { return }
         saving = true
         Task {
-            await model.saveBuiltPlan(built.program, routines: built.routines,
-                                      activate: follow, repo: repo)
+            let saved = await model.saveBuiltPlan(built.program, routines: built.routines,
+                                                  activate: follow, repo: repo)
             saving = false
+            // Only a plan that was written is opened. Reporting it regardless put an empty page over
+            // the message saying it could not be saved.
+            guard saved else { return }
             onSaved(built.program)
             dismiss()
         }
@@ -261,9 +264,10 @@ struct TrainingTemplateListView: View {
         let result = template.make(Int(Date().timeIntervalSince1970),
                                    TrainingPreferences.weightStep(for: ["barbell"]))
         Task {
-            await model.saveBuiltPlan(result.program, routines: result.routines,
-                                      activate: false, repo: repo)
+            let saved = await model.saveBuiltPlan(result.program, routines: result.routines,
+                                                  activate: false, repo: repo)
             saving = false
+            guard saved else { return }
             onSaved(result.program)
             dismiss()
         }

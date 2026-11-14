@@ -164,17 +164,35 @@ final class TrainingHubModel: ObservableObject {
         }
     }
 
-    /// Writes a plan the builder or a template produced: the plan first, then its routines, then its
-    /// week once the routines exist, since a scheduled day points at one.
+    /// A copy of a plan, its routines included, resting until the wearer takes it up.
     ///
-    /// It is saved resting unless the wearer said to follow it, which is the whole point of a plan
-    /// being a thing of its own.
+    /// The copying itself is `TrainingProgramEditing.duplicate` in the core, so Android makes exactly
+    /// the same copy.
+    func duplicateProgram(_ program: TrainingProgram, repo: Repository) async {
+        let now = Int(Date().timeIntervalSince1970)
+        let source = await routines(ofProgram: program.id, repo: repo)
+        let copy = TrainingProgramEditing.duplicate(
+            program, routines: source,
+            title: String(localized: "\(program.title) copy"), now: now)
+        await saveBuiltPlan(copy.program, routines: copy.routines, activate: false, repo: repo)
+    }
+
+    /// Writes a plan the builder, a template or a copy produced: the plan WITHOUT its week first,
+    /// then its routines, then the week.
+    ///
+    /// A scheduled day points at a routine and the store enforces that, so writing the plan with its
+    /// week while the routines do not exist yet is rejected and nothing is saved at all. It is saved
+    /// resting unless the wearer said to follow it.
+    ///
+    /// Returns whether it was saved, so a caller does not open a plan that was never written.
+    @discardableResult
     func saveBuiltPlan(_ program: TrainingProgram, routines: [TrainingRoutine],
-                       activate: Bool, repo: Repository) async {
+                       activate: Bool, repo: Repository) async -> Bool {
         do {
             var resting = program
             resting.isActive = false
             resting.block?.startedOn = nil
+            resting.schedule = [:]
             try await repo.saveNativeTrainingProgram(resting)
             for routine in routines {
                 var placed = routine
@@ -184,8 +202,11 @@ final class TrainingHubModel: ObservableObject {
             try await repo.saveNativeTrainingSchedule(program.schedule, programId: program.id)
             if activate { try await repo.activateNativeTrainingProgram(program.id) }
             await refreshPlans(repo: repo)
+            return true
         } catch {
             errorMessage = String(localized: "The plan could not be saved.")
+            await refreshPlans(repo: repo)
+            return false
         }
     }
 
@@ -216,38 +237,15 @@ final class TrainingHubModel: ObservableObject {
         }
     }
 
-    /// A copy of a plan, its routines included, resting until the wearer takes it up. Fresh ids
-    /// throughout, so editing the copy never reaches back into the plan it came from.
-    func duplicateProgram(_ program: TrainingProgram, repo: Repository) async {
-        let now = Int(Date().timeIntervalSince1970)
-        let source = await routines(ofProgram: program.id, repo: repo)
-        var copy = TrainingProgram(title: String(localized: "\(program.title) copy"),
-                                   kind: program.kind, notes: program.notes,
-                                   targets: program.targets, block: program.block,
-                                   isActive: false, origin: program.origin,
-                                   createdAt: now, updatedAt: now)
-        copy.block?.startedOn = nil
-        var idMap: [UUID: UUID] = [:]
-        var copied: [TrainingRoutine] = []
-        for routine in source {
-            let duplicate = RoutineEditing.duplicate(routine, title: routine.title, now: now)
-            idMap[routine.id] = duplicate.id
-            var placed = duplicate
-            placed.programId = copy.id
-            copied.append(placed)
-        }
-        copy.schedule = program.schedule.reduce(into: [TrainingWeekday: [UUID]]()) { out, entry in
-            out[entry.key] = entry.value.compactMap { idMap[$0] }
-        }
-        do {
-            try await repo.saveNativeTrainingProgram(copy)
-            for routine in copied { try await repo.saveNativeTrainingRoutine(routine) }
-            // The week is written again now that the routines exist, since a schedule row points at one.
-            try await repo.saveNativeTrainingSchedule(copy.schedule, programId: copy.id)
-            await refreshPlans(repo: repo)
-        } catch {
-            errorMessage = String(localized: "The plan could not be saved.")
-        }
+    /// What a plan amounts to in a week, measured against the wearer's own recent sessions.
+    ///
+    /// One place computes this, so the wizard, the plan page and anything added later cannot show
+    /// two different answers for the same plan.
+    func review(of program: TrainingProgram, routines: [TrainingRoutine],
+                askedMinutesPerSession: Int? = nil) -> PlanReview {
+        PlanReview.evaluate(program: program, routines: routines, exercises: exerciseById,
+                            askedMinutesPerSession: askedMinutesPerSession,
+                            history: PlanHistory.from(workouts: workouts, exercises: exerciseById))
     }
 
     func saveExercise(_ exercise: TrainingExercise, repo: Repository) async {
@@ -307,17 +305,6 @@ final class TrainingHubModel: ObservableObject {
         } catch {
             errorMessage = String(localized: "The routine could not be deleted.")
         }
-    }
-
-    /// What a plan amounts to in a week, measured against the wearer's own recent sessions.
-    ///
-    /// One place computes this, so the wizard, the plan page and anything added later cannot show
-    /// two different answers for the same plan.
-    func review(of program: TrainingProgram, routines: [TrainingRoutine],
-                askedMinutesPerSession: Int? = nil) -> PlanReview {
-        PlanReview.evaluate(program: program, routines: routines, exercises: exerciseById,
-                            askedMinutesPerSession: askedMinutesPerSession,
-                            history: PlanHistory.from(workouts: workouts, exercises: exerciseById))
     }
 
     /// The weekdays a routine is scheduled on, read from the plan it belongs to rather than from the

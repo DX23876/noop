@@ -26,9 +26,15 @@ public struct TrainingProgramTargets: Codable, Equatable, Sendable {
         self.sessionsPerWeek = sessionsPerWeek.map { max(0, $0) }
         self.cardioMinutesPerWeek = cardioMinutesPerWeek.map { max(0, $0) }
         // A window with its bounds the wrong way round is a typing slip, not a window; order them.
-        let bounds = [effortLow, effortHigh].compactMap { $0 }.sorted()
-        self.effortLow = bounds.count == 2 ? bounds[0] : effortLow ?? effortHigh
-        self.effortHigh = bounds.count == 2 ? bounds[1] : nil
+        // A lone bound keeps the side it was given: an upper bound turned into a lower one says the
+        // opposite of what the wearer asked for ("up to 8" becoming "from 8").
+        if let low = effortLow, let high = effortHigh {
+            self.effortLow = min(low, high)
+            self.effortHigh = max(low, high)
+        } else {
+            self.effortLow = effortLow
+            self.effortHigh = effortHigh
+        }
     }
 }
 
@@ -206,5 +212,36 @@ public enum TrainingProgramActivation {
     /// Every plan that counts as active, one per kind, in a stable order.
     public static func activePlans(in programs: [TrainingProgram]) -> [TrainingProgram] {
         TrainingProgramKind.allCases.compactMap { active($0, in: programs) }
+    }
+}
+
+/// Edits on a whole plan that both platforms make, in one place rather than once per platform.
+public enum TrainingProgramEditing {
+
+    /// An independent copy of a plan with its routines: fresh identities throughout, resting, and with
+    /// its week pointing at the copies rather than at the originals.
+    ///
+    /// A copy that kept the original ids would share its routines, so editing the copy would change
+    /// the plan it came from, which is the one thing a copy must not do.
+    public static func duplicate(_ program: TrainingProgram, routines: [TrainingRoutine],
+                                 title: String, now: Int)
+        -> (program: TrainingProgram, routines: [TrainingRoutine]) {
+        var copy = TrainingProgram(title: title, kind: program.kind, notes: program.notes,
+                                   targets: program.targets, block: program.block,
+                                   isActive: false, origin: program.origin,
+                                   createdAt: now, updatedAt: now)
+        copy.block?.startedOn = nil
+        var idMap: [UUID: UUID] = [:]
+        let copied = routines.map { routine -> TrainingRoutine in
+            var duplicate = RoutineEditing.duplicate(routine, title: routine.title, now: now)
+            idMap[routine.id] = duplicate.id
+            duplicate.programId = copy.id
+            return duplicate
+        }
+        copy.schedule = program.schedule.reduce(into: [TrainingWeekday: [UUID]]()) { out, entry in
+            let mapped = entry.value.compactMap { idMap[$0] }
+            if !mapped.isEmpty { out[entry.key] = mapped }
+        }
+        return (copy, copied)
     }
 }

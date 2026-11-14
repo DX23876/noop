@@ -273,6 +273,9 @@ public enum PlanBuilder {
 
         for (index, template) in templates.enumerated() {
             var entries: [RoutineExercise] = []
+            // How many of the entries are main lifts. They are added first, so they are the first
+            // `mains` of the list, and `trim` must never cut into them.
+            var mains = 0
             for slot in template.slots {
                 // A pattern nothing can fill is skipped rather than substituted: a session with one
                 // movement missing is honest, a session with a movement that does not belong is not.
@@ -283,13 +286,14 @@ public enum PlanBuilder {
                 else { continue }
                 used.insert(exercise.id)
                 entries.append(entry(exercise, slot: slot, request: request))
+                if slot.isCompound { mains += 1 }
             }
             guard !entries.isEmpty else { continue }
             var routine = TrainingRoutine(
                 title: template.title, exercises: entries,
                 defaultProgression: progression(request, low: 6, high: 10),
                 programId: program.id, createdAt: now, updatedAt: now)
-            routine = trim(routine, to: request.minutesPerSession)
+            routine = trim(routine, to: request.minutesPerSession, keeping: mains)
             routines.append(routine)
             if index < days.count { schedule[days[index], default: []].append(routine.id) }
         }
@@ -320,11 +324,17 @@ public enum PlanBuilder {
 
     /// Cuts a session down to the time the wearer said they have, by dropping accessories from the
     /// end. Main lifts are never dropped: a shorter session that keeps them is still the session,
-    /// and one without them is a different plan.
-    static func trim(_ routine: TrainingRoutine, to minutes: Int) -> TrainingRoutine {
+    /// and one without them is a different plan. A session that is still over its time with nothing
+    /// but main lifts left simply stays over, and the plan review says so.
+    ///
+    /// `keeping` is how many of the leading entries are main lifts. A count alone cannot tell them
+    /// apart, and stopping at two dropped the third main lift of a full-body day: at twenty minutes
+    /// a three-day plan lost its pulling altogether while this said it could not happen.
+    static func trim(_ routine: TrainingRoutine, to minutes: Int, keeping mains: Int) -> TrainingRoutine {
         var trimmed = routine
         let budget = minutes * 60
-        while SessionEstimate.seconds(trimmed) > budget, trimmed.exercises.count > 2 {
+        let floor = max(1, min(mains, routine.exercises.count))
+        while SessionEstimate.seconds(trimmed) > budget, trimmed.exercises.count > floor {
             trimmed.exercises.removeLast()
         }
         return trimmed

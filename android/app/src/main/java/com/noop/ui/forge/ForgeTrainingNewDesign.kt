@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.EventNote
+import androidx.compose.material.icons.rounded.ListAlt
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -277,10 +278,12 @@ internal fun TrainingAnalysisGroup(onLoad: () -> Unit, onStrength: () -> Unit, o
     }
 }
 
-/** The two planning rows iOS's Tools group opens with: this week's plan and the plan and library. */
+/** The planning rows iOS's Tools group opens with: the plans, this week, and the plan and library. */
 @Composable
-internal fun TrainingPlanRows(onWeekPlan: () -> Unit, onLibrary: () -> Unit) {
+internal fun TrainingPlanRows(onWeekPlan: () -> Unit, onLibrary: () -> Unit, onPlans: () -> Unit) {
     val tint = Forge.colors.effort
+    TrainingGroupRow(Icons.Rounded.ListAlt, tint, stringResource(R.string.forge_plan_plans),
+                     stringResource(R.string.forge_plan_rows_sub), false, onPlans)
     TrainingGroupRow(Icons.Rounded.EventNote, tint, stringResource(R.string.forge_tr_week_plan),
                      stringResource(R.string.forge_tr_week_plan_sub), false, onWeekPlan)
     TrainingGroupRow(Icons.Rounded.CalendarMonth, tint, stringResource(R.string.forge_tr_plan_library),

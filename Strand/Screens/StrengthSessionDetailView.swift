@@ -121,7 +121,7 @@ struct StrengthSessionDetailView: View {
     private func loadNativeWorkout() async {
         guard nativeWorkout == nil, source == .noopNative,
               let id = UUID(uuidString: breakdown.workoutId) else { return }
-        nativeWorkout = await repo.nativeWorkouts().first { $0.id == id }
+        nativeWorkout = await repo.nativeWorkout(id: id, startedAt: breakdown.startTs)
     }
 
     // MARK: - New design (prototype board "StrengthFull")

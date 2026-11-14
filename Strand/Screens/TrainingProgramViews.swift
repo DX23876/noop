@@ -26,6 +26,16 @@ struct OpenedProgram: Identifiable {
     let id: UUID
 }
 
+extension TrainingProgram {
+    /// What this plan is called on screen. The plan the migration made has no name, because a store
+    /// cannot write one in the wearer's language, so the default lives here, in one place: two
+    /// screens inventing their own would name the same plan differently.
+    var displayName: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? String(localized: "My plan") : title
+    }
+}
+
 /// A plan's own settings: what it is called, what kind it is, what it asks of a week, and whether it
 /// runs for a fixed number of weeks.
 ///
@@ -41,7 +51,12 @@ struct TrainingProgramEditorView: View {
     @State private var cardioMinutes: Int
 
     init(program: TrainingProgram, onSave: @escaping (TrainingProgram) -> Void) {
-        _program = State(initialValue: program)
+        // The name field starts on the name the plan is shown under, so the unnamed plan the
+        // migration made opens with one rather than with an empty field and Save switched off. A
+        // wearer starting a plan of their own types over it.
+        var named = program
+        named.title = program.displayName
+        _program = State(initialValue: named)
         self.onSave = onSave
         _hasBlock = State(initialValue: program.block != nil)
         _block = State(initialValue: program.block ?? TrainingProgramBlock())
@@ -169,7 +184,7 @@ struct TrainingProgramDetailView: View {
             .padding(NoopMetrics.screenPadding)
         }
         .forgeScreenBackground()
-        .navigationTitle(Text(current.title))
+        .navigationTitle(Text(current.displayName))
         .task(id: model.programs.count) { await reload() }
         .sheet(isPresented: $editing) {
             NavigationStack {
@@ -264,10 +279,12 @@ struct TrainingProgramDetailView: View {
         }
     }
 
-    /// The next lighter week of this block, read from the same rule the state itself uses.
+    /// The next lighter week of this block, read from the same rule the state itself uses, and never
+    /// past the block's last week: widening the search to reach the current week announced a week 9
+    /// of an 8 week block, which is a promise the block has no way of keeping.
     private func nextDeloadWeek(after state: TrainingBlockState.State) -> Int? {
-        guard let block = current.block else { return nil }
-        return ((state.week + 1)...max(state.week + 1, block.weeks)).first {
+        guard let block = current.block, state.week < block.weeks else { return nil }
+        return ((state.week + 1)...block.weeks).first {
             TrainingBlockState.isDeloadWeek($0, block: block)
         }
     }
@@ -445,7 +462,7 @@ struct TrainingProgramDetailView: View {
             .map { "\(PlanReviewCard.regionName($0.key)) \($0.value.formatted(.number.precision(.fractionLength(0...1))))" }
             .joined(separator: ", ")
         let minutes = review.sessionMinutes.values.sorted()
-        var lines = [String(localized: "Plan: \(current.title). Sessions a week: \(review.weeklySessionCount). Sets a week by region: \(week).")]
+        var lines = [String(localized: "Plan: \(current.displayName). Sessions a week: \(review.weeklySessionCount). Sets a week by region: \(week).")]
         if let low = minutes.first, let high = minutes.last {
             lines.append(String(localized: "Minutes a session: \(low) to \(high)."))
         }
@@ -522,7 +539,7 @@ struct KeepSessionAsRoutineCard: View {
             if programs.count > 1 {
                 Picker("Plan", selection: $programId) {
                     ForEach(programs) { program in
-                        Text(program.title.isEmpty ? String(localized: "Unnamed plan") : program.title)
+                        Text(program.displayName)
                             .tag(Optional(program.id))
                     }
                 }

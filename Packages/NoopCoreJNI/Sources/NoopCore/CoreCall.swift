@@ -608,6 +608,52 @@ public enum CoreCall {
                                                        weekdays: args["weekdays"] as? [Int]))
         case "training.duplicateRoutine":
             return ok(await CoreTraining.duplicateRoutine(store: store, id: string("id"), title: string("title")))
+        // Plans (Apple: the Training page's plan list, the plan page, the builder and the ready-made
+        // plans). The deciding and the counting stay in the core; Kotlin asks and draws.
+        case "plans.snapshot":
+            return CoreRead.json(await CorePlans.snapshot(store: store, today: string("day")))
+        case "plans.review":
+            let asked = (args["minutes"] as? NSNumber)?.intValue
+            guard let review = await CorePlans.review(store: store, planId: string("id"),
+                                                      askedMinutes: asked)
+            else { return #"{"error":"noPlan"}"# }
+            return CoreRead.json(review)
+        case "plans.save":
+            guard let id = await CorePlans.save(store: store, args: args) else { return ok(false) }
+            return CoreRead.json(["id": id])
+        case "plans.activate":
+            return ok(await CorePlans.activate(store: store, id: string("id"), day: string("day")))
+        case "plans.deactivate":
+            return ok(await CorePlans.deactivate(store: store, id: string("id"), day: string("day")))
+        case "plans.delete":
+            return ok(await CorePlans.delete(store: store, id: string("id")))
+        case "plans.duplicate":
+            guard let id = await CorePlans.duplicate(store: store, id: string("id"),
+                                                     title: string("title")) else { return ok(false) }
+            return CoreRead.json(["id": id])
+        case "plans.build":
+            guard let preview = await CorePlans.build(store: store, args: args, today: string("day"))
+            else { return #"{"error":"noPlan"}"# }
+            return CoreRead.json(preview)
+        case "plans.useTemplate":
+            guard let id = await CorePlans.useTemplate(
+                store: store, id: string("id"),
+                weightStepKg: (args["weightStepKg"] as? NSNumber)?.doubleValue ?? 2.5)
+            else { return ok(false) }
+            return CoreRead.json(["id": id])
+        case "plans.blockRuns":
+            return CoreRead.json(await CorePlans.blockRuns(store: store, planId: string("id"),
+                                                           today: string("day")))
+        case "plans.routine":
+            guard let detail = await CorePlans.routine(store: store, id: string("id"))
+            else { return #"{"error":"noRoutine"}"# }
+            return CoreRead.json(detail)
+        case "plans.editRoutine":
+            return ok(await CorePlans.editRoutine(store: store, args: args))
+        case "plans.routineFromWorkout":
+            return ok(await CorePlans.routineFromWorkout(store: store, workoutId: string("workoutId"),
+                                                         title: string("title"),
+                                                         planId: args["planId"] as? String))
         case "activity.list":
             return CoreRead.json(await CoreActivity.list(reader: reader, args: args))
         case "activity.answer":
