@@ -581,12 +581,16 @@ struct CardioView: View {
                         GeometryReader { geo in
                             // A gap, not a hairline: two sports can sit next to each other in hue
                             // (walking is mint, rowing cyan), and the boundary has to hold anyway.
+                            // The gaps come out of the width first, or the shares would add up to more
+                            // than the bar and the last sport would be cut off its right-hand end.
+                            let colors = sportMixColors
+                            let gaps = NoopMetrics.space1 * CGFloat(max(0, model.week.bySport.count - 1))
+                            let usable = max(1, geo.size.width - gaps)
                             HStack(spacing: NoopMetrics.space1) {
-                                let colors = sportMixColors
                                 ForEach(Array(model.week.bySport.enumerated()), id: \.offset) { index, total in
                                     Rectangle()
                                         .fill(colors[index])
-                                        .frame(width: max(2, geo.size.width * total.minutes / model.week.minutes))
+                                        .frame(width: max(2, usable * total.minutes / model.week.minutes))
                                 }
                             }
                             .clipShape(Capsule())

@@ -342,18 +342,29 @@ internal fun libraryMetadata(row: CoreTrainingLibrary.Row, muscles: Map<String, 
     return listOf(muscle, tool).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
+/** Row padding, picture and the gap after it: where a row's text starts, and its separator with it. */
+private val libraryRowPadding = 14.dp
+private val libraryRowPicture = 56.dp
+private val libraryRowGap = 12.dp
+private val libraryRowTextInset = libraryRowPadding + libraryRowPicture + libraryRowGap
+
 /** One exercise as `ExerciseLibraryRow` draws it, a segment of the grouped card it belongs to. */
 @Composable
 internal fun LibraryRow(row: CoreTrainingLibrary.Row, subtitle: String, favorite: Boolean, index: Int, count: Int,
                         onOpen: () -> Unit, onPick: (() -> Unit)?, picked: Boolean = false) {
     val colors = Forge.colors
     Column(Modifier.fillMaxWidth().clip(groupedShape(index, count)).background(colors.surface)) {
-        if (index > 0) Box(Modifier.padding(start = 76.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider.copy(alpha = 0.4f)))
-        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // The separator meets the title, so its inset follows the row's own leading geometry rather
+        // than a number that was right while the picture was 48dp.
+        if (index > 0) Box(Modifier.padding(start = libraryRowTextInset).fillMaxWidth()
+            .height(ForgeMetrics.hairline).background(colors.divider.copy(alpha = 0.4f)))
+        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen)
+                .padding(horizontal = libraryRowPadding, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(libraryRowGap)) {
             // The exercise's own picture rather than one of four glyphs: a bench press and a curl
             // looked the same, and the glyph only ever said how the exercise is measured.
-            ExerciseMusclePicture(row.id, row.primary, row.secondary, 56.dp)
+            ExerciseMusclePicture(row.id, row.primary, row.secondary, libraryRowPicture)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(row.title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
                 Text(subtitle, style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)

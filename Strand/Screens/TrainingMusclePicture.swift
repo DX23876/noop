@@ -78,10 +78,15 @@ struct TrainingMusclePicture: View {
         return out
     }
 
+    /// Every muscle either face draws, worked out once: this is read for each muscle of each row in a
+    /// scrolling library, and `BodyAnatomy` builds its answer from the path data on every call.
+    private static let drawn = frontOnly.union(backOnly)
+        .union(BodyAnatomy.muscles(side: .front).intersection(BodyAnatomy.muscles(side: .back)))
+
     private static func add(_ id: String, _ value: Double, to out: inout [String: Double]) {
         var key = id
-        if let muscle = TrainingMuscleMapAppearance.muscle(id), !BodyAnatomy.isDrawn(muscle),
-           let parent = muscle.parentGroup, BodyAnatomy.isDrawn(parent),
+        if let muscle = TrainingMuscleMapAppearance.muscle(id), !drawn.contains(muscle),
+           let parent = muscle.parentGroup, drawn.contains(parent),
            let parentId = TrainingMuscleMapAppearance.ids(for: parent).first {
             key = parentId
         }

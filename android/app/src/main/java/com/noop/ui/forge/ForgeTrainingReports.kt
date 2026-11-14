@@ -285,8 +285,14 @@ fun ForgeCardioPage(onClose: () -> Unit) {
             LoadHeroCard(TrainingLane.Cardio, lane.percent, LoadPill.of(lane.band, lane.guardState),
                 figure = null,
                 trend = r.ratios.mapNotNull { it.cardio },
-                coverage = if (statement != null && r.loadReadout != "comparison"
-                               && r.loadReadout != "notEnoughWeeks") null else measured,
+                // Only the two cases whose words do not already count the sessions carry the line,
+                // and a lane that has been under its usual for days says that instead: the since-date
+                // is the one thing the measured count cannot say.
+                coverage = when (r.loadReadout) {
+                    "comparison" -> cardioBelowSince(lane) ?: measured
+                    "notEnoughWeeks" -> measured
+                    else -> null
+                },
                 caveat = if (r.loadReadsLow) stringResource(R.string.forge_cardio_reads_low) else null,
                 note = capNote(lane),
                 title = stringResource(R.string.forge_tl_cardiovascular_load),

@@ -380,9 +380,17 @@ internal fun strengthEvidence(l: CoreTrainingLoad.Lane): String = when {
 internal fun cardioEvidence(l: CoreTrainingLoad.Lane): String = when {
     l.guardState == "tooFewSessions" -> stringResource(R.string.forge_tl_too_few_in_window)
     l.band == null -> stringResource(R.string.forge_tl_sessions_complete_after_21, l.measuredCount, l.possibleCount)
-    l.band == "below" && l.daysBelowUsual > 0 && l.readingDay != null -> belowSince(l)
-    else -> stringResource(R.string.forge_tl_sessions_complete_history, l.measuredCount, l.possibleCount)
+    else -> cardioBelowSince(l)
+        ?: stringResource(R.string.forge_tl_sessions_complete_history, l.measuredCount, l.possibleCount)
 }
+
+/**
+ * How long the lane has been under the wearer's usual, where that is what the page has to say. One
+ * place, so the Cardio page and the Training Load page cannot disagree about when it started.
+ */
+@Composable
+internal fun cardioBelowSince(l: CoreTrainingLoad.Lane): String? =
+    if (l.band == "below" && l.daysBelowUsual > 0 && l.readingDay != null) belowSince(l) else null
 
 private fun share(l: CoreTrainingLoad.Lane): Double? =
     if (l.possibleCount > 0) l.measuredCount.toDouble() / l.possibleCount else null

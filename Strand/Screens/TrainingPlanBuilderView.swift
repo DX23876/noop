@@ -269,17 +269,23 @@ struct TrainingTemplateListView: View {
             }
         }
         .forgeListBackground()
-        .task { loadWeeks() }
+        .task { await loadWeeks() }
         .navigationTitle(Text("Ready-made plans"))
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
     }
 
-    private func loadWeeks() {
+    /// Off the main actor: making a template's plan runs the whole builder over the exercise library,
+    /// and the list is up before any of it starts. The strips fill in when the work is done.
+    private func loadWeeks() async {
         guard weeks.isEmpty else { return }
         let now = Int(Date().timeIntervalSince1970)
         let step = TrainingPreferences.weightStep(for: ["barbell"])
-        weeks = Dictionary(templates.map { ($0.id, Set($0.make(now, step).program.schedule.keys)) },
-                           uniquingKeysWith: { first, _ in first })
+        let made = templates
+        let built = await Task.detached(priority: .userInitiated) { () -> [String: Set<TrainingWeekday>] in
+            Dictionary(made.map { ($0.id, Set($0.make(now, step).program.schedule.keys)) },
+                       uniquingKeysWith: { first, _ in first })
+        }.value
+        weeks = built
     }
 
     private func row(_ template: TrainingProgramCatalog.Template) -> some View {
