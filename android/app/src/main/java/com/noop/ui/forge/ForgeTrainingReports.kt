@@ -319,11 +319,13 @@ fun ForgeCardioPage(onClose: () -> Unit) {
             ReportLoadChart(r.ratios, TrainingLane.Cardio)
             TrainingHistoryButton { history = true }
         }
-        OverlineHeader(stringResource(R.string.forge_report_intensity), stringResource(R.string.forge_report_time_in_zone))
-        ForgeCard(Modifier.fillMaxWidth()) {
-            val zones = r.zones
-            if (zones == null || zones.minutes.sum() <= 0) ReportNote(stringResource(R.string.forge_tl_caveat_no_trace))
-            else {
+        // A week with no time in zones shows no zone card, as iOS's `intensityCard` does. It used to
+        // print "no usable heart-rate trace, so cardiovascular load is not estimated", which is the
+        // headline card's sentence about a different thing, said a second time further down.
+        val zones = r.zones
+        if (zones != null && zones.minutes.sum() > 0) {
+            OverlineHeader(stringResource(R.string.forge_report_intensity), stringResource(R.string.forge_report_time_in_zone))
+            ForgeCard(Modifier.fillMaxWidth()) {
                 val total = zones.minutes.sum()
                 val colors = listOf(ForgeTokens.StrandPalette.cZone1, ForgeTokens.StrandPalette.cZone2,
                     ForgeTokens.StrandPalette.cZone3, ForgeTokens.StrandPalette.cZone4, ForgeTokens.StrandPalette.cZone5)
