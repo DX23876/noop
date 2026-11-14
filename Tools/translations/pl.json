@@ -5675,5 +5675,7 @@
   "The stated energy does not fit the nutrients": "Podana energia nie zgadza się z wartościami odżywczymi",
   "Correct the product's values": "Popraw wartości produktu",
   "Use %@ kcal from the nutrients": "Użyj %@ kcal z wartości odżywczych",
-  "kcal from the nutrients": "kcal z wartości odżywczych"
+  "kcal from the nutrients": "kcal z wartości odżywczych",
+  "Saving": "Zapisywanie",
+  "%@ %@ kcal": "%@ %@ kcal"
 }

@@ -4475,5 +4475,7 @@
   "The stated energy does not fit the nutrients": "A energia indicada não corresponde aos nutrientes",
   "Correct the product's values": "Corrigir os valores do produto",
   "Use %@ kcal from the nutrients": "Usar %@ kcal dos nutrientes",
-  "kcal from the nutrients": "kcal a partir dos nutrientes"
+  "kcal from the nutrients": "kcal a partir dos nutrientes",
+  "Saving": "A guardar",
+  "%@ %@ kcal": "%@ %@ kcal"
 }
