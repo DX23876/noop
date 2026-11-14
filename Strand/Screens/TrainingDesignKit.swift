@@ -241,6 +241,17 @@ struct LaneHeroSurface: View {
     }
 }
 
+/// What a card leads with: one figure a person can read, and the words that turn it into a sentence.
+///
+/// A lane whose unit means nothing outside the app ("109 cardio points") has nothing to put in a
+/// headline. It passes a statement instead, and the raw figure stays out of the card.
+struct LoadHeroStatement: Equatable, Sendable {
+    let value: String
+    let caption: String
+    /// A figure gets the headline size; a few words get a size they can be read at.
+    var isFigure = true
+}
+
 /// A lane's headline: the change against usual, its state, the measured figure behind it, and what the
 /// reading rests on. `compact` fits half the width of a phone.
 struct LoadHeroCard: View {
@@ -249,6 +260,8 @@ struct LoadHeroCard: View {
     let percent: Double?
     let state: LoadPillState
     var figure: String? = nil
+    /// Said in place of the figure and the percentage, for a lane whose own unit says nothing.
+    var statement: LoadHeroStatement? = nil
     /// Daily ratios, oldest first; gaps are left out.
     var trend: [Double] = []
     var coverage: String? = nil
@@ -263,7 +276,8 @@ struct LoadHeroCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? NoopMetrics.space2 : NoopMetrics.space3) {
             header
-            if NoopVisualStyle.skin == .forge, !compact, let figure {
+            if let statement { statementBlock(statement) }
+            if statement == nil, NoopVisualStyle.skin == .forge, !compact, let figure {
                 // The measured amount is the page's answer; the comparison reads under it. A figure of two
                 // parts ("0 working sets · 0.0 weighted sets") shows the first large and the second under it:
                 // both at 40 pt ran off the card.
@@ -281,19 +295,24 @@ struct LoadHeroCard: View {
                     }
                 }
             }
-            HStack(alignment: .bottom, spacing: NoopMetrics.space3) {
-                VStack(alignment: .leading, spacing: 2) {
-                    percentText
-                    if percent != nil {
-                        Text("vs. your usual")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textSecondary)
+            // A statement already carries the comparison in words, so the percentage is not said twice.
+            if statement == nil || (!compact && trend.count >= 2) {
+                HStack(alignment: .bottom, spacing: NoopMetrics.space3) {
+                    if statement == nil {
+                        VStack(alignment: .leading, spacing: 2) {
+                            percentText
+                            if percent != nil {
+                                Text("vs. your usual")
+                                    .font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                            }
+                        }
                     }
+                    if !compact, trend.count >= 2 { baselineTrend }
                 }
-                if !compact, trend.count >= 2 { baselineTrend }
             }
             if compact, trend.count >= 2 { sparkline }
-            if let figure, !(NoopVisualStyle.skin == .forge && !compact) {
+            if let figure, statement == nil, !(NoopVisualStyle.skin == .forge && !compact) {
                 Text(figure)
                     .font(StrandFont.captionNumber)
                     .foregroundStyle(StrandPalette.textPrimary)
@@ -332,6 +351,27 @@ struct LoadHeroCard: View {
         }
     }
 
+    /// The headline a lane supplied: the figure large, the words under it. One size for the new
+    /// design's wide card, one for everything else, rather than a size per caller.
+    private func statementBlock(_ statement: LoadHeroStatement) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(statement.value)
+                .font(statement.isFigure
+                      ? (NoopVisualStyle.skin == .forge && !compact
+                         ? StrandFont.rounded(40, weight: .bold).monospacedDigit()
+                         : StrandFont.number(compact ? 24 : 30, weight: .bold))
+                      : StrandFont.title2)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(statement.isFigure ? 1 : 2)
+                .minimumScaleFactor(0.6)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(statement.caption)
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             HStack(spacing: NoopMetrics.space2) {
@@ -341,9 +381,10 @@ struct LoadHeroCard: View {
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
                 Spacer(minLength: NoopMetrics.space1)
-                if !compact { LoadStatusPill(lane: lane, state: state) }
+                // The pill and a statement say the same thing, the statement in better words.
+                if !compact, statement == nil { LoadStatusPill(lane: lane, state: state) }
             }
-            if compact { LoadStatusPill(lane: lane, state: state) }
+            if compact, statement == nil { LoadStatusPill(lane: lane, state: state) }
         }
     }
 

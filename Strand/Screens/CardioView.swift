@@ -287,28 +287,68 @@ struct CardioView: View {
 
     /// The week's cardio load against the wearer's usual, read exactly as Training Load reads it.
     private var loadHero: some View {
-        let lane = model.lane
+        let text = heroText
         return LoadHeroCard(lane: .cardio, title: String(localized: "Cardio load"),
-                            percent: lane?.trend?.percentChange, state: LoadPillState.of(lane),
-                            figure: lane.map(trimpText), trend: model.laneRatios.compactMap(\.cardio),
-                            coverage: lane.flatMap { $0.possibleCount > 0
-                                ? String(localized: "\($0.measuredCount) of \($0.possibleCount) sessions complete")
-                                : nil },
-                            caveat: loadCaveat)
+                            percent: model.lane?.trend?.percentChange, state: LoadPillState.of(model.lane),
+                            statement: text.statement, trend: model.laneRatios.compactMap(\.cardio),
+                            coverage: text.coverage, caveat: text.caveat)
     }
 
-    private func trimpText(_ lane: TrainingLoadModel.Lane) -> String {
-        let total = String(localized: "\(Int(lane.sevenDayTotal.rounded())) TRIMP")
-        return lane.isLowerBound ? String(localized: "at least \(total)") : total
-    }
+    /// Everything the headline card says, worked out in one place.
+    ///
+    /// The card used to lead with the week's own heart-rate load: "at least 109 cardio points", at
+    /// 40 pt. That figure is the engine of the comparison, not a thing anybody can read — 109 of it
+    /// is neither good nor bad, and nobody has a sense of what 109 would be for them. The card now
+    /// leads with what this page can say in words: how the week compares with the wearer's OWN usual
+    /// week. Where it cannot say that yet, it says so and why, rather than filling the headline with
+    /// an internal number.
+    ///
+    /// The three strings are resolved together because they can otherwise say the same thing twice:
+    /// a headline about missing heart rate over a line counting the same sessions.
+    private var heroText: (statement: LoadHeroStatement?, coverage: String?, caveat: String?) {
+        guard let lane = model.lane, lane.possibleCount > 0 else { return (nil, nil, nil) }
+        let measured = String(localized: "Heart rate recorded in \(lane.measuredCount) of \(lane.possibleCount) sessions")
 
-    private var loadCaveat: String? {
-        guard let lane = model.lane, lane.possibleCount > 0 else { return nil }
         if model.laneSeries?.measured == false {
-            return String(localized: "No usable heart-rate trace in this window, so cardiovascular load is not estimated")
+            return (LoadHeroStatement(value: String(localized: "Nothing to compare"),
+                                      caption: String(localized: "None of these sessions was recorded with heart rate, so how hard they were cannot be read."),
+                                      isFigure: false),
+                    nil, nil)
         }
-        guard Double(lane.measuredCount) / Double(lane.possibleCount) < TrainingLoad.trustedRatedShare else { return nil }
-        return String(localized: "Only \(lane.measuredCount) of \(lane.possibleCount) sessions are complete; the measured total is a lower bound")
+        if let percent = lane.trend?.percentChange {
+            let thin = Double(lane.measuredCount) / Double(lane.possibleCount) < TrainingLoad.trustedRatedShare
+            return (LoadHeroStatement(value: LoadFormat.signedPercent(percent),
+                                      caption: comparisonCaption(lane, percent: percent)),
+                    measured,
+                    thin ? String(localized: "A session without heart rate counts as nothing here, so this reads low.") : nil)
+        }
+        if lane.relative.completeWeeks < TrainingLoad.personalBaselineWeeks {
+            // How many weeks are still missing is the chart's line, under the bars it belongs to.
+            return (LoadHeroStatement(value: String(localized: "Not enough weeks yet"),
+                                      caption: String(localized: "A week is only ever compared with your own earlier weeks. There are not yet enough of them."),
+                                      isFigure: false),
+                    measured, nil)
+        }
+        return (LoadHeroStatement(value: String(localized: "Too few sessions measured"),
+                                  caption: String(localized: "Heart rate is missing from most of these sessions, so a comparison would read low."),
+                                  isFigure: false),
+                nil, nil)
+    }
+
+    /// What a week above or below the wearer's usual means, said the way the page's own subtitle says
+    /// it: how hard the heart worked. The words follow the lane's band, so a week a hair over the line
+    /// does not read like one far above it.
+    private func comparisonCaption(_ lane: TrainingLoadModel.Lane, percent: Double) -> String {
+        switch lane.reading?.band {
+        case .below: return String(localized: "easier than your usual week")
+        case .usual: return String(localized: "about as hard as your usual week")
+        case .higher: return String(localized: "harder than your usual week")
+        case .muchHigher: return String(localized: "much harder than your usual week")
+        case nil:
+            if percent >= 1 { return String(localized: "harder than your usual week") }
+            if percent <= -1 { return String(localized: "easier than your usual week") }
+            return String(localized: "about as hard as your usual week")
+        }
     }
 
     private var weekFigures: some View {
@@ -944,7 +984,7 @@ struct CardioView: View {
                           subtitle: String(localized: "How time and heart-rate intensity become one total")) {
                 VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                     ExplainerLoadBand(tint: TrainingLane.cardio.color)
-                    Text(String(localized: "Cardio load compares the last seven days with your own recent cardio. +18% means the current week was about one fifth higher than usual; it is a comparison, not a score.\n\nThe total uses TRIMP: workout time weighted by heart-rate intensity. This lets an easy hour count differently from an hour near threshold.\n\nRest days count as zero. Higher or lower is not automatically good or bad, so read load beside Charge and your own session ratings. A comparison appears once enough history is available."))
+                    Text(String(localized: "Cardio load compares the last seven days with your own recent cardio. +18% means the current week was about one fifth higher than usual; it is a comparison, not a score.\n\nBehind the comparison each session counts for how long it lasted and how hard your heart worked in it, so an easy hour counts for less than an hour near your limit.\n\nRest days count as zero. Higher or lower is not automatically good or bad, so read load beside Charge and your own session ratings. A comparison appears once enough history is available."))
                         .font(StrandFont.body)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
