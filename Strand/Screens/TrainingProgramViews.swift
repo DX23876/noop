@@ -203,6 +203,8 @@ struct TrainingProgramDetailView: View {
                     Text(kindTitle).font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
                     Spacer()
+                    // Hidden unless the coach is switched on, configured and allowed these purposes.
+                    if let coachContext { CoachCardButton(context: coachContext) }
                     if current.isActive {
                         Label("Being followed", systemImage: "checkmark.circle.fill")
                             .font(StrandFont.caption.weight(.semibold))
@@ -430,6 +432,36 @@ struct TrainingProgramDetailView: View {
                 Button("Delete plan", role: .destructive) { confirmingDelete = true }
             }
         }
+    }
+
+    /// What the coach reads about this plan: the same figures the page shows, never anything derived
+    /// again for the coach alone. It comments; the wearer decides and nothing is written by it.
+    private var coachContext: CoachCardContext? {
+        guard !routines.isEmpty else { return nil }
+        let review = model.review(of: current, routines: routines)
+        let week = review.weeklySetsByRegion
+            .filter { $0.value > 0 }
+            .sorted { $0.value > $1.value }
+            .map { "\(PlanReviewCard.regionName($0.key)) \($0.value.formatted(.number.precision(.fractionLength(0...1))))" }
+            .joined(separator: ", ")
+        let minutes = review.sessionMinutes.values.sorted()
+        var lines = [String(localized: "Plan: \(current.title). Sessions a week: \(review.weeklySessionCount). Sets a week by region: \(week).")]
+        if let low = minutes.first, let high = minutes.last {
+            lines.append(String(localized: "Minutes a session: \(low) to \(high)."))
+        }
+        if let state = blockState {
+            lines.append(state.isFinished
+                         ? String(localized: "Its block has finished.")
+                         : String(localized: "Block week \(state.week) of \(state.weeks)."))
+        }
+        return CoachCardContext(
+            title: String(localized: "This plan"), summary: lines.joined(separator: " "),
+            suggestions: [
+                String(localized: "Does this plan fit what I have been training lately?"),
+                String(localized: "What would you change about this plan?"),
+                String(localized: "What should the next block look like?")
+            ],
+            requiredPurposes: [.planning, .workouts])
     }
 
     private var kindTitle: String {
