@@ -18,6 +18,7 @@
   <img alt="WHOOP 4.0, 5.0 and MG" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%20%C2%B7%20MG-234F9E?style=for-the-badge">
   <img alt="No account, no cloud" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-3E8E5E?style=for-the-badge">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20NC-6B737B?style=for-the-badge"></a>
+  <a href="https://discord.com/invite/wKgyqVdjrP"><img alt="Discord: Noop Community" src="https://img.shields.io/badge/Discord-Noop%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
 </p>
 
 <p align="center">
@@ -994,9 +995,16 @@ without a strap, and say what you verified on hardware. Design work, translation
 with a strap log and a tested Android build on a phone nobody has tried yet all count as taking part,
 and the release notes credit people by their GitHub handle.
 
-**Where people talk:** [Discussions](https://github.com/DX23876/noop/discussions) ·
-[Discord](https://discord.com/invite/wKgyqVdjrP) · [r/NoopBand](https://www.reddit.com/r/NoopBand/) ·
-[the wiki](https://github.com/DX23876/noop/wiki)
+### Where people talk
+
+**💬 [The Noop Community Discord](https://discord.com/invite/wKgyqVdjrP)** is the quickest place for a
+question, for setup help and for "is this normal?". It is the shared NOOP community, not a fork-only
+room, so say which app you are running when you ask. A confirmed fault still wants an issue with a
+strap log: a question answered on Discord helps you, an issue is what gets tracked until it is fixed.
+
+Also: [Discussions](https://github.com/DX23876/noop/discussions) for ideas and votes ·
+[r/NoopBand](https://www.reddit.com/r/NoopBand/) for tips and release news ·
+[the wiki](https://github.com/DX23876/noop/wiki) for troubleshooting and the WHOOP 5.0 and MG status
 
 ---
 
@@ -1017,9 +1025,10 @@ The Bluetooth work builds on community research, with thanks to
 
 ## Help and support
 
-Questions, bug reports and how to reach the project: [SUPPORT.md](SUPPORT.md) and the
-[FAQ](docs/FAQ.md#help-bug-reports-and-support). What to do with an idea is in
-[Ideas, votes and taking part](#ideas-votes-and-taking-part).
+A question is quickest answered on the
+**[Noop Community Discord](https://discord.com/invite/wKgyqVdjrP)**. Every channel, and what belongs
+where, is in [SUPPORT.md](SUPPORT.md) and the [FAQ](docs/FAQ.md#help-bug-reports-and-support); what to
+do with an idea is in [Ideas, votes and taking part](#ideas-votes-and-taking-part).
 
 ## Support NOOP Forge
 
