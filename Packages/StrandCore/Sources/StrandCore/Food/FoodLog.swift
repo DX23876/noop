@@ -143,6 +143,38 @@ public enum FoodLog {
         return next
     }
 
+    /// The same entry with a corrected product's values: the amount, the time and the meal stay as logged, the
+    /// per-100 g snapshot, the totals, the name and the marks follow the product. Nil when there is nothing to
+    /// restate (a quick calorie figure has no snapshot) and when the values already match, so a correction that
+    /// changed nothing writes nothing.
+    public static func restated(_ entry: FoodLogEntry, from item: FoodItem, now: Date = Date()) -> FoodLogEntry? {
+        guard let grams = entry.grams, entry.per100g != nil else { return nil }
+        var next = entry
+        next.name = item.name
+        next.brand = item.brand
+        next.per100g = item.per100g.stored
+        next.totals = item.per100g.scaled(toGrams: grams).stored
+        next.estimatedKeys = item.estimatedKeys ?? []
+        guard next != entry else { return nil }
+        next.updatedAt = Int(now.timeIntervalSince1970)
+        return next
+    }
+
+    /// The entries logged from any of `foodIds` within the last `days` days, newest first: what a correction to
+    /// that product may be applied to. One product reaches the log under several ids (the catalogue row it came
+    /// from, the wearer's own copy of it), so every id is asked for at once. Read over the day window, so the
+    /// rows are bounded by the window and not by the length of the log.
+    public static func recentEntries(store: WhoopStore, foodIds: Set<String>, days: Int = 14,
+                                     now: Date = Date()) async -> [FoodLogEntry] {
+        guard !foodIds.isEmpty, days > 0 else { return [] }
+        let from = StoreReader.localDayKey(now.addingTimeInterval(-Double(days - 1) * 86_400))
+        let entries = (try? await store.foodLogEntries(from: from, to: StoreReader.localDayKey(now))) ?? []
+        return entries.filter { entry in
+            entry.grams != nil && entry.per100g != nil && entry.foodId.map(foodIds.contains) == true
+        }
+        .sorted { $0.loggedAt > $1.loggedAt }
+    }
+
     @discardableResult
     public static func save(store: WhoopStore, _ entries: [FoodLogEntry]) async -> Bool {
         (try? await store.saveFoodLogEntries(entries)) ?? false
@@ -316,6 +348,40 @@ public enum FoodLibrary {
                                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [])
         guard (try? await store.saveCustomFood(custom)) == true else { return nil }
         return item(for: custom)
+    }
+
+    /// The wearer's own copy of a catalogue or online row, by its source id or by its barcode. Nil when there is
+    /// none yet.
+    public static func ownCopy(store: WhoopStore, of item: FoodItem) async -> FoodItem? {
+        if item.source == .own { return item }
+        if let kept = await keptVersion(store: store, of: item.id) { return kept }
+        guard let barcode = item.barcode else { return nil }
+        for code in FoodCatalog.barcodeVariants(barcode) {
+            if let food = try? await store.customFood(barcode: code) { return self.item(for: food) }
+        }
+        return nil
+    }
+
+    /// Where a correction to `item` is written: the wearer's own copy of that row when one already exists, so
+    /// correcting the same product twice does not leave two own foods behind. Only the identity moves; the values
+    /// passed in are the corrected ones and stay untouched.
+    public static func correctionTarget(store: WhoopStore, for item: FoodItem) async -> FoodItem {
+        guard item.source != .own, let own = await ownCopy(store: store, of: item) else { return item }
+        var next = item
+        next.id = own.id
+        next.source = .own
+        return next
+    }
+
+    /// Every id one product reaches the food log under: the catalogue or online row it was found as, and the
+    /// wearer's own copy of it. A correction has to find its entries under both.
+    public static func logIds(store: WhoopStore, for item: FoodItem) async -> Set<String> {
+        var ids: Set<String> = [item.id]
+        if item.source == .own, let food = try? await store.customFood(id: item.id), let source = food.sourceId {
+            ids.insert(source)
+        }
+        if let own = await ownCopy(store: store, of: item) { ids.insert(own.id) }
+        return ids
     }
 
     public static func item(for food: CustomFood) -> FoodItem {

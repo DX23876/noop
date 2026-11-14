@@ -108,9 +108,21 @@ enum FoodText {
         }
     }
 
+    /// Where a product's values come from, in words. One wording for every screen that names a source.
+    static func sourceNote(_ item: FoodItem) -> String {
+        switch item.source {
+        case .bls: String(localized: "Source: German Nutrient Database (BLS 4.0), Max Rubner-Institut, CC BY 4.0.")
+        case .off, .online: String(localized: "Source: Open Food Facts, ODbL. Values are entered by volunteers and can be wrong.")
+        case .own: String(localized: "Your own food.")
+        case .recipe: String(localized: "Your recipe, per 100 g of the whole dish.")
+        }
+    }
+
     /// Where an item's estimated values came from, in words; nil when nothing is estimated.
     static func estimateNote(_ item: FoodItem) -> String? {
-        guard let from = item.estimatedFrom, let count = item.estimatedKeys?.count, count > 0 else { return nil }
+        // A computed energy value carries its own mark and its own line on the screen; it is not a borrowed nutrient.
+        let count = (item.estimatedKeys ?? []).filter { !$0.hasPrefix(FoodEnergy.markPrefix) }.count
+        guard let from = item.estimatedFrom, count > 0 else { return nil }
         if from == FoodEstimate.aiSource {
             return String(localized: "\(count) vitamins and minerals are your coach's estimate. No similar food in the German Nutrient Database was close enough. Treat them as rough.")
         }

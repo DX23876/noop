@@ -4,16 +4,21 @@ import StrandCore
 
 /// How much of one food: grams, its portion, the last amount or a round amount, with the nutrients live.
 struct FoodPortionSheet: View {
-    let item: FoodItem
+    let model: ForgeFoodModel
     var lastGrams: Double?
     let add: (FoodCartLine) -> Void
+    @EnvironmentObject private var repo: Repository
     @Environment(\.dismiss) private var dismiss
     @State private var grams: Double
+    /// The product as it stands: a correction made here replaces it, and the amount keeps its own figure.
+    @State private var item: FoodItem
+    @State private var correcting = false
 
-    init(item: FoodItem, lastGrams: Double?, add: @escaping (FoodCartLine) -> Void) {
-        self.item = item
+    init(item: FoodItem, model: ForgeFoodModel, lastGrams: Double?, add: @escaping (FoodCartLine) -> Void) {
+        self.model = model
         self.lastGrams = lastGrams
         self.add = add
+        _item = State(initialValue: item)
         _grams = State(initialValue: lastGrams ?? item.servingG ?? 100)
     }
 
@@ -52,8 +57,21 @@ struct FoodPortionSheet: View {
                     }
                 }
                 Section {
+                    Button(action: correct) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "slider.horizontal.3").foregroundStyle(ForgeColor.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Check values").foregroundStyle(ForgeColor.text)
+                                if let warning { Text(warning).font(.footnote).foregroundStyle(ForgeColor.effortInk) }
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right").font(.footnote.bold()).foregroundStyle(ForgeColor.tertiary)
+                        }
+                    }
+                }
+                Section {
                     if let note = FoodText.estimateNote(item) { Text(note) }
-                    Text(sourceNote)
+                    Text(FoodText.sourceNote(item))
                 }
                 .font(.footnote).foregroundStyle(ForgeColor.secondary)
             }
@@ -65,16 +83,21 @@ struct FoodPortionSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
-    }
-
-    private var sourceNote: String {
-        switch item.source {
-        case .bls: String(localized: "Source: German Nutrient Database (BLS 4.0), Max Rubner-Institut, CC BY 4.0.")
-        case .off, .online: String(localized: "Source: Open Food Facts, ODbL. Values are entered by volunteers and can be wrong.")
-        case .own: String(localized: "Your own food.")
-        case .recipe: String(localized: "Your recipe, per 100 g of the whole dish.")
+        .sheet(isPresented: $correcting) {
+            FoodProductEditSheet(item: item, model: model) { item = $0 }
+                .environmentObject(repo)
         }
     }
+
+    /// What the energy figure and the nutrients say about each other, from the one check in the core; nil when
+    /// they agree or when the nutrients cannot give an answer.
+    private var warning: String? {
+        guard let check = FoodEnergy.check(item.per100g) else { return nil }
+        if check.isMissing { return String(localized: "Energy worked out from the nutrients") }
+        return check.disagrees ? String(localized: "The stated energy does not fit the nutrients") : nil
+    }
+
+    private func correct() { correcting = true }
 
     private func cancel() { dismiss() }
     private func confirm() {

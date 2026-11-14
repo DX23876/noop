@@ -41,6 +41,12 @@ struct FoodLabelForm: View {
                     FoodValueField(title: FoodText.nutrient(nutrient), unit: nutrient.unit, value: valueBinding(nutrient))
                 }
                 FoodValueField(title: String(localized: "Portion"), unit: .g, value: $serving)
+                if let energy = FoodEnergy.check(NutrientAmounts(values)), energy.isMissing || energy.disagrees {
+                    Button { values[.energyKcal] = (energy.computed * 10).rounded() / 10 } label: {
+                        Label(String(localized: "Use \(FoodText.kcal(energy.computed)) kcal from the nutrients"),
+                              systemImage: "equal.circle")
+                    }
+                }
             }
             Section {
                 Button("Save food", action: save).disabled(!complete)
@@ -50,7 +56,8 @@ struct FoodLabelForm: View {
     }
 
     private var complete: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && FoodNutrient.macros.allSatisfy { values[$0] != nil }
+        // Energy may be left out: it is worked out from protein, carbohydrate and fat when the form is saved.
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && FoodEnergy.required.allSatisfy { values[$0] != nil }
     }
 
     /// The form's field for one nutrient, over the one dictionary that holds them all.
@@ -78,8 +85,11 @@ struct FoodLabelForm: View {
             guard let store = await repo.storeHandle() else { return }
             var amounts = NutrientAmounts(values)
             if amounts[.sodiumMg] == nil, let salt = amounts[.saltG] { amounts[.sodiumMg] = salt / 2.5 * 1_000 }
+            let energy = FoodEnergy.filling(amounts)
+            amounts = energy.amounts
             let item = FoodItem(id: "own:new", source: .online, name: name.trimmingCharacters(in: .whitespaces),
-                                brand: brand.isEmpty ? nil : brand, servingG: serving, per100g: amounts, barcode: barcode)
+                                brand: brand.isEmpty ? nil : brand, servingG: serving, per100g: amounts, barcode: barcode,
+                                estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil)
             if let kept = await FoodLibrary.saveOwn(store: store, item, origin: .label) { saved(kept) }
         }
     }

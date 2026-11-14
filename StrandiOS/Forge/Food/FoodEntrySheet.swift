@@ -12,6 +12,9 @@ struct FoodEntrySheet: View {
     @State private var grams: Double
     @State private var time: Date
     @State private var meal: FoodLog.MealKind?
+    /// The product this entry was logged from, once it is loaded; nil for a quick calorie figure.
+    @State private var product: FoodItem?
+    @State private var correcting = false
 
     init(entry: FoodLogEntry, model: ForgeFoodModel) {
         self.entry = entry
@@ -57,6 +60,20 @@ struct FoodEntrySheet: View {
                     DatePicker("Time", selection: $time)
                     FoodMealPicker(meal: $meal)
                 }
+                if let product {
+                    Section {
+                        Button(action: correct) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "slider.horizontal.3").foregroundStyle(ForgeColor.accent)
+                                Text("Correct the product's values").foregroundStyle(ForgeColor.text)
+                                Spacer(minLength: 8)
+                                Image(systemName: "chevron.right").font(.footnote.bold()).foregroundStyle(ForgeColor.tertiary)
+                            }
+                        }
+                    } footer: {
+                        Text(FoodText.sourceNote(product))
+                    }
+                }
                 Section {
                     Button("Delete", role: .destructive, action: delete)
                 }
@@ -69,7 +86,25 @@ struct FoodEntrySheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .task { await loadProduct() }
+        .sheet(isPresented: $correcting) {
+            if let product {
+                FoodProductEditSheet(item: product, model: model, saved: corrected).environmentObject(repo)
+            }
+        }
     }
+
+    /// The product behind the entry, for the correction screen: the wearer's own copy when there is one, which is
+    /// what `FoodLibrary.item(store:id:)` resolves an id to.
+    private func loadProduct() async {
+        guard let id = entry.foodId, let store = await repo.storeHandle() else { return }
+        product = await FoodLibrary.item(store: store, id: id)
+    }
+
+    private func correct() { correcting = true }
+
+    /// A correction has been kept and the log reloaded, so this sheet's figures are the old ones: it closes.
+    private func corrected(_ item: FoodItem) { dismiss() }
 
     /// Every nutrient this entry knows, for the amount being edited, in the nutrient page's order.
     private var nutrients: [(FoodNutrient, Double)] {

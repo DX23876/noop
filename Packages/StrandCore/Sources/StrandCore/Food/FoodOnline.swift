@@ -104,7 +104,11 @@ public enum FoodOnline {
             }
         }
         if amounts[.energyKcal] == nil, let kj = number("energy_100g") { amounts[.energyKcal] = kj / 4.184 }
-        guard FoodNutrient.macros.allSatisfy({ amounts[$0] != nil }), (amounts[.energyKcal] ?? 0) <= 950 else { return nil }
+        // A product that states its macronutrients but no energy at all is worked out from them (`FoodEnergy`),
+        // instead of being thrown away and typed in by hand. An implausible result still fails the ceiling below.
+        let energy = FoodEnergy.filling(NutrientAmounts(amounts))
+        guard FoodEnergy.required.allSatisfy({ energy.amounts[$0] != nil }),
+              let kcal = energy.amounts[.energyKcal], kcal <= 950 else { return nil }
         let serving = (json["serving_quantity"] as? NSNumber)?.doubleValue
             ?? (json["serving_quantity"] as? String).flatMap(Double.init)
         let group = text("pnns_groups_2").flatMap { $0 == "unknown" ? nil : $0.lowercased().replacingOccurrences(of: " ", with: "-") }
@@ -112,7 +116,8 @@ public enum FoodOnline {
                         brand: text("brands")?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces),
                         group: group, nova: (json["nova_group"] as? NSNumber)?.intValue,
                         servingG: serving.flatMap { $0 > 0 && $0 <= 5_000 ? $0 : nil }, servingLabel: text("serving_size"),
-                        per100g: NutrientAmounts(amounts), barcode: code)
+                        per100g: energy.amounts, barcode: code,
+                        estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil)
     }
 }
 

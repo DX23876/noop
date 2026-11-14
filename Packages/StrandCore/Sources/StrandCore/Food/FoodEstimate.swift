@@ -68,7 +68,8 @@ public enum FoodEstimate {
         }
         guard !keys.isEmpty else { return item }
         next.estimatedFrom = aiSource
-        next.estimatedKeys = keys.sorted()
+        // Marks already on the item stay: a computed energy value (`FoodEnergy`) is not a borrowed nutrient.
+        next.estimatedKeys = ((item.estimatedKeys ?? []) + keys).sorted()
         return next
     }
 
@@ -85,7 +86,7 @@ public enum FoodEstimate {
         }
         guard !borrowed.isEmpty else { return item }
         next.estimatedFrom = reference.id
-        next.estimatedKeys = borrowed.sorted()
+        next.estimatedKeys = ((item.estimatedKeys ?? []) + borrowed).sorted()
         return next
     }
 }

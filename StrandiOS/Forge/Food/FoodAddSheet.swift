@@ -92,7 +92,7 @@ struct FoodAddSheet: View {
             .task(id: search.query) { await search.run(repo: repo, online: mode == .online) }
             .task { await search.loadLists(repo: repo); time = model.defaultTime() }
             .sheet(item: $portionFor) { item in
-                FoodPortionSheet(item: item, lastGrams: search.lastGrams[item.id], add: addLine)
+                FoodPortionSheet(item: item, model: model, lastGrams: search.lastGrams[item.id], add: addLine)
             }
             .sheet(isPresented: $showQuick) {
                 FoodQuickSheet(at: model.defaultTime(), save: saveQuick)

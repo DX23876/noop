@@ -615,6 +615,35 @@ final class ForgeFoodModel {
         await reload(store: store)
     }
 
+    /// What a correction to `item` can be applied to: the entries logged from that product in the last two weeks,
+    /// under any of the ids it reaches the log under.
+    func correctableEntries(for item: FoodItem, repo: Repository) async -> [FoodLogEntry] {
+        guard let store = await repo.storeHandle() else { return [] }
+        let ids = await FoodLibrary.logIds(store: store, for: item)
+        return await FoodLog.recentEntries(store: store, foodIds: ids)
+    }
+
+    /// Keeps a corrected product as the wearer's own food, so it stands in for the row it came from everywhere,
+    /// and restates the entries handed in. A restated entry keeps its amount, time and meal; its Health record is
+    /// replaced, so Apple Health carries the corrected figures too.
+    func correct(_ item: FoodItem, restating: [FoodLogEntry], repo: Repository) async -> FoodItem? {
+        guard let store = await repo.storeHandle() else { return nil }
+        let target = await FoodLibrary.correctionTarget(store: store, for: item)
+        guard let kept = await FoodLibrary.saveOwn(store: store, target,
+                                                   origin: target.source == .own ? .own : .online) else { return nil }
+        let restated = restating.compactMap { FoodLog.restated($0, from: kept) }
+        if !restated.isEmpty, await FoodLog.save(store: store, restated) {
+            let byId = Dictionary(uniqueKeysWithValues: restating.map { ($0.id, $0) })
+            for next in restated {
+                guard let old = byId[next.id] else { continue }
+                await FoodHealthSync.replaced(old: old, new: next, store: store)
+            }
+        }
+        await reload(store: store)
+        savedRevision += 1
+        return kept
+    }
+
     func delete(_ entries: [FoodLogEntry], repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
         await FoodHealthSync.removed(await FoodLog.delete(store: store, ids: entries.map(\.id)))
