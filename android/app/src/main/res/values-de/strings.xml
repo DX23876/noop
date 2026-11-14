@@ -4835,6 +4835,9 @@
     <string name="forge_lg_off">Aus</string>
     <string name="forge_lg_remove">Entfernen</string>
     <string name="forge_lg_remove_set_q">Diesen Satz entfernen?</string>
+    <string name="forge_lg_copy_down">Auf die Sätze darunter übertragen</string>
+    <string name="forge_lg_added_weight_on">Zusatzgewicht erfassen</string>
+    <string name="forge_lg_added_weight_off">Zusatzgewicht nicht mehr erfassen</string>
     <string name="forge_lg_rest_remaining">Verbleibende Pause</string>
     <string name="forge_lg_col_previous">ZULETZT</string>
     <string name="forge_lg_discard_q">Dieses Workout verwerfen?</string>

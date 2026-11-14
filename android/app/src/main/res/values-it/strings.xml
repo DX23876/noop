@@ -4790,6 +4790,9 @@
     <string name="forge_lg_off">Off</string>
     <string name="forge_lg_remove">Rimuovi</string>
     <string name="forge_lg_remove_set_q">Rimuovere questa serie?</string>
+    <string name="forge_lg_copy_down">Copia nelle serie successive</string>
+    <string name="forge_lg_added_weight_on">Registra il peso aggiunto</string>
+    <string name="forge_lg_added_weight_off">Smetti di registrare il peso aggiunto</string>
     <string name="forge_lg_rest_remaining">Recupero rimanente</string>
     <string name="forge_lg_col_previous">PRECEDENTE</string>
     <string name="forge_lg_discard_q">Scartare questo allenamento?</string>

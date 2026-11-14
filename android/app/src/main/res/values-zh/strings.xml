@@ -4792,6 +4792,9 @@
     <string name="forge_lg_off">关闭</string>
     <string name="forge_lg_remove">移除</string>
     <string name="forge_lg_remove_set_q">删除这组吗？</string>
+    <string name="forge_lg_copy_down">复制到下面的组</string>
+    <string name="forge_lg_added_weight_on">记录额外负重</string>
+    <string name="forge_lg_added_weight_off">不再记录额外负重</string>
     <string name="forge_lg_rest_remaining">剩余休息时间</string>
     <string name="forge_lg_col_previous">上次</string>
     <string name="forge_lg_discard_q">放弃这次训练？</string>

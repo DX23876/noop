@@ -4717,6 +4717,9 @@
     <string name="forge_lg_off">Выкл.</string>
     <string name="forge_lg_remove">Удалить</string>
     <string name="forge_lg_remove_set_q">Удалить этот подход?</string>
+    <string name="forge_lg_copy_down">Скопировать в следующие подходы</string>
+    <string name="forge_lg_added_weight_on">Записывать дополнительный вес</string>
+    <string name="forge_lg_added_weight_off">Не записывать дополнительный вес</string>
     <string name="forge_lg_rest_remaining">Осталось отдыха</string>
     <string name="forge_lg_col_previous">РАНЕЕ</string>
     <string name="forge_lg_discard_q">Удалить эту тренировку?</string>

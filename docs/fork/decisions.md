@@ -1219,3 +1219,29 @@ Not covered by any test that runs without hardware: the scan path itself. The ru
 ordering are tested; which strap a real radio hears first is not.
 
 Analysis migration required: no. Nothing about scoring, stored values or their meaning changes.
+
+## One Today with arrangements, not four start screens (2026-11-14)
+
+Issue #41 reported Effort as 4.9 on one start screen and 6.5 on another. The cause was not a formatting
+difference: the classic dashboard re-scores today's heart rate while the day runs, the Forge one read the
+stored row, which only moves when the nightly pass runs. Looking at why there were two screens to disagree
+turned up what the setting actually holds.
+
+`DashboardStylePrefs.STYLES` names four: Classic, Liquid, Trends, Overview. Only Classic draws a different
+screen, the old Kotlin Today. The other three are the same Forge Today with a different default order of
+sections, and **Liquid and Overview have the SAME default order** — they differ only for someone who has
+rearranged one of them.
+
+- **It is one Today with arrangements.** The setting will say so.
+- **Overview goes first.** A name with no content of its own is exactly the duplication that produces
+  "why do these two show different numbers".
+- **Classic goes after it.** Today's live-Effort move into the core (`LiveEffortScore`, read by both
+  platforms) took away the last thing it could do that the Forge Today could not. It stays until a
+  testing round passes with no report that something is missing from it.
+- **Trends stays**, as the second arrangement.
+
+Nothing is removed yet; the order is written down so the next round does not start from zero. Every style
+that remains reads its values through the same resolvers, which is the part that actually prevents the
+next #41.
+
+Analysis migration required: no. Presentation and navigation only.

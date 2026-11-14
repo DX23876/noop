@@ -34,6 +34,8 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -299,6 +301,7 @@ internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: Lis
                           previous: CoreTraining.PreviousSet?, showsPrevious: Boolean, isNext: Boolean,
                           massUnits: UnitSystem, distanceUnits: UnitSystem, effortScale: String,
                           onEffort: () -> Unit, onRemove: (() -> Unit)? = null,
+                          onCopyDown: (() -> Unit)? = null,
                           onChange: (CoreTraining.DraftSet) -> Unit) {
     val context = LocalContext.current
     val initialWeight = remember(set.id, set.weightKg, massUnits) { set.weightKg?.let { decimal(TrainingSetInput.massForInput(it, massUnits)) } ?: "" }
@@ -323,16 +326,29 @@ internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: Lis
             .then(if (isNext) Modifier.background(charge.copy(alpha = 0.10f), shape).border(1.dp, charge.copy(alpha = 0.45f), shape) else Modifier)
             .alpha(if (set.done) 0.72f else 1f).padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(LoggerColumns.spacing), verticalAlignment = Alignment.CenterVertically) {
-        // Holding the set's badge takes the set back, which is the only way Android had none of: a wearer
-        // who tapped "add set" once too often was stuck with it (#43). The badge, not the whole row,
+        // Holding the set's badge opens what can be done to the set: carry its numbers down to the sets
+        // still to come, and take the set back. Both were missing (#43). The badge, not the whole row,
         // because every other part of the row is a field someone is typing in.
+        var menu by remember(set.id) { mutableStateOf(false) }
         var removing by remember(set.id) { mutableStateOf(false) }
+        val holdable = onRemove != null || onCopyDown != null
         Box(Modifier.size(LoggerColumns.set).background(Forge.colors.inset, RoundedCornerShape(8.dp))
-                .then(if (onRemove == null) Modifier else Modifier.combinedClickable(
-                    onClick = {}, onLongClick = { removing = true })),
+                .then(if (!holdable) Modifier else Modifier.combinedClickable(
+                    onClick = {}, onLongClick = { menu = true })),
             contentAlignment = Alignment.Center) {
             Text(if (set.warmup) stringResource(R.string.forge_lg_warmup_badge) else number?.toString() ?: "—", style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                  color = if (set.warmup) ForgeTokens.StrandPalette.metricAmber.resolve() else Forge.colors.text)
+            DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                onCopyDown?.let { copy ->
+                    DropdownMenuItem(text = { Text(stringResource(R.string.forge_lg_copy_down)) },
+                                     onClick = { menu = false; copy() })
+                }
+                onRemove?.let {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.forge_lg_remove),
+                                                   color = ForgeTokens.Color.systemRed.resolve()) },
+                                     onClick = { menu = false; removing = true })
+                }
+            }
         }
         if (removing && onRemove != null) {
             AlertDialog(onDismissRequest = { removing = false },

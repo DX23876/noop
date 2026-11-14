@@ -6,14 +6,24 @@ import com.noop.ui.UnitSystem
 /** Input columns and display-unit conversions only. All training calculations stay in Swift. */
 internal enum class TrainingSetInput { Weight, Reps, Left, Right, Seconds, Distance;
     companion object {
-        fun columns(mode: String, unilateral: Boolean): List<TrainingSetInput> {
+        /**
+         * Which fields a set of this exercise records. [semantics] is the exercise's own load meaning
+         * where it has one (`ExerciseLoadSemantics`): a movement the catalogue calls bodyweight records
+         * the plate hung from it too, and without that there was nowhere to put it (#43).
+         *
+         * The twin of the core's `TrainingSetColumns.inputs`, which the Apple logger reads; the two
+         * answer the same question and a column one app draws and the other does not is a number one app
+         * cannot show.
+         */
+        fun columns(mode: String, unilateral: Boolean, semantics: String? = null): List<TrainingSetInput> {
             val reps = if (unilateral) listOf(Left, Right) else listOf(Reps)
+            val carriesLoad = semantics == "added_bodyweight" || semantics == "assistance"
             return when (mode) {
                 "weight_duration" -> listOf(Weight, Seconds)
                 "distance_weight" -> listOf(Weight, Distance)
                 "duration" -> listOf(Seconds)
                 "distance_duration" -> listOf(Distance, Seconds)
-                "bodyweight_reps", "repetitions" -> reps
+                "bodyweight_reps", "repetitions" -> if (carriesLoad) listOf(Weight) + reps else reps
                 "weight_reps", "weighted_bodyweight", "assisted_bodyweight" -> listOf(Weight) + reps
                 else -> emptyList()
             }

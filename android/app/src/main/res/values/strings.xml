@@ -4854,6 +4854,9 @@
     <string name="forge_lg_off">Off</string>
     <string name="forge_lg_remove">Remove</string>
     <string name="forge_lg_remove_set_q">Remove this set?</string>
+    <string name="forge_lg_copy_down">Copy to the sets below</string>
+    <string name="forge_lg_added_weight_on">Record added weight</string>
+    <string name="forge_lg_added_weight_off">Stop recording added weight</string>
     <string name="forge_lg_rest_remaining">Rest remaining</string>
     <string name="forge_lg_col_previous">PREVIOUS</string>
     <string name="forge_lg_discard_q">Discard this workout?</string>

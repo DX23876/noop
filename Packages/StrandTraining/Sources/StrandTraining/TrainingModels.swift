@@ -79,6 +79,44 @@ public enum ExerciseLoadSemantics: String, Codable, CaseIterable, Sendable {
 
 /// Equipment facts captured when a workout starts. Exercise definitions may evolve; performed work
 /// must retain the meaning it had on the gym floor.
+/// Which measurements a set of this exercise records, and therefore which columns a logger draws.
+///
+/// The catalogue's measurement mode decides it, EXCEPT where the exercise carries load semantics of its
+/// own: a bodyweight movement someone hangs a plate from records that added load, and without this it
+/// had nowhere to put it (issue #43). Both platforms read this one answer, because a column one app
+/// draws and the other does not is a set of numbers one app cannot show.
+public enum TrainingSetColumns {
+    public enum Input: String, Sendable, CaseIterable {
+        case weight, reps, left, right, seconds, distance
+    }
+
+    /// The mode a logger should lay a set out by: the catalogue's, unless this exercise carries a load
+    /// the catalogue did not expect. A bodyweight movement someone hangs a plate from is logged as a
+    /// weighted bodyweight movement, which is what it is.
+    public static func effectiveMode(_ mode: TrainingMeasurementMode,
+                                     semantics: ExerciseLoadSemantics?) -> TrainingMeasurementMode {
+        switch (mode, semantics) {
+        case (.bodyweightReps, .addedBodyweight), (.repetitions, .addedBodyweight): .weightedBodyweight
+        case (.bodyweightReps, .assistance), (.repetitions, .assistance): .assistedBodyweight
+        default: mode
+        }
+    }
+
+    public static func inputs(mode: TrainingMeasurementMode,
+                              semantics: ExerciseLoadSemantics? = nil,
+                              unilateral: Bool = false) -> [Input] {
+        let reps: [Input] = unilateral ? [.left, .right] : [.reps]
+        switch effectiveMode(mode, semantics: semantics) {
+        case .weightDuration: return [.weight, .seconds]
+        case .distanceWeight: return [.weight, .distance]
+        case .duration: return [.seconds]
+        case .distanceDuration: return [.distance, .seconds]
+        case .bodyweightReps, .repetitions: return reps
+        case .weightReps, .weightedBodyweight, .assistedBodyweight: return [.weight] + reps
+        }
+    }
+}
+
 public struct EquipmentSnapshot: Codable, Equatable, Sendable {
     public var equipmentIds: [String]
     public var loadSemantics: ExerciseLoadSemantics

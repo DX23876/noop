@@ -503,6 +503,24 @@ public enum CoreTraining {
         case "addSet":
             guard let exerciseUUID else { return draft }
             try? NativeWorkoutEngine.appendSet(to: exerciseUUID, in: &draft)
+        case "copySet":
+            // One set's numbers into the later open sets of the same exercise. The rule is the engine's,
+            // so a set the Apple logger leaves alone is left alone here too.
+            guard let exerciseUUID, let setId = (args["set"] as? String).flatMap(UUID.init(uuidString:))
+            else { return draft }
+            try? NativeWorkoutEngine.copySetToOpenSets(setId, from: exerciseUUID, in: &draft)
+        case "loadSemantics":
+            // Added weight on a movement the catalogue calls bodyweight: the exercise carries the
+            // semantics, and the column rule reads them (`TrainingSetColumns`).
+            guard let exerciseUUID, let e = draft.exercises.firstIndex(where: { $0.id == exerciseUUID })
+            else { return draft }
+            let raw = args["semantics"] as? String
+            let semantics = raw.flatMap(ExerciseLoadSemantics.init(rawValue:))
+            let existing = draft.exercises[e].equipmentSnapshot
+            draft.exercises[e].equipmentSnapshot = EquipmentSnapshot(
+                equipmentIds: existing?.equipmentIds ?? [],
+                loadSemantics: semantics ?? .bodyweightOnly,
+                implementCount: existing?.implementCount, barWeightKg: existing?.barWeightKg)
         case "removeSet":
             // A set added by mistake, taken back. The rule is the engine's, so a set the Apple app refuses
             // to remove is refused here too (`NativeWorkoutEngine.canRemoveSet`).

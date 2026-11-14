@@ -1085,7 +1085,11 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
         val definition = definitions[exercise.exerciseId]
         val title = definition?.title ?: stringResource(R.string.forge_report_exercise)
         val mode = definition?.mode ?: "weight_reps"
-        val columns = TrainingSetInput.columns(mode, definition?.unilateral == true)
+        val columns = TrainingSetInput.columns(mode, definition?.unilateral == true, exercise.loadSemantics)
+        // A movement the catalogue calls bodyweight can still carry a plate; the switch sits in this
+        // exercise's own menu and the column above follows it (#43).
+        val bodyweight = mode == "bodyweight_reps" || mode == "repetitions"
+        val carriesWeight = exercise.loadSemantics == "added_bodyweight"
         val previousColumn = showsPreviousColumn(mode)
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1102,6 +1106,16 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                             if (mode == "weight_reps") DropdownMenuItem(text = { Text(stringResource(R.string.forge_pl_title)) }, onClick = {
                                 menu = false; plateTarget = exercise.sets.firstOrNull { !it.warmup }?.weightKg ?: 60.0
                             })
+                            if (bodyweight) DropdownMenuItem(
+                                text = { Text(stringResource(if (carriesWeight) R.string.forge_lg_added_weight_off
+                                                             else R.string.forge_lg_added_weight_on)) },
+                                onClick = {
+                                    menu = false
+                                    change {
+                                        CoreTraining.loadSemantics(exercise.id,
+                                            if (carriesWeight) "bodyweight_only" else "added_bodyweight")
+                                    }
+                                })
                             DropdownMenuItem(text = { Text(stringResource(R.string.forge_lg_remove), color = ForgeTokens.Color.systemRed.resolve()) },
                                              onClick = { menu = false; change { CoreTraining.removeExercise(exercise.id) } })
                         }
@@ -1134,6 +1148,11 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                                  // silent and this gate would have to ask the core instead of guessing.
                                  onRemove = if (exercise.sets.size > 1) {
                                      { change { CoreTraining.removeSet(exercise.id, set.id) } }
+                                 } else null,
+                                 // Offered only where there is a later open set to carry the numbers
+                                 // into, so the entry never appears with nothing to do.
+                                 onCopyDown = if (exercise.sets.drop(i + 1).any { !it.done && it.warmup == set.warmup }) {
+                                     { change { CoreTraining.copySet(exercise.id, set.id) } }
                                  } else null) { updated ->
                         change { CoreTraining.setValues(exercise.id, updated) }
                         if (!set.done && updated.done) startRest(exercise, set)

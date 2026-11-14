@@ -4814,6 +4814,9 @@
     <string name="forge_lg_off">Desligado</string>
     <string name="forge_lg_remove">Remover</string>
     <string name="forge_lg_remove_set_q">Remover esta série?</string>
+    <string name="forge_lg_copy_down">Copiar para as séries seguintes</string>
+    <string name="forge_lg_added_weight_on">Registar peso adicional</string>
+    <string name="forge_lg_added_weight_off">Deixar de registar peso adicional</string>
     <string name="forge_lg_rest_remaining">Descanso restante</string>
     <string name="forge_lg_col_previous">ANTERIOR</string>
     <string name="forge_lg_discard_q">Descartar este treino?</string>

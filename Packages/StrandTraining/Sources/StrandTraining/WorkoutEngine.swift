@@ -134,7 +134,44 @@ public enum NativeWorkoutEngine {
         touch(&draft)
     }
 
-    /// Adds one technique segment to a work set, right after the set and the segments it already has, so
+    /// Copies one set's measurements into every LATER set of the same exercise that is still open.
+    ///
+    /// Deliberately an action the wearer asks for, not something that happens while they type. Writing
+    /// the first set through to the others automatically would overwrite what somebody set on purpose,
+    /// and a pyramid or a drop set is exactly that. A set that is already ticked off is an account of
+    /// what was lifted, so it is never rewritten either; nor are warm-ups, which are not the working
+    /// weight, nor the segments hanging off a cluster, which take their numbers from their origin set.
+    ///
+    /// Only the measurements travel. Completion, effort and the phase belong to the set that performed
+    /// them (issue #43).
+    @discardableResult
+    public static func copySetToOpenSets(_ setId: UUID, from exerciseId: UUID,
+                                         in draft: inout WorkoutDraft) throws -> Int {
+        guard let e = draft.exercises.firstIndex(where: { $0.id == exerciseId }) else {
+            throw WorkoutMutationError.exerciseNotFound
+        }
+        guard let index = draft.exercises[e].sets.firstIndex(where: { $0.id == setId }) else {
+            throw WorkoutMutationError.invalidPosition
+        }
+        let source = draft.exercises[e].sets[index]
+        var copied = 0
+        for i in draft.exercises[e].sets.indices where i > index {
+            let target = draft.exercises[e].sets[i]
+            guard !target.isCompleted, target.phase == source.phase, target.parentSetId == nil else { continue }
+            draft.exercises[e].sets[i].weightKg = source.weightKg
+            draft.exercises[e].sets[i].reps = source.reps
+            draft.exercises[e].sets[i].leftReps = source.leftReps
+            draft.exercises[e].sets[i].rightReps = source.rightReps
+            draft.exercises[e].sets[i].targetDurationS = source.targetDurationS
+            draft.exercises[e].sets[i].durationS = source.durationS
+            draft.exercises[e].sets[i].distanceM = source.distanceM
+            copied += 1
+        }
+        if copied > 0 { touch(&draft) }
+        return copied
+    }
+
+    /// Adds one technique segment to a work set, right after the set and the segments it already has, so    /// Adds one technique segment to a work set, right after the set and the segments it already has, so
     /// the drop follows the set it drops from. The origin and every segment share one cluster;
     /// analytics can therefore distinguish one logical effort from several recorded rows.
     public static func appendSegment(to originSetId: UUID, intensifier: TrainingSetIntensifier,

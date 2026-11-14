@@ -47,7 +47,10 @@ object CoreTraining {
                         val durationS: Int? = null, val distanceM: Double? = null,
                         val effortScale: String? = null, val effortValue: Double? = null)
     data class DraftExercise(val id: String, val exerciseId: String, val restSeconds: Int, val sets: List<DraftSet>,
-                             val warmupRestSeconds: Int = 60, val note: String? = null)
+                             val warmupRestSeconds: Int = 60, val note: String? = null,
+                             /** What this exercise's load means here (`ExerciseLoadSemantics`), where it
+                              *  differs from what the catalogue's measurement mode implies. */
+                             val loadSemantics: String? = null)
     data class Draft(val id: String, val title: String, val startedAt: Long, val exercises: List<DraftExercise>,
                      val activeExerciseId: String? = null, val note: String? = null, val paused: Boolean = false) {
         /** The exercise the focus view shows (`NativeWorkoutSessionModel.activeExerciseIndex`): the cursor's, else the first. */
@@ -80,6 +83,24 @@ object CoreTraining {
     fun removeSet(exercise: String, set: String): Draft? =
         call("training.changeDraft", JSONObject().put("change", "removeSet")
             .put("exercise", exercise).put("set", set))?.let(::parseDraft)
+
+    /**
+     * One set's numbers into the later sets of the same exercise that are still open
+     * (`NativeWorkoutEngine.copySetToOpenSets`). The core leaves ticked sets, warm-ups and cluster
+     * segments alone, and answers with the draft either way.
+     */
+    fun copySet(exercise: String, set: String): Draft? =
+        call("training.changeDraft", JSONObject().put("change", "copySet")
+            .put("exercise", exercise).put("set", set))?.let(::parseDraft)
+
+    /**
+     * What an exercise's load means in this workout, for a movement the catalogue calls bodyweight:
+     * `added_bodyweight` records the plate hung from it, `bodyweight_only` goes back to reps alone. The
+     * column rule reads it (`TrainingSetColumns`), so both apps show the same fields.
+     */
+    fun loadSemantics(exercise: String, semantics: String): Draft? =
+        call("training.changeDraft", JSONObject().put("change", "loadSemantics")
+            .put("exercise", exercise).put("semantics", semantics))?.let(::parseDraft)
 
     /** The set's effort rating, `rir` or `rpe` (`NativeWorkoutSessionModel.setEffort`); a null value clears it. */
     fun setEffort(exercise: String, set: String, scale: String, value: Double?): Draft? =
@@ -297,7 +318,8 @@ object CoreTraining {
                                  s.optIntOrNull("durationS"), s.optDoubleOrNull("distanceM"),
                                  s.optJSONObject("effort")?.optStringOrNull("scale"),
                                  s.optJSONObject("effort")?.optDoubleOrNull("value"))
-                    }, e.optInt("warmupRestSeconds", 60), e.optStringOrNull("note"))
+                    }, e.optInt("warmupRestSeconds", 60), e.optStringOrNull("note"),
+                    e.optJSONObject("equipmentSnapshot")?.optStringOrNull("loadSemantics"))
             }, o.optJSONObject("cursor")?.optStringOrNull("exerciseId"), o.optStringOrNull("note"),
             o.optString("state", "active") != "active")
     }

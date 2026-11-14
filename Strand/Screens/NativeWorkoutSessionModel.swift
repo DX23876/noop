@@ -523,6 +523,46 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
         touchAndPersist()
     }
 
+    /// Whether this set has a later open set of its own kind to carry its numbers into.
+    func canCopySetDown(exerciseIndex: Int, setIndex: Int) -> Bool {
+        guard draft.exercises.indices.contains(exerciseIndex),
+              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return false }
+        let sets = draft.exercises[exerciseIndex].sets
+        let source = sets[setIndex]
+        return sets.indices.contains { $0 > setIndex && !sets[$0].isCompleted
+            && sets[$0].phase == source.phase && sets[$0].parentSetId == nil }
+    }
+
+    /// Carry one set's measurements into the later sets that are still open. The rule is the engine's
+    /// (`NativeWorkoutEngine.copySetToOpenSets`), so Android fills exactly the same sets (issue #43).
+    func copySetDown(exerciseIndex: Int, setIndex: Int) {
+        guard draft.exercises.indices.contains(exerciseIndex),
+              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
+        let exercise = draft.exercises[exerciseIndex]
+        guard let copied = try? NativeWorkoutEngine.copySetToOpenSets(exercise.sets[setIndex].id,
+                                                                      from: exercise.id, in: &draft),
+              copied > 0 else { return }
+        touchAndPersist()
+    }
+
+    /// Whether this exercise records an added load even though the catalogue calls it bodyweight.
+    func recordsAddedWeight(exerciseIndex: Int) -> Bool {
+        guard draft.exercises.indices.contains(exerciseIndex) else { return false }
+        return draft.exercises[exerciseIndex].equipmentSnapshot?.loadSemantics == .addedBodyweight
+    }
+
+    /// Record, or stop recording, the weight hung from a bodyweight movement. The column rule reads the
+    /// exercise's semantics (`TrainingSetColumns`), so the weight field follows this on both platforms.
+    func setRecordsAddedWeight(exerciseIndex: Int, _ on: Bool) {
+        guard draft.exercises.indices.contains(exerciseIndex) else { return }
+        let existing = draft.exercises[exerciseIndex].equipmentSnapshot
+        draft.exercises[exerciseIndex].equipmentSnapshot = EquipmentSnapshot(
+            equipmentIds: existing?.equipmentIds ?? [],
+            loadSemantics: on ? .addedBodyweight : .bodyweightOnly,
+            implementCount: existing?.implementCount, barWeightKg: existing?.barWeightKg)
+        touchAndPersist()
+    }
+
     func duplicateSet(exerciseIndex: Int, setIndex: Int) {
         guard draft.exercises.indices.contains(exerciseIndex),
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }

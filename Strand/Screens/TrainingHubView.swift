@@ -1892,6 +1892,14 @@ struct NativeWorkoutLoggerView: View {
                         if exercise.sets.contains(where: { !$0.isCompleted }) {
                             Button("Skip remaining sets") { model.skipExercise(exercise.id) }
                         }
+                        // A movement the catalogue calls bodyweight can still carry a plate; the weight
+                        // field follows this, through the shared column rule (issue #43).
+                        if definition?.mode == .bodyweightReps || definition?.mode == .repetitions {
+                            let on = model.recordsAddedWeight(exerciseIndex: exerciseIndex)
+                            Button(on ? "Stop recording added weight" : "Record added weight") {
+                                model.setRecordsAddedWeight(exerciseIndex: exerciseIndex, !on)
+                            }
+                        }
                         Button("Change") { replacementExerciseId = exercise.id; showingExercises = true }
                         Button("Remove", role: .destructive) { model.removeExercise(exercise.id) }
                     }
@@ -1917,7 +1925,9 @@ struct NativeWorkoutLoggerView: View {
                     Text(note).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary).lineLimit(2)
                 }
                 exerciseChips(exercise, title: definition?.title ?? exercise.exerciseId)
-                setTable(exerciseIndex, exercise, mode: definition?.mode ?? .weightReps,
+                setTable(exerciseIndex, exercise,
+                         mode: TrainingSetColumns.effectiveMode(definition?.mode ?? .weightReps,
+                                                                semantics: exercise.equipmentSnapshot?.loadSemantics),
                          unilateral: definition?.isUnilateral == true)
                 setCountButtons(exercise)
             }
@@ -1956,7 +1966,8 @@ struct NativeWorkoutLoggerView: View {
                         .font(StrandFont.caption.monospacedDigit()).foregroundStyle(StrandPalette.textSecondary)
                 }
                 if let first = pending.first {
-                    let mode = definition?.mode ?? .weightReps
+                    let mode = TrainingSetColumns.effectiveMode(definition?.mode ?? .weightReps,
+                                                                semantics: exercise.equipmentSnapshot?.loadSemantics)
                     let unilateral = definition?.isUnilateral == true
                     if stacksReps(mode, unilateral: unilateral) {
                         ViewThatFits(in: .horizontal) {
@@ -2544,6 +2555,10 @@ struct NativeWorkoutLoggerView: View {
             Button("To failure") { model.setKind(exerciseIndex: exerciseIndex, setIndex: setIndex,
                                                  phase: .work, intensifier: .failure) }
             Divider()
+            Button("Copy to the sets below") {
+                model.copySetDown(exerciseIndex: exerciseIndex, setIndex: setIndex)
+            }
+            .disabled(!model.canCopySetDown(exerciseIndex: exerciseIndex, setIndex: setIndex))
             Button("Duplicate set") {
                 model.duplicateSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
             }
