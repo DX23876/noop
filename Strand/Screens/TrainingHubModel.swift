@@ -291,6 +291,17 @@ final class TrainingHubModel: ObservableObject {
         }
     }
 
+    /// What a plan amounts to in a week, measured against the wearer's own recent sessions.
+    ///
+    /// One place computes this, so the wizard, the plan page and anything added later cannot show
+    /// two different answers for the same plan.
+    func review(of program: TrainingProgram, routines: [TrainingRoutine],
+                askedMinutesPerSession: Int? = nil) -> PlanReview {
+        PlanReview.evaluate(program: program, routines: routines, exercises: exerciseById,
+                            askedMinutesPerSession: askedMinutesPerSession,
+                            history: PlanHistory.from(workouts: workouts, exercises: exerciseById))
+    }
+
     /// The weekdays a routine is scheduled on, read from the plan it belongs to rather than from the
     /// week being followed. A resting plan's routine has days too, and they are its own.
     func weekdays(of routine: TrainingRoutine) -> Set<TrainingWeekday> {

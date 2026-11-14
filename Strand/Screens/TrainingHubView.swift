@@ -3781,7 +3781,7 @@ private struct RoutineEditorView: View {
             } footer: {
                 Text("Other routines planned on the same days stay in place. A one-day change in the week view still takes priority.")
             }
-            Section("Exercises") {
+            Section {
                 ForEach(Array(routine.exercises.indices), id: \.self) { index in
                     NavigationLink {
                         RoutineExerciseEditor(entry: $routine.exercises[index],
@@ -3814,6 +3814,14 @@ private struct RoutineEditorView: View {
                 .onDelete { routine.exercises.remove(atOffsets: $0); cleanSupersets() }
                 .onMove { RoutineEditing.move(&routine.exercises, from: $0, to: $1) }
                 Button("Add exercise") { showingExercises = true }
+            } header: {
+                Text("Exercises")
+            } footer: {
+                // The same estimator the plan's own readout and the builder's trim use, so the
+                // figure here is the figure everywhere.
+                if !routine.exercises.isEmpty {
+                    Text("About \(SessionEstimate.minutes(routine)) minutes, with the rests as set.")
+                }
             }
             Section("Progression") {
                 Picker("Method", selection: $routine.defaultProgression.policy) {

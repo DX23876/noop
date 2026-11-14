@@ -137,6 +137,14 @@ struct TrainingPlanBuilderView: View {
             }
         }
         Section {
+            PlanReviewCard(review: model.review(of: built.program, routines: built.routines,
+                                                askedMinutesPerSession: minutes),
+                           routineTitles: Dictionary(built.routines.map { ($0.id, $0.title) },
+                                                     uniquingKeysWith: { first, _ in first }))
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+        }
+        Section {
             Button("Save and follow this plan") { save(follow: true) }.disabled(saving)
             Button("Start over") { self.built = nil }
         } footer: {

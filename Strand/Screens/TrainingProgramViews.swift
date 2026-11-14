@@ -156,6 +156,11 @@ struct TrainingProgramDetailView: View {
                 stateCard
                 if let state = blockState { blockCard(state) }
                 targetsCard
+                if !routines.isEmpty {
+                    PlanReviewCard(review: model.review(of: current, routines: routines),
+                                   routineTitles: Dictionary(routines.map { ($0.id, $0.title) },
+                                                             uniquingKeysWith: { first, _ in first }))
+                }
                 routinesCard
                 if !finishedRuns.isEmpty { historyCard }
                 actionsCard
@@ -458,5 +463,108 @@ struct KeepSessionAsRoutineCard: View {
                 state = .failed
             }
         }
+    }
+}
+
+/// What a plan amounts to in a week: sets per region, how long each session takes, and what stood
+/// out about it.
+///
+/// Every sentence here is written from the figures `PlanReview` carried, so the screen says what was
+/// compared rather than a verdict nobody can check. It warns and never blocks: a big step up can be
+/// entirely deliberate, and the wearer decides.
+struct PlanReviewCard: View {
+    let review: PlanReview
+    /// Routine titles, for a finding that names a session.
+    let routineTitles: [UUID: String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            SectionHeader("A week of this plan", overline: "Sets and time")
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    ForEach(regions, id: \.0) { region, sets in
+                        HStack {
+                            Text(Self.regionName(region)).font(StrandFont.subhead)
+                            Spacer()
+                            Text("\(sets.formatted(.number.precision(.fractionLength(0...1)))) sets")
+                                .font(StrandFont.subhead.monospacedDigit())
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                    if !review.sessionMinutes.isEmpty {
+                        Divider().overlay(StrandPalette.hairline)
+                        HStack {
+                            Text("Time a session").font(StrandFont.subhead)
+                            Spacer()
+                            Text(timeRange).font(StrandFont.subhead.monospacedDigit())
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    }
+                }
+            }
+            if !review.findings.isEmpty {
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        ForEach(Array(review.findings.enumerated()), id: \.offset) { _, finding in
+                            Label {
+                                Text(sentence(finding))
+                                    .font(StrandFont.subhead)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } icon: {
+                                Image(systemName: "info.circle")
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Regions with sets in them, most first, so the week reads at a glance.
+    private var regions: [(TrainingBodyRegion, Double)] {
+        review.weeklySetsByRegion
+            .filter { $0.value > 0 }
+            .sorted { ($0.value, $1.key.rawValue) > ($1.value, $0.key.rawValue) }
+            .map { ($0.key, $0.value) }
+    }
+
+    private var timeRange: String {
+        let minutes = review.sessionMinutes.values.sorted()
+        guard let low = minutes.first, let high = minutes.last else { return "" }
+        return low == high ? String(localized: "\(low) min")
+                           : String(localized: "\(low) to \(high) min")
+    }
+
+    private func sentence(_ finding: PlanReview.Finding) -> String {
+        switch finding {
+        case .regionUntrained(let region):
+            return String(localized: "Nothing for \(Self.regionName(region)) this week.")
+        case .regionAboveUsual(let region, let weekly, let usual):
+            return String(localized: "\(Self.regionName(region)): \(Int(weekly.rounded())) sets a week, against your own recent average of \(Int(usual.rounded())). That is a big step up, which is fine if you meant it.")
+        case .heavyDaysBackToBack(let first, let second):
+            return String(localized: "\(Self.dayName(first)) and \(Self.dayName(second)) both lean on your legs.")
+        case .sessionLongerThanAsked(let id, let minutes, let asked):
+            let title = routineTitles[id] ?? String(localized: "One session")
+            return String(localized: "\(title) comes to about \(minutes) minutes, more than the \(asked) you asked for.")
+        }
+    }
+
+    static func regionName(_ region: TrainingBodyRegion) -> String {
+        switch region {
+        case .chest: String(localized: "Chest")
+        case .back: String(localized: "Back")
+        case .shoulders: String(localized: "Shoulders")
+        case .arms: String(localized: "Arms")
+        case .core: String(localized: "Core")
+        case .legs: String(localized: "Legs")
+        case .other: String(localized: "Other")
+        }
+    }
+
+    static func dayName(_ day: TrainingWeekday) -> String {
+        // TrainingWeekday counts Monday as 1; the calendar's symbols start on Sunday.
+        Calendar.autoupdatingCurrent.standaloneWeekdaySymbols[day.rawValue % 7]
     }
 }
