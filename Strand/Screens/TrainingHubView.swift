@@ -396,8 +396,11 @@ struct TrainingHubView: View {
                 Text(program.displayName)
                     .font(StrandFont.subhead.weight(.semibold))
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text(planSubtitle(program))
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                let subtitle = planSubtitle(program)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                }
             }
             Spacer(minLength: 8)
             if program.isActive {
@@ -422,7 +425,10 @@ struct TrainingHubView: View {
         } else if let block = program.block {
             parts.append(String(localized: "\(block.weeks) week block"))
         }
-        return parts.isEmpty ? String(localized: "Resting") : parts.joined(separator: " · ")
+        // A plan that IS being followed never reads "Resting": the badge beside it says the opposite,
+        // and one of the two would be wrong.
+        if parts.isEmpty { return program.isActive ? "" : String(localized: "Resting") }
+        return parts.joined(separator: " · ")
     }
 
     private var routinesCard: some View {

@@ -35,6 +35,24 @@ public enum BlockPrescription {
         return out
     }
 
+    /// What a block does to a weight the session's prefill supplied, rather than one the plan carries.
+    ///
+    /// A plan the builder or a ready-made template wrote carries no target weights at all, so the
+    /// week's step and a lighter week had nothing to act on: both were silently no-ops for exactly
+    /// the plans the app creates. This is the other half, applied to the weight the wearer last
+    /// lifted, and the step is counted from the week THAT session belonged to, so a week's step is
+    /// added once rather than once per week since the block began.
+    ///
+    /// - Parameter weeksSince: block weeks between the session the weight came from and this one.
+    public static func prefilledWeight(_ weight: Double, weeksSince: Int,
+                                       policy: BlockProgressionPolicy, loadFactor: Double,
+                                       weightStepKg: Double) -> Double {
+        let stepped = policy == .weeklyLoad
+            ? weight + Double(max(0, weeksSince)) * max(0.5, weightStepKg)
+            : weight
+        return stepped * min(1, max(0.5, loadFactor))
+    }
+
     /// The week's step applied to one exercise's sets.
     static func stepped(_ sets: [RoutineSetPlan], weeks: Int, policy: BlockProgressionPolicy,
                         weightStepKg: Double) -> [RoutineSetPlan] {

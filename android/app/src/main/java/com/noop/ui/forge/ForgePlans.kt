@@ -49,10 +49,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CorePlans
+import com.noop.ui.NoopPrefs
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
+
+private const val AVAILABLE_EQUIPMENT = "training.availableEquipment"
+private const val WEIGHT_INCREMENT = "training.weightIncrementKg"
 
 /**
  * Training plans on Android, feature for feature with the Apple app's plan list, plan page, builder and
@@ -106,7 +110,10 @@ private fun PlanRow(plan: CorePlans.Plan, onClick: () -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(plan.title.ifEmpty { stringResource(R.string.forge_plan_unnamed) },
                  style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
-            Text(planSubtitle(plan), style = Forge.type.caption, color = Forge.colors.textSecondary)
+            val subtitle = planSubtitle(plan)
+            if (subtitle.isNotEmpty()) {
+                Text(subtitle, style = Forge.type.caption, color = Forge.colors.textSecondary)
+            }
         }
         if (plan.isActive) {
             Text(stringResource(R.string.forge_plan_following), style = Forge.type.caption,
@@ -127,7 +134,10 @@ private fun planSubtitle(plan: CorePlans.Plan): String {
             else -> stringResource(R.string.forge_plan_block_weeks, block.weeks)
         }
     }
-    return if (parts.isEmpty()) stringResource(R.string.forge_plan_resting) else parts.joinToString(" · ")
+    // A plan that IS being followed never reads "Resting": the badge beside it says the opposite,
+    // and one of the two would be wrong.
+    if (parts.isEmpty()) return if (plan.isActive) "" else stringResource(R.string.forge_plan_resting)
+    return parts.joinToString(" · ")
 }
 
 // MARK: - One plan
@@ -431,6 +441,18 @@ private fun formatSets(value: Double): String =
 internal fun ForgePlanBuilder(onBack: () -> Unit, onSaved: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // The same two settings the iPhone's wizard reads, so the same answers give the same plan: the
+    // equipment the exercise library already knows about, and the wearer's own weight step under the
+    // key Apple writes. Android has no screen for the step yet, so there it falls back to 2.5 kg; the
+    // key is read rather than the number hard-coded, so the day it gains one, this follows.
+    val prefs = remember(context) { NoopPrefs.of(context) }
+    val equipment = remember(prefs) {
+        prefs.getString(AVAILABLE_EQUIPMENT, "").orEmpty()
+            .lineSequence().filter { it.isNotBlank() }.toList()
+    }
+    val weightStepKg = remember(prefs) {
+        prefs.getString(WEIGHT_INCREMENT, null)?.toDoubleOrNull() ?: 2.5
+    }
     var days by remember { mutableStateOf(3) }
     var minutes by remember { mutableStateOf(60) }
     var experience by remember { mutableStateOf("beginner") }
@@ -446,8 +468,8 @@ internal fun ForgePlanBuilder(onBack: () -> Unit, onSaved: (String) -> Unit) {
         scope.launch {
             busy = true
             val result = core(context) {
-                CorePlans.build(days, equipment = emptyList(), experience = experience,
-                                emphasis = emphasis, minutes = minutes, weightStepKg = 2.5,
+                CorePlans.build(days, equipment = equipment, experience = experience,
+                                emphasis = emphasis, minutes = minutes, weightStepKg = weightStepKg,
                                 blockWeeks = if (hasBlock) blockWeeks else null)
             }
             busy = false
@@ -460,8 +482,8 @@ internal fun ForgePlanBuilder(onBack: () -> Unit, onSaved: (String) -> Unit) {
         scope.launch {
             busy = true
             val result = core(context) {
-                CorePlans.build(days, equipment = emptyList(), experience = experience,
-                                emphasis = emphasis, minutes = minutes, weightStepKg = 2.5,
+                CorePlans.build(days, equipment = equipment, experience = experience,
+                                emphasis = emphasis, minutes = minutes, weightStepKg = weightStepKg,
                                 blockWeeks = if (hasBlock) blockWeeks else null,
                                 save = true, activate = follow)
             }
@@ -553,6 +575,9 @@ internal fun ForgePlanBuilder(onBack: () -> Unit, onSaved: (String) -> Unit) {
 internal fun ForgePlanTemplates(onBack: () -> Unit, onSaved: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val weightStepKg = remember(context) {
+        NoopPrefs.of(context).getString(WEIGHT_INCREMENT, null)?.toDoubleOrNull() ?: 2.5
+    }
     var templates by remember { mutableStateOf<List<CorePlans.Template>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { templates = core(context) { CorePlans.snapshot() }?.templates.orEmpty() }
@@ -563,7 +588,7 @@ internal fun ForgePlanTemplates(onBack: () -> Unit, onSaved: (String) -> Unit) {
             ForgeCard(Modifier.fillMaxWidth().clickable(enabled = !busy) {
                 scope.launch {
                     busy = true
-                    val id = core(context) { CorePlans.useTemplate(template.id, 2.5) }
+                    val id = core(context) { CorePlans.useTemplate(template.id, weightStepKg) }
                     busy = false
                     if (id != null) onSaved(id)
                 }

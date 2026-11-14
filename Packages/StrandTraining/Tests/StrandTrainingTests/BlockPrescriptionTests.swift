@@ -135,3 +135,34 @@ final class BlockPrescriptionTests: XCTestCase {
         XCTAssertEqual(work(applied).first?.targetDurationS, 30)
     }
 }
+
+extension BlockPrescriptionTests {
+
+    /// The other half of a block: a plan the builder wrote carries no weights, so the step and a
+    /// lighter week have to act on what the prefill supplies instead.
+    func testAPrefilledWeightIsSteppedFromTheWeekItCameFrom() {
+        // Last lifted in week three, training week four: one step, not three.
+        XCTAssertEqual(BlockPrescription.prefilledWeight(100, weeksSince: 1, policy: .weeklyLoad,
+                                                         loadFactor: 1, weightStepKg: 2.5), 102.5)
+        XCTAssertEqual(BlockPrescription.prefilledWeight(100, weeksSince: 3, policy: .weeklyLoad,
+                                                         loadFactor: 1, weightStepKg: 2.5), 107.5)
+        // Same week: nothing is added, so opening the session twice does not walk the weight up.
+        XCTAssertEqual(BlockPrescription.prefilledWeight(100, weeksSince: 0, policy: .weeklyLoad,
+                                                         loadFactor: 1, weightStepKg: 2.5), 100)
+    }
+
+    func testAPrefilledWeightTakesTheLighterWeeksShare() {
+        XCTAssertEqual(BlockPrescription.prefilledWeight(100, weeksSince: 0, policy: .none,
+                                                         loadFactor: 0.9, weightStepKg: 2.5), 90)
+        // The week's step first, the lighter week on top of it.
+        XCTAssertEqual(BlockPrescription.prefilledWeight(100, weeksSince: 2, policy: .weeklyLoad,
+                                                         loadFactor: 0.9, weightStepKg: 2.5), 94.5)
+    }
+
+    func testAPlanThatIsNotSteppingLeavesAPrefilledWeightAlone() {
+        XCTAssertEqual(BlockPrescription.prefilledWeight(80, weeksSince: 5, policy: .weeklyVolume,
+                                                         loadFactor: 1, weightStepKg: 2.5), 80)
+        XCTAssertEqual(BlockPrescription.prefilledWeight(80, weeksSince: 5, policy: .none,
+                                                         loadFactor: 1, weightStepKg: 2.5), 80)
+    }
+}

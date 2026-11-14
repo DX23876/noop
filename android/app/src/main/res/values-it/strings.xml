@@ -6777,7 +6777,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <!-- Training plans: the plan list, a plan's page, the builder and the ready-made plans. -->
     <string name="forge_plan_rows_sub">Più piani, uno alla volta</string>
     <string name="forge_plan_plans">Piani</string>
-    <string name="forge_plan_unnamed">Piano senza nome</string>
+    <string name="forge_plan_unnamed">Il mio piano</string>
     <string name="forge_plan_following">Attivo</string>
     <string name="forge_plan_resting">In pausa</string>
     <string name="forge_plan_days_a_week">%1$d giorni a settimana</string>

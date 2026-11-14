@@ -103,10 +103,26 @@ public enum TrainingBlockState {
         return Int((end.timeIntervalSince(start) / 86_400).rounded())
     }
 
-    static func date(_ key: String) -> Date? { formatter.date(from: key) }
+    public static func date(_ key: String) -> Date? { formatter.date(from: key) }
 
-    static func dayKey(_ date: Date) -> String { formatter.string(from: date) }
+    /// The LOCAL day key a block counts in, the same shape `Repository.localDayKey` writes and
+    /// Android's `LocalDate.now()` sends. Public so a store write stamps the day the resolver reads
+    /// rather than forming it a second time somewhere else.
+    ///
+    /// Forming the key is local; the arithmetic below is not (see `dayDifference`).
+    public static func dayKey(_ date: Date) -> String { localFormatter.string(from: date) }
 
+    /// Keys are formed in the device's own day, which is what every caller supplies.
+    private static let localFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// Reading a key back is anchored in UTC so that counting days between two of them cannot gain or
+    /// lose one over a clock change.
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)

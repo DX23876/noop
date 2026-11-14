@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 import StrandTraining
 import WhoopStore
 
@@ -319,13 +320,9 @@ public enum CorePlans {
         var resting = program
         resting.isActive = false
         resting.block?.startedOn = nil
-        guard (try? await store.upsertTrainingProgram(resting)) != nil else { return nil }
-        for routine in routines {
-            var placed = routine
-            placed.programId = program.id
-            guard (try? await store.upsertTrainingRoutine(placed)) != nil else { return nil }
-        }
-        try? await store.replaceTrainingSchedule(program.schedule, programId: program.id)
+        // One transaction in the right order: a scheduled day points at a routine, so the week
+        // cannot be written before the routines are there.
+        guard (try? await store.upsertTrainingPlan(resting, routines: routines)) != nil else { return nil }
         if activate, let day {
             try? await store.activateTrainingProgram(id: program.id, day: day,
                                                      now: Int(Date().timeIntervalSince1970))
@@ -399,7 +396,9 @@ public enum CorePlans {
     /// Keeps a session that has been done as a routine, in the plan the wearer picked.
     public static func routineFromWorkout(store: WhoopStore, workoutId: String, title: String,
                                           planId: String?) async -> Bool {
-        guard let id = UUID(uuidString: workoutId) else { return false }
+        // Android hands over the id its session page carries, which for a NOOP session is the
+        // projected, prefixed one.
+        guard let id = NativeTrainingProjection.nativeWorkoutId(workoutId) else { return false }
         let now = Int(Date().timeIntervalSince1970)
         let workouts = (try? await store.nativeWorkouts(from: 0, to: now + 86_400)) ?? []
         guard let workout = workouts.first(where: { $0.id == id }),
@@ -513,12 +512,12 @@ extension CorePlans {
         let exercises = Dictionary(((try? await store.trainingExercises()) ?? []).map { ($0.id, $0) },
                                    uniquingKeysWith: { first, _ in first })
 
-        // Creating one is its own case: there is no routine to read yet.
+        // Creating one is its own case: there is no routine to read yet. `createRoutine` is what a
+        // screen calls when it needs the new id back, which is how a routine being written can take
+        // exercises before it is saved.
         if op == "create" {
-            let plan = (args["planId"] as? String).flatMap(UUID.init(uuidString:))
-            let routine = TrainingRoutine(title: args["title"] as? String ?? "", programId: plan,
-                                          createdAt: now, updatedAt: now)
-            return (try? await store.upsertTrainingRoutine(routine)) != nil
+            return await createRoutine(store: store, title: args["title"] as? String ?? "",
+                                       planId: args["planId"] as? String) != nil
         }
 
         guard let uuid = UUID(uuidString: routineId),
@@ -629,6 +628,17 @@ extension CorePlans {
         }
         routine.updatedAt = now
         return (try? await store.upsertTrainingRoutine(routine)) != nil
+    }
+
+    /// Creates a routine and hands back its id, so a screen can keep editing the thing it just made.
+    public static func createRoutine(store: WhoopStore, title: String,
+                                     planId: String?) async -> String? {
+        let now = Int(Date().timeIntervalSince1970)
+        let routine = TrainingRoutine(title: title,
+                                      programId: planId.flatMap(UUID.init(uuidString:)),
+                                      createdAt: now, updatedAt: now)
+        guard (try? await store.upsertTrainingRoutine(routine)) != nil else { return nil }
+        return routine.id.uuidString
     }
 
     /// A superset group with only one exercise left in it is not a superset.

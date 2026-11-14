@@ -967,6 +967,16 @@ final class Repository: ObservableObject {
         try await store.upsertTrainingProgram(program)
     }
 
+    /// A whole plan at once: the plan, its routines, then its week, in one transaction.
+    ///
+    /// The order matters and the store owns it: a scheduled day points at a routine, so writing the
+    /// week before the routines exist loses the plan.
+    func saveNativeTrainingPlan(_ program: TrainingProgram,
+                                routines: [TrainingRoutine]) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.upsertTrainingPlan(program, routines: routines)
+    }
+
     func deleteNativeTrainingProgram(_ id: UUID) async throws {
         guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
         try await store.deleteTrainingProgram(id: id)

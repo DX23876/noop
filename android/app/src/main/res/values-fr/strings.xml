@@ -6808,7 +6808,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <!-- Training plans: the plan list, a plan's page, the builder and the ready-made plans. -->
     <string name="forge_plan_rows_sub">Plusieurs programmes, un à la fois</string>
     <string name="forge_plan_plans">Programmes</string>
-    <string name="forge_plan_unnamed">Programme sans nom</string>
+    <string name="forge_plan_unnamed">Mon programme</string>
     <string name="forge_plan_following">Actif</string>
     <string name="forge_plan_resting">En pause</string>
     <string name="forge_plan_days_a_week">%1$d jours par semaine</string>

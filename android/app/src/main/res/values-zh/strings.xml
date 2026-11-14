@@ -6778,7 +6778,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <!-- Training plans: the plan list, a plan's page, the builder and the ready-made plans. -->
     <string name="forge_plan_rows_sub">多个计划，一次采用一个</string>
     <string name="forge_plan_plans">计划</string>
-    <string name="forge_plan_unnamed">未命名计划</string>
+    <string name="forge_plan_unnamed">我的计划</string>
     <string name="forge_plan_following">进行中</string>
     <string name="forge_plan_resting">休眠</string>
     <string name="forge_plan_days_a_week">每周 %1$d 天</string>

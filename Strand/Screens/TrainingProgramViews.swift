@@ -185,7 +185,7 @@ struct TrainingProgramDetailView: View {
         }
         .forgeScreenBackground()
         .navigationTitle(Text(current.displayName))
-        .task(id: model.programs.count) { await reload() }
+        .task(id: plansFingerprint) { await reload() }
         .sheet(isPresented: $editing) {
             NavigationStack {
                 TrainingProgramEditorView(program: current) { updated in
@@ -202,6 +202,13 @@ struct TrainingProgramDetailView: View {
         } message: {
             Text("Its routines and its week go with it. Workouts you have logged stay in your history.")
         }
+    }
+
+    /// Changes whenever any plan is taken up, stood down or edited. Keying the reload on the NUMBER
+    /// of plans left this page showing the routines and block runs it had when it opened: taking a
+    /// plan up added a run that only appeared after leaving and coming back.
+    private var plansFingerprint: String {
+        model.programs.map { "\($0.id)|\($0.updatedAt)|\($0.isActive)" }.joined(separator: ",")
     }
 
     private func reload() async {

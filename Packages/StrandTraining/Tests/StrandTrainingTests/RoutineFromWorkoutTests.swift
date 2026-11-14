@@ -111,3 +111,61 @@ final class RoutineFromWorkoutTests: XCTestCase {
         XCTAssertEqual(routine?.programId, plan)
     }
 }
+
+extension RoutineFromWorkoutTests {
+
+    private func clustered(_ cluster: UUID, _ index: Int, reps: Int, weight: Double)
+        -> NativeWorkoutSet {
+        var set = NativeWorkoutSet(index: index, intensifier: .dropSet, weightKg: weight, reps: reps)
+        set.isCompleted = true
+        set.clusterId = cluster
+        set.segmentIndex = index
+        return set
+    }
+
+    /// A technique keeps what the log can actually show: how many segments it had, and for a drop set
+    /// how far the load came down.
+    func testADropSetComesBackWithItsSegmentsAndItsDrop() {
+        let cluster = UUID()
+        let logged = NativeWorkoutExercise(exerciseId: "x", sets: [
+            clustered(cluster, 0, reps: 8, weight: 100),
+            clustered(cluster, 1, reps: 6, weight: 80)
+        ], restSeconds: 120)
+        let workout = NativeWorkout(id: UUID(), title: "Freestyle", startedAt: 1_000, endedAt: 4_600,
+                                    plannedDay: "2026-11-14", routineIds: [], exercises: [logged],
+                                    tracker: nil)
+        let sets = RoutineFromWorkout.make(workout: workout, title: "A")?.exercises.first?.sets ?? []
+        XCTAssertEqual(sets.count, 2)
+        XCTAssertTrue(sets.allSatisfy { $0.intensifier == .dropSet })
+        XCTAssertEqual(sets.first?.intensifierConfiguration?.segmentCount, 2)
+        XCTAssertEqual(sets.first?.intensifierConfiguration?.loadReductionPercent ?? 0, 20,
+                       accuracy: 0.001)
+        // The log has no timing, so nothing is invented for a rest-pause's seconds.
+        XCTAssertNil(sets.first?.intensifierConfiguration?.restPauseSeconds)
+    }
+
+    /// Naming a technique with nothing behind it is a prescription nobody can follow.
+    func testAnIntensifierWithoutSegmentsComesBackAsAnOrdinarySet() {
+        var set = NativeWorkoutSet(index: 0, intensifier: .restPause, weightKg: 90, reps: 5)
+        set.isCompleted = true
+        let logged = NativeWorkoutExercise(exerciseId: "x", sets: [set], restSeconds: 120)
+        let workout = NativeWorkout(id: UUID(), title: "Freestyle", startedAt: 1_000, endedAt: 4_600,
+                                    plannedDay: "2026-11-14", routineIds: [], exercises: [logged],
+                                    tracker: nil)
+        let plan = RoutineFromWorkout.make(workout: workout, title: "A")?.exercises.first?.sets.first
+        XCTAssertEqual(plan?.intensifier, TrainingSetIntensifier.none)
+        XCTAssertNil(plan?.intensifierConfiguration)
+    }
+
+    /// "As many as you can" and "to failure" say everything they mean in the name.
+    func testAmrapKeepsItsNameWithoutSegments() {
+        var set = NativeWorkoutSet(index: 0, intensifier: .amrap, weightKg: 60, reps: 14)
+        set.isCompleted = true
+        let logged = NativeWorkoutExercise(exerciseId: "x", sets: [set], restSeconds: 120)
+        let workout = NativeWorkout(id: UUID(), title: "Freestyle", startedAt: 1_000, endedAt: 4_600,
+                                    plannedDay: "2026-11-14", routineIds: [], exercises: [logged],
+                                    tracker: nil)
+        let plan = RoutineFromWorkout.make(workout: workout, title: "A")?.exercises.first?.sets.first
+        XCTAssertEqual(plan?.intensifier, .amrap)
+    }
+}

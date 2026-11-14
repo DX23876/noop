@@ -119,8 +119,10 @@ struct StrengthSessionDetailView: View {
     /// The stored session behind this page, when it was logged in NOOP. Matched by its own id, so a
     /// session from another source simply finds nothing and the card stays away.
     private func loadNativeWorkout() async {
+        // The id a projected session carries is prefixed (`noop-native:…`), so it is resolved through
+        // the projection that writes it rather than parsed here.
         guard nativeWorkout == nil, source == .noopNative,
-              let id = UUID(uuidString: breakdown.workoutId) else { return }
+              let id = NativeTrainingProjection.nativeWorkoutId(breakdown.workoutId) else { return }
         nativeWorkout = await repo.nativeWorkout(id: id, startedAt: breakdown.startTs)
     }
 

@@ -6782,7 +6782,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <!-- Training plans: the plan list, a plan's page, the builder and the ready-made plans. -->
     <string name="forge_plan_rows_sub">Несколько планов, по одному за раз</string>
     <string name="forge_plan_plans">Планы</string>
-    <string name="forge_plan_unnamed">План без названия</string>
+    <string name="forge_plan_unnamed">Мой план</string>
     <string name="forge_plan_following">Активен</string>
     <string name="forge_plan_resting">Отдыхает</string>
     <string name="forge_plan_days_a_week">%1$d дней в неделю</string>

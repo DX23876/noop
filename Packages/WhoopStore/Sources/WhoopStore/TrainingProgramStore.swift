@@ -45,8 +45,63 @@ extension WhoopStore {
 
     /// Writes the plan itself. Its schedule travels with it, so saving a plan and saving its week are
     /// one write and cannot half-land.
+    ///
+    /// A plan whose week names routines that are not stored yet must go through
+    /// `upsertTrainingPlan(_:routines:)` instead: a schedule row points at a routine, so writing the
+    /// week first is a foreign-key violation and the whole write fails.
     public func upsertTrainingProgram(_ program: TrainingProgram) async throws {
-        try syncWrite { db in try Self.writeProgram(program, in: db) }
+        try syncWrite { db in
+            try Self.writeProgram(program, in: db)
+            try Self.enforceActivation(program, in: db)
+        }
+    }
+
+    /// A whole plan in one transaction: the plan row, its routines, then its week.
+    ///
+    /// That order is the point. A `trainingSchedule` row references the routine it names, so writing
+    /// the week before the routines exist fails the foreign key and loses the entire plan, which is
+    /// exactly what the builder, the ready-made plans and a plan copy did. One call does it right for
+    /// every caller rather than three call sites each remembering to.
+    public func upsertTrainingPlan(_ program: TrainingProgram,
+                                   routines: [TrainingRoutine]) async throws {
+        try syncWrite { db in
+            var withoutWeek = program
+            withoutWeek.schedule = [:]
+            try Self.writeProgram(withoutWeek, in: db)
+            for routine in routines {
+                var placed = routine
+                placed.programId = program.id
+                try Self.writeTrainingRoutine(placed, in: db)
+            }
+            try Self.writeSchedule(program.schedule, programId: program.id, in: db)
+            try Self.enforceActivation(program, in: db)
+        }
+    }
+
+    /// Keeps the stored plans honest after a write: at most one active plan per kind, and no block run
+    /// left open for a plan that no longer has a block.
+    ///
+    /// It lives here because the kind of an ACTIVE plan can be edited, and nothing else re-runs the
+    /// rule: two plans of one kind would then both read as followed while only one of them reached
+    /// Today.
+    static func enforceActivation(_ program: TrainingProgram, in db: Database) throws {
+        if program.isActive {
+            let programs = try Self.readPrograms(db)
+            let now = Int(Date().timeIntervalSince1970)
+            let day = program.block?.startedOn ?? TrainingBlockState.dayKey(Date())
+            for changed in TrainingProgramActivation.activate(program.id, in: programs,
+                                                              day: day, now: now)
+            where changed.id != program.id {
+                try Self.writeProgram(changed, in: db)
+                try Self.closeBlockRun(programId: changed.id, day: day, outcome: .abandoned, in: db)
+            }
+        }
+        // A plan with no block has no run to be in. Leaving one open kept "this block so far" on the
+        // page for a block that had been switched off.
+        if program.block == nil {
+            try Self.closeBlockRun(programId: program.id, day: TrainingBlockState.dayKey(Date()),
+                                   outcome: .abandoned, in: db)
+        }
     }
 
     static func writeProgram(_ program: TrainingProgram, in db: Database) throws {

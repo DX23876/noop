@@ -6801,7 +6801,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <!-- Training plans: the plan list, a plan's page, the builder and the ready-made plans. -->
     <string name="forge_plan_rows_sub">Vários planos, um de cada vez</string>
     <string name="forge_plan_plans">Planos</string>
-    <string name="forge_plan_unnamed">Plano sem nome</string>
+    <string name="forge_plan_unnamed">O meu plano</string>
     <string name="forge_plan_following">Ativo</string>
     <string name="forge_plan_resting">Em repouso</string>
     <string name="forge_plan_days_a_week">%1$d dias por semana</string>

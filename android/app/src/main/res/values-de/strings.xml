@@ -6825,7 +6825,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <!-- Training plans: the plan list, a plan's page, the builder and the ready-made plans. -->
     <string name="forge_plan_rows_sub">Mehrere Pläne, einer zur Zeit</string>
     <string name="forge_plan_plans">Pläne</string>
-    <string name="forge_plan_unnamed">Plan ohne Namen</string>
+    <string name="forge_plan_unnamed">Mein Plan</string>
     <string name="forge_plan_following">Aktiv</string>
     <string name="forge_plan_resting">Ruht</string>
     <string name="forge_plan_days_a_week">%1$d Tage pro Woche</string>

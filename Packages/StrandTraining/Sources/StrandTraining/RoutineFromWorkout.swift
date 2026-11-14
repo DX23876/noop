@@ -64,6 +64,32 @@ public enum RoutineFromWorkout {
                                programId: programId, createdAt: now, updatedAt: now)
     }
 
+    /// What a logged intensifier amounts to as a prescription, read from the segments it left in the
+    /// log: how many there were, and for a drop set how far the load came down.
+    ///
+    /// A set whose intensifier left no segments behind is kept as an ordinary set. Naming a technique
+    /// with nothing behind it would be a prescription nobody can follow, and the log has no timing to
+    /// recover a rest-pause's seconds from.
+    static func intensifier(of set: NativeWorkoutSet, in logged: NativeWorkoutExercise)
+        -> (TrainingSetIntensifier, SetIntensifierConfiguration?) {
+        guard set.intensifier != .none else { return (.none, nil) }
+        guard let cluster = set.clusterId else {
+            // AMRAP and "to failure" say everything they mean in the name; the others need segments.
+            return [.amrap, .failure].contains(set.intensifier) ? (set.intensifier, nil) : (.none, nil)
+        }
+        let segments = logged.sets.filter { $0.clusterId == cluster }
+            .sorted { ($0.segmentIndex ?? 0) < ($1.segmentIndex ?? 0) }
+        guard segments.count > 1 else { return (.none, nil) }
+        var reduction: Double?
+        if set.intensifier == .dropSet,
+           let first = segments.first?.weightKg, first > 0, let last = segments.last?.weightKg {
+            reduction = max(0, (1 - last / first) * 100)
+        }
+        return (set.intensifier,
+                SetIntensifierConfiguration(segmentCount: segments.count, restPauseSeconds: nil,
+                                            loadReductionPercent: reduction))
+    }
+
     /// One logged exercise's sets as prescriptions. Warm-ups stay warm-ups, so a ramp does not come
     /// back as working volume.
     static func sets(of logged: NativeWorkoutExercise, repSpan: Int) -> [RoutineSetPlan] {
@@ -85,12 +111,13 @@ public enum RoutineFromWorkout {
                     repsMax = high
                 }
             }
-            return RoutineSetPlan(phase: set.phase, intensifier: set.intensifier,
+            let technique = intensifier(of: set, in: logged)
+            return RoutineSetPlan(phase: set.phase, intensifier: technique.0,
                                   targetWeightKg: set.weightKg,
                                   repsMin: repsMin, repsMax: repsMax,
                                   targetDurationS: set.durationS ?? set.targetDurationS,
                                   targetDistanceM: set.distanceM,
-                                  intensifierConfiguration: nil)
+                                  intensifierConfiguration: technique.1)
         }
     }
 }

@@ -212,3 +212,61 @@ final class TrainingProgramStoreTests: XCTestCase {
         XCTAssertEqual(programs.map(\.title), [""])
     }
 }
+
+extension TrainingProgramStoreTests {
+
+    /// A built plan names its routines in its week. Writing the week first fails the foreign key and
+    /// loses the whole plan, which is what the builder, the ready-made plans and a plan copy did.
+    func testAWholePlanIsWrittenInTheOrderItsOwnWeekNeeds() async throws {
+        let store = try await WhoopStore.inMemory()
+        var program = TrainingProgram(title: "Built")
+        let monday = TrainingRoutine(title: "Full body A")
+        let thursday = TrainingRoutine(title: "Full body B")
+        program.schedule = [.monday: [monday.id], .thursday: [thursday.id]]
+
+        try await store.upsertTrainingPlan(program, routines: [monday, thursday])
+
+        let stored = try await store.trainingPrograms().first { $0.id == program.id }
+        XCTAssertEqual(stored?.schedule[.monday], [monday.id])
+        XCTAssertEqual(stored?.schedule[.thursday], [thursday.id])
+        let routines = try await store.trainingRoutines(programId: program.id)
+        XCTAssertEqual(Set(routines.map(\.title)), ["Full body A", "Full body B"])
+        XCTAssertTrue(routines.allSatisfy { $0.programId == program.id })
+    }
+
+    /// The kind of an ACTIVE plan can be edited, and nothing else re-runs the rule. Two plans of one
+    /// kind both reading as followed would leave one of them out of Today with no explanation.
+    func testEditingAnActivePlanIntoAnotherKindStandsTheOtherOneDown() async throws {
+        let store = try await WhoopStore.inMemory()
+        let strength = try await store.trainingPrograms()[0]
+        var cardio = TrainingProgram(title: "Base", kind: .conditioning)
+        try await store.upsertTrainingProgram(cardio)
+        try await store.activateTrainingProgram(id: cardio.id, day: "2026-11-14", now: 1_000)
+
+        cardio.kind = .strength
+        cardio.isActive = true
+        cardio.updatedAt = 2_000
+        try await store.upsertTrainingProgram(cardio)
+
+        let programs = try await store.trainingPrograms()
+        XCTAssertEqual(programs.filter(\.isActive).map(\.id), [cardio.id])
+        XCTAssertEqual(programs.first { $0.id == strength.id }?.isActive, false)
+    }
+
+    func testTakingAPlansBlockAwayClosesTheRunItWasIn() async throws {
+        let store = try await WhoopStore.inMemory()
+        var plan = TrainingProgram(title: "Eight weeks", block: TrainingProgramBlock(weeks: 8))
+        try await store.upsertTrainingProgram(plan)
+        try await store.activateTrainingProgram(id: plan.id, day: "2026-11-14", now: 1_000)
+        let opened = try await store.trainingBlockRuns(programId: plan.id)
+        XCTAssertEqual(opened.count, 1)
+
+        plan = try await store.trainingPrograms().first { $0.id == plan.id }!
+        plan.block = nil
+        try await store.upsertTrainingProgram(plan)
+
+        let runs = try await store.trainingBlockRuns(programId: plan.id)
+        XCTAssertEqual(runs.count, 1)
+        XCTAssertNotNil(runs[0].endedOn, "a plan with no block has no run to still be in")
+    }
+}

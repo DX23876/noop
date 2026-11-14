@@ -9,6 +9,23 @@ import WhoopStore
 /// Read-only compatibility projection from NOOP's source-neutral native log into the established
 /// strength analytics vocabulary. Native tables remain authoritative; no second workout is stored.
 public enum NativeTrainingProjection {
+    /// The prefix a projected session's id carries, so the strength vocabulary can tell NOOP's own
+    /// sessions apart from Hevy's and the imports'.
+    public static let nativeIdPrefix = "noop-native:"
+
+    /// The id a projected session carries for a stored native workout.
+    public static func projectedId(_ id: UUID) -> String { nativeIdPrefix + id.uuidString }
+
+    /// The stored workout a projected session's id names, or nil when the id belongs to another
+    /// source.
+    ///
+    /// Every reader needs this, and the two that wrote the parse themselves both got it wrong: a
+    /// bare `UUID(uuidString:)` never matches, because the projection prefixes the id.
+    public static func nativeWorkoutId(_ projectedId: String) -> UUID? {
+        guard projectedId.hasPrefix(nativeIdPrefix) else { return UUID(uuidString: projectedId) }
+        return UUID(uuidString: String(projectedId.dropFirst(nativeIdPrefix.count)))
+    }
+
     public struct StrengthDetails: Sendable {
         public let workouts: [HevyWorkout]
         public let templates: [String: HevyExerciseTemplate]
@@ -40,7 +57,7 @@ public enum NativeTrainingProjection {
                     })
             }
             return HevyWorkout(
-                id: "noop-native:\(workout.id.uuidString)", title: workout.title,
+                id: projectedId(workout.id), title: workout.title,
                 routineId: workout.routineIds.first?.uuidString, notes: workout.note,
                 startTs: workout.startedAt, endTs: workout.endedAt,
                 updatedAtTs: workout.endedAt, createdAtTs: workout.startedAt,

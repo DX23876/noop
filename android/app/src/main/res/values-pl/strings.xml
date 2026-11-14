@@ -6829,7 +6829,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <!-- Training plans: the plan list, a plan's page, the builder and the ready-made plans. -->
     <string name="forge_plan_rows_sub">Kilka planów, jeden naraz</string>
     <string name="forge_plan_plans">Plany</string>
-    <string name="forge_plan_unnamed">Plan bez nazwy</string>
+    <string name="forge_plan_unnamed">Mój plan</string>
     <string name="forge_plan_following">Aktywny</string>
     <string name="forge_plan_resting">Spoczywa</string>
     <string name="forge_plan_days_a_week">%1$d dni w tygodniu</string>

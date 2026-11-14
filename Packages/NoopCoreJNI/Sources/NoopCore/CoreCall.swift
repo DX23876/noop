@@ -648,6 +648,11 @@ public enum CoreCall {
             guard let detail = await CorePlans.routine(store: store, id: string("id"))
             else { return #"{"error":"noRoutine"}"# }
             return CoreRead.json(detail)
+        case "plans.createRoutine":
+            guard let id = await CorePlans.createRoutine(store: store, title: string("title"),
+                                                        planId: args["planId"] as? String)
+            else { return ok(false) }
+            return CoreRead.json(["id": id])
         case "plans.editRoutine":
             return ok(await CorePlans.editRoutine(store: store, args: args))
         case "plans.routineFromWorkout":

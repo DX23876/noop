@@ -68,6 +68,8 @@ internal fun ForgeRoutineEditorPage(routineId: String?, planId: String?, onClose
     var openExercise by remember { mutableStateOf<String?>(null) }
     var picking by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
+    // The name as typed, readable from the picker's callback, which runs outside the page's own body.
+    var pendingTitle by remember { mutableStateOf("") }
 
     LaunchedEffect(id, reload) { detail = id?.let { key -> core(context) { CorePlans.routine(key) } } }
 
@@ -85,7 +87,12 @@ internal fun ForgeRoutineEditorPage(routineId: String?, planId: String?, onClose
         ExercisePicker(multiple = true, onBack = { picking = false }) { ids ->
             picking = false
             scope.launch {
-                val key = id
+                // A routine being written does not exist yet. It is created here, with whatever name
+                // has been typed, so exercises can be added while writing it rather than only after
+                // saving and reopening.
+                val key = id ?: core(context) {
+                    CorePlans.createRoutine(pendingTitle.trim(), planId)
+                }?.also { id = it }
                 if (key != null) {
                     core(context) {
                         ids.forEach {
@@ -112,6 +119,7 @@ internal fun ForgeRoutineEditorPage(routineId: String?, planId: String?, onClose
     val current = detail
     var title by remember(current?.id) { mutableStateOf(current?.title.orEmpty()) }
     var notes by remember(current?.id) { mutableStateOf(current?.notes.orEmpty()) }
+    pendingTitle = title
 
     SettingsColumn {
         PageTitle(if (id == null) stringResource(R.string.forge_training_new_routine)
@@ -151,6 +159,13 @@ internal fun ForgeRoutineEditorPage(routineId: String?, planId: String?, onClose
                  color = Forge.colors.textTertiary)
         }
 
+        if (current == null) {
+            // Nothing stored yet: the one thing that can be done is to start adding exercises, which
+            // creates the routine.
+            PanelButton(stringResource(R.string.forge_training_add_exercise), Icons.Rounded.Add) {
+                picking = true
+            }
+        }
         if (current != null) {
             // The days belong to this routine's own plan, not to the week being followed.
             val locale = Locale.getDefault()

@@ -281,6 +281,13 @@ object CorePlans {
             }.getOrNull()
         }
 
+    /** Creates a routine and gives back its id, so a screen can go on editing what it just made. */
+    fun createRoutine(title: String, planId: String?): String? =
+        call("plans.createRoutine", JSONObject().put("title", title)
+            .apply { if (planId != null) put("planId", planId) })?.let {
+            runCatching { JSONObject(it).optString("id").ifEmpty { null } }.getOrNull()
+        }
+
     /**
      * One edit to a routine, applied and saved by the core.
      *

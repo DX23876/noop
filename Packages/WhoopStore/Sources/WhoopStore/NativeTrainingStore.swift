@@ -76,7 +76,7 @@ extension WhoopStore {
         try syncWrite { db in try Self.writeTrainingRoutine(routine, in: db) }
     }
 
-    private static func writeTrainingRoutine(_ routine: TrainingRoutine, in db: Database) throws {
+    static func writeTrainingRoutine(_ routine: TrainingRoutine, in db: Database) throws {
         let programId = try Self.resolvedProgramId(routine.programId, in: db)
         try db.execute(sql: """
             INSERT INTO trainingRoutineNative

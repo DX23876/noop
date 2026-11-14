@@ -45,8 +45,18 @@ enum StrengthDraftBuilder {
                                               exerciseDefinitions: definitions)
         normalizeUnilateralSets(in: &draft, definitions: definitions)
         if let pastDurationS { draft.plannedEndTs = now + max(60, pastDurationS) }
+        // Which work sets the plan left open, before the prefill fills them. A plan the builder or a
+        // ready-made template wrote carries no weights at all, so the block's step and a lighter week
+        // would otherwise have nothing to act on.
+        let openSets = Dictionary(uniqueKeysWithValues: draft.exercises.map { exercise in
+            (exercise.id, Set(exercise.sets.indices.filter {
+                exercise.sets[$0].phase == .work && exercise.sets[$0].weightKg == nil
+            }))
+        })
         NativeWorkoutEngine.prefillLastPerformance(&draft, history: context.workouts)
         context.performance.prefillImported(&draft)
+        applyBlockToPrefilled(&draft, routines: prescribed, openSets: openSets,
+                              context: context, date: date)
         // A routine whose plan steps its own prescriptions week by week is not also progressed per
         // exercise: two mechanisms moving one target weight is how two readouts of one number come to
         // disagree. The block is the writer while it runs; `ProgressionEngine` is the writer otherwise.
@@ -56,6 +66,43 @@ enum StrengthDraftBuilder {
         applyProgression(to: &draft, routines: prescribed.filter { !selfProgressing.contains($0.id) },
                          definitions: definitions, performance: context.performance)
         return draft
+    }
+
+    /// The block's effect on the weights the prefill supplied.
+    ///
+    /// The step is counted from the week the session those weights came from belonged to, so a week's
+    /// step is added once rather than once for every week since the block began, and a lighter week
+    /// takes its share of what the wearer actually lifted.
+    private static func applyBlockToPrefilled(_ draft: inout WorkoutDraft,
+                                              routines: [TrainingRoutine],
+                                              openSets: [UUID: Set<Int>],
+                                              context: TrainingStartContext, date: Date) {
+        let today = dayString(date)
+        let step = TrainingPreferences.weightStep(for: ["barbell"])
+        let byId = Dictionary(routines.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for index in draft.exercises.indices {
+            guard let routineId = draft.exercises[index].routineId, let routine = byId[routineId],
+                  let block = context.program(of: routine)?.block,
+                  let state = TrainingBlockState.resolve(block: block, today: today),
+                  !state.isFinished,
+                  state.isDeload || block.progression == .weeklyLoad,
+                  let open = openSets[draft.exercises[index].id], !open.isEmpty else { continue }
+            // The week the weights came from: the newest session holding this exercise.
+            let exerciseId = draft.exercises[index].exerciseId
+            let source = context.workouts
+                .filter { $0.exercises.contains { $0.exerciseId == exerciseId } }
+                .max { $0.startedAt < $1.startedAt }
+            let sourceWeek = source.flatMap { workout -> Int? in
+                let day = dayString(Date(timeIntervalSince1970: TimeInterval(workout.startedAt)))
+                return TrainingBlockState.resolve(block: block, today: day)?.week
+            } ?? 1
+            for setIndex in open where draft.exercises[index].sets.indices.contains(setIndex) {
+                guard let weight = draft.exercises[index].sets[setIndex].weightKg, weight > 0 else { continue }
+                draft.exercises[index].sets[setIndex].weightKg = BlockPrescription.prefilledWeight(
+                    weight, weeksSince: state.week - sourceWeek, policy: block.progression,
+                    loadFactor: state.loadFactor, weightStepKg: step)
+            }
+        }
     }
 
     /// The routine as the current week of its plan's block prescribes it, or the routine itself when
