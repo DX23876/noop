@@ -39,28 +39,20 @@ enum LiveEffort {
     /// cannot delay Effort. Because `effectiveEffort` takes the MAX with the same day's stored row,
     /// refinement cannot lower that stored floor. `now` supplies one clock sample for both window ends.
     static func today(repo: Repository, profile: ProfileStore, restingHr: Int?, now: Date = Date()) async -> Double? {
-        let dayStart = Calendar.current.startOfDay(for: Repository.logicalDay(now))
-        let from = Int(dayStart.timeIntervalSince1970)
-        let to = Int(now.timeIntervalSince1970)
+        // The window, the row limit, the resting fallback and which workout time counts are
+        // `LiveEffortScore`'s, so the Android Today reads today's Effort by exactly the same rules
+        // (issue #41). This does the two reads and supplies the profile's own HRmax.
+        let (from, to) = LiveEffortScore.window(now: now)
+        let workout = LiveEffortScore.workoutWindow(now: now)
         // #2460: the manual HR-max override, then the measured level, then Gellish, as the daily pass
         // resolves it for the STORED day. The two meet in `effectiveEffort`, which takes the larger, so a live value on the
         // formula's yardstick would outvote an override set because the real maximum is above it.
         let maxHR = profile.effortHRmax
-        let restHR = restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
-        // An EXPLICIT limit, not the 8000 default: that default is chart-sized and this read is
-        // whole-window. `hrSamples` is `ORDER BY ts ASC LIMIT`, so truncation drops the NEWEST rows — at
-        // the ~18k HR rows a real day banks, the default covered roughly the first ten hours and the live
-        // score silently stopped climbing after that. It failed safe (`effectiveEffort` takes the max, so
-        // the stored row simply won), which is why it went unnoticed. 200_000 is what every other
-        // whole-window HR consumer passes. Found while merging upstream's inline twin of this read.
-        let hr = await repo.hrSamples(from: from, to: to, limit: 200_000)
-        // Below 50 % HRR only workout time counts (#2438). The recorded and imported workouts come from the
-        // resolver the stored day reads (`DailyAnalysis.effortWorkoutSpans`); the bouts the daily pass detects
-        // reach the stored value, which `effectiveEffort` prefers when it is larger.
-        let spans = await DailyAnalysis.effortWorkoutSpans(services: repo, from: from - 86_400, to: to + 1)
+        let hr = await repo.hrSamples(from: from, to: to, limit: LiveEffortScore.hrLimit)
+        let rows = await repo.rawWorkoutRows(from: workout.from, to: workout.to)
         guard !Task.isCancelled else { return nil }
         return await runUnescalated {
-            StrainScorer.strain(hr, maxHR: maxHR, restingHR: restHR, lowIntensity: .countedIn(spans))
+            LiveEffortScore.score(hr: hr, workoutRows: rows, maxHR: maxHR, restingHr: restingHr)
         }
     }
 }

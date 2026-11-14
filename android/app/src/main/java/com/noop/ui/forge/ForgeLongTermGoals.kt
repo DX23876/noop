@@ -127,6 +127,15 @@ internal fun LongTermSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
         draft = draft?.copy(state = state)
         run(state, "none")
     }
+    /**
+     * A change the core has nothing to recompute for: the goal's name and the note under it.
+     *
+     * Routing those through [change] cost a round trip to the core per keystroke, each one setting the
+     * busy flag and replacing the whole draft with the core's answer while the wearer was still typing.
+     * That is the lag reported in #43, and the replaced draft is also what brought a deleted name back.
+     * The state still reaches saving, because saving reads this same draft.
+     */
+    fun changeText(state: CoreLongTermGoals.State) { draft = draft?.copy(state = state) }
     val limitText = stringResource(R.string.forge_lt_limit)
     val failedText = stringResource(R.string.forge_goals_failed)
     fun create(replacing: String?, keepBoth: Boolean, riskReason: String?) {
@@ -205,7 +214,7 @@ internal fun LongTermSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
             }
             SetupStep.Value -> draft?.let { d -> ValueStep(d, c, ::change, ::run) }
             SetupStep.Weekly -> draft?.let { d -> WeeklyStep(d, ::change) }
-            SetupStep.Preview -> draft?.let { d -> PreviewStep(d, c, ::change) }
+            SetupStep.Preview -> draft?.let { d -> PreviewStep(d, c, ::change, ::changeText) }
         }
         error?.let { Text(it, style = Forge.type.caption, color = ForgeTokens.Color.systemRed.resolve()) }
         if (step >= SetupStep.Value && draft != null) {
@@ -400,14 +409,18 @@ private fun WeeklyStep(d: CoreLongTermGoals.Draft, change: (CoreLongTermGoals.St
 }
 
 @Composable
-private fun PreviewStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Catalog, change: (CoreLongTermGoals.State) -> Unit) {
+private fun PreviewStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Catalog,
+                        change: (CoreLongTermGoals.State) -> Unit, changeText: (CoreLongTermGoals.State) -> Unit) {
     val s = d.state
     val template = catalog.templates.firstOrNull { it.id == s.template }
     SettingsCard(title = null, blurb = null) {
-        OutlinedTextField(value = s.title.ifEmpty { template?.title?.let { catalogText(it) } ?: "" },
-                          onValueChange = { change(s.copy(title = it)) },
+        // The template's name is the PLACEHOLDER, not the value: as the value it reappeared the moment the
+        // wearer deleted the last character of their own, which reads as the field refusing to be cleared
+        // (#43). An empty field means "use the template's name", and saving resolves it that way.
+        OutlinedTextField(value = s.title, onValueChange = { changeText(s.copy(title = it)) },
+                          placeholder = { template?.title?.let { Text(catalogText(it)) } },
                           label = { Text(stringResource(R.string.forge_lt_name)) }, modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
-        OutlinedTextField(value = s.motivation, onValueChange = { change(s.copy(motivation = it)) },
+        OutlinedTextField(value = s.motivation, onValueChange = { changeText(s.copy(motivation = it)) },
                           label = { Text(stringResource(R.string.forge_lt_why)) }, modifier = Modifier.fillMaxWidth(), colors = forgeFieldColors())
         Spacer(Modifier.height(ForgeMetrics.space2))
         SettingRow(stringResource(R.string.forge_goals_target)) {

@@ -440,6 +440,13 @@ public enum CoreCall {
             return CoreRead.json(await CoreMetricDetail.insights(reader: reader, catalogKey: string("key"),
                 catalogSource: string("source"), series: points("series"), windowed: points("windowed"),
                 isAll: (args["isAll"] as? Bool) ?? false, revision: int("revision", 0)))
+        case "read.liveEffort":
+            // Today's Effort as a Today screen must show it: the live score floored at the stored row.
+            return CoreRead.json(["value": await CoreRead.liveEffort(
+                reader: reader, hrMaxOverride: (args["hrMaxOverride"] as? NSNumber)?.intValue ?? 0,
+                age: (args["age"] as? NSNumber)?.intValue ?? 0,
+                restingHr: (args["restingHr"] as? NSNumber)?.intValue,
+                storedEffort: (args["storedEffort"] as? NSNumber)?.doubleValue)])
         case "read.hasAnyDay":
             // The first-run question, as one boolean: "is there any day at all" (`CoreRead.hasAnyDay`).
             return CoreRead.json(["any": await CoreRead.hasAnyDay(reader: reader)])

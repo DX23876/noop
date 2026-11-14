@@ -3973,7 +3973,6 @@ private struct LiquidSyncLine: View {
     /// Debounced by `debouncedSyncSignal` below, so a per-chunk `backfilling` gap cannot flash the
     /// line off in the middle of one logical sync.
     @State private var syncing = false
-    @State private var phase: CGFloat = 0
     #if DEBUG
     /// Driven only by the `--demo-sync` harness; ignored entirely when that flag is absent.
     @State private var demoSyncing = false
@@ -3999,10 +3998,28 @@ private struct LiquidSyncLine: View {
             Capsule()
                 .fill(StrandPalette.hairline)
                 .overlay(alignment: .leading) {
-                    Capsule()
-                        .fill(StrandPalette.forgeEmber)
-                        .frame(width: reduceMotion ? width : segment)
-                        .offset(x: reduceMotion ? 0 : (width + segment) * phase - segment)
+                    // The segment's position comes from the clock, not from a long-lived repeating
+                    // animation. A repeating animation is cancelled when the view leaves the render tree —
+                    // which a tab switch does — and nothing restarted it on the way back, because neither
+                    // the sync signal nor the task's id had changed: the segment stayed parked past the
+                    // right-hand edge and the wearer saw a grey, empty track while the sync ran on (#48).
+                    // Read from the timeline there is no state to get stuck: off screen it does not tick,
+                    // and on return it carries on from the time it is.
+                    if syncing, !reduceMotion {
+                        TimelineView(.animation) { timeline in
+                            let phase = CGFloat(timeline.date.timeIntervalSinceReferenceDate
+                                .truncatingRemainder(dividingBy: Self.runSeconds) / Self.runSeconds)
+                            Capsule()
+                                .fill(StrandPalette.forgeEmber)
+                                .frame(width: segment)
+                                .offset(x: (width + segment) * phase - segment)
+                        }
+                    } else {
+                        Capsule()
+                            .fill(StrandPalette.forgeEmber)
+                            .frame(width: reduceMotion ? width : segment)
+                            .offset(x: reduceMotion ? 0 : -segment)
+                    }
                 }
                 .clipShape(Capsule())
         }
@@ -4010,7 +4027,6 @@ private struct LiquidSyncLine: View {
         .opacity(syncing ? 1 : 0)
         .animation(.easeInOut(duration: 0.25), value: syncing)
         .debouncedSyncSignal(syncingRaw, into: $syncing)
-        .task(id: syncing) { restartRun() }
         #if DEBUG
         .task { await runDemoSyncCycleIfNeeded() }
         #endif
@@ -4019,13 +4035,8 @@ private struct LiquidSyncLine: View {
         .accessibilityHidden(!syncing)
     }
 
-    private func restartRun() {
-        var reset = Transaction()
-        reset.disablesAnimations = true
-        withTransaction(reset) { phase = 0 }
-        guard syncing, !reduceMotion else { return }
-        withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) { phase = 1 }
-    }
+    /// How long one pass of the segment takes, the cadence the repeating animation used to run at.
+    private static let runSeconds: TimeInterval = 1.4
 
     /// DEBUG `--demo-sync` only: loop the syncing signal so the line can be watched without a strap.
     private func runDemoSyncCycleIfNeeded() async {

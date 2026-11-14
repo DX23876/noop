@@ -1,4 +1,5 @@
 import Foundation
+import StrandAnalytics
 import StrandCore
 import WhoopStore
 
@@ -208,6 +209,32 @@ public enum CoreRead {
         let raw = await reader.rawWorkoutRows(from: now - days * 86_400, to: now + 86_400, dismissedDetectedSpans: dismissed)
         let deduped = WorkoutSource.dedupCrossSource(raw)
         return await WorkoutHeartRateFills.overlay(deduped.sorted { $0.startTs > $1.startTs }, store: reader.store)
+    }
+
+    /// Today's Effort as a Today screen must show it: the live score where there is enough heart rate to
+    /// take one, floored at the stored row so the figure can never visibly drop (`effectiveEffort`).
+    ///
+    /// The Apple screens have read Effort this way since #402; the Android Forge screen showed the stored
+    /// row raw, which only moves when the nightly pass runs. The same wearer therefore saw two different
+    /// Efforts depending only on which Today they had open, and the lower one lagged by hours (#41). The
+    /// rules are `LiveEffortScore`'s, so neither platform can drift from the other.
+    ///
+    /// [restingHr] is the shown day's own resting rate and [storedEffort] its stored Effort; both come
+    /// from the day the caller is showing, so this never reads a different day than the screen does.
+    public static func liveEffort(reader: StoreReader, hrMaxOverride: Int, age: Int,
+                                  restingHr: Int?, storedEffort: Double?,
+                                  now: Date = Date()) async -> Double? {
+        let (from, to) = LiveEffortScore.window(now: now)
+        let workout = LiveEffortScore.workoutWindow(now: now)
+        // The override, then the level the last pass measured, then the formula — the order the daily
+        // pass resolves it in for the stored day, so the live score is taken against the same yardstick.
+        let measured = MaxHeartRate.Level(stored: UserDefaults.standard.string(forKey: MaxHeartRate.measuredLevelKey))
+        let maxHR = MaxHeartRate.resolve(overrideBpm: hrMaxOverride, age: Double(age),
+                                         measured: measured?.bpm).bpm
+        let hr = await reader.hrSamples(from: from, to: to, limit: LiveEffortScore.hrLimit)
+        let rows = await reader.rawWorkoutRows(from: workout.from, to: workout.to, dismissedDetectedSpans: [])
+        let live = LiveEffortScore.score(hr: hr, workoutRows: rows, maxHR: maxHR, restingHr: restingHr)
+        return StrainScorer.effectiveEffort(live: live, stored: storedEffort)
     }
 
     /// Whether this install holds ANY day at all: the first-run question both Today screens ask before they

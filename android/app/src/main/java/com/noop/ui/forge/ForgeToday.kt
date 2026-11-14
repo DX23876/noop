@@ -390,9 +390,20 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                         CoreRead.series(CoreRead.Metric.Rest, from, to).lastOrNull()?.value
                 }
             }
+            // Today's Effort as the classic dashboard has always shown it: the live score over today's raw
+            // heart rate, floored at the stored row. The stored row only moves when the nightly pass runs,
+            // so reading it raw showed a lower Effort here than on the other Today for most of the day
+            // (#41). The core resolves it; a past day has no in-progress figure and keeps its stored one.
+            val liveEffort by produceState<Double?>(null, shown, coreRevision, model?.day?.effort) {
+                value = if (shown != today) null else withContext(Dispatchers.IO) {
+                    CoreRead.open(context)
+                    com.noop.core.CoreLiveEffort.today(context, model?.day?.restingHr, model?.day?.effort)
+                }
+            }
             val heroDay = (model?.day ?: CoreRead.Day(shown.toString(), null, null, null, null, null, null, null, null, null,
                                                       null, null, null, null, null)).let { d ->
-                d.copy(charge = d.charge ?: carried.first, rest = d.rest ?: carried.second)
+                d.copy(charge = d.charge ?: carried.first, rest = d.rest ?: carried.second,
+                       effort = liveEffort ?: d.effort)
             }
             Hero(heroDay, width, onHold = { editingWidgets = true }, viewModel = viewModel)
             if (shown == today) ForgeActivityPrompt()
