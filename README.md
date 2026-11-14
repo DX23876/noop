@@ -788,13 +788,14 @@ You can also download the file directly from the
 `NOOP-ios-unsigned-v12.2.1-dx.ipa` includes the widgets, and
 `NOOP-ios-full-unsigned-v12.2.1-dx.ipa` also contains the Apple Watch app.
 
-**Feather or a bought certificate?** The app runs, Apple Health included. The widgets usually stay
-empty ("No shared data"): they read the app's data through an App Group, and Apple allows App Groups
-only on profiles with a fixed App ID. Bought certificates mostly come with a wildcard profile, which
-Feather uses for every part of the app. For widgets, use AltStore or SideStore: they sign with your own
-Apple ID and create the App Group for you. If you have profiles with
-fixed App IDs that share one App Group, the [Forge Signer](https://dx23876.github.io/forge/sign/) signs
-every part with its own profile and links the App Group for you.
+**Feather or a bought certificate?** What works depends on the provisioning profile that comes with
+the certificate. With HealthKit in it, Apple Health works. The widgets read the app's data through an
+App Group, so they need one in the profile; many sellers include a few. The
+[Forge Signer](https://dx23876.github.io/forge/sign/) signs with that one profile the way Feather does,
+writes one of its App Groups into the app and the widgets, and tells you before signing what the
+profile holds. Under Feather the current release still looks only for its own App Group name; the next
+release finds the profile's group by itself. A profile without any App Group leaves the widgets on
+"No shared data". AltStore and SideStore create an App Group with your own Apple ID.
 
 More in the [iOS guide](docs/IOS.md).
 
@@ -833,10 +834,11 @@ Android 8 or later. This is a **testing build**: see
 
 ### ⌚ Apple Watch and 🧪 the testing build
 
-The watch app comes inside the `full` IPA. It needs four profiles with fixed App IDs that share one App
-Group (iPhone app, widgets, Watch app, Watch complication), for example from your own Apple developer
-account. Sign it with the [Forge Signer](https://dx23876.github.io/forge/sign/), and the watch app
-appears in the Watch app on your iPhone. AltStore and SideStore leave the watch app out.
+The watch app comes inside the `full` IPA. It needs profiles of its own for the Watch parts (Watch app
+and Watch complication) with your Apple Watch on the device list, for example from your own Apple
+developer account. Sign it with the [Forge Signer](https://dx23876.github.io/forge/sign/), and the
+watch app appears in the Watch app on your iPhone. A single profile from a certificate seller does not
+cover the watch app. AltStore and SideStore leave it out.
 
 Want the redesigned 13.0 early? The
 [testing release](https://github.com/DX23876/noop/releases/tag/testing-latest) has builds for iPhone,
