@@ -224,6 +224,9 @@ object ForgeTokens {
         val hZone4 = ForgeColor(light = 0xFFFF9500, dark = 0xFFFF9F0A)
         val hZone5 = ForgeColor(light = 0xFFFF3B30, dark = 0xFFFF453A)
         val heroBorder = ForgeColor(light = 0x1A000000, dark = 0x1CFFFFFF)
+        /** Training's data teal, iOS's `TrainingMuscleMapAppearance.forgeStrength`: the colour the new
+         *  design lights a worked muscle in. */
+        val trainingData = ForgeColor(light = 0xFF0E8AA3, dark = 0xFF40C8E0)
         val heroFill = ForgeColor(light = 0xD9FFFFFF, dark = 0xCC0D0E14)
         val liquidHeart = ForgeColor(light = 0xFFD94C64, dark = 0xFFFF6B81)
         val metricAmber = ForgeColor(light = 0xFFFF9500, dark = 0xFFFF9F0A)

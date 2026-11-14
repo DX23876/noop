@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.border
 import com.noop.R
 import org.json.JSONObject
 
@@ -234,8 +235,17 @@ object MuscleMapArt {
 /** The colours of the Training figures (`TrainingMuscleMapAppearance`). */
 object ForgeBodyStyle {
     @Composable fun hairline() = Forge.colors.border
-    @Composable fun scale() = listOf(Forge.colors.border, ForgeTokens.StrandPalette.metricCyan.resolve(),
-                                     Forge.colors.accent, ForgeTokens.StrandPalette.effortColor.resolve())
+    /**
+     * The ramp a worked muscle is drawn in (`TrainingMuscleMapAppearance.scale`). The new design lights
+     * it in training's own teal; the classic one keeps the four-stop ramp. Without the first branch the
+     * same exercise was orange here and teal on iOS.
+     */
+    @Composable fun scale(): List<Color> {
+        val teal = ForgeTokens.StrandPalette.trainingData.resolve()
+        return if (ForgeDesign.preview) listOf(Forge.colors.border, teal.copy(alpha = 0.45f), teal)
+               else listOf(Forge.colors.border, ForgeTokens.StrandPalette.metricCyan.resolve(),
+                           Forge.colors.accent, ForgeTokens.StrandPalette.effortColor.resolve())
+    }
     @Composable fun fatigueScale() = listOf(Forge.colors.border, ForgeTokens.StrandPalette.statusWarning.resolve(),
                                             ForgeTokens.StrandPalette.effortColor.resolve())
 }
@@ -342,8 +352,12 @@ fun ExerciseMusclePicture(exerciseId: String, primary: List<String>, secondary: 
     val context = LocalContext.current
     val still = rememberExerciseStill(exerciseId, (side.value * 3).toInt())
     val colors = Forge.colors
-    Box(Modifier.size(side).clip(RoundedCornerShape(10.dp))
-            .background(if (still != null) Color.White else colors.surfaceTop),
+    val shape = RoundedCornerShape(10.dp)
+    Box(Modifier.size(side).clip(shape)
+            .background(if (still != null) Color.White else colors.surfaceTop)
+            // A hairline, as iOS draws it: in the light theme the plate and the row are both near
+            // white, and without an edge the body floats in the middle of nothing.
+            .then(if (still != null) Modifier else Modifier.border(ForgeMetrics.hairline, colors.border, shape)),
         contentAlignment = Alignment.Center) {
         if (still != null) {
             androidx.compose.foundation.Image(still, contentDescription = null, modifier = Modifier.size(side),
