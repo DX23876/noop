@@ -149,10 +149,9 @@
     <!-- Barcode and nutrition-label scanning on the Food page; the frames never leave the phone. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <!-- DistanceRecord is bundled into the ACTIVITY import category alongside Steps
-         (HealthConnectImporter.ImportCategory.ACTIVITY), so selecting Activity to import Steps batches this
-         permission into the same runtime request. MUST be declared or Health Connect silently drops the WHOLE
-         request (same trap as #412 / READ_HYDRATION above). From J-Gur/noopjg (79a525678). -->
+    <!-- DistanceRecord is its own import type (HealthConnectImporter.ImportType.DISTANCE, in the Training
+         group), and selecting it batches this permission into the same runtime request as the others. MUST be
+         declared or Health Connect silently drops the WHOLE request (same trap as #412 / READ_HYDRATION above). From J-Gur/noopjg (79a525678). -->
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
     <!-- hcWritePermissionLauncher batches VO2MAX_PERMISSIONS into the SAME request as the vitals and exercise
          write permissions (DataSourcesScreen.kt startWriteback()). MUST be declared or Health Connect silently

@@ -62,8 +62,8 @@ import kotlin.reflect.KClass
  *     user has NO raw "my-whoop" rows, so the computed source is what marks their days as owned.
  *   - Exercise sessions -> [WorkoutRow] with source "health-connect".
  *
- * The UI requests only the selected categories before [import] is called. Partial grants are valid:
- * the importer reads granted types inside those categories and skips everything else. If Health
+ * The UI requests only the selected types before [import] is called. Partial grants are valid:
+ * the importer reads the granted ones among them and skips everything else. If Health
  * Connect is unavailable or none of the selected permissions is granted, it returns
  * [ImportSummary.failure].
  */
@@ -97,68 +97,87 @@ object HealthConnectImporter {
     private const val DISTANCE_MATCH_BUFFER_S = 300L
 
     /**
-     * User-selectable Health Connect read scopes (#645). Each record type belongs to exactly one
-     * category so the permission prompt can explain what the user is granting and the importer can
-     * skip a deselected category even when Android still holds an older grant for it.
+     * One readable Health Connect record type, the unit the wearer selects. Each maps to exactly one read
+     * permission, so the selection says precisely what NOOP asks Health Connect for and what it reads. A
+     * granted permission whose type is not selected is never read (#645).
+     */
+    enum class ImportType(
+        val storageKey: String,
+        internal val recordType: KClass<out Record>,
+    ) {
+        HEART_RATE("heart-rate", HeartRateRecord::class),
+        RESTING_HEART_RATE("resting-heart-rate", RestingHeartRateRecord::class),
+        HRV("hrv", HeartRateVariabilityRmssdRecord::class),
+        SLEEP("sleep", SleepSessionRecord::class),
+        OXYGEN_SATURATION("oxygen-saturation", OxygenSaturationRecord::class),
+        RESPIRATORY_RATE("respiratory-rate", RespiratoryRateRecord::class),
+        HYDRATION("hydration", HydrationRecord::class),
+        STEPS("steps", StepsRecord::class),
+        WORKOUTS("workouts", ExerciseSessionRecord::class),
+        DISTANCE("distance", DistanceRecord::class),
+        VO2_MAX("vo2-max", Vo2MaxRecord::class),
+        TOTAL_CALORIES("total-calories", TotalCaloriesBurnedRecord::class),
+        ACTIVE_CALORIES("active-calories", ActiveCaloriesBurnedRecord::class),
+        WEIGHT("weight", WeightRecord::class),
+        BODY_FAT("body-fat", BodyFatRecord::class),
+        LEAN_BODY_MASS("lean-body-mass", LeanBodyMassRecord::class),
+        ;
+
+        val permission: String get() = HealthPermission.getReadPermission(recordType)
+    }
+
+    /**
+     * The groups the selector shows. A group is only a way to switch several [ImportType]s at once; the
+     * selection itself is per type. Every type sits in exactly one group. The storage keys name the group
+     * in log lines and are never stored as a selection.
      */
     enum class ImportCategory(
         val storageKey: String,
-        internal val recordTypes: Set<KClass<out Record>>,
+        val types: List<ImportType>,
     ) {
         RECOVERY(
             "recovery",
-            setOf(
-                HeartRateRecord::class,
-                RestingHeartRateRecord::class,
-                HeartRateVariabilityRmssdRecord::class,
-                SleepSessionRecord::class,
-                OxygenSaturationRecord::class,
-                RespiratoryRateRecord::class,
-                HydrationRecord::class,
+            listOf(
+                ImportType.HEART_RATE,
+                ImportType.RESTING_HEART_RATE,
+                ImportType.HRV,
+                ImportType.SLEEP,
+                ImportType.OXYGEN_SATURATION,
+                ImportType.RESPIRATORY_RATE,
+                ImportType.HYDRATION,
             ),
         ),
-        ACTIVITY(
-            "activity",
-            setOf(
-                StepsRecord::class,
-                TotalCaloriesBurnedRecord::class,
-                ActiveCaloriesBurnedRecord::class,
-                Vo2MaxRecord::class,
-                ExerciseSessionRecord::class,
-                DistanceRecord::class,
-            ),
-        ),
+        STEPS("steps", listOf(ImportType.STEPS)),
+        TRAINING("training", listOf(ImportType.WORKOUTS, ImportType.DISTANCE, ImportType.VO2_MAX)),
+        CALORIES("calories", listOf(ImportType.TOTAL_CALORIES, ImportType.ACTIVE_CALORIES)),
         BODY_COMPOSITION(
             "body-composition",
-            setOf(
-                WeightRecord::class,
-                BodyFatRecord::class,
-                LeanBodyMassRecord::class,
-            ),
+            listOf(ImportType.WEIGHT, ImportType.BODY_FAT, ImportType.LEAN_BODY_MASS),
         ),
     }
 
-    internal val ALL_CATEGORIES: Set<ImportCategory> = ImportCategory.entries.toSet()
-    internal val DEFAULT_CATEGORIES: Set<ImportCategory> = setOf(ImportCategory.RECOVERY)
+    internal val ALL_TYPES: Set<ImportType> = ImportType.entries.toSet()
+    internal val DEFAULT_TYPES: Set<ImportType> = ImportCategory.RECOVERY.types.toSet()
 
     /** Every supported read permission. Kept as the compatibility/all-capabilities view. */
-    val PERMISSIONS: Set<String> = permissionsFor(ALL_CATEGORIES)
+    val PERMISSIONS: Set<String> = permissionsFor(ALL_TYPES)
 
-    /** The permissions represented by exactly [categories], with no implicit broadening. */
-    fun permissionsFor(categories: Set<ImportCategory>): Set<String> =
-        recordTypesFor(categories).mapTo(linkedSetOf()) { HealthPermission.getReadPermission(it) }
+    /** The permissions represented by exactly [types], with no implicit broadening. */
+    fun permissionsFor(types: Set<ImportType>): Set<String> = types.mapTo(linkedSetOf()) { it.permission }
 
     /**
-     * The selected categories Health Connect grants NOTHING for, by their storage keys.
+     * The groups with something selected that Health Connect grants NOTHING selected in, by their storage keys.
      *
      * A count of granted permissions cannot say WHICH data stays missing, and that is the question a
      * wearer asks: an install that was granted recovery data years ago and later learned to read workouts
-     * imports everything except workouts, and "3 of 7 granted" names neither the gap nor the fix. Category
+     * imports everything except workouts, and "3 of 7 granted" names neither the gap nor the fix. Group
      * keys only, never the permission strings.
      */
-    fun categoriesWithoutGrant(categories: Set<ImportCategory>, granted: Set<String>): List<String> =
-        categories.filterNot { category -> permissionsFor(setOf(category)).any { it in granted } }
-            .map { it.storageKey }
+    fun categoriesWithoutGrant(types: Set<ImportType>, granted: Set<String>): List<String> =
+        ImportCategory.entries.filter { category ->
+            val chosen = category.types.filter { it in types }
+            chosen.isNotEmpty() && chosen.none { it.permission in granted }
+        }.map { it.storageKey }
 
     /**
      * Read access to records older than 30 days. Without it Health Connect serves an app only the last 30 days, so the
@@ -168,17 +187,21 @@ object HealthConnectImporter {
     const val HISTORY_PERMISSION = "android.permission.health.READ_HEALTH_DATA_HISTORY"
 
     /** What the import asks Health Connect for: the selected types' read access plus [HISTORY_PERMISSION]. */
-    fun requestFor(categories: Set<ImportCategory>): Set<String> = permissionsFor(categories) + HISTORY_PERMISSION
+    fun requestFor(types: Set<ImportType>): Set<String> =
+        if (types.isEmpty()) emptySet() else permissionsFor(types) + HISTORY_PERMISSION
 
-    internal fun recordTypesFor(categories: Set<ImportCategory>): Set<KClass<out Record>> =
-        categories.flatMapTo(linkedSetOf()) { it.recordTypes }
+    internal fun recordTypesFor(types: Set<ImportType>): Set<KClass<out Record>> =
+        types.mapTo(linkedSetOf()) { it.recordType }
 
     internal fun readableRecordTypes(
-        categories: Set<ImportCategory>,
+        types: Set<ImportType>,
         grantedPermissions: Set<String>,
-    ): Set<KClass<out Record>> = recordTypesFor(categories).filterTo(linkedSetOf()) {
-        HealthPermission.getReadPermission(it) in grantedPermissions
-    }
+    ): Set<KClass<out Record>> = types.filter { it.permission in grantedPermissions }
+        .mapTo(linkedSetOf()) { it.recordType }
+
+    /** Whether anything selected is readable now. The one test for "can an import run", for every caller. */
+    fun anySelectedGranted(types: Set<ImportType>, granted: Set<String>): Boolean =
+        types.any { it.permission in granted }
 
     /**
      * Hydration import window, in days (#949) — deliberately much shorter than [WINDOW_YEARS].
@@ -192,93 +215,144 @@ object HealthConnectImporter {
     private const val HYDRATION_WINDOW_DAYS = 30L
 
     /**
-     * The selected categories. New installs start with the narrow recovery/wellness group; an
-     * existing install that was already prompted under the old all-at-once flow keeps all categories
-     * enabled so an update never silently stops importing data it imported before (#645).
+     * The selected types. A selection stored per type wins, even an empty one (the wearer switched
+     * everything off; the import button says so). An install that only has the older per-group selection
+     * keeps exactly what it chose, converted to types. With neither, a new install starts with the narrow
+     * recovery group and an install prompted under the old all-at-once flow keeps everything, so an update
+     * never silently stops importing data it imported before (#645).
      */
-    fun selectedCategories(context: Context): Set<ImportCategory> {
+    fun selectedTypes(context: Context): Set<ImportType> {
         val preferences = prefs(context)
-        return categoriesFromStoredKeys(
+        preferences.getStringSet(TYPE_SELECTION_KEY, null)?.let { return typesFromStoredKeys(it) }
+        return typesFromLegacyCategoryKeys(
             preferences.getStringSet(CATEGORY_SELECTION_KEY, null)?.toSet(),
             preferences.contains(PERMISSION_SIGNATURE_KEY),
         )
     }
 
-    fun setSelectedCategories(context: Context, categories: Set<ImportCategory>) {
-        require(categories.isNotEmpty()) { "At least one Health Connect category must be selected" }
+    /** Store the selection. Empty is allowed and means "import nothing". */
+    fun setSelectedTypes(context: Context, types: Set<ImportType>) {
         prefs(context).edit()
-            .putStringSet(CATEGORY_SELECTION_KEY, categories.mapTo(linkedSetOf()) { it.storageKey })
+            .putStringSet(TYPE_SELECTION_KEY, types.mapTo(linkedSetOf()) { it.storageKey })
             .apply()
     }
 
+    internal fun typesFromStoredKeys(storedKeys: Set<String>): Set<ImportType> =
+        ImportType.entries.filterTo(linkedSetOf()) { it.storageKey in storedKeys }
+
     /**
-     * The categories implied by grants Android already holds.
+     * The older selection was per group, with "activity" covering what is now steps, training and
+     * calories. Converted without narrowing: whatever a group used to read, its types stay selected.
+     */
+    internal fun typesFromLegacyCategoryKeys(
+        storedKeys: Set<String>?,
+        hadLegacyPermissionSignature: Boolean,
+    ): Set<ImportType> {
+        if (storedKeys != null) {
+            val restored = linkedSetOf<ImportType>()
+            if ("recovery" in storedKeys) restored += ImportCategory.RECOVERY.types
+            if ("activity" in storedKeys) {
+                restored += ImportCategory.STEPS.types
+                restored += ImportCategory.TRAINING.types
+                restored += ImportCategory.CALORIES.types
+            }
+            if ("body-composition" in storedKeys) restored += ImportCategory.BODY_COMPOSITION.types
+            if (restored.isNotEmpty()) return restored
+        }
+        return if (hadLegacyPermissionSignature) ALL_TYPES else DEFAULT_TYPES
+    }
+
+    /**
+     * The types implied by grants Android already holds: every group with one granted type, whole.
      *
      * A user who granted Health Connect before #645 existed has no stored selection, and — if they
      * onboarded before #949 added it — no permission signature either. The importer has shipped since
      * 2026-06-07 and that key only since 2026-07-30, so there is a real cohort with neither. Falling back
-     * to [DEFAULT_CATEGORIES] for them would silently stop importing Activity and Body composition while
-     * Android still shows those permissions as granted: nothing on screen would say why steps stopped.
+     * to [DEFAULT_TYPES] for them would silently stop importing steps, workouts and weight while Android
+     * still shows those permissions as granted: nothing on screen would say why steps stopped.
      *
      * Their grants are the honest record of what they agreed to, so read the scope back off those.
      */
-    internal fun categoriesFromGrantedPermissions(granted: Set<String>): Set<ImportCategory> =
-        ImportCategory.entries.filterTo(linkedSetOf()) { category ->
-            permissionsFor(setOf(category)).any { it in granted }
-        }
+    internal fun typesFromGrantedPermissions(granted: Set<String>): Set<ImportType> =
+        ImportCategory.entries
+            .filter { category -> category.types.any { it.permission in granted } }
+            .flatMapTo(linkedSetOf()) { it.types }
 
     /**
      * One-time backfill of the selection for a user who predates it, from what Android has granted.
      *
-     * Only ever writes when NOTHING is stored, so a user who deliberately narrows to Recovery is never
-     * re-broadened, and it is safe to call from every entry point that can be the first one reached.
+     * Only ever writes when NOTHING is stored, neither per type nor per group, so a user who deliberately
+     * narrowed is never re-broadened, and it is safe to call from every entry point that can be the first
+     * one reached.
      */
     fun migrateSelectionFromGrants(context: Context, granted: Set<String>) {
-        if (prefs(context).getStringSet(CATEGORY_SELECTION_KEY, null) != null) return
-        val inferred = categoriesFromGrantedPermissions(granted)
-        if (inferred.isNotEmpty()) setSelectedCategories(context, inferred)
-    }
-
-    internal fun categoriesFromStoredKeys(
-        storedKeys: Set<String>?,
-        hadLegacyPermissionSignature: Boolean,
-    ): Set<ImportCategory> {
-        if (storedKeys != null) {
-            val restored = ImportCategory.entries.filterTo(linkedSetOf()) { it.storageKey in storedKeys }
-            if (restored.isNotEmpty()) return restored
-        }
-        return if (hadLegacyPermissionSignature) ALL_CATEGORIES else DEFAULT_CATEGORIES
+        val preferences = prefs(context)
+        if (preferences.contains(TYPE_SELECTION_KEY) || preferences.contains(CATEGORY_SELECTION_KEY)) return
+        val inferred = typesFromGrantedPermissions(granted)
+        if (inferred.isNotEmpty()) setSelectedTypes(context, inferred)
     }
 
     /**
-     * Whether the user has been asked about every permission in the selected categories (#949/#645).
+     * Whether the user has been asked about every permission of the selected types (#949/#645).
      *
      * The stored value is the union of permissions previously presented, not just the last selected
-     * set. Narrowing a selection therefore never causes another prompt; adding a category or adding a
-     * record type to an enabled category prompts once. Declining is still remembered.
+     * set. Narrowing a selection therefore never causes another prompt; selecting a new type prompts
+     * once. Declining is remembered: a type the wearer turned down in Health Connect's own screen is not
+     * asked for again on the next tap (owner decision 2026-11-14); they can still allow it there.
      *
      * The old implementation stored all permissions as the same comma-separated signature. Parsing
      * it as an asked set makes this migration backward-compatible without a preference rewrite.
      */
     fun hasUnaskedPermissions(
         context: Context,
-        categories: Set<ImportCategory> = selectedCategories(context),
-    ): Boolean = unaskedPermissions(askedPermissions(context), categories).isNotEmpty()
+        types: Set<ImportType> = selectedTypes(context),
+    ): Boolean = unaskedPermissions(askedPermissions(context), types).isNotEmpty()
 
-    /** Record that the user has now been asked about the selected categories' permissions. */
+    /** Record that the user has now been asked about the selected types' permissions. */
     fun markPermissionsAsked(
         context: Context,
-        categories: Set<ImportCategory> = selectedCategories(context),
+        types: Set<ImportType> = selectedTypes(context),
     ) {
-        val asked = askedPermissions(context) + requestFor(categories)
+        val asked = askedPermissions(context) + requestFor(types)
         prefs(context).edit().putString(PERMISSION_SIGNATURE_KEY, asked.sorted().joinToString(",")).apply()
     }
 
     internal fun unaskedPermissions(
         asked: Set<String>,
-        categories: Set<ImportCategory>,
+        types: Set<ImportType>,
     // With the history permission, so a wearer who granted before it was asked for is asked once more.
-    ): Set<String> = requestFor(categories) - asked
+    ): Set<String> = requestFor(types) - asked
+
+    /**
+     * What one tap on Import asks Health Connect for: the selected permissions never asked before that
+     * Android does not already grant. Empty means "import with what is granted now", without a dialog.
+     */
+    internal fun permissionsToRequest(
+        asked: Set<String>,
+        types: Set<ImportType>,
+        granted: Set<String>,
+    ): Set<String> = unaskedPermissions(asked, types) - granted
+
+    /** [permissionsToRequest] for this install's stored asked set. */
+    fun permissionsToRequest(context: Context, types: Set<ImportType>, granted: Set<String>): Set<String> =
+        permissionsToRequest(askedPermissions(context), types, granted)
+
+    /**
+     * What Android grants NOOP right now, or empty when Health Connect cannot say.
+     *
+     * Read again after the permission dialog closes rather than trusting the dialog's answer: that answer
+     * covers only the permissions the dialog asked about, so a wearer who declined the new ones while steps
+     * and workouts were long granted counted as "nothing granted" and got no import at all (2026-11-14).
+     */
+    suspend fun grantedPermissions(context: Context): Set<String> =
+        runCatching { client(context).permissionController.getGrantedPermissions() }.getOrDefault(emptySet())
+
+    /**
+     * How many workouts in the last import carried a route Health Connect would not hand over. Routes need
+     * their own permission that the normal dialog cannot ask for, so this is the only sign the wearer has
+     * to allow them in Health Connect itself. Written once per import, read by the selector.
+     */
+    fun routesAwaitingConsent(context: Context): Int = prefs(context).getInt(ROUTES_CONSENT_KEY, 0)
 
     private fun askedPermissions(context: Context): Set<String> =
         prefs(context).getString(PERMISSION_SIGNATURE_KEY, null)
@@ -287,6 +361,9 @@ object HealthConnectImporter {
             .orEmpty()
 
     private const val PERMISSION_SIGNATURE_KEY = "noop.hc.permissionSignature"
+    private const val TYPE_SELECTION_KEY = "noop.hc.importTypes"
+    private const val ROUTES_CONSENT_KEY = "noop.hc.routesAwaitingConsent"
+    // The older per-group selection (#645), read once to carry a choice over; never written any more.
     private const val CATEGORY_SELECTION_KEY = "noop.hc.importCategories"
 
     private fun prefs(context: Context) =
@@ -332,7 +409,7 @@ object HealthConnectImporter {
         heightCm: Double = 0.0,
         // Null means "whatever the user has selected", resolved AFTER the grant-based migration below. A
         // non-lazy default is evaluated at CALL time, before the migration could widen it.
-        categories: Set<ImportCategory>? = null,
+        types: Set<ImportType>? = null,
     ): ImportSummary {
         if (sdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return ImportSummary.failure(SOURCE, "Health Connect is not available on this device.")
@@ -362,15 +439,14 @@ object HealthConnectImporter {
         // real scope from the grants before deciding what to read, or the first import after the update
         // would quietly narrow them to Recovery.
         migrateSelectionFromGrants(context, granted)
-        val effectiveCategories = categories ?: selectedCategories(context)
+        val effectiveTypes = types ?: selectedTypes(context)
 
         // Partial permissions are fine (#150): import the record types the user DID grant and skip the
         // rest, instead of refusing the whole import when any single type is missing. Each per-type read
         // below is already independently fault-tolerant — a type whose read permission was revoked throws
         // and is caught/skipped in [readAll] (same path as #34) — so we only need to bail when NOTHING is
         // granted. The user choosing exactly what NOOP can see is the intended behaviour.
-        val selectedPermissions = permissionsFor(effectiveCategories)
-        if (granted.none { it in selectedPermissions }) {
+        if (!anySelectedGranted(effectiveTypes, granted)) {
             return ImportSummary.failure(
                 SOURCE,
                 "No selected Health Connect data types are granted. Allow at least one selected type, then import.",
@@ -383,10 +459,10 @@ object HealthConnectImporter {
         val filter = TimeRangeFilter.between(start, end)
         // #528: skip our own writes on import (see readAll / isSelfWritten).
         val selfPackage = context.packageName
-        val selectedRecordTypes = readableRecordTypes(effectiveCategories, granted)
+        val selectedRecordTypes = readableRecordTypes(effectiveTypes, granted)
 
-        // A granted permission can outlive the category selection that originally requested it. Gate
-        // on BOTH here so switching a category off stops its reads immediately without requiring the
+        // A granted permission can outlive the type selection that originally requested it. Gate
+        // on BOTH here so switching a type off stops its reads immediately without requiring the
         // user to visit Android's Health Connect settings and revoke the old grant manually (#645).
         suspend fun <T : Record> readSelected(
             type: KClass<T>,
@@ -432,6 +508,8 @@ object HealthConnectImporter {
         // screen (which reads repo.sleepSessions) fell to its empty state. Keep each night's bounds +
         // per-stage minutes here, paired with its wake day for the coveredDays gate at write-out.
         val hcSleepSessions = ArrayList<Pair<String, SleepSession>>()
+        // Sessions whose route Health Connect holds back until the wearer allows routes there ([routesAwaitingConsent]).
+        var routesHeldBack = 0
 
         try {
             // --- Steps ---
@@ -572,6 +650,10 @@ object HealthConnectImporter {
                             RouteMath.LatLng(loc.latitude, loc.longitude)
                         }
                         if (pts.size >= 2) RouteMath.encode(pts) else null
+                    }
+                    is ExerciseRouteResult.ConsentRequired -> {
+                        routesHeldBack++
+                        null
                     }
                     else -> null
                 }
@@ -744,6 +826,11 @@ object HealthConnectImporter {
             } catch (_: Exception) {
                 // Best-effort: a hydration write failure must not sink an otherwise good import.
             }
+        }
+
+        // Only when workouts were actually read: a skipped read says nothing about routes.
+        if (ExerciseSessionRecord::class in selectedRecordTypes) {
+            runCatching { prefs(context).edit().putInt(ROUTES_CONSENT_KEY, routesHeldBack).apply() }
         }
 
         if (acc.isEmpty() && workouts.isEmpty()) {
@@ -950,7 +1037,7 @@ object HealthConnectImporter {
      */
     suspend fun refreshTodaySteps(context: Context, repo: WhoopRepository): Int? {
         if (sdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return null
-        if (ImportCategory.ACTIVITY !in selectedCategories(context)) return null
+        if (ImportType.STEPS !in selectedTypes(context)) return null
         val client = client(context)
         val granted = try {
             client.permissionController.getGrantedPermissions()

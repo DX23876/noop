@@ -3,6 +3,7 @@ package com.noop.ui
 import com.noop.R
 import androidx.compose.ui.res.stringResource
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.text.format.DateUtils
 import android.widget.Toast
@@ -134,8 +135,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
         prefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    var hcReadCategories by remember {
-        mutableStateOf(HealthConnectImporter.selectedCategories(context))
+    var hcReadTypes by remember {
+        mutableStateOf(HealthConnectImporter.selectedTypes(context))
     }
     // A background (BLE-path) writeback updates prefs, not the VM's flow — re-read on entry so the
     // status line reflects the latest attempt whenever this screen is opened (#660).
@@ -303,32 +304,38 @@ fun DataSourcesScreen(vm: AppViewModel) {
         }
     }
 
-    // Health Connect permission request → import once granted.
+    // Import with whatever Android grants NOW. Read again rather than taken from the dialog: its answer
+    // covers only what it asked about, so declining the new types used to cancel an import whose other
+    // types were long granted (2026-11-14). Counts and group keys in the log, never permission names.
+    fun importWithCurrentGrants(afterDialog: Boolean) {
+        scope.launch {
+            val granted = HealthConnectImporter.grantedPermissions(context)
+            val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadTypes)
+            val hit = granted.count { it in selectedPermissions }
+            val without = HealthConnectImporter.categoriesWithoutGrant(hcReadTypes, granted)
+            vm.ble.externalLog("Health Connect: ${if (afterDialog) "after the permission request " else ""}" +
+                                   "$hit of ${selectedPermissions.size} selected permission(s) granted" +
+                                   if (without.isEmpty()) "" else ", still without a grant: ${without.joinToString(",")}")
+            if (HealthConnectImporter.anySelectedGranted(hcReadTypes, granted)) {
+                // An earlier refusal's note must not stay under a card whose import is now running: that is
+                // one card stating two different things about the same grant.
+                hcNote = null
+                runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
+            } else {
+                hcNote = context.getString(R.string.cx_hc_not_granted)
+                Toast.makeText(context, context.getString(R.string.cx_hc_not_granted), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Health Connect permission request → import with what is granted afterwards.
     val hcPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
-    ) { granted ->
-        val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
-        val hit = granted.count { it in selectedPermissions }
-        // The ONLY evidence this step ever leaves. A tester reported a stuck import whose log held not one
-        // line about it, because nothing here wrote one and the import that does never ran: everything
-        // below this point is silent unless the import itself starts. Counts and category keys, never the
-        // permission names.
-        val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
-        vm.ble.externalLog("Health Connect: permission request returned $hit of " +
-                               "${selectedPermissions.size} selected permission(s)" +
-                               if (without.isEmpty()) "" else ", still without a grant: ${without.joinToString(",")}")
+    ) { _ ->
         // Mark as asked only now. Marking before the launch counted a dialog that never appeared, which is
-        // exactly the case this evidence exists to catch.
-        HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
-        if (hit > 0) {
-            // An earlier refusal's note must not stay under a card whose import is now running: that is
-            // one card stating two different things about the same grant.
-            hcNote = null
-            runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
-        } else {
-            hcNote = context.getString(R.string.cx_hc_not_granted)
-            Toast.makeText(context, context.getString(R.string.cx_hc_not_granted), Toast.LENGTH_LONG).show()
-        }
+        // exactly the case the log line above exists to catch.
+        HealthConnectImporter.markPermissionsAsked(context, hcReadTypes)
+        importWithCurrentGrants(afterDialog = true)
     }
 
     val healthConnectAvailable = remember {
@@ -340,47 +347,38 @@ fun DataSourcesScreen(vm: AppViewModel) {
     // where it's install-time) the VM starts the HR peripheral.
     val requestAdvertise = rememberRequestAdvertise(onGranted = { vm.setHrBroadcast(true) })
 
-    // Import directly if permissions already granted, otherwise request them first.
+    // Ask only for what was never asked, then import with what is granted.
     fun startHealthConnect() {
         scope.launch {
-            val granted = runCatching {
-                HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
-            }.getOrDefault(emptySet())
+            val granted = HealthConnectImporter.grantedPermissions(context)
             // #645: a user who predates the selector has nothing stored. Recover their real scope from
-            // what Android already grants BEFORE the checkboxes are read back, or a first visit would
+            // what Android already grants BEFORE the switches are read back, or a first visit would
             // show Recovery-only and saving it would lock in the narrowing.
             HealthConnectImporter.migrateSelectionFromGrants(context, granted)
-            hcReadCategories = HealthConnectImporter.selectedCategories(context)
-            val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
-            // Ask for whatever is still missing, every time this is tapped. Partial grants are supported
-            // (#150), so the import runs on what it has — but an install that was granted recovery data
-            // long ago and later learned to read workouts would otherwise import everything except
-            // workouts, for good: the old gate asked only while a permission had never been PRESENTED
-            // (#949), so one decline, or one request the system answered without showing anything,
-            // settled it forever. A tap on Import is the wearer asking for their data now; asking Health
-            // Connect for what that needs is what the tap means. Health Connect shows its own screen and
-            // decides what to put on it, so this cannot become a nag loop, and the background auto-sync
-            // path deliberately asks for nothing.
-            // The history permission is asked for WITH the data types and is not one of them, so it has to
-            // be counted here too: without it Health Connect serves only the last 30 days (2026-11-11), and
-            // an install granted every data type but not history would otherwise import a month, silently,
-            // and never be asked again.
-            val missing = (selectedPermissions + HealthConnectImporter.HISTORY_PERMISSION) - granted
-            val hit = granted.count { it in selectedPermissions }
-            // Always on: a rare event that costs nothing when it never happens, and the one line that
-            // separates "Health Connect refused us" from "the import ran and found nothing". It names the
-            // categories with no grant at all, because a count cannot say which data stays missing.
-            val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
+            hcReadTypes = HealthConnectImporter.selectedTypes(context)
+            if (hcReadTypes.isEmpty()) return@launch
+            // A type the wearer declined in Health Connect's own screen is not asked for again on every tap
+            // (owner decision 2026-11-14): that made a partial grant feel like "allow everything or nothing".
+            // A newly selected type, and the history permission, are still asked for once; "Change in
+            // Health Connect" on the card is the way back to a declined one. The background auto-sync
+            // path asks for nothing.
+            val request = HealthConnectImporter.permissionsToRequest(context, hcReadTypes, granted)
             vm.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
-                                   "granted=$hit/${selectedPermissions.size} categories=${hcReadCategories.joinToString(",") { it.storageKey }}" +
-                                   if (without.isEmpty()) "" else " withoutGrant=${without.joinToString(",")}")
-            if (missing.isEmpty()) {
-                hcNote = null
-                runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
+                                   "types=${hcReadTypes.size} new to ask=${request.size}")
+            if (request.isEmpty()) {
+                importWithCurrentGrants(afterDialog = false)
             } else {
-                vm.ble.externalLog("Health Connect: asking for ${missing.size} missing permission(s)")
-                hcPermissionLauncher.launch(missing)
+                hcPermissionLauncher.launch(request)
             }
+        }
+    }
+
+    // Health Connect's own screen, where a declined type or the route permission is allowed.
+    fun openHealthConnectSettings() {
+        runCatching {
+            context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
+        }.onFailure {
+            Toast.makeText(context, context.getString(R.string.cx_hc_not_granted), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -552,17 +550,21 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 )
             }
             if (healthConnectAvailable) {
+                // Re-read when an import finishes (busy flips back), since the import is what counts them.
+                val routesAwaitingConsent = remember(busy) { HealthConnectImporter.routesAwaitingConsent(context) }
                 HealthConnectCategorySelector(
-                    selected = hcReadCategories,
-                    onSelectionChange = { categories ->
-                        hcReadCategories = categories
-                        HealthConnectImporter.setSelectedCategories(context, categories)
+                    selected = hcReadTypes,
+                    onSelectionChange = { types ->
+                        hcReadTypes = types
+                        HealthConnectImporter.setSelectedTypes(context, types)
                     },
+                    routesAwaitingConsent = routesAwaitingConsent,
+                    onOpenHealthConnect = { openHealthConnectSettings() },
                 )
                 BackupButton(
                     label = uiString(R.string.l10n_data_sources_screen_import_from_health_connect_35d55e21),
                     icon = Icons.Filled.FileUpload,
-                    enabled = !busy,
+                    enabled = !busy && hcReadTypes.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
                 ) { startHealthConnect() }
                 hcNote?.let {

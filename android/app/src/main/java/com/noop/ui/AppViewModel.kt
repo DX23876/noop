@@ -2976,11 +2976,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val granted = runCatching {
                     HealthConnectImporter.client(appContext).permissionController.getGrantedPermissions()
                 }.getOrDefault(emptySet())
-                val selectedPermissions = HealthConnectImporter.permissionsFor(
-                    HealthConnectImporter.selectedCategories(appContext),
-                )
-                // Partial permissions are fine (#150): auto-import as long as at least one type is granted.
-                if (granted.none { it in selectedPermissions }) return@withContext false
+                // Partial permissions are fine (#150): auto-import as long as at least one selected type is granted.
+                if (!HealthConnectImporter.anySelectedGranted(HealthConnectImporter.selectedTypes(appContext), granted)) {
+                    return@withContext false
+                }
                 // Pass the profile height so the importer can derive BMI (Health Connect has no BMI record).
                 runCatching { HealthConnectImporter.import(appContext, repository, profileStore.heightCm) }.isSuccess
             }
