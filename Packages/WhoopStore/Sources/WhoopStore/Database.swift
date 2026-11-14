@@ -2104,6 +2104,81 @@ extension WhoopStore {
         migrator.registerMigration("v89-workout-route") { db in
             try db.alter(table: "workout") { t in t.add(column: "routePolyline", .text) }
         }
+        // v90: training plans become objects a wearer can keep several of. Until now every routine and
+        // every scheduled day belonged to one implicit plan, so there was nothing to activate, nothing to
+        // leave resting, and no way to hold a second plan for a second goal.
+        //
+        // Every routine that exists now, and the week as it stands, move into ONE plan, active and of the
+        // strength kind, so nothing changes for anyone who had routines before this ran. A fresh install
+        // gets that same plan, empty: the app always has somewhere to put a first routine, and the one
+        // resolver for "what do I train today" always has an active plan to answer from.
+        //
+        // `trainingSchedule` is rebuilt rather than altered because its primary key gains the plan: a
+        // weekday can now hold the same slot in two plans. It is a leaf table (its only reference points
+        // out, to the routine) so the copy is safe. Day exceptions stay as they are, since an exception
+        // belongs to a date and names its routines directly.
+        //
+        // Analysis migration required: no. Prescriptions are not derived values, no stored score reads
+        // any of this, and `trainingBlockRun` holds only when a block ran, never a figure computed from it.
+        migrator.registerMigration("v90-training-program") { db in
+            try db.create(table: "trainingProgram") { t in
+                t.column("id", .text).primaryKey()
+                t.column("title", .text).notNull()
+                t.column("kind", .text).notNull()
+                t.column("notes", .text)
+                t.column("targetsJSON", .text).notNull()
+                t.column("blockJSON", .text)
+                t.column("isActive", .boolean).notNull()
+                t.column("originJSON", .text).notNull()
+                t.column("createdAtTs", .integer).notNull()
+                t.column("updatedAtTs", .integer).notNull()
+            }
+            try db.create(index: "idx_trainingProgram_active",
+                          on: "trainingProgram", columns: ["kind", "isActive"])
+
+            try db.create(table: "trainingBlockRun") { t in
+                t.column("id", .text).primaryKey()
+                t.column("programId", .text).notNull()
+                    .references("trainingProgram", onDelete: .cascade)
+                t.column("startedOn", .text).notNull()
+                t.column("endedOn", .text)
+                t.column("weeks", .integer).notNull()
+                t.column("deloadInFinalWeek", .boolean).notNull()
+                t.column("deloadEveryWeeks", .integer)
+                t.column("deloadFactor", .double).notNull()
+                t.column("progression", .text).notNull()
+                t.column("outcome", .text).notNull()
+            }
+            try db.create(index: "idx_trainingBlockRun_program",
+                          on: "trainingBlockRun", columns: ["programId", "startedOn"])
+
+            try db.alter(table: "trainingRoutineNative") { t in t.add(column: "programId", .text) }
+
+            let programId = UUID().uuidString
+            let now = Int(Date().timeIntervalSince1970)
+            try db.execute(sql: """
+                INSERT INTO trainingProgram
+                  (id, title, kind, notes, targetsJSON, blockJSON, isActive, originJSON,
+                   createdAtTs, updatedAtTs)
+                VALUES (?, ?, 'strength', NULL, '{}', NULL, 1, '{"kind":"own"}', ?, ?)
+                """, arguments: [programId, "My plan", now, now])
+            try db.execute(sql: "UPDATE trainingRoutineNative SET programId = ?", arguments: [programId])
+
+            try db.create(table: "trainingSchedule_new") { t in
+                t.column("programId", .text).notNull()
+                t.column("weekday", .integer).notNull()
+                t.column("idx", .integer).notNull()
+                t.column("routineId", .text).notNull()
+                    .references("trainingRoutineNative", onDelete: .cascade)
+                t.primaryKey(["programId", "weekday", "idx"])
+            }
+            try db.execute(sql: """
+                INSERT INTO trainingSchedule_new (programId, weekday, idx, routineId)
+                SELECT ?, weekday, idx, routineId FROM trainingSchedule
+                """, arguments: [programId])
+            try db.execute(sql: "DROP TABLE trainingSchedule")
+            try db.execute(sql: "ALTER TABLE trainingSchedule_new RENAME TO trainingSchedule")
+        }
         return migrator
     }
 }

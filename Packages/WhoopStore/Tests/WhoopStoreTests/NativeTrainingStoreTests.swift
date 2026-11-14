@@ -138,7 +138,12 @@ final class NativeTrainingStoreTests: XCTestCase {
         ], defaultProgression: .init(policy: .linear), createdAt: 1, updatedAt: 2)
         try await store.upsertTrainingRoutine(routine)
         let storedRoutines = try await store.trainingRoutines()
-        XCTAssertEqual(storedRoutines, [routine])
+        // A routine that names no plan joins the one being followed (v90), so the stored copy comes
+        // back with that plan on it. Everything else must survive the round trip unchanged.
+        var expected = routine
+        expected.programId = try await store.trainingPrograms().first { $0.isActive }?.id
+        XCTAssertNotNil(expected.programId)
+        XCTAssertEqual(storedRoutines, [expected])
     }
 
     func testDraftIsSingleAndCompletionIsAtomic() async throws {

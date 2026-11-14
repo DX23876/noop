@@ -366,6 +366,9 @@ public struct TrainingRoutine: Identifiable, Codable, Equatable, Sendable {
     public var exercises: [RoutineExercise]
     public var defaultProgression: ProgressionConfiguration
     public var excludeFromProgression: Bool
+    /// The plan this routine belongs to. Optional only so that files and payloads written before
+    /// plans existed still decode; the store resolves those into the wearer's first plan on write.
+    public var programId: UUID?
     public var createdAt: Int
     public var updatedAt: Int
 
@@ -373,6 +376,7 @@ public struct TrainingRoutine: Identifiable, Codable, Equatable, Sendable {
                 exercises: [RoutineExercise] = [],
                 defaultProgression: ProgressionConfiguration = .init(),
                 excludeFromProgression: Bool = false,
+                programId: UUID? = nil,
                 createdAt: Int = Int(Date().timeIntervalSince1970),
                 updatedAt: Int = Int(Date().timeIntervalSince1970)) {
         self.id = id
@@ -381,6 +385,7 @@ public struct TrainingRoutine: Identifiable, Codable, Equatable, Sendable {
         self.exercises = exercises
         self.defaultProgression = defaultProgression
         self.excludeFromProgression = excludeFromProgression
+        self.programId = programId
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

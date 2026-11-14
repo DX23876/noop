@@ -77,16 +77,19 @@ extension WhoopStore {
     }
 
     private static func writeTrainingRoutine(_ routine: TrainingRoutine, in db: Database) throws {
+        let programId = try Self.resolvedProgramId(routine.programId, in: db)
         try db.execute(sql: """
             INSERT INTO trainingRoutineNative
-              (id, title, notes, defaultProgressionJSON, excludeFromProgression, createdAtTs, updatedAtTs)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+              (id, title, notes, defaultProgressionJSON, excludeFromProgression, programId,
+               createdAtTs, updatedAtTs)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET title=excluded.title, notes=excluded.notes,
               defaultProgressionJSON=excluded.defaultProgressionJSON,
-              excludeFromProgression=excluded.excludeFromProgression, updatedAtTs=excluded.updatedAtTs
+              excludeFromProgression=excluded.excludeFromProgression, programId=excluded.programId,
+              updatedAtTs=excluded.updatedAtTs
             """, arguments: [routine.id.uuidString, routine.title, routine.notes,
                               try Self.json(routine.defaultProgression), routine.excludeFromProgression,
-                              routine.createdAt, routine.updatedAt])
+                              programId, routine.createdAt, routine.updatedAt])
         try db.execute(sql: "DELETE FROM trainingRoutineExercise WHERE routineId = ?",
                        arguments: [routine.id.uuidString])
         for (index, exercise) in routine.exercises.enumerated() {
@@ -113,9 +116,37 @@ extension WhoopStore {
         }
     }
 
-    public func trainingRoutines() async throws -> [TrainingRoutine] {
+    /// The plan a routine goes into when it does not name one: the strength plan being followed, else
+    /// the oldest plan there is. A store with no plan at all gets one, so a routine can never end up
+    /// belonging to nothing and vanishing from every screen.
+    static func resolvedProgramId(_ wanted: UUID?, in db: Database) throws -> String {
+        if let wanted,
+           try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM trainingProgram WHERE id = ?",
+                            arguments: [wanted.uuidString]) ?? 0 > 0 {
+            return wanted.uuidString
+        }
+        if let active = try String.fetchOne(db, sql: """
+            SELECT id FROM trainingProgram WHERE isActive = 1 AND kind = 'strength'
+            ORDER BY updatedAtTs DESC LIMIT 1
+            """) { return active }
+        if let oldest = try String.fetchOne(db, sql:
+            "SELECT id FROM trainingProgram ORDER BY createdAtTs LIMIT 1") { return oldest }
+        let program = TrainingProgram(title: "My plan", isActive: true)
+        try Self.writeProgram(program, in: db)
+        return program.id.uuidString
+    }
+
+    public func trainingRoutines(programId: UUID? = nil) async throws -> [TrainingRoutine] {
         try syncRead { db in
-            let heads = try Row.fetchAll(db, sql: "SELECT * FROM trainingRoutineNative ORDER BY updatedAtTs DESC")
+            let heads: [Row]
+            if let programId {
+                heads = try Row.fetchAll(db, sql: """
+                    SELECT * FROM trainingRoutineNative WHERE programId = ? ORDER BY updatedAtTs DESC
+                    """, arguments: [programId.uuidString])
+            } else {
+                heads = try Row.fetchAll(db, sql:
+                    "SELECT * FROM trainingRoutineNative ORDER BY updatedAtTs DESC")
+            }
             let exerciseRows = try Row.fetchAll(db, sql: "SELECT * FROM trainingRoutineExercise ORDER BY routineId, idx")
             let setRows = try Row.fetchAll(db, sql: "SELECT * FROM trainingRoutineSetPlan ORDER BY routineExerciseId, idx")
             var sets: [String: [RoutineSetPlan]] = [:]
@@ -159,6 +190,7 @@ extension WhoopStore {
                     defaultProgression: try Self.decode(ProgressionConfiguration.self,
                                                         row["defaultProgressionJSON"]),
                     excludeFromProgression: row["excludeFromProgression"],
+                    programId: (row["programId"] as String?).flatMap(UUID.init(uuidString:)),
                     createdAt: row["createdAtTs"], updatedAt: row["updatedAtTs"])
             }
         }
@@ -171,30 +203,44 @@ extension WhoopStore {
     }
 
     /// Merge an explicitly imported plan atomically, retaining unrelated routines and scheduled days.
-    public func mergeTrainingPlan(_ archive: TrainingPlanArchive, nowTs: Int) async throws {
+    ///
+    /// The imported routines and days land in one plan: the one named, or the plan being followed
+    /// when none is. Other plans are left exactly as they are, which is what makes importing into a
+    /// second plan safe.
+    public func mergeTrainingPlan(_ archive: TrainingPlanArchive, into programId: UUID? = nil,
+                                  nowTs: Int) async throws {
         try syncWrite { db in
+            let owner = try Self.resolvedProgramId(programId, in: db)
             try Self.writeTrainingExercises(archive.exercises, nowTs: nowTs, in: db)
-            for routine in archive.routines { try Self.writeTrainingRoutine(routine, in: db) }
+            for routine in archive.routines {
+                var placed = routine
+                placed.programId = UUID(uuidString: owner)
+                try Self.writeTrainingRoutine(placed, in: db)
+            }
             for weekday in TrainingWeekday.allCases {
-                var ids = try String.fetchAll(db, sql: "SELECT routineId FROM trainingSchedule WHERE weekday = ? ORDER BY idx", arguments: [weekday.rawValue])
+                var ids = try String.fetchAll(db, sql: """
+                    SELECT routineId FROM trainingSchedule WHERE programId = ? AND weekday = ? ORDER BY idx
+                    """, arguments: [owner, weekday.rawValue])
                 for id in archive.schedule[weekday] ?? [] where !ids.contains(id.uuidString) { ids.append(id.uuidString) }
-                try db.execute(sql: "DELETE FROM trainingSchedule WHERE weekday = ?", arguments: [weekday.rawValue])
+                try db.execute(sql: "DELETE FROM trainingSchedule WHERE programId = ? AND weekday = ?",
+                               arguments: [owner, weekday.rawValue])
                 for (index, id) in ids.enumerated() {
-                    try db.execute(sql: "INSERT INTO trainingSchedule (weekday,idx,routineId) VALUES (?,?,?)", arguments: [weekday.rawValue,index,id])
+                    try db.execute(sql: """
+                        INSERT INTO trainingSchedule (programId, weekday, idx, routineId) VALUES (?,?,?,?)
+                        """, arguments: [owner, weekday.rawValue, index, id])
                 }
             }
         }
     }
 
-    public func replaceTrainingSchedule(_ schedule: [TrainingWeekday: [UUID]]) async throws {
+    /// Replaces one plan's week. Without a plan it is the week of the strength plan being followed,
+    /// which is what every caller written before plans existed meant.
+    public func replaceTrainingSchedule(_ schedule: [TrainingWeekday: [UUID]],
+                                        programId: UUID? = nil) async throws {
         try syncWrite { db in
-            try db.execute(sql: "DELETE FROM trainingSchedule")
-            for weekday in TrainingWeekday.allCases {
-                for (index, routineId) in (schedule[weekday] ?? []).enumerated() {
-                    try db.execute(sql: "INSERT INTO trainingSchedule (weekday, idx, routineId) VALUES (?, ?, ?)",
-                                   arguments: [weekday.rawValue, index, routineId.uuidString])
-                }
-            }
+            let owner = try Self.resolvedProgramId(programId, in: db)
+            guard let id = UUID(uuidString: owner) else { return }
+            try Self.writeSchedule(schedule, programId: id, in: db)
         }
     }
 
@@ -216,15 +262,25 @@ extension WhoopStore {
         }
     }
 
+    /// What the wearer is following: the routines and the week of the ACTIVE plans, merged.
+    ///
+    /// This stays the one question every surface asks about today, which is why a resting plan is
+    /// filtered out here rather than at each screen. `TrainingPlan` drops any scheduled id whose
+    /// routine it does not hold, so a resting plan's days fall away with its routines.
     public func trainingPlan(weekStartsOn: TrainingWeekStart = .monday) async throws -> TrainingPlan {
-        let routines = try await trainingRoutines()
+        let programs = try await trainingPrograms()
+        let active = TrainingProgramActivation.activePlans(in: programs)
+        let activeIds = Set(active.map(\.id))
+        let routines = try await trainingRoutines().filter { routine in
+            routine.programId.map(activeIds.contains) ?? false
+        }
         return try syncRead { db in
-            let scheduled = try Row.fetchAll(db, sql: "SELECT * FROM trainingSchedule ORDER BY weekday, idx")
             var schedule: [TrainingWeekday: [UUID]] = [:]
-            for row in scheduled {
-                guard let weekday = TrainingWeekday(rawValue: row["weekday"]),
-                      let id = UUID(uuidString: row["routineId"]) else { continue }
-                schedule[weekday, default: []].append(id)
+            for program in active {
+                for weekday in TrainingWeekday.allCases {
+                    guard let ids = program.schedule[weekday], !ids.isEmpty else { continue }
+                    schedule[weekday, default: []].append(contentsOf: ids)
+                }
             }
             let rows = try Row.fetchAll(db, sql: "SELECT * FROM trainingDayOverride ORDER BY day, idx")
             var grouped: [String: (ids: [UUID], rest: Bool)] = [:]
@@ -454,11 +510,11 @@ extension WhoopStore {
         }
     }
 
-    private static func json<T: Encodable>(_ value: T) throws -> String {
+    static func json<T: Encodable>(_ value: T) throws -> String {
         String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, _ value: String) throws -> T {
+    static func decode<T: Decodable>(_ type: T.Type, _ value: String) throws -> T {
         try JSONDecoder().decode(type, from: Data(value.utf8))
     }
 }

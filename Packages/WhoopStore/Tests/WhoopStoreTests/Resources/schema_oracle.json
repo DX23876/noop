@@ -90,7 +90,8 @@
   "v86-food-log",
   "v87-food-photo",
   "v88-food-day-complete",
-  "v89-workout-route"
+  "v89-workout-route",
+  "v90-training-program"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -3423,6 +3424,12 @@
      "affinity": "INTEGER",
      "notNull": true,
      "default": null
+    },
+    {
+     "name": "programId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
     }
    ],
    "primaryKey": [
@@ -4004,6 +4011,12 @@
    "reason": "Native source-neutral training plans, exercise definitions, compact completed sets, schedules, and one transient workout draft (GRDB v61). This Apple-only checkout has no Room twin.",
    "columns": [
     {
+     "name": "programId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
      "name": "weekday",
      "affinity": "INTEGER",
      "notNull": true,
@@ -4023,6 +4036,7 @@
     }
    ],
    "primaryKey": [
+    "programId",
     "weekday",
     "idx"
    ],
@@ -5797,6 +5811,164 @@
     "day"
    ],
    "indices": []
+  },
+  "trainingProgram": {
+   "platform": "ios_only",
+   "reason": "Training plans as objects (GRDB v90): the plan a routine and a scheduled day belong to, which of them is being followed, and when a block ran. This Apple-only checkout has no Room twin; Android reads the same GRDB store through the core.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "title",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "kind",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "notes",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "targetsJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "blockJSON",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "isActive",
+     "affinity": "NUMERIC",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "originJSON",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "createdAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAtTs",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingProgram_active",
+     "unique": false,
+     "columns": [
+      "kind",
+      "isActive"
+     ]
+    }
+   ]
+  },
+  "trainingBlockRun": {
+   "platform": "ios_only",
+   "reason": "Training plans as objects (GRDB v90): the plan a routine and a scheduled day belong to, which of them is being followed, and when a block ran. This Apple-only checkout has no Room twin; Android reads the same GRDB store through the core.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "programId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "startedOn",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "endedOn",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "weeks",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "deloadInFinalWeek",
+     "affinity": "NUMERIC",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "deloadEveryWeeks",
+     "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "deloadFactor",
+     "affinity": "REAL",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "progression",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "outcome",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": [
+    {
+     "name": "idx_trainingBlockRun_program",
+     "unique": false,
+     "columns": [
+      "programId",
+      "startedOn"
+     ]
+    }
+   ]
   }
  }
 }
