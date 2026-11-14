@@ -893,6 +893,7 @@ struct StrengthWorkoutSummaryView: View {
 
     private enum TargetUpdateState { case offered, saving, saved, failed }
 
+
     init(workout: NativeWorkout, exercises: [TrainingExercise], performance: TrainingPerformanceHistory,
          routines: [TrainingRoutine] = [], onRoutinesSaved: @escaping () -> Void = {}) {
         _workout = State(initialValue: workout)
@@ -924,6 +925,11 @@ struct StrengthWorkoutSummaryView: View {
                     }
                     sessionFacts
                     routineTargets
+                    // A session run from a routine has the card above, which updates the routine it
+                    // came from; a freestyle one can become a routine of its own.
+                    if workout.routineIds.isEmpty {
+                        KeepSessionAsRoutineCard(workout: workout, onSaved: onRoutinesSaved)
+                    }
                     progress
                     let muscles = TrainingMuscleProjection.workout(workout, exercises: exerciseById)
                     if !muscles.isEmpty {

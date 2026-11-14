@@ -3,6 +3,7 @@ import WhoopStore
 import StrandDesign
 import StrandAnalytics
 import StrandCore
+import StrandTraining
 
 // MARK: - One session, exercise by exercise and set by set
 //
@@ -39,6 +40,10 @@ struct StrengthSessionDetailView: View {
     /// did not cover the session.
     @State private var zoneMinutes: [Double]?
     @State private var loadedHR = false
+    /// This session as it is stored, when it was logged in NOOP: what the "keep as a routine" card
+    /// needs. Nil for a session from Hevy or an import, where there are no stored sets of ours to
+    /// turn into a prescription.
+    @State private var nativeWorkout: NativeWorkout?
     /// The session's energy: the recorded figure when the mirrored row has one, otherwise the same
     /// estimate the workout detail and the list show, so the three cannot disagree.
     @State private var energy: WorkoutEnergyEstimate.Resolved?
@@ -77,6 +82,9 @@ struct StrengthSessionDetailView: View {
                     SessionRPECard(startTs: breakdown.startTs, sport: title,
                                    durationS: breakdown.durationS)
                     exercisesSection
+                    if let nativeWorkout {
+                        KeepSessionAsRoutineCard(workout: nativeWorkout).environmentObject(repo)
+                    }
                     if let notes = breakdown.notes, !notes.isEmpty { notesCard(notes) }
                     provenance
                 }
@@ -102,9 +110,18 @@ struct StrengthSessionDetailView: View {
             .task {
                 await loadHeartRate()
                 await loadEnergy()
+                await loadNativeWorkout()
                 await scrollToDemoBottom(proxy)
             }
             }
+    }
+
+    /// The stored session behind this page, when it was logged in NOOP. Matched by its own id, so a
+    /// session from another source simply finds nothing and the card stays away.
+    private func loadNativeWorkout() async {
+        guard nativeWorkout == nil, source == .noopNative,
+              let id = UUID(uuidString: breakdown.workoutId) else { return }
+        nativeWorkout = await repo.nativeWorkouts().first { $0.id == id }
     }
 
     // MARK: - New design (prototype board "StrengthFull")

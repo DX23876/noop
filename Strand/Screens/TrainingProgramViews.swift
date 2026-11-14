@@ -363,3 +363,100 @@ struct TrainingProgramDetailView: View {
         }
     }
 }
+
+/// Keeps a session that has been done as a routine, so it can be done again without typing it in.
+///
+/// One card, used by the summary a session finishes on and by the page of a session logged earlier.
+/// Two copies would eventually offer two different things, and the wearer would not know which one
+/// they had used. Nothing is saved until the button is pressed, and the routine goes into the plan
+/// they pick, resting plans included.
+struct KeepSessionAsRoutineCard: View {
+    let workout: NativeWorkout
+    var onSaved: () -> Void = {}
+    @EnvironmentObject private var repo: Repository
+    @State private var programs: [TrainingProgram] = []
+    @State private var title = ""
+    @State private var programId: UUID?
+    @State private var state = State.offered
+
+    private enum State { case offered, saving, saved, failed }
+
+    var body: some View {
+        if !workout.exercises.isEmpty {
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    Text("Keep this as a routine").font(StrandFont.headline)
+                    Text("What you did becomes the prescription: the same exercises, sets, weights and repetitions. Sets you did not complete are left out.")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    content
+                }
+            }
+            .task {
+                programs = await repo.nativeTrainingPrograms()
+                if programId == nil {
+                    programId = TrainingProgramActivation.active(.strength, in: programs)?.id
+                        ?? programs.first?.id
+                }
+                if title.isEmpty { title = suggestedTitle }
+            }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch state {
+        case .offered, .saving:
+            TextField("Routine name", text: $title)
+            #if os(iOS)
+                .textFieldStyle(.roundedBorder)
+            #endif
+            if programs.count > 1 {
+                Picker("Plan", selection: $programId) {
+                    ForEach(programs) { program in
+                        Text(program.title.isEmpty ? String(localized: "Unnamed plan") : program.title)
+                            .tag(Optional(program.id))
+                    }
+                }
+            }
+            NoopButton("Save as routine", systemImage: "square.and.arrow.down",
+                       kind: .secondary, fullWidth: true) { save() }
+                .disabled(state == .saving || trimmedTitle.isEmpty || programs.isEmpty)
+        case .saved:
+            Label("Saved as a routine", systemImage: "checkmark.circle.fill")
+                .font(StrandFont.subhead.weight(.semibold))
+                .foregroundStyle(StrandPalette.chargeColor)
+        case .failed:
+            Label("The routine could not be saved.", systemImage: "exclamationmark.triangle.fill")
+                .font(StrandFont.subhead).foregroundStyle(StrandPalette.metricAmber)
+            NoopButton("Try again", kind: .secondary, fullWidth: true) { save() }
+        }
+    }
+
+    private var trimmedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The session's own name with its date, which is what the wearer would have typed anyway.
+    private var suggestedTitle: String {
+        let date = Date(timeIntervalSince1970: TimeInterval(workout.startedAt))
+        return "\(workout.title) \(date.formatted(.dateTime.day().month(.abbreviated)))"
+    }
+
+    private func save() {
+        guard let routine = RoutineFromWorkout.make(workout: workout, title: trimmedTitle,
+                                                    programId: programId) else {
+            state = .failed
+            return
+        }
+        state = .saving
+        Task {
+            do {
+                try await repo.saveNativeTrainingRoutine(routine)
+                state = .saved
+                onSaved()
+            } catch {
+                state = .failed
+            }
+        }
+    }
+}
