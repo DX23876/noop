@@ -23,6 +23,14 @@ struct OpenRouterModel: Identifiable, Equatable {
     /// this is that value scaled ×1,000,000 for a number worth showing in the UI.
     let promptPricePerMillion: Double?
     let completionPricePerMillion: Double?
+    /// What a CACHED input token costs, read from the catalogue rather than derived from `prompt`.
+    ///
+    /// `CoachUsageLog.cacheVerdict` says a cache read bills at "about a tenth of the price", which is
+    /// true of the Anthropic models checked and is fine as prose, but it is not a rate to compute a
+    /// figure with. The catalogue publishes the real numbers (`input_cache_read`, `input_cache_write`),
+    /// so a cost line quotes those or says nothing. Both are nil for a model that publishes neither.
+    let cacheReadPricePerMillion: Double?
+    let cacheWritePricePerMillion: Double?
     /// From `supported_parameters` containing `"tools"` — whether this specific model can be handed
     /// function/tool definitions at all. Not every model behind OpenRouter can; P9's tool-calling gate
     /// reads this rather than assuming every OpenRouter model behaves like Anthropic's.
@@ -137,12 +145,15 @@ struct OpenRouterClient: AIProviderClient {
             let name = row["name"] as? String ?? id
             let contextLength = row["context_length"] as? Int
             let pricing = row["pricing"] as? [String: Any]
-            let promptPrice = (pricing?["prompt"] as? String).flatMap(Double.init).map { $0 * 1_000_000 }
-            let completionPrice = (pricing?["completion"] as? String).flatMap(Double.init).map { $0 * 1_000_000 }
+            func perMillion(_ key: String) -> Double? {
+                (pricing?[key] as? String).flatMap(Double.init).map { $0 * 1_000_000 }
+            }
             let supportsTools = (row["supported_parameters"] as? [String])?.contains("tools") ?? false
             return OpenRouterModel(id: id, name: name, contextLength: contextLength,
-                                   promptPricePerMillion: promptPrice,
-                                   completionPricePerMillion: completionPrice,
+                                   promptPricePerMillion: perMillion("prompt"),
+                                   completionPricePerMillion: perMillion("completion"),
+                                   cacheReadPricePerMillion: perMillion("input_cache_read"),
+                                   cacheWritePricePerMillion: perMillion("input_cache_write"),
                                    supportsTools: supportsTools)
         }
     }

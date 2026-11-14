@@ -430,6 +430,24 @@ final class AICoachEngine: ObservableObject {
             UserDefaults.standard.set(Array(openRouterToolCapableModels), forKey: Self.orToolCapableKey)
         }
     }
+    /// Published USD-per-1M prices per OpenRouter model id, from the same `/models` response as the
+    /// capability set above, and persisted for the same reason it is: without that the cost line would
+    /// be blank on every launch until someone happened to tap "Refresh models", which is exactly the
+    /// once-per-launch silent regression that taught us to persist the capability set.
+    @Published var openRouterModelPrices: [String: CoachUsageLog.ModelPrices] = [:] {
+        didSet {
+            guard let data = try? JSONEncoder().encode(openRouterModelPrices) else { return }
+            UserDefaults.standard.set(data, forKey: Self.orModelPricesKey)
+        }
+    }
+
+    /// Prices for the model this turn actually ran on, or nil when none are known: a non-OpenRouter
+    /// provider, or a model whose catalogue entry carries no price. `CoachUsageLog.cost` turns a nil
+    /// here into no cost line at all rather than a figure that under-counts.
+    var activeModelPrices: CoachUsageLog.ModelPrices? {
+        guard provider == .openRouter else { return nil }
+        return openRouterModelPrices[requestModel]
+    }
     /// Explicit permission for the coach to read & transmit the user's biometric data. OFF by
     /// default, until this is true, NO metrics are included in any request (only the question).
     @Published var dataConsent: Bool {
@@ -670,6 +688,8 @@ final class AICoachEngine: ObservableObject {
     /// Backs `openRouterToolCapableModels`. Stored as an array (UserDefaults has no Set type); order is
     /// irrelevant, only membership is ever read.
     private static let orToolCapableKey = "ai.openRouterToolCapableModels"
+    /// Backs `openRouterModelPrices`. JSON, since UserDefaults has no dictionary-of-struct type.
+    private static let orModelPricesKey = "ai.openRouterModelPrices"
     /// UserDefaults key holding the user's EDITED system prompt. Absent (or blank) means "use the
     /// built-in default". Small text key, never a secret, so plain UserDefaults is fine. Read FRESH
     /// per request (see `systemPrompt`) so an edit takes effect on the very next message.
@@ -968,6 +988,9 @@ final class AICoachEngine: ObservableObject {
         // fire `didSet`, so this doesn't write straight back — same as `model`/`provider` above.
         self.openRouterToolCapableModels =
             Set(UserDefaults.standard.stringArray(forKey: Self.orToolCapableKey) ?? [])
+        self.openRouterModelPrices = UserDefaults.standard.data(forKey: Self.orModelPricesKey)
+            .flatMap { try? JSONDecoder().decode([String: CoachUsageLog.ModelPrices].self, from: $0) }
+            ?? [:]
 
         self.dataConsent = UserDefaults.standard.bool(forKey: Self.consentKey)
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
@@ -1419,6 +1442,25 @@ final class AICoachEngine: ObservableObject {
         return try await OpenRouterClient().fetchModelDetails(key: key, session: session)
     }
 
+    /// USD-per-1M prices keyed by model id, from the `/models` rows already fetched for capabilities.
+    ///
+    /// A model with no `prompt`/`completion` price is left OUT rather than stored as zero: absent and
+    /// free are different answers, and a free-tier model genuinely publishes "0" for both.
+    private static func modelPrices(from details: [OpenRouterModel])
+        -> [String: CoachUsageLog.ModelPrices] {
+        var out: [String: CoachUsageLog.ModelPrices] = [:]
+        for model in details {
+            guard let prompt = model.promptPricePerMillion,
+                  let completion = model.completionPricePerMillion else { continue }
+            out[model.id] = CoachUsageLog.ModelPrices(
+                promptPerMillion: prompt,
+                completionPerMillion: completion,
+                cacheReadPerMillion: model.cacheReadPricePerMillion,
+                cacheWritePerMillion: model.cacheWritePricePerMillion)
+        }
+        return out
+    }
+
     /// One-shot, before an OpenRouter send: learn which models can take tools, if we don't know yet.
     ///
     /// Without this an OpenRouter user who never taps "Refresh models" has `toolCallingActive == false`
@@ -1440,6 +1482,10 @@ final class AICoachEngine: ObservableObject {
         // OpenRouter anyway.
         guard provider == .openRouter else { return }
         let capable = Set(details.filter { $0.supportsTools }.map { $0.id })
+        // Prices ride the SAME response: no extra request, and storing them here means the cost line
+        // appears for a wearer who never opens the model picker.
+        let prices = Self.modelPrices(from: details)
+        if !prices.isEmpty { openRouterModelPrices = prices }
         guard !capable.isEmpty else { return }
         openRouterToolCapableModels = capable
     }
@@ -1465,6 +1511,9 @@ final class AICoachEngine: ObservableObject {
             // Carried past the #873 race guard below alongside `ids`, so a mid-flight provider switch
             // discards a stale capability set exactly the same way it already discards stale ids.
             var toolCapable: Set<String>?
+            /// Carried past the same race guard, for the same reason: prices fetched for OpenRouter say
+            /// nothing about a provider the wearer has since switched to.
+            var prices: [String: CoachUsageLog.ModelPrices]?
             #if DEBUG
             if let override = fetchModelsOverride {
                 ids = try await override(capturedProvider, key)
@@ -1472,6 +1521,7 @@ final class AICoachEngine: ObservableObject {
                 let details = try await fetchOpenRouterModelDetails(key: key)
                 ids = details.map { $0.id }
                 toolCapable = Set(details.filter { $0.supportsTools }.map { $0.id })
+                prices = Self.modelPrices(from: details)
             } else {
                 ids = try await capturedProvider.client.fetchModels(key: key, session: session)
             }
@@ -1480,6 +1530,7 @@ final class AICoachEngine: ObservableObject {
                 let details = try await fetchOpenRouterModelDetails(key: key)
                 ids = details.map { $0.id }
                 toolCapable = Set(details.filter { $0.supportsTools }.map { $0.id })
+                prices = Self.modelPrices(from: details)
             } else {
                 ids = try await capturedProvider.client.fetchModels(key: key, session: session)
             }
@@ -1489,6 +1540,7 @@ final class AICoachEngine: ObservableObject {
             // Drop them rather than write a list for a provider that's no longer selected.
             guard provider == capturedProvider else { return }
             if let toolCapable { openRouterToolCapableModels = toolCapable }
+            if let prices, !prices.isEmpty { openRouterModelPrices = prices }
 
             guard !ids.isEmpty else {
                 errorText = AICoachError.decode.errorDescription
@@ -2506,7 +2558,12 @@ final class AICoachEngine: ObservableObject {
         let entries = CoachDataCatalog.entriesVisibleToCoach(await repo.metricCatalog(), includesLabBook: includesLabBook)
         var areas: [CoachDataCatalog.Area] = []
         if toolConsent.allows(.recentWorkouts) {
-            let workouts = await repo.workoutRows(days: 4_000)
+            // `reconcileHrCap: 0` because this reads a COUNT and shows no Avg/Max HR. The default cap
+            // reconciles up to 300 workouts against the HR trace, 300 windowed reads out of a table of
+            // millions of rows, and `workoutRows` documents 0 as exactly this caller's shape. The cap
+            // only affects the avg/max fields of the rows returned, never which rows are returned, so
+            // the number below is unchanged.
+            let workouts = await repo.workoutRows(days: 4_000, reconcileHrCap: 0)
             if !workouts.isEmpty { areas.append(.init(name: "Workout history", summary: "\(workouts.count) recorded sessions")) }
         }
         if toolConsent.allows(.planAdherence) {

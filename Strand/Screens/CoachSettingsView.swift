@@ -1664,6 +1664,15 @@ struct CoachSettingsView: View {
                         .font(StrandFont.footnote.monospacedDigit())
                         .foregroundStyle(StrandPalette.textSecondary)
 
+                    // Only where the price is the provider's own published number, which today means
+                    // OpenRouter (see `CoachUsageLog.ModelPrices`). Absent prices render nothing at all
+                    // rather than a figure that quietly under-counts.
+                    if let cost = CoachUsageLog.costLine(for: turn, prices: coach.activeModelPrices) {
+                        Text("About \(cost) at this model's published rate")
+                            .font(StrandFont.footnote.monospacedDigit())
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+
                     Text(CoachUsageLog.cacheVerdict(for: turn))
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)

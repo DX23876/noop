@@ -3,6 +3,25 @@ import Foundation
 import FoundationNetworking
 #endif
 
+/// How a client builds its `system` wire message.
+///
+/// Its own protocol, inherited by BOTH the tool and the streaming client, rather than a requirement
+/// declared on each: `OpenAIClient` and `OpenRouterClient` conform to both, and two protocol extensions
+/// offering the same defaulted member give the compiler no unambiguous witness to pick. One declaration
+/// and one default also means the two loops cannot drift apart on how the prompt is marked cacheable.
+protocol OpenAICompatibleSystemMessaging {
+    /// Defaults to the plain-string form every provider here used before prompt caching; OpenRouter
+    /// overrides it to carry a `cache_control` breakpoint for the vendors that need one
+    /// (`OpenRouterCaching`).
+    func systemMessage(_ systemPrompt: String, model: String) -> [String: Any]
+}
+
+extension OpenAICompatibleSystemMessaging {
+    func systemMessage(_ systemPrompt: String, model: String) -> [String: Any] {
+        ["role": "system", "content": systemPrompt]
+    }
+}
+
 /// Tool-calling for OpenAI-compatible providers. OpenAI itself and OpenRouter both speak the SAME
 /// chat-completions "tools" wire format (OpenRouter is a pass-through gateway over it), so one
 /// implementation serves both instead of writing it twice for an identical shape. `OpenAIClient` and
@@ -25,7 +44,7 @@ import FoundationNetworking
 /// Gemini and Custom deliberately do NOT get this (user decision): Gemini's tool format is its own shape
 /// (a second, unrelated test surface); Custom's tool support depends on BOTH the server and the model,
 /// and many local models fail silently or return malformed JSON instead of a clean error.
-protocol OpenAICompatibleToolClient: ToolCallingClient {
+protocol OpenAICompatibleToolClient: ToolCallingClient, OpenAICompatibleSystemMessaging {
     var toolChatEndpoint: URL { get }
     func authorizeToolRequest(_ req: inout URLRequest, key: String)
 }
@@ -57,7 +76,7 @@ extension OpenAICompatibleToolClient {
         runTool: (String, [String: Any]) async -> String,
         session: URLSession
     ) async throws -> CoachToolReply {
-        var wire: [[String: Any]] = [["role": "system", "content": systemPrompt]]
+        var wire: [[String: Any]] = [systemMessage(systemPrompt, model: model)]
         for m in messages { wire.append(["role": m.role.rawValue, "content": m.content]) }
         let toolSpecs = tools.map { $0.openAIFunctionSpec }
         // Decided at most once per conversation, not per round: if round 1 needs the modern param shape,

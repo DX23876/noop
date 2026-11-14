@@ -18,7 +18,8 @@ final class OpenRouterModelParsingTests: XCTestCase {
                 "id": "moonshotai/kimi-k3",
                 "name": "MoonshotAI: Kimi K3",
                 "context_length": 1_048_576,
-                "pricing": ["prompt": "0.000003", "completion": "0.000015", "input_cache_read": "0.0000003"],
+                "pricing": ["prompt": "0.000003", "completion": "0.000015",
+                            "input_cache_read": "0.0000003", "input_cache_write": "0.00000375"],
                 "supported_parameters": ["tools", "tool_choice", "reasoning", "max_tokens"]
             ],
             [
@@ -39,6 +40,21 @@ final class OpenRouterModelParsingTests: XCTestCase {
     ]
 
     // MARK: - parseModelDetails
+
+    /// The cache rates are read from the response, never derived from `prompt`. Field names verified
+    /// against the live endpoint (`input_cache_read` appears on 229 of 387 catalogue rows,
+    /// `input_cache_write` on 74), which is why a model may legitimately publish neither.
+    func testCacheRatesAreParsedWhenPublishedAndNilWhenNot() throws {
+        let models = client.parseModelDetails(sampleBody)
+        let kimi = try XCTUnwrap(models.first { $0.id == "moonshotai/kimi-k3" })
+        XCTAssertEqual(try XCTUnwrap(kimi.cacheReadPricePerMillion), 0.3, accuracy: 0.000_001)
+        XCTAssertEqual(try XCTUnwrap(kimi.cacheWritePricePerMillion), 3.75, accuracy: 0.000_001)
+
+        // The image model's pricing object carries neither key — absent, not zero.
+        let image = try XCTUnwrap(models.first { $0.id == "google/gemini-3.1-flash-lite-image" })
+        XCTAssertNil(image.cacheReadPricePerMillion)
+        XCTAssertNil(image.cacheWritePricePerMillion)
+    }
 
     func testParsesAllThreeRows() {
         let models = client.parseModelDetails(sampleBody)

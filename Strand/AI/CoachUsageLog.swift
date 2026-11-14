@@ -175,6 +175,55 @@ final class CoachUsageLog: ObservableObject {
             + "there is just no saving."
     }
 
+    /// USD per 1M tokens for one model, as its catalogue publishes them.
+    ///
+    /// Only OpenRouter reaches this today, and deliberately so: it is the one provider whose per-model
+    /// price is readable with the ordinary chat key (the same reason the balance bar is OpenRouter-only).
+    /// Hard-coded tables for OpenAI, Anthropic and Gemini would produce a figure that looks equally
+    /// authoritative and silently goes stale the next time a vendor reprices.
+    struct ModelPrices: Equatable, Codable {
+        var promptPerMillion: Double
+        var completionPerMillion: Double
+        /// Nil when the catalogue publishes no cache rate for this model. A turn with cached tokens then
+        /// has no honest total, and `cost(for:prices:)` returns nil rather than pricing them at either
+        /// the full input rate or a guessed fraction of it.
+        var cacheReadPerMillion: Double?
+        var cacheWritePerMillion: Double?
+    }
+
+    /// What one turn cost, in USD, or nil when the numbers to say so honestly are not all present.
+    ///
+    /// Nil rather than a partial figure: an under-count presented as a cost is worse than no cost line,
+    /// because it reads as authoritative. The two nil cases are a model whose catalogue entry carries no
+    /// price at all, and a turn that used the cache on a model that publishes no cache rate.
+    ///
+    /// Pure and `nonisolated` — it reads its arguments and nothing else.
+    nonisolated static func cost(for turn: Turn, prices: ModelPrices?) -> Double? {
+        guard let prices else { return nil }
+        let million = 1_000_000.0
+        var total = Double(turn.inputTokens) / million * prices.promptPerMillion
+        total += Double(turn.outputTokens) / million * prices.completionPerMillion
+        if turn.cacheReadTokens > 0 {
+            guard let rate = prices.cacheReadPerMillion else { return nil }
+            total += Double(turn.cacheReadTokens) / million * rate
+        }
+        if turn.cacheWriteTokens > 0 {
+            guard let rate = prices.cacheWritePerMillion else { return nil }
+            total += Double(turn.cacheWriteTokens) / million * rate
+        }
+        return total
+    }
+
+    /// The cost line for the settings card, or nil when `cost(for:prices:)` has nothing honest to say.
+    ///
+    /// Sub-cent turns are the normal case on a cheap model, and a rounded "$0.00" would read as "free"
+    /// rather than "less than a cent", so anything under a cent is shown to four decimals instead of two.
+    nonisolated static func costLine(for turn: Turn, prices: ModelPrices?) -> String? {
+        guard let value = cost(for: turn, prices: prices) else { return nil }
+        let digits = value > 0 && value < 0.01 ? 4 : 2
+        return value.formatted(.currency(code: "USD").precision(.fractionLength(digits)))
+    }
+
     /// One-line token summary for the settings diagnostic. Pure and testable.
     nonisolated static func summaryLine(for turn: Turn) -> String {
         let n = turn.rounds.count

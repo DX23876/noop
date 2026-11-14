@@ -44,7 +44,7 @@ struct StreamedRound {
     var usage: CoachUsageLog.Round?
 }
 
-protocol OpenAICompatibleStreamingClient: StreamingToolClient {
+protocol OpenAICompatibleStreamingClient: StreamingToolClient, OpenAICompatibleSystemMessaging {
     var streamChatEndpoint: URL { get }
     func authorizeStreamRequest(_ req: inout URLRequest, key: String)
     /// Runs before any egress. Custom uses it for the #321 cleartext-base-URL guard; the fixed-URL
@@ -104,7 +104,7 @@ extension OpenAICompatibleStreamingClient {
     ) async throws -> CoachToolReply {
         try preflightStream()
 
-        var wire: [[String: Any]] = [["role": "system", "content": systemPrompt]]
+        var wire: [[String: Any]] = [systemMessage(systemPrompt, model: model)]
         for m in messages { wire.append(["role": m.role.rawValue, "content": m.content]) }
         let toolSpecs = tools.map { $0.openAIFunctionSpec }
         var fullText = ""
