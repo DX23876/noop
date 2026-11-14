@@ -149,6 +149,18 @@ object HealthConnectImporter {
         recordTypesFor(categories).mapTo(linkedSetOf()) { HealthPermission.getReadPermission(it) }
 
     /**
+     * The selected categories Health Connect grants NOTHING for, by their storage keys.
+     *
+     * A count of granted permissions cannot say WHICH data stays missing, and that is the question a
+     * wearer asks: an install that was granted recovery data years ago and later learned to read workouts
+     * imports everything except workouts, and "3 of 7 granted" names neither the gap nor the fix. Category
+     * keys only, never the permission strings.
+     */
+    fun categoriesWithoutGrant(categories: Set<ImportCategory>, granted: Set<String>): List<String> =
+        categories.filterNot { category -> permissionsFor(setOf(category)).any { it in granted } }
+            .map { it.storageKey }
+
+    /**
      * Read access to records older than 30 days. Without it Health Connect serves an app only the last 30 days, so the
      * "bring your history" import (a [WINDOW_YEARS] window) quietly stopped at a month (2026-11-11). Asked together with
      * the data types; a Health Connect that does not know it simply leaves it out of the grant.

@@ -311,9 +311,12 @@ fun DataSourcesScreen(vm: AppViewModel) {
         val hit = granted.count { it in selectedPermissions }
         // The ONLY evidence this step ever leaves. A tester reported a stuck import whose log held not one
         // line about it, because nothing here wrote one and the import that does never ran: everything
-        // below this point is silent unless the import itself starts. Counts, never the permission names.
+        // below this point is silent unless the import itself starts. Counts and category keys, never the
+        // permission names.
+        val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
         vm.ble.externalLog("Health Connect: permission request returned $hit of " +
-                               "${selectedPermissions.size} selected permission(s)")
+                               "${selectedPermissions.size} selected permission(s)" +
+                               if (without.isEmpty()) "" else ", still without a grant: ${without.joinToString(",")}")
         // Mark as asked only now. Marking before the launch counted a dialog that never appeared, which is
         // exactly the case this evidence exists to catch.
         HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
@@ -346,22 +349,30 @@ fun DataSourcesScreen(vm: AppViewModel) {
             HealthConnectImporter.migrateSelectionFromGrants(context, granted)
             hcReadCategories = HealthConnectImporter.selectedCategories(context)
             val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
-            // `any` (not `all`) is deliberate — partial grants are supported (#150). But that alone
-            // would never ASK about a permission added in an update, so a newly-read type would come
-            // back empty forever (#949). Route through the request once when the set has grown.
-            val unasked = HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
-            val hit = granted.count { it in selectedPermissions }
+            // Ask for whatever is still missing, every time this is tapped. Partial grants are supported
+            // (#150), so the import runs on what it has — but an install that was granted recovery data
+            // long ago and later learned to read workouts would otherwise import everything except
+            // workouts, for good: the old gate asked only while a permission had never been PRESENTED
+            // (#949), so one decline, or one request the system answered without showing anything,
+            // settled it forever. A tap on Import is the wearer asking for their data now; asking Health
+            // Connect for what that needs is what the tap means. Health Connect shows its own screen and
+            // decides what to put on it, so this cannot become a nag loop, and the background auto-sync
+            // path deliberately asks for nothing.
+            val missing = selectedPermissions - granted
+            val hit = selectedPermissions.size - missing.size
             // Always on: a rare event that costs nothing when it never happens, and the one line that
-            // separates "Health Connect refused us" from "the import ran and found nothing".
+            // separates "Health Connect refused us" from "the import ran and found nothing". It names the
+            // categories with no grant at all, because a count cannot say which data stays missing.
+            val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
             vm.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
-                                   "granted=$hit/${selectedPermissions.size} categories=${hcReadCategories.size} " +
-                                   "unasked=$unasked")
-            if (hit > 0 && !unasked) {
+                                   "granted=$hit/${selectedPermissions.size} categories=${hcReadCategories.size}" +
+                                   if (without.isEmpty()) "" else " withoutGrant=${without.joinToString(",")}")
+            if (missing.isEmpty()) {
                 hcNote = null
                 runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
-                vm.ble.externalLog("Health Connect: asking for access")
-                hcPermissionLauncher.launch(selectedPermissions + HealthConnectImporter.HISTORY_PERMISSION)
+                vm.ble.externalLog("Health Connect: asking for ${missing.size} missing permission(s)")
+                hcPermissionLauncher.launch(missing + HealthConnectImporter.HISTORY_PERMISSION)
             }
         }
     }

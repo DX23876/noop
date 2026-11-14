@@ -836,9 +836,11 @@ private fun ImportStep(viewModel: AppViewModel) {
     ) { granted ->
         val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
         val hit = granted.count { it in selectedPermissions }
-        // The only evidence this step leaves. Counts, never the permission names.
+        // The only evidence this step leaves. Counts and category keys, never the permission names.
+        val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
         viewModel.ble.externalLog("Health Connect: permission request returned $hit of " +
-                                      "${selectedPermissions.size} selected permission(s)")
+                                      "${selectedPermissions.size} selected permission(s)" +
+                                      if (without.isEmpty()) "" else ", still without a grant: ${without.joinToString(",")}")
         // Marked HERE, not before the launch (#949 asked once per permission set, which this keeps): the
         // contract answers even when the system shows nothing, so a request that never reached the wearer
         // used to count as asked while leaving no trace at all.
@@ -867,16 +869,21 @@ private fun ImportStep(viewModel: AppViewModel) {
             HealthConnectImporter.migrateSelectionFromGrants(context, granted)
             hcReadCategories = HealthConnectImporter.selectedCategories(context)
             val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
-            val unasked = HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
-            val hit = granted.count { it in selectedPermissions }
+            // Ask for whatever is still missing, every time. See the same decision in DataSourcesScreen:
+            // a tap is the wearer asking for their data now, and the old "only while never presented"
+            // gate left an install that gained a record type importing everything except that type.
+            val missing = selectedPermissions - granted
+            val hit = selectedPermissions.size - missing.size
+            val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
             viewModel.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
                                           "granted=$hit/${selectedPermissions.size} " +
-                                          "categories=${hcReadCategories.size} unasked=$unasked")
-            if (hit > 0 && !unasked) {
+                                          "categories=${hcReadCategories.size}" +
+                                          if (without.isEmpty()) "" else " withoutGrant=${without.joinToString(",")}")
+            if (missing.isEmpty()) {
                 runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
             } else {
-                viewModel.ble.externalLog("Health Connect: asking for access")
-                hcPermissionLauncher.launch(HealthConnectImporter.requestFor(hcReadCategories))
+                viewModel.ble.externalLog("Health Connect: asking for ${missing.size} missing permission(s)")
+                hcPermissionLauncher.launch(missing + HealthConnectImporter.HISTORY_PERMISSION)
             }
         }
     }
