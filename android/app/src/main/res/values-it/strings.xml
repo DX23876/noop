@@ -6891,4 +6891,5 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_keep_routine_save">Salva come routine</string>
     <string name="forge_keep_routine_saved">Salvata come routine</string>
     <string name="forge_keep_routine_failed">Non è stato possibile salvare la routine.</string>
+    <string name="forge_plan_more_findings">Altri %1$d da guardare.</string>
 </resources>

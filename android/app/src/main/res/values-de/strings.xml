@@ -6939,4 +6939,5 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_keep_routine_save">Als Routine speichern</string>
     <string name="forge_keep_routine_saved">Als Routine gespeichert</string>
     <string name="forge_keep_routine_failed">Die Routine konnte nicht gespeichert werden.</string>
+    <string name="forge_plan_more_findings">%1$d weitere, die einen Blick wert sind.</string>
 </resources>

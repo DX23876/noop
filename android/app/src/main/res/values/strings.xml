@@ -6963,4 +6963,5 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_keep_routine_save">Save as routine</string>
     <string name="forge_keep_routine_saved">Saved as a routine</string>
     <string name="forge_keep_routine_failed">The routine could not be saved.</string>
+    <string name="forge_plan_more_findings">%1$d more worth a look.</string>
 </resources>

@@ -155,6 +155,9 @@ struct TrainingProgramEditorView: View {
 struct TrainingProgramDetailView: View {
     let program: TrainingProgram
     @ObservedObject var model: TrainingHubModel
+    /// True when the page is shown as a sheet rather than pushed, which decides whether it needs its
+    /// own way out.
+    var presentedAsSheet = false
     @EnvironmentObject private var repo: Repository
     @Environment(\.dismiss) private var dismiss
     @State private var routines: [TrainingRoutine] = []
@@ -185,6 +188,12 @@ struct TrainingProgramDetailView: View {
         }
         .forgeScreenBackground()
         .navigationTitle(Text(current.displayName))
+        // Opened as a sheet from the builder or a template, this page is a dead end without it.
+        .toolbar {
+            if presentedAsSheet {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+        }
         .task(id: plansFingerprint) { await reload() }
         .sheet(isPresented: $editing) {
             NavigationStack {
@@ -212,7 +221,9 @@ struct TrainingProgramDetailView: View {
     }
 
     private func reload() async {
-        routines = await model.routines(ofProgram: program.id, repo: repo)
+        // In the order of the week, as the plan runs, rather than by when each was last edited.
+        routines = TrainingProgramEditing.inWeekOrder(
+            await model.routines(ofProgram: program.id, repo: repo), schedule: current.schedule)
         runs = await repo.nativeTrainingBlockRuns(programId: program.id)
     }
 
@@ -253,7 +264,7 @@ struct TrainingProgramDetailView: View {
                     if let replaced = model.programs.first(where: {
                         $0.isActive && $0.kind == current.kind && $0.id != current.id
                     }) {
-                        Text("\(replaced.title) goes back to resting.")
+                        Text("\(replaced.displayName) goes back to resting.")
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
@@ -601,6 +612,9 @@ struct KeepSessionAsRoutineCard: View {
 /// compared rather than a verdict nobody can check. It warns and never blocks: a big step up can be
 /// entirely deliberate, and the wearer decides.
 struct PlanReviewCard: View {
+    /// How many findings the card spells out before it counts the rest.
+    static let shownFindings = 3
+
     let review: PlanReview
     /// Routine titles, for a finding that names a session.
     let routineTitles: [UUID: String]
@@ -633,7 +647,9 @@ struct PlanReviewCard: View {
             if !review.findings.isEmpty {
                 NoopCard {
                     VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                        ForEach(Array(review.findings.enumerated()), id: \.offset) { _, finding in
+                        // At most three, biggest step first. A wall of near-identical sentences is how
+                        // a warning stops being read, and the count below says what was left out.
+                        ForEach(Array(review.findings.prefix(Self.shownFindings).enumerated()), id: \.offset) { _, finding in
                             Label {
                                 Text(sentence(finding))
                                     .font(StrandFont.subhead)
@@ -643,6 +659,11 @@ struct PlanReviewCard: View {
                                 Image(systemName: "info.circle")
                                     .foregroundStyle(StrandPalette.textTertiary)
                             }
+                        }
+                        if review.findings.count > Self.shownFindings {
+                            Text("\(review.findings.count - Self.shownFindings) more worth a look.")
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textTertiary)
                         }
                     }
                 }

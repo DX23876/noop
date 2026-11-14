@@ -127,7 +127,8 @@ public enum CorePlans {
     }
 
     static func plan(_ program: TrainingProgram, routines: [TrainingRoutine], today: String) -> Plan {
-        let mine = routines.filter { $0.programId == program.id }
+        let mine = TrainingProgramEditing.inWeekOrder(
+            routines.filter { $0.programId == program.id }, schedule: program.schedule)
         let state = TrainingBlockState.resolve(block: program.block, today: today)
         return Plan(
             id: program.id.uuidString, title: program.title, kind: program.kind.rawValue,

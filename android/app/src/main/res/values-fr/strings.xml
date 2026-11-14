@@ -6922,4 +6922,5 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_keep_routine_save">Enregistrer comme routine</string>
     <string name="forge_keep_routine_saved">Enregistrée comme routine</string>
     <string name="forge_keep_routine_failed">La routine n\'a pas pu être enregistrée.</string>
+    <string name="forge_plan_more_findings">%1$d autres à regarder.</string>
 </resources>

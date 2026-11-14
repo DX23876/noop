@@ -6915,4 +6915,5 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_keep_routine_save">Guardar como rotina</string>
     <string name="forge_keep_routine_saved">Guardada como rotina</string>
     <string name="forge_keep_routine_failed">Não foi possível guardar a rotina.</string>
+    <string name="forge_plan_more_findings">Mais %1$d que valem uma olhada.</string>
 </resources>

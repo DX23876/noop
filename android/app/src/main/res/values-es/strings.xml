@@ -6923,4 +6923,5 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_keep_routine_save">Guardar como rutina</string>
     <string name="forge_keep_routine_saved">Guardada como rutina</string>
     <string name="forge_keep_routine_failed">No se pudo guardar la rutina.</string>
+    <string name="forge_plan_more_findings">%1$d más que merecen un vistazo.</string>
 </resources>

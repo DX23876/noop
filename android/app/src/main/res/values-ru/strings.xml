@@ -6896,4 +6896,5 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_keep_routine_save">Сохранить как программу</string>
     <string name="forge_keep_routine_saved">Сохранено как программа</string>
     <string name="forge_keep_routine_failed">Не удалось сохранить программу.</string>
+    <string name="forge_plan_more_findings">Ещё %1$d стоит посмотреть.</string>
 </resources>

@@ -6943,4 +6943,5 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_keep_routine_save">Zapisz jako rutynę</string>
     <string name="forge_keep_routine_saved">Zapisano jako rutynę</string>
     <string name="forge_keep_routine_failed">Nie udało się zapisać rutyny.</string>
+    <string name="forge_plan_more_findings">Jeszcze %1$d warte spojrzenia.</string>
 </resources>

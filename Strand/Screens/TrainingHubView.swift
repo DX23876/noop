@@ -96,7 +96,8 @@ struct TrainingHubView: View {
         .sheet(item: $openProgramId) { opened in
             NavigationStack {
                 if let program = model.program(opened.id) {
-                    TrainingProgramDetailView(program: program, model: model)
+                    TrainingProgramDetailView(program: program, model: model,
+                                              presentedAsSheet: true)
                         .environmentObject(repo)
                 }
             }

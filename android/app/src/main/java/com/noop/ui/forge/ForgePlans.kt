@@ -55,6 +55,9 @@ import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
 
+/** How many findings the card spells out before it counts the rest. */
+private const val SHOWN_FINDINGS = 3
+
 private const val AVAILABLE_EQUIPMENT = "training.availableEquipment"
 private const val WEIGHT_INCREMENT = "training.weightIncrementKg"
 
@@ -375,7 +378,9 @@ internal fun PlanReviewCard(review: CorePlans.Review, routineTitles: Map<String,
         }
         if (review.findings.isNotEmpty()) {
             ForgeCard(Modifier.fillMaxWidth()) {
-                review.findings.forEach { finding ->
+                // At most three, biggest step first, as on the iPhone: a wall of near-identical
+                // sentences is how a warning stops being read.
+                review.findings.take(SHOWN_FINDINGS).forEach { finding ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                         Icon(Icons.Rounded.Info, contentDescription = null, tint = Forge.colors.textTertiary,
                              modifier = Modifier.size(16.dp))
@@ -384,6 +389,11 @@ internal fun PlanReviewCard(review: CorePlans.Review, routineTitles: Map<String,
                              color = Forge.colors.textSecondary)
                     }
                     Spacer(Modifier.height(ForgeMetrics.space2))
+                }
+                if (review.findings.size > SHOWN_FINDINGS) {
+                    Text(stringResource(R.string.forge_plan_more_findings,
+                                        review.findings.size - SHOWN_FINDINGS),
+                         style = Forge.type.caption, color = Forge.colors.textTertiary)
                 }
             }
         }

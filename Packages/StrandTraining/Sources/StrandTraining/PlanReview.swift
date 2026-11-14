@@ -161,12 +161,17 @@ extension PlanReview {
         // wearer who trained once in it, and their "average" would then be that one session spread
         // thin, against which almost any plan reads as a big step up.
         guard history.trainedWeeks >= minimumHistoryWeeks else { return [] }
-        return TrainingBodyRegion.allCases.compactMap { region in
+        // Biggest step first. A plan that is up across the board produces one of these per region,
+        // and a screen that can only show a few should show the ones that matter most.
+        return TrainingBodyRegion.allCases.compactMap { region -> (Finding, Double)? in
             guard let prescribed = weekly[region], prescribed >= aboveUsualFloor,
                   let usual = history.weeklySets(region), usual > 0,
                   prescribed > usual * aboveUsualFactor else { return nil }
-            return .regionAboveUsual(region: region, weeklySets: prescribed, usualWeeklySets: usual)
+            return (.regionAboveUsual(region: region, weeklySets: prescribed, usualWeeklySets: usual),
+                    prescribed / usual)
         }
+        .sorted { $0.1 > $1.1 }
+        .map(\.0)
     }
 
     /// Two scheduled days in a row whose sessions both lean on the legs. Mentioned, not prevented:

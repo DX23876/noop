@@ -6892,4 +6892,5 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_keep_routine_save">保存为训练流程</string>
     <string name="forge_keep_routine_saved">已保存为训练流程</string>
     <string name="forge_keep_routine_failed">无法保存训练流程。</string>
+    <string name="forge_plan_more_findings">还有 %1$d 条值得一看。</string>
 </resources>

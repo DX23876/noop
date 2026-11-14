@@ -218,6 +218,21 @@ public enum TrainingProgramActivation {
 /// Edits on a whole plan that both platforms make, in one place rather than once per platform.
 public enum TrainingProgramEditing {
 
+    /// A plan's routines in the order its week runs them: the first day each is scheduled on, then
+    /// by name for the ones with no day. The store returns routines newest-edited first, which reads
+    /// as an arbitrary order on a plan's own page.
+    public static func inWeekOrder(_ routines: [TrainingRoutine],
+                                   schedule: [TrainingWeekday: [UUID]]) -> [TrainingRoutine] {
+        func firstDay(_ routine: TrainingRoutine) -> Int {
+            RoutineEditing.weekdays(of: routine.id, in: schedule).map(\.rawValue).min() ?? Int.max
+        }
+        return routines.sorted {
+            firstDay($0) == firstDay($1)
+                ? $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+                : firstDay($0) < firstDay($1)
+        }
+    }
+
     /// An independent copy of a plan with its routines: fresh identities throughout, resting, and with
     /// its week pointing at the copies rather than at the originals.
     ///
