@@ -27,9 +27,13 @@ struct TrainingHubView: View {
     @State private var editingDay: TrainingDaySelection?
     @State private var editingRoutine: RoutineEditorRequest?
     @State private var editingProgram: TrainingProgram?
-    @State private var openProgram: TrainingProgram?
+    /// The plan to open after the builder or a template saved one, by id: a plan is read from
+    /// the model so the page always shows the stored plan rather than a copy taken at save time.
+    @State private var openProgramId: OpenedProgram?
     @State private var previewRoutine: TrainingRoutine?
     @State private var showingAddRoutineSheet = false
+    @State private var showingPlanBuilder = false
+    @State private var showingTemplates = false
     @State private var routineActionsFor: TrainingRoutine?
     @AppStorage("training.weekStartsOn") private var weekStartRaw = TrainingWeekStart.monday.rawValue
 
@@ -154,6 +158,26 @@ struct TrainingHubView: View {
                     onDelete: { id in Task { await model.deleteRoutine(id, repo: repo) } })
             }
         }
+        .sheet(isPresented: $showingPlanBuilder) {
+            NavigationStack {
+                TrainingPlanBuilderView(model: model) { saved in openProgramId = .init(id: saved.id) }
+                    .environmentObject(repo)
+            }
+        }
+        .sheet(isPresented: $showingTemplates) {
+            NavigationStack {
+                TrainingTemplateListView(model: model) { saved in openProgramId = .init(id: saved.id) }
+                    .environmentObject(repo)
+            }
+        }
+        .sheet(item: $openProgramId) { opened in
+            NavigationStack {
+                if let program = model.program(opened.id) {
+                    TrainingProgramDetailView(program: program, model: model)
+                        .environmentObject(repo)
+                }
+            }
+        }
         .sheet(item: $editingProgram) { program in
             NavigationStack {
                 TrainingProgramEditorView(program: program) { updated in
@@ -166,7 +190,8 @@ struct TrainingHubView: View {
                 AddRoutineActionsSheet(
                     onLibrary: { showingLibrary = true },
                     onNewRoutine: { editingRoutine = .new(in: model.activeStrengthProgram?.id) },
-                    onNewPlan: { editingProgram = TrainingProgram(title: "") },
+                    onBuildPlan: { showingPlanBuilder = true },
+                    onTemplates: { showingTemplates = true },
                     onAddRoutine: { showingStarterPlans = true },
                     onShare: { exportPlan() },
                     onExportPDF: { exportPlanPDF() },
@@ -311,7 +336,11 @@ struct TrainingHubView: View {
             HStack {
                 SectionHeader("Plans", overline: "Your training")
                 Spacer()
-                Button { editingProgram = TrainingProgram(title: "") } label: {
+                Menu {
+                    Button("Build a plan") { showingPlanBuilder = true }
+                    Button("Ready-made plans") { showingTemplates = true }
+                    Button("Empty plan") { editingProgram = TrainingProgram(title: "") }
+                } label: {
                     Label("New plan", systemImage: "plus")
                         .font(StrandFont.subhead.weight(.semibold))
                 }
@@ -394,12 +423,12 @@ struct TrainingHubView: View {
                         Text("Start from scratch or from a template, then change exercises, sets, rest and progression to fit you.")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                         HStack(spacing: NoopMetrics.space2) {
+                            Button("Build a plan") { showingPlanBuilder = true }
+                                .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
                             Button("New routine") {
                                 editingRoutine = .new(in: model.activeStrengthProgram?.id)
                             }
-                            .buttonStyle(.borderedProminent).tint(StrandPalette.accent)
-                            Button("Browse starter plans") { showingStarterPlans = true }
-                                .buttonStyle(.bordered).tint(StrandPalette.accent)
+                            .buttonStyle(.bordered).tint(StrandPalette.accent)
                         }
                     }
                 }
@@ -3571,7 +3600,8 @@ private struct AddRoutineActionsSheet: View {
     @Environment(\.dismiss) private var dismiss
     let onLibrary: () -> Void
     let onNewRoutine: () -> Void
-    let onNewPlan: () -> Void
+    let onBuildPlan: () -> Void
+    let onTemplates: () -> Void
     let onAddRoutine: () -> Void
     let onShare: () -> Void
     let onExportPDF: () -> Void
@@ -3584,9 +3614,14 @@ private struct AddRoutineActionsSheet: View {
     var body: some View {
         List {
             Section {
+                actionRow("Build a plan", systemImage: "wand.and.stars", action: onBuildPlan)
+                actionRow("Ready-made plans", systemImage: "square.grid.2x2", action: onTemplates)
+            } footer: {
+                Text("A new plan rests until you follow it.")
+            }
+            Section {
                 actionRow("New routine", systemImage: "plus.rectangle.on.rectangle", action: onNewRoutine)
-                actionRow("Start from a template", systemImage: "square.grid.2x2", action: onAddRoutine)
-                actionRow("New plan", systemImage: "calendar.badge.plus", action: onNewPlan)
+                actionRow("A routine from a template", systemImage: "doc.on.doc", action: onAddRoutine)
                 actionRow("Exercise library", systemImage: "books.vertical", action: onLibrary)
             }
             Section("Import & export") {

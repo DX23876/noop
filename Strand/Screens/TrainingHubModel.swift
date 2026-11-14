@@ -146,6 +146,31 @@ final class TrainingHubModel: ObservableObject {
         }
     }
 
+    /// Writes a plan the builder or a template produced: the plan first, then its routines, then its
+    /// week once the routines exist, since a scheduled day points at one.
+    ///
+    /// It is saved resting unless the wearer said to follow it, which is the whole point of a plan
+    /// being a thing of its own.
+    func saveBuiltPlan(_ program: TrainingProgram, routines: [TrainingRoutine],
+                       activate: Bool, repo: Repository) async {
+        do {
+            var resting = program
+            resting.isActive = false
+            resting.block?.startedOn = nil
+            try await repo.saveNativeTrainingProgram(resting)
+            for routine in routines {
+                var placed = routine
+                placed.programId = program.id
+                try await repo.saveNativeTrainingRoutine(placed)
+            }
+            try await repo.saveNativeTrainingSchedule(program.schedule, programId: program.id)
+            if activate { try await repo.activateNativeTrainingProgram(program.id) }
+            await refreshPlans(repo: repo)
+        } catch {
+            errorMessage = String(localized: "The plan could not be saved.")
+        }
+    }
+
     func activateProgram(_ id: UUID, repo: Repository) async {
         do {
             try await repo.activateNativeTrainingProgram(id)

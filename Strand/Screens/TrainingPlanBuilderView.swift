@@ -1,0 +1,263 @@
+import SwiftUI
+import StrandDesign
+import StrandTraining
+
+/// Builds a whole plan from a few answers, shows what came out, and saves it only when the wearer
+/// says so.
+///
+/// The work is `PlanBuilder` in the core, so this screen asks questions and shows a result and
+/// decides nothing. Android asks the same questions and gets the same plan.
+struct TrainingPlanBuilderView: View {
+    @ObservedObject var model: TrainingHubModel
+    @EnvironmentObject private var repo: Repository
+    @Environment(\.dismiss) private var dismiss
+    /// Called with the plan that was saved, so the caller can open it.
+    var onSaved: (TrainingProgram) -> Void = { _ in }
+
+    @State private var daysPerWeek = 3
+    @State private var experience = TrainingExperience.beginner
+    @State private var emphasis = TrainingEmphasis.balanced
+    @State private var minutes = 60
+    @State private var onlyMyEquipment = true
+    @State private var hasBlock = false
+    @State private var blockWeeks = 8
+    @State private var built: Built?
+    @State private var saving = false
+
+    /// What came out of the builder, kept so the preview and the save use the same plan rather than
+    /// building twice and showing one while saving the other.
+    private struct Built {
+        let program: TrainingProgram
+        let routines: [TrainingRoutine]
+    }
+
+    var body: some View {
+        Form {
+            if let built {
+                preview(built)
+            } else {
+                questions
+            }
+        }
+        .forgeListBackground()
+        .navigationTitle(Text("Build a plan"))
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            ToolbarItem(placement: .confirmationAction) {
+                if built == nil {
+                    Button("Build") { build() }
+                } else {
+                    Button("Save") { save(follow: false) }.disabled(saving)
+                }
+            }
+        }
+    }
+
+    // MARK: Questions
+
+    @ViewBuilder private var questions: some View {
+        Section {
+            Stepper("\(daysPerWeek) days a week", value: $daysPerWeek, in: 2...6)
+            Stepper("About \(minutes) minutes a session", value: $minutes, in: 20...150, step: 10)
+        } footer: {
+            Text("The sessions are spread through the week, with rest days between them where the number allows.")
+        }
+
+        Section("How long you have been training") {
+            Picker("Experience", selection: $experience) {
+                Text("New to this").tag(TrainingExperience.beginner)
+                Text("A while").tag(TrainingExperience.intermediate)
+                Text("Years").tag(TrainingExperience.advanced)
+            }
+            .pickerStyle(.segmented)
+        }
+
+        Section {
+            Picker("Lean towards", selection: $emphasis) {
+                Text("Balanced").tag(TrainingEmphasis.balanced)
+                Text("Strength").tag(TrainingEmphasis.strength)
+                Text("Size").tag(TrainingEmphasis.hypertrophy)
+                Text("Upper body").tag(TrainingEmphasis.upperBody)
+                Text("Lower body").tag(TrainingEmphasis.lowerBody)
+            }
+        } footer: {
+            Text("A lean adds to the plan rather than taking anything out.")
+        }
+
+        Section {
+            Toggle("Only the equipment I have", isOn: $onlyMyEquipment)
+        } header: {
+            Text("Equipment")
+        } footer: {
+            Text(equipmentFooter)
+        }
+
+        Section {
+            Toggle("Run for a set number of weeks", isOn: $hasBlock)
+            if hasBlock {
+                Stepper("\(blockWeeks) weeks, the last one lighter", value: $blockWeeks, in: 4...16)
+            }
+        } header: {
+            Text("Block")
+        }
+    }
+
+    private var equipmentFooter: String {
+        let available = TrainingPreferences.availableEquipment
+        if !onlyMyEquipment { return String(localized: "Every exercise in the library can be used.") }
+        return available.isEmpty
+            ? String(localized: "You have not said what equipment you have, under Settings, Training, so everything is used.")
+            : String(localized: "\(available.count) kinds of equipment from Settings, Training.")
+    }
+
+    // MARK: Preview
+
+    @ViewBuilder private func preview(_ built: Built) -> some View {
+        Section {
+            Text(built.program.title).font(StrandFont.headline)
+            Text("\(built.routines.count) sessions a week")
+                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+        }
+        ForEach(built.routines) { routine in
+            Section {
+                ForEach(routine.exercises) { entry in
+                    HStack {
+                        Text(model.exerciseById[entry.exerciseId]?.title ?? entry.exerciseId)
+                        Spacer()
+                        Text(setSummary(entry))
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+            } header: {
+                HStack {
+                    Text(routine.title)
+                    Spacer()
+                    Text("\(SessionEstimate.minutes(routine)) min")
+                }
+            }
+        }
+        Section {
+            Button("Save and follow this plan") { save(follow: true) }.disabled(saving)
+            Button("Start over") { self.built = nil }
+        } footer: {
+            Text("Saved on its own, a plan rests until you take it up. Everything in it can be edited afterwards.")
+        }
+    }
+
+    private func setSummary(_ entry: RoutineExercise) -> String {
+        let work = entry.sets.filter { $0.phase == .work }
+        guard let first = work.first else { return "" }
+        if let low = first.repsMin {
+            let reps = first.repsMax.map { $0 == low ? "\(low)" : "\(low)–\($0)" } ?? "\(low)+"
+            return String(localized: "\(work.count) × \(reps)")
+        }
+        if let seconds = first.targetDurationS {
+            return String(localized: "\(work.count) × \(seconds) s")
+        }
+        return String(localized: "\(work.count) sets")
+    }
+
+    // MARK: Actions
+
+    private func build() {
+        var request = PlanRequest(
+            daysPerWeek: daysPerWeek,
+            equipment: onlyMyEquipment ? TrainingPreferences.availableEquipment : [],
+            experience: experience, emphasis: emphasis, minutesPerSession: minutes,
+            weightStepKg: TrainingPreferences.weightStep(for: ["barbell"]))
+        if hasBlock { request.block = TrainingProgramBlock(weeks: blockWeeks) }
+        let result = PlanBuilder.build(request, exercises: model.exercises,
+                                       now: Int(Date().timeIntervalSince1970))
+        guard !result.routines.isEmpty else {
+            model.errorMessage = String(localized: "No plan could be built from the equipment you have. Add more under Settings, Training.")
+            return
+        }
+        built = Built(program: result.program, routines: result.routines)
+    }
+
+    private func save(follow: Bool) {
+        guard let built, !saving else { return }
+        saving = true
+        Task {
+            await model.saveBuiltPlan(built.program, routines: built.routines,
+                                      activate: follow, repo: repo)
+            saving = false
+            onSaved(built.program)
+            dismiss()
+        }
+    }
+}
+
+/// The ready-made plans. Picking one writes it as a resting plan, so nothing changes in the week
+/// until the wearer takes it up on its page.
+struct TrainingTemplateListView: View {
+    @ObservedObject var model: TrainingHubModel
+    @EnvironmentObject private var repo: Repository
+    @Environment(\.dismiss) private var dismiss
+    var onSaved: (TrainingProgram) -> Void = { _ in }
+    @State private var saving = false
+
+    private var templates: [TrainingProgramCatalog.Template] {
+        TrainingProgramCatalog.templates(exercises: model.exercises)
+    }
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(templates) { template in
+                    Button { pick(template) } label: { row(template) }.disabled(saving)
+                }
+            } footer: {
+                Text("A plan you pick here rests until you follow it, and everything in it can be edited.")
+            }
+        }
+        .forgeListBackground()
+        .navigationTitle(Text("Ready-made plans"))
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+    }
+
+    private func row(_ template: TrainingProgramCatalog.Template) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(template.title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            Text(template.summary).font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+            HStack(spacing: 6) {
+                Text("\(template.daysPerWeek) days a week")
+                if let name = template.origin.name, let by = template.origin.attribution {
+                    Text("·")
+                    Text("\(name), \(by)")
+                }
+                if let missing = missingEquipment(template) {
+                    Text("·")
+                    Text("Needs \(missing)").foregroundStyle(StrandPalette.statusWarningForeground)
+                }
+            }
+            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Equipment the wearer has not said they have. The template is still offered, with the gap
+    /// named: the setting may simply be empty, and nobody should be locked out of a plan by it.
+    private func missingEquipment(_ template: TrainingProgramCatalog.Template) -> String? {
+        let available = TrainingPreferences.availableEquipment
+        guard !available.isEmpty, !template.requiredEquipment.isEmpty else { return nil }
+        let missing = template.requiredEquipment.subtracting(available.map(TrainingEquipmentCatalog.canonical))
+        guard !missing.isEmpty else { return nil }
+        return missing.sorted().joined(separator: ", ")
+    }
+
+    private func pick(_ template: TrainingProgramCatalog.Template) {
+        guard !saving else { return }
+        saving = true
+        let result = template.make(Int(Date().timeIntervalSince1970),
+                                   TrainingPreferences.weightStep(for: ["barbell"]))
+        Task {
+            await model.saveBuiltPlan(result.program, routines: result.routines,
+                                      activate: false, repo: repo)
+            saving = false
+            onSaved(result.program)
+            dismiss()
+        }
+    }
+}

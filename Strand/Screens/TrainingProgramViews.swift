@@ -20,6 +20,12 @@ struct RoutineEditorRequest: Identifiable {
     }
 }
 
+/// A plan to open after it was saved, by id. The page reads the plan from the model, so it shows
+/// the stored plan rather than a copy taken at the moment it was written.
+struct OpenedProgram: Identifiable {
+    let id: UUID
+}
+
 /// A plan's own settings: what it is called, what kind it is, what it asks of a week, and whether it
 /// runs for a fixed number of weeks.
 ///
