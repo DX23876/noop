@@ -2243,6 +2243,10 @@ class WhoopBleClient(
     private val heardStraps = LinkedHashMap<String, Pair<BluetoothDevice, CoreBle.Heard>>()
     /** Null until this scan has read whether the active entry names a strap; see [resolveStrapClaim]. */
     private var entryNamesStrap: Boolean? = null
+    /** Which scan the heard straps belong to. Both answers this path waits for — the registry read and the
+     *  core's verdict — come back after a hop, and a family rotation or a fresh Connect in between starts a
+     *  different scan; without this, a verdict could connect to a strap heard during a scan that is over. */
+    private var scanGeneration = 0
     private var strapClaimReadInFlight = false
     private var strapListening = false
 
@@ -2285,12 +2289,14 @@ class WhoopBleClient(
     private fun resolveStrapClaim() {
         if (strapClaimReadInFlight) return
         strapClaimReadInFlight = true
+        val generation = scanGeneration
         ioScope.launch {
             val named = runCatching {
                 repository.pairedDevices().firstOrNull { it.status == "active" }?.peripheralId
             }.getOrNull()
             handler.post {
                 strapClaimReadInFlight = false
+                if (generation != scanGeneration) return@post
                 entryNamesStrap = !named.isNullOrEmpty()
                 val first = heardStraps.values.firstOrNull() ?: return@post
                 if (entryNamesStrap == true) {
@@ -2312,9 +2318,10 @@ class WhoopBleClient(
         val heard = heardStraps.values.toList()
         heardStraps.clear()
         if (heard.isEmpty()) return
+        val generation = scanGeneration
         ioScope.launch {
             val choice = CoreBle.strapChoice(heard.map { it.second }, claimed = null)
-            handler.post { applyStrapChoice(heard, choice) }
+            handler.post { if (generation == scanGeneration) applyStrapChoice(heard, choice) }
         }
     }
 
@@ -4140,6 +4147,7 @@ class WhoopBleClient(
         strapListening = false
         entryNamesStrap = null
         heardStraps.clear()
+        scanGeneration++
         stopScan()
         // Defensive: the normal auto-connect scan is NEVER a present-scan. Clearing the flag here means a
         // leaked wizard present-scan (e.g. the wizard was dismissed without stopWhoopScan) can't divert

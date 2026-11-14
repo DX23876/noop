@@ -1127,6 +1127,11 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                     LoggerSetRow(numbers[i], set, columns, previous[set.id], previousColumn, isNext = figures?.nextSetId == set.id,
                                  massUnits = massUnits, distanceUnits = distanceUnits, effortScale = effortScale,
                                  onEffort = { effortRequest = exercise.id to set },
+                                 // The core is the authority (`NativeWorkoutEngine.canRemoveSet`) and also
+                                 // refuses a set that drop-set segments hang off; this gate is the cheap
+                                 // half of that rule, which is all Android needs because its logger has no
+                                 // way to create a segment. Were that to change, the refusal would be
+                                 // silent and this gate would have to ask the core instead of guessing.
                                  onRemove = if (exercise.sets.size > 1) {
                                      { change { CoreTraining.removeSet(exercise.id, set.id) } }
                                  } else null) { updated ->
