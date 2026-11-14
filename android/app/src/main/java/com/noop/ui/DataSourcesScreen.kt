@@ -358,8 +358,12 @@ fun DataSourcesScreen(vm: AppViewModel) {
             // Connect for what that needs is what the tap means. Health Connect shows its own screen and
             // decides what to put on it, so this cannot become a nag loop, and the background auto-sync
             // path deliberately asks for nothing.
-            val missing = selectedPermissions - granted
-            val hit = selectedPermissions.size - missing.size
+            // The history permission is asked for WITH the data types and is not one of them, so it has to
+            // be counted here too: without it Health Connect serves only the last 30 days (2026-11-11), and
+            // an install granted every data type but not history would otherwise import a month, silently,
+            // and never be asked again.
+            val missing = (selectedPermissions + HealthConnectImporter.HISTORY_PERMISSION) - granted
+            val hit = granted.count { it in selectedPermissions }
             // Always on: a rare event that costs nothing when it never happens, and the one line that
             // separates "Health Connect refused us" from "the import ran and found nothing". It names the
             // categories with no grant at all, because a count cannot say which data stays missing.
@@ -372,7 +376,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
                 vm.ble.externalLog("Health Connect: asking for ${missing.size} missing permission(s)")
-                hcPermissionLauncher.launch(missing + HealthConnectImporter.HISTORY_PERMISSION)
+                hcPermissionLauncher.launch(missing)
             }
         }
     }

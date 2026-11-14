@@ -4049,6 +4049,22 @@ class WhoopBleClient(
             log("Scan already in progress — ignoring")
             return
         }
+        // #1635: we may already HOLD a working link, and a Connect tap must not tear it down to rebuild
+        // it. This used to sit inside the direct-attach branch, which only ran for a strap the OS had
+        // bonded — so once that branch answered for the pinned strap alone, an install with no pin lost
+        // the guard entirely and a tap on a live, bonded, streaming link rebuilt it. The question is
+        // about the link in hand, not about the pin, so it is asked here.
+        gatt?.device?.let { held ->
+            val silent = System.currentTimeMillis() - lastDataAtMs
+            if (connectKeepsExistingLink(genuinelyBonded = didBond, connected = _state.value.connected,
+                                         sameDevice = true, silentMs = silent,
+                                         stallFuseMs = liveLinkStallFuseMs())) {
+                helloRetryRequested = false
+                log("Connect: already connected and bonded to ${held.name ?: "WHOOP"}, last data" +
+                        " ${silent / 1000}s ago — keeping the link rather than rebuilding it (#1635).")
+                return
+            }
+        }
         // Reach the strap this install NAMES without a scan. Prefer a band the OS already holds connected
         // (getConnectedDevices returns it even after it stops advertising), then a bonded band that is not
         // currently connected (a direct connect avoids the status=133 first-operation failure seen on
@@ -4083,50 +4099,19 @@ class WhoopBleClient(
      * is being reached.
      */
     private fun attachDirectly(direct: BluetoothDevice, resolved: WhoopModel, userInitiated: Boolean) {
-        run {
-            // #1635: we may already HOLD this link. getConnectedWhoopDevice() answers "the OS has this
-            // device connected", which is true of our own live GATT too — so without this, a Connect tap
-            // tore down a working link and rebuilt it. Field log 260901-0121: gen=6 had been up 18m 32s
-            // streaming HR when a tap replaced it with gen=7.
-            //
-            // Only when a reconnect could achieve NOTHING, which is exactly the genuinely-bonded case:
-            // the handshake is done, so there is no retry to spend and no state a fresh link would fix.
-            // A suppressed strap is deliberately NOT covered — there the tap IS the handshake retry, and
-            // the hello can only be written on a new link's discovery, so it must still reconnect.
-            //
-            // AFTER the selectedModel pin, not before: both helpers match only a 5/MG, so this branch is
-            // also where a stale selection gets corrected. Returning above it would leave the picker and
-            // any later rescan on the wrong family.
-            selectedModel = resolved
-            // `connected` alone is not evidence the link WORKS — a silently dead GATT reports connected
-            // until the watchdog bounces it, and that is precisely when someone taps Connect. Declining
-            // to act there would turn the button inert in the one state it exists for, so require the
-            // link to be live by the watchdog's own measure.
-            val silentMs = System.currentTimeMillis() - lastDataAtMs
-            if (connectKeepsExistingLink(
-                    genuinelyBonded = didBond,
-                    connected = _state.value.connected,
-                    sameDevice = gatt?.device?.address == direct.address,
-                    silentMs = silentMs,
-                    stallFuseMs = liveLinkStallFuseMs(),
-                )
-            ) {
-                // Consume it. The retry belongs to the tap that asked, and leaving it set would hand a
-                // stale one to a later AUTOMATIC reconnect - the same leak the deferral branch warns of.
-                helloRetryRequested = false
-                log("Connect: already connected and bonded to ${direct.name ?: "WHOOP"}, last data" +
-                    " ${silentMs / 1000}s ago — keeping the link rather than rebuilding it (#1635).")
-                return
-            }
-            log("Easy-connect: attaching directly to ${direct.name ?: "WHOOP"} (no scan needed)")
-            _state.update { it.copy(
-                scanning = false, whoop5Detected = false,
-                statusNote = "Connecting to your ${resolved.displayName}…",
-            ) }
-            connectToDevice(direct, alreadyAuthorised = userInitiated)
-            bondedDirectAttempt = true   // after connectToDevice: reset() must not clear it
-            return
-        }
+        // The family the strap's registry row gives it, so the pipeline is framed for the strap actually
+        // being reached. A stale selection is corrected here, which is why this is set before the connect
+        // rather than left to the scan that no longer runs.
+        selectedModel = resolved
+        // Keeping an already-working link is decided in `connect` now, before this path is chosen at all:
+        // that question is about the link in hand and not about which strap we are reaching for (#1635).
+        log("Easy-connect: attaching directly to ${direct.name ?: "WHOOP"} (no scan needed)")
+        _state.update { it.copy(
+            scanning = false, whoop5Detected = false,
+            statusNote = "Connecting to your ${resolved.displayName}…",
+        ) }
+        connectToDevice(direct, alreadyAuthorised = userInitiated)
+        bondedDirectAttempt = true   // after connectToDevice: reset() must not clear it
     }
 
     /**

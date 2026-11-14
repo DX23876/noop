@@ -872,8 +872,12 @@ private fun ImportStep(viewModel: AppViewModel) {
             // Ask for whatever is still missing, every time. See the same decision in DataSourcesScreen:
             // a tap is the wearer asking for their data now, and the old "only while never presented"
             // gate left an install that gained a record type importing everything except that type.
-            val missing = selectedPermissions - granted
-            val hit = selectedPermissions.size - missing.size
+            // The history permission is asked for WITH the data types and is not one of them, so it has to
+            // be counted here too: without it Health Connect serves only the last 30 days (2026-11-11), and
+            // an install granted every data type but not history would otherwise import a month, silently,
+            // and never be asked again.
+            val missing = (selectedPermissions + HealthConnectImporter.HISTORY_PERMISSION) - granted
+            val hit = granted.count { it in selectedPermissions }
             val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
             viewModel.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
                                           "granted=$hit/${selectedPermissions.size} " +
@@ -883,7 +887,7 @@ private fun ImportStep(viewModel: AppViewModel) {
                 runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
             } else {
                 viewModel.ble.externalLog("Health Connect: asking for ${missing.size} missing permission(s)")
-                hcPermissionLauncher.launch(missing + HealthConnectImporter.HISTORY_PERMISSION)
+                hcPermissionLauncher.launch(missing)
             }
         }
     }
