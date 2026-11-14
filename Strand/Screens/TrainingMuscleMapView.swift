@@ -8,7 +8,8 @@ enum TrainingMuscleMapAppearance {
     /// muscle is outlined in the text colour: its ember accent drew a brown rim that read as an error.
     private static var forge: Bool { NoopVisualStyle.skin == .forge }
     /// Training's data teal (OpenGym's), matched to the green controls around it; the violet clashed.
-    private static let forgeStrength = Color(light: "#0E8AA3", dark: "#40C8E0")
+    /// From the design system, so Android's generated token draws the same figure in the same colour.
+    private static let forgeStrength = StrandPalette.trainingData
 
     /// The colour training work is drawn in: the lit muscles, a plan's training days, a session's
     /// figure. One place, so the pictures of one subject are one colour.

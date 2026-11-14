@@ -164,6 +164,11 @@ public enum StrandPalette {
     // never a data colour, so it does not follow the chart style.
     public static let forgeEmber = Color(light: "#D94A0A", dark: "#FF6A16")
 
+    // MARK: Training's data teal — the colour the redesign lights worked muscles, a plan's training days
+    // and a session's figure in. It lives here because Android draws the same figure from the generated
+    // token (`Tools/design_tokens.py`): a copy of the hex on either side is two colours that can drift.
+    public static let trainingData = Color(light: "#0E8AA3", dark: "#40C8E0")
+
     // MARK: Glow — neutral Apple-blue bloom behind heroes / charts. Mint remains an optional user accent,
     // never a default cast over otherwise neutral surfaces.
     public static let glowAmbient    = Color.systemBlue.opacity(0.20)
