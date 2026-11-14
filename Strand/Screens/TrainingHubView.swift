@@ -513,8 +513,7 @@ struct TrainingHubView: View {
                     // called Push, Pull and Legs looked identical in this list.
                     TrainingMusclePicture(
                         values: TrainingMuscleProjection.routine(routine, exercises: model.exerciseById),
-                        showsBack: true, height: 54)
-                        .frame(width: 96, alignment: .leading)
+                        showsBack: true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(routine.title).font(StrandFont.subhead.weight(.semibold))
                             .foregroundStyle(StrandPalette.textPrimary)

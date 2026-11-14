@@ -64,7 +64,7 @@ struct TrainingPlanBuilderView: View {
         Section {
             // The answers as a picture: a plan is a shape in a week before it is a list of exercises,
             // and these questions used to produce nothing to look at until the whole plan appeared.
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .center, spacing: NoopMetrics.space4) {
                 CoachPicture(main: "figure.strengthtraining.traditional", accentA: "calendar",
                              accentB: "sparkle", tint: TrainingMuscleMapAppearance.accent)
                     .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
@@ -145,9 +145,9 @@ struct TrainingPlanBuilderView: View {
         ForEach(built.routines) { routine in
             Section {
                 ForEach(routine.exercises) { entry in
-                    HStack(spacing: 14) {
+                    HStack(spacing: NoopMetrics.space4) {
                         if let exercise = model.exerciseById[entry.exerciseId] {
-                            TrainingExercisePicture(exercise: exercise, side: 58)
+                            TrainingExercisePicture(exercise: exercise)
                         }
                         Text(model.exerciseById[entry.exerciseId]?.title ?? entry.exerciseId)
                             .font(StrandFont.subhead.weight(.medium))
@@ -160,7 +160,7 @@ struct TrainingPlanBuilderView: View {
                     .padding(.vertical, 4)
                 }
             } header: {
-                HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .center, spacing: NoopMetrics.space3) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(routine.title)
                             .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
@@ -171,11 +171,11 @@ struct TrainingPlanBuilderView: View {
                     // The session's own muscles: what it looks like before it has been done.
                     TrainingMusclePicture(
                         values: TrainingMuscleProjection.routine(routine, exercises: model.exerciseById),
-                        showsBack: true, height: 64)
+                        showsBack: true, height: CoachPictureSize.medium)
                 }
                 .textCase(nil)
-                .padding(.top, 10)
-                .padding(.bottom, 4)
+                .padding(.top, NoopMetrics.space3)
+                .padding(.bottom, NoopMetrics.space1)
             }
         }
         Section {
@@ -283,12 +283,12 @@ struct TrainingTemplateListView: View {
     }
 
     private func row(_ template: TrainingProgramCatalog.Template) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
             Text(template.title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
             Text(template.summary).font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
             if let days = weeks[template.id] {
-                TrainingWeekStrip(days: days, height: 30)
+                TrainingWeekStrip(days: days, height: TrainingWeekStrip.compact)
             }
             // The strip already counts the days; saying it again underneath is a second readout of
             // one fact, so the count is only written out while the strip is still being worked out.
@@ -312,7 +312,7 @@ struct TrainingTemplateListView: View {
                 .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, NoopMetrics.space1)
     }
 
     /// Equipment the wearer has not said they have. The template is still offered, with the gap

@@ -83,7 +83,7 @@ struct ExerciseLibraryRow: View {
     /// The demonstration where the media pack is downloaded, otherwise the body with this exercise's
     /// muscles lit. A dumbbell glyph said the same thing for a bench press and a curl.
     private var thumbnail: some View {
-        TrainingExercisePicture(exercise: exercise, side: 60)
+        TrainingExercisePicture(exercise: exercise)
     }
 
     static func metadata(_ exercise: TrainingExercise) -> String {

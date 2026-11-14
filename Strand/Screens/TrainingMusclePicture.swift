@@ -20,14 +20,19 @@ struct TrainingMusclePicture: View {
     var showsBack = false
     /// Which face to draw when only one is shown; by default the one the work is on.
     var side: BodySide?
-    var height: CGFloat = 56
+    var height: CGFloat = CoachPictureSize.small
+
+    /// One gap, and the figure's own shape, so the body fills the height it is given instead of
+    /// sitting small in the middle of a frame that is wider than it is.
+    private static let gap = NoopMetrics.space1
+    private var figureWidth: CGFloat { height * BodyAnatomy.aspectRatio() }
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: Self.gap) {
             figure(showsBack ? .front : (side ?? Self.preferredSide(values)))
             if showsBack { figure(.back) }
         }
-        .frame(width: showsBack ? height * 1.74 : height * 0.87, height: height)
+        .frame(width: showsBack ? figureWidth * 2 + Self.gap : figureWidth, height: height)
         .accessibilityHidden(true)
     }
 
@@ -89,7 +94,7 @@ struct TrainingMusclePicture: View {
 /// same thing.
 struct TrainingExercisePicture: View {
     let exercise: TrainingExercise
-    var side: CGFloat = 52
+    var side: CGFloat = CoachPictureSize.small
     @ObservedObject private var media = ExerciseMediaStore.shared
 
     var body: some View {
@@ -97,15 +102,14 @@ struct TrainingExercisePicture: View {
             if media.isAvailable, let still = media.mediaURL(for: exercise, variant: .still) {
                 ExerciseMediaThumbnail(url: still, side: side)
             } else {
+                let shape = RoundedRectangle(cornerRadius: ExerciseMediaThumbnail.cornerRadius)
                 TrainingMusclePicture(values: TrainingMusclePicture.values(for: exercise),
-                                      height: side * 0.98)
+                                      height: side - NoopMetrics.space2)
                     .frame(width: side, height: side)
                     // A plate a step lighter than the row holds the figure; without it the body floats
                     // on the card and reads as a smudge.
-                    .background(StrandPalette.surfaceRaised,
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(StrandPalette.hairline.opacity(0.7), lineWidth: 0.5))
+                    .background(StrandPalette.surfaceRaised, in: shape)
+                    .overlay(shape.strokeBorder(StrandPalette.hairline, lineWidth: 0.5))
             }
         }
         .accessibilityHidden(true)
@@ -122,11 +126,14 @@ struct TrainingWeekStrip: View {
     let days: Set<TrainingWeekday>
     /// The sessions in the order the week runs them, shown under the strip where there is room.
     var titles: [String] = []
-    var height: CGFloat = 40
+    var height: CGFloat = TrainingWeekStrip.tall
+    /// Two heights, not five: a card's own strip, and a compact one inside a list row.
+    static let tall: CGFloat = NoopMetrics.space10
+    static let compact: CGFloat = NoopMetrics.space8
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(spacing: NoopMetrics.space2) {
                 ForEach(TrainingWeekday.allCases, id: \.rawValue) { day in pill(day) }
             }
             if !titles.isEmpty {
@@ -148,10 +155,12 @@ struct TrainingWeekStrip: View {
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(trains ? tint.opacity(0.16) : StrandPalette.surfaceRaised,
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        in: RoundedRectangle(cornerRadius: Self.pillRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Self.pillRadius, style: .continuous)
                 .strokeBorder(trains ? tint.opacity(0.55) : .clear, lineWidth: 1))
     }
+
+    private static let pillRadius = NoopMetrics.space3
 
     /// Monday is 1 here and the calendar's symbols start on Sunday.
     private static func letter(_ day: TrainingWeekday) -> String {

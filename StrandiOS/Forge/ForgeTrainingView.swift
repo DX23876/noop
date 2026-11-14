@@ -329,7 +329,7 @@ struct ForgeTrainingView: View {
             if muscles.values.contains(where: { $0 > 0 }) {
                 // The routine's own picture: the body it works, in the training colour. It is the card's
                 // subject, so it takes the room a subject gets.
-                TrainingMusclePicture(values: muscles, showsBack: true, height: 76)
+                TrainingMusclePicture(values: muscles, showsBack: true, height: CoachPictureSize.medium)
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 CoachPicture(main: systemImage, accentA: "flame.fill", accentB: "sparkle", tint: ForgeColor.trainingData)

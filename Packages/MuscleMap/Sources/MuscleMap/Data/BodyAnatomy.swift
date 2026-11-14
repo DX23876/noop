@@ -5,6 +5,7 @@
 //  Licensed under the MIT License.
 //
 
+import CoreGraphics
 import Foundation
 
 /// Which muscles each face of the body actually draws.
@@ -21,6 +22,13 @@ public enum BodyAnatomy {
         Set(BodyPathProvider.paths(gender: gender, side: side)
             .filter { !$0.allPaths.isEmpty }
             .compactMap { $0.slug.muscle })
+    }
+
+    /// The figure's own width-to-height ratio. The renderer fits the body inside whatever frame it is
+    /// given and centres it, so a frame of any other shape is dead space around a smaller body.
+    public static func aspectRatio(gender: BodyGender = .male, side: BodySide = .front) -> CGFloat {
+        let box = BodyPathProvider.viewBox(gender: gender, side: side)
+        return box.size.width / box.size.height
     }
 
     /// Whether either face can draw this muscle.

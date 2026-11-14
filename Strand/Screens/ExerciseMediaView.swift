@@ -128,6 +128,11 @@ private enum AnimatedFrameCache {
 /// A small still of an exercise for lists: decoded straight to the displayed size off the main thread,
 /// so scrolling a library never decodes full images or animations.
 struct ExerciseMediaThumbnail: View {
+    /// The shape a row's picture has. `TrainingExercisePicture` draws the muscle figure on a plate of
+    /// the same radius: the two take the same slot depending on whether the media pack is there, and a
+    /// row must not change shape when it is downloaded.
+    static let cornerRadius: CGFloat = 10
+
     let url: URL
     let side: CGFloat
     @Environment(\.displayScale) private var displayScale
@@ -138,11 +143,11 @@ struct ExerciseMediaThumbnail: View {
             if let image {
                 Image(decorative: image, scale: displayScale).resizable().scaledToFit()
             } else {
-                RoundedRectangle(cornerRadius: 10).fill(StrandPalette.surfaceRaised)
+                RoundedRectangle(cornerRadius: Self.cornerRadius).fill(StrandPalette.surfaceRaised)
             }
         }
         .frame(width: side, height: side)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
         .task(id: url) {
             let pixels = Int(side * displayScale)
             if let cached = ThumbnailCache.image(for: url, pixels: pixels) { image = cached; return }
