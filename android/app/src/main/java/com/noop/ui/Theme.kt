@@ -15,7 +15,7 @@ import androidx.compose.material3.lightColorScheme
 import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -615,16 +615,45 @@ fun NoopTheme(content: @Composable () -> Unit) {
 /**
  * Fork (DX23876): draws [content] with [tokens] laid over the scheme, for a classic screen shown inside the Forge
  * Settings, so it takes the Forge colours instead of its own. Palette is global, so the override lasts while the
- * host is in the composition; a host that replaces another leaves the newer override in place.
+ * host is in the composition.
+ *
+ * Hosts are kept as a stack and the newest one still present wins. The older rule ("clear the override if it is
+ * still mine") lost the race when one host replaced another in a single frame: the new host set its tokens while
+ * composing, the old one was disposed afterwards and could still see its own value, and cleared the override. The
+ * onboarding then showed the classic warm-paper beige right after the terms gate (2026-11-14).
  */
 @Composable
 fun HostedPalette(tokens: PaletteTokens, dark: Boolean, content: @Composable () -> Unit) {
-    remember(tokens, dark) { Palette.host = tokens; Palette.hostDark = dark; tokens }
-    DisposableEffect(tokens) { onDispose { if (Palette.host === tokens) Palette.host = null } }
+    remember(tokens, dark) { PaletteHost(tokens, dark) }
     MaterialTheme(
         colorScheme = noopColorScheme(tokens, dark),
         typography = NoopMaterialTypography,
         shapes = NoopShapes,
         content = content,
     )
+}
+
+/** One [HostedPalette] while it is composed. Pushed while composing, so its content reads the tokens at once. */
+private class PaletteHost(val tokens: PaletteTokens, val dark: Boolean) : RememberObserver {
+    init {
+        stack.add(this)
+        Palette.host = tokens
+        Palette.hostDark = dark
+    }
+
+    private fun pop() {
+        stack.remove(this)
+        val top = stack.lastOrNull()
+        Palette.host = top?.tokens
+        if (top != null) Palette.hostDark = top.dark
+    }
+
+    override fun onRemembered() {}
+    override fun onForgotten() = pop()
+    override fun onAbandoned() = pop()
+
+    companion object {
+        // Main-thread only, like every composition that creates one.
+        private val stack = ArrayList<PaletteHost>()
+    }
 }

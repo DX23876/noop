@@ -533,6 +533,20 @@ internal fun Hosted(title: String?, onBack: () -> Unit, content: @Composable () 
 }
 
 /**
+ * A classic screen drawn in the Forge colours on its own, outside any Forge page: the terms gate and the onboarding
+ * run before the Forge shell exists, and without this they showed ryanbr's warm-paper palette (2026-11-14, the owner:
+ * that beige must not appear any more).
+ */
+@Composable
+fun ForgeHostedClassic(content: @Composable () -> Unit) {
+    ForgeTheme {
+        val colors = Forge.colors
+        val tokens = remember(colors) { hostedTokens(colors) }
+        HostedPalette(tokens, colors.dark) { content() }
+    }
+}
+
+/**
  * The classic palette as iOS colours it, for a classic screen in the Settings: the Forge surfaces, text and accent,
  * Effort and Rest in the colours of their rings, and every other token (Charge, status, sleep stages, zones) from
  * the iOS palette of the same name, so a page reads like its iOS twin. Tokens iOS has no twin for keep the classic

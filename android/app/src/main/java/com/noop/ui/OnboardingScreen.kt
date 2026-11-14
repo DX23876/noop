@@ -1007,22 +1007,24 @@ private fun AppearanceStep() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            // Two mini look-swatches so the choice is concrete: warm-paper Light and dark blue-grey.
-            // The one matching the live theme carries an accent (blue) rim; System shows whichever
-            // the phone is currently on.
+            // Two mini look-swatches so the choice is concrete, in the Forge colours the app actually
+            // wears (the classic warm-paper tokens are not shown anywhere any more). The one matching the
+            // live theme carries an accent rim; System shows whichever the phone is currently on.
+            val lightLook = remember { com.noop.ui.forge.hostedTokens(com.noop.ui.forge.forgeColors(dark = false)) }
+            val darkLook = remember { com.noop.ui.forge.hostedTokens(com.noop.ui.forge.forgeColors(dark = true)) }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Metrics.gap),
             ) {
                 ThemeSwatch(
                     title = uiString(R.string.l10n_onboarding_screen_light_a36ef8ab),
-                    tokens = LightTokens,
+                    tokens = lightLook,
                     selected = Palette.isLight,
                     modifier = Modifier.weight(1f),
                 )
                 ThemeSwatch(
                     title = uiString(R.string.l10n_onboarding_screen_dark_ae1ef014),
-                    tokens = DarkTokens,
+                    tokens = darkLook,
                     selected = !Palette.isLight,
                     modifier = Modifier.weight(1f),
                 )

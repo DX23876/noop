@@ -1721,31 +1721,36 @@ fun NoopRoot() {
     var acceptedTerms by remember {
         mutableStateOf(prefs.getString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, "") ?: "")
     }
+    // Both run before the Forge shell, so they are drawn in its colours explicitly (ForgeHostedClassic).
     if (acceptedTerms != Terms.CURRENT_VERSION) {
-        TermsGateScreen(onAccept = {
-            prefs.edit()
-                .putString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, Terms.CURRENT_VERSION)
-                .putString(NoopPrefs.KEY_ACCEPTED_TERMS_AT, java.time.Instant.now().toString())
-                .apply()
-            acceptedTerms = Terms.CURRENT_VERSION
-        })
+        com.noop.ui.forge.ForgeHostedClassic {
+            TermsGateScreen(onAccept = {
+                prefs.edit()
+                    .putString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, Terms.CURRENT_VERSION)
+                    .putString(NoopPrefs.KEY_ACCEPTED_TERMS_AT, java.time.Instant.now().toString())
+                    .apply()
+                acceptedTerms = Terms.CURRENT_VERSION
+            })
+        }
         return
     }
 
     if (!onboarded) {
-        OnboardingScreen(
-            viewModel = appViewModel,
-            onFinished = {
-                // A brand-new user just saw the expectations in onboarding, don't also pop the
-                // changelog at them; mark them current (mirrors macOS ContentView onFinished).
-                prefs.edit()
-                    .putBoolean(NoopPrefs.KEY_ONBOARDED, true)
-                    .putString(NoopPrefs.KEY_LAST_SEEN_CHANGELOG, AppChangelog.CURRENT_VERSION)
-                    .apply()
-                lastSeenChangelog = AppChangelog.CURRENT_VERSION
-                onboarded = true
-            },
-        )
+        com.noop.ui.forge.ForgeHostedClassic {
+            OnboardingScreen(
+                viewModel = appViewModel,
+                onFinished = {
+                    // A brand-new user just saw the expectations in onboarding, don't also pop the
+                    // changelog at them; mark them current (mirrors macOS ContentView onFinished).
+                    prefs.edit()
+                        .putBoolean(NoopPrefs.KEY_ONBOARDED, true)
+                        .putString(NoopPrefs.KEY_LAST_SEEN_CHANGELOG, AppChangelog.CURRENT_VERSION)
+                        .apply()
+                    lastSeenChangelog = AppChangelog.CURRENT_VERSION
+                    onboarded = true
+                },
+            )
+        }
         return
     }
 
@@ -1779,15 +1784,17 @@ fun NoopRoot() {
             },
             properties = DialogProperties(usePlatformDefaultWidth = false),
         ) {
-            Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
-                WhatsNewSheet(
-                    onClose = {
-                        prefs.edit()
-                            .putString(NoopPrefs.KEY_LAST_SEEN_CHANGELOG, AppChangelog.CURRENT_VERSION)
-                            .apply()
-                        lastSeenChangelog = AppChangelog.CURRENT_VERSION
-                    },
-                )
+            com.noop.ui.forge.ForgeHostedClassic {
+                Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
+                    WhatsNewSheet(
+                        onClose = {
+                            prefs.edit()
+                                .putString(NoopPrefs.KEY_LAST_SEEN_CHANGELOG, AppChangelog.CURRENT_VERSION)
+                                .apply()
+                            lastSeenChangelog = AppChangelog.CURRENT_VERSION
+                        },
+                    )
+                }
             }
         }
     }
