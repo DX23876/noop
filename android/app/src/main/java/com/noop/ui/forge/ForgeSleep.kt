@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ChevronLeft
@@ -152,6 +153,8 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     }
     var customizing by remember { mutableStateOf(false) }
     var alarms by remember { mutableStateOf(false) }
+    /// The night whose times the shipped page is correcting; the new design keeps its own.
+    var shippedEditing by remember { mutableStateOf<CoreRead.Night?>(null) }
     // The summary tiles open the Rest page and the night's sleep over time, as iOS's tiles push `rest` and the metric.
     var restPage by remember { mutableStateOf(false) }
     var restValue by remember { mutableStateOf<Double?>(null) }
@@ -294,6 +297,26 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                            onAlarms = { alarms = true }, bodyClock = v5?.bodyClock)
             Spacer(Modifier.height(ForgeMetrics.space2))
             return@Column
+        }
+        shippedEditing?.let { n ->
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            SleepEditDialog(n, onSave = { start, end ->
+                shippedEditing = null
+                scope.launch {
+                    nightSessions(viewModel, n).takeIf { it.isNotEmpty() }
+                        ?.let { viewModel.updateSleepGroupTimes(it, start, end) }
+                }
+            }, onDelete = {
+                shippedEditing = null
+                scope.launch { nightSessions(viewModel, n).forEach { viewModel.deleteSleepSession(it) } }
+            }, onDismiss = { shippedEditing = null })
+        }
+        // Correcting the night's own times, which only the new design had: this page is the one most
+        // wearers see, and a detection that is an hour out had no way back on it (#43). The dialog and
+        // the write are the ones the new design uses, so a corrected night is corrected the same way.
+        night?.let { n ->
+            LargeRow(Icons.Rounded.Edit, Forge.colors.rest, stringResource(R.string.forge_sl_edit_times), "",
+                     onClick = { shippedEditing = n })
         }
         // The alarms one tap from the night, as iOS puts its Alarms row under the Rest hero.
         // The bare alarm glyph in the Rest colour, no plate, as iOS's `alarmsEntry` draws it.
