@@ -69,6 +69,24 @@ private val KeyMetric.series: CoreRead.Metric?
     }
 
 /**
+ * The metric page behind a "Your cards" row, by the key the card resolver gives it
+ * (`dashboardCardMetricKey`). Null for the rows that carry a screen of their own, or whose figure the core
+ * keeps no day series for — those keep opening Health.
+ *
+ * Without this every card on Today opened the Health page, whichever figure it showed, because the Forge
+ * shell threw the key away (#40).
+ */
+internal fun forgeMetricForCardKey(key: String): CoreRead.Metric? = when (key) {
+    "hrv" -> CoreRead.Metric.Hrv
+    "rhr" -> CoreRead.Metric.RestingHr
+    "resp" -> CoreRead.Metric.RespRate
+    "spo2" -> CoreRead.Metric.Spo2
+    "skin" -> CoreRead.Metric.SkinTemp
+    "steps_est" -> CoreRead.Metric.Steps
+    else -> null
+}
+
+/**
  * The detailed tile's line (`LiquidTodayView.windowedSpark`): the points inside the window, or, when that cannot
  * draw a line, the last [maxPoints] measurements of the whole series, so a sparse series such as weight never
  * leaves a tile empty while its number shows.

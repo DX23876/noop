@@ -153,6 +153,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var addingWorkout by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     var devicesOpen by remember { mutableStateOf(false) }
+    /// The metric page a "Your cards" row opens, so each card reaches its own figure (#40).
+    var cardMetric by remember { mutableStateOf<CoreRead.Metric?>(null) }
     var startWorkout by remember { mutableStateOf(false) }
     var liveWorkout by remember { mutableStateOf(false) }
     var liveSession by remember { mutableStateOf(false) }
@@ -226,6 +228,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             ForgeSettings(viewModel, onClose = { devicesOpen = false }, initialPage = ForgeSettingsPage.Strap)
         }
     }
+    ForgeMetricDetail(cardMetric, viewModel) { cardMetric = null }
     if (settingsOpen) {
         ForgeOverlayPage(onDismiss = { settingsOpen = false }) { ForgeSettings(viewModel, onClose = { settingsOpen = false }) }
     }
@@ -288,8 +291,13 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 TodaySection.TRAINING_LOAD -> if (shown == today) TodayTrainingLoadForge { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) }
                 TodaySection.WORKOUTS -> TodayWorkoutsForge(viewModel)
                 TodaySection.RECOVERY_VITALS -> TodayRecoveryVitalsForge(viewModel) { more.push(MoreRoute.Dest(MoreDest.Health)) }
+                // Each card opens ITS figure's page, as the classic dashboard does: the shell used to throw
+                // the card's key away and push Health for every one of them (#40). A card the core keeps no
+                // day series for still opens Health, which is where that figure lives.
                 TodaySection.YOUR_CARDS -> if (shown == today) TodayYourCardsForge(viewModel,
-                    onOpenMetric = { more.push(MoreRoute.Dest(MoreDest.Health)) }, onOpenSleep = { selectTab(ForgeTab.Sleep) },
+                    onOpenMetric = { key ->
+                        forgeMetricForCardKey(key)?.let { cardMetric = it } ?: more.push(MoreRoute.Dest(MoreDest.Health))
+                    }, onOpenSleep = { selectTab(ForgeTab.Sleep) },
                     onOpenStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) },
                     onOpenHydration = { more.push(MoreRoute.Dest(MoreDest.Hydration)) },
                     onOpenCoach = { more.push(MoreRoute.Dest(MoreDest.Coach)) },
@@ -297,7 +305,9 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 TodaySection.MENSTRUAL_CYCLE -> if (shown == today) TodayCycleForge(viewModel)
                 TodaySection.JOURNAL -> if (shown == today) TodayJournalForge(viewModel) { more.push(MoreRoute.Dest(MoreDest.Journal)) }
                 TodaySection.ADDED_CARDS -> if (shown == today) TodayAddedCardsForge(viewModel,
-                    onOpenMetric = { more.push(MoreRoute.Dest(MoreDest.Health)) }, onOpenSleep = { selectTab(ForgeTab.Sleep) },
+                    onOpenMetric = { key ->
+                        forgeMetricForCardKey(key)?.let { cardMetric = it } ?: more.push(MoreRoute.Dest(MoreDest.Health))
+                    }, onOpenSleep = { selectTab(ForgeTab.Sleep) },
                     onOpenStress = { more.push(MoreRoute.Dest(MoreDest.Stress)) })
                 // As on iOS: the guided session starts from the quick actions, Data Sources lives in Settings.
                 TodaySection.LIVE_SESSION, TodaySection.DATA_SOURCES -> Unit
