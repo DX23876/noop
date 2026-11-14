@@ -262,9 +262,15 @@ struct CardioView: View {
                     } label: {
                         ForgeTileRow(symbol: sportSymbol(session), tint: StrandPalette.effortColor,
                                      title: sportName(session.sport),
-                                     subtitle: Date(timeIntervalSince1970: TimeInterval(session.startTs))
-                                        .formatted(date: .abbreviated, time: .omitted) + " · " + sessionDetailLine(session),
-                                     showsChevron: true) { EmptyView() }
+                                     subtitle: sessionRowLine(session),
+                                     showsChevron: true) {
+                            // The heart rate goes where every other Forge list puts its figure: to the
+                            // right, where it lines up down the column. Inside the sentence it was the
+                            // word that pushed every row onto a second line.
+                            if let hr = session.avgHr {
+                                ForgeRowFigure(value: "\(hr)", unit: String(localized: "bpm"))
+                            }
+                        }
                     }
                     .buttonStyle(LiquidPressStyle())
                     .accessibilityHint(Text("Opens the session"))
@@ -447,7 +453,7 @@ struct CardioView: View {
 
     /// The sport's share of the week's measured load, and its pace in the unit that sport is read in.
     private func activityDetail(_ share: CardioSportLoadShare) -> String {
-        var parts = [String(localized: "\(Int((share.share * 100).rounded())) % of cardio load")]
+        var parts = [String(localized: "\(Int((share.share * 100).rounded())) % of this week's cardio")]
         if let pace = model.topSportPace {
             switch share.modality.readout {
             case .pace: parts.append(paceText(secPerKm: pace, modality: share.modality))
@@ -775,12 +781,15 @@ struct CardioView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// The short version under the chart. What a pace average can and cannot say, and what heart cost
+    /// is made of, is a paragraph; it belongs in the explainer at the foot of the page, not under a
+    /// chart somebody is reading.
     private var paceCaption: String {
         var text = model.selectedModality.readout == .speed
-            ? String(localized: "Average speed per session — distance over moving time. Only sessions that recorded both appear.")
-            : String(localized: "Average pace per session — moving time over distance. Only sessions that recorded both appear, and a session's average says nothing about how it was paced inside: NOOP stores one distance and one duration, not splits.")
+            ? String(localized: "Each point is one session's average speed.")
+            : String(localized: "Each point is one session's average pace.")
         text += " "
-        text += String(localized: "Heart cost is beats spent per kilometre — average heart rate × minutes, over kilometres. It falls when the same distance costs your heart less, and it also moves with heat, hills, wind and sleep, so read the direction over weeks, never two sessions against each other.")
+        text += String(localized: "Heart cost is the beats a kilometre costs you. It moves with heat, hills and sleep too, so read the direction over weeks rather than two sessions against each other.")
         return text
     }
 
@@ -908,7 +917,21 @@ struct CardioView: View {
     }
 
     /// The line the Workouts list could never write: the sport's own units first, then the body's answer.
-    private func sessionDetailLine(_ session: CardioSessionMetrics) -> String {
+    /// A row in the list: the day it was, then what tells one session from another.
+    ///
+    /// It used to carry the year and the beats a kilometre cost, six figures that wrapped onto a
+    /// second line in every row. The year is the same for nearly every row in view, and heart cost is
+    /// an instrument of the Progress card, explained there; the session's own page still has both.
+    private func sessionRowLine(_ session: CardioSessionMetrics) -> String {
+        let day = Date(timeIntervalSince1970: TimeInterval(session.startTs))
+            .formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        return day + " · " + sessionDetailLine(session, includesHeartRate: false,
+                                               includesHeartCost: false)
+    }
+
+    private func sessionDetailLine(_ session: CardioSessionMetrics,
+                                   includesHeartRate: Bool = true,
+                                   includesHeartCost: Bool = true) -> String {
         var parts: [String] = [durationText(session.durationS ?? 0)]
         if let distance = session.distanceM, distance > 0 {
             parts.append(UnitFormatter.distanceFromMeters(distance, system: units))
@@ -926,8 +949,10 @@ struct CardioView: View {
         case .none:
             break
         }
-        if let hr = session.avgHr { parts.append(String(localized: "\(hr) bpm avg")) }
-        if let beats = session.beatsPerKm {
+        if includesHeartRate, let hr = session.avgHr {
+            parts.append(String(localized: "\(hr) bpm avg"))
+        }
+        if includesHeartCost, let beats = session.beatsPerKm {
             parts.append(String(localized: "\(Int(beats.rounded())) beats/km"))
         }
         return parts.filter { $0 != "–" }.joined(separator: " · ")
@@ -990,6 +1015,9 @@ struct CardioView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             },
+            ExplainerItem(id: "pace", symbol: "speedometer", title: String(localized: "Pace and heart cost"),
+                          subtitle: String(localized: "What the two lines can and cannot say"),
+                          text: String(localized: "A point is one session's average: its moving time over its distance. Only sessions that recorded both appear, and an average says nothing about how the session was paced inside, since NOOP stores one distance and one duration rather than splits.\n\nHeart cost is the beats a kilometre costs you: average heart rate times minutes, divided by kilometres. It falls when the same distance costs your heart less. Heat, hills, wind and sleep move it too, so it is read over weeks.")),
             ExplainerItem(id: "bests", symbol: "trophy", title: String(localized: "Your bests"),
                           subtitle: String(localized: "How sessions are compared fairly"),
                           text: String(localized: "Bests include your farthest session, longest session and fastest average pace for similar session lengths.\n\nA short run and a half marathon are kept in separate distance groups because their paces are not directly comparable. These are whole-session averages, not kilometre splits.")),
