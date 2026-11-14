@@ -9,11 +9,19 @@ import StrandTraining
 struct TrainingStartContext {
     var exercises: [TrainingExercise] = []
     var plan = TrainingPlan()
+    /// The plans themselves, for the block a routine's plan may be in: which week it is and whether
+    /// this week is a lighter one.
+    var programs: [TrainingProgram] = []
     var workouts: [NativeWorkout] = []
     var performance = TrainingPerformanceHistory.empty
 
     var exerciseById: [String: TrainingExercise] {
         Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
+    }
+
+    func program(of routine: TrainingRoutine) -> TrainingProgram? {
+        guard let id = routine.programId else { return nil }
+        return programs.first { $0.id == id }
     }
 }
 
@@ -27,16 +35,37 @@ enum StrengthDraftBuilder {
         let title = routines.isEmpty ? String(localized: "Freestyle workout")
             : routines.map(\.title).joined(separator: " + ")
         let definitions = context.exerciseById
+        // What THIS WEEK of the plan's block prescribes, before anything else reads the routine. The
+        // stored routine is the first week; the step and a lighter week are applied on the way out.
+        let prescribed = routines.map { routine in
+            blockPrescription(for: routine, context: context, date: date)
+        }
         var draft = NativeWorkoutEngine.draft(title: title, day: dayString(date), startTs: now,
-                                              routines: routines, tracker: tracker,
+                                              routines: prescribed, tracker: tracker,
                                               exerciseDefinitions: definitions)
         normalizeUnilateralSets(in: &draft, definitions: definitions)
         if let pastDurationS { draft.plannedEndTs = now + max(60, pastDurationS) }
         NativeWorkoutEngine.prefillLastPerformance(&draft, history: context.workouts)
         context.performance.prefillImported(&draft)
-        applyProgression(to: &draft, routines: routines, definitions: definitions,
-                         performance: context.performance)
+        // A routine whose plan steps its own prescriptions week by week is not also progressed per
+        // exercise: two mechanisms moving one target weight is how two readouts of one number come to
+        // disagree. The block is the writer while it runs; `ProgressionEngine` is the writer otherwise.
+        let selfProgressing = Set(prescribed.filter { routine in
+            context.program(of: routine)?.block?.progression ?? .none != BlockProgressionPolicy.none
+        }.map(\.id))
+        applyProgression(to: &draft, routines: prescribed.filter { !selfProgressing.contains($0.id) },
+                         definitions: definitions, performance: context.performance)
         return draft
+    }
+
+    /// The routine as the current week of its plan's block prescribes it, or the routine itself when
+    /// its plan has no block running.
+    static func blockPrescription(for routine: TrainingRoutine, context: TrainingStartContext,
+                                  date: Date = Date()) -> TrainingRoutine {
+        guard let program = context.program(of: routine), let block = program.block else { return routine }
+        let state = TrainingBlockState.resolve(block: block, today: dayString(date))
+        return BlockPrescription.apply(routine, state: state, policy: block.progression,
+                                       weightStepKg: TrainingPreferences.weightStep(for: ["barbell"]))
     }
 
     /// The exercises a routine contributes when it is added to a session already running: prefilled and

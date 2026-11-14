@@ -155,6 +155,7 @@ struct TrainingProgramDetailView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 stateCard
                 if let state = blockState { blockCard(state) }
+                runningBlockCard
                 targetsCard
                 if !routines.isEmpty {
                     PlanReviewCard(review: model.review(of: current, routines: routines),
@@ -325,25 +326,96 @@ struct TrainingProgramDetailView: View {
 
     private var finishedRuns: [TrainingBlockRun] { runs.filter { $0.endedOn != nil } }
 
+    /// A run's figures, worked out from the workout log every time they are shown rather than stored,
+    /// so this page cannot claim something the log does not say.
+    private func report(_ run: TrainingBlockRun) -> BlockReport {
+        BlockReport.make(run: run, workouts: model.workouts, exercises: model.exerciseById,
+                         sessionsPerWeek: current.targets.sessionsPerWeek,
+                         today: Repository.localDayKey(Date()))
+    }
+
+    /// The block being trained right now, with what has been done in it so far.
+    @ViewBuilder private var runningBlockCard: some View {
+        if let run = runs.first(where: { $0.endedOn == nil }) {
+            let report = report(run)
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    Text("This block so far").font(StrandFont.headline)
+                    figures(report)
+                }
+            }
+        }
+    }
+
+    private func figures(_ report: BlockReport) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let planned = report.plannedSessions {
+                Text("\(report.doneSessions) of \(planned) sessions")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            } else {
+                Text("\(report.doneSessions) sessions")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            }
+            Text("\(report.workSets) work sets")
+                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            if report.loadKg > 0 {
+                Text("\(TrainingPreferences.formattedVolume(report.loadKg)) moved")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            }
+            if report.unpricedWorkSets > 0 {
+                Text("\(report.unpricedWorkSets) sets carried no weight to count.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+    }
+
     private var historyCard: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Earlier blocks", overline: "History")
             NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                    ForEach(finishedRuns.reversed()) { run in
-                        HStack {
-                            Text("\(run.startedOn) to \(run.endedOn ?? "")")
-                                .font(StrandFont.subhead)
-                            Spacer()
-                            Text(run.outcome == .finished
-                                 ? String(localized: "Finished") : String(localized: "Stopped early"))
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textSecondary)
+                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                    ForEach(Array(finishedRuns.reversed().enumerated()), id: \.element.id) { index, run in
+                        if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("\(run.startedOn) to \(run.endedOn ?? "")")
+                                    .font(StrandFont.subhead.weight(.semibold))
+                                Spacer()
+                                Text(run.outcome == .finished
+                                     ? String(localized: "Finished") : String(localized: "Stopped early"))
+                                    .font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                            }
+                            figures(report(run))
+                            if let line = comparisonLine(at: index) {
+                                Text(line).font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    /// How a finished block compared with the one before it, in the figures the log holds.
+    private func comparisonLine(at index: Int) -> String? {
+        let newestFirst = Array(finishedRuns.reversed())
+        guard newestFirst.indices.contains(index), newestFirst.indices.contains(index + 1) else { return nil }
+        let delta = BlockReport.compare(previous: report(newestFirst[index + 1]),
+                                        current: report(newestFirst[index]))
+        var parts: [String] = []
+        if delta.workSets != 0 {
+            parts.append(delta.workSets > 0
+                         ? String(localized: "\(delta.workSets) work sets more than the block before")
+                         : String(localized: "\(-delta.workSets) work sets fewer than the block before"))
+        }
+        if abs(delta.loadKg) >= 1 {
+            parts.append(delta.loadKg > 0
+                         ? String(localized: "\(TrainingPreferences.formattedVolume(delta.loadKg)) more moved")
+                         : String(localized: "\(TrainingPreferences.formattedVolume(-delta.loadKg)) less moved"))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
     private var actionsCard: some View {

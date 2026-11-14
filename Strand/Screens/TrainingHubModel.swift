@@ -71,8 +71,8 @@ final class TrainingHubModel: ObservableObject {
     }
 
     var startContext: TrainingStartContext {
-        TrainingStartContext(exercises: exercises, plan: plan, workouts: workouts,
-                             performance: performanceHistory)
+        TrainingStartContext(exercises: exercises, plan: plan, programs: programs,
+                             workouts: workouts, performance: performanceHistory)
     }
 
     private func refreshPerformanceHistory() {
@@ -103,6 +103,24 @@ final class TrainingHubModel: ObservableObject {
         async let programs = repo.nativeTrainingPrograms()
         self.plan = await plan
         self.programs = await programs
+        await closeFinishedBlocks(repo: repo)
+    }
+
+    /// A block whose last week is behind the wearer closes its run, once, here.
+    ///
+    /// Nothing else changes: the plan keeps running, its prescriptions stay as they are, and the page
+    /// offers to repeat it or build the next one. Closing the run is what lets it appear under
+    /// earlier blocks with the figures from its own window.
+    private func closeFinishedBlocks(repo: Repository) async {
+        let today = Repository.localDayKey(Date())
+        for program in programs where program.isActive {
+            guard let state = TrainingBlockState.resolve(block: program.block, today: today),
+                  state.isFinished else { continue }
+            let open = await repo.nativeTrainingBlockRuns(programId: program.id)
+                .contains { $0.endedOn == nil }
+            guard open else { continue }
+            try? await repo.finishNativeTrainingBlockRun(programId: program.id, day: today)
+        }
     }
 
     /// The plan being followed, which is where a new routine goes unless the wearer says otherwise.

@@ -985,6 +985,13 @@ final class Repository: ObservableObject {
                                                   now: Int(now.timeIntervalSince1970))
     }
 
+    /// Marks a plan's open block run as finished. The plan itself is untouched: a block that has run
+    /// its weeks changes nothing by itself, it only stops being the one in progress.
+    func finishNativeTrainingBlockRun(programId: UUID, day: String) async throws {
+        guard let store = await ensureStore() else { throw RepositoryTrainingError.storeUnavailable }
+        try await store.finishTrainingBlockRun(programId: programId, day: day)
+    }
+
     func nativeTrainingBlockRuns(programId: UUID? = nil) async -> [TrainingBlockRun] {
         guard let store = await ensureStore() else { return [] }
         return (try? await store.trainingBlockRuns(programId: programId)) ?? []
