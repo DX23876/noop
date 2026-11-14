@@ -4,9 +4,10 @@ import StrandDesign
 
 /// Replaces a Home Screen widget's body with an explanation when this install has no App Group.
 ///
-/// Signers that use a wildcard provisioning profile (Feather and similar, with a bought or enterprise
-/// certificate) cannot grant `com.apple.security.application-groups`. The app and the extension then
-/// each write to a private container, so every widget renders empty rings forever and reads as broken.
+/// A signature that grants no `com.apple.security.application-groups` at all (a plain wildcard profile,
+/// Sideloadly with a free Apple ID) leaves the app and the extension each writing to a private container,
+/// so every widget renders empty rings forever and reads as broken. Any granted group, including a
+/// certificate seller's own `group.<id>.n`, is found by `AppGroupResolver` and never reaches this state.
 /// Saying why is the only honest state: no other channel between the app and the extension exists
 /// without that entitlement. Accessory families are too small for the sentence and keep their dashes.
 struct AppGroupNotice: ViewModifier {

@@ -1,4 +1,5 @@
 import Foundation
+import StrandDesign
 #if os(iOS)
 import UIKit
 #endif
@@ -212,23 +213,11 @@ struct IOSDiagnostics {
 
     /// Pull the `ExpirationDate` out of the embedded provisioning profile.
     ///
-    /// The `.mobileprovision` file is a CMS / PKCS#7 (DER) blob that *wraps* an XML plist. Rather than
-    /// pull in Security/CMS decoding, we slice the embedded plist out of the raw bytes — from the first
-    /// `<?xml` to the closing `</plist>` — and parse that with `PropertyListSerialization`. Returns nil
-    /// gracefully if the profile is absent, the markers are missing, or parsing fails.
+    /// The profile is parsed by `ProvisioningProfile` (StrandDesign), the same parse the App Group
+    /// resolver and the HealthKit check use. Returns nil gracefully if the profile is absent or
+    /// unparseable.
     private static func provisioningExpiryDate() -> Date? {
-        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
-              let data = try? Data(contentsOf: url) else { return nil }
-
-        guard let xmlStart = data.range(of: Data("<?xml".utf8)),
-              let xmlEnd = data.range(of: Data("</plist>".utf8)) else { return nil }
-        let plistData = data.subdata(in: xmlStart.lowerBound..<xmlEnd.upperBound)
-
-        guard let plist = try? PropertyListSerialization.propertyList(
-                from: plistData, options: [], format: nil) as? [String: Any]
-        else { return nil }
-
-        return plist["ExpirationDate"] as? Date
+        ProvisioningProfile.plist(inBundleAt: Bundle.main.bundleURL)?["ExpirationDate"] as? Date
     }
 
     #endif

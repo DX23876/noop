@@ -1,4 +1,5 @@
 import Foundation
+import StrandDesign
 
 /// Energy payload prepared by the app. Kept independent of StrandAnalytics so the widget extension
 /// remains a tiny App-Group reader and never opens the database or links the analytics package.
@@ -126,54 +127,25 @@ public struct WidgetSnapshot: Codable, Equatable {
                                        to: calendar.startOfDay(for: date)).day ?? 0
     }
 
-    /// App Group suite the app and widget both use. Injected from the `APP_GROUP_ID` build setting
-    /// (see project.yml) via the `AppGroupIdentifier` Info.plist key, so the value lives in exactly
-    /// one place rather than being duplicated here. Must match the `com.apple.security.application-groups`
-    /// entitlement on both targets (which also reads `$(APP_GROUP_ID)`). If the entitlement is missing on
-    /// either side, `UserDefaults(suiteName:)` returns nil and every consumer (PendingIntents,
-    /// WidgetSnapshot.publish, Live Activity) silently no-ops — see `assertGroupProvisioned` for the
-    /// debug-time canary. The fallback is the canonical upstream group and only applies if the Info.plist
-    /// key is somehow absent (each process reads its OWN bundle, so the app and the widget extension
-    /// each carry the key in their generated Info.plist).
-    public static let suiteName: String = {
-        resolveSuiteName(infoDictionary: Bundle.main.infoDictionary ?? [:])
-    }()
+    /// App Group suite the app, the widgets and the Live Activity share. Resolved by
+    /// `AppGroupResolver.current` (StrandDesign), the same resolver `WatchScoreSnapshot.appGroupId`
+    /// uses, so every reader lands on the group the signature actually grants: the configured
+    /// `$(APP_GROUP_ID)` under Xcode, the team-suffixed `ALTAppGroups` entry under AltStore / SideStore,
+    /// or a group from the signing profile under a certificate signer. If none is granted,
+    /// `UserDefaults(suiteName:)` still returns a store but a private one, and every consumer
+    /// (PendingIntents, WidgetSnapshot.publish, Live Activity) writes where no other process reads.
+    public static let suiteName: String = AppGroupResolver.current
     public static let storageKey = "noop.widget.snapshot"
 
-    /// Resolve the App Group the current signature actually grants.
-    ///
-    /// AltStore / SideStore must make every App Group unique to the user's signing team. During
-    /// re-signing they append the team identifier to the group requested by the downloaded app and
-    /// publish the resulting, provisioned identifiers in `ALTAppGroups` in each bundle's Info.plist.
-    /// Reading only the build-time `AppGroupIdentifier` therefore points at an unprovisioned container
-    /// in a sideloaded build, even though the host app and widget extension were both signed correctly.
-    ///
-    /// Normal Xcode builds don't carry `ALTAppGroups`, so they keep using `AppGroupIdentifier`.
+    /// The build-time part of the resolution, over one Info.plist: kept for the tests that pin how an
+    /// AltStore / SideStore `ALTAppGroups` list is read.
     static func resolveSuiteName(infoDictionary: [String: Any]) -> String {
-        let configured = (infoDictionary["AppGroupIdentifier"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let altGroups = (infoDictionary["ALTAppGroups"] as? [String])?
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { $0.hasPrefix("group.") && !$0.isEmpty } ?? []
-
-        if let configured, !configured.isEmpty,
-           let provisioned = altGroups.first(where: {
-               $0 == configured || $0.hasPrefix(configured + ".")
-           }) {
-            return provisioned
-        }
-        if altGroups.count == 1, let provisioned = altGroups.first {
-            return provisioned
-        }
-        if let configured, !configured.isEmpty {
-            return configured
-        }
-        return "group.com.noopapp.noop"
+        AppGroupResolver.resolve(info: infoDictionary)
     }
 
-    /// Whether this process's signature actually grants the App Group. A wildcard provisioning profile
-    /// (Feather and other certificate signers) cannot carry one; `UserDefaults(suiteName:)` still returns
-    /// a store then, but a private one, so this container lookup is the test that tells the two apart.
+    /// Whether this process's signature actually grants the App Group. A signature without any App Group
+    /// (a plain wildcard profile, Sideloadly with a free Apple ID) leaves `UserDefaults(suiteName:)`
+    /// returning a private store, so this container lookup is the test that tells the two apart.
     public static var groupContainerAvailable: Bool {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suiteName) != nil
     }

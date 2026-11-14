@@ -3631,14 +3631,9 @@ final class HealthKitBridge: ObservableObject {
             // No embedded profile = App Store build = properly signed. Assume present.
             return true
         }
-        guard let xmlStart = data.range(of: Data("<?xml".utf8)),
-              let xmlEnd = data.range(of: Data("</plist>".utf8)) else {
-            // Profile present but unparseable — don't claim a missing entitlement off a parse failure;
-            // assume present so we never wrongly down-route a real build.
-            return true
-        }
-        let plistData = data.subdata(in: xmlStart.lowerBound..<xmlEnd.upperBound)
-        guard let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+        // Profile present but unparseable — don't claim a missing entitlement off a parse failure;
+        // assume present so we never wrongly down-route a real build.
+        guard let plist = ProvisioningProfile.plist(from: data),
               let entitlements = plist["Entitlements"] as? [String: Any] else {
             return true
         }
