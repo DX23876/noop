@@ -73,6 +73,14 @@ object CoreTraining {
             .put("durationS", set.durationS ?: JSONObject.NULL).put("distanceM", set.distanceM ?: JSONObject.NULL)
             .put("done", set.done))?.let(::parseDraft)
 
+    /**
+     * Takes back a set that was added by mistake (`NativeWorkoutEngine.removeSet`). The core refuses the
+     * only set of an exercise and a set other rows hang off, and answers with the draft either way.
+     */
+    fun removeSet(exercise: String, set: String): Draft? =
+        call("training.changeDraft", JSONObject().put("change", "removeSet")
+            .put("exercise", exercise).put("set", set))?.let(::parseDraft)
+
     /** The set's effort rating, `rir` or `rpe` (`NativeWorkoutSessionModel.setEffort`); a null value clears it. */
     fun setEffort(exercise: String, set: String, scale: String, value: Double?): Draft? =
         call("training.changeDraft", JSONObject().put("change", "set").put("exercise", exercise).put("set", set)
@@ -157,10 +165,16 @@ object CoreTraining {
     /** The current draft unchanged; null when no session is in progress. */
     fun draft(): Draft? = call("training.changeDraft", JSONObject().put("change", "none"))?.let(::parseDraft)
 
-    /** True when the workout was saved (at least one completed set). */
-    fun finish(sessionRPE: Double?): Boolean =
+    /**
+     * What finishing a workout did (`CoreTraining.FinishOutcome`). Four different failures used to arrive
+     * as one false and were all shown as "mark at least one set as done", so a workout whose sets WERE all
+     * ticked could not be finished and the message named the one thing that was not wrong (#43, #47).
+     */
+    enum class Finish { SAVED, NO_DRAFT, NO_COMPLETED_WORK, CLOCK_WENT_BACKWARDS, NOT_STORED, NO_CORE }
+
+    fun finish(sessionRPE: Double?): Finish =
         call("training.finishDraft", JSONObject().put("sessionRPE", sessionRPE ?: JSONObject.NULL))
-            ?.let(::parseFinished) ?: false
+            ?.let(::parseFinished) ?: Finish.NO_CORE
 
     fun discard(draftId: String): Boolean =
         call("training.discardDraft", JSONObject().put("id", draftId))?.contains("true") == true
@@ -193,10 +207,18 @@ object CoreTraining {
     fun deleteRoutine(id: String): Boolean =
         call("training.deleteRoutine", JSONObject().put("id", id))?.contains("true") == true
 
-    internal fun parseFinished(json: String): Boolean = runCatching {
+    internal fun parseFinished(json: String): Finish = runCatching {
         val o = JSONObject(json)
-        !o.has("error") && o.getString("id").isNotEmpty() && o.getLong("endedAt") > 0
-    }.getOrDefault(false)
+        if (o.has("error")) return@runCatching Finish.NO_CORE
+        when (o.optString("reason")) {
+            "saved" -> Finish.SAVED
+            "noDraft" -> Finish.NO_DRAFT
+            "noCompletedWork" -> Finish.NO_COMPLETED_WORK
+            "clockWentBackwards" -> Finish.CLOCK_WENT_BACKWARDS
+            "notStored" -> Finish.NOT_STORED
+            else -> Finish.NO_CORE
+        }
+    }.getOrDefault(Finish.NO_CORE)
 
     internal fun parseSnapshot(json: String): Snapshot? {
         if (json == "null" || json.contains("\"error\"")) return null

@@ -503,6 +503,12 @@ public enum CoreTraining {
         case "addSet":
             guard let exerciseUUID else { return draft }
             try? NativeWorkoutEngine.appendSet(to: exerciseUUID, in: &draft)
+        case "removeSet":
+            // A set added by mistake, taken back. The rule is the engine's, so a set the Apple app refuses
+            // to remove is refused here too (`NativeWorkoutEngine.canRemoveSet`).
+            guard let exerciseUUID, let setId = (args["set"] as? String).flatMap(UUID.init(uuidString:))
+            else { return draft }
+            try? NativeWorkoutEngine.removeSet(setId, from: exerciseUUID, in: &draft)
         case "addExercise":
             guard let id = args["exerciseId"] as? String else { return draft }
             let exercises = (try? await store.trainingExercises()) ?? []
@@ -580,12 +586,45 @@ public enum CoreTraining {
 
     /// Completes the draft as the Apple app does (`NativeWorkoutEngine.complete`): only completed sets are kept,
     /// the workout is stored and the draft removed. Nil when nothing was completed.
-    public static func finishDraft(store: WhoopStore, sessionRPE: Double?) async -> NativeWorkout? {
-        guard let draft = (try? await store.workoutDraft()) ?? nil,
-              let workout = try? NativeWorkoutEngine.complete(draft: draft, endTs: Int(Date().timeIntervalSince1970),
-                                                              sessionRPE: sessionRPE) else { return nil }
-        guard (try? await store.completeNativeWorkout(workout)) != nil else { return nil }
+    /// Why a finish did not save, so the screen can say it. Four different failures used to arrive as one
+    /// `nil` and were all rendered as "mark at least one set as done": a workout whose sets WERE all ticked
+    /// could not be finished and the message named the one thing that was not wrong (issues #43, #47).
+    public enum FinishOutcome: String, Sendable {
+        case saved
+        /// There is no draft at all — the session ended elsewhere, or was already saved.
+        case noDraft
+        /// Genuinely nothing ticked off. The only case the old message was right about.
+        case noCompletedWork
+        /// The device clock reads earlier than the workout's own start, so it has no length.
+        case clockWentBackwards
+        /// Everything was in order and the store refused the write.
+        case notStored
+    }
+
+    public struct FinishResult: Sendable {
+        public let workout: NativeWorkout?
+        public let outcome: FinishOutcome
+    }
+
+    public static func finishDraft(store: WhoopStore, sessionRPE: Double?,
+                                   now: Date = Date()) async -> FinishResult {
+        guard let draft = (try? await store.workoutDraft()) ?? nil else {
+            return FinishResult(workout: nil, outcome: .noDraft)
+        }
+        let endTs = Int(now.timeIntervalSince1970)
+        // Asked before completing, so the two failures the engine throws can be told apart here rather
+        // than collapsing into one thrown error the caller has to guess at.
+        guard endTs >= draft.startedAt else {
+            return FinishResult(workout: nil, outcome: .clockWentBackwards)
+        }
+        guard NativeWorkoutEngine.completionValidation(for: draft).canComplete else {
+            return FinishResult(workout: nil, outcome: .noCompletedWork)
+        }
+        guard let workout = try? NativeWorkoutEngine.complete(draft: draft, endTs: endTs, sessionRPE: sessionRPE),
+              (try? await store.completeNativeWorkout(workout)) != nil else {
+            return FinishResult(workout: nil, outcome: .notStored)
+        }
         await EnergyCorrections.noteInputsRederived(store: store, dayStartTs: workout.startedAt)
-        return workout
+        return FinishResult(workout: workout, outcome: .saved)
     }
 }

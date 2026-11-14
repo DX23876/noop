@@ -109,6 +109,31 @@ public enum NativeWorkoutEngine {
         touch(&draft)
     }
 
+    /// Whether this set may be removed: an exercise keeps at least one row, and a set other rows hang off
+    /// (a drop or rest-pause segment) cannot be pulled out from under them.
+    public static func canRemoveSet(_ setId: UUID, from exerciseId: UUID, in draft: WorkoutDraft) -> Bool {
+        guard let exercise = draft.exercises.first(where: { $0.id == exerciseId }),
+              exercise.sets.contains(where: { $0.id == setId }) else { return false }
+        return exercise.sets.count > 1 && !exercise.sets.contains { $0.parentSetId == setId }
+    }
+
+    /// Removes a set the wearer added by mistake and renumbers what is left.
+    ///
+    /// The rule lived in the Apple session model alone, so Android had no way to take a set back at all
+    /// and a wearer who tapped "add set" once too often was stuck with it (issue #43). One rule, both
+    /// platforms: the Apple model calls this too.
+    public static func removeSet(_ setId: UUID, from exerciseId: UUID, in draft: inout WorkoutDraft) throws {
+        guard let exerciseIndex = draft.exercises.firstIndex(where: { $0.id == exerciseId }) else {
+            throw WorkoutMutationError.exerciseNotFound
+        }
+        guard canRemoveSet(setId, from: exerciseId, in: draft) else { throw WorkoutMutationError.invalidPosition }
+        draft.exercises[exerciseIndex].sets.removeAll { $0.id == setId }
+        for index in draft.exercises[exerciseIndex].sets.indices {
+            draft.exercises[exerciseIndex].sets[index].index = index
+        }
+        touch(&draft)
+    }
+
     /// Adds one technique segment to a work set, right after the set and the segments it already has, so
     /// the drop follows the set it drops from. The origin and every segment share one cluster;
     /// analytics can therefore distinguish one logical effort from several recorded rows.

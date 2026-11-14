@@ -718,7 +718,9 @@ public enum CoreCall {
                                                                 dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
         case "training.finishDraft":
             let rpe = (args["sessionRPE"] as? NSNumber)?.doubleValue
-            return CoreRead.json(await CoreTraining.finishDraft(store: store, sessionRPE: rpe))
+            let finished = await CoreTraining.finishDraft(store: store, sessionRPE: rpe)
+            struct Wire: Encodable { let saved: Bool; let reason: String }
+            return CoreRead.json(Wire(saved: finished.workout != nil, reason: finished.outcome.rawValue))
         default:
             return #"{"error":"unknownOp"}"#
         }

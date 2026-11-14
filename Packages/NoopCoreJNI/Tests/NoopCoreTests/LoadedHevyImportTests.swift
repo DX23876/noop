@@ -41,7 +41,8 @@ final class LoadedHevyImportTests: XCTestCase {
             _ = await CoreTraining.changeDraft(store: store, args: ["change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString, "done": true])
         }
         let finished = await CoreTraining.finishDraft(store: store, sessionRPE: nil)
-        let completed = try XCTUnwrap(finished)
+        XCTAssertEqual(finished.outcome, .saved)
+        let completed = try XCTUnwrap(finished.workout)
         XCTAssertEqual(completed.exercises[0].sets[0].durationS, 45)
         XCTAssertEqual(completed.exercises[1].sets[0].distanceM, 25)
         XCTAssertEqual(completed.exercises[0].sets[0].weightKg, 20)

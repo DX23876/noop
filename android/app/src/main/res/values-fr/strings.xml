@@ -3068,6 +3068,9 @@
     <string name="forge_training_finish">Terminer</string>
     <string name="forge_training_discard">Abandonner la séance</string>
     <string name="forge_training_finish_empty">Cochez au moins une série pour enregistrer la séance.</string>
+    <string name="forge_training_finish_clock">L\'horloge de votre appareil est antérieure au début de cette séance, qui n\'a donc pas encore de durée. Vérifiez la date et l\'heure, puis enregistrez à nouveau.</string>
+    <string name="forge_training_finish_gone">Cette séance n\'est plus ouverte. Elle a déjà été enregistrée ou terminée ailleurs.</string>
+    <string name="forge_training_finish_failed">La séance n\'a pas pu être enregistrée. Rien n\'est perdu ; réessayez, et si cela persiste, partagez votre journal de bracelet.</string>
     <string name="forge_training_effort">Quelle difficulté ? (1 à 10)</string>
     <string name="forge_training_skip">Passer</string>
     <string name="forge_training_save">Enregistrer</string>
@@ -4817,6 +4820,7 @@
     <string name="forge_lg_cancel">Annuler</string>
     <string name="forge_lg_off">Désactivé</string>
     <string name="forge_lg_remove">Supprimer</string>
+    <string name="forge_lg_remove_set_q">Supprimer cette série ?</string>
     <string name="forge_lg_rest_remaining">Repos restant</string>
     <string name="forge_lg_col_previous">PRÉCÉDENT</string>
     <string name="forge_lg_discard_q">Abandonner cette séance ?</string>

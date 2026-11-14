@@ -3098,6 +3098,9 @@
     <string name="forge_training_finish">Finish</string>
     <string name="forge_training_discard">Discard workout</string>
     <string name="forge_training_finish_empty">Mark at least one set as done to save the workout.</string>
+    <string name="forge_training_finish_clock">Your device clock reads earlier than this workout\'s start, so it has no length yet. Check the date and time, then save again.</string>
+    <string name="forge_training_finish_gone">This workout is no longer open. It was either saved already or ended somewhere else.</string>
+    <string name="forge_training_finish_failed">The workout could not be saved. Nothing was lost; try again, and if it keeps failing, share your strap log.</string>
     <string name="forge_training_effort">How hard was it? (1 to 10)</string>
     <string name="forge_training_skip">Skip</string>
     <string name="forge_training_save">Save</string>
@@ -4850,6 +4853,7 @@
     <string name="forge_lg_cancel">Cancel</string>
     <string name="forge_lg_off">Off</string>
     <string name="forge_lg_remove">Remove</string>
+    <string name="forge_lg_remove_set_q">Remove this set?</string>
     <string name="forge_lg_rest_remaining">Rest remaining</string>
     <string name="forge_lg_col_previous">PREVIOUS</string>
     <string name="forge_lg_discard_q">Discard this workout?</string>

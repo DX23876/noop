@@ -3039,6 +3039,9 @@
     <string name="forge_training_finish">完成</string>
     <string name="forge_training_discard">放弃训练</string>
     <string name="forge_training_finish_empty">至少完成一组才能保存训练。</string>
+    <string name="forge_training_finish_clock">设备时钟早于这次训练的开始时间，所以它还没有时长。请检查日期和时间后重新保存。</string>
+    <string name="forge_training_finish_gone">这次训练已不再处于进行中。它要么已经保存，要么在别处结束了。</string>
+    <string name="forge_training_finish_failed">训练未能保存。没有丢失任何内容，请再试一次；如果仍然失败，请分享你的手环日志。</string>
     <string name="forge_training_effort">有多吃力？（1 到 10）</string>
     <string name="forge_training_skip">跳过</string>
     <string name="forge_training_save">保存</string>
@@ -4788,6 +4791,7 @@
     <string name="forge_lg_cancel">取消</string>
     <string name="forge_lg_off">关闭</string>
     <string name="forge_lg_remove">移除</string>
+    <string name="forge_lg_remove_set_q">删除这组吗？</string>
     <string name="forge_lg_rest_remaining">剩余休息时间</string>
     <string name="forge_lg_col_previous">上次</string>
     <string name="forge_lg_discard_q">放弃这次训练？</string>

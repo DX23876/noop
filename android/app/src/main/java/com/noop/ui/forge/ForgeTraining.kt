@@ -969,7 +969,9 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     // The plate calculator's starting total, while it is open (`TrainingPlateRequest`).
     var plateTarget by remember { mutableStateOf<Double?>(null) }
     var finishing by remember { mutableStateOf(false) }
-    var emptyNotice by remember { mutableStateOf(false) }
+    // Why a finish did not save, as the core names it, so the dialog stops blaming the sets for a clock
+    // that went backwards or a store that refused the write (#43, #47).
+    var finishProblem by remember { mutableStateOf<CoreTraining.Finish?>(null) }
     val definitions = remember(exercises) { exercises.associateBy { it.id } }
     // Settings › Training's per-set effort scale; "off" hides the column and keeps ratings already logged.
     val effortScale = remember { com.noop.ui.NoopPrefs.of(context).getString(CorePrefs.EFFORT_SCALE, null) ?: "rpe" }
@@ -1058,7 +1060,25 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     var restRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
     var noteRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
     var confirmingDiscard by remember { mutableStateOf(false) }
-    fun requestFinish() { if (d?.exercises?.any { e -> e.sets.any { it.done } } == true) finishing = true else emptyNotice = true }
+    /**
+     * Save the workout and, when it does not save, say why. The reason is the core's; a failure that is not
+     * about the sets is also written to the strap log, because it is rare, costs nothing when it never
+     * happens, and is what a report like "the workout refuses to finish" otherwise leaves us guessing at.
+     */
+    suspend fun finishWorkout(rpe: Double?) {
+        val outcome = core(context) { CoreTraining.finish(rpe) } ?: CoreTraining.Finish.NO_CORE
+        if (outcome == CoreTraining.Finish.SAVED) { onClose(); return }
+        finishing = false
+        finishProblem = outcome
+        if (outcome != CoreTraining.Finish.NO_COMPLETED_WORK) {
+            (context.applicationContext as NoopApplication).ble.externalLog("Training: the workout did not save — $outcome")
+        }
+    }
+
+    fun requestFinish() {
+        if (d?.exercises?.any { e -> e.sets.any { it.done } } == true) finishing = true
+        else finishProblem = CoreTraining.Finish.NO_COMPLETED_WORK
+    }
 
     @Composable
     fun ExerciseCard(exercise: CoreTraining.DraftExercise, compact: Boolean) {
@@ -1106,7 +1126,10 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                 shown.forEach { (i, set) ->
                     LoggerSetRow(numbers[i], set, columns, previous[set.id], previousColumn, isNext = figures?.nextSetId == set.id,
                                  massUnits = massUnits, distanceUnits = distanceUnits, effortScale = effortScale,
-                                 onEffort = { effortRequest = exercise.id to set }) { updated ->
+                                 onEffort = { effortRequest = exercise.id to set },
+                                 onRemove = if (exercise.sets.size > 1) {
+                                     { change { CoreTraining.removeSet(exercise.id, set.id) } }
+                                 } else null) { updated ->
                         change { CoreTraining.setValues(exercise.id, updated) }
                         if (!set.done && updated.done) startRest(exercise, set)
                     }
@@ -1207,10 +1230,15 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
             onPick = { value -> change { CoreTraining.setEffort(exerciseId, set.id, effortScale, value) } },
             onDismiss = { effortRequest = null })
     }
-    if (emptyNotice) {
-        AlertDialog(onDismissRequest = { emptyNotice = false },
-                    text = { Text(stringResource(R.string.forge_training_finish_empty)) },
-                    confirmButton = { TextButton(onClick = { emptyNotice = false }) { Text(stringResource(android.R.string.ok)) } })
+    finishProblem?.let { problem ->
+        AlertDialog(onDismissRequest = { finishProblem = null },
+                    text = { Text(stringResource(when (problem) {
+                        CoreTraining.Finish.NO_COMPLETED_WORK -> R.string.forge_training_finish_empty
+                        CoreTraining.Finish.CLOCK_WENT_BACKWARDS -> R.string.forge_training_finish_clock
+                        CoreTraining.Finish.NO_DRAFT -> R.string.forge_training_finish_gone
+                        else -> R.string.forge_training_finish_failed
+                    })) },
+                    confirmButton = { TextButton(onClick = { finishProblem = null }) { Text(stringResource(android.R.string.ok)) } })
     }
     if (finishing) {
         var rpe by remember { mutableStateOf("") }
@@ -1241,13 +1269,13 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                 TextButton(onClick = {
                     finishing = false
                     val value = rpe.toIntOrNull()?.takeIf { it in 1..10 }?.toDouble()
-                    scope.launch { if (core(context) { CoreTraining.finish(value) }) onClose() else emptyNotice = true }
+                    scope.launch { finishWorkout(value) }
                 }) { Text(stringResource(R.string.forge_training_save)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     finishing = false
-                    scope.launch { if (core(context) { CoreTraining.finish(null) }) onClose() else emptyNotice = true }
+                    scope.launch { finishWorkout(null) }
                 }) { Text(stringResource(R.string.forge_training_skip)) }
             },
         )

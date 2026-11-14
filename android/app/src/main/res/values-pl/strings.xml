@@ -3085,6 +3085,9 @@
     <string name="forge_training_finish">Zakończ</string>
     <string name="forge_training_discard">Odrzuć trening</string>
     <string name="forge_training_finish_empty">Zaznacz co najmniej jedną serię, aby zapisać trening.</string>
+    <string name="forge_training_finish_clock">Zegar urządzenia wskazuje czas wcześniejszy niż początek tego treningu, więc nie ma on jeszcze długości. Sprawdź datę i godzinę, a potem zapisz ponownie.</string>
+    <string name="forge_training_finish_gone">Ten trening nie jest już otwarty. Został zapisany wcześniej albo zakończony gdzie indziej.</string>
+    <string name="forge_training_finish_failed">Nie udało się zapisać treningu. Nic nie przepadło, spróbuj ponownie, a jeśli nadal się nie uda, udostępnij log opaski.</string>
     <string name="forge_training_effort">Jak ciężko było? (1–10)</string>
     <string name="forge_training_skip">Pomiń</string>
     <string name="forge_training_save">Zapisz</string>
@@ -4834,6 +4837,7 @@
     <string name="forge_lg_cancel">Anuluj</string>
     <string name="forge_lg_off">Wyłączony</string>
     <string name="forge_lg_remove">Usunąć</string>
+    <string name="forge_lg_remove_set_q">Usunąć tę serię?</string>
     <string name="forge_lg_rest_remaining">Pozostała przerwa</string>
     <string name="forge_lg_col_previous">POPRZEDNI</string>
     <string name="forge_lg_discard_q">Odrzucić ten trening?</string>

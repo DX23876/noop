@@ -32,7 +32,7 @@ final class CoreTrainingLibraryTests: XCTestCase {
         let set = try XCTUnwrap(exercise.sets.first)
         _ = await CoreTraining.changeDraft(store: store, args: ["change": "set", "exercise": exercise.id.uuidString,
             "set": set.id.uuidString, "weightKg": 80, "reps": 8, "done": true])
-        let finished = await CoreTraining.finishDraft(store: store, sessionRPE: nil)
+        let finished = await CoreTraining.finishDraft(store: store, sessionRPE: nil).workout
         XCTAssertNotNil(finished)
         let now = Int(Date().timeIntervalSince1970)
         let template = HevyExerciseTemplate(id: "import-bench", title: "Bench press", type: "weight_reps",
@@ -78,7 +78,7 @@ final class CoreTrainingLibraryTests: XCTestCase {
         let updated = await CoreTraining.changeDraft(store: store, args: ["change": "set", "exercise": sides.id.uuidString,
             "set": sidesSet.id.uuidString, "leftReps": 8, "rightReps": 6, "reps": NSNull(), "done": true])
         try contract(try XCTUnwrap(updated), name: "library-draft")
-        let completed = await CoreTraining.finishDraft(store: store, sessionRPE: nil)
+        let completed = await CoreTraining.finishDraft(store: store, sessionRPE: nil).workout
         let workout = try XCTUnwrap(completed)
         XCTAssertEqual(workout.exercises.count, 2)
         XCTAssertEqual(workout.exercises[0].sets.first?.durationS, 75)

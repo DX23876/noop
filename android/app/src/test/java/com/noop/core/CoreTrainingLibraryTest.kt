@@ -110,11 +110,23 @@ class CoreTrainingLibraryTest {
         assertNull(TrainingSetInput.editedMeasurement(original, "80", "") { it })
     }
 
-    @Test fun aSavedWorkoutNamedErrorIsStillASuccessfulAcknowledgement() {
-        assertTrue(CoreTraining.parseFinished("""{"id":"saved-workout","endedAt":100,"title":"error"}"""))
-        assertFalse(CoreTraining.parseFinished("null"))
-        assertFalse(CoreTraining.parseFinished("{}"))
-        assertFalse(CoreTraining.parseFinished("""{"error":"notSaved"}"""))
+    /** The finish now carries WHY, so a workout whose sets are all ticked stops being told to tick one
+     *  (#43, #47). An answer the core could not give at all stays unreadable rather than reading as saved. */
+    @Test fun theFinishReasonComesBackAsTheCoreNamedIt() {
+        assertEquals(CoreTraining.Finish.SAVED,
+                     CoreTraining.parseFinished("""{"saved":true,"reason":"saved"}"""))
+        assertEquals(CoreTraining.Finish.NO_COMPLETED_WORK,
+                     CoreTraining.parseFinished("""{"saved":false,"reason":"noCompletedWork"}"""))
+        assertEquals(CoreTraining.Finish.CLOCK_WENT_BACKWARDS,
+                     CoreTraining.parseFinished("""{"saved":false,"reason":"clockWentBackwards"}"""))
+        assertEquals(CoreTraining.Finish.NOT_STORED,
+                     CoreTraining.parseFinished("""{"saved":false,"reason":"notStored"}"""))
+        assertEquals(CoreTraining.Finish.NO_DRAFT,
+                     CoreTraining.parseFinished("""{"saved":false,"reason":"noDraft"}"""))
+        assertEquals(CoreTraining.Finish.NO_CORE, CoreTraining.parseFinished("null"))
+        assertEquals(CoreTraining.Finish.NO_CORE, CoreTraining.parseFinished("{}"))
+        assertEquals(CoreTraining.Finish.NO_CORE,
+                     CoreTraining.parseFinished("""{"error":"notSaved"}"""))
     }
 
     @Test fun anUnperformedExerciseDoesNotInventRecordsAndUnavailableRepliesStayUnavailable() {

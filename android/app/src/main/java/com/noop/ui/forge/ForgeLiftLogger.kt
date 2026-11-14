@@ -2,7 +2,9 @@ package com.noop.ui.forge
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -291,11 +293,13 @@ internal fun showsPreviousColumn(mode: String): Boolean =
  * One set: its badge (number or W), the last session's set, the value pills, the effort badge and the check.
  * The next set to log is ringed in Charge green; a completed set dims a little.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: List<TrainingSetInput>,
                           previous: CoreTraining.PreviousSet?, showsPrevious: Boolean, isNext: Boolean,
                           massUnits: UnitSystem, distanceUnits: UnitSystem, effortScale: String,
-                          onEffort: () -> Unit, onChange: (CoreTraining.DraftSet) -> Unit) {
+                          onEffort: () -> Unit, onRemove: (() -> Unit)? = null,
+                          onChange: (CoreTraining.DraftSet) -> Unit) {
     val context = LocalContext.current
     val initialWeight = remember(set.id, set.weightKg, massUnits) { set.weightKg?.let { decimal(TrainingSetInput.massForInput(it, massUnits)) } ?: "" }
     val initialDistance = remember(set.id, set.distanceM, distanceUnits) { set.distanceM?.let { decimal(TrainingSetInput.distanceForInput(it, distanceUnits)) } ?: "" }
@@ -319,9 +323,24 @@ internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: Lis
             .then(if (isNext) Modifier.background(charge.copy(alpha = 0.10f), shape).border(1.dp, charge.copy(alpha = 0.45f), shape) else Modifier)
             .alpha(if (set.done) 0.72f else 1f).padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(LoggerColumns.spacing), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(LoggerColumns.set).background(Forge.colors.inset, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+        // Holding the set's badge takes the set back, which is the only way Android had none of: a wearer
+        // who tapped "add set" once too often was stuck with it (#43). The badge, not the whole row,
+        // because every other part of the row is a field someone is typing in.
+        var removing by remember(set.id) { mutableStateOf(false) }
+        Box(Modifier.size(LoggerColumns.set).background(Forge.colors.inset, RoundedCornerShape(8.dp))
+                .then(if (onRemove == null) Modifier else Modifier.combinedClickable(
+                    onClick = {}, onLongClick = { removing = true })),
+            contentAlignment = Alignment.Center) {
             Text(if (set.warmup) stringResource(R.string.forge_lg_warmup_badge) else number?.toString() ?: "—", style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                  color = if (set.warmup) ForgeTokens.StrandPalette.metricAmber.resolve() else Forge.colors.text)
+        }
+        if (removing && onRemove != null) {
+            AlertDialog(onDismissRequest = { removing = false },
+                text = { Text(stringResource(R.string.forge_lg_remove_set_q)) },
+                confirmButton = { TextButton(onClick = { removing = false; onRemove() }) {
+                    Text(stringResource(R.string.forge_lg_remove), color = ForgeTokens.Color.systemRed.resolve()) } },
+                dismissButton = { TextButton(onClick = { removing = false }) {
+                    Text(stringResource(R.string.forge_lg_keep)) } })
         }
         if (showsPrevious) {
             val text = previous?.let { previousText(it, columns, massUnits) } ?: "—"

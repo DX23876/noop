@@ -2964,6 +2964,9 @@
     <string name="forge_training_finish">Завершить</string>
     <string name="forge_training_discard">Отменить тренировку</string>
     <string name="forge_training_finish_empty">Отметьте хотя бы один подход, чтобы сохранить тренировку.</string>
+    <string name="forge_training_finish_clock">Часы устройства идут раньше начала этой тренировки, поэтому у неё пока нет длительности. Проверьте дату и время и сохраните снова.</string>
+    <string name="forge_training_finish_gone">Эта тренировка больше не открыта. Она уже сохранена или завершена в другом месте.</string>
+    <string name="forge_training_finish_failed">Не удалось сохранить тренировку. Ничего не потеряно: попробуйте ещё раз, а если не выходит, пришлите журнал браслета.</string>
     <string name="forge_training_effort">Насколько тяжело? (1–10)</string>
     <string name="forge_training_skip">Пропустить</string>
     <string name="forge_training_save">Сохранить</string>
@@ -4713,6 +4716,7 @@
     <string name="forge_lg_cancel">Отмена</string>
     <string name="forge_lg_off">Выкл.</string>
     <string name="forge_lg_remove">Удалить</string>
+    <string name="forge_lg_remove_set_q">Удалить этот подход?</string>
     <string name="forge_lg_rest_remaining">Осталось отдыха</string>
     <string name="forge_lg_col_previous">РАНЕЕ</string>
     <string name="forge_lg_discard_q">Удалить эту тренировку?</string>

@@ -107,7 +107,8 @@ final class CoreTrainingTests: XCTestCase {
             "weightKg": 80, "effortScale": "rpe", "effortValue": 8])
 
         let finished = await CoreTraining.finishDraft(store: store, sessionRPE: 7)
-        let workout = try XCTUnwrap(finished)
+        XCTAssertEqual(finished.outcome, .saved)
+        let workout = try XCTUnwrap(finished.workout)
         XCTAssertEqual(workout.exercises.first?.sets.first?.weightKg, 80)
         XCTAssertEqual(workout.exercises.first?.sets.first?.effort, TrainingEffortRating(scale: .rpe, value: 8))
         XCTAssertEqual(workout.sessionRPE, 7)

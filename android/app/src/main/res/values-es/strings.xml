@@ -3069,6 +3069,9 @@
     <string name="forge_training_finish">Terminar</string>
     <string name="forge_training_discard">Descartar entrenamiento</string>
     <string name="forge_training_finish_empty">Marca al menos una serie como hecha para guardar el entrenamiento.</string>
+    <string name="forge_training_finish_clock">El reloj de tu dispositivo va por detrás del inicio de este entrenamiento, así que aún no tiene duración. Revisa la fecha y la hora y guarda de nuevo.</string>
+    <string name="forge_training_finish_gone">Este entrenamiento ya no está abierto. O se guardó antes o terminó en otro sitio.</string>
+    <string name="forge_training_finish_failed">No se pudo guardar el entrenamiento. No se ha perdido nada; inténtalo otra vez y, si sigue fallando, comparte tu registro de la pulsera.</string>
     <string name="forge_training_effort">¿Qué tan duro fue? (1 a 10)</string>
     <string name="forge_training_skip">Omitir</string>
     <string name="forge_training_save">Guardar</string>
@@ -4818,6 +4821,7 @@
     <string name="forge_lg_cancel">Cancelar</string>
     <string name="forge_lg_off">Desactivado</string>
     <string name="forge_lg_remove">Eliminar</string>
+    <string name="forge_lg_remove_set_q">¿Quitar esta serie?</string>
     <string name="forge_lg_rest_remaining">Descanso restante</string>
     <string name="forge_lg_col_previous">ANTERIOR</string>
     <string name="forge_lg_discard_q">¿Descartar este entrenamiento?</string>

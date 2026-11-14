@@ -120,7 +120,7 @@ final class CoreTrainingSessionTests: XCTestCase {
         let set = try XCTUnwrap(exercise.sets.first)
         _ = await CoreTraining.changeDraft(store: store, args: ["change": "set", "exercise": exercise.id.uuidString,
             "set": set.id.uuidString, "durationS": 75, "done": true])
-        let finished = await CoreTraining.finishDraft(store: store, sessionRPE: 7.5)
+        let finished = await CoreTraining.finishDraft(store: store, sessionRPE: 7.5).workout
         XCTAssertNotNil(finished)
         let ratings = await SessionRPEEntry.read(store: store, from: 0, to: Int.max)
         XCTAssertEqual(ratings.count, 1)

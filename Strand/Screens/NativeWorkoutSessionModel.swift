@@ -505,18 +505,21 @@ final class NativeWorkoutSessionModel: ObservableObject, Identifiable {
     }
 
     /// Whether this set may go: never the only set of its exercise, which is removed as an exercise from its
-    /// menu instead, and never a drop-set parent while its segments remain.
+    /// menu instead, and never a drop-set parent while its segments remain. The rule is the engine's
+    /// (`NativeWorkoutEngine.canRemoveSet`), so Android answers it the same way.
     func canRemoveSet(exerciseIndex: Int, setIndex: Int) -> Bool {
         guard draft.exercises.indices.contains(exerciseIndex),
               draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return false }
-        let sets = draft.exercises[exerciseIndex].sets
-        return sets.count > 1 && !sets.contains { $0.parentSetId == sets[setIndex].id }
+        let exercise = draft.exercises[exerciseIndex]
+        return NativeWorkoutEngine.canRemoveSet(exercise.sets[setIndex].id, from: exercise.id, in: draft)
     }
 
     func removeSet(exerciseIndex: Int, setIndex: Int) {
-        guard canRemoveSet(exerciseIndex: exerciseIndex, setIndex: setIndex) else { return }
-        draft.exercises[exerciseIndex].sets.remove(at: setIndex)
-        reindexSets(exerciseIndex)
+        guard draft.exercises.indices.contains(exerciseIndex),
+              draft.exercises[exerciseIndex].sets.indices.contains(setIndex) else { return }
+        let exercise = draft.exercises[exerciseIndex]
+        guard (try? NativeWorkoutEngine.removeSet(exercise.sets[setIndex].id, from: exercise.id,
+                                                  in: &draft)) != nil else { return }
         touchAndPersist()
     }
 
