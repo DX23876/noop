@@ -365,7 +365,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             // categories with no grant at all, because a count cannot say which data stays missing.
             val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
             vm.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
-                                   "granted=$hit/${selectedPermissions.size} categories=${hcReadCategories.size}" +
+                                   "granted=$hit/${selectedPermissions.size} categories=${hcReadCategories.joinToString(",") { it.storageKey }}" +
                                    if (without.isEmpty()) "" else " withoutGrant=${without.joinToString(",")}")
             if (missing.isEmpty()) {
                 hcNote = null

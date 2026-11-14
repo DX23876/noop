@@ -877,7 +877,7 @@ private fun ImportStep(viewModel: AppViewModel) {
             val without = HealthConnectImporter.categoriesWithoutGrant(hcReadCategories, granted)
             viewModel.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
                                           "granted=$hit/${selectedPermissions.size} " +
-                                          "categories=${hcReadCategories.size}" +
+                                          "categories=${hcReadCategories.joinToString(",") { it.storageKey }}" +
                                           if (without.isEmpty()) "" else " withoutGrant=${without.joinToString(",")}")
             if (missing.isEmpty()) {
                 runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
