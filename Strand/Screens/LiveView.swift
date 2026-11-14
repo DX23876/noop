@@ -135,6 +135,12 @@ struct LiveView: View {
                         actionTitle: "Manage devices",
                         action: { router.openDevices() }
                     )
+                    // This is where people connect, so this is where the question belongs: a scan that
+                    // heard several WHOOPs and names none of them waits for an answer, and without it here
+                    // a tap on Connect looks like it does nothing.
+                    StrapChoiceCard(ble: model.ble,
+                                    onPick: { model.pickHeardStrap($0) },
+                                    onDismiss: { model.ble.clearStrapChoice() })
                     // The card already carries the Devices action, so no second "Manage devices" row here.
                     // A workout still works without a strap (time, GPS route), so the start stays offered.
                     WorkoutStartControl()
@@ -241,6 +247,9 @@ struct LiveView: View {
                     actionTitle: "Manage devices",
                     action: { router.openDevices() }
                 )
+                StrapChoiceCard(ble: model.ble,
+                                onPick: { model.pickHeardStrap($0) },
+                                onDismiss: { model.ble.clearStrapChoice() })
                 WorkoutStartControl()
             } else {
                 ForgeLiveHero(activeIsWhoop: activeIsWhoop, zoneSet: model.profile.hrZoneSet,

@@ -6630,6 +6630,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_first_detail">连接可穿戴设备以开始收集实时生命体征和历史记录。现有记录仍可从“数据源”导入。</string>
     <string name="forge_first_action">连接设备</string>
     <string name="forge_first_offline">离线</string>
+    <string name="forge_first_connected">已连接</string>
+    <string name="forge_first_detail_connected">你的手环已连接。同步完一个夜晚后就会出现第一批数值。</string>
+    <string name="forge_first_action_connected">查看手环</string>
     <string name="lw_time">时间</string>
     <string name="lw_heart_rate">心率</string>
     <string name="lw_zones">心率区间</string>
@@ -6725,6 +6728,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="cx_strap_choice_body">NOOP 还不知道哪个手环是你的，而第一个连上的会占用该条目。请选择你的手环，信号最强的排在最前面。</string>
     <string name="cx_strap_choice_unnamed">未命名手环</string>
     <string name="cx_strap_choice_later">暂不</string>
+    <string name="cx_hc_not_granted">Health Connect 未授予访问权限。请在 Android 设置中打开 Health Connect，允许 NOOP 读取所需数据，然后重试。</string>
     <string name="cx_whoop_merge_confirm_title">合并 WHOOP 条目？</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s 保持连接。其他所有 WHOOP 条目的读数都会移入其中。</string>
     <string name="cx_whoop_merge_confirm_backup">此操作无法在应用内撤销。NOOP 会先保存完整备份，若备份失败则不会合并任何内容。</string>

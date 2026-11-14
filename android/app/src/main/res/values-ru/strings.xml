@@ -6634,6 +6634,9 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_first_detail">Подключите носимое устройство, чтобы начать сбор показателей в реальном времени и истории. Существующие данные по-прежнему можно импортировать в разделе «Источники данных».</string>
     <string name="forge_first_action">Подключить устройство</string>
     <string name="forge_first_offline">Офлайн</string>
+    <string name="forge_first_connected">Подключён</string>
+    <string name="forge_first_detail_connected">Браслет подключён. Первые значения появятся, когда он передаст одну ночь.</string>
+    <string name="forge_first_action_connected">Посмотреть браслет</string>
     <string name="lw_time">Время</string>
     <string name="lw_heart_rate">Пульс</string>
     <string name="lw_zones">Зоны пульса</string>
@@ -6729,6 +6732,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="cx_strap_choice_body">NOOP пока не знает, какой браслет ваш, а первый подключённый займёт запись. Выберите свой — самый сильный сигнал вверху.</string>
     <string name="cx_strap_choice_unnamed">Браслет без имени</string>
     <string name="cx_strap_choice_later">Не сейчас</string>
+    <string name="cx_hc_not_granted">Health Connect не предоставил доступ. Откройте Health Connect в настройках Android, разрешите NOOP читать нужные данные и повторите попытку.</string>
     <string name="cx_whoop_merge_confirm_title">Объединить записи WHOOP?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s остаётся подключённым. Показания всех остальных записей WHOOP переносятся в него.</string>
     <string name="cx_whoop_merge_confirm_backup">Это нельзя отменить в приложении. NOOP сначала сохраняет полную резервную копию и ничего не объединяет, если это не удалось.</string>

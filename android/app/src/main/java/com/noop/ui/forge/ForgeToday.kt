@@ -346,17 +346,27 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             // today, so a past day does not repeat it.
             val healthAlert by viewModel.healthAlert.collectAsState()
             if (shown == today) healthAlert?.let { com.noop.ui.IllnessBanner(it) }
-            // First run, as iOS's `WearableConnectionStateCard` on Today: nothing recorded or imported yet, and the
-            // one next step. Null while the store is still being read, so a full history never flashes it.
+            // First run, as iOS's `WearableConnectionStateCard` on Today: nothing recorded or imported yet, and
+            // the one next step. The question is the core's (`read.hasAnyDay`), which is iOS's own
+            // `repo.days.isEmpty` over the same merge — asking instead whether a Rest or Charge SCORE existed
+            // kept this card up for a tester whose strap had been streaming for an hour, because a day of
+            // heart rate without a scored night has neither. Null while the store is still being read, so a
+            // full history never flashes it, and the answer latches once a day exists: the card has nothing
+            // left to say then, and re-reading on every write during a sync would merge the whole history for
+            // an answer that cannot change back.
             val firstRunRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
-            val nothingYet by produceState<Boolean?>(null, firstRunRevision) {
-                value = withContext(Dispatchers.IO) {
+            var hasDay by remember { mutableStateOf<Boolean?>(null) }
+            LaunchedEffect(firstRunRevision) {
+                if (hasDay == true) return@LaunchedEffect
+                hasDay = withContext(Dispatchers.IO) {
                     CoreRead.open(context)
-                    val from = today.minusYears(10).toString(); val to = today.toString()
-                    CoreRead.series(CoreRead.Metric.Rest, from, to).isEmpty() && CoreRead.series(CoreRead.Metric.Charge, from, to).isEmpty()
+                    com.noop.core.CoreDailyRows.hasAnyDay()
                 }
             }
-            if (nothingYet == true) FirstRunCard { devicesOpen = true }
+            // The card's own state line says what the link is doing rather than a fixed "Offline": the strap
+            // can be connected and streaming while no day has been scored yet, which is exactly the state a
+            // first run is in, and a card that says Offline there contradicts every other screen.
+            if (hasDay == false) FirstRunCard(connected = viewModel.live.collectAsState().value.connected) { devicesOpen = true }
             // Holding a ring arranges the tiles, as on iOS. The rings' own tap claims the touch, so the hold rides
             // on the same click (a long-press detector around them never saw the press).
             // As iOS's rings: Charge carried from the latest scored day and Rest from the latest night while today has
@@ -898,7 +908,7 @@ internal fun ForgeDayHeartRatePage(date: LocalDate, onBack: () -> Unit) {
 
 /** iOS's `WearableConnectionStateCard` in the new design: the strap waiting for its link and the step to take. */
 @Composable
-private fun FirstRunCard(onConnect: () -> Unit) {
+private fun FirstRunCard(connected: Boolean, onConnect: () -> Unit) {
     val colors = Forge.colors
     val cyan = ForgeTokens.Color.systemTeal.resolve()
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(cyan.copy(alpha = 0.12f)).padding(20.dp),
@@ -907,13 +917,18 @@ private fun FirstRunCard(onConnect: () -> Unit) {
             Icon(androidx.compose.material.icons.Icons.Rounded.Sensors, null, tint = cyan, modifier = Modifier.size(36.dp))
         }
         Text(stringResource(R.string.forge_first_title), style = Forge.type.title2, color = colors.text)
-        Text(stringResource(R.string.forge_first_offline), style = Forge.type.caption, color = colors.textSecondary,
+        Text(stringResource(if (connected) R.string.forge_first_connected else R.string.forge_first_offline),
+             style = Forge.type.caption, color = colors.textSecondary,
              modifier = Modifier.clip(CircleShape).background(colors.inset).padding(horizontal = 10.dp, vertical = 4.dp))
-        Text(stringResource(R.string.forge_first_detail), style = Forge.type.body, color = colors.textSecondary,
+        // A connected strap with nothing scored yet is waiting, not missing: say that instead of asking the
+        // wearer to connect something they are already wearing.
+        Text(stringResource(if (connected) R.string.forge_first_detail_connected else R.string.forge_first_detail),
+             style = Forge.type.body, color = colors.textSecondary,
              textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Row(Modifier.fillMaxWidth().clip(CircleShape).background(colors.accent).clickable(role = Role.Button, onClick = onConnect)
                 .padding(14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.forge_first_action), style = Forge.type.headline, color = colors.onAccent)
+            Text(stringResource(if (connected) R.string.forge_first_action_connected else R.string.forge_first_action),
+                 style = Forge.type.headline, color = colors.onAccent)
             Spacer(Modifier.width(8.dp))
             Icon(androidx.compose.material.icons.Icons.AutoMirrored.Rounded.ArrowForward, null, tint = colors.onAccent,
                  modifier = Modifier.size(18.dp))

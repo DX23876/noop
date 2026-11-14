@@ -266,15 +266,7 @@ fun DevicesScreen(
 
         // Several WHOOPs answered and this install names none of them: the wearer says which is theirs
         // before anything connects, because the first connect adopts that strap for good (`StrapClaim`).
-        strapQuestion?.let { question ->
-            item {
-                StrapChoiceCard(
-                    straps = question.straps,
-                    onPick = { viewModel.pickStrap(question.model, it) },
-                    onDismiss = { viewModel.dismissStrapChoice() },
-                )
-            }
-        }
+        if (strapQuestion != null) item { StrapChoicePrompt(viewModel) }
 
         // One WHOOP entry: the running merge, or the offer to start one. Above the list, as on Apple.
         when (val merge = mergeState) {
@@ -1286,39 +1278,6 @@ private fun WhoopMergeOfferCard(
             NoopButton(text = uiString(R.string.cx_whoop_merge_keep_separate),
                        kind = NoopButtonKind.Secondary, onClick = onKeepSeparate)
         }
-    }
-}
-
-/**
- * More than one WHOOP answered the scan and this install names none of them, so nothing has connected
- * yet. The wearer picks; the strongest signal is first, which is almost always the strap on this wrist,
- * and the card says nothing it cannot know. Dismissing leaves every strap alone rather than falling back
- * to the first one, which is the behaviour this card exists to end.
- */
-@Composable
-private fun StrapChoiceCard(
-    straps: List<WhoopBleClient.DiscoveredWhoop>,
-    onPick: (WhoopBleClient.DiscoveredWhoop) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Palette.surfaceRaised, RoundedCornerShape(Metrics.cardRadius))
-            .padding(Metrics.cardPadding),
-        verticalArrangement = Arrangement.spacedBy(Metrics.space8),
-    ) {
-        Text(uiString(R.string.cx_strap_choice_title), style = NoopType.subhead, color = Palette.textPrimary)
-        Text(uiString(R.string.cx_strap_choice_body), style = NoopType.footnote, color = Palette.textSecondary)
-        straps.forEach { strap ->
-            NoopButton(
-                text = strap.name ?: uiString(R.string.cx_strap_choice_unnamed),
-                kind = NoopButtonKind.Secondary,
-                onClick = { onPick(strap) },
-            )
-        }
-        NoopButton(text = uiString(R.string.cx_strap_choice_later), kind = NoopButtonKind.Tertiary,
-                   onClick = onDismiss)
     }
 }
 

@@ -6653,6 +6653,9 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_first_detail">Ligue um wearable para começar a recolher sinais vitais em direto e histórico. Os registos existentes podem continuar a ser importados em Fontes de dados.</string>
     <string name="forge_first_action">Ligar um dispositivo</string>
     <string name="forge_first_offline">Off-line</string>
+    <string name="forge_first_connected">Ligada</string>
+    <string name="forge_first_detail_connected">A tua pulseira está ligada. Os primeiros valores aparecem assim que sincronizar uma noite.</string>
+    <string name="forge_first_action_connected">Ver a pulseira</string>
     <string name="lw_time">Hora</string>
     <string name="lw_heart_rate">Frequência cardíaca</string>
     <string name="lw_zones">Zonas de frequência cardíaca</string>
@@ -6748,6 +6751,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="cx_strap_choice_body">O NOOP ainda não sabe qual é a tua pulseira, e a primeira a que se ligar fica com a entrada. Escolhe a tua: o sinal mais forte aparece primeiro.</string>
     <string name="cx_strap_choice_unnamed">Pulseira sem nome</string>
     <string name="cx_strap_choice_later">Agora não</string>
+    <string name="cx_hc_not_granted">O Health Connect não concedeu acesso. Abre o Health Connect nas definições do Android, permite que o NOOP leia os dados que queres e tenta de novo.</string>
     <string name="cx_whoop_merge_confirm_title">Juntar as entradas WHOOP?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s continua ligado. As leituras de todas as outras entradas WHOOP passam para ele.</string>
     <string name="cx_whoop_merge_confirm_backup">Não é possível anular na app. O NOOP guarda primeiro uma cópia de segurança completa e não junta nada se isso falhar.</string>

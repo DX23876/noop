@@ -6701,6 +6701,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_first_detail">Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.</string>
     <string name="forge_first_action">Connect a device</string>
     <string name="forge_first_offline">Offline</string>
+    <string name="forge_first_connected">Connected</string>
+    <string name="forge_first_detail_connected">Your strap is connected. The first values appear once it has synced a night.</string>
+    <string name="forge_first_action_connected">Check your strap</string>
     <string name="lw_time">Time</string>
     <string name="lw_heart_rate">Heart rate</string>
     <string name="lw_zones">Heart rate zones</string>
@@ -6796,6 +6799,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="cx_strap_choice_body">NOOP has not been told which strap is yours, and the first one it connects to keeps the entry. Pick yours — the strongest signal is listed first.</string>
     <string name="cx_strap_choice_unnamed">Unnamed strap</string>
     <string name="cx_strap_choice_later">Not now</string>
+    <string name="cx_hc_not_granted">Health Connect did not grant access. Open Health Connect in Android settings, allow NOOP to read the data you want, then try again.</string>
     <string name="cx_whoop_merge_confirm_title">Merge WHOOP entries?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s stays connected. The readings of every other WHOOP entry move into it.</string>
     <string name="cx_whoop_merge_confirm_backup">This can\'t be undone in the app. NOOP saves a full backup first, and merges nothing if that fails.</string>

@@ -197,6 +197,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
 
     // Busy flag shared by every importer's Export/Import buttons.
     var busy by remember { mutableStateOf(false) }
+    // Why the last Health Connect attempt went nowhere, on the card rather than in a toast that is gone
+    // before the wearer has read it. Null while nothing has gone wrong.
+    var hcNote by remember { mutableStateOf<String?>(null) }
     // ah-delete (#616): drives the "Remove Apple Health imported data" confirm dialog.
     var confirmDeleteApple by remember { mutableStateOf(false) }
 
@@ -305,10 +308,20 @@ fun DataSourcesScreen(vm: AppViewModel) {
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
-        if (granted.any { it in selectedPermissions }) {
+        val hit = granted.count { it in selectedPermissions }
+        // The ONLY evidence this step ever leaves. A tester reported a stuck import whose log held not one
+        // line about it, because nothing here wrote one and the import that does never ran: everything
+        // below this point is silent unless the import itself starts. Counts, never the permission names.
+        vm.ble.externalLog("Health Connect: permission request returned $hit of " +
+                               "${selectedPermissions.size} selected permission(s)")
+        // Mark as asked only now. Marking before the launch counted a dialog that never appeared, which is
+        // exactly the case this evidence exists to catch.
+        HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
+        if (hit > 0) {
             runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
         } else {
-            Toast.makeText(context, "Health Connect access not granted.", Toast.LENGTH_LONG).show()
+            hcNote = context.getString(R.string.cx_hc_not_granted)
+            Toast.makeText(context, context.getString(R.string.cx_hc_not_granted), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -336,12 +349,18 @@ fun DataSourcesScreen(vm: AppViewModel) {
             // `any` (not `all`) is deliberate — partial grants are supported (#150). But that alone
             // would never ASK about a permission added in an update, so a newly-read type would come
             // back empty forever (#949). Route through the request once when the set has grown.
-            if (granted.any { it in selectedPermissions } &&
-                !HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
-            ) {
+            val unasked = HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
+            val hit = granted.count { it in selectedPermissions }
+            // Always on: a rare event that costs nothing when it never happens, and the one line that
+            // separates "Health Connect refused us" from "the import ran and found nothing".
+            vm.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
+                                   "granted=$hit/${selectedPermissions.size} categories=${hcReadCategories.size} " +
+                                   "unasked=$unasked")
+            if (hit > 0 && !unasked) {
+                hcNote = null
                 runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
-                HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
+                vm.ble.externalLog("Health Connect: asking for access")
                 hcPermissionLauncher.launch(selectedPermissions + HealthConnectImporter.HISTORY_PERMISSION)
             }
         }
@@ -528,6 +547,10 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
                 ) { startHealthConnect() }
+                hcNote?.let {
+                    Text(it, style = NoopType.footnote, color = Palette.statusWarning,
+                         modifier = Modifier.fillMaxWidth())
+                }
 
                 // Auto-sync: pull new Health Connect data when you open NOOP, if it's been longer than
                 // the chosen interval — no manual taps. On-open only (no background worker): it avoids a

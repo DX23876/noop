@@ -210,6 +210,21 @@ public enum CoreRead {
         return await WorkoutHeartRateFills.overlay(deduped.sorted { $0.startTs > $1.startTs }, store: reader.store)
     }
 
+    /// Whether this install holds ANY day at all: the first-run question both Today screens ask before they
+    /// offer to connect a wearable. iOS reads `repo.days.isEmpty`, which is this same merge held in memory,
+    /// so the answer is defined as `dailyRows` being non-empty rather than as a second rule — Android used to
+    /// ask whether a Rest or Charge SCORE existed and therefore kept offering to pair for days after the
+    /// strap had been streaming, because a day with heart rate but no scored night has neither.
+    ///
+    /// Ten years back, which is how far the Android screens look for anything else; a wearer with an older
+    /// import than that has plenty of newer days too. Cheap exactly where it is asked: an install with no day
+    /// merges nothing, and a caller stops asking once the answer is yes.
+    public static func hasAnyDay(reader: StoreReader) async -> Bool {
+        let today = Date()
+        let from = Calendar(identifier: .gregorian).date(byAdding: .year, value: -10, to: today) ?? today
+        return await !dailyRows(from: LogicalDay.key(from), to: LogicalDay.key(today), reader: reader).isEmpty
+    }
+
     /// The daily rows as the iPhone's `Repository.days` holds them: imports win a day, the core's own rows fill it, a
     /// hand-edited night's sleep comes from the edit, and an activity file supplies steps a day lacks. What
     /// Android's classic screens read instead of Room's merge (parity plan 1.3).

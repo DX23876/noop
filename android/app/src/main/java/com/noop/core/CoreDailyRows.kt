@@ -18,6 +18,19 @@ object CoreDailyRows {
     @Suppress("UNUSED_PARAMETER")
     fun coreReads(context: Context): Boolean = true
 
+    /**
+     * Whether this install holds ANY day at all, as the core answers it (`CoreRead.hasAnyDay`, defined as
+     * its own [rows] being non-empty). Today's first-run card asks this and nothing else: it used to ask
+     * whether a Rest or Charge score existed, which a day of heart rate without a scored night does not
+     * have, so it went on offering to pair a strap that was already streaming. iOS asks the same question
+     * of the same merge (`repo.days.isEmpty`). Null without a core, which the caller reads as "say nothing".
+     */
+    fun hasAnyDay(): Boolean? {
+        if (!SwiftCore.available) return null
+        val json = SwiftCore.call("read.hasAnyDay", "{}") ?: return null
+        return runCatching { JSONObject(json).optBoolean("any") }.getOrNull()
+    }
+
     /** The core's merged rows between [from] and [to] (day keys), oldest first, tagged with [deviceId]; null without a core. */
     fun rows(from: String, to: String, deviceId: String): List<DailyMetric>? {
         if (!SwiftCore.available) return null

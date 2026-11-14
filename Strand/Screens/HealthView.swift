@@ -12,7 +12,14 @@ struct WearableConnectionStateCard: View {
     let title: LocalizedStringKey
     let detail: LocalizedStringKey
     let actionTitle: LocalizedStringKey
+    /// What the link is actually doing. The pill used to read "Offline" whatever was true, which is right
+    /// where this card is gated on there being no connection and wrong on Today, where it appears because
+    /// nothing has been SCORED yet — a strap can be connected and streaming into a store with no day in it,
+    /// and a card claiming Offline there contradicts every other screen. Defaults to the gated case.
+    var connected: Bool = false
     let action: () -> Void
+
+    private var stateLabel: LocalizedStringKey { connected ? "Connected" : "Offline" }
 
     var body: some View {
         if NoopVisualStyle.skin == .forge { forgeBody } else { shippedBody }
@@ -25,7 +32,7 @@ struct WearableConnectionStateCard: View {
                          accentB: "sparkle", tint: StrandPalette.metricCyan)
                 .frame(width: CoachPictureSize.large, height: CoachPictureSize.large)
             Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
-            StatePill("Offline", tone: .neutral, showsDot: false)
+            StatePill(stateLabel, tone: connected ? .positive : .neutral, showsDot: false)
             Text(detail)
                 .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -50,7 +57,7 @@ struct WearableConnectionStateCard: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                        StatePill("Offline", tone: .neutral, showsDot: false)
+                        StatePill(stateLabel, tone: connected ? .positive : .neutral, showsDot: false)
                     }
                 }
                 Text(detail)
@@ -178,15 +185,33 @@ private struct HealthFirstRunContent: View {
 
     var body: some View {
         if !hasLiveHR {
-            WearableConnectionStateCard(
-                title: "No biometrics yet",
-                detail: "Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.",
-                actionTitle: "Connect a device",
-                action: { router.openDevices() }
-            )
+            FirstRunConnectionCard()
         } else {
             HealthSectionsStack()
         }
+    }
+}
+
+/// The "nothing here yet" card with the link read, not assumed. A leaf of its own so the screens that show
+/// it (Today, Health) do not have to observe `LiveState` themselves — a connected strap publishes at ~1 Hz
+/// and would re-render their whole body for a card that changes once.
+///
+/// A connected strap with nothing stored yet is WAITING, not missing: it says so, and points at the strap
+/// rather than asking the wearer to connect something already on their wrist.
+struct FirstRunConnectionCard: View {
+    @EnvironmentObject var live: LiveState
+    @EnvironmentObject var router: NavRouter
+
+    var body: some View {
+        WearableConnectionStateCard(
+            title: "No biometrics yet",
+            detail: live.connected
+                ? "Your strap is connected. The first values appear once it has synced a night."
+                : "Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.",
+            actionTitle: live.connected ? "Check your strap" : "Connect a device",
+            connected: live.connected,
+            action: { router.openDevices() }
+        )
     }
 }
 

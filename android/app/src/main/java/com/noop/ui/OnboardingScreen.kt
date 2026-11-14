@@ -543,6 +543,10 @@ private fun ConnectStep(viewModel: AppViewModel) {
                 )
             }
 
+            // A first run is exactly when this install names no strap, so it is the likeliest place for
+            // the scan to find several WHOOPs and ask which one is the wearer's. Above the connect card,
+            // because nothing connects until it is answered.
+            if (!live.bonded) StrapChoicePrompt(viewModel)
             if (!live.bonded) {
                 NoopCard(padding = 16.dp) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -831,7 +835,15 @@ private fun ImportStep(viewModel: AppViewModel) {
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
-        if (granted.any { it in selectedPermissions }) {
+        val hit = granted.count { it in selectedPermissions }
+        // The only evidence this step leaves. Counts, never the permission names.
+        viewModel.ble.externalLog("Health Connect: permission request returned $hit of " +
+                                      "${selectedPermissions.size} selected permission(s)")
+        // Marked HERE, not before the launch (#949 asked once per permission set, which this keeps): the
+        // contract answers even when the system shows nothing, so a request that never reached the wearer
+        // used to count as asked while leaving no trace at all.
+        HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
+        if (hit > 0) {
             runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
         } else {
             val message = healthConnectDenied
@@ -855,14 +867,15 @@ private fun ImportStep(viewModel: AppViewModel) {
             HealthConnectImporter.migrateSelectionFromGrants(context, granted)
             hcReadCategories = HealthConnectImporter.selectedCategories(context)
             val selectedPermissions = HealthConnectImporter.permissionsFor(hcReadCategories)
-            if (granted.any { it in selectedPermissions } &&
-                !HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
-            ) {
+            val unasked = HealthConnectImporter.hasUnaskedPermissions(context, hcReadCategories)
+            val hit = granted.count { it in selectedPermissions }
+            viewModel.ble.externalLog("Health Connect: sdk=${HealthConnectImporter.sdkStatus(context)} " +
+                                          "granted=$hit/${selectedPermissions.size} " +
+                                          "categories=${hcReadCategories.size} unasked=$unasked")
+            if (hit > 0 && !unasked) {
                 runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
             } else {
-                // Marked before launching so the request is made ONCE per permission set: a user who
-                // declines is not asked again on every visit (#949).
-                HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
+                viewModel.ble.externalLog("Health Connect: asking for access")
                 hcPermissionLauncher.launch(HealthConnectImporter.requestFor(hcReadCategories))
             }
         }

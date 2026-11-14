@@ -6629,6 +6629,9 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_first_detail">Collega un wearable per iniziare a raccogliere parametri vitali in tempo reale e cronologia. I dati esistenti possono comunque essere importati da Origini dati.</string>
     <string name="forge_first_action">Collega un dispositivo</string>
     <string name="forge_first_offline">Offline</string>
+    <string name="forge_first_connected">Connessa</string>
+    <string name="forge_first_detail_connected">La tua fascia è connessa. I primi valori compaiono quando avrà sincronizzato una notte.</string>
+    <string name="forge_first_action_connected">Vedi la fascia</string>
     <string name="lw_time">Ora</string>
     <string name="lw_heart_rate">Frequenza cardiaca</string>
     <string name="lw_zones">Zone di frequenza cardiaca</string>
@@ -6724,6 +6727,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="cx_strap_choice_body">NOOP non sa ancora quale fascia è la tua, e la prima a cui si connette si tiene la voce. Scegli la tua: il segnale più forte è in cima.</string>
     <string name="cx_strap_choice_unnamed">Fascia senza nome</string>
     <string name="cx_strap_choice_later">Non ora</string>
+    <string name="cx_hc_not_granted">Health Connect non ha concesso l\'accesso. Apri Health Connect nelle impostazioni Android, consenti a NOOP di leggere i dati che vuoi e riprova.</string>
     <string name="cx_whoop_merge_confirm_title">Unire le voci WHOOP?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s resta connesso. Le misurazioni di tutte le altre voci WHOOP vengono spostate qui.</string>
     <string name="cx_whoop_merge_confirm_backup">Non si può annullare nell\'app. NOOP salva prima un backup completo e non unisce nulla se non riesce.</string>

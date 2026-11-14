@@ -440,6 +440,9 @@ public enum CoreCall {
             return CoreRead.json(await CoreMetricDetail.insights(reader: reader, catalogKey: string("key"),
                 catalogSource: string("source"), series: points("series"), windowed: points("windowed"),
                 isAll: (args["isAll"] as? Bool) ?? false, revision: int("revision", 0)))
+        case "read.hasAnyDay":
+            // The first-run question, as one boolean: "is there any day at all" (`CoreRead.hasAnyDay`).
+            return CoreRead.json(["any": await CoreRead.hasAnyDay(reader: reader)])
         case "read.dailyRows":
             return CoreRead.json(await CoreRead.dailyRows(from: string("from"), to: string("to"), reader: reader))
         case "read.resolvedSeries":

@@ -1909,7 +1909,16 @@ public final class BLEManager: NSObject, ObservableObject {
                 central.cancelPeripheralConnection(other)
             }
         }
-        if let p = existing.first(where: { isPreferredPeripheral($0) }) {
+        // With no pin, `isPreferredPeripheral` answers true for every strap, so this used to attach to
+        // whichever WHOOP happened to be open first. In a household with somebody else's strap that is a
+        // coin toss made one layer below the scan, where `StrapClaim` already asks the wearer — and the
+        // same mistake cost an Android tester two days on his wife's WHOOP 5. One open strap is still
+        // adopted without a question, as the scan does; several fall through to the scan so the question
+        // can be put. (A pin is unaffected: the loop above has already dropped every other open WHOOP.)
+        if preferredPeripheralUUID == nil, existing.count > 1 {
+            log("\(existing.count) WHOOPs are open at the OS level and this install names none — scanning "
+                + "instead of adopting one, so the choice is the wearer's")
+        } else if let p = existing.first(where: { isPreferredPeripheral($0) }) {
             log("Found existing \(model.displayName) connection \(p.identifier) — attaching")
             preparePeripheral(p)
             // Attach OUR OWN session even when CoreBluetooth reports the strap .connected. On Apple

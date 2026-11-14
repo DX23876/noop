@@ -6681,6 +6681,9 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_first_detail">Połącz urządzenie, aby zacząć zbierać parametry na żywo i historię. Istniejące dane nadal można importować w sekcji Źródła danych.</string>
     <string name="forge_first_action">Połącz urządzenie</string>
     <string name="forge_first_offline">Nieaktywny</string>
+    <string name="forge_first_connected">Połączona</string>
+    <string name="forge_first_detail_connected">Twoja opaska jest połączona. Pierwsze wartości pojawią się, gdy zsynchronizuje jedną noc.</string>
+    <string name="forge_first_action_connected">Zobacz opaskę</string>
     <string name="lw_time">Czas</string>
     <string name="lw_heart_rate">Tętno</string>
     <string name="lw_zones">Strefy tętna</string>
@@ -6776,6 +6779,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="cx_strap_choice_body">NOOP nie wie jeszcze, która opaska jest twoja, a pierwsza połączona zajmuje wpis. Wybierz swoją — najsilniejszy sygnał jest na górze.</string>
     <string name="cx_strap_choice_unnamed">Opaska bez nazwy</string>
     <string name="cx_strap_choice_later">Nie teraz</string>
+    <string name="cx_hc_not_granted">Health Connect nie przyznał dostępu. Otwórz Health Connect w ustawieniach Androida, zezwól NOOP na odczyt wybranych danych i spróbuj ponownie.</string>
     <string name="cx_whoop_merge_confirm_title">Scalić wpisy WHOOP?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s pozostaje połączony. Pomiary ze wszystkich pozostałych wpisów WHOOP zostaną do niego przeniesione.</string>
     <string name="cx_whoop_merge_confirm_backup">Tego nie da się cofnąć w aplikacji. NOOP najpierw zapisuje pełną kopię zapasową i niczego nie scala, jeśli to się nie uda.</string>

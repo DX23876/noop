@@ -4049,15 +4049,41 @@ class WhoopBleClient(
             log("Scan already in progress — ignoring")
             return
         }
-        // Reach a WHOOP 5/MG without a scan. Prefer a band the OS already holds connected
+        // Reach the strap this install NAMES without a scan. Prefer a band the OS already holds connected
         // (getConnectedDevices returns it even after it stops advertising), then a bonded band that is not
         // currently connected (a direct connect avoids the status=133 first-operation failure seen on
-        // scan-based 5/MG reconnects). Both helpers match only a 5/MG strap, so a WHOOP 4 falls through to
-        // the scan below. The family is resolved from the discovered services rather than the selected
-        // model, so this runs for any selected model and pins selectedModel to 5/MG on a hit to keep the
-        // pipeline consistent. A stale connection or bond falls back to a scan via handleDisconnect.
+        // scan-based 5/MG reconnects). Both helpers answer only for the pinned address now, so an install
+        // that names no strap falls through to the scan, where `StrapClaim` decides. A stale connection or
+        // bond falls back to a scan via handleDisconnect.
+        //
+        // The family comes from that strap's registry row (`DeviceFamily.forRegistryModel`, the one
+        // canonical resolver), not from a constant: this path used to frame every direct attach as a 5/MG
+        // and announce it as one, which is how a log read "Connecting to your WHOOP 5.0 / MG…" while the
+        // strap in question was somebody else's. The row read is a suspend call, so the decision hops to
+        // the IO scope and comes back to the main looper, as the scan's own claim read does.
         val direct = getConnectedWhoopDevice() ?: bondedWhoopDevice()
         if (direct != null) {
+            ioScope.launch {
+                val row = runCatching {
+                    repository.pairedDevices().firstOrNull { it.peripheralId.equals(direct.address, true) }
+                }.getOrNull()
+                val family = com.noop.protocol.DeviceFamily.forRegistryModel(row?.model)
+                val resolved = if (family == com.noop.protocol.DeviceFamily.WHOOP4) WhoopModel.WHOOP4
+                               else WhoopModel.WHOOP5_MG
+                handler.post { attachDirectly(direct, resolved, userInitiated) }
+            }
+            return
+        }
+        startScan(model, allowFallback = true)
+    }
+
+    /**
+     * Attach to [direct], the strap this install names, without scanning. [resolved] is its family as its
+     * registry row gives it, so the pipeline is framed and the wearer is told the truth about which strap
+     * is being reached.
+     */
+    private fun attachDirectly(direct: BluetoothDevice, resolved: WhoopModel, userInitiated: Boolean) {
+        run {
             // #1635: we may already HOLD this link. getConnectedWhoopDevice() answers "the OS has this
             // device connected", which is true of our own live GATT too — so without this, a Connect tap
             // tore down a working link and rebuilt it. Field log 260901-0121: gen=6 had been up 18m 32s
@@ -4071,7 +4097,7 @@ class WhoopBleClient(
             // AFTER the selectedModel pin, not before: both helpers match only a 5/MG, so this branch is
             // also where a stale selection gets corrected. Returning above it would leave the picker and
             // any later rescan on the wrong family.
-            selectedModel = WhoopModel.WHOOP5_MG
+            selectedModel = resolved
             // `connected` alone is not evidence the link WORKS — a silently dead GATT reports connected
             // until the watchdog bounces it, and that is precisely when someone taps Connect. Declining
             // to act there would turn the button inert in the one state it exists for, so require the
@@ -4095,13 +4121,12 @@ class WhoopBleClient(
             log("Easy-connect: attaching directly to ${direct.name ?: "WHOOP"} (no scan needed)")
             _state.update { it.copy(
                 scanning = false, whoop5Detected = false,
-                statusNote = "Connecting to your ${WhoopModel.WHOOP5_MG.displayName}…",
+                statusNote = "Connecting to your ${resolved.displayName}…",
             ) }
             connectToDevice(direct, alreadyAuthorised = userInitiated)
             bondedDirectAttempt = true   // after connectToDevice: reset() must not clear it
             return
         }
-        startScan(model, allowFallback = true)
     }
 
     /**
@@ -6904,29 +6929,30 @@ class WhoopBleClient(
      * advertising, and a client can attach to it without a scan. Uses the same 5/MG name filter and
      * multi-strap pin selection as [bondedWhoopDevice]; a WHOOP 4 is excluded and left to the scan. */
     @SuppressLint("MissingPermission")
+    // Both helpers answer ONE question: is the strap this install names already in the phone's hands, so a
+    // connect can skip the scan? They used to answer a looser one — "is any WHOOP around whose name does not
+    // start with WHOOP 4" — and that cost a tester two days. His phone still held the Bluetooth bond with his
+    // wife's WHOOP 5, so every Connect attached to her strap without scanning, failed her bond, and never
+    // looked for either of his own 4.0s; the name test excluded those by construction, and matched her 5
+    // merely because its serial does not begin with a 4. Now the pin decides, as it does in the scan: no
+    // named strap means no short cut, so the scan runs and `StrapClaim` can ask which strap is the wearer's.
+    // iOS resolves the same question by WHOOP service rather than by name (`retrieveConnectedPeripherals`),
+    // which is why a 4.0 was never unreachable there; matching the pinned address is the same answer without
+    // Android needing a service lookup it cannot do before connecting.
+
     private fun getConnectedWhoopDevice(): BluetoothDevice? = try {
-        val connected = bluetoothManager?.getConnectedDevices(BluetoothProfile.GATT)?.filter { d ->
-            val n = try { d.name } catch (se: SecurityException) { null } ?: return@filter false
-            n.startsWith("WHOOP", ignoreCase = true) && !n.startsWith("WHOOP 4", ignoreCase = true)
-        }.orEmpty()
         val preferred = preferredAddress
-        if (preferred != null) connected.firstOrNull { it.address.equals(preferred, ignoreCase = true) }
-        else connected.firstOrNull()
+        if (preferred == null) null
+        else bluetoothManager?.getConnectedDevices(BluetoothProfile.GATT)
+            ?.firstOrNull { it.address.equals(preferred, ignoreCase = true) }
     } catch (se: SecurityException) {
         null
     }
 
     private fun bondedWhoopDevice(): BluetoothDevice? = try {
-        val bonded = adapter?.bondedDevices?.filter { d ->
-            val n = try { d.name } catch (se: SecurityException) { null } ?: return@filter false
-            n.startsWith("WHOOP", ignoreCase = true) && !n.startsWith("WHOOP 4", ignoreCase = true)
-        }.orEmpty()
-        // With a multi-WHOOP pin set, take ONLY the pinned strap — never just "the first bonded 5/MG".
-        // Grabbing the first ignored the active-device selection and kept the link on the wrong strap (the
-        // 5/MG twin of the Mac/iOS attach-to-any-open-connection bug). No pin (single-WHOOP) → first, unchanged.
         val preferred = preferredAddress
-        if (preferred != null) bonded.firstOrNull { it.address.equals(preferred, ignoreCase = true) }
-        else bonded.firstOrNull()
+        if (preferred == null) null
+        else adapter?.bondedDevices?.firstOrNull { it.address.equals(preferred, ignoreCase = true) }
     } catch (se: SecurityException) {
         null
     }

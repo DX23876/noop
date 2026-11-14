@@ -145,12 +145,11 @@ struct ForgeTodayView: View {
                             ActiveWorkoutIndicatorSection()
                             if snapshot.loaded && repo.days.isEmpty {
                                 // First run: nothing recorded or imported yet. The same calm state Health and
-                                // Live show, with the one next step.
-                                WearableConnectionStateCard(
-                                    title: "No biometrics yet",
-                                    detail: "Connect a wearable to begin collecting live vitals and history. Existing records can still be imported from Data Sources.",
-                                    actionTitle: "Connect a device",
-                                    action: { router.openDevices() })
+                                // Live show, with the one next step. The card reads the link itself (in its
+                                // own leaf, so this body does not tick with the live stream): a strap can be
+                                // connected and streaming while no day has been scored yet, and the card used
+                                // to say "Offline" through it.
+                                FirstRunConnectionCard()
                             }
                             // The rings and the day's answer share one card, as on Android and in the prototype:
                             // a frame holds them together and parts them from a photo behind.

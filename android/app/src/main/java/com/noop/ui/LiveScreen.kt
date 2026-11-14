@@ -256,6 +256,10 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                 onConnect = { requestConnect() },
             )
             }
+            // Right under the Connect button, because this is where the question gets asked: a scan that
+            // heard several WHOOPs and names none of them is waiting for an answer, and without it here a
+            // tap on Connect looks like it does nothing at all.
+            item { StrapChoicePrompt(viewModel) }
         }
         // The ring's own above-the-fold affordance: its link phase and a reconnect, shown until `auth OK`
         // — the same "no link yet" slot the WHOOP callout fills.

@@ -6677,6 +6677,9 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_first_detail">Verbinde ein Wearable, um Live-Vitalwerte und den Verlauf zu erfassen. Vorhandene Daten kannst du weiterhin über Datenquellen importieren.</string>
     <string name="forge_first_action">Gerät verbinden</string>
     <string name="forge_first_offline">Offline</string>
+    <string name="forge_first_connected">Verbunden</string>
+    <string name="forge_first_detail_connected">Dein Strap ist verbunden. Die ersten Werte erscheinen, sobald er eine Nacht übertragen hat.</string>
+    <string name="forge_first_action_connected">Strap ansehen</string>
     <string name="lw_time">Zeit</string>
     <string name="lw_heart_rate">Herzfrequenz</string>
     <string name="lw_zones">Herzfrequenzzonen</string>
@@ -6772,6 +6775,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="cx_strap_choice_body">NOOP weiß noch nicht, welcher Strap deiner ist, und der erste verbundene behält den Eintrag. Wähle deinen aus, das stärkste Signal steht oben.</string>
     <string name="cx_strap_choice_unnamed">Strap ohne Namen</string>
     <string name="cx_strap_choice_later">Jetzt nicht</string>
+    <string name="cx_hc_not_granted">Health Connect hat keinen Zugriff erteilt. Öffne Health Connect in den Android-Einstellungen, erlaube NOOP die gewünschten Daten zu lesen, und versuche es erneut.</string>
     <string name="cx_whoop_merge_confirm_title">WHOOP-Einträge zusammenführen?</string>
     <string name="cx_whoop_merge_confirm_keeper">%1$s bleibt verbunden. Die Messwerte aller anderen WHOOP-Einträge werden dorthin übernommen.</string>
     <string name="cx_whoop_merge_confirm_backup">Das lässt sich in der App nicht rückgängig machen. NOOP speichert vorher ein vollständiges Backup und führt nichts zusammen, falls das fehlschlägt.</string>
