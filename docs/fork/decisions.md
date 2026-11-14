@@ -1245,3 +1245,47 @@ that remains reads its values through the same resolvers, which is the part that
 next #41.
 
 Analysis migration required: no. Presentation and navigation only.
+
+### 2026-11-15 — The coach's cost work lands from `feature/coach-performance-and-cost`, minus its chunk cache
+
+The branch was written on 2026-08-28 and never merged; by now its base is 2 547 commits behind `main`, so it
+was ported piece by piece rather than merged. Four pieces, three taken whole and one deliberately halved.
+
+- **OpenRouter carries a `cache_control` breakpoint for Anthropic-family models.** The direct Anthropic path
+  has cached since it was written (`AnthropicCaching.cacheableSystem`); the identical prompt sent through
+  OpenRouter to the same model paid full price on every tool round, because the shared OpenAI-shaped loops
+  built `system` as a flat string. Restricted to the `anthropic/` prefix: OpenAI-family models cache by
+  themselves and report `cached_tokens` back, so a marker there changes a working request for nothing, and
+  every other vendor behind the gateway is simply unverified. The requirement sits in ONE
+  `OpenAICompatibleSystemMessaging` protocol that both the tool and the streaming client inherit: declaring it
+  on each gave two defaulted witnesses and no unambiguous conformance, and one declaration also stops the two
+  loops caching differently. **The wire shape is unit-tested; whether caching ENGAGES is not and cannot be** —
+  a prefix under the model's minimum cacheable length silently does nothing, no error and no warning — so this
+  needs two real turns and a `cacheReadTokens > 0` reading in the usage card before it may be called working.
+- **A per-turn USD figure in Coach settings, OpenRouter only.** The tokens were already counted on every
+  provider but never turned into money, which left the one decision an OpenRouter wearer actually makes —
+  which model, out of hundreds spanning three orders of magnitude in price — unmeasurable. Scoped to
+  OpenRouter for the reason the balance bar already is: it is the only provider whose per-model price is
+  readable with the ordinary chat key, and hard-coded tables for the others would look equally authoritative
+  while going stale on the next repricing. The cache rate is READ from the catalogue
+  (`input_cache_read` / `input_cache_write`), never derived: `cacheVerdict`'s "about a tenth of the price" is
+  fine as prose and is not a rate. A turn that used the cache on a model publishing no cache rate returns nil
+  and renders NO line, because an under-count shown as a cost reads as authoritative and is worse than
+  silence. A free-tier model publishing "0" is an answer, not an absent price.
+- **`get_data_catalog` reads its workout count with `reconcileHrCap: 0`.** It called
+  `workoutRows(days: 4_000)` at the default cap purely to take `.count`, so listing the catalogue paid up to
+  300 windowed HR reads against a table of millions of rows. `cap == 0` is the documented escape hatch for
+  exactly this caller's shape ("never displays Avg/Max HR"). Safe by construction rather than by test: the
+  reconcile is a 1:1 pass that only rewrites the avg/max/strain fields and can never change the row count.
+- **One `DateFormatter` per build of the semantic corpus, and the branch's `CoachSemanticChunkCache` left
+  behind.** The branch's own benchmark is the reason for the split: on 9 100 documents the chunk cache moved a
+  warm build from 1 714 ms to 1 668 ms, while the per-call `DateFormatter` in the journal loop (`dayDate` built
+  one and `isRecentDay` called it again, four per entry) was about 1 580 ms of it. Chunking was never the cost.
+  The formatter is created per build and passed in rather than held in a `static`, because a `DateFormatter`
+  is not safe to share across the detached builds this file runs; the 30-day cutoff is hoisted out of the loop
+  for the same pass. Semantics are unchanged, which is what the new test pins. The cache's 46 ms does not
+  justify porting 400 lines of structure across that much drift, and if the corpus ever grows enough for
+  chunking to matter the branch still holds it.
+
+Analysis migration required: no. No scoring, no analysis window, no stored derived value and no provenance
+changes; the catalogue count and the journal documents are the same values, read more cheaply.

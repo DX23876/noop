@@ -780,6 +780,16 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             }
         }
 
+        // ONE formatter and ONE cutoff for the whole journal, and each day parsed ONCE.
+        //
+        // `dayDate` built a `DateFormatter` per call and `isRecentDay` called it again, so one entry
+        // cost four of them. Measured on a 2 000-entry journal that was 1 580 ms of a 1 714 ms build of
+        // the corpus, which is walked on every sent message. Semantics are unchanged: the formatter is
+        // configured identically and still reads `.current` per build, and hoisting the 30-day cutoff
+        // out of the loop only stops it being recomputed from a fractionally later `Date()` for each
+        // entry of one pass.
+        let dayFormatter = Self.makeDayFormatter()
+        let recentCutoff = Date().addingTimeInterval(-30 * 86_400)
         for entry in journalEntries {
             let isSensitive = CoachSensitiveJournalPolicy.isSensitive(
                 label: entry.question + " " + (entry.notes ?? "")
@@ -788,20 +798,22 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             guard allowedScopes.contains(scope) else { continue }
             let answer = entry.answeredYes ? Self.yesLabel : Self.noLabel
             let baseID = "\(entry.day)|\(SemanticHash.fnv1a64Hex(entry.question))"
+            let entryDate = Self.dayDate(entry.day, formatter: dayFormatter)
+            let isRecent = entryDate >= recentCutoff
             result += chunks(kind: .journalQuestion,
                              sourceID: baseID,
                              text: "\(entry.day): \(entry.question) — \(answer)",
-                             updatedAt: dayDate(entry.day),
+                             updatedAt: entryDate,
                              scope: scope,
-                             priority: isRecentDay(entry.day, days: 30) ? 80 : 20)
+                             priority: isRecent ? 80 : 20)
             if let note = entry.notes?.trimmingCharacters(in: .whitespacesAndNewlines),
                !note.isEmpty {
                 result += chunks(kind: .journalNote,
                                  sourceID: baseID + "|note",
                                  text: "\(entry.day): \(entry.question) — \(answer). \(note)",
-                                 updatedAt: dayDate(entry.day),
+                                 updatedAt: entryDate,
                                  scope: scope,
-                                 priority: isRecentDay(entry.day, days: 30) ? 85 : 25)
+                                 priority: isRecent ? 85 : 25)
             }
         }
 
@@ -1020,17 +1032,24 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         return lines.joined(separator: "\n")
     }
 
-    nonisolated private static func dayDate(_ day: String) -> Date {
+    /// A `yyyy-MM-dd` parser for one build of the corpus.
+    ///
+    /// Created by the caller and passed in rather than held in a `static`: a `DateFormatter` is not safe
+    /// to share across the detached builds this file runs, and configuring one per build is already
+    /// three orders of magnitude cheaper than the per-CALL construction this replaces.
+    nonisolated static func makeDayFormatter() -> DateFormatter {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = .current
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: day) ?? .distantPast
+        return formatter
     }
 
-    nonisolated private static func isRecentDay(_ day: String, days: Int) -> Bool {
-        dayDate(day) >= Date().addingTimeInterval(-Double(days) * 86_400)
+    /// The day as a date, or `.distantPast` for anything that is not a `yyyy-MM-dd` day — the same
+    /// answer the per-call version gave, so a malformed day still sorts oldest instead of throwing.
+    nonisolated static func dayDate(_ day: String, formatter: DateFormatter) -> Date {
+        formatter.date(from: day) ?? .distantPast
     }
 }
 

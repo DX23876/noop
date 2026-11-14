@@ -245,4 +245,26 @@ final class CoachSemanticRebuildGateTests: XCTestCase {
         XCTAssertGreaterThan(CoachSemanticMemory.minimumEmbeddedShareForSemanticSearch, 0.55)
         XCTAssertLessThan(CoachSemanticMemory.minimumEmbeddedShareForSemanticSearch, 0.75)
     }
+
+    /// One formatter for a whole build of the corpus must read a day exactly as the per-call one did:
+    /// the gregorian calendar, the POSIX locale and the local zone, so a journal day keeps the date it
+    /// had and a day that is not a day still sorts oldest instead of throwing.
+    func testTheSharedDayFormatterReadsADayTheWayThePerCallOneDid() throws {
+        let formatter = CoachSemanticMemory.makeDayFormatter()
+        let parsed = CoachSemanticMemory.dayDate("2026-07-20", formatter: formatter)
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let parts = calendar.dateComponents([.year, .month, .day], from: parsed)
+        XCTAssertEqual(parts.year, 2026)
+        XCTAssertEqual(parts.month, 7)
+        XCTAssertEqual(parts.day, 20)
+
+        // Reused across days, which is the whole point: the second read must not depend on the first.
+        let later = CoachSemanticMemory.dayDate("2026-11-14", formatter: formatter)
+        XCTAssertGreaterThan(later, parsed)
+
+        XCTAssertEqual(CoachSemanticMemory.dayDate("not a day", formatter: formatter), .distantPast)
+        XCTAssertEqual(CoachSemanticMemory.dayDate("", formatter: formatter), .distantPast)
+    }
 }
