@@ -321,6 +321,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // exactly the case this evidence exists to catch.
         HealthConnectImporter.markPermissionsAsked(context, hcReadCategories)
         if (hit > 0) {
+            // An earlier refusal's note must not stay under a card whose import is now running: that is
+            // one card stating two different things about the same grant.
+            hcNote = null
             runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
         } else {
             hcNote = context.getString(R.string.cx_hc_not_granted)

@@ -153,7 +153,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     }
     var customizing by remember { mutableStateOf(false) }
     var alarms by remember { mutableStateOf(false) }
-    /// The night whose times the shipped page is correcting; the new design keeps its own.
+    // The night whose times the shipped page is correcting; the new design keeps its own.
     var shippedEditing by remember { mutableStateOf<CoreRead.Night?>(null) }
     // The summary tiles open the Rest page and the night's sleep over time, as iOS's tiles push `rest` and the metric.
     var restPage by remember { mutableStateOf(false) }

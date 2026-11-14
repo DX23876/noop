@@ -153,7 +153,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var addingWorkout by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     var devicesOpen by remember { mutableStateOf(false) }
-    /// The metric page a "Your cards" row opens, so each card reaches its own figure (#40).
+    // The metric page a "Your cards" row opens, so each card reaches its own figure (#40).
     var cardMetric by remember { mutableStateOf<CoreRead.Metric?>(null) }
     var startWorkout by remember { mutableStateOf(false) }
     var liveWorkout by remember { mutableStateOf(false) }

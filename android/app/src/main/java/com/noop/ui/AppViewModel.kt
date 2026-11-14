@@ -539,21 +539,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun pickStrap(model: WhoopModel, strap: com.noop.ble.WhoopBleClient.DiscoveredWhoop) {
         ble.clearStrapChoice()
-        val now = System.currentTimeMillis() / 1000
-        val label = if (model == WhoopModel.WHOOP4) "4.0" else "5.0 MG"
+        // The row is built by the one builder the pairing screens use (`forgeWhoopRow`), not by hand: a
+        // second copy of "what a WHOOP row looks like" drifts from the first, and this one already had a
+        // blank advertised name reaching the nickname instead of falling back to brand and model.
         registerWhoopInBackground(
-            com.noop.data.PairedDeviceRow(
-                id = "whoop-${strap.address}",
-                brand = "WHOOP",
-                model = label,
-                nickname = strap.name,
-                peripheralId = strap.address,
-                sourceKind = com.noop.data.SourceKind.liveBLE.name,
-                capabilities = com.noop.data.WhoopLiveCapabilities.encoded(label),
-                status = com.noop.data.DeviceStatus.paired.name,
-                addedAt = now,
-                lastSeenAt = now,
-            ),
+            com.noop.ui.forge.forgeWhoopRow(strap, model, System.currentTimeMillis() / 1000),
             replaces = true, makeActive = true,
         )
     }

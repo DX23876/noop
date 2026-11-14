@@ -171,7 +171,7 @@ public enum NativeWorkoutEngine {
         return copied
     }
 
-    /// Adds one technique segment to a work set, right after the set and the segments it already has, so    /// Adds one technique segment to a work set, right after the set and the segments it already has, so
+    /// Adds one technique segment to a work set, right after the set and the segments it already has, so
     /// the drop follows the set it drops from. The origin and every segment share one cluster;
     /// analytics can therefore distinguish one logical effort from several recorded rows.
     public static func appendSegment(to originSetId: UUID, intensifier: TrainingSetIntensifier,

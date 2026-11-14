@@ -350,13 +350,9 @@ public enum CoreAnalysis {
         var heightCm: Double { p.heightCm }
         var waistCm: Double { p.waistCm }
         var hrMaxOverride: Int { p.hrMaxOverride }
-        /// The setting, the level the core's last pass measured (kept by `Host` like the rest of the pass's
-        /// bookkeeping), else Gellish: `MaxHeartRate`, as `ProfileStore.hrMax` on Apple.
-        var hrMax: Int {
-            MaxHeartRate.resolve(overrideBpm: p.hrMaxOverride, age: Double(p.age),
-                                 measured: MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])?.bpm)
-                .wholeBpm
-        }
+        /// The setting, the level the core's last pass measured, else Gellish, through the one resolver
+        /// (`CoreAnalysis.passHRmax`), as `ProfileStore.hrMax` on Apple.
+        var hrMax: Int { passHRmax(overrideBpm: p.hrMaxOverride, age: p.age).wholeBpm }
         var stepTicksPerStep: Double { p.stepTicksPerStep }
         var stepsManualOverride: Double? { p.stepsManualCoefficient > 0 ? p.stepsManualCoefficient : nil }
         var stepsCalibrationCoefficient: Double
@@ -372,6 +368,20 @@ public enum CoreAnalysis {
         }
         func enteredVO2max() -> (day: String, value: Double)? { manual }
         var manual: (day: String, value: Double)?
+    }
+
+    /// The HRmax yardstick the daily pass scores a day against: the wearer's own setting, then the level
+    /// the core's last pass measured, then Gellish (`MaxHeartRate`).
+    ///
+    /// The measured level lives in `Host`'s bookkeeping, which is the only place this platform keeps it —
+    /// a `UserDefaults` read cannot see it, and a reader that resolves the level for itself therefore
+    /// scores against the age formula while the stored day was scored against the measured maximum. One
+    /// resolver, because two yardsticks for one day is two different Efforts for it (#41).
+    /// On the main actor, where the pass keeps that bookkeeping.
+    @MainActor
+    public static func passHRmax(overrideBpm: Int, age: Int) -> MaxHeartRate.Resolved {
+        MaxHeartRate.resolve(overrideBpm: overrideBpm, age: Double(age),
+                             measured: MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])?.bpm)
     }
 
     @MainActor

@@ -226,11 +226,13 @@ public enum CoreRead {
                                   now: Date = Date()) async -> Double? {
         let (from, to) = LiveEffortScore.window(now: now)
         let workout = LiveEffortScore.workoutWindow(now: now)
-        // The override, then the level the last pass measured, then the formula — the order the daily
-        // pass resolves it in for the stored day, so the live score is taken against the same yardstick.
-        let measured = MaxHeartRate.Level(stored: UserDefaults.standard.string(forKey: MaxHeartRate.measuredLevelKey))
-        let maxHR = MaxHeartRate.resolve(overrideBpm: hrMaxOverride, age: Double(age),
-                                         measured: measured?.bpm).bpm
+        // The override, then the level the last pass measured, then the formula — resolved by the pass's
+        // own resolver (`CoreAnalysis.passHRmax`), so the live score is taken against the same yardstick
+        // as the stored day. Resolving it here instead read the measured level out of `UserDefaults`,
+        // which on this platform nothing writes: a wearer whose measured maximum sits above the age
+        // formula had today scored against the formula while the stored row was scored against the
+        // measurement, and `effectiveEffort` takes the larger of the two.
+        let maxHR = await CoreAnalysis.passHRmax(overrideBpm: hrMaxOverride, age: age).bpm
         let hr = await reader.hrSamples(from: from, to: to, limit: LiveEffortScore.hrLimit)
         let rows = await reader.rawWorkoutRows(from: workout.from, to: workout.to, dismissedDetectedSpans: [])
         let live = LiveEffortScore.score(hr: hr, workoutRows: rows, maxHR: maxHR, restingHr: restingHr)

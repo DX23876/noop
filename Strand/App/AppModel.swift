@@ -1930,11 +1930,6 @@ final class AppModel: ObservableObject {
         whoopFoldOffered = false
     }
 
-    /// Pair a WHOOP. When it `replaces` the previous strap (the wizard asks), it takes over the ONE WHOOP
-    /// entry instead of becoming a second card, and any extra WHOOP entries are folded in, so replacing
-    /// a strap never splits the list or the history. A strap that does not replace (a second person's
-    /// strap) gets its own entry, as before. Also falls back to its own entry on an install whose WHOOP
-    /// entry was forgotten.
     /// Pair the strap the wearer picked out of the "more than one WHOOP nearby" question (`StrapClaim`).
     /// It takes over the one WHOOP entry exactly as a strap picked in the Add-a-device wizard does, so the
     /// entry names this strap from now on and the scan stops asking. One method, because the question is
@@ -1945,6 +1940,11 @@ final class AppModel: ObservableObject {
                   nickname: strap.name.isEmpty ? nil : strap.name, makeActive: true, replaces: true)
     }
 
+    /// Pair a WHOOP. When it `replaces` the previous strap (the wizard asks), it takes over the ONE WHOOP
+    /// entry instead of becoming a second card, and any extra WHOOP entries are folded in, so replacing
+    /// a strap never splits the list or the history. A strap that does not replace (a second person's
+    /// strap) gets its own entry, as before. Also falls back to its own entry on an install whose WHOOP
+    /// entry was forgotten.
     func pairWhoop(peripheralId: String, model: String, nickname: String?, makeActive: Bool, replaces: Bool) {
         guard let registry = deviceRegistry else { return }
         let canonical = WhoopRowFold.canonicalId

@@ -33,6 +33,15 @@ final class CoreLiveEffortTests: XCTestCase {
         XCTAssertNil(effort)
     }
 
+    /// One yardstick for one day: the live read resolves HRmax through the pass's own resolver
+    /// (`CoreAnalysis.passHRmax`), so an override reaches the live score and the fallback is the formula
+    /// the stored day was scored with — not a second copy of it reading a store nothing writes.
+    func testTheHRmaxYardstickIsThePassesOwn() {
+        XCTAssertEqual(CoreAnalysis.passHRmax(overrideBpm: 193, age: 40).bpm, 193)
+        XCTAssertEqual(CoreAnalysis.passHRmax(overrideBpm: 0, age: 40).bpm,
+                       MaxHeartRate.resolve(overrideBpm: 0, age: 40, measured: nil).bpm)
+    }
+
     /// The window is the logical day's own, so an hour recorded yesterday evening is not today's Effort.
     func testTheWindowStartsAtTheLogicalDay() {
         let now = Date()

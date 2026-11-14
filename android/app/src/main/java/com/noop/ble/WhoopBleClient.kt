@@ -6914,13 +6914,11 @@ class WhoopBleClient(
         false
     }
 
-    /** The OS-bonded 5/MG-family strap, if any (name "WHOOP …" but not "WHOOP 4…" — MG-named units
-     *  match too). Fails open to a scan on any lookup problem. (#78 fork)
-     *
-     * A WHOOP 5/MG the OS already holds GATT-connected. Android multiplexes one ACL across GATT clients, so
-     * a band connected to another app is still returned by getConnectedDevices even after it stops
-     * advertising, and a client can attach to it without a scan. Uses the same 5/MG name filter and
-     * multi-strap pin selection as [bondedWhoopDevice]; a WHOOP 4 is excluded and left to the scan. */
+    /** The strap this install NAMES, if the phone already holds it: GATT-connected here, bonded in
+     *  [bondedWhoopDevice]. Android multiplexes one ACL across GATT clients, so a band connected to another
+     *  app is still returned by getConnectedDevices even after it stops advertising, and a client can
+     *  attach to it without a scan. Matched by the pin and nothing else, whatever family it is; no pin
+     *  means no short cut. Fails open to a scan on any lookup problem. (#78 fork) */
     @SuppressLint("MissingPermission")
     // Both helpers answer ONE question: is the strap this install names already in the phone's hands, so a
     // connect can skip the scan? They used to answer a looser one — "is any WHOOP around whose name does not
