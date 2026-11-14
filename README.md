@@ -28,6 +28,7 @@
   <a href="#where-each-feature-runs"><b>Feature map</b></a> ·
   <a href="#install"><b>Install</b></a> ·
   <a href="#privacy-in-plain-words"><b>Privacy</b></a> ·
+  <a href="#ideas-votes-and-taking-part"><b>Ideas and taking part</b></a> ·
   <a href="docs/README.md"><b>Docs</b></a>
 </p>
 
@@ -933,6 +934,72 @@ Swift core for every number.
 
 ---
 
+## Ideas, votes and taking part
+
+NOOP Forge is built by one person in spare time, so what gets built next is a real question. Say what
+you want, and say which of the ideas already there matter to you.
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 💡 Suggest something
+
+[**Ideas** in Discussions](https://github.com/DX23876/noop/discussions/categories/ideas) is the place.
+One idea per thread, with what you are trying to do and why the app makes it hard today. A thread is
+better than an issue here: ideas get discussed and reshaped, bugs get fixed.
+
+</td>
+<td width="33%" valign="top">
+
+### 👍 Vote for one
+
+Every idea carries an **upvote arrow** on the left. Press it on the ones you want. Sort the list by
+**Top** to see what people actually asked for, which is the first thing checked when a release is
+planned. **[Polls](https://github.com/DX23876/noop/discussions/categories/polls)** is for the bigger
+either/or questions, where a straight vote decides.
+
+</td>
+<td width="33%" valign="top">
+
+### 🐞 Report a bug
+
+A confirmed fault goes to an [issue](https://github.com/DX23876/noop/issues/new/choose) with a strap
+log, because the app runs only on your device and without a log a real fault cannot be told from a
+setup detail. Not sure whether it is a bug? Ask first, on
+[Discord](https://discord.com/invite/wKgyqVdjrP) or in
+[Q&A](https://github.com/DX23876/noop/discussions/categories/q-a).
+
+</td>
+</tr>
+</table>
+
+### Want to write code? Yes, please, but talk first
+
+Help is welcome, and a pull request that nobody saw coming usually cannot be taken, however well it is
+written. **Open an idea or an issue first and wait for a yes.** Three reasons, all of them real:
+
+- **The scope is hard, not a preference.** No server, no account, no cloud, no telemetry, and no WHOOP
+  firmware or app code in this repository. A change that crosses those lines is refused whatever it
+  does, and finding that out after a weekend of work is nobody's idea of fun.
+- **Some of this is already half-built.** The Android screens, the redesign and the food plan all have
+  work in flight that is not on `main` yet. A sentence beforehand saves you from building the same
+  thing twice.
+- **Some areas have rules of their own.** A new Bluetooth command is issue-first and has to be
+  reversible. Analytics changes carry a recalculation of everyone's history. Both are in
+  [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md), which is worth the ten minutes before you start.
+
+After the yes: one concern per pull request, English for everything repository-facing, tests that run
+without a strap, and say what you verified on hardware. Design work, translations, a good bug report
+with a strap log and a tested Android build on a phone nobody has tried yet all count as taking part,
+and the release notes credit people by their GitHub handle.
+
+**Where people talk:** [Discussions](https://github.com/DX23876/noop/discussions) ·
+[Discord](https://discord.com/invite/wKgyqVdjrP) · [r/NoopBand](https://www.reddit.com/r/NoopBand/) ·
+[the wiki](https://github.com/DX23876/noop/wiki)
+
+---
+
 ## About the project
 
 NOOP Forge is an independent, non-commercial fork of [ryanbr/noop](https://github.com/ryanbr/noop) and
@@ -951,7 +1018,8 @@ The Bluetooth work builds on community research, with thanks to
 ## Help and support
 
 Questions, bug reports and how to reach the project: [SUPPORT.md](SUPPORT.md) and the
-[FAQ](docs/FAQ.md#help-bug-reports-and-support).
+[FAQ](docs/FAQ.md#help-bug-reports-and-support). What to do with an idea is in
+[Ideas, votes and taking part](#ideas-votes-and-taking-part).
 
 ## Support NOOP Forge
 
