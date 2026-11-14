@@ -25,6 +25,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
 import com.noop.R
 import org.json.JSONObject
 
@@ -140,6 +147,77 @@ object MuscleMapArt {
         return merged
     }
 
+    /**
+     * The figure's own width-to-height ratio (`BodyAnatomy.aspectRatio`). The renderer fits the body
+     * into its box and centres it, so a box of any other shape is dead space around a smaller body.
+     */
+    fun aspect(context: Context, gender: String = "male"): Float {
+        val box = figure(context, gender, "front")?.viewBox ?: return 0.568f
+        return if (box.height > 0) box.width / box.height else 0.568f
+    }
+
+    /** The muscles this face of the body has shapes for (`BodyAnatomy.muscles`). */
+    fun drawnSlugs(context: Context, gender: String, side: String): Set<String> =
+        figure(context, gender, side)?.parts?.filter { it.paths.isNotEmpty() }?.map { it.slug }?.toSet().orEmpty()
+
+    /**
+     * The face that carries this exercise's work (`TrainingMusclePicture.preferredSide`), so a row that
+     * shows one figure shows the one with something on it: a chin-up drawn from the front is a grey man.
+     * A muscle both faces draw settles nothing and counts for neither.
+     */
+    fun preferredSide(context: Context, values: Map<String, Double>, gender: String = "male"): String {
+        val front = drawnSlugs(context, gender, "front")
+        val back = drawnSlugs(context, gender, "back")
+        var f = 0.0
+        var b = 0.0
+        for ((id, value) in values) {
+            val slug = muscle(id) ?: continue
+            val onFront = slug in front
+            val onBack = slug in back
+            if (onFront && !onBack) f += value
+            if (onBack && !onFront) b += value
+        }
+        return if (b > f) "back" else "front"
+    }
+
+    /**
+     * Work credited to a muscle the figure has no shape for, moved up to the group it belongs to
+     * (`TrainingMusclePicture.values`). The art has no upper trapezius, so a shrug lit nothing at all.
+     * The involvement figures themselves are untouched; this is only what a picture can show.
+     */
+    fun foldToDrawn(context: Context, values: Map<String, Double>, gender: String = "male"): Map<String, Double> {
+        val drawn = drawnSlugs(context, gender, "front") + drawnSlugs(context, gender, "back")
+        if (drawn.isEmpty()) return values
+        val out = HashMap<String, Double>()
+        for ((id, value) in values) {
+            val slug = muscle(id)
+            var key = id
+            if (slug != null && slug !in drawn) {
+                val up = parent[slug]
+                val parentId = if (up != null && up in drawn) trainingId(up) else null
+                if (parentId != null) key = parentId
+            }
+            out[key] = maxOf(out[key] ?: 0.0, value)
+        }
+        return out
+    }
+
+    /** A figure slug back to the training muscle id it came from, for `foldToDrawn`. */
+    private fun trainingId(slug: String): String? = when (slug) {
+        "chest" -> "chest"
+        "deltoids" -> "side_delts"
+        "trapezius" -> "traps"
+        "quadriceps" -> "quadriceps"
+        "abs" -> "abdominals"
+        "obliques" -> "obliques"
+        "hamstring" -> "hamstrings"
+        "gluteal" -> "glutes"
+        "upper-back" -> "upper_back"
+        "feet" -> null
+        "head" -> null
+        else -> null
+    }
+
     /** `HeatmapColorScale.color(for:)` with linear interpolation between neighbouring stops. */
     fun scaleColor(colors: List<Color>, intensity: Double): Color {
         if (colors.isEmpty()) return Color.Gray
@@ -230,15 +308,56 @@ private fun android.graphics.Path.computeBoundsCompat(): android.graphics.Rect {
     return android.graphics.Rect(r.left.toInt() - 1, r.top.toInt() - 1, r.right.toInt() + 1, r.bottom.toInt() + 1)
 }
 
-/** The small front and back figures on a routine card (`TrainingMiniMusclePreview`). */
+/**
+ * The small front and back figures on a routine card (`TrainingMusclePicture`, `showsBack`).
+ *
+ * The box has the figure's own shape rather than a wider one: the renderer fits the body inside
+ * whatever it is given and centres it, so a box wider than the art drew a small body in dead space.
+ */
 @Composable
-fun MiniMusclePreview(values: Map<String, Double>) {
+fun MiniMusclePreview(values: Map<String, Double>, height: Dp = 82.dp) {
+    val context = LocalContext.current
     val scale = ForgeBodyStyle.scale()
-    val fills = MuscleMapArt.intensities(values).mapValues { MuscleMapArt.scaleColor(scale, it.value) }
+    val folded = MuscleMapArt.foldToDrawn(context, values)
+    val fills = MuscleMapArt.intensities(folded).mapValues { MuscleMapArt.scaleColor(scale, it.value) }
     val label = stringResource(R.string.forge_th_planned_muscles)
-    Row(Modifier.size(72.dp, 82.dp).semantics { contentDescription = label },
-        horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        ForgeBodyMap("male", "front", fills, Modifier.weight(1f).size(35.dp, 82.dp))
-        ForgeBodyMap("male", "back", fills, Modifier.weight(1f).size(35.dp, 82.dp))
+    val width = height * MuscleMapArt.aspect(context)
+    Row(Modifier.height(height).semantics { contentDescription = label },
+        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
+        ForgeBodyMap("male", "front", fills, Modifier.size(width, height))
+        ForgeBodyMap("male", "back", fills, Modifier.size(width, height))
+    }
+}
+
+/**
+ * The picture a row shows for one exercise: the demonstration when the media pack is there, otherwise
+ * the body with the muscles it works, on a plate of the row's own shape (`TrainingExercisePicture`).
+ *
+ * Every list of exercises carried one of four glyphs, a dumbbell, a stopwatch, a route or a gymnast,
+ * which said nothing about the exercise: a bench press and a curl looked the same.
+ */
+@Composable
+fun ExerciseMusclePicture(exerciseId: String, primary: List<String>, secondary: List<String>,
+                          side: Dp = 56.dp) {
+    val context = LocalContext.current
+    val still = rememberExerciseStill(exerciseId, (side.value * 3).toInt())
+    val colors = Forge.colors
+    Box(Modifier.size(side).clip(RoundedCornerShape(10.dp))
+            .background(if (still != null) Color.White else colors.surfaceTop),
+        contentAlignment = Alignment.Center) {
+        if (still != null) {
+            androidx.compose.foundation.Image(still, contentDescription = null, modifier = Modifier.size(side),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+        } else {
+            val values = HashMap<String, Double>()
+            for (id in primary) values[id] = 1.0
+            for (id in secondary) values[id] = maxOf(values[id] ?: 0.0, 0.5)
+            val folded = MuscleMapArt.foldToDrawn(context, values)
+            val scale = ForgeBodyStyle.scale()
+            val fills = MuscleMapArt.intensities(folded).mapValues { MuscleMapArt.scaleColor(scale, it.value) }
+            val figureHeight = side - ForgeMetrics.space2
+            ForgeBodyMap("male", MuscleMapArt.preferredSide(context, folded), fills,
+                         Modifier.size(figureHeight * MuscleMapArt.aspect(context), figureHeight))
+        }
     }
 }

@@ -72,7 +72,13 @@ object CoreTrainingReports {
                       val sessionsWithDistance: Int, val typicalMinutes: Range?,
                       val averageHr: Double?, val typicalAverageHr: Double?, val charge: Double?,
                       val topSportPace: Double?, val sports: List<Sport>, val loadShares: List<SportShare>,
-                      val zones: Zones?, val progress: SportProgress)
+                      val zones: Zones?, val progress: SportProgress,
+                      /**
+                       * What the load card may say about this week, decided in the core
+                       * (`CardioLoadReadout`) so this card and iOS's cannot say different things:
+                       * "comparison", "noHeartRate", "notEnoughWeeks" or "tooFewMeasured".
+                       */
+                      val loadReadout: String?, val loadReadsLow: Boolean)
 
     /** Blocking JNI call; callers open the core store and run this on Dispatchers.IO. */
     fun strength(days: Int = 120, weekOffset: Int = 0, exerciseId: String? = null,
@@ -180,7 +186,8 @@ object CoreTrainingReports {
                 p.objectOrNull("efficiencyTrend")?.let(::trend), p.objectOrNull("farthest")?.let(::best),
                 p.objectOrNull("longest")?.let(::best), p.objectOrNull("paceBests")?.let { bests ->
                     bests.keys().asSequence().associateWith { key -> best(bests.getJSONObject(key)) }
-                }.orEmpty()))
+                }.orEmpty()),
+            o.string("loadReadout"), o.optBoolean("loadReadsLow", false))
     }
 
     private fun loggedSession(session: JSONObject) = LoggedSession(session.getString("id"),

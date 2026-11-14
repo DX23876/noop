@@ -309,43 +309,50 @@ struct CardioView: View {
     /// week. Where it cannot say that yet, it says so and why, rather than filling the headline with
     /// an internal number.
     ///
-    /// The three strings are resolved together because they can otherwise say the same thing twice:
-    /// a headline about missing heart rate over a line counting the same sessions.
+    /// Which of the four it is comes from `CardioLoadReadout` in the core, so Android's card cannot
+    /// say something else about the same week. The three strings are resolved together because they
+    /// can otherwise say the same thing twice: a headline about missing heart rate over a line
+    /// counting the same sessions.
     private var heroText: (statement: LoadHeroStatement?, coverage: String?, caveat: String?) {
-        guard let lane = model.lane, lane.possibleCount > 0 else { return (nil, nil, nil) }
+        guard let lane = model.lane,
+              let readout = CardioLoadReadout.resolve(
+                possibleCount: lane.possibleCount, measuredCount: lane.measuredCount,
+                seriesMeasured: model.laneSeries?.measured ?? true,
+                percentChange: lane.trend?.percentChange, band: lane.reading?.band,
+                completeWeeks: lane.relative.completeWeeks)
+        else { return (nil, nil, nil) }
         let measured = String(localized: "Heart rate recorded in \(lane.measuredCount) of \(lane.possibleCount) sessions")
 
-        if model.laneSeries?.measured == false {
+        switch readout {
+        case .noHeartRate:
             return (LoadHeroStatement(value: String(localized: "Nothing to compare"),
                                       caption: String(localized: "None of these sessions was recorded with heart rate, so how hard they were cannot be read."),
                                       isFigure: false),
                     nil, nil)
-        }
-        if let percent = lane.trend?.percentChange {
-            let thin = Double(lane.measuredCount) / Double(lane.possibleCount) < TrainingLoad.trustedRatedShare
+        case let .comparison(percent, band, readsLow):
             return (LoadHeroStatement(value: LoadFormat.signedPercent(percent),
-                                      caption: comparisonCaption(lane, percent: percent)),
+                                      caption: comparisonCaption(band, percent: percent)),
                     measured,
-                    thin ? String(localized: "A session without heart rate counts as nothing here, so this reads low.") : nil)
-        }
-        if lane.relative.completeWeeks < TrainingLoad.personalBaselineWeeks {
+                    readsLow ? String(localized: "A session without heart rate counts as nothing here, so this reads low.") : nil)
+        case .notEnoughWeeks:
             // How many weeks are still missing is the chart's line, under the bars it belongs to.
             return (LoadHeroStatement(value: String(localized: "Not enough weeks yet"),
                                       caption: String(localized: "A week is only ever compared with your own earlier weeks. There are not yet enough of them."),
                                       isFigure: false),
                     measured, nil)
+        case .tooFewMeasured:
+            return (LoadHeroStatement(value: String(localized: "Too few sessions measured"),
+                                      caption: String(localized: "Heart rate is missing from most of these sessions, so a comparison would read low."),
+                                      isFigure: false),
+                    nil, nil)
         }
-        return (LoadHeroStatement(value: String(localized: "Too few sessions measured"),
-                                  caption: String(localized: "Heart rate is missing from most of these sessions, so a comparison would read low."),
-                                  isFigure: false),
-                nil, nil)
     }
 
     /// What a week above or below the wearer's usual means, said the way the page's own subtitle says
     /// it: how hard the heart worked. The words follow the lane's band, so a week a hair over the line
     /// does not read like one far above it.
-    private func comparisonCaption(_ lane: TrainingLoadModel.Lane, percent: Double) -> String {
-        switch lane.reading?.band {
+    private func comparisonCaption(_ band: RelativeLoadBand?, percent: Double) -> String {
+        switch band {
         case .below: return String(localized: "easier than your usual week")
         case .usual: return String(localized: "about as hard as your usual week")
         case .higher: return String(localized: "harder than your usual week")

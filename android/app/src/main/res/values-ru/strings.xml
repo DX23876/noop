@@ -6897,4 +6897,16 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_keep_routine_saved">Сохранено как программа</string>
     <string name="forge_keep_routine_failed">Не удалось сохранить программу.</string>
     <string name="forge_plan_more_findings">Ещё %1$d стоит посмотреть.</string>
+    <string name="forge_cardio_measured_in">Пульс записан в %1$d из %2$d тренировок</string>
+    <string name="forge_cardio_nothing_to_compare">Нечего сравнивать</string>
+    <string name="forge_cardio_nothing_caption">Ни одна из этих тренировок не записана с пульсом, поэтому нельзя прочитать, насколько они были тяжёлыми.</string>
+    <string name="forge_cardio_reads_low">Тренировка без пульса считается здесь нулём, поэтому значение выходит заниженным.</string>
+    <string name="forge_cardio_not_enough_weeks">Пока недостаточно недель</string>
+    <string name="forge_cardio_not_enough_weeks_caption">Неделя сравнивается только с твоими прежними неделями. Их пока недостаточно.</string>
+    <string name="forge_cardio_too_few_measured">Слишком мало измеренных тренировок</string>
+    <string name="forge_cardio_too_few_measured_caption">В большинстве этих тренировок нет пульса, поэтому сравнение вышло бы заниженным.</string>
+    <string name="forge_cardio_easier">легче твоей обычной недели</string>
+    <string name="forge_cardio_about_as_hard">примерно так же тяжело, как твоя обычная неделя</string>
+    <string name="forge_cardio_harder">тяжелее твоей обычной недели</string>
+    <string name="forge_cardio_much_harder">намного тяжелее твоей обычной недели</string>
 </resources>

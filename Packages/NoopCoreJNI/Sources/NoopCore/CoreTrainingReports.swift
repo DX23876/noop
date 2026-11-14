@@ -213,6 +213,12 @@ public enum CoreTrainingReports {
         public var effort: Double?, sessionsWithDistance: Int, typicalMinutes: Range?
         public var averageHr: Double?, typicalAverageHr: Double?, charge: Double?, topSportPace: Double?
         public var sports: [Sport], loadShares: [SportShare], zones: Zones?, progress: SportProgress
+        /// What the load card may say about this week (`CardioLoadReadout.kind`), decided in the core
+        /// so both platforms' cards say the same thing: "comparison", "noHeartRate", "notEnoughWeeks"
+        /// or "tooFewMeasured". Nil where the window holds no cardio at all.
+        public var loadReadout: String?
+        /// True when a comparison rests on so few measured sessions that it understates the week.
+        public var loadReadsLow: Bool = false
     }
 
     /// Reads the same Strength inputs as `StrengthModel.load`, with one supplied clock per request.
@@ -357,6 +363,14 @@ public enum CoreTrainingReports {
                 $0[$1.key.rawValue] = SportProgress.Best($1.value)
             } ?? [:])
         let families = visible.reduce(into: [Int: String]()) { $0[$1.row.startTs] = $1.kind.rawValue }
+        let readout = week.lane.flatMap { lane in
+            CardioLoadReadout.resolve(possibleCount: lane.possibleCount, measuredCount: lane.measuredCount,
+                                      seriesMeasured: laneSeries.measured,
+                                      percentChange: lane.trend?.percentChange, band: lane.reading?.band,
+                                      completeWeeks: lane.relative.completeWeeks)
+        }
+        let readsLow: Bool
+        if case .comparison(_, _, let low) = readout { readsLow = low } else { readsLow = false }
         return Cardio(selection: selection, lane: week.lane.map(CoreTrainingLoad.Lane.init),
             ratios: week.laneRatios.map { .init(day: $0.day, strength: $0.strength, cardio: $0.cardio) },
             sessions: sessions.map { metric in
@@ -375,7 +389,8 @@ public enum CoreTrainingReports {
                       minutes: $0.minutes, distanceM: $0.distanceM, energyKcal: $0.energyKcal)
             }, loadShares: week.shares.map {
                 SportShare(sport: $0.sport, modality: $0.modality.rawValue, load: $0.load, share: $0.share)
-            }, zones: week.zones.map(Zones.init), progress: sportProgress)
+            }, zones: week.zones.map(Zones.init), progress: sportProgress,
+            loadReadout: readout?.kind, loadReadsLow: readsLow)
     }
 
     public static func session(reader: StoreReader, id: String,

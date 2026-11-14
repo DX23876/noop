@@ -6923,4 +6923,16 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_keep_routine_saved">Enregistrée comme routine</string>
     <string name="forge_keep_routine_failed">La routine n\'a pas pu être enregistrée.</string>
     <string name="forge_plan_more_findings">%1$d autres à regarder.</string>
+    <string name="forge_cardio_measured_in">Fréquence cardiaque enregistrée sur %1$d séances sur %2$d</string>
+    <string name="forge_cardio_nothing_to_compare">Rien à comparer</string>
+    <string name="forge_cardio_nothing_caption">Aucune de ces séances n’a été enregistrée avec la fréquence cardiaque, leur difficulté ne peut donc pas être lue.</string>
+    <string name="forge_cardio_reads_low">Une séance sans fréquence cardiaque ne compte pour rien ici, la valeur est donc sous-estimée.</string>
+    <string name="forge_cardio_not_enough_weeks">Pas encore assez de semaines</string>
+    <string name="forge_cardio_not_enough_weeks_caption">Une semaine n’est comparée qu’à tes propres semaines précédentes. Il n’y en a pas encore assez.</string>
+    <string name="forge_cardio_too_few_measured">Trop peu de séances mesurées</string>
+    <string name="forge_cardio_too_few_measured_caption">La fréquence cardiaque manque sur la plupart de ces séances, une comparaison serait sous-estimée.</string>
+    <string name="forge_cardio_easier">plus facile que ta semaine habituelle</string>
+    <string name="forge_cardio_about_as_hard">à peu près aussi dure que ta semaine habituelle</string>
+    <string name="forge_cardio_harder">plus dure que ta semaine habituelle</string>
+    <string name="forge_cardio_much_harder">bien plus dure que ta semaine habituelle</string>
 </resources>

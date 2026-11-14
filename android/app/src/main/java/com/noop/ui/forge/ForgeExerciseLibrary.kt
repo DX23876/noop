@@ -342,14 +342,6 @@ internal fun libraryMetadata(row: CoreTrainingLibrary.Row, muscles: Map<String, 
     return listOf(muscle, tool).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
-/** The measurement's symbol on its tinted tile when there is no media (`ExerciseLibraryRow.modeIcon`). */
-private fun modeIcon(mode: String): ImageVector = when (mode) {
-    "duration", "weight_duration" -> Icons.Rounded.Timer
-    "distance_duration", "distance_weight" -> Icons.Rounded.Route
-    "bodyweight_reps", "repetitions" -> Icons.Rounded.SportsGymnastics
-    else -> Icons.Rounded.FitnessCenter
-}
-
 /** One exercise as `ExerciseLibraryRow` draws it, a segment of the grouped card it belongs to. */
 @Composable
 internal fun LibraryRow(row: CoreTrainingLibrary.Row, subtitle: String, favorite: Boolean, index: Int, count: Int,
@@ -359,14 +351,9 @@ internal fun LibraryRow(row: CoreTrainingLibrary.Row, subtitle: String, favorite
         if (index > 0) Box(Modifier.padding(start = 76.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider.copy(alpha = 0.4f)))
         Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            val still = rememberExerciseStill(row.id, 144)
-            Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (still != null) Color.White else colors.accent.copy(alpha = 0.10f)),
-                contentAlignment = Alignment.Center) {
-                if (still != null) androidx.compose.foundation.Image(still, contentDescription = null, modifier = Modifier.size(48.dp),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                else Icon(modeIcon(row.mode), contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
-            }
+            // The exercise's own picture rather than one of four glyphs: a bench press and a curl
+            // looked the same, and the glyph only ever said how the exercise is measured.
+            ExerciseMusclePicture(row.id, row.primary, row.secondary, 56.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(row.title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
                 Text(subtitle, style = Forge.type.caption, color = colors.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)

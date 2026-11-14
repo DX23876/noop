@@ -268,12 +268,22 @@ private fun Modifier.laneHeroSurface(lane: TrainingLane): Modifier {
 }
 
 /**
+ * What a card leads with: one figure a person can read, and the words that turn it into a sentence.
+ *
+ * A lane whose unit means nothing outside the app ("109 cardio points") has nothing to put in a
+ * headline. It passes a statement instead, and the raw figure stays out of the card. `isFigure` is
+ * false when the value is a few words rather than a number, which get a size they can be read at.
+ */
+data class LoadHeroStatement(val value: String, val caption: String, val isFigure: Boolean = true)
+
+/**
  * A lane's headline (`LoadHeroCard`): the change against usual, its state, the measured figure behind it, and what
  * the reading rests on, over the lane's own eight-week ratio line.
  */
 @Composable
 fun LoadHeroCard(lane: TrainingLane, percent: Double?, state: LoadPill, figure: String?, trend: List<Double>,
                  coverage: String?, caveat: String?, note: String?, title: String? = null,
+                 statement: LoadHeroStatement? = null,
                  onClick: (() -> Unit)? = null) {
     Column(Modifier.fillMaxWidth().laneHeroSurface(lane)
                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
@@ -284,10 +294,20 @@ fun LoadHeroCard(lane: TrainingLane, percent: Double?, state: LoadPill, figure: 
             Spacer(Modifier.width(ForgeMetrics.space2))
             Text(title ?: lane.title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                  color = Forge.colors.text, maxLines = 1, modifier = Modifier.weight(1f))
-            LoadStatusPill(lane, state)
+            // The pill and a statement say the same thing, the statement in better words.
+            if (statement == null) LoadStatusPill(lane, state)
+        }
+        statement?.let {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(it.value,
+                     style = if (it.isFigure) numberStyle(Forge.type.heroNumber, 40, FontWeight.Bold)
+                             else Forge.type.title2,
+                     color = Forge.colors.text, maxLines = if (it.isFigure) 1 else 2)
+                Text(it.caption, style = Forge.type.subhead, color = Forge.colors.textSecondary)
+            }
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
-            if (percent != null) {
+            if (percent != null && statement == null) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(signedPercent(percent), style = numberStyle(Forge.type.heroNumber, 42, FontWeight.Bold),
                          color = Forge.colors.text, maxLines = 1)
@@ -297,7 +317,7 @@ fun LoadHeroCard(lane: TrainingLane, percent: Double?, state: LoadPill, figure: 
             }
             if (trend.size >= 2) LoadBaselineTrend(lane, trend, Modifier.weight(1f))
         }
-        figure?.let { Text(it, style = Forge.type.captionNumber, color = Forge.colors.text) }
+        if (statement == null) figure?.let { Text(it, style = Forge.type.captionNumber, color = Forge.colors.text) }
         coverage?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textSecondary) }
         caveat?.let {
             Row {

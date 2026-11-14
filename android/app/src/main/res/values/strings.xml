@@ -6964,4 +6964,16 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_keep_routine_saved">Saved as a routine</string>
     <string name="forge_keep_routine_failed">The routine could not be saved.</string>
     <string name="forge_plan_more_findings">%1$d more worth a look.</string>
+    <string name="forge_cardio_measured_in">Heart rate recorded in %1$d of %2$d sessions</string>
+    <string name="forge_cardio_nothing_to_compare">Nothing to compare</string>
+    <string name="forge_cardio_nothing_caption">None of these sessions was recorded with heart rate, so how hard they were cannot be read.</string>
+    <string name="forge_cardio_reads_low">A session without heart rate counts as nothing here, so this reads low.</string>
+    <string name="forge_cardio_not_enough_weeks">Not enough weeks yet</string>
+    <string name="forge_cardio_not_enough_weeks_caption">A week is only ever compared with your own earlier weeks. There are not yet enough of them.</string>
+    <string name="forge_cardio_too_few_measured">Too few sessions measured</string>
+    <string name="forge_cardio_too_few_measured_caption">Heart rate is missing from most of these sessions, so a comparison would read low.</string>
+    <string name="forge_cardio_easier">easier than your usual week</string>
+    <string name="forge_cardio_about_as_hard">about as hard as your usual week</string>
+    <string name="forge_cardio_harder">harder than your usual week</string>
+    <string name="forge_cardio_much_harder">much harder than your usual week</string>
 </resources>

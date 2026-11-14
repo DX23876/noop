@@ -6940,4 +6940,16 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_keep_routine_saved">Als Routine gespeichert</string>
     <string name="forge_keep_routine_failed">Die Routine konnte nicht gespeichert werden.</string>
     <string name="forge_plan_more_findings">%1$d weitere, die einen Blick wert sind.</string>
+    <string name="forge_cardio_measured_in">Herzfrequenz in %1$d von %2$d Einheiten aufgezeichnet</string>
+    <string name="forge_cardio_nothing_to_compare">Nichts zum Vergleichen</string>
+    <string name="forge_cardio_nothing_caption">Keine dieser Einheiten wurde mit Herzfrequenz aufgezeichnet. Wie hart sie waren, lässt sich deshalb nicht lesen.</string>
+    <string name="forge_cardio_reads_low">Eine Einheit ohne Herzfrequenz zählt hier als nichts. Der Wert fällt deshalb zu niedrig aus.</string>
+    <string name="forge_cardio_not_enough_weeks">Noch nicht genug Wochen</string>
+    <string name="forge_cardio_not_enough_weeks_caption">Eine Woche wird immer nur mit deinen eigenen früheren Wochen verglichen. Davon gibt es noch nicht genug.</string>
+    <string name="forge_cardio_too_few_measured">Zu wenige Einheiten gemessen</string>
+    <string name="forge_cardio_too_few_measured_caption">Bei den meisten dieser Einheiten fehlt die Herzfrequenz. Ein Vergleich würde zu niedrig ausfallen.</string>
+    <string name="forge_cardio_easier">leichter als deine übliche Woche</string>
+    <string name="forge_cardio_about_as_hard">etwa so hart wie deine übliche Woche</string>
+    <string name="forge_cardio_harder">härter als deine übliche Woche</string>
+    <string name="forge_cardio_much_harder">viel härter als deine übliche Woche</string>
 </resources>

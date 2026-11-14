@@ -6893,4 +6893,16 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_keep_routine_saved">已保存为训练流程</string>
     <string name="forge_keep_routine_failed">无法保存训练流程。</string>
     <string name="forge_plan_more_findings">还有 %1$d 条值得一看。</string>
+    <string name="forge_cardio_measured_in">%2$d 次训练中有 %1$d 次记录了心率</string>
+    <string name="forge_cardio_nothing_to_compare">暂无可比较的数据</string>
+    <string name="forge_cardio_nothing_caption">这些训练都没有记录心率，因此无法读出它们有多辛苦。</string>
+    <string name="forge_cardio_reads_low">没有心率的训练在这里按零计算，所以这个数值偏低。</string>
+    <string name="forge_cardio_not_enough_weeks">周数还不够</string>
+    <string name="forge_cardio_not_enough_weeks_caption">一周只会和你自己以往的周相比，目前还不够多。</string>
+    <string name="forge_cardio_too_few_measured">测量到的训练太少</string>
+    <string name="forge_cardio_too_few_measured_caption">这些训练大多缺少心率，比较结果会偏低。</string>
+    <string name="forge_cardio_easier">比你平常的一周轻松</string>
+    <string name="forge_cardio_about_as_hard">和你平常的一周差不多辛苦</string>
+    <string name="forge_cardio_harder">比你平常的一周辛苦</string>
+    <string name="forge_cardio_much_harder">比你平常的一周辛苦得多</string>
 </resources>

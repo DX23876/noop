@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreRead
+import com.noop.core.CoreTrainingLoad
 import com.noop.core.CoreTrainingReports
 import com.noop.ui.NoopPrefs
 import com.noop.ui.ProfileStore
@@ -213,6 +214,33 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
     }
 }
 
+/**
+ * The words for the core's decision about this week's cardio load (`CardioLoadReadout`). The branch is
+ * not made here: Kotlin only puts the words to the case the core named.
+ */
+@Composable
+private fun cardioStatement(r: CoreTrainingReports.Cardio, lane: CoreTrainingLoad.Lane): LoadHeroStatement? =
+    when (r.loadReadout) {
+        "comparison" -> LoadHeroStatement(
+            signedPercent(lane.percent ?: 0.0),
+            stringResource(when (lane.band) {
+                "below" -> R.string.forge_cardio_easier
+                "usual" -> R.string.forge_cardio_about_as_hard
+                "muchHigher" -> R.string.forge_cardio_much_harder
+                "higher" -> R.string.forge_cardio_harder
+                else -> if ((lane.percent ?: 0.0) >= 1) R.string.forge_cardio_harder
+                        else if ((lane.percent ?: 0.0) <= -1) R.string.forge_cardio_easier
+                        else R.string.forge_cardio_about_as_hard
+            }))
+        "noHeartRate" -> LoadHeroStatement(stringResource(R.string.forge_cardio_nothing_to_compare),
+            stringResource(R.string.forge_cardio_nothing_caption), isFigure = false)
+        "notEnoughWeeks" -> LoadHeroStatement(stringResource(R.string.forge_cardio_not_enough_weeks),
+            stringResource(R.string.forge_cardio_not_enough_weeks_caption), isFigure = false)
+        "tooFewMeasured" -> LoadHeroStatement(stringResource(R.string.forge_cardio_too_few_measured),
+            stringResource(R.string.forge_cardio_too_few_measured_caption), isFigure = false)
+        else -> null
+    }
+
 /** Cardio keeps measured zone time separate from average-HR estimates. */
 @Composable
 fun ForgeCardioPage(onClose: () -> Unit) {
@@ -249,12 +277,20 @@ fun ForgeCardioPage(onClose: () -> Unit) {
         val r = report ?: run { ReportUnavailable { retry++ }; return@SettingsColumn }
         ReportWeek(r.selection) { weekOffset = it }
         r.lane?.let { lane ->
-            val total = stringResource(R.string.forge_tl_trimp, lane.sevenDayTotal.roundToInt())
+            // The card leads with what the page can say in words, never with the heart-rate load
+            // behind it: that figure means nothing outside the app. Which of the four it says is
+            // decided in the core (`CardioLoadReadout`), so this card and iOS's cannot differ.
+            val measured = stringResource(R.string.forge_cardio_measured_in, lane.measuredCount, lane.possibleCount)
+            val statement = cardioStatement(r, lane)
             LoadHeroCard(TrainingLane.Cardio, lane.percent, LoadPill.of(lane.band, lane.guardState),
-                if (lane.isLowerBound) stringResource(R.string.forge_tl_at_least, total) else total,
-                r.ratios.mapNotNull { it.cardio }, cardioEvidence(lane),
-                if (lane.isLowerBound) stringResource(R.string.forge_tl_caveat_lower_bound, lane.measuredCount, lane.possibleCount) else null,
-                capNote(lane), stringResource(R.string.forge_tl_cardiovascular_load))
+                figure = null,
+                trend = r.ratios.mapNotNull { it.cardio },
+                coverage = if (statement != null && r.loadReadout != "comparison"
+                               && r.loadReadout != "notEnoughWeeks") null else measured,
+                caveat = if (r.loadReadsLow) stringResource(R.string.forge_cardio_reads_low) else null,
+                note = capNote(lane),
+                title = stringResource(R.string.forge_tl_cardiovascular_load),
+                statement = statement)
         }
         ReportNote(stringResource(R.string.forge_report_rolling_through, shortDate(r.selection.readingDay)))
         val forge = ForgeDesign.preview

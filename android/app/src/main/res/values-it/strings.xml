@@ -6892,4 +6892,16 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_keep_routine_saved">Salvata come routine</string>
     <string name="forge_keep_routine_failed">Non è stato possibile salvare la routine.</string>
     <string name="forge_plan_more_findings">Altri %1$d da guardare.</string>
+    <string name="forge_cardio_measured_in">Frequenza cardiaca registrata in %1$d sessioni su %2$d</string>
+    <string name="forge_cardio_nothing_to_compare">Niente da confrontare</string>
+    <string name="forge_cardio_nothing_caption">Nessuna di queste sessioni è stata registrata con la frequenza cardiaca, quindi non si può leggere quanto siano state dure.</string>
+    <string name="forge_cardio_reads_low">Una sessione senza frequenza cardiaca qui conta come nulla, perciò il valore risulta basso.</string>
+    <string name="forge_cardio_not_enough_weeks">Non ci sono ancora settimane a sufficienza</string>
+    <string name="forge_cardio_not_enough_weeks_caption">Una settimana viene confrontata solo con le tue settimane precedenti. Non ce ne sono ancora abbastanza.</string>
+    <string name="forge_cardio_too_few_measured">Troppo poche sessioni misurate</string>
+    <string name="forge_cardio_too_few_measured_caption">Nella maggior parte di queste sessioni manca la frequenza cardiaca, quindi un confronto risulterebbe basso.</string>
+    <string name="forge_cardio_easier">più leggera della tua settimana abituale</string>
+    <string name="forge_cardio_about_as_hard">dura più o meno come la tua settimana abituale</string>
+    <string name="forge_cardio_harder">più dura della tua settimana abituale</string>
+    <string name="forge_cardio_much_harder">molto più dura della tua settimana abituale</string>
 </resources>

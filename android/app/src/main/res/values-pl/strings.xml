@@ -6944,4 +6944,16 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_keep_routine_saved">Zapisano jako rutynę</string>
     <string name="forge_keep_routine_failed">Nie udało się zapisać rutyny.</string>
     <string name="forge_plan_more_findings">Jeszcze %1$d warte spojrzenia.</string>
+    <string name="forge_cardio_measured_in">Tętno zapisane w %1$d z %2$d sesji</string>
+    <string name="forge_cardio_nothing_to_compare">Nie ma czego porównać</string>
+    <string name="forge_cardio_nothing_caption">Żadna z tych sesji nie została zapisana z tętnem, więc nie da się odczytać, jak ciężkie były.</string>
+    <string name="forge_cardio_reads_low">Sesja bez tętna liczy się tutaj jako nic, dlatego wartość wychodzi za niska.</string>
+    <string name="forge_cardio_not_enough_weeks">Jeszcze za mało tygodni</string>
+    <string name="forge_cardio_not_enough_weeks_caption">Tydzień porównuje się tylko z twoimi wcześniejszymi tygodniami. Jeszcze nie ma ich dość.</string>
+    <string name="forge_cardio_too_few_measured">Zbyt mało zmierzonych sesji</string>
+    <string name="forge_cardio_too_few_measured_caption">W większości tych sesji brakuje tętna, więc porównanie wyszłoby za niskie.</string>
+    <string name="forge_cardio_easier">lżejszy niż twój zwykły tydzień</string>
+    <string name="forge_cardio_about_as_hard">mniej więcej tak ciężki jak twój zwykły tydzień</string>
+    <string name="forge_cardio_harder">cięższy niż twój zwykły tydzień</string>
+    <string name="forge_cardio_much_harder">znacznie cięższy niż twój zwykły tydzień</string>
 </resources>
