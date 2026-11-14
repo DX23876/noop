@@ -32,9 +32,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/hero.webp" width="940" alt="Four Liquid Today screens: key metric tiles with 14-day trends for HRV, resting heart rate, blood oxygen, breathing rate, skin temperature, weight, Rest and calories; Today with glowing Charge 58, Effort 56 and Rest 94 rings in light and in dark mode; and three tiles per row in dark mode">
+  <img src="docs/assets/screenshots/v13.0.0/hero.webp" width="940" alt="Four screens of NOOP Forge: Today in light mode with the Charge, Effort and Rest rings over a mountain photograph and tiles for HRV, resting heart rate, steps, sleep, stress and weight; the Health tab with last night's vitals all in range; the same Today screen in dark mode; and the muscle map showing how recent strength work was distributed">
 </p>
-<p align="center"><sub>Screenshots from the app's built-in demo mode, with a made-up person and made-up numbers. The iPhone pictures were taken with 12.0.1, the Android pictures with a testing build. The 13.0 testing build carries a redesigned look that these pictures do not show yet.</sub></p>
+<p align="center"><sub>The 13.0 testing build in the app's built-in demo mode, with a made-up person and made-up numbers. The new design is still a switch in Settings › Lab ("New design"), off by default until it is finished.</sub></p>
 
 ---
 
@@ -106,9 +106,9 @@ That is the whole point of the design: **the same night gives the same Charge on
 Android phone.** No second implementation that can drift, no two sets of numbers to explain.
 
 <p align="center">
-  <img src="docs/assets/screenshots/android/ios-and-android.webp" width="760" alt="The same Today screen on an iPhone and on an Android phone: glowing Charge, Effort and Rest rings over an alpine scene, with key metric tiles for HRV, resting heart rate, blood oxygen, breathing rate, sleep and steps underneath">
+  <img src="docs/assets/screenshots/android/ios-and-android.webp" width="760" alt="The same Today screen on an iPhone and on an Android phone: Charge, Effort and Rest as glowing rings over a mountain photograph, with tiles for HRV, resting heart rate, steps, sleep and weight underneath and the same five places along the bottom">
 </p>
-<p align="center"><sub>Left: iPhone. Right: Android. The same core, the same screens, the same numbers.</sub></p>
+<p align="center"><sub>Left: iPhone. Right: Android. The same core, the same screens. Two different demo days, so the numbers differ.</sub></p>
 
 <table>
 <tr>
@@ -189,12 +189,12 @@ iPhone, iPad, Mac and Apple Watch. Release notes:
 
 #### 🧪 In testing: 13.0
 
+- A redesigned app, the one in the pictures here, behind a switch in Settings › Lab until it is finished
 - Effort recalibrated on 3,760 real workouts
 - Your own maximum heart rate, learned from your workouts
 - Your whole history scored again once, by the same method
-- A calmer start to a detected night
+- A food log with barcode scanning and a diet plan
 - **Android, Mac and iPhone on one shared core**
-- Still being finished: a redesigned look, and a food log with barcode scanning
 
 iPhone, Mac and Android.
 [What to test](docs/fork/TESTING-13.0.0.md) ·
@@ -208,81 +208,59 @@ iPhone, Mac and Android.
 
 ## A tour of the app
 
+Five places, and everything else hangs off them: **Today**, **Training**, **Sleep**, **Health** and
+your **Coach**.
+
 ### Today: your day at a glance
 
 <p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/dash-liquid.webp" width="250" alt="Liquid Today with Charge 58, Effort 56 and Rest 94 as glowing rings over an alpine scene, a Momentum note and the first key metric tiles">
-  <img src="docs/assets/screenshots/v12.0.1/dash-tiles-detailed.webp" width="250" alt="Key metric tiles with 14-day trend lines: HRV 80 ms, resting heart rate 55, blood oxygen 97%, breathing rate 14.6, skin temperature 33.9 °C, weight 93.4 kg, Rest 94 and calories">
-  <img src="docs/assets/screenshots/v12.0.1/dash-liquid-dark.webp" width="250" alt="Liquid Today in dark mode with glowing rings">
+  <img src="docs/assets/screenshots/v13.0.0/today-light.webp" width="250" alt="Today in light mode: Charge 66, Effort 47 and Rest 98 as glowing rings over a mountain photograph, a note that you are four sessions short of your week, and tiles for HRV 86 ms, resting heart rate 54 bpm, 11,834 steps, 7:32 h of sleep, low stress and 94.8 kg">
+  <img src="docs/assets/screenshots/v13.0.0/today-dark.webp" width="250" alt="The same Today screen in dark mode">
+  <img src="docs/assets/screenshots/v13.0.0/today-timeline.webp" width="250" alt="The Today timeline: woke up at 07:16 after 7:32 h asleep with Rest 98, the night's stages as a coloured bar, and the factors behind the Charge with heart rate variability 86 ms and sleep quality 98% both raising it">
 </p>
 
-The first screen you see. Three rings show your **Charge** (how recovered you are), your **Effort**
-(how much strain your day has had so far) and your **Rest** (how well you slept). Behind them sits a
-landscape that changes with the time of day.
+Three rings show your **Charge** (how recovered you are), your **Effort** (how much strain your day has
+had so far) and your **Rest** (how well you slept). Behind them sits a picture that changes with the
+time of day.
 
-**The rings are alive.** In the default **Liquid** design each ring is a glowing band of fine
-threads that moves slowly, as if it were breathing. The higher your score, the more little sparks
-fill the circle. Effort glows brighter and breathes deeper once your day gets moderately hard. Tilt
-the phone and the rings shift with it. When the app opens, the numbers count up from zero once. All of
-this stops when you turn on Reduce Motion, use Low Power Mode or switch off the motion in the app, so
-the rings then simply stand still.
+**The rings are alive.** Each one is a glowing band of fine threads that moves slowly, as if it were
+breathing. The higher your score, the more little sparks fill the circle. Effort glows brighter and
+breathes deeper once your day gets moderately hard. When the app opens, the numbers count up from zero
+once. All of this stops when you turn on Reduce Motion, use Low Power Mode or switch the motion off in
+the app, and plain rings take over.
 
-Below the rings comes your **dashboard of tiles**. Each tile shows one number, for example heart rate
-variability, resting heart rate, blood oxygen, breathing rate, skin temperature, weight or calories, with
-a small line of the last 14 days. The little badge tells you how today compares with your own normal:
-"±0" means a typical day, "↘ -0.5 kg" means your weight went down over 30 days. Numbers are only
-coloured when something is really unusual for you.
+Below the rings is **your own dashboard**. Every tile is one you placed: heart rate variability,
+resting heart rate, steps, sleep, stress, weight, live heart rate, energy, a goal, your fitness age.
+Hold a tile to move it, resize it or swap it for another. Each one carries a small line of your recent
+days and a badge against your own normal, so "±0" means a typical day and "↘ −2" a real change.
 
-Further down you find:
-
-- **Momentum:** one short, useful note, for example "HRV 2% over baseline, moderate work is well
-  judged".
-- **Training Load:** whether your strength and cardio training are below, at or above your usual level.
-- **Energy:** what you have burned so far today.
-- **Your last workouts** and live heart rate while the strap is connected.
-- **Your goals**, if you use them (see [Goals](#goals-that-bend-with-real-life)).
-
-#### Make the dashboard yours
-
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/dash-tiles-3col.webp" width="210" alt="Three tiles per row: Charge, Effort, Rest, HRV, resting heart rate, blood oxygen, breathing rate, skin temperature, weight and calories">
-  <img src="docs/assets/screenshots/v12.0.1/dash-tiles-3col-dark.webp" width="210" alt="Three tiles per row with trend lines in dark mode">
-  <img src="docs/assets/screenshots/v12.0.1/dash-tiles-detailed-dark.webp" width="210" alt="Two tiles per row with trend lines in dark mode">
-  <img src="docs/assets/screenshots/v12.0.1/dash-classic.webp" width="210" alt="The Classic layout: ring gauges for Effort, Charge and Rest and a three-column key metrics grid">
-</p>
-
-- **Pick your tiles** and their order: Charge, Effort, Rest, HRV, resting heart rate, blood oxygen,
-  breathing rate, skin temperature, steps, weight and calories.
-- **Two or three tiles per row**, with or without the 14-day trend line.
-- **Light or dark**, and a landscape of your choice: Alps, coast or a painted meadow.
-- **Colour profiles:** colourful by default, or the calmer Stone, Slate and Sage profiles.
-- **Show, hide and reorder every section.** Goals, the coach, journal reminders and everything else are
-  optional.
-- **Prefer it calmer?** Next to Liquid there is the **Classic** layout (last picture) with plain ring
-  gauges and no animation, and a dense **Overview**. All three show the same numbers.
-
-All of this is on Android too, including the layouts, the colour profiles and the landscapes.
+Further down, the **timeline** tells the day as it happened: when you woke, what the night was worth,
+what raises or lowers your Charge today, what the app suggests you do with it, and your workouts and
+live heart rate as they come in.
 
 ### The three scores, explained
 
 <table>
 <tr>
 <td width="36%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/chargebreakdown.webp" width="250" alt="What shaped your Charge: heart rate variability plus 9 points, resting heart rate plus 4, sleep quality plus 2, breathing rate plus 1 and skin temperature minus 1">
+  <img src="docs/assets/screenshots/v13.0.0/charge-dark.webp" width="250" alt="The Charge page: 66, moderate, today's Effort target 48 to 67, and Why 66 %? listing heart rate variability 86 ms, sleep quality 98%, resting heart rate 54 bpm and respiratory rate 14.6 per minute with what each one does to the score">
 </td>
 <td width="64%" valign="middle">
 
 **Charge (0 to 100): how ready is your body?**
 Measured every morning from your night. The biggest part is your heart rate variability (HRV), the
 small differences between heartbeats. A rested body shows more variation. Resting heart rate, sleep
-quality, breathing rate and skin temperature make up the rest. Tap the ring and the app shows exactly
-which of these pushed your score up or down, and by how many points.
+quality, breathing rate and skin temperature make up the rest.
+
+**Tap the ring and the app shows its work.** "Why 66 %?" lists every factor with your value, your own
+usual range for it, and whether it raised or lowered the score. A badge says how reliable the reading
+is, and the page names the Effort target that fits today's Charge.
 
 **Effort (0 to 100): how hard was your day?**
-Grows through the day as your heart works above its resting level. A hard workout fills it quickly,
-a walk slowly. It is scaled to you, so a hard day reads as hard *for you*. From 13.0 Effort follows one
-curve fitted on 3,760 real workouts and uses the maximum heart rate you actually reach in workouts (a
-value you enter in Settings always wins).
+Grows through the day as your heart works above its resting level. A hard workout fills it quickly, a
+walk slowly. It is scaled to you, so a hard day reads as hard *for you*. In 13.0 it follows one curve
+fitted on 3,760 real workouts and uses the maximum heart rate you actually reach (a value you enter in
+Settings always wins).
 
 **Rest (0 to 100): how good was your sleep?**
 Compares the sleep you got with the sleep you needed, and looks at how deep and how steady it was.
@@ -296,104 +274,95 @@ Compares the sleep you got with the sleep you needed, and looks at how deep and 
 55%, resting heart rate about 20%, sleep quality about 15%, breathing and skin temperature about 5%
 each.
 
-These scores are NOOP's own estimates built on published research. They are **not** WHOOP's scores
-and will not match them exactly. In return you can see how every one of them is made.
+These scores are NOOP's own estimates built on published research. They are **not** WHOOP's scores and
+will not match them exactly. In return you can see how every one of them is made.
 
 </td>
 <td width="36%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/scoring.webp" width="250" alt="How this works: Charge weighs heart rate variability at about 55 percent, resting heart rate 20, rest quality 15, respiration 5 and skin temperature 5">
+  <img src="docs/assets/screenshots/v13.0.0/charge-light.webp" width="250" alt="The same Charge page in light mode">
 </td>
 </tr>
 </table>
 
 ### Sleep: what your night really was
 
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/tab-sleep.webp" width="250" alt="Sleep performance of 94, marked Optimal, with the alarm entry and the weekly sleep goal achieved">
-  <img src="docs/assets/screenshots/v12.0.1/sleep-bottom.webp" width="250" alt="Deep, REM and light sleep compared with your typical night, and a 30-night chart of hours asleep averaging 7.1 hours">
-  <img src="docs/assets/screenshots/v12.0.1/sleep-dark.webp" width="250" alt="The sleep screen in dark mode under a night sky">
-</p>
-
-Every morning you see your sleep score, when you fell asleep and woke up, and how the night split into
-**deep sleep, REM and light sleep**. Each stage is compared with your typical night, so you can see at
-a glance whether you got less deep sleep than usual.
-
-- **Sleep debt** tracks how much sleep you are short, and it shrinks again when you catch up.
-- **A 30-night chart** shows whether you are sleeping more or less over time.
-- **Flip back** to any earlier night.
-- **Strap alarms** wake you with a silent buzz on the wrist, and an evening reminder tells you when
-  to wind down.
-- If the strap only recorded part of the night, the app says so instead of showing a misleading score.
-
-### Trends and stress
-
 <table>
 <tr>
 <td width="36%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/tab-trends.webp" width="250" alt="Trends: this week's average Charge 61, Effort 51.3 and Rest 90, with notes that Charge rose 29% and resting heart rate fell 6% week over week">
+  <img src="docs/assets/screenshots/v13.0.0/sleep.webp" width="250" alt="The Sleep tab: Rest 98 % marked optimal and 7:32 h of sleep against a need of 8 hours, a bedtime of 23:00 for full recovery with the alarm at 07:00, and last night drawn as awake, REM, light and deep stages">
 </td>
 <td width="64%" valign="middle">
 
-**Trends** shows your week next to the last one and puts the changes into words: "Charge is up 29%
-week over week, a good sign." You can share a weekly recap as an image, look back months or years and
-create a one-page PDF report, for example for your doctor or coach.
+Every morning you see your sleep score, when you fell asleep and woke up, and how the night split into
+**deep sleep, REM and light sleep**, drawn as it actually ran. Each stage is compared with your typical
+night, so you can see at a glance whether you got less deep sleep than usual.
 
-</td>
-</tr>
-<tr>
-<td width="64%" valign="middle">
+- **Tonight** names the bedtime that would give you full recovery, with the sleep you need and the
+  alarm you have set.
+- **Sleep debt** tracks how much sleep you are short, and it shrinks again when you catch up.
+- **Flip back** to any earlier night, and correct one the strap got wrong.
+- **Strap alarms** wake you with a silent buzz on the wrist, and an evening reminder tells you when to
+  wind down.
+- If the strap only recorded part of the night, the app says so instead of showing a misleading score.
 
-**Stress** shows how strained your nervous system is during the day, on a simple scale from 0 (calm)
-to 3 (high). It compares your heart rate and HRV with your own normal, not with other people. Hours
-when you were simply moving are marked as such, and "calm time" tells you how much of your recent
-days were relaxed.
-
-</td>
-<td width="36%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/stress.webp" width="250" alt="Stress monitor showing a medium level of 1.5 out of 3, with today's stress, resting heart rate, HRV and calm time">
 </td>
 </tr>
 </table>
 
-### Training: plan it, start it, log it
+### Health: your body, in one place
 
 <p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/tab-training.webp" width="250" alt="Training tab: this week's training goals, a Start workout button, the weekly schedule and saved routines">
-  <img src="docs/assets/screenshots/v12.0.1/workoutstart.webp" width="250" alt="Start a workout: today's plan Legs and Core, a freestyle workout, saved routines Push and Pull, and a haptic heart-rate zone coach set to zone 2">
-  <img src="docs/assets/screenshots/v12.0.1/liveworkout.webp" width="250" alt="A live strength workout: Back Squat with last time's weights, a progression hint, the set list and a running rest timer of 1 minute 28">
+  <img src="docs/assets/screenshots/v13.0.0/health.webp" width="250" alt="The Health tab: vitals last night, five of five in range, with HRV 86 ms, resting heart rate 54 bpm, blood oxygen 96%, breathing rate 14.6 per minute and skin temperature 33.9 °C, each with its recent line and a badge saying it is in your range">
+  <img src="docs/assets/screenshots/v13.0.0/health-areas.webp" width="250" alt="Focus areas on the Health tab: Fitness, Sleep, Heart and vitals, Body and nutrition, Mind and stress, and More">
+  <img src="docs/assets/screenshots/v13.0.0/patterns.webp" width="250" alt="Long term and patterns: your week in rings for each day, a weekly report, Trends over months, What works and All metrics">
 </p>
 
-The **Training** tab is your gym notebook. Build routines (Push, Pull, Legs…), plan which days you
-train and see your weekly training goals at the top.
+The **Health** tab opens with last night's vitals and says plainly how many of them are in your own
+range. Under that, the app is sorted into **focus areas** rather than a long list:
 
-**Starting a workout always opens the same screen**, wherever you tap it: today's plan, a freestyle
-session, one of your routines, or a cardio activity like running or cycling.
+| Area | What is in it |
+|---|---|
+| **Fitness** | VO₂max, cardio, strength, training load, workouts |
+| **Sleep** | Hours, steadiness, debt |
+| **Heart and vitals** | HRV, resting heart rate, blood oxygen, breathing, skin temperature, ECG |
+| **Body and nutrition** | Weight, body, energy, water, health records |
+| **Mind and stress** | Stress, breathing, what works for you |
+| **More** | Trends, every metric, compare freely |
 
-During a strength workout you see each exercise with **what you lifted last time** and a hint for
-today ("stalled, load goes down to rebuild"). Weight and reps go in on a number pad, last session's set
-sits beside each row and a tap copies it. Add a set with one button, swipe one away to remove it. Tick
-off a set and the rest timer starts on its own; the **Lock Screen** shows the next set and counts down
-your rest, and logs the set with one tap. Everything works offline, even in a basement gym without
-signal. If the app closes, your workout is still there when you come back.
+**Long term and patterns** sits at the bottom: your week drawn as seven small ring sets, a weekly
+report that reads your week back to you, trends over months, and "What works", which checks which of
+your own habits really move your scores and says so in plain words, or says there is no clear effect
+yet.
 
-Your recent activities start in **one tap** from the Training tab, with the route and zone choice they
-had last time. Routines from **Hevy** or an **OpenGym** plan file come in under Training › Add.
+**Stress** shows how strained your nervous system is during the day, on a simple scale from calm to
+high. It compares your heart rate and HRV with your own normal, not with other people. Hours when you
+were simply moving are marked as such, and "calm time" tells you how much of your recent days were
+relaxed.
 
-Extras for those who want them: supersets, one-arm and one-leg exercises, how hard a set felt (RPE or
-reps in reserve), warm-up sets, a plate calculator and 1,324 exercises with descriptions. The strap or
-an Apple Watch adds your heart rate.
+### Training: plan it, start it, log it
 
 <table>
 <tr>
 <td width="36%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/strengthsession.webp" width="250" alt="A finished Push session: 16 working sets, 5,722 kg volume, 2,346 kg bodyweight volume, 1 hour 21 minutes, average RPE 8.4 and the heart rate during the session">
+  <img src="docs/assets/screenshots/v13.0.0/training.webp" width="250" alt="The Training tab: six workouts and 5 h 36 min this week with the days ticked off, buttons to start or add a workout, the session planned for today with a Start button, this week's training goals with their progress, and your saved routines">
 </td>
 <td width="64%" valign="middle">
 
-**After the workout** you get a summary: working sets, total weight moved, duration, how hard it felt
-on average and what your heart did during the session.
+The **Training** tab is your gym notebook. Your week sits at the top: how many sessions, how long, and
+which days you have already trained. Under it, what is planned for today, with **Start** right there,
+and two quick ways to change your mind ("Shorter, please", "Other routine").
 
-Forgot to stop the workout? You can set its start and end later, directly on the heart rate curve.
+**Starting a workout always opens the same screen**, wherever you tap it: today's plan, a freestyle
+session, one of your routines, or a cardio activity like running or cycling.
+
+During a strength workout you see each exercise with **what you lifted last time** and a hint for today
+("stalled, load goes down to rebuild"). Weight and reps go in on a number pad, last session's set sits
+beside each row and a tap copies it. Tick off a set and the rest timer starts on its own; the **Lock
+Screen** shows the next set, counts down your rest and logs the set with one tap. Everything works
+offline, even in a basement gym without signal.
+
+Extras for those who want them: supersets, one-arm and one-leg exercises, how hard a set felt, warm-up
+sets, a plate calculator and 1,324 exercises with descriptions.
 
 </td>
 </tr>
@@ -401,25 +370,16 @@ Forgot to stop the workout? You can set its start and end later, directly on the
 
 ### Running, walking and cycling with GPS
 
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/activities.webp" width="250" alt="Choosing an activity: Running, Walking, Hiking, Cycling, Open-water swim and Rowing with a route outdoors, Treadmill run indoors">
-  <img src="docs/assets/screenshots/v12.0.1/runstart.webp" width="250" alt="Running selected: record route switched on, voice feedback, links to workout settings and a training plan, and a Start button">
-  <img src="docs/assets/screenshots/v12.0.1/worksettings.webp" width="250" alt="Workout settings: voice feedback, target-zone warnings, warnings while minimized, pace or speed warnings and auto-pause">
-</p>
-
 Pick an activity, decide whether to record the route and press **Start**. Outdoor activities such as
 running, walking, hiking, cycling, rowing or open-water swimming can record a GPS route. Indoor ones
 like a treadmill run never ask for your location. Your heart rate comes from the strap or an Apple
 Watch.
 
 **While you run** the screen shows the time in large numbers, then heart rate, Effort, distance, your
-current pace (from the last 30 seconds) and your average pace. The iPhone's barometer counts your
-climbs, so you also get an elevation profile, the grade and a grade-adjusted pace. Swipe to two more
-pages: the **heart rate zones** you have spent time in, and your **laps and kilometre splits**. The
-workout keeps running with the phone in your pocket and shows on the Lock Screen and in the Dynamic
-Island, where you can also pause and end it.
-
-**What you can set up**
+current pace and your average pace. The iPhone's barometer counts your climbs, so you also get an
+elevation profile, the grade and a grade-adjusted pace. Swipe to two more pages: the **heart rate
+zones** you have spent time in, and your **laps and kilometre splits**. The workout keeps running with
+the phone in your pocket and shows on the Lock Screen and in the Dynamic Island.
 
 | Setting | What it does |
 |---|---|
@@ -436,124 +396,80 @@ jumpy GPS points are thrown away, and a gap in the signal is shown as a gap inst
 across the map. With poor reception it may record a little too little, never too much.
 
 **Afterwards** you get a summary with your route, splits and zones. If you ran your fastest kilometre
-so far (compared with your own earlier runs in the app), it tells you. The workout can go to Apple
-Health with its route, and you can export it as a GPX or FIT file for other apps.
+so far, it tells you. The workout can go to Apple Health with its route, and you can export it as a GPX
+or FIT file for other apps.
 
-### Which muscles did the work?
+### Strength: what you lifted, and which muscles did the work
 
 <p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/strength.webp" width="250" alt="Strength analysis: strength load 57% below usual over the last eight weeks, an explanation of weighted sets, and this week's sets, volume and effort">
-  <img src="docs/assets/screenshots/v12.0.1/strength-volume.webp" width="250" alt="Muscle analytics: a front body map coloured by how much each muscle trained in the last 28 days, and working sets per muscle compared with your usual range">
-  <img src="docs/assets/screenshots/v12.0.1/strength-dark.webp" width="250" alt="Strength analysis in dark mode">
+  <img src="docs/assets/screenshots/v13.0.0/fitness.webp" width="250" alt="The Fitness area: an estimated VO2max of 52.0, resting heart rate 54 bpm, 11,834 steps and Effort 47, each with its recent line, and links to cardio, strength and training load">
+  <img src="docs/assets/screenshots/v13.0.0/strength.webp" width="250" alt="The Strength page: Legs and Core planned for today with a Start button, tonnes lifted per week as bars with the note that it is about the same as the four weeks before, and the recent sessions Pull, Push and Legs with their sets">
+  <img src="docs/assets/screenshots/v13.0.0/muscles.webp" width="250" alt="The muscle map: a front body view coloured by how much each muscle has done recently, with 367 of 367 sets mapped and 254 rated, and the list of muscles with their share of recent work">
 </p>
 
-The **Strength** page answers three plain questions on one body map:
+**Strength** shows what is planned, how much you have lifted week by week and which sessions those were.
 
-- **Balance:** which muscles got how much work over the last four weeks, compared with what is normal
-  *for you*. No ideal physique, no universal rules.
+The **muscle map** answers three plain questions on one body:
+
+- **Balance:** which muscles got how much work recently, compared with what is normal *for you*. No
+  ideal physique, no universal rules.
 - **Fatigue:** which muscles probably still carry training stress from recent sessions.
 - **Strength:** for which muscles your lifts are going up, staying level or going down.
 
-A set that was close to failure counts more than an easy one. If the app cannot tell which muscle an
-exercise trains, it says so instead of guessing. Details: [muscle analytics](docs/fork/MUSCLE_ANALYTICS.md).
+A set that was close to failure counts more than an easy one, and the page says how many of your sets
+it could map at all. If it cannot tell which muscle an exercise trains, it says so instead of guessing.
+Details: [muscle analytics](docs/fork/MUSCLE_ANALYTICS.md).
 
-### Training Load: are you doing too much or too little?
+**Training Load** compares your last seven days with your own history and says in one sentence what it
+means: building up, holding your level or backing off. Strength and cardio are kept apart, because a
+heavy leg day and a long bike ride stress your body in different ways. "Room today" tells you how much
+more you can do this week and still stay in your normal range, and if your strap and your watch both
+recorded the same ride, the app asks whether to merge them instead of counting it twice.
 
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/trainingload.webp" width="250" alt="Training Load: strength 57% below usual, cardio at 166 TRIMP, and a What it means card saying you are holding your level">
-  <img src="docs/assets/screenshots/v12.0.1/trainingload-advice.webp" width="250" alt="Room today: up to 53 weighted sets stays within your usual week, and a question whether two cycling records are the same session, with Keep separate and Merge buttons">
-  <img src="docs/assets/screenshots/v12.0.1/trainingload-shape.webp" width="250" alt="Cardio development: an estimated VO2max of 53.5, performance evidence and the shape of the week">
-</p>
+**Cardio** does the same for everything that gets your heart working: the week's load, time in each
+heart-rate zone, how the week was spent per sport, your average speed and "heart cost" over the weeks,
+your bests, and an estimated VO₂max with a check of whether your heart rate for the same pace is going
+down.
 
-Training Load compares your **last seven days with your own history** and tells you in one sentence
-what it means: building up, holding your level or backing off. Strength and cardio are kept apart,
-because a heavy leg day and a long bike ride stress your body in different ways.
-
-- **Room today** tells you how much more you can do this week and still stay within your normal range.
-- **Duplicate check:** if your strap and your watch both recorded the same ride, the app asks you
-  whether to merge them instead of counting the ride twice.
-- **Cardio fitness:** an estimated VO₂max (how much oxygen your body can use) and whether it is
-  improving.
+### Body, energy and food
 
 <table>
 <tr>
 <td width="36%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/traininghistory.webp" width="250" alt="Training history: strength, cardio and session load over months and years, with a jump-to-date control and estimated one-rep maxes of your lifts">
+  <img src="docs/assets/screenshots/v13.0.0/body.webp" width="250" alt="The Body page: 94.8 kg, 16.4 % body fat and an 87.0 cm waist, a Measure button, and What changed over six weeks saying eight sites grew and one decreased, with thigh, waist and biceps listed with their before and after values">
 </td>
 <td width="64%" valign="middle">
 
-**Training history** goes back as far as your data does: three months, a year, five years or
-everything. Jump to any date to see what you were doing back then, and follow your estimated maximum
-lift for each exercise over time.
+**Body** keeps your weight, body fat and tape measurements in one place. "What changed" compares the
+same site then and now over three weeks, six weeks or three months, and only counts a change that is
+larger than your own tape scatter, so it does not celebrate noise. Each body part has its own history
+and a short guide on how to measure it the same way every time. Progress photos stay on your phone.
+
+**Energy** answers "how much do I burn in a day?" in three independent ways: a formula based on your
+height, weight and age, what your strap measured, and what your food log and scale imply. They never
+agree perfectly, and the app shows you the gap instead of hiding it.
+
+**Food** (on the phone) is a planner, not a diary you have to feed. Scan a barcode, pick from a food
+database, read a label with the camera or just write down what you ate. The day's plan knows whether
+you train or rest, and a diet plan can work towards a target weight at a pace you choose. Daily totals
+from another nutrition app can come in through Apple Health instead.
+
+**Fitness Age** compares your cardio fitness with typical people of different ages, and **Vitality**
+turns your habits into a score from 0 to 100. Two more ages sit in Settings › Lab: **AgeLess** compares
+your habits and **Daily rhythm** your day's movement with large studies. All of them are estimates for
+motivation, not medical measurements, and the app says so next to the number.
 
 </td>
 </tr>
 </table>
-
-### Cardio analysis: how your endurance training is going
-
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/cardio.webp" width="250" alt="Cardio analysis: 166 TRIMP of cardio load this week, four sessions, 45 minutes moving, 16.4 km and 460 kcal compared with your usual range">
-  <img src="docs/assets/screenshots/v12.0.1/cardio-intensity.webp" width="250" alt="Intensity: time in heart-rate zones 1 to 5, the most used activity cycling, average heart rate 129 against a usual 127, and how the week's moving time was split between cycling and running">
-  <img src="docs/assets/screenshots/v12.0.1/cardio-progress.webp" width="250" alt="Progress per sport: average cycling speed over three months with speed trend and heart cost, and your bests: farthest 28.6 km, longest 1 hour, fastest 2:19 per km">
-</p>
-
-The **Cardio** page looks at everything that gets your heart working: running, cycling, walking,
-rowing, swimming, classes and more.
-
-- **Cardio load for the week.** One number that combines how long you trained and how high your heart
-  rate was (called TRIMP). Thirty easy minutes and ten hard minutes can count about the same. It is
-  compared with your own usual week, so you see at once whether you did more or less than normal.
-- **The week in figures:** sessions, moving time, distance and calories, each with your usual range.
-- **Intensity:** how many minutes you spent in each of the five heart-rate zones, from very easy (zone
-  1) to all-out (zone 5). Useful if you want most of your training to be easy, as many endurance plans
-  recommend.
-- **How the week was spent:** which sports took how much of your time.
-- **Progress per sport:** your average speed over the weeks and the "heart cost", meaning how many
-  heartbeats one kilometre takes. When the same distance costs fewer beats, your fitness is improving.
-  Heat, hills and poor sleep move it too, so the app tells you to watch the direction over weeks, not
-  single sessions.
-- **Your bests:** farthest, longest and fastest session per sport, with the date.
-- **Recent sessions** with their heart rate, one tap away from the full detail.
-
-<table>
-<tr>
-<td width="36%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/trainingload-shape.webp" width="250" alt="Cardio development: an estimated VO2max of 53.5 ml/kg/min, heart-rate efficiency in cycling across 17 sessions, and the shape of the week">
-</td>
-<td width="64%" valign="middle">
-
-**Cardio fitness over time.** The app estimates your **VO₂max**, the amount of oxygen your body can use
-at full effort and the classic measure of endurance fitness. It is worked out from your resting heart
-rate and activity using a published method, so it is an estimate, not a lab test, and the screen says
-so. Next to it, "performance evidence" checks whether your heart rate for the same pace is going down,
-which is the most direct sign that you are getting fitter.
-
-**Workouts** lists every session from every source, with a colour badge showing where it came from
-(strap, Apple Watch, Hevy or entered by hand).
-
-</td>
-</tr>
-</table>
-
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/workouts.webp" width="250" alt="Workouts: start and add buttons, a typical effort gauge of 42.6 and the week's totals of 10 sessions and 7.2 hours">
-</p>
 
 ### Goals that bend with real life
-
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/goals.webp" width="210" alt="My goals, Week tab: workouts 5 of 10 and behind, 9,000 steps on 4 of 5 days and on track, working sets, zone 2 minutes and nights of 7 hours achieved">
-  <img src="docs/assets/screenshots/v12.0.1/goaldetail.webp" width="210" alt="Weekly goal detail: 5 days of 9,000 steps, on track, with the days ticked off, target by today, the plan to the end of the week and the last ten weeks">
-  <img src="docs/assets/screenshots/v12.0.1/goalslongterm.webp" width="210" alt="Long-term goals: collect 1.8 million steps at 59 percent with an estimated finish date, and keep two rest days a week">
-  <img src="docs/assets/screenshots/v12.0.1/achievements.webp" width="210" alt="Achievements: personal records such as the best day with 13,086 steps and badges such as one million steps in total">
-</p>
 
 Set goals on four levels:
 
 | Level | Examples |
 |---|---|
-| **Daily** | 10,000 steps, 7 hours of sleep, a workout, or a box to tick like "meditated" |
+| **Daily** | 10,000 steps, 7 hours of sleep, a workout, or a box to tick like "stretched for ten minutes" |
 | **Weekly** | 4 workouts, 150 minutes in zone 2, 5 nights of 7 hours, 100 working sets |
 | **Monthly** | 100 km of running, 20 workouts, 25 days with enough steps |
 | **Long-term** | Reach a target weight by summer, collect 1.8 million steps, keep two rest days a week |
@@ -577,84 +493,17 @@ Goals also appear as a widget on the Home Screen, on the Lock Screen, on the App
 Siri ("How am I doing on my goals?"). Android has the goals, their badges and streaks, their
 notifications and its own home-screen widget.
 
-### Your body, your energy, your fitness age
-
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/body.webp" width="250" alt="Body: weight 93.4 kg, body fat 16.4% and waist 87 cm, and a What changed card listing which measurements grew or shrank">
-  <img src="docs/assets/screenshots/v12.0.1/bodysite.webp" width="250" alt="Left biceps: 44.6 cm, plus 1 cm over 18 readings, with a history chart and instructions on how to measure it">
-  <img src="docs/assets/screenshots/v12.0.1/energy.webp" width="250" alt="Energy: how much you burn a day by three routes, formula 2,640 kcal, your band 2,266 kcal and food and scale 2,395 kcal, 373 kcal apart">
-</p>
-
-**Body** keeps your weight, body fat and tape measurements in one place. "What changed" shows which
-measurements went up or down over three weeks, six weeks or three months. Each body part has its own
-history and a short guide on how to measure it the same way every time. Progress photos stay on your
-phone.
-
-**Energy** answers "how much do I burn in a day?" in three independent ways: a formula based on your
-height, weight and age, what your strap measured, and what your food log and scale imply. They never
-agree perfectly, and the app shows you the gap instead of hiding it. That gap tells you how much to
-trust any single number.
-
-**Food** (on the phone, iPhone and Android) is a planner, not a diary you have to feed. Scan a barcode,
-pick from a food database, read a label with the camera or just write down what you ate. The day's plan knows whether you train or rest,
-and a diet plan can work towards a target weight at a pace you choose. Daily totals from another
-nutrition app can come in through Apple Health instead.
-
-<table>
-<tr>
-<td width="50%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/fitnessage.webp" width="250" alt="Fitness Age 22, eight years younger than your age, with an estimated VO2max of 53">
-</td>
-<td width="50%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/vitality.webp" width="250" alt="Vitality score 80 of 100 with a body age of 30, about your age">
-</td>
-</tr>
-</table>
-
-**Fitness Age** compares your cardio fitness with typical people of different ages, based on a
-well-known study from Norway. "8 years younger than your age" means you are fitter than the average
-person your age. **Vitality** turns your habits (steps, sleep, training) into a score from 0 to 100.
-Both are estimates for motivation, not medical measurements, and the app says so right next to the
-number. Two more ages are in beta under Settings › Lab: **AgeLess** compares your habits and **Daily
-rhythm** your day's movement with large studies.
-
-### Find out what affects you
-
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/explore.webp" width="210" alt="Explore: a searchable list of every signal grouped by category, with the source device of each">
-  <img src="docs/assets/screenshots/v12.0.1/compare.webp" width="210" alt="Compare: Charge, Rest and Weight drawn on one chart over a year">
-  <img src="docs/assets/screenshots/v12.0.1/insights-bottom.webp" width="210" alt="Metric relationships: how strongly Rest, HRV and resting heart rate are linked to Charge, with plain-language explanations">
-  <img src="docs/assets/screenshots/v12.0.1/journal.webp" width="210" alt="Journal: yes or no questions for today such as alcohol, late caffeine and eating close to bedtime">
-</p>
-
-- **Explore** lists every single thing the app measures, from heart rate to VO₂max. Tap one to see its
-  history.
-- **Compare** puts up to four values on one chart. Does your Charge drop when your weight goes up?
-  You will see it.
-- **Insights** checks which of your habits really move your scores, using only your own data. "Late
-  caffeine shows up in your HRV the next morning", or "no clear effect yet".
-- **Journal** asks a few quick yes or no questions each day (alcohol, late caffeine, eating close to
-  bedtime, meditation…). The more days you log, the more Insights can tell you.
-
-### Breathe and intervals
-
-<table>
-<tr>
-<td width="50%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/breathe.webp" width="250" alt="Breathe: a coherence breathing exercise at 5.5 breaths per minute with a choice of patterns and session lengths">
-</td>
-<td width="50%" align="center">
-  <img src="docs/assets/screenshots/v12.0.1/intervals.webp" width="250" alt="Interval timer: work phase, round 1 of 8, 30 seconds, with start and reset buttons">
-</td>
-</tr>
-</table>
+### Breathe, intervals and the lab book
 
 **Breathe** guides slow breathing with a gentle buzz on your wrist: one pulse to breathe in, two to
 breathe out. You can close your eyes. At the same time the strap measures how your HRV responds. Many
 patterns are included, from calm 4-6 breathing to box breathing.
 
-**Intervals** is a silent workout timer. The strap buzzes at every change between work and rest, so
-you never have to look at a screen.
+**Intervals** is a silent workout timer. The strap buzzes at every change between work and rest, so you
+never have to look at a screen.
+
+**Health records** keep blood tests, blood pressure and other measurements beside everything else, so a
+lab result and a bad week can finally sit on the same page.
 
 ### ECG on the WHOOP MG
 
@@ -663,31 +512,27 @@ on the strap and watch the trace appear. Afterwards it shows your heart rate, ho
 was and the standard intervals of the heartbeat, drawn at the same scale as a paper ECG. You can put a
 reading next to an Apple Watch ECG to compare. Readings are saved on your phone.
 
-Recording a reading is an Apple feature for now. Android shows the readings you already have; recording
-there is still to come.
+Recording is an Apple feature for now. Android shows the readings you already have; recording there is
+still to come.
 
 This is **not a medical device** and gives no diagnosis. If you are worried about your heart, see a
 doctor.
 
 ### An AI coach that knows your data (optional)
 
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/coachbrief.webp" width="250" alt="Today's brief from the coach Svea: a note that last night's wake time looks early, then readiness balanced with Charge 65 and HRV 46 ms, today's session a 50-minute zone 2 walk or run, and one thing to move the needle">
-  <img src="docs/assets/screenshots/v12.0.1/coachtoday.webp" width="250" alt="Today in dark mode with the coach's proposed session, a 50-minute zone 2 walk or run, with Accept, Change and Not this one buttons, above the Charge, Effort and Rest rings">
-  <img src="docs/assets/screenshots/v12.0.1/coach.webp" width="250" alt="Coach settings: the coach is off by default, connect a provider with your own API key, and a note that this is the only feature that leaves the phone">
-</p>
-
 Ask questions about your own body in normal language. "Why is my Charge low today?" "Did I really train
 in zone 2 this week?" "Is coffee hurting my sleep?" The coach looks up your real numbers and answers
 from them.
 
-**Every morning a short brief** sums up your night and your readiness, suggests one session for the
-day and names the one thing that would help most. If something looks off, for example a wake time
-that seems too early, it says so first instead of planning your day on a wrong number. The suggested
-session appears on Today with **Accept**, **Change** and **Not this one**. The effort it is worth is
-calculated by the app from your own heart rate zones, not invented by the AI.
+**Every morning a short brief** sums up your night and your readiness, suggests one session for the day
+and names the one thing that would help most. If something looks off, for example a wake time that
+seems too early, it says so first instead of planning your day on a wrong number. The suggested session
+appears on Today with **Accept**, **Change** and **Not this one**. The effort it is worth is calculated
+by the app from your own heart rate zones, not invented by the AI.
 
 - **Off until you turn it on.** It is the only part of the app that uses the internet.
+- **It tells you what it is before you start:** it is only as good as its model, it is a second opinion
+  and not a doctor, and it says exactly what gets sent and when.
 - **You choose the AI.** Use your own key for Anthropic, OpenAI, Google Gemini or OpenRouter, or run a
   model on your own computer so nothing leaves your home.
 - **You choose what it may read**, topic by topic: sleep, workouts, stress, your journal and so on.
@@ -700,18 +545,10 @@ calculated by the app from your own heart rate zones, not invented by the AI.
 
 ### Devices, settings and the rest
 
-<p align="center">
-  <img src="docs/assets/screenshots/v12.0.1/devices.webp" width="210" alt="Devices: a Polar heart-rate strap and WHOOP straps, each listing what it measures and what NOOP uses it for">
-  <img src="docs/assets/screenshots/v12.0.1/addwizard.webp" width="210" alt="Add a device: WHOOP 5.0 or MG, WHOOP 4.0, a heart-rate strap, gym equipment, an Oura ring and Amazfit">
-  <img src="docs/assets/screenshots/v12.0.1/settingsappearance.webp" width="210" alt="Appearance settings: language, clock, theme, chart colours, sleep chart style, accent colour and app icon">
-  <img src="docs/assets/screenshots/v12.0.1/settingsdata.webp" width="210" alt="Data and Backup: export, import and backup to a folder of your choice">
-</p>
-
 - **Devices:** besides WHOOP straps, any standard heart-rate chest strap (Polar, Wahoo, Garmin and
   others) works for live heart rate. Oura rings are supported experimentally.
-- **Make it yours:** ten languages, light or dark mode, colour profiles, chart colours, the app icon and
-  which optional features you want (hydration tracking, automatic workout detection, journal reminders,
-  cycle tracking). Settings is sorted by task, and every control has one home.
+- **Make it yours:** ten languages, light or dark, colour profiles (colourful by default, or the calmer
+  Stone, Slate and Sage), the picture behind Today, the app icon, and which optional features you want.
 - **Backups:** one file holds everything. Save it to a folder of your choice (for example iCloud Drive)
   automatically every day, and restore it on a new phone, on either platform.
 
@@ -731,14 +568,13 @@ calculated by the app from your own heart rate zones, not invented by the AI.
 ## NOOP Forge on Android
 
 <p align="center">
-  <img src="docs/assets/screenshots/android/today-light.webp" width="250" alt="Android Today: Charge 72, Effort 41 and Rest 92 as glowing rings over an alpine sunrise, with key metric tiles for HRV 84 ms, resting heart rate 49 bpm, blood oxygen 97%, breathing 14.0 per minute, 6 h 31 min of sleep and 10,445 steps">
-  <img src="docs/assets/screenshots/android/trends-light.webp" width="250" alt="Android Trends over 7 days: average Charge 55, Effort 42 and Rest 84 with their change, an HRV chart averaging 74 ms and a resting heart rate chart averaging 52 bpm">
-  <img src="docs/assets/screenshots/android/sleep-light.webp" width="250" alt="Android Sleep: last night scored 92, asleep at 1:09 AM and awake at 7:05 AM, 6 h 33 min of sleep with 2 h 53 min restorative, and the awake, light and deep stages with their share of the night">
+  <img src="docs/assets/screenshots/android/today-light.webp" width="250" alt="Android Today: Charge 36 and Rest 92 as glowing rings over a mountain photograph, tiles for HRV 76 ms, resting heart rate 56 bpm, 10,445 steps, 6:35 h of sleep and weight, and the day's timeline below">
+  <img src="docs/assets/screenshots/android/health.webp" width="250" alt="Android Health: vitals last night, five of five in range, with HRV 76 ms, resting heart rate 56 bpm, blood oxygen 96%, breathing rate 13.6 per minute and a skin temperature 0.2 degrees above normal, each in your range">
+  <img src="docs/assets/screenshots/android/sleep.webp" width="250" alt="Android Sleep: Rest 92 % marked optimal and 6:53 h of sleep against a need of 8 hours, a bedtime of 22:30 for full recovery with the alarm at 06:30, and last night split into deep, REM, light and awake">
 </p>
 <p align="center">
+  <img src="docs/assets/screenshots/android/training.webp" width="250" alt="Android Training: no workouts yet this week with the days as empty circles, buttons to start or add a workout, plan today with the coach, and recent activities with their Effort">
   <img src="docs/assets/screenshots/android/today-dark.webp" width="250" alt="The Android Today screen in dark mode">
-  <img src="docs/assets/screenshots/android/trends-dark.webp" width="250" alt="The Android Trends screen in dark mode">
-  <img src="docs/assets/screenshots/android/sleep-dark.webp" width="250" alt="The Android Sleep screen in dark mode">
 </p>
 
 Android is not a smaller sibling here. It pairs with the strap, syncs the night, draws the same screens
@@ -753,7 +589,7 @@ show the same Charge, the same Effort and the same Rest.
 
 - **Strap:** pairing, the overnight sync, live heart rate, alarms and automations
 - **Scores:** Charge, Effort and Rest with "what shaped your Charge", every Today layout, colour
-  profile and landscape, Trends, Stress, Mind, Breathe and Intervals
+  profile and picture, Trends, Stress, Mind, Breathe and Intervals
 - **Sleep:** the night in detail, stages against your typical night, editing a night
 - **Training:** routines, the live strength session with its rest timer and plate calculator, the
   exercise library, GPS workouts with voice feedback and auto-pause, strength, cardio, training load,
@@ -804,7 +640,7 @@ project, whose Android app is shipped and settled.
 | Pair a strap, sync its history | ✅ | ✅ | – | ✅ |
 | Charge, Effort, Rest and their breakdown | ✅ | ✅ | Complications | ✅ |
 | Sleep, the night in detail, sleep debt | ✅ | ✅ | – | ✅ |
-| Trends, Stress, Mind, Journal, Insights | ✅ | ✅ | – | ✅ |
+| Trends, Stress, Mind, Journal, what works | ✅ | ✅ | – | ✅ |
 | Workout log, routines, live strength session | ✅ | ✅ | Start and heart rate | ✅ |
 | GPS activities with voice feedback | ✅ | – | – | ✅ (no elevation yet) |
 | Muscle map, strength, cardio, training load | ✅ | ✅ | – | ✅ |
@@ -855,8 +691,8 @@ early November 2026.
 | **Who makes it** | The original project and its community | One anonymous developer, building on the original |
 | **How the platforms relate** | Two implementations, Swift and Kotlin, kept byte-identical by rule | One shared Swift core, thin apps on top, Android included |
 | **Charge, Effort, Rest, sleep, HRV, stress** | ✅ | ✅ Same foundation |
-| **Today screen** | Rings or liquid vessels | Three layouts, landscapes that follow the day, colour profiles, a Momentum feed |
-| **Score explanations** | ✅ | ✅ Plus a breakdown of every Charge point |
+| **Today screen** | Rings or liquid vessels | Living rings over a picture, a dashboard of tiles you place yourself, and a timeline of the day |
+| **Score explanations** | ✅ | ✅ Plus every factor with your own usual range and what it did to the score |
 | **Workout logging** | A gym log book: sets, programs, double-tap the strap for the next set | The same, plus a full training hub: routines, weekly plan, 1,324 exercises, supersets, rest timer, plate calculator, progression hints |
 | **Starting a workout** | Separate places | One start screen everywhere, Apple-style live view with spoken splits |
 | **Muscle analysis** | Not available | Balance, fatigue and strength on a body map |
@@ -990,9 +826,10 @@ Android 8 or later. This is a **testing build**: see
 The watch app comes inside the `full` IPA; install that one and the watch app appears in the Watch app
 on your iPhone.
 
-Want to try 13.0 early? The [testing release](https://github.com/DX23876/noop/releases/tag/testing-latest)
-has builds for iPhone, Mac and Android. It installs over Forge and keeps your data. Make a backup
-first; the [testing guide](docs/fork/TESTING-13.0.0.md) says what to look at.
+Want the redesigned 13.0 early? The
+[testing release](https://github.com/DX23876/noop/releases/tag/testing-latest) has builds for iPhone,
+Mac and Android. It installs over Forge and keeps your data. Make a backup first; the
+[testing guide](docs/fork/TESTING-13.0.0.md) says what to look at.
 
 </td>
 </tr>
@@ -1084,7 +921,7 @@ Swift core for every number.
 
 - The app never sends commands that could change or erase anything on the strap, and checks every
   message from it for transmission errors.
-- When a scoring formula changes, old days are recalculated in a controlled step, never silently. From
+- When a scoring formula changes, old days are recalculated in a controlled step, never silently. In
   13.0 that step scores the whole history once, resumes where it stopped and never touches raw data or
   anything you entered.
 - A new way of reading a body signal is only trusted after it follows real changes across many nights.
