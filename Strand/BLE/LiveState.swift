@@ -1024,7 +1024,29 @@ public final class LiveState: ObservableObject {
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
         let bundleID = Bundle.main.bundleIdentifier ?? "?"
-        return "\(version) (\(build)) \(bundleID)"
+        return "\(version) (\(build)) · \(buildStamp ?? "no build stamp") · \(bundleID)"
+    }
+
+    /// WHICH BUILD this is, not just which version — the commit and the date, as the builder supplied
+    /// them (`NOOP_BUILD_STAMP` → the `NOOPBuildStamp` Info.plist key; every CI build passes it, testing
+    /// builds and releases alike).
+    ///
+    /// Neither number above identifies a build: `MARKETING_VERSION` is the release train, the iOS
+    /// `CURRENT_PROJECT_VERSION` moves once per release and the macOS app's `CFBundleVersion` is a
+    /// literal that has not changed in months. A tester's log therefore read the same whether or not it
+    /// carried the fix the report was about, and the only way to tell was to ask (#47). Android's twin is
+    /// `BuildIdentity`, and both the log header and the About card read this one property, so a log and a
+    /// screenshot of one install cannot name different builds.
+    ///
+    /// Nil on a build that was not stamped, which the readouts say rather than leaving the field out: an
+    /// absent stamp is itself the diagnostic ("not built by CI").
+    nonisolated static var buildStamp: String? {
+        let raw = (Bundle.main.infoDictionary?["NOOPBuildStamp"] as? String) ?? ""
+        let stamp = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An unexpanded "$(NOOP_BUILD_STAMP)" means the setting reached the plist undefined. That is not a
+        // stamp, and printing it would name a build nobody can look up.
+        guard !stamp.isEmpty, !stamp.hasPrefix("$(") else { return nil }
+        return stamp
     }
 
     /// Scrub personal identifiers from a strap-log line so it's safe to share publicly (#445): BLE MAC

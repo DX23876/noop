@@ -22,6 +22,14 @@ settings:
     # SAME value — they must match or iOS warns "extension version must match parent app" (#416).
     # macOS sets its own CFBundleVersion on the Strand target and is unaffected by this.
     CURRENT_PROJECT_VERSION: "333"
+    # WHICH BUILD this is, surfaced to runtime as the NOOPBuildStamp Info.plist key and read by
+    # LiveState.buildStamp (Android's twin is BuildIdentity). Empty here on purpose: a build gets a
+    # stamp only when the builder gives it one, and the readouts say "no build stamp" otherwise rather
+    # than naming a build nobody can look up. Every CI build passes the commit and the date on the
+    # xcodebuild line (testing builds and releases alike); a build from a working copy carries none,
+    # which is itself worth seeing. None of the numbers above identify a build, which is why a tester's
+    # log could not say whether it carried a given fix (#47).
+    NOOP_BUILD_STAMP: ""
     SWIFT_VERSION: "5.0"
     # Emit localizable strings so Xcode auto-extracts every LocalizedStringKey into the
     # String Catalog on build (the English (US) base entries).
@@ -137,6 +145,7 @@ targets:
         CFBundleDisplayName: NOOP Forge
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "198"
+        NOOPBuildStamp: "$(NOOP_BUILD_STAMP)"
         LSMinimumSystemVersion: "13.0"
         LSApplicationCategoryType: public.app-category.healthcare-fitness
         NSBluetoothAlwaysUsageDescription: "NOOP connects directly to your WHOOP strap over Bluetooth to read heart rate, R-R intervals, battery, and sensor data locally on your Mac. Nothing leaves your device."
@@ -294,6 +303,7 @@ targets:
         CFBundleDisplayName: NOOP Forge
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NOOPBuildStamp: "$(NOOP_BUILD_STAMP)"
         # Surfaces APP_GROUP_ID to runtime (WidgetSnapshot.suiteName) so the App Group id isn't
         # hard-coded in Swift; stays in sync with the application-groups entitlement (both $(APP_GROUP_ID)).
         AppGroupIdentifier: "$(APP_GROUP_ID)"

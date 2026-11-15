@@ -6,7 +6,7 @@ import android.content.pm.PackageManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
-import com.noop.BuildConfig
+import com.noop.BuildIdentity
 
 /**
  * The Android environment-header block (spec section 3.4), bringing Android to the same shape as the iOS
@@ -20,7 +20,7 @@ import com.noop.BuildConfig
 object AndroidDiagnostics {
 
     /**
-     * `App:     <version> (<tier>) build <code> <applicationId>` for every export header.
+     * `App:     <version> (<tier>) build <code> · <stamp> · <applicationId>` for every export header.
      *
      * The applicationId was missing (#2553, Apple twin in `LiveState.appIdentityLine`). It is not decoration
      * here: the id varies across the four builds this project ships (`com.noop.whoop`, plus `.debug`,
@@ -29,11 +29,11 @@ object AndroidDiagnostics {
      * which install produced the log.
      *
      * One property rather than three copies: the three header builders each wrote this line out themselves,
-     * which is how a field lands in one export and not the others.
+     * which is how a field lands in one export and not the others. The line itself is composed by
+     * [BuildIdentity], which the screen footers read too, so a log and a screenshot of the same install
+     * cannot name different builds.
      */
-    val appIdentityLine: String
-        get() = "App:     ${BuildConfig.VERSION_NAME} (${BuildConfig.TIER}) " +
-            "build ${BuildConfig.VERSION_CODE} ${BuildConfig.APPLICATION_ID}"
+    val appIdentityLine: String get() = BuildIdentity.logLine
 
     /** Aux rows read for one night's SpO2-candidate line (#112). Twin of the Swift
      *  `DebugDataDiagnostics.spo2CandidateAuxLimit`. */

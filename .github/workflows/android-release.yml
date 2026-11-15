@@ -114,8 +114,17 @@ jobs:
 
       # R8 runs inside the Gradle daemon, and gradle.properties gives it 2 GB for contributors' laptops. On
       # 2026-10-30 minifyFullReleaseWithR8 ran that heap full and thrashed for half an hour; the runner has 16 GB.
+      # The APK carries WHICH BUILD it is, not just which version (#47): `versionName` is the release
+      # train and `versionCode` is 1 on every build, so a tester's strap log could not say whether it
+      # came from the build that carried a fix or the one before it. The stamp is the commit that was
+      # CHECKED OUT (not ${GITHUB_SHA}, which is the dispatch's commit and not necessarily what main
+      # points at by the time this runs) and the date, printed in the log header and under More.
+      # Releases carry it as well, so a report against a release names its build the same way.
       - name: Build the release APK
-        run: ./gradlew assembleFullRelease "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+        run: |
+          ./gradlew assembleFullRelease \
+            "-Pnoop.buildStamp=$(git rev-parse --short=7 HEAD) $(date -u +%Y-%m-%d)" \
+            "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
 
       - name: Check the signature
         id: apk

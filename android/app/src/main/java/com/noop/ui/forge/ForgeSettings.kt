@@ -114,6 +114,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noop.BuildConfig
+import com.noop.BuildIdentity
 import com.noop.R
 import android.widget.Toast
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -1483,7 +1484,7 @@ private fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
     var result by remember { mutableStateOf<UpdateCheck.Result?>(null) }
     var automatic by remember { mutableStateOf(UpdateWatch.isEnabled(context)) }
     SettingsCard(title = null, blurb = null) {
-        SettingRow(stringResource(R.string.forge_version, BuildConfig.VERSION_NAME)) {}
+        SettingRow(stringResource(R.string.forge_version, BuildIdentity.uiVersion)) {}
         RowDivider()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {

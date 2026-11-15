@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 
 plugins {
     id("com.android.application")
@@ -24,6 +25,39 @@ val forkMarketingVersion: String = rootProject.file("../project.yml").readLines(
     .firstNotNullOfOrNull { Regex("""^\s*MARKETING_VERSION:\s*"([^"]+)"""").find(it)?.groupValues?.get(1) }
     ?: error("MARKETING_VERSION not found in project.yml")
 
+// Fork (DX23876): WHICH BUILD this is, not just which version. `versionName` is the release train and
+// `versionCode` is 1 on every build ever made, so two testing APKs a week apart are indistinguishable:
+// a tester's strap log read "13.0.0 (full) build 1" whether or not it carried the fix the report was
+// about, and the only way to tell was to ask (#47). The stamp is an OPAQUE string the app never parses
+// — whoever builds decides what identifies the build, and CI passes the commit and the date.
+//
+// Release builds with no stamp given fall back to the checkout's own commit, with `+changes` when the
+// tree is not clean, because a stamp naming a commit the binary was not built from is worse than none.
+// Debug builds are NOT stamped from git: HEAD moves with every commit, which would rewrite BuildConfig
+// and recompile the UI files that read it on each local build. They already say `-debug` in the version.
+val forkBuildStamp: String = run {
+    // The value reaches generated Java source as a literal, so it is reduced to characters that cannot
+    // end the string or start an escape. A stamp is an identifier, not free text.
+    fun clean(s: String) = s.trim().filter { it.isLetterOrDigit() || it in " .:+_-" }.take(60)
+    val given = (project.findProperty("noop.buildStamp") as String?) ?: System.getenv("NOOP_BUILD_STAMP")
+    given?.let(::clean)?.takeIf { it.isNotEmpty() }?.let { return@run it }
+    if (!requestedReleaseBuild) return@run ""
+    fun git(vararg args: String): String? = runCatching {
+        val p = ProcessBuilder(listOf("git", *args))
+            .directory(rootProject.projectDir).redirectErrorStream(true).start()
+        if (!p.waitFor(10, TimeUnit.SECONDS)) { p.destroyForcibly(); return@runCatching null }
+        val out = p.inputStream.bufferedReader().readText().trim()
+        if (p.exitValue() == 0) out else null
+    }.getOrNull()
+    val sha = git("rev-parse", "--short=7", "HEAD") ?: return@run ""
+    val clean = runCatching {
+        val p = ProcessBuilder("git", "diff-index", "--quiet", "HEAD", "--")
+            .directory(rootProject.projectDir).start()
+        if (!p.waitFor(10, TimeUnit.SECONDS)) { p.destroyForcibly(); false } else p.exitValue() == 0
+    }.getOrDefault(false)
+    if (clean) sha else "$sha+changes"
+}
+
 android {
     namespace = "com.noop"
     compileSdk = 35
@@ -35,6 +69,9 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = forkMarketingVersion
+        // Read through `BuildIdentity`, never directly: the strap log and the UI footer have to name the
+        // same build, and two readouts of one fact that can be composed separately are how they stop doing so.
+        buildConfigField("String", "BUILD_STAMP", "\"$forkBuildStamp\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -3087,6 +3087,21 @@ private struct SettingsPageContent: View, Equatable {
                     }
                 }
 
+                // Which BUILD this is (#47). The pill above is the release train, which every testing
+                // build of a version shares; this is the commit and the date the testing build was made
+                // from, so a screenshot of this row and a strap log from the same install agree. Only
+                // shown when the build was stamped — see LiveState.buildStamp.
+                // The stamp alone, with no label: it is an identifier to read back to us, it sits
+                // directly under the version it belongs to, and a word in front of it would be one more
+                // string in every catalogue. Only stamped builds show the row at all, which every CI
+                // build is; one built from a working copy has nothing honest to put here.
+                if let stamp = LiveState.buildStamp {
+                    Text(verbatim: stamp)
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .textSelection(.enabled)
+                }
+
                 // Third-party licence acknowledgements, moved here from an inline link on the
                 // Muscle Map screen so every credited source lives in one place.
                 Button {

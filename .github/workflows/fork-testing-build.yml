@@ -30,6 +30,9 @@ jobs:
     outputs:
       tag: ${{ steps.m.outputs.tag }}
       ver: ${{ steps.m.outputs.ver }}
+      # One stamp for every leg: computed once here, not per job, so the macOS and the iOS artifact of
+      # one run cannot name different builds (a run straddling midnight UTC would date them a day apart).
+      stamp: ${{ steps.m.outputs.stamp }}
     steps:
       - uses: actions/checkout@v5
       - id: m
@@ -43,6 +46,10 @@ jobs:
           SHA="${GITHUB_SHA:0:7}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          # WHICH BUILD this is, for the app itself: the version is the release train, every testing
+          # build of it shares the numbers, and a tester's strap log therefore could not say whether it
+          # carried a given fix (#47). Printed in the log header and under About / More.
+          echo "stamp=$SHA $DATE" >> "$GITHUB_OUTPUT"
           # ROLLING release: recreate the single tag so stale (incl. old-version) assets never linger —
           # one stable URL, always the newest build, zero cleanup. (To KEEP a build, cut a one-off tag.)
           #
@@ -151,6 +158,7 @@ jobs:
           -destination 'generic/platform=macOS' ARCHS="${{ matrix.arch }}" ONLY_ACTIVE_ARCH=NO
           -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          NOOP_BUILD_STAMP="${{ needs.meta.outputs.stamp }}"
           build
       - name: Archive the slice
         # tar, not the artifact zip: the bundle carries framework symlinks the artifact store would flatten.
@@ -279,6 +287,7 @@ jobs:
           xcodebuild -scheme NOOPiOS -configuration Release -destination 'generic/platform=iOS'
           -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          NOOP_BUILD_STAMP="${{ needs.meta.outputs.stamp }}"
           build
       - name: Package unsigned IPAs + attach
         env:

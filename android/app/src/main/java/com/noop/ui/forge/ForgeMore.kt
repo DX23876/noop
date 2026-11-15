@@ -56,7 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.noop.BuildConfig
+import com.noop.BuildIdentity
 import com.noop.R
 import com.noop.core.CoreBackup
 import androidx.activity.compose.BackHandler
@@ -117,7 +117,7 @@ fun ForgeMoreScreen(padding: PaddingValues, viewModel: AppViewModel) {
         DeviceRow(viewModel, onClick = { devices = true })
 
         MoreIndexSections(more, onOpenSettings = { settings = true }, onOpenSettingsPage = { settingsPage = it })
-        Text(stringResource(R.string.forge_version, BuildConfig.VERSION_NAME), style = Forge.type.caption,
+        Text(stringResource(R.string.forge_version, BuildIdentity.uiVersion), style = Forge.type.caption,
              color = Forge.sceneInk.tertiary, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         Text(stringResource(R.string.forge_privacy), style = Forge.type.caption, color = Forge.sceneInk.tertiary,
              modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
