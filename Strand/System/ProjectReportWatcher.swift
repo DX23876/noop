@@ -68,6 +68,10 @@ enum ProjectReportWatcher {
     static func check(service: ProjectService, store: ProjectReportStore = .standard) async -> [Change] {
         var changes: [Change] = []
         for entry in store.all() {
+            // A report that was fixed or refused is over, and the wearer has already been told. Asking
+            // after it again every six hours for the rest of the install's life is a request that can
+            // only ever confirm what is already on their screen.
+            guard !ProjectReportWatcher.isSettled(entry.seenStatus) else { continue }
             guard let thread = await service.thread(code: entry.code) else { continue }
             let answered = thread.messages.count > entry.seenMessages
                 && !(thread.messages.last?.mine ?? true)
@@ -106,6 +110,11 @@ enum ProjectReportWatcher {
         }
     }
     #endif
+
+    /// Whether a report has reached a state that cannot move again on its own.
+    static func isSettled(_ status: ProjectReportStatus) -> Bool {
+        status == .fixed || status == .notPlanned
+    }
 
     /// What a moved status is worth saying. Only the two that are news to the person who reported it.
     static func statusLine(_ status: ProjectReportStatus) -> String {

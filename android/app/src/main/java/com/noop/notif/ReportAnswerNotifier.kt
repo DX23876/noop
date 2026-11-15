@@ -62,6 +62,10 @@ object ReportAnswerNotifier {
             val code = row.optString("code")
             if (code.isEmpty()) continue
             val seenStatus = row.optString("seenStatus", "arrived")
+            // Over is over: a fixed or refused report cannot move again on its own, and asking after
+            // it every six hours for the rest of the install's life can only confirm what is already
+            // on the screen. The Apple twin skips the same two.
+            if (seenStatus == "fixed" || seenStatus == "notPlanned") continue
             val seenMessages = row.optInt("seenMessages")
             val answer = runCatching {
                 JSONObject(SwiftCore.call("project.thread", JSONObject().put("code", code).toString()) ?: "")

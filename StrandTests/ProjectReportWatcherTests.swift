@@ -124,6 +124,21 @@ final class ProjectReportWatcherTests: XCTestCase {
         XCTAssertEqual(calls.value, 0, "a device that reported nothing never calls the service")
     }
 
+    func testAReportThatIsOverIsNotAskedAfterAgain() async {
+        let suite = defaults()
+        let reports = store(suite)
+        reports.add(.init(code: "WDYD-9TJP-2BAW-WM52", title: "Something", sent: Date()))
+        _ = reports.seen(code: "WDYD-9TJP-2BAW-WM52", status: .fixed, messages: 0)
+
+        let calls = Counter()
+        let changes = await ProjectReportWatcher.check(
+            service: service(thread(status: "fixed", messages: []), calls: calls), store: reports)
+        XCTAssertTrue(changes.isEmpty)
+        XCTAssertEqual(calls.value, 0, "fixed is the end of it; asking again can only confirm it")
+        XCTAssertTrue(ProjectReportWatcher.isSettled(.notPlanned))
+        XCTAssertFalse(ProjectReportWatcher.isSettled(.working))
+    }
+
     // MARK: What it says
 
     func testEveryStatusHasALineAndNoneOfThemIsEmpty() {
