@@ -415,6 +415,11 @@ object HealthConnectImporter {
             return ImportSummary.failure(SOURCE, "Health Connect is not available on this device.")
         }
 
+        // Fork (DX23876), 2026-11-15: from here on the import is doing work that can take minutes, so it
+        // says where it is ([ImportProgress]). The caller ends it, in a finally, because this function
+        // returns from a dozen places.
+        ImportProgress.begin(context, SOURCE)
+
         // Refile any legacy Health Connect data that landed in the shared "apple-health" bucket before
         // #34 BEFORE importing, so a re-import refiles cleanly instead of duplicating across both sources.
         try { repo.refileLegacyHealthConnect() } catch (_: Exception) { /* best-effort */ }
@@ -470,6 +475,10 @@ object HealthConnectImporter {
             onRecord: (T) -> Unit,
         ): Boolean {
             if (type !in selectedRecordTypes) return false
+            // Every read goes through here, so this is the one place that can name what the import is on
+            // without a reporting call beside each of the eighteen call sites below — where the next one
+            // added would be the one that forgets.
+            ImportProgress.step(context, ImportProgress.Step.READING, type.simpleName)
             return readAll(client, type, range, selfPackage, onRecord)
         }
 
@@ -848,6 +857,11 @@ object HealthConnectImporter {
             )
         }
 
+        // Everything is read; what follows turns it into rows. The strap-coverage read below is already
+        // part of that, and it is a store read over every strap source, so it belongs on this side of the
+        // line rather than looking like a stalled last record type.
+        ImportProgress.step(context, ImportProgress.Step.SORTING)
+
         // Days the strap already covers: read ONCE so we never clobber richer strap data. This is
         // the UNION across EVERY strap-native source id — the canonical raw "my-whoop" + computed
         // "my-whoop-noop" pair AND any actively paired strap's "whoop-<mac>" / "whoop-<mac>-noop"
@@ -951,6 +965,7 @@ object HealthConnectImporter {
         }
 
         // Persist. Register the devices we write under so name() lookups resolve.
+        ImportProgress.step(context, ImportProgress.Step.SAVING)
         try {
             if (appleRows.isNotEmpty()) {
                 repo.upsertDevice(HC_DEVICE, name = "Health Connect")
@@ -1127,6 +1142,7 @@ object HealthConnectImporter {
                         pageToken = pageToken,
                     )
                 )
+                ImportProgress.read(response.records.size)
                 for (record in response.records) {
                     // #528: never re-ingest what NOOP itself wrote to Health Connect, or "share back"
                     // + import would double-count our own daily totals (steps / active energy / sleep).

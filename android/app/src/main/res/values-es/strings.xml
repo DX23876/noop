@@ -6935,4 +6935,9 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_cardio_about_as_hard">casi tan dura como tu semana habitual</string>
     <string name="forge_cardio_harder">más dura que tu semana habitual</string>
     <string name="forge_cardio_much_harder">mucho más dura que tu semana habitual</string>
+    <string name="forge_import_progress_title">Importación en curso</string>
+    <string name="forge_import_step_reading">Leyendo datos</string>
+    <string name="forge_import_step_sorting">Ordenando datos</string>
+    <string name="forge_import_step_saving">Guardando datos</string>
+    <string name="forge_import_progress_entries">%1$d entradas</string>
 </resources>

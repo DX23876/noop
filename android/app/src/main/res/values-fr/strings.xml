@@ -6934,4 +6934,9 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_cardio_about_as_hard">à peu près aussi dure que ta semaine habituelle</string>
     <string name="forge_cardio_harder">plus dure que ta semaine habituelle</string>
     <string name="forge_cardio_much_harder">bien plus dure que ta semaine habituelle</string>
+    <string name="forge_import_progress_title">Import en cours</string>
+    <string name="forge_import_step_reading">Lecture des données</string>
+    <string name="forge_import_step_sorting">Tri des données</string>
+    <string name="forge_import_step_saving">Enregistrement des données</string>
+    <string name="forge_import_progress_entries">%1$d entrées</string>
 </resources>

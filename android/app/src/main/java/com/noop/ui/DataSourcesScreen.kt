@@ -59,6 +59,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import com.noop.data.DataBackup
@@ -196,20 +197,39 @@ fun DataSourcesScreen(vm: AppViewModel) {
 
     LaunchedEffect(Unit) { refreshCounts() }
 
-    // Busy flag shared by every importer's Export/Import buttons.
-    var busy by remember { mutableStateOf(false) }
+    // Busy flag shared by every importer's Export/Import buttons. Two inputs, ONE value every button
+    // reads: an import this screen started, and an import running anywhere (which a Health Connect run
+    // now is, since it outlives this screen). Leaving the page and coming back used to show live buttons
+    // over a running import, because the flag below was born with the composition.
+    var startedHere by remember { mutableStateOf(false) }
+    val importProgress by com.noop.ingest.ImportProgress.state.collectAsStateWithLifecycle()
+    val busy = startedHere || importProgress != null
     // Why the last Health Connect attempt went nowhere, on the card rather than in a toast that is gone
     // before the wearer has read it. Null while nothing has gone wrong.
     var hcNote by remember { mutableStateOf<String?>(null) }
     // ah-delete (#616): drives the "Remove Apple Health imported data" confirm dialog.
     var confirmDeleteApple by remember { mutableStateOf(false) }
 
-    // Run an importer off the main thread, refresh the counts, then toast the result.
+    /**
+     * Run an importer off the main thread, refresh the counts, then toast the result.
+     *
+     * On the VIEW MODEL's scope, not this screen's: a Health Connect import over the ten-year window runs
+     * for minutes, and on `rememberCoroutineScope` it was cancelled the moment the wearer navigated away
+     * or the configuration changed, halfway through, with nothing said. It now survives the screen, which
+     * is also what lets the home screen and the lock screen show where it has got to.
+     *
+     * The progress is ended HERE, in a finally, because an importer returns from a dozen places and
+     * throws from more; ending it where it is begun is the only way every one of them is covered.
+     */
     fun runImport(block: suspend () -> ImportSummary) {
-        busy = true
-        scope.launch {
+        startedHere = true
+        vm.viewModelScope.launch {
             val summary = withContext(Dispatchers.IO) {
-                runCatching { block() }.getOrElse { ImportSummary.failure("Import", it.message ?: "failed") }
+                try {
+                    runCatching { block() }.getOrElse { ImportSummary.failure("Import", it.message ?: "failed") }
+                } finally {
+                    com.noop.ingest.ImportProgress.end(context)
+                }
             }
             // Mirror the import into the SAME exported strap log the WHOOP path uses (issue #421 parity),
             // so a tester's file import is captured in a shared debug bundle. On success: brand label +
@@ -230,7 +250,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             // file name, path, or health value is in any line. Twin of the macOS DataSourcesView handlers.
             emitImportTrace(context, vm, summary)
             refreshCounts()
-            busy = false
+            startedHere = false
             Toast.makeText(context, summary.message, Toast.LENGTH_LONG).show()
         }
     }
@@ -570,6 +590,16 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 hcNote?.let {
                     Text(it, style = NoopType.footnote, color = Palette.statusWarning,
                          modifier = Modifier.fillMaxWidth())
+                }
+                // Where the import has got to, on the page it was started from. The same sentence the
+                // notification carries, built by the same resolver, so the two cannot word it differently.
+                importProgress?.let { progress ->
+                    Text(
+                        com.noop.ingest.ImportProgress.stepLabel(context, progress),
+                        style = NoopType.footnote,
+                        color = Palette.textSecondary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
 
                 // Auto-sync: pull new Health Connect data when you open NOOP, if it's been longer than
@@ -1023,7 +1053,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmDeleteApple = false
-                    busy = true
+                    startedHere = true
                     scope.launch {
                         runCatching {
                             withContext(Dispatchers.IO) { vm.deletePairedDeviceData("apple-health") }
@@ -1031,7 +1061,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                         vm.ble.externalLog("Import apple-health: imported data removed")
                         refreshCounts()
                         vm.loadWorkouts()
-                        busy = false
+                        startedHere = false
                         Toast.makeText(context, "Removed Apple Health imported data.", Toast.LENGTH_LONG).show()
                     }
                 }) {

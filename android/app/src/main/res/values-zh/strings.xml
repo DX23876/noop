@@ -6904,4 +6904,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_cardio_about_as_hard">和你平常的一周差不多辛苦</string>
     <string name="forge_cardio_harder">比你平常的一周辛苦</string>
     <string name="forge_cardio_much_harder">比你平常的一周辛苦得多</string>
+    <string name="forge_import_progress_title">正在导入</string>
+    <string name="forge_import_step_reading">正在读取数据</string>
+    <string name="forge_import_step_sorting">正在整理数据</string>
+    <string name="forge_import_step_saving">正在保存数据</string>
+    <string name="forge_import_progress_entries">%1$d 条</string>
 </resources>

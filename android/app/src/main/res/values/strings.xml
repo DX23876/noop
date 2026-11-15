@@ -6975,4 +6975,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_cardio_about_as_hard">about as hard as your usual week</string>
     <string name="forge_cardio_harder">harder than your usual week</string>
     <string name="forge_cardio_much_harder">much harder than your usual week</string>
+    <string name="forge_import_progress_title">Import running</string>
+    <string name="forge_import_step_reading">Reading data</string>
+    <string name="forge_import_step_sorting">Sorting data</string>
+    <string name="forge_import_step_saving">Saving data</string>
+    <string name="forge_import_progress_entries">%1$d entries</string>
 </resources>
