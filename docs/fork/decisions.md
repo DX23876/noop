@@ -1251,8 +1251,12 @@ written from `DashboardStylePrefs.STYLES`, which is Android. There the four name
 Today and Overview carries Liquid's own default order, so it is a second name for one screen. On Apple it
 is `Strand/Screens/OverviewDashboardView.swift`, 1257 lines, with blocks Liquid does not have ("Today at a
 glance", "Today's focus", "Your health") and two preference families of its own
-(`OverviewHealthCardsPrefs`, `OverviewFocusPrefs`). `DashboardLayoutPrefs` is read only by Trends and
-Overview; Liquid has no arrangement editor on Apple at all.
+(`OverviewHealthCardsPrefs`, `OverviewFocusPrefs`).
+
+Apple carries TWO arrangement systems, which is easy to get backwards: `TodayLayoutPrefs` (`TodaySection`,
+the `TodayCustomizationSheet`) arranges Classic and Liquid, and `DashboardLayoutPrefs`
+(`DashboardLayoutSection`) arranges Trends and Overview. So moving Overview's three blocks to Liquid is
+three new `TodaySection` cases, not a new editor.
 
 So the removal splits:
 
@@ -1264,10 +1268,13 @@ So the removal splits:
 - **The old screens keep their design and must stay fully usable** (owner, 2026-11-15): they are no
   longer the main entry once the new design becomes the default, but every setting only they offer stays
   reachable from the new settings hub, and every card they show must lead to a page that exists in the
-  chosen design. Today the new shell ignores the style setting entirely (`RootTabView`: `if forgeDesign {
-  forgeTabView }`), and neither `ForgeSettingsView` nor `ForgeSettingsHubs` names the dashboard card, so
-  that rule is not met yet. The inventory of what each old screen needs is the precondition list for
-  making the new design the default; the switch itself is a release event with its own testing round.
+  chosen design. The first finding of the inventory is sharper than "a setting is missing": the picker IS
+  reachable with the new design on (Settings › App › Today & Trends, `SettingsPage.todayTrends` →
+  `.todayLayout`), and it does nothing, because the new shell draws `ForgeTodayView` and never reads the
+  style (`RootTabView`: `if forgeDesign { forgeTabView }`). A mute setting is worse than an absent one, and
+  it is what the rule above has to fix first. The inventory (`docs/fork/old-screens-readiness.md`) is the
+  precondition list for making the new design the default; the switch itself is a release event with its
+  own testing round.
 - **The setting is not renamed yet.** The wording "one Today with arrangements" belongs in the new
   design's own picker, and the old row disappears with the old screens, so renaming it in nine languages
   now would translate something due to be deleted.
