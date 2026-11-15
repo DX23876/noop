@@ -51,6 +51,7 @@ import com.noop.protocol.DeviceFamily
 import com.noop.protocol.DeviceConfigReadProbe
 import com.noop.protocol.DeviceConfigReadProbeReport
 import com.noop.protocol.DeviceConfigWriteGate
+import com.noop.protocol.GenericHrProfileGate
 import com.noop.protocol.BroadcastHrGateReport
 import com.noop.protocol.EcgRawDataGateReport
 import com.noop.protocol.FeatureFlagProbe
@@ -4827,6 +4828,19 @@ class WhoopBleClient(
                     isMG = whoop5Variant().isMG,
                     broadcastHrOptIn = puffinExperiment.broadcastHr,
                 ) &&
+                // TOGGLE_GENERIC_HR_PROFILE (14) over puffin: the strap's own switch for the STANDARD
+                // heart-rate service (0x180D/0x2A37). A field log showed a 5.0 delivering nothing on
+                // 0x2A37 for a whole day while reporting `Previously Saved HRS State OFF` at boot, and
+                // nothing here could read or move that state. Admitted only for a body of exactly `01` or
+                // `00` and only under the Broadcast-HR opt-in, which is the switch that already means this
+                // on a 4.0. Reversible by construction, and the strap announces the resulting state with
+                // events 24/25 — which is what the caller reports, never the command response. The vendor
+                // app is not an alternative: it force-updates firmware and locks the strap.
+                !GenericHrProfileGate.admitsSend(
+                    opcode = cmd.rawValue,
+                    payload = payload,
+                    broadcastHrOptIn = puffinExperiment.broadcastHr,
+                ) &&
                 // GET_DEVICE_CONFIG_VALUE(121) as a gate's mandatory READ-BACK, gated on a write being
                 // verified — same discipline as the R22 read-back above. The write ack is never the proof.
                 // Both the ECG gate (#891) and the Broadcast-HR gate (#1061) read themselves back over this.
@@ -9313,6 +9327,19 @@ class WhoopBleClient(
                         _state.update { it.copy(bonded = true, encryptedBond = true) }
                     }
 
+                    // The ONLY outcome worth reporting for TOGGLE_GENERIC_HR_PROFILE(14): the strap states
+                    // the resulting state of its standard heart-rate service itself. Always on, not gated
+                    // behind a test mode — a strap that holds this service off delivers no live heart rate
+                    // at all, and this line plus the `Previously Saved HRS State` boot line are the only
+                    // two places that say so. It costs nothing when nothing happens, which is the
+                    // rare-event rule. Twin of the Swift FrameRouter line.
+                    GenericHrProfileGate.stateFromEvent(ev)?.let { hrProfileOn ->
+                        log(
+                            "Strap: standard heart-rate service is now " +
+                                (if (hrProfileOn) "ON" else "OFF") + " (strap event $ev)",
+                        )
+                    }
+
                     if (!isGesture) {
                         // Non-gesture events (BLE_BONDED, BATTERY_LEVEL, …) surface in "Last Event" —
                         // except the live-HR stream toggle (BLE_REALTIME_HR_ON/OFF), which is internal
@@ -9959,6 +9986,28 @@ class WhoopBleClient(
         }
         if (connectedFamily != DeviceFamily.WHOOP5) {
             log("Broadcast HR: strap family is not known yet — ignored."); return
+        }
+        // Opcode 14 goes FIRST, and outside the single-flight guard below: that guard exists because two
+        // device-config writes would collide on the shared 121 read-back opcode, and this command uses no
+        // read-back at all. Its outcome is the strap's event 24/25, so nothing is claimed here beyond the
+        // send. Consult the same gate send() consults, so a refusal is logged rather than silent (#1061's
+        // lesson, applied to the new clause).
+        val hrProfileBody = GenericHrProfileGate.body(on)
+        if (GenericHrProfileGate.admitsSend(
+                opcode = GenericHrProfileGate.TOGGLE_GENERIC_HR_PROFILE_CMD,
+                payload = hrProfileBody,
+                broadcastHrOptIn = puffinExperiment.broadcastHr,
+            )
+        ) {
+            send(CommandNumber.TOGGLE_GENERIC_HR_PROFILE, hrProfileBody)
+            log(
+                "Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) ${if (on) "01" else "00"} sent to the 5/MG " +
+                    "(experimental, untried on this family); the ack proves nothing — waiting for the " +
+                    "strap's own ${GenericHrProfileGate.ENABLED_EVENT}/" +
+                    "${GenericHrProfileGate.DISABLED_EVENT} event.",
+            )
+        } else {
+            log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — strap unchanged.")
         }
         // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
         // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's

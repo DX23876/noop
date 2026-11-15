@@ -213,6 +213,18 @@ public final class FrameRouter {
                                 + "frame=\(Self.fullFrameHex(frame))",
                              domain: .connection)
             }
+            // Opcode 14 on a 5/MG: whether that family serves the opcode AT ALL is the open question, so a
+            // reply is worth a line. It is not a verdict about the service state — that is the strap's own
+            // `BLE_HR_PROFILE_ENABLED`/`DISABLED` event, handled with the other events below. Same
+            // discipline as the 4.0 branch underneath, which also refuses to read an effect out of an ack.
+            if family == .whoop5, let cmd = parsed.cmdName, cmd.hasPrefix("TOGGLE_GENERIC_HR_PROFILE") {
+                let r = Self.commandResultByte(in: frame, family: family)
+                let rhex = r.map { String(format: "0x%02x", UInt8(truncatingIfNeeded: $0)) } ?? "none"
+                state.append(log: "Broadcast HR: the 5/MG answered TOGGLE_GENERIC_HR_PROFILE(14) "
+                             + "resultByte=\(rhex), so the opcode is served on this family; the effect is "
+                             + "the \(GenericHrProfileGate.enabledEvent)/\(GenericHrProfileGate.disabledEvent) "
+                             + "event, not this reply frame=\(Self.fullFrameHex(frame))")
+            }
             if family == .whoop4, let cmd = parsed.cmdName {
                 if cmd.hasPrefix("TOGGLE_GENERIC_HR_PROFILE") {
                     // #2400: this is evidence that the strap answered opcode 14, not a read-back of the
@@ -479,6 +491,15 @@ public final class FrameRouter {
                 // (BLEManager also sets bonded=true when the confirmed write succeeds.)
                 if ev.hasPrefix("BLE_BONDED") {
                     state.bonded = true
+                }
+                // The ONLY outcome worth reporting for TOGGLE_GENERIC_HR_PROFILE(14): the strap states the
+                // resulting state of its standard heart-rate service itself. Always on, not gated behind a
+                // test mode — a strap that holds this service off delivers no live heart rate at all, and
+                // this line plus the `Previously Saved HRS State` boot line are the only two places that
+                // say so. It costs nothing when nothing happens, which is the rare-event rule.
+                if let hrProfileOn = GenericHrProfileGate.stateFromEvent(ev) {
+                    state.append(log: "Strap: standard heart-rate service is now "
+                                 + (hrProfileOn ? "ON" : "OFF") + " (strap event \(ev))")
                 }
                 // BATTERY_LEVEL events carry the only charging flag the strap reports (wire
                 // observation: u8 bit0, ~every 8 min on captured links). Flag only — battery %
