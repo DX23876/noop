@@ -31,12 +31,15 @@ public actor ProjectService {
 
     private let service: URL?
     private let keyStore: ProjectDeviceKeyStore
+    private let sharing: ProjectSharing
     private let send: @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     public init(service: URL?, keyStore: ProjectDeviceKeyStore = .standard,
+                sharing: ProjectSharing = .standard,
                 send: (@Sendable (URLRequest) async throws -> (Data, URLResponse))? = nil) {
         self.service = service
         self.keyStore = keyStore
+        self.sharing = sharing
         self.send = send ?? { request in
             let session = URLSession(configuration: .ephemeral)
             defer { session.finishTasksAndInvalidate() }
@@ -44,12 +47,42 @@ public actor ProjectService {
         }
     }
 
-    /// Whether the screens may show voting and the suggestion field at all.
-    public var isAvailable: Bool { service != nil }
+    /// Whether the screens may show voting, the wish field and reporting at all.
+    public var isAvailable: Bool { endpoint != nil }
+
+    /// The ONE gate every write passes. Two things can close it: no address in the feed, which is the
+    /// kill switch, and the wearer's own switch. Reading is not gated here, because reading sends
+    /// nothing about the reader, and a roadmap withheld for privacy helps nobody.
+    var endpoint: URL? { sharing.isOn ? service : nil }
+
+    /// The device key, for the routes that are rate limited. Never stored beside a report code.
+    func deviceKey() -> String { keyStore.key() }
+
+    /// A POST whose answer is wanted, not just its success. Nil means the service could not be reached.
+    func ask(_ url: URL, body: [String: Any]) async -> [String: Any]? {
+        guard let payload = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = payload
+        guard let (data, response) = try? await perform(request),
+              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            return nil
+        }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+
+    /// The one place a request actually goes out, so a test can stand in for all of them.
+    func perform(_ request: URLRequest, body: Data? = nil) async throws -> (Data, URLResponse) {
+        var outgoing = request
+        if let body { outgoing.httpBody = body }
+        return try await send(outgoing)
+    }
 
     /// Set or withdraw this device's thumb. Returns the new total when the service reports one.
     public func vote(id: String, on: Bool) async -> ProjectServiceResult {
-        guard let service, ProjectService.isVotableID(id) else { return .refused }
+        guard let service = endpoint, ProjectService.isVotableID(id) else { return .refused }
         let body: [String: Any] = ["id": id, "on": on, "key": keyStore.key()]
         let result = await post(service.appendingPathComponent("v1/vote"), body: body)
         if case .sent = result { keyStore.remember(id: id, voted: on) }
@@ -59,7 +92,7 @@ public actor ProjectService {
     /// Send a suggestion. It becomes an issue in the owner's private repository; nothing is public until
     /// the owner releases it, and the app never reads it back.
     public func suggest(text: String) async -> ProjectServiceResult {
-        guard let service else { return .refused }
+        guard let service = endpoint else { return .refused }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumSuggestion else { return .refused }
         return await post(service.appendingPathComponent("v1/suggestion"),
@@ -68,26 +101,26 @@ public actor ProjectService {
 
     /// Every item's total. Only asked for once this device has voted, so an untouched page makes no call.
     public func counts() async -> [String: Int] {
-        guard let service else { return [:] }
+        guard let service = endpoint else { return [:] }
         var request = URLRequest(url: service.appendingPathComponent("v1/counts"),
                                  cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 12)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        guard let (data, response) = try? await send(request),
+        guard let (data, response) = try? await perform(request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let counts = root["counts"] as? [String: Any] else { return [:] }
         return counts.compactMapValues { ($0 as? NSNumber)?.intValue }
     }
 
-    private func post(_ url: URL, body: [String: Any]) async -> ProjectServiceResult {
+    func post(_ url: URL, body: [String: Any]) async -> ProjectServiceResult {
         guard let payload = try? JSONSerialization.data(withJSONObject: body) else { return .refused }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = payload
-        guard let (data, response) = try? await send(request),
+        guard let (data, response) = try? await perform(request),
               let http = response as? HTTPURLResponse else { return .unreachable }
         // 410 is the retired service: the app treats it exactly like no address at all.
         guard (200...299).contains(http.statusCode) else {

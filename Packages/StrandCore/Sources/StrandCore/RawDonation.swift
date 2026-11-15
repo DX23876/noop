@@ -223,11 +223,13 @@ public actor RawDonationUploader {
     }
 
     private let service: URL?
+    private let sharing: ProjectSharing
     private let send: @Sendable (URLRequest, Data?) async throws -> (Data, URLResponse)
 
-    public init(service: URL?,
+    public init(service: URL?, sharing: ProjectSharing = .standard,
                 send: (@Sendable (URLRequest, Data?) async throws -> (Data, URLResponse))? = nil) {
         self.service = service
+        self.sharing = sharing
         self.send = send ?? { request, body in
             let session = URLSession(configuration: .ephemeral)
             defer { session.finishTasksAndInvalidate() }
@@ -236,11 +238,15 @@ public actor RawDonationUploader {
         }
     }
 
-    public var isAvailable: Bool { service != nil }
+    /// The same gate the rest of the writing passes. Off means nothing leaves the device, and a second
+    /// door that stayed open because it was switched on somewhere else would make that sentence false.
+    public var isAvailable: Bool { endpoint != nil }
+
+    private var endpoint: URL? { sharing.isOn ? service : nil }
 
     /// The whole send. Split from the screens so a test can drive it without a strap or a network.
     public func send(donation: PendingDonation, payload: Data, metadata: [String: Any]) async -> Outcome {
-        guard let service, !payload.isEmpty else { return .refused }
+        guard let service = endpoint, !payload.isEmpty else { return .refused }
         var ask = URLRequest(url: service.appendingPathComponent("v1/raw-upload-url"),
                              cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
         ask.httpMethod = "POST"

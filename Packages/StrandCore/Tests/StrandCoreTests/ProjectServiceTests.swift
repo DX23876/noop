@@ -146,3 +146,152 @@ private final class Locked<Value>: @unchecked Sendable {
 private extension Locked where Value == Int {
     func increment() { set(value + 1) }
 }
+
+
+/// Reporting a problem, and the switch over everything this app sends.
+///
+/// The promises under test: one switch stops every write, a report without a thread leaves no code
+/// behind, a code is checked before it becomes a request, and the store only calls something new when
+/// it actually is new, because that is what a notification is allowed to be based on.
+final class ProjectReportTests: XCTestCase {
+
+    private let base = URL(string: "https://relay.test")!
+
+    private func keys(_ name: String = UUID().uuidString) -> ProjectDeviceKeyStore {
+        ProjectDeviceKeyStore(defaults: UserDefaults(suiteName: name)!)
+    }
+
+    private func sharing(_ on: Bool) -> ProjectSharing {
+        let sharing = ProjectSharing(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        sharing.set(on)
+        return sharing
+    }
+
+    private func transport(status: Int, body: String = "{}",
+                           record: (@Sendable (URLRequest) -> Void)? = nil)
+        -> @Sendable (URLRequest) async throws -> (Data, URLResponse) {
+        { request in
+            record?(request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: status,
+                                           httpVersion: nil, headerFields: nil)!
+            return (Data(body.utf8), response)
+        }
+    }
+
+    // MARK: The one switch
+
+    func testTheSwitchStopsEveryWriteIncludingTheThumbs() async {
+        let calls = Locked(0)
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(false),
+                                     send: transport(status: 200) { _ in calls.increment() })
+        let available = await service.isAvailable
+        XCTAssertFalse(available, "the screens hide writing, exactly as without an address")
+        let vote = await service.vote(id: "s-12", on: true)
+        let wish = await service.suggest(text: "please")
+        let report = await service.report(text: "it broke")
+        let reply = await service.reply(code: "ABCD-EFGH-JKLM-NPQR", text: "still broken")
+        XCTAssertEqual(vote, .refused)
+        XCTAssertEqual(wish, .refused)
+        XCTAssertEqual(report, .refused)
+        XCTAssertEqual(reply, .refused)
+        XCTAssertEqual(calls.value, 0, "off means nothing leaves the device, not even a thumb")
+    }
+
+    func testOnByDefault() {
+        let fresh = ProjectSharing(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        XCTAssertTrue(fresh.isOn, "a page nobody can answer on is half a page")
+    }
+
+    // MARK: Reporting
+
+    func testAReportCarriesTheTextTheKeyAndTheLanguageAndComesBackWithACode() async {
+        let seen = Locked<String>("")
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                     send: transport(status: 200,
+                                                     body: #"{"ok":true,"code":"WDYD-9TJP-2BAW-WM52"}"#) { request in
+                                         seen.set(String(data: request.httpBody ?? Data(), encoding: .utf8) ?? "")
+                                     })
+        let result = await service.report(text: "Live heart rate stops after a reconnect", language: "de")
+        XCTAssertEqual(result, .sent(code: "WDYD-9TJP-2BAW-WM52"))
+        XCTAssertTrue(seen.value.contains("\"lang\":\"de\""), "the answer must come back in their language")
+        XCTAssertTrue(seen.value.contains("\"thread\":true"))
+        XCTAssertFalse(seen.value.contains("projectReports"), "nothing about this device travels with it")
+    }
+
+    func testAReportWithoutAThreadAsksForNoCode() async {
+        let seen = Locked<String>("")
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                     send: transport(status: 200, body: #"{"ok":true}"#) { request in
+                                         seen.set(String(data: request.httpBody ?? Data(), encoding: .utf8) ?? "")
+                                     })
+        let result = await service.report(text: "once is enough", wantsThread: false)
+        XCTAssertEqual(result, .sent(code: nil))
+        XCTAssertTrue(seen.value.contains("\"thread\":false"))
+    }
+
+    func testAnEmptyOrOversizedReportNeverLeaves() async {
+        let calls = Locked(0)
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                     send: transport(status: 200) { _ in calls.increment() })
+        let empty = await service.report(text: "   ")
+        let huge = await service.report(text: String(repeating: "x", count: ProjectService.maximumReport + 1))
+        XCTAssertEqual(empty, .refused)
+        XCTAssertEqual(huge, .refused)
+        XCTAssertEqual(calls.value, 0)
+    }
+
+    // MARK: The thread
+
+    func testTheThreadIsReadAsTheServiceStatesIt() async {
+        let body = #"""
+        {"status":"working","fixedIn":null,"publicNumber":123,
+         "messages":[{"mine":false,"text":"Which firmware?","at":"2026-11-15T10:00:00Z"},
+                     {"mine":true,"text":"17.1.3","at":"2026-11-15T11:00:00Z"}]}
+        """#
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                     send: transport(status: 200, body: body))
+        let thread = await service.thread(code: "WDYD-9TJP-2BAW-WM52")
+        XCTAssertEqual(thread?.status, .working)
+        XCTAssertEqual(thread?.publicNumber, 123)
+        XCTAssertEqual(thread?.messages.map(\.mine), [false, true])
+        XCTAssertEqual(thread?.messages.last?.text, "17.1.3")
+        XCTAssertNotNil(thread?.messages.first?.at, "a message without a readable time is still a message")
+    }
+
+    func testAMistypedCodeNeverBecomesARequest() async {
+        let calls = Locked(0)
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                     send: transport(status: 200) { _ in calls.increment() })
+        for bad in ["", "WDYD", "WDYD-9TJP-2BAW", "WDYD-9TJP-2BAW-WM5", "WDYD-9TJP-2BAW-WM5I",
+                    "wdyd-9tjp-2baw-wm52", "WDYD-9TJP-2BAW-WM520"] {
+            XCTAssertFalse(ProjectService.isReportCode(bad), bad)
+            let thread = await service.thread(code: bad)
+            XCTAssertNil(thread)
+        }
+        XCTAssertTrue(ProjectService.isReportCode("WDYD-9TJP-2BAW-WM52"))
+        XCTAssertEqual(calls.value, 0)
+    }
+
+    // MARK: What the device remembers
+
+    func testTheStoreOnlyCallsSomethingNewWhenItIsNew() {
+        let store = ProjectReportStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        store.add(.init(code: "WDYD-9TJP-2BAW-WM52", title: "Live heart rate stops", sent: Date()))
+        store.add(.init(code: "WDYD-9TJP-2BAW-WM52", title: "again", sent: Date()))
+        XCTAssertEqual(store.all().count, 1, "a code is handed out once")
+
+        XCTAssertFalse(store.seen(code: "WDYD-9TJP-2BAW-WM52", status: .arrived, messages: 0),
+                       "the state it was stored with is not news")
+        XCTAssertTrue(store.seen(code: "WDYD-9TJP-2BAW-WM52", status: .working, messages: 0),
+                      "the status moved")
+        XCTAssertTrue(store.seen(code: "WDYD-9TJP-2BAW-WM52", status: .working, messages: 1),
+                      "the owner said something")
+        XCTAssertFalse(store.seen(code: "WDYD-9TJP-2BAW-WM52", status: .working, messages: 1),
+                       "and saying it twice is not saying it again")
+        XCTAssertFalse(store.seen(code: "NOPE-NOPE-NOPE-NOPE", status: .fixed, messages: 9),
+                       "a code this device never had is never news")
+
+        store.remove(code: "WDYD-9TJP-2BAW-WM52")
+        XCTAssertTrue(store.all().isEmpty)
+    }
+}

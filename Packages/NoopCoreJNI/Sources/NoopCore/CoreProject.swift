@@ -37,6 +37,70 @@ enum CoreProject {
             let result = await service.suggest(text: args["text"] as? String ?? "")
             if case .sent = result { return #"{"ok":true}"# }
             return #"{"ok":false}"#
+        case "project.report":
+            let page = await store.cached()
+            let service = ProjectService(service: page.service)
+            let result = await service.report(text: args["text"] as? String ?? "",
+                                              wantsThread: args["thread"] as? Bool ?? true,
+                                              language: args["lang"] as? String
+                                                  ?? ProjectService.currentLanguage)
+            if case .sent(let code) = result {
+                // Remembered here, in the core, so both platforms keep the same list in the same place.
+                if let code, let title = args["text"] as? String {
+                    ProjectReportStore.standard.add(.init(code: code, title: Wire.firstLine(title),
+                                                          sent: Date()))
+                }
+                struct Answer: Encodable { let ok: Bool; let code: String? }
+                return CoreRead.json(Answer(ok: true, code: code))
+            }
+            return #"{"ok":false}"#
+        case "project.reports":
+            struct Row: Encodable {
+                let code: String, title: String, sent: String, seenStatus: String, seenMessages: Int
+            }
+            return CoreRead.json(["reports": ProjectReportStore.standard.all().map {
+                Row(code: $0.code, title: $0.title, sent: Wire.iso($0.sent),
+                    seenStatus: $0.seenStatus.rawValue, seenMessages: $0.seenMessages)
+            }])
+        case "project.thread":
+            let page = await store.cached()
+            let code = args["code"] as? String ?? ""
+            guard let thread = await ProjectService(service: page.service).thread(code: code) else {
+                return #"{"ok":false}"#
+            }
+            // Reading the thread IS seeing it: anything new here has now been shown.
+            let isNew = ProjectReportStore.standard.seen(code: code, status: thread.status,
+                                                         messages: thread.messages.count)
+            struct Message: Encodable { let mine: Bool; let text: String; let at: String? }
+            struct Answer: Encodable {
+                let ok: Bool, status: String, fixedIn: String?, publicNumber: Int?, isNew: Bool
+                let messages: [Message]
+            }
+            return CoreRead.json(Answer(
+                ok: true, status: thread.status.rawValue, fixedIn: thread.fixedIn,
+                publicNumber: thread.publicNumber, isNew: isNew,
+                messages: thread.messages.map { Message(mine: $0.mine, text: $0.text,
+                                                        at: $0.at.map(Wire.iso)) }))
+        case "project.reply":
+            let page = await store.cached()
+            let result = await ProjectService(service: page.service)
+                .reply(code: args["code"] as? String ?? "", text: args["text"] as? String ?? "")
+            if case .sent = result { return #"{"ok":true}"# }
+            return #"{"ok":false}"#
+        case "project.withdraw":
+            let page = await store.cached()
+            let code = args["code"] as? String ?? ""
+            let result = await ProjectService(service: page.service).withdraw(code: code)
+            if case .sent = result {
+                ProjectReportStore.standard.remove(code: code)
+                return #"{"ok":true}"#
+            }
+            return #"{"ok":false}"#
+        case "project.sharing":
+            // One switch, read and written through the core, so the two platforms cannot drift on
+            // what "off" means or where it is kept.
+            if let on = args["on"] as? Bool { ProjectSharing.standard.set(on) }
+            return CoreRead.json(["on": ProjectSharing.standard.isOn])
         case "project.counts":
             let page = await store.cached()
             return CoreRead.json(["counts": await ProjectService(service: page.service).counts()])
@@ -101,6 +165,12 @@ enum CoreProject {
         static func issue(_ issue: ProjectIssue) -> Issue {
             Issue(n: issue.number, title: issue.title, status: issue.status.rawValue,
                   opened: issue.opened, closed: issue.closed, fixedIn: issue.fixedIn)
+        }
+
+        /// The title a remembered report is listed under: the reporter's own first line, bounded.
+        static func firstLine(_ text: String) -> String {
+            let line = text.split(separator: "\n").first.map(String.init) ?? text
+            return String(line.trimmingCharacters(in: .whitespaces).prefix(80))
         }
 
         static func iso(_ date: Date) -> String {
