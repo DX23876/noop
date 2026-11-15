@@ -603,8 +603,12 @@ class WhoopRepository(
         if (streams.isEmpty) return InsertCounts()
         // Fork (DX23876), Android without Room: a WHOOP strap's frames reach the shared core too, and its Collector
         // and Backfiller bank them in the store this repository reads (CoreShadow). Writing the Kotlin decode as
-        // well would put a second decoding of the same records beside the core's. The counts are what this
-        // batch offered; what the core banked is in CoreShadow's own log, and the history ack waits for it.
+        // well would put a second decoding of the same records beside the core's, so nothing is written here.
+        //
+        // These counts are therefore what this batch OFFERED, not what reached the store: a row the store
+        // already held is counted here all the same. Every caller's reader must say so rather than "banked"
+        // (`ConnectionReadout.linkBankedSummary` still does not, see CORE-ONLY-PLAN). The history ack does not
+        // rely on them: it waits for the core (`CoreShadow.awaitBanked`).
         if (bankedByCore && com.noop.core.CoreShadow.running) {
             return InsertCounts(hr = streams.hr.size, rr = streams.rr.size, events = streams.events.size,
                                 battery = streams.battery.size, spo2 = streams.spo2.size,

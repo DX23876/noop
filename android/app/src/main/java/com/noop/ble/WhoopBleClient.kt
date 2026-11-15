@@ -11558,16 +11558,15 @@ class WhoopBleClient(
         val offloadElapsedMs =
             if (backfillStartedAtMs > 0L) System.currentTimeMillis() - backfillStartedAtMs else -1L
         log("Backfill: ${offloadThroughputLine(offloadFramesThisSession, offloadElapsedMs)} ($reason)")
-        // Fork (DX23876), Android plan D-5: what the shared core banked from this link beside the Kotlin
-        // pipeline, a moment later because the core works through its queue on its own. Same scope (this link).
+        // Fork (DX23876): commit what this link queued, so the core has banked it before anything reads the
+        // store. Plan D-5 also logged the core's tally beside the Kotlin counters here, as evidence for the
+        // switch to the core. That comparison was removed on 2026-11-15 (CORE-ONLY-PLAN): there is one store
+        // now and the core is its only writer, so the Kotlin counters are what a batch OFFERED and the core's
+        // tally is what was new in the store. Printing them side by side as two "banked" numbers made every
+        // second the live stream had already stored read as history the core had lost (a tester's log on
+        // 2026-11-14 showed hr=27 against hr=1976, with gravity, which the live stream never writes, equal on
+        // both sides). The core's own accounting is still there for the on-device replay test (CoreShadow.tally).
         com.noop.core.CoreShadow.flush()
-        handler.postDelayed({
-            com.noop.core.CoreShadow.tally()?.let { core ->
-                log("Core shadow: core banked $core | Kotlin banked hr=${offloadHr.get()} rr=${offloadRr.get()} " +
-                    "gravity=${offloadGravity.get()} spo2=${offloadSpo2.get()} skinTemp=${offloadSkinTemp.get()} " +
-                    "resp=${offloadResp.get()} (this link)")
-            }
-        }, 3_000)
         // #174: a backfill just ended. Start (or extend) the deep-packet cooldown from this instant so
         // any type-0x2F records the strap flushes in the seconds after the session aren't miscounted as
         // the live R22 stream — they're the offload's tail.
