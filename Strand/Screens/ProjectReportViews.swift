@@ -26,6 +26,11 @@ final class ProjectReportModel: ObservableObject {
     @Published var sentWithoutThread = false
     @Published var failed = false
     @Published var mine: [ProjectReportStore.Entry] = []
+    /// The assembled bundle, waiting for the wearer to confirm or refuse it. Here rather than in the
+    /// view: a pushed screen's `@State` does not survive its parent re-rendering, and this one has to
+    /// outlive exactly that.
+    @Published var staged: ReportReviewGate?
+    @Published var isPreparing = false
 
     private let store = ProjectReportStore.standard
     private var service: ProjectService?
@@ -122,13 +127,6 @@ struct ReportProblemView: View {
     @EnvironmentObject private var live: LiveState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var gate: ReportReviewGate?
-    @State private var showingReview = false
-    /// True while the bundle is being assembled. Without it the press on Send does nothing visible:
-    /// the storage probe reads row counts across the whole store, which on a real phone with years of
-    /// history takes long enough to look like a dead button, and `isSending` is still false because
-    /// nothing has been sent yet.
-    @State private var isPreparing = false
 
     var body: some View {
         ScreenScaffold(title: "Report a problem",
@@ -148,10 +146,12 @@ struct ReportProblemView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingReview) {
-            if let gate {
+        // Driven off the model, so the sheet cannot be lost when this screen is rebuilt.
+        .sheet(isPresented: Binding(get: { model.staged != nil },
+                                    set: { if !$0 { model.staged = nil } })) {
+            if let gate = model.staged {
                 ReportLogReviewSheet(gate: gate) { confirmed in
-                    showingReview = false
+                    model.staged = nil
                     Task { await model.send(log: confirmed ? ReportProblemView.zip(gate.entries) : nil) }
                 }
             }
@@ -191,7 +191,7 @@ struct ReportProblemView: View {
 
             ForgeListGroup {
                 ForgeActionRow(title: sendTitle) { startSending() }
-                    .disabled(!model.canSend || isPreparing)
+                    .disabled(!model.canSend || model.isPreparing)
                 if model.failed {
                     Text("That did not go out. Try again later.")
                         .font(StrandFont.caption)
@@ -205,7 +205,7 @@ struct ReportProblemView: View {
     /// sending, and saying "Sending…" while nothing has left would be a line that claims more than
     /// it observes.
     private var sendTitle: LocalizedStringKey {
-        if isPreparing { return "Preparing…" }
+        if model.isPreparing { return "Preparing…" }
         return model.isSending ? "Sending…" : "Send"
     }
 
@@ -230,21 +230,20 @@ struct ReportProblemView: View {
             Task { await model.send(log: nil) }
             return
         }
-        isPreparing = true
+        model.isPreparing = true
         Task { @MainActor in
             let storage = await TestCentreReport.storageProbe(repo: app.repo, live: live)
             let strap = UserDefaults.standard.string(forKey: "selectedWhoopModel")
             let entries = TestBundleAssembler.assemble(profile: .master, live: live,
                                                        storage: storage, strapModel: strap)
-            isPreparing = false
+            model.isPreparing = false
             // Nothing to show means nothing to attach. The report still goes, rather than opening an
             // empty sheet and asking somebody to confirm a bundle that is not there.
             guard !entries.isEmpty else {
                 await model.send(log: nil)
                 return
             }
-            gate = ReportReviewGate(entries: entries)
-            showingReview = true
+            model.staged = ReportReviewGate(entries: entries)
         }
     }
 
