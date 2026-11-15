@@ -1,6 +1,8 @@
 package com.noop.ui.forge
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.ArrowForward
@@ -32,6 +35,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -225,58 +231,214 @@ private fun statusRes(status: String): Int = when (status) {
  * The page's content, drawn under the Settings page title. Shows the stored copy at once, then refreshes, so
  * opening it is never a spinner on an empty canvas.
  */
+/**
+ * The page the four project screens read, loaded once for whichever of them is on screen.
+ *
+ * They were one screen until 2026-11-15: the plan, a write box and every reported problem in one
+ * scroll. Three questions with three rhythms, competing for the same attention, and a wish the reader
+ * typed sat below three phases of roadmap. The Apple twin is `ProjectPages.swift`.
+ */
 @Composable
-internal fun RoadmapSection(onOpenTestCentre: () -> Unit, onOpenTracker: () -> Unit) {
+private fun rememberProjectPage(): Pair<RoadmapPage, Boolean> {
     var page by remember { mutableStateOf(RoadmapPage()) }
     var loaded by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        page = withContext(Dispatchers.IO) { parseRoadmapPage(SwiftCore.call("project.cached", "{}")) }
+        val fresh = withContext(Dispatchers.IO) { parseRoadmapPage(SwiftCore.call("project.page", "{}")) }
+        if (!fresh.isEmpty || page.isEmpty) page = fresh
+        loaded = true
+    }
+    return page to loaded
+}
+
+/** The picture at the top of a project page, and on its card. A shipped image, dark in both themes. */
+@Composable
+private fun ProjectScene(drawable: Int, height: Int = 150) {
+    Image(
+        painter = painterResource(drawable), contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxWidth().height(height.dp)
+            .clip(RoundedCornerShape(ForgeMetrics.groupedRadius)),
+    )
+}
+
+/** The way in: four cards, each its own page. No badge, no unread dot, no count that reads as alarm. */
+@Composable
+internal fun ProjectHubSection(
+    onRoadmap: () -> Unit,
+    onProblems: () -> Unit,
+    onWishes: () -> Unit,
+    onDonation: () -> Unit,
+) {
+    val (page, loaded) = rememberProjectPage()
+    val planned = page.items("now").size + page.items("next").size + page.items("later").size
+
+    ProjectHubCard(R.drawable.scene_roadmap, stringResource(R.string.forge_roadmap_title),
+                   stringResource(R.string.project_card_roadmap_line),
+                   if (planned > 0) planned.toString() else null, onRoadmap)
+    ProjectHubCard(R.drawable.scene_problems, stringResource(R.string.project_card_problems_title),
+                   stringResource(R.string.project_card_problems_line),
+                   reportedSummary(page), onProblems)
+    ProjectHubCard(R.drawable.scene_wishes, stringResource(R.string.project_card_wishes_title),
+                   stringResource(R.string.project_card_wishes_line),
+                   if (page.suggestions.isNotEmpty()) page.suggestions.size.toString() else null, onWishes)
+    ProjectHubCard(R.drawable.scene_helping, stringResource(R.string.donation_title),
+                   stringResource(R.string.donation_subtitle), null, onDonation)
+
+    ProjectSharingCard()
+    ProjectStamp(page, loaded)
+}
+
+@Composable
+private fun ProjectHubCard(drawable: Int, title: String, line: String, status: String?,
+                           onOpen: () -> Unit) {
+    ForgeCard(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen),
+              radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+        ProjectScene(drawable, height = 118)
+        Column(Modifier.padding(ForgeMetrics.space3),
+               verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = Forge.type.headline, color = Forge.colors.text)
+            Text(line, style = Forge.type.body, color = Forge.colors.textSecondary)
+            if (status != null) {
+                Text(status, style = Forge.type.caption, color = Forge.colors.textTertiary)
+            }
+        }
+    }
+}
+
+/**
+ * The one switch over everything this app sends, read and written through the core so the two
+ * platforms cannot drift on what off means. A quiet row at the bottom, not a banner and not a
+ * question on first launch.
+ */
+@Composable
+private fun ProjectSharingCard() {
+    var on by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        val answer = withContext(Dispatchers.IO) { SwiftCore.call("project.sharing", "{}") }
+        on = runCatching { JSONObject(answer ?: "") }.getOrNull()?.optBoolean("on", true) ?: true
+    }
+    val scope = rememberCoroutineScope()
+    SectionHeader(stringResource(R.string.project_sharing_title))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        ToggleRow(stringResource(R.string.project_sharing_row), null, on) { wanted ->
+            on = wanted
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    SwiftCore.call("project.sharing", JSONObject().put("on", wanted).toString())
+                }
+            }
+        }
+    }
+    Text(stringResource(R.string.project_sharing_note), style = Forge.type.caption,
+         color = Forge.colors.textSecondary,
+         modifier = Modifier.padding(horizontal = ForgeMetrics.space2))
+}
+
+/** "8 reported, 1 being worked on", resolved once so the card and the page cannot differ. */
+@Composable
+private fun reportedSummary(page: RoadmapPage): String? = when {
+    page.reported.isEmpty() -> null
+    page.workingCount > 0 ->
+        stringResource(R.string.forge_roadmap_summary_working, page.reportedCount, page.workingCount)
+    else -> stringResource(R.string.forge_roadmap_summary, page.reportedCount)
+}
+
+@Composable
+private fun ProjectStamp(page: RoadmapPage, loaded: Boolean) {
+    val stamp = RoadmapDates.stampText(page.fetchedAt)
+    if (page.isEmpty && loaded) {
+        Text(stringResource(R.string.forge_roadmap_empty), style = Forge.type.caption,
+             color = Forge.colors.textSecondary)
+    } else if (stamp != null) {
+        Text(stringResource(R.string.forge_roadmap_checked, stamp), style = Forge.type.caption,
+             color = Forge.colors.textTertiary)
+    }
+}
+
+/** The plan: what is being built now, next, later. Nothing else. */
+@Composable
+internal fun RoadmapPlanSection() {
+    val (page, loaded) = rememberProjectPage()
+    ProjectScene(R.drawable.scene_roadmap)
+    PhaseSection(R.string.forge_roadmap_now, Icons.Rounded.Build, page.items("now"))
+    PhaseSection(R.string.forge_roadmap_next, Icons.Rounded.ArrowForward, page.items("next"))
+    PhaseSection(R.string.forge_roadmap_later, Icons.Rounded.AccessTime, page.items("later"))
+    if (loaded && page.items("now").isEmpty() && page.items("next").isEmpty() &&
+        page.items("later").isEmpty()) {
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(stringResource(R.string.project_nothing_listed), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+        }
+    }
+}
+
+/** What was reported, what is being worked on, what was fixed, what will not be done. */
+@Composable
+internal fun ProblemsSection(onOpenTestCentre: () -> Unit, onOpenTracker: () -> Unit) {
+    val (page, _) = rememberProjectPage()
+    ProjectScene(R.drawable.scene_problems)
+
+    if (page.reported.isEmpty()) {
+        SectionHeader(stringResource(R.string.forge_roadmap_reported))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(stringResource(R.string.project_nothing_open), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+        }
+    } else {
+        var expanded by remember { mutableStateOf(false) }
+        SectionHeader(stringResource(R.string.forge_roadmap_reported))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(reportedSummary(page) ?: "", style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 44.dp)
+                    .clickable(role = Role.Button) { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(if (expanded) R.string.forge_roadmap_show_less else R.string.forge_roadmap_show_all),
+                     style = Forge.type.body, color = Forge.colors.accent)
+            }
+            if (expanded) page.reported.forEach { IssueRow(it) }
+        }
+    }
+
+    IssueGroup(R.string.forge_roadmap_fixed, page.fixed, null)
+    IssueGroup(R.string.forge_roadmap_decided, page.decided, R.string.forge_roadmap_decided_note)
+
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+        HubRow(Icons.Rounded.BugReport, ForgeTokens.Color.systemTeal.resolve(),
+               stringResource(R.string.forge_roadmap_report),
+               stringResource(R.string.forge_roadmap_report_detail), onOpenTestCentre)
+        HubDivider()
+        HubRow(Icons.Rounded.OpenInNew, ForgeTokens.Color.systemGray.resolve(),
+               stringResource(R.string.forge_roadmap_tracker),
+               stringResource(R.string.forge_roadmap_tracker_detail), onOpenTracker)
+    }
+}
+
+/** Ask for something, and back what other people asked for. */
+@Composable
+internal fun WishesSection() {
+    val (initial, _) = rememberProjectPage()
+    var page by remember(initial) { mutableStateOf(initial) }
     var counts by remember { mutableStateOf(emptyMap<String, Int>()) }
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     // 0 nothing said yet, 1 arrived, 2 did not go out.
     var sentState by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        page = withContext(Dispatchers.IO) { parseRoadmapPage(SwiftCore.call("project.cached", "{}")) }
-        val fresh = withContext(Dispatchers.IO) { parseRoadmapPage(SwiftCore.call("project.page", "{}")) }
-        if (!fresh.isEmpty || page.isEmpty) page = fresh
+
+    LaunchedEffect(page.canWrite, page.voted) {
         // Totals only once this device has voted: a number before that steers the vote.
-        if (page.canWrite && page.voted.isNotEmpty()) {
+        if (page.canWrite && page.voted.isNotEmpty() && counts.isEmpty()) {
             val answer = withContext(Dispatchers.IO) { SwiftCore.call("project.counts", "{}") }
             val root = runCatching { JSONObject(answer ?: "") }.getOrNull()?.optJSONObject("counts")
-            if (root != null) {
-                counts = root.keys().asSequence().associateWith { root.optInt(it) }
-            }
-        }
-        loaded = true
-    }
-
-    PhaseSection(R.string.forge_roadmap_now, Icons.Rounded.Build, page.items("now"))
-    PhaseSection(R.string.forge_roadmap_next, Icons.Rounded.ArrowForward, page.items("next"))
-    PhaseSection(R.string.forge_roadmap_later, Icons.Rounded.AccessTime, page.items("later"))
-
-    if (page.suggestions.isNotEmpty()) {
-        SectionHeader(stringResource(R.string.forge_roadmap_suggestions))
-        page.suggestions.forEach { suggestion ->
-            SuggestionCard(suggestion, page.voted.contains(suggestion.id), counts[suggestion.id],
-                           page.canWrite) { wants ->
-                scope.launch {
-                    val answer = withContext(Dispatchers.IO) {
-                        SwiftCore.call("project.vote",
-                                       JSONObject().put("id", suggestion.id).put("on", wants).toString())
-                    }
-                    val root = runCatching { JSONObject(answer ?: "") }.getOrNull()
-                    if (root?.optBoolean("ok") == true) {
-                        page = page.copy(voted = page.voted.toMutableSet().apply {
-                            if (wants) add(suggestion.id) else remove(suggestion.id)
-                        })
-                        if (root.has("count") && !root.isNull("count")) {
-                            counts = counts + (suggestion.id to root.optInt("count"))
-                        }
-                    }
-                }
-            }
+            if (root != null) counts = root.keys().asSequence().associateWith { root.optInt(it) }
         }
     }
+
+    ProjectScene(R.drawable.scene_wishes)
 
     if (page.canWrite) {
         SectionHeader(stringResource(R.string.forge_roadmap_suggest))
@@ -321,52 +483,28 @@ internal fun RoadmapSection(onOpenTestCentre: () -> Unit, onOpenTracker: () -> U
              modifier = Modifier.padding(horizontal = ForgeMetrics.space2))
     }
 
-    if (page.reported.isNotEmpty()) {
-        var expanded by remember { mutableStateOf(false) }
-        SectionHeader(stringResource(R.string.forge_roadmap_reported))
-        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-            Text(
-                if (page.workingCount > 0) {
-                    stringResource(R.string.forge_roadmap_summary_working, page.reportedCount, page.workingCount)
-                } else {
-                    stringResource(R.string.forge_roadmap_summary, page.reportedCount)
-                },
-                style = Forge.type.body, color = Forge.colors.textSecondary,
-            )
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 44.dp)
-                    .clickable(role = Role.Button) { expanded = !expanded },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(if (expanded) R.string.forge_roadmap_show_less else R.string.forge_roadmap_show_all),
-                     style = Forge.type.body, color = Forge.colors.accent)
-            }
-            if (expanded) {
-                page.reported.forEach { IssueRow(it) }
+    if (page.suggestions.isNotEmpty()) {
+        SectionHeader(stringResource(R.string.forge_roadmap_suggestions))
+        page.suggestions.forEach { suggestion ->
+            SuggestionCard(suggestion, page.voted.contains(suggestion.id), counts[suggestion.id],
+                           page.canWrite) { wants ->
+                scope.launch {
+                    val answer = withContext(Dispatchers.IO) {
+                        SwiftCore.call("project.vote",
+                                       JSONObject().put("id", suggestion.id).put("on", wants).toString())
+                    }
+                    val root = runCatching { JSONObject(answer ?: "") }.getOrNull()
+                    if (root?.optBoolean("ok") == true) {
+                        page = page.copy(voted = page.voted.toMutableSet().apply {
+                            if (wants) add(suggestion.id) else remove(suggestion.id)
+                        })
+                        if (root.has("count") && !root.isNull("count")) {
+                            counts = counts + (suggestion.id to root.optInt("count"))
+                        }
+                    }
+                }
             }
         }
-    }
-
-    IssueGroup(R.string.forge_roadmap_fixed, page.fixed, null)
-    IssueGroup(R.string.forge_roadmap_decided, page.decided, R.string.forge_roadmap_decided_note)
-
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-        HubRow(Icons.Rounded.BugReport, ForgeTokens.Color.systemTeal.resolve(),
-               stringResource(R.string.forge_roadmap_report),
-               stringResource(R.string.forge_roadmap_report_detail), onOpenTestCentre)
-        HubDivider()
-        HubRow(Icons.Rounded.OpenInNew, ForgeTokens.Color.systemGray.resolve(),
-               stringResource(R.string.forge_roadmap_tracker),
-               stringResource(R.string.forge_roadmap_tracker_detail), onOpenTracker)
-    }
-
-    val stamp = RoadmapDates.stampText(page.fetchedAt)
-    if (page.isEmpty && loaded) {
-        Text(stringResource(R.string.forge_roadmap_empty), style = Forge.type.caption,
-             color = Forge.colors.textSecondary)
-    } else if (stamp != null) {
-        Text(stringResource(R.string.forge_roadmap_checked, stamp), style = Forge.type.caption,
-             color = Forge.colors.textTertiary)
     }
 }
 

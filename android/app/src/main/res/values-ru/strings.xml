@@ -6980,4 +6980,16 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="donation_caveat">Recording raw motion during a workout has not been measured against live heart rate and history sync yet. If something behaves oddly while it records, that is worth a bug report.</string>
     <string name="donation_title">Help teach the app</string>
     <string name="donation_subtitle">Short recordings of how you move, so NOOP can learn to spot a workout</string>
+    <string name="project_page_title">Проект</string>
+    <string name="project_page_subtitle">Что запланировано, что сломано и чего вы хотите</string>
+    <string name="project_card_roadmap_line">Что делается сейчас и что будет дальше</string>
+    <string name="project_card_problems_title">Проблемы</string>
+    <string name="project_card_problems_line">Что сообщили и что исправлено</string>
+    <string name="project_card_wishes_title">Пожелания</string>
+    <string name="project_card_wishes_line">Попросите что-нибудь или поддержите чужую просьбу</string>
+    <string name="project_sharing_title">Участие</string>
+    <string name="project_sharing_row">Отправлять что-либо с этого устройства</string>
+    <string name="project_sharing_note">Выключено значит, что ничего не покидает это устройство: ни голосов, ни пожеланий, ни сообщений, ни записей. Чтение остаётся.</string>
+    <string name="project_nothing_listed">План не удалось прочитать, или его сейчас нет.</string>
+    <string name="project_nothing_open">Ни одной проблемы не ждёт. Что придёт, появится здесь.</string>
 </resources>

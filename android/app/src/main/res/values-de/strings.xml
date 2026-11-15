@@ -7023,4 +7023,16 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="donation_caveat">Ob das Aufnehmen während eines Trainings den Live-Puls und die Verlaufssynchronisierung stört, ist noch nicht gemessen. Wenn sich dabei etwas seltsam verhält, ist das einen Fehlerbericht wert.</string>
     <string name="donation_title">Hilf der App zu lernen</string>
     <string name="donation_subtitle">Kurze Aufnahmen davon, wie du dich bewegst, damit NOOP Sport erkennen lernt</string>
+    <string name="project_page_title">Projekt</string>
+    <string name="project_page_subtitle">Was geplant ist, was kaputt ist, und was du dir wünschst</string>
+    <string name="project_card_roadmap_line">Was gerade entsteht, und was danach kommt</string>
+    <string name="project_card_problems_title">Probleme</string>
+    <string name="project_card_problems_line">Was gemeldet ist, was behoben ist</string>
+    <string name="project_card_wishes_title">Wünsche</string>
+    <string name="project_card_wishes_line">Wünsch dir etwas, oder unterstütze den Wunsch von anderen</string>
+    <string name="project_sharing_title">Mitmachen</string>
+    <string name="project_sharing_row">Von diesem Gerät etwas senden</string>
+    <string name="project_sharing_note">Aus heißt: nichts verlässt dieses Gerät. Keine Daumen, keine Wünsche, keine Meldungen, keine Aufnahmen. Lesen bleibt.</string>
+    <string name="project_nothing_listed">Der Plan konnte nicht gelesen werden, oder es gibt gerade keinen.</string>
+    <string name="project_nothing_open">Es wartet kein Problem. Was ankommt, steht hier.</string>
 </resources>

@@ -180,7 +180,7 @@ private const val ISSUES_URL = "https://github.com/DX23876/noop/issues"
  * card, which keeps its Bluetooth controls in one place).
  */
 enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: ImageVector, val hosted: Boolean = false) {
-    Roadmap(R.string.forge_roadmap_title, R.string.forge_roadmap_subtitle, Icons.Rounded.Map),
+    Roadmap(R.string.project_page_title, R.string.project_page_subtitle, Icons.Rounded.Map),
     Profile(R.string.l10n_settings_screen_profile_ff4fc027, R.string.forge_settings_profile_subtitle, Icons.Rounded.AccountCircle),
     Goals(R.string.forge_goals_more_title, R.string.forge_sg_goals_subtitle, Icons.Rounded.TrackChanges),
     Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna, hosted = true),
@@ -268,6 +268,9 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
     Acknowledgements(R.string.forge_provider_acknowledgements),
     ExerciseMedia(R.string.forge_st_manage_media),
+    ProjectRoadmap(R.string.forge_roadmap_title),
+    ProjectProblems(R.string.project_card_problems_title),
+    ProjectWishes(R.string.project_card_wishes_title),
     RawDonation(R.string.donation_title, closes = false),
     AllSettings(R.string.forge_settings_all),
 }
@@ -498,9 +501,11 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
         PageTitle(stringResource(page.titleRes), onBack)
         key(revision) {
             when (page) {
-                ForgeSettingsPage.Roadmap -> RoadmapSection(
-                    onOpenTestCentre = { onOpen(ForgeSettingsSub.TestCentre) },
-                    onOpenTracker = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ISSUES_URL))) },
+                ForgeSettingsPage.Roadmap -> ProjectHubSection(
+                    onRoadmap = { onOpen(ForgeSettingsSub.ProjectRoadmap) },
+                    onProblems = { onOpen(ForgeSettingsSub.ProjectProblems) },
+                    onWishes = { onOpen(ForgeSettingsSub.ProjectWishes) },
+                    onDonation = { onOpen(ForgeSettingsSub.RawDonation) },
                 )
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen, profileEditing) { profileEditing = it }
                 ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
@@ -704,6 +709,21 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
         ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
+        ForgeSettingsSub.ProjectRoadmap -> SettingsColumn {
+            PageTitle(stringResource(R.string.forge_roadmap_title), onBack)
+            RoadmapPlanSection()
+        }
+        ForgeSettingsSub.ProjectProblems -> SettingsColumn {
+            PageTitle(stringResource(R.string.project_card_problems_title), onBack)
+            ProblemsSection(
+                onOpenTestCentre = { onOpen(ForgeSettingsSub.TestCentre) },
+                onOpenTracker = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ISSUES_URL))) },
+            )
+        }
+        ForgeSettingsSub.ProjectWishes -> SettingsColumn {
+            PageTitle(stringResource(R.string.project_card_wishes_title), onBack)
+            WishesSection()
+        }
         ForgeSettingsSub.RawDonation -> SettingsColumn {
             PageTitle(stringResource(R.string.donation_title), onBack)
             RawDonationSection()

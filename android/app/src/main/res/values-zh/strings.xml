@@ -6976,4 +6976,16 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="donation_caveat">Recording raw motion during a workout has not been measured against live heart rate and history sync yet. If something behaves oddly while it records, that is worth a bug report.</string>
     <string name="donation_title">Help teach the app</string>
     <string name="donation_subtitle">Short recordings of how you move, so NOOP can learn to spot a workout</string>
+    <string name="project_page_title">项目</string>
+    <string name="project_page_subtitle">计划中的、出问题的，以及你想要的</string>
+    <string name="project_card_roadmap_line">正在做什么，接下来做什么</string>
+    <string name="project_card_problems_title">问题</string>
+    <string name="project_card_problems_line">已报告的和已修复的</string>
+    <string name="project_card_wishes_title">愿望</string>
+    <string name="project_card_wishes_line">提出想法，或支持别人的想法</string>
+    <string name="project_sharing_title">参与</string>
+    <string name="project_sharing_row">从这台设备发送内容</string>
+    <string name="project_sharing_note">关闭后，任何内容都不会离开这台设备：没有点赞、愿望、报告或录制。阅读仍然可用。</string>
+    <string name="project_nothing_listed">无法读取计划，或者目前没有计划。</string>
+    <string name="project_nothing_open">没有待处理的问题。有新问题会出现在这里。</string>
 </resources>

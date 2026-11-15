@@ -7047,4 +7047,16 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="donation_caveat">Recording raw motion during a workout has not been measured against live heart rate and history sync yet. If something behaves oddly while it records, that is worth a bug report.</string>
     <string name="donation_title">Help teach the app</string>
     <string name="donation_subtitle">Short recordings of how you move, so NOOP can learn to spot a workout</string>
+    <string name="project_page_title">Project</string>
+    <string name="project_page_subtitle">What is planned, what is broken, and what you would like</string>
+    <string name="project_card_roadmap_line">What is being built, and what comes after</string>
+    <string name="project_card_problems_title">Problems</string>
+    <string name="project_card_problems_line">What is reported, what is fixed</string>
+    <string name="project_card_wishes_title">Wishes</string>
+    <string name="project_card_wishes_line">Ask for something, or back what others asked for</string>
+    <string name="project_sharing_title">Taking part</string>
+    <string name="project_sharing_row">Send things from this device</string>
+    <string name="project_sharing_note">Off means nothing leaves this device: no thumbs, no wishes, no reports, no recordings. Reading stays.</string>
+    <string name="project_nothing_listed">The plan could not be read, or there is none right now.</string>
+    <string name="project_nothing_open">No problem is waiting. What arrives shows up here.</string>
 </resources>

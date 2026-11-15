@@ -7027,4 +7027,16 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="donation_caveat">Recording raw motion during a workout has not been measured against live heart rate and history sync yet. If something behaves oddly while it records, that is worth a bug report.</string>
     <string name="donation_title">Help teach the app</string>
     <string name="donation_subtitle">Short recordings of how you move, so NOOP can learn to spot a workout</string>
+    <string name="project_page_title">Projekt</string>
+    <string name="project_page_subtitle">Co jest zaplanowane, co nie działa i czego sobie życzysz</string>
+    <string name="project_card_roadmap_line">Co powstaje i co będzie dalej</string>
+    <string name="project_card_problems_title">Problemy</string>
+    <string name="project_card_problems_line">Co zgłoszono, co naprawiono</string>
+    <string name="project_card_wishes_title">Życzenia</string>
+    <string name="project_card_wishes_line">Poproś o coś albo poprzyj cudzą prośbę</string>
+    <string name="project_sharing_title">Udział</string>
+    <string name="project_sharing_row">Wysyłaj rzeczy z tego urządzenia</string>
+    <string name="project_sharing_note">Wyłączone znaczy, że nic nie opuszcza tego urządzenia: żadnych kciuków, życzeń, zgłoszeń ani nagrań. Czytanie zostaje.</string>
+    <string name="project_nothing_listed">Nie udało się odczytać planu albo właśnie go nie ma.</string>
+    <string name="project_nothing_open">Żaden problem nie czeka. Co przyjdzie, pojawi się tutaj.</string>
 </resources>

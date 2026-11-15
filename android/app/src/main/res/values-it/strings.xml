@@ -6975,4 +6975,16 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="donation_caveat">Recording raw motion during a workout has not been measured against live heart rate and history sync yet. If something behaves oddly while it records, that is worth a bug report.</string>
     <string name="donation_title">Help teach the app</string>
     <string name="donation_subtitle">Short recordings of how you move, so NOOP can learn to spot a workout</string>
+    <string name="project_page_title">Progetto</string>
+    <string name="project_page_subtitle">Cosa è in programma, cosa non funziona e cosa desideri</string>
+    <string name="project_card_roadmap_line">Cosa si sta costruendo e cosa viene dopo</string>
+    <string name="project_card_problems_title">Problemi</string>
+    <string name="project_card_problems_line">Cosa è segnalato e cosa è risolto</string>
+    <string name="project_card_wishes_title">Desideri</string>
+    <string name="project_card_wishes_line">Chiedi qualcosa o sostieni la richiesta di altri</string>
+    <string name="project_sharing_title">Partecipare</string>
+    <string name="project_sharing_row">Inviare cose da questo dispositivo</string>
+    <string name="project_sharing_note">Disattivato significa che nulla lascia questo dispositivo: niente pollici, desideri, segnalazioni o registrazioni. La lettura resta.</string>
+    <string name="project_nothing_listed">Il piano non è stato letto, oppure al momento non ce n\'è uno.</string>
+    <string name="project_nothing_open">Nessun problema in attesa. Quello che arriva compare qui.</string>
 </resources>

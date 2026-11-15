@@ -6999,4 +6999,16 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="donation_caveat">Ainda não foi medido se gravar durante um treino afeta o ritmo cardíaco em direto e a sincronização do histórico. Se algo se comportar de forma estranha, vale uma comunicação.</string>
     <string name="donation_title">Ajude a ensinar a aplicação</string>
     <string name="donation_subtitle">Gravações curtas de como se move, para o NOOP aprender a reconhecer um desporto</string>
+    <string name="project_page_title">Projeto</string>
+    <string name="project_page_subtitle">O que está planeado, o que está avariado e o que gostaria</string>
+    <string name="project_card_roadmap_line">O que está a ser construído e o que vem depois</string>
+    <string name="project_card_problems_title">Problemas</string>
+    <string name="project_card_problems_line">O que foi comunicado e o que foi corrigido</string>
+    <string name="project_card_wishes_title">Desejos</string>
+    <string name="project_card_wishes_line">Peça algo ou apoie o pedido de outra pessoa</string>
+    <string name="project_sharing_title">Participar</string>
+    <string name="project_sharing_row">Enviar coisas a partir deste dispositivo</string>
+    <string name="project_sharing_note">Desligado significa que nada sai deste dispositivo: sem polegares, desejos, comunicações ou gravações. A leitura mantém-se.</string>
+    <string name="project_nothing_listed">Não foi possível ler o plano, ou não existe nenhum neste momento.</string>
+    <string name="project_nothing_open">Não há nenhum problema à espera. O que chegar aparece aqui.</string>
 </resources>

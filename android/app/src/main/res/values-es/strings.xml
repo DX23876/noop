@@ -7007,4 +7007,16 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="donation_caveat">Todavía no se ha medido si grabar durante un entrenamiento afecta al pulso en vivo y a la sincronización del historial. Si algo se comporta raro mientras graba, merece un informe.</string>
     <string name="donation_title">Ayuda a enseñar a la app</string>
     <string name="donation_subtitle">Grabaciones cortas de cómo te mueves, para que NOOP aprenda a reconocer el deporte</string>
+    <string name="project_page_title">Proyecto</string>
+    <string name="project_page_subtitle">Qué está planeado, qué está roto y qué te gustaría</string>
+    <string name="project_card_roadmap_line">Qué se está construyendo y qué viene después</string>
+    <string name="project_card_problems_title">Problemas</string>
+    <string name="project_card_problems_line">Qué se ha informado y qué se ha corregido</string>
+    <string name="project_card_wishes_title">Deseos</string>
+    <string name="project_card_wishes_line">Pide algo o apoya lo que otros han pedido</string>
+    <string name="project_sharing_title">Participar</string>
+    <string name="project_sharing_row">Enviar cosas desde este dispositivo</string>
+    <string name="project_sharing_note">Desactivado significa que nada sale de este dispositivo: ni votos, ni deseos, ni informes, ni grabaciones. Leer sigue disponible.</string>
+    <string name="project_nothing_listed">No se pudo leer el plan, o ahora mismo no hay ninguno.</string>
+    <string name="project_nothing_open">No hay ningún problema pendiente. Lo que llegue aparecerá aquí.</string>
 </resources>

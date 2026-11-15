@@ -7006,4 +7006,16 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="donation_caveat">On n\'a pas encore mesuré si enregistrer pendant une séance perturbe la fréquence cardiaque en direct et la synchronisation de l\'historique. Si quelque chose se comporte bizarrement, cela mérite un signalement.</string>
     <string name="donation_title">Aidez l\'app à apprendre</string>
     <string name="donation_subtitle">De courts enregistrements de vos mouvements, pour que NOOP apprenne à reconnaître un sport</string>
+    <string name="project_page_title">Projet</string>
+    <string name="project_page_subtitle">Ce qui est prévu, ce qui est cassé, et ce que vous souhaitez</string>
+    <string name="project_card_roadmap_line">Ce qui est en construction, et ce qui suit</string>
+    <string name="project_card_problems_title">Problèmes</string>
+    <string name="project_card_problems_line">Ce qui est signalé, ce qui est corrigé</string>
+    <string name="project_card_wishes_title">Souhaits</string>
+    <string name="project_card_wishes_line">Demandez quelque chose, ou soutenez la demande d\'une autre personne</string>
+    <string name="project_sharing_title">Participer</string>
+    <string name="project_sharing_row">Envoyer des choses depuis cet appareil</string>
+    <string name="project_sharing_note">Désactivé signifie que rien ne quitte cet appareil : ni pouces, ni souhaits, ni signalements, ni enregistrements. La lecture reste.</string>
+    <string name="project_nothing_listed">Le plan n\'a pas pu être lu, ou il n\'y en a pas pour le moment.</string>
+    <string name="project_nothing_open">Aucun problème en attente. Ce qui arrive s\'affiche ici.</string>
 </resources>
