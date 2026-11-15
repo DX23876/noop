@@ -94,11 +94,26 @@ private const val LONG_DAY_PATTERN = "EEEE, d. MMMM"
 private const val SHORT_DAY_PATTERN = "d MMM"
 private const val DASH = "—"
 
-/** iOS `TodayDashboardStyle` under its key; Android draws Liquid, Trends and Overview. */
+/**
+ * iOS `TodayDashboardStyle` under its key; Android draws Classic, Liquid and Trends.
+ *
+ * Overview is deliberately Apple-only (decided 2026-11-15, `docs/fork/decisions.md`). On Apple it is its
+ * OWN screen with its own health-card and focus-slot settings. Here it was a second arrangement of the
+ * same Forge Today with Liquid's default order, so the only thing it added was a second name for one
+ * screen, which is how one wearer came to read two Effort figures (#41). A stored "overview" reads as
+ * Liquid through [resolve]; nothing migrates, since the value is a preference, not data.
+ */
 internal object DashboardStylePrefs {
     const val KEY = "noop.todayDashboardStyle"
-    val STYLES = listOf("classic", "liquid", "trends", "overview")
-    fun style(c: Context): String = NoopPrefs.of(c).getString(KEY, "liquid")?.takeIf { it in STYLES } ?: "liquid"
+    const val DEFAULT = "liquid"
+    val STYLES = listOf("classic", "liquid", "trends")
+    /**
+     * The ONE place a stored value becomes a drawn style. A name this build no longer offers (a style
+     * that was removed, a value from a newer build) resolves to [DEFAULT] rather than leaving the shell
+     * holding a name it cannot draw.
+     */
+    fun resolve(raw: String?): String = raw?.takeIf { it in STYLES } ?: DEFAULT
+    fun style(c: Context): String = resolve(NoopPrefs.of(c).getString(KEY, DEFAULT))
     fun set(c: Context, style: String) = NoopPrefs.of(c).edit().putString(KEY, style).apply()
 }
 

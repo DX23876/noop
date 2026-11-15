@@ -4931,7 +4931,6 @@
     <string name="today_card_weight_subtitle">当前体重</string>
     <string name="forge_db_style_liquid">液体</string>
     <string name="forge_db_style_trends">趋势仪表板</string>
-    <string name="forge_db_style_overview">概览仪表盘。</string>
     <string name="forge_db_slot1">槽位1</string>
     <string name="forge_db_slot2">槽位2</string>
     <string name="forge_db_slot3">第3个时间段</string>

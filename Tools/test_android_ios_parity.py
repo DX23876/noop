@@ -169,10 +169,20 @@ class AndroidIOSParityTest(unittest.TestCase):
     def test_dashboard_styles(self):
         ios = swift_cases("Strand/Data/TodayDashboardStyle.swift", "TodayDashboardStyle")
         src = android(f"{FORGE}/ForgeDashboards.kt")
-        witness = {n: (lambda t=t: t in src) for n, t in STYLE_ANDROID.items()}
-        self.check(ios, witness, {}, set(), "Dashboard style")
+        # Read the OFFERED list, not the whole file: every section raw ("overview", "focus", …) is a
+        # string in here too, so a file-wide search would witness a style nobody can choose.
+        offered = re.search(r"val STYLES = listOf\(([^)]*)\)", src)
+        self.assertIsNotNone(offered, "DashboardStylePrefs.STYLES is gone; this gate reads it by name")
+        styles = offered.group(1)
+        witness = {n: (lambda t=t: t in styles) for n, t in STYLE_ANDROID.items()}
+        self.check(ios, witness, STYLE_APPLE_ONLY, set(), "Dashboard style")
+        for name in STYLE_APPLE_ONLY:
+            self.assertNotIn(f'"{name}"', styles,
+                             f"Dashboard style: '{name}' is offered on Android again. Either it draws a "
+                             f"screen of its own here now, and belongs in STYLE_ANDROID, or the "
+                             f"Apple-only reason above is stale")
         self.assertIn("ForgeClassicToday(", android(f"{FORGE}/ForgeRoot.kt"), "Classic Today is not mounted")
-        self.assertIn("ForgeStyledDashboard(", android(TODAY), "the Trends and Overview styles are not mounted")
+        self.assertIn("ForgeStyledDashboard(", android(TODAY), "the Trends style is not mounted")
 
     def test_sleep_sections(self):
         ios = swift_cases("Strand/Data/SleepLayoutPrefs.swift", "SleepSection")
@@ -182,7 +192,13 @@ class AndroidIOSParityTest(unittest.TestCase):
 
 
 # iOS `TodayDashboardStyle` (Strand/Data/TodayDashboardStyle.swift): offered under Settings > Dashboard style.
-STYLE_ANDROID = {"classic": '"classic"', "liquid": '"liquid"', "trends": '"trends"', "overview": '"overview"'}
+STYLE_ANDROID = {"classic": '"classic"', "liquid": '"liquid"', "trends": '"trends"'}
+# Overview is Apple-only on purpose (decided 2026-11-15, docs/fork/decisions.md). On Apple it is its own
+# screen (OverviewDashboardView) with its own health-card and focus-slot preferences; on Android it drew
+# the same Forge Today as Liquid, down to the default order, so it was a second name for one screen and
+# part of why one wearer read two Effort figures (#41). The loop in test_dashboard_styles fails if it is
+# offered here again, so this reason cannot go quietly stale.
+STYLE_APPLE_ONLY = {"overview": "its own screen on Apple; on Android it duplicated Liquid"}
 
 
 def drawn_sections(path: str, enum: str) -> set[str]:

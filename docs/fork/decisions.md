@@ -1246,6 +1246,37 @@ next #41.
 
 Analysis migration required: no. Presentation and navigation only.
 
+**Amended 2026-11-15, after reading what Overview actually is on each platform.** The paragraph above was
+written from `DashboardStylePrefs.STYLES`, which is Android. There the four names draw the same Forge
+Today and Overview carries Liquid's own default order, so it is a second name for one screen. On Apple it
+is `Strand/Screens/OverviewDashboardView.swift`, 1257 lines, with blocks Liquid does not have ("Today at a
+glance", "Today's focus", "Your health") and two preference families of its own
+(`OverviewHealthCardsPrefs`, `OverviewFocusPrefs`). `DashboardLayoutPrefs` is read only by Trends and
+Overview; Liquid has no arrangement editor on Apple at all.
+
+So the removal splits:
+
+- **Android: Overview goes now.** `STYLES` drops it, the picker drops its row, the string is gone from
+  all nine catalogues, and a stored "overview" reads as Liquid through the one resolver
+  (`DashboardStylePrefs.resolve`). The `OVERVIEW` section, which draws the "at a glance" block inside the
+  Forge Today, stays: it was never the duplicate.
+- **Apple: Overview stays**, as one of the old screens. Which leads to the rule below.
+- **The old screens keep their design and must stay fully usable** (owner, 2026-11-15): they are no
+  longer the main entry once the new design becomes the default, but every setting only they offer stays
+  reachable from the new settings hub, and every card they show must lead to a page that exists in the
+  chosen design. Today the new shell ignores the style setting entirely (`RootTabView`: `if forgeDesign {
+  forgeTabView }`), and neither `ForgeSettingsView` nor `ForgeSettingsHubs` names the dashboard card, so
+  that rule is not met yet. The inventory of what each old screen needs is the precondition list for
+  making the new design the default; the switch itself is a release event with its own testing round.
+- **The setting is not renamed yet.** The wording "one Today with arrangements" belongs in the new
+  design's own picker, and the old row disappears with the old screens, so renaming it in nine languages
+  now would translate something due to be deleted.
+- **`Tools/test_android_ios_parity.py` carries the divergence as `STYLE_APPLE_ONLY`**, with a loop that
+  fails if Overview is offered on Android again. The gate reads the `STYLES` list rather than the whole
+  file, because every section raw is a string in there too.
+
+Analysis migration required: no. A preference, a picker and a catalogue string.
+
 ### 2026-11-15 — The coach's cost work lands from `feature/coach-performance-and-cost`, minus its chunk cache
 
 The branch was written on 2026-08-28 and never merged; by now its base is 2 547 commits behind `main`, so it
