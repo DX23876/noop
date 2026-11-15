@@ -6955,6 +6955,8 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_cardio_about_as_hard">mniej więcej tak ciężki jak twój zwykły tydzień</string>
     <string name="forge_cardio_harder">cięższy niż twój zwykły tydzień</string>
     <string name="forge_cardio_much_harder">znacznie cięższy niż twój zwykły tydzień</string>
+    <string name="forge_import_problem_line">%1$s: %2$s</string>
+    <string name="forge_import_problems_title">Nie wszystko udało się zaimportować</string>
     <string name="forge_import_progress_title">Trwa import</string>
     <string name="forge_import_step_reading">Odczyt danych</string>
     <string name="forge_import_step_sorting">Porządkowanie danych</string>

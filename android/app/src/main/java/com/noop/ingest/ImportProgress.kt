@@ -48,10 +48,32 @@ object ImportProgress {
      */
     data class State(val source: String, val step: Step, val detail: String?, val records: Int)
 
+    /**
+     * Something the last import could not do. [kindKey] is the data type's own storage key
+     * (`HealthConnectImporter.ImportType.storageKey`) when the failure belongs to one, so a screen can
+     * name it in the wearer's language without this object knowing any language; null when it belongs to
+     * the import as a whole. [reason] is what actually threw, kept verbatim: it is usually Health
+     * Connect's own English sentence, and a translated "something went wrong" would be the one thing a
+     * reader cannot act on.
+     */
+    data class Problem(val kindKey: String?, val reason: String)
+
     private val _state = MutableStateFlow<State?>(null)
+    private val _problems = MutableStateFlow<List<Problem>>(emptyList())
 
     /** Null when no import is running. */
     val state: StateFlow<State?> = _state.asStateFlow()
+
+    /**
+     * What the last import could not do, kept after it ends and cleared when the next one begins.
+     *
+     * Until 2026-11-15 these were swallowed where they happened: a record type Health Connect refused was
+     * written to Android's own log, which an exported strap log does not contain and a wearer cannot see
+     * at all, and four healing and side steps were caught and dropped in silence. The import then reported
+     * a cheerful row count for data that was missing, and there was no way to tell a type that holds
+     * nothing from one that could not be read.
+     */
+    val problems: StateFlow<List<Problem>> = _problems.asStateFlow()
 
     /** True while an import is running, for a screen that only disables its buttons. */
     val running: Boolean get() = _state.value != null
@@ -65,8 +87,33 @@ object ImportProgress {
      */
     fun begin(context: Context, source: String) {
         _state.value = State(source, Step.READING, detail = null, records = 0)
+        _problems.value = emptyList()
         log(context, "Import $source: started")
         notify(context)
+    }
+
+    /**
+     * A failure the wearer should see, because it is about data they asked for: a record type that could
+     * not be read, a write that did not land. It goes to the strap log as well, with the detail, so the
+     * screen and the log cannot tell different stories about the same run.
+     *
+     * Recorded even when no import is running, unlike a step: a failure is worth keeping whether or not
+     * the run that produced it reported a start, and dropping it is the behaviour being fixed here.
+     */
+    fun problem(context: Context, kindKey: String?, reason: String) {
+        _problems.value = _problems.value + Problem(kindKey, reason)
+        val source = _state.value?.source ?: "import"
+        log(context, "Import $source: ${kindKey ?: "a step"} failed — $reason")
+    }
+
+    /**
+     * A failure that belongs in the log but not on screen: the healing and refiling steps an import runs
+     * before its own work, which are best-effort by design and name nothing a wearer chose. Silence was
+     * still wrong — one of them failing every time is exactly the kind of thing nobody finds — but a note
+     * about "refiling legacy rows" under the import button would be noise in front of the real ones.
+     */
+    fun quietFailure(context: Context, step: String, reason: String) {
+        log(context, "Import ${_state.value?.source ?: "import"}: $step failed — $reason (best effort, continuing)")
     }
 
     /**

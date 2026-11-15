@@ -422,15 +422,21 @@ object HealthConnectImporter {
 
         // Refile any legacy Health Connect data that landed in the shared "apple-health" bucket before
         // #34 BEFORE importing, so a re-import refiles cleanly instead of duplicating across both sources.
-        try { repo.refileLegacyHealthConnect() } catch (_: Exception) { /* best-effort */ }
+        try { repo.refileLegacyHealthConnect() } catch (e: Exception) {
+            ImportProgress.quietFailure(context, "refiling legacy rows", e.message ?: e::class.java.simpleName)
+        }
         // #112 follow-up heal: purge the shadow rows earlier imports wrote while the covered-days
         // gate missed active-strap ids — sparse HC-shaped "my-whoop" sleep/daily rows sitting over
         // nights the strap's computed ("-noop") source already covers. Runs BEFORE this import's
         // own gate is read so the healed coverage is what gets consulted. Idempotent, best-effort
         // like the refile above.
-        try { repo.purgeHcShadowedStrapDays() } catch (_: Exception) { /* best-effort */ }
+        try { repo.purgeHcShadowedStrapDays() } catch (e: Exception) {
+            ImportProgress.quietFailure(context, "purging shadowed strap days", e.message ?: e::class.java.simpleName)
+        }
         // Other apps' meals for the energy plan, with every import, not only when the Food page opens.
-        try { FoodHealthConnect.importDays(context) } catch (_: Exception) { /* best-effort */ }
+        try { FoodHealthConnect.importDays(context) } catch (e: Exception) {
+            ImportProgress.quietFailure(context, "reading meals", e.message ?: e::class.java.simpleName)
+        }
 
         val client = client(context)
 
@@ -479,7 +485,9 @@ object HealthConnectImporter {
             // without a reporting call beside each of the eighteen call sites below — where the next one
             // added would be the one that forgets.
             ImportProgress.step(context, ImportProgress.Step.READING, type.simpleName)
-            return readAll(client, type, range, selfPackage, onRecord)
+            val kindKey = ImportType.entries.firstOrNull { it.recordType == type }?.storageKey
+            return readAll(client, type, range, selfPackage,
+                           onFailure = { ImportProgress.problem(context, kindKey, it) }, onRecord = onRecord)
         }
 
         // Per-day accumulators. Keyed by "YYYY-MM-DD" (local).
@@ -832,8 +840,11 @@ object HealthConnectImporter {
                 .map { today.minusDays(it.toLong()).toString() }
             try {
                 HydrationStore.setImported(repo, HydrationStore.importWindow(windowDays, hydrationMl))
-            } catch (_: Exception) {
-                // Best-effort: a hydration write failure must not sink an otherwise good import.
+            } catch (e: Exception) {
+                // Best-effort: a hydration write failure must not sink an otherwise good import. It is
+                // data the wearer chose, though, so it is said rather than swallowed.
+                ImportProgress.problem(context, ImportType.HYDRATION.storageKey,
+                                       e.message ?: e::class.java.simpleName)
             }
         }
 
@@ -994,6 +1005,7 @@ object HealthConnectImporter {
                 fileWorkoutHeartRate(context, workouts, workoutSamples)
             }
         } catch (e: Exception) {
+            ImportProgress.problem(context, kindKey = null, reason = e.message ?: e::class.java.simpleName)
             return ImportSummary.failure(SOURCE, "Saving Health Connect data failed: ${e.message}")
         }
 
@@ -1129,6 +1141,9 @@ object HealthConnectImporter {
         type: KClass<T>,
         filter: TimeRangeFilter,
         selfPackage: String = "",
+        // What went wrong, for a caller that can say so. Defaulted, because the two reads outside an
+        // import (the Today steps top-up) have nowhere to put it; every read INSIDE one passes it.
+        onFailure: (String) -> Unit = {},
         onRecord: (T) -> Unit,
     ): Boolean {
         var pageToken: String? = null
@@ -1157,6 +1172,10 @@ object HealthConnectImporter {
             // keep whatever was read, so every other data type still comes in (issue #34). The reads
             // accumulate into shared buckets, so a partial type is simply absent, never corrupt.
             android.util.Log.w("HealthConnect", "read of ${type.simpleName} failed; skipping: ${e.message}")
+            // Android's own log is not in an exported strap log and a wearer never sees it, so a type
+            // Health Connect refuses used to leave the import reporting a cheerful count for data that
+            // simply was not there.
+            onFailure(e.message ?: e::class.java.simpleName)
             return false
         }
         return true

@@ -203,6 +203,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
     // over a running import, because the flag below was born with the composition.
     var startedHere by remember { mutableStateOf(false) }
     val importProgress by com.noop.ingest.ImportProgress.state.collectAsStateWithLifecycle()
+    // What the last import could not do, so a failure is read rather than guessed at from a count.
+    val importProblems by com.noop.ingest.ImportProgress.problems.collectAsStateWithLifecycle()
     val busy = startedHere || importProgress != null
     // Why the last Health Connect attempt went nowhere, on the card rather than in a toast that is gone
     // before the wearer has read it. Null while nothing has gone wrong.
@@ -600,6 +602,32 @@ fun DataSourcesScreen(vm: AppViewModel) {
                         color = Palette.textSecondary,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                // What the last import could not do. It stays until the next one starts, because a toast
+                // is gone before it has been read and this is the half of the outcome that asks for a
+                // decision: a type Health Connect refused is a switch to change or a grant to give.
+                if (importProblems.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Metrics.space4)) {
+                        Text(
+                            uiString(R.string.forge_import_problems_title),
+                            style = NoopType.subhead,
+                            color = Palette.statusWarning,
+                        )
+                        importProblems.forEach { problem ->
+                            val type = problem.kindKey?.let { key ->
+                                HealthConnectImporter.ImportType.entries.firstOrNull { it.storageKey == key }
+                            }
+                            // The reason is Health Connect's own sentence, kept as it came: it is the only
+                            // part a reader can act on or quote in a report, and it is not ours to reword.
+                            Text(
+                                type?.let {
+                                    uiString(R.string.forge_import_problem_line, uiString(it.titleRes()), problem.reason)
+                                } ?: problem.reason,
+                                style = NoopType.footnote,
+                                color = Palette.textSecondary,
+                            )
+                        }
+                    }
                 }
 
                 // Auto-sync: pull new Health Connect data when you open NOOP, if it's been longer than

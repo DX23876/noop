@@ -6951,6 +6951,8 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_cardio_about_as_hard">etwa so hart wie deine übliche Woche</string>
     <string name="forge_cardio_harder">härter als deine übliche Woche</string>
     <string name="forge_cardio_much_harder">viel härter als deine übliche Woche</string>
+    <string name="forge_import_problem_line">%1$s: %2$s</string>
+    <string name="forge_import_problems_title">Nicht alles konnte importiert werden</string>
     <string name="forge_import_progress_title">Import läuft</string>
     <string name="forge_import_step_reading">Daten werden gelesen</string>
     <string name="forge_import_step_sorting">Daten werden geordnet</string>

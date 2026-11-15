@@ -6927,6 +6927,8 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_cardio_about_as_hard">quase tão dura como a tua semana habitual</string>
     <string name="forge_cardio_harder">mais dura do que a tua semana habitual</string>
     <string name="forge_cardio_much_harder">muito mais dura do que a tua semana habitual</string>
+    <string name="forge_import_problem_line">%1$s: %2$s</string>
+    <string name="forge_import_problems_title">Não foi possível importar tudo</string>
     <string name="forge_import_progress_title">Importação em curso</string>
     <string name="forge_import_step_reading">A ler dados</string>
     <string name="forge_import_step_sorting">A organizar dados</string>

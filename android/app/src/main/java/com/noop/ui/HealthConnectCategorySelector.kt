@@ -190,7 +190,12 @@ private fun ImportCategory.detailRes(): Int = when (this) {
 }
 
 @StringRes
-private fun ImportType.titleRes(): Int = when (this) {
+/**
+ * A data type's name in the wearer's language. Internal rather than private since 2026-11-15: the note
+ * that reports a type the import could not read names it through THIS, so a failure and the switch it
+ * belongs to cannot call the same thing by two different names.
+ */
+internal fun ImportType.titleRes(): Int = when (this) {
     ImportType.HEART_RATE -> R.string.health_connect_type_heart_rate
     ImportType.RESTING_HEART_RATE -> R.string.health_connect_type_resting_heart_rate
     ImportType.HRV -> R.string.health_connect_type_hrv

@@ -32,6 +32,9 @@ class ImportProgressTest {
     @After
     fun clearProgress() {
         ImportProgress.end(context)
+        // The object outlives a test, so a failure left behind would be read as the next test's.
+        ImportProgress.begin(context, "test")
+        ImportProgress.end(context)
     }
 
     @Test
@@ -85,6 +88,36 @@ class ImportProgressTest {
         assertEquals("Reading data", ImportProgress.joinedLabel("Reading data", null))
         assertEquals("Reading data", ImportProgress.joinedLabel("Reading data", ""))
         assertEquals("Reading data · 42 entries", ImportProgress.joinedLabel("Reading data", "42 entries"))
+    }
+
+    @Test
+    fun `a failure outlives the run that produced it`() {
+        // The opposite of a step, deliberately. A step with nothing running would leave a stale line on
+        // screen; a failure with nothing running is still the answer to "why is this data missing", and
+        // dropping it is the behaviour this replaces. It also has to survive the end of the import, or
+        // the wearer would see it only if they happened to be looking at the right second.
+        ImportProgress.begin(context, "health-connect")
+        ImportProgress.problem(context, "sleep", "Permission denied")
+        ImportProgress.end(context)
+        assertNull(ImportProgress.state.value)
+        assertEquals(listOf(ImportProgress.Problem("sleep", "Permission denied")), ImportProgress.problems.value)
+    }
+
+    @Test
+    fun `the next run starts with a clean slate`() {
+        ImportProgress.begin(context, "health-connect")
+        ImportProgress.problem(context, "sleep", "Permission denied")
+        ImportProgress.begin(context, "health-connect")
+        assertTrue("last run's failures must not be read as this run's", ImportProgress.problems.value.isEmpty())
+    }
+
+    @Test
+    fun `a failure with no data type behind it is kept too`() {
+        // The save step, which belongs to the import as a whole. A null key means the screen prints the
+        // reason alone rather than inventing a data type to blame.
+        ImportProgress.begin(context, "health-connect")
+        ImportProgress.problem(context, null, "disk full")
+        assertEquals(listOf(ImportProgress.Problem(null, "disk full")), ImportProgress.problems.value)
     }
 
     @Test

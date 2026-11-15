@@ -6908,6 +6908,8 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_cardio_about_as_hard">примерно так же тяжело, как твоя обычная неделя</string>
     <string name="forge_cardio_harder">тяжелее твоей обычной недели</string>
     <string name="forge_cardio_much_harder">намного тяжелее твоей обычной недели</string>
+    <string name="forge_import_problem_line">%1$s: %2$s</string>
+    <string name="forge_import_problems_title">Удалось импортировать не всё</string>
     <string name="forge_import_progress_title">Идёт импорт</string>
     <string name="forge_import_step_reading">Чтение данных</string>
     <string name="forge_import_step_sorting">Упорядочивание данных</string>
