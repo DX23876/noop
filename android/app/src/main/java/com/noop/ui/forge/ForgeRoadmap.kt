@@ -228,10 +228,6 @@ private fun statusRes(status: String): Int = when (status) {
 }
 
 /**
- * The page's content, drawn under the Settings page title. Shows the stored copy at once, then refreshes, so
- * opening it is never a spinner on an empty canvas.
- */
-/**
  * The page the four project screens read, loaded once for whichever of them is on screen.
  *
  * They were one screen until 2026-11-15: the plan, a write box and every reported problem in one
