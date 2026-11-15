@@ -4754,5 +4754,6 @@
   "Read.": "已读。",
   "Being worked on.": "正在处理。",
   "Fixed.": "已修复。",
-  "Not planned.": "不计划处理。"
+  "Not planned.": "不计划处理。",
+  "The plan could not be read, or there is none right now.": "无法读取计划，或者目前没有计划。"
 }

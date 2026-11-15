@@ -4747,5 +4747,6 @@
   "Read.": "Letto.",
   "Being worked on.": "In lavorazione.",
   "Fixed.": "Risolto.",
-  "Not planned.": "Non in programma."
+  "Not planned.": "Non in programma.",
+  "The plan could not be read, or there is none right now.": "Il piano non è stato letto, oppure al momento non ce n'è uno."
 }

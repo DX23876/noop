@@ -4652,5 +4652,6 @@
   "Read.": "Lido.",
   "Being worked on.": "Em curso.",
   "Fixed.": "Corrigido.",
-  "Not planned.": "Não planeado."
+  "Not planned.": "Não planeado.",
+  "The plan could not be read, or there is none right now.": "Não foi possível ler o plano, ou não existe nenhum neste momento."
 }

@@ -5852,5 +5852,6 @@
   "Read.": "Przeczytane.",
   "Being worked on.": "W trakcie prac.",
   "Fixed.": "Naprawione.",
-  "Not planned.": "Nieplanowane."
+  "Not planned.": "Nieplanowane.",
+  "The plan could not be read, or there is none right now.": "Nie udało się odczytać planu albo właśnie go nie ma."
 }
