@@ -2,6 +2,7 @@ package com.noop.protocol
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -67,6 +68,16 @@ class StrapSharingTest {
         )
         assertEquals("Sharing:     off · read 5m ago", StrapSharing.headerLine(false, "5m ago"))
         assertEquals("Sharing:     off", StrapSharing.headerLine(false, null))
+    }
+
+    @Test
+    fun `the last known state needs both halves`() {
+        assertEquals(true, StrapSharing.lastKnownState(true, 1_794_000_000.0))
+        assertEquals(false, StrapSharing.lastKnownState(false, 1_794_000_000.0))
+        assertNull(StrapSharing.lastKnownState(true, 0.0))
+        assertNull(StrapSharing.lastKnownState(false, 0.0))
+        assertNull(StrapSharing.lastKnownState(null, 1_794_000_000.0))
+        assertNull(StrapSharing.lastKnownState(null, 0.0))
     }
 
     @Test

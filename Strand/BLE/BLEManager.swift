@@ -4121,7 +4121,13 @@ public final class BLEManager: NSObject, ObservableObject {
     /// without this the wearer is left with a control that reads off and a strap that broadcasts for ever.
     private func noteUnsentSharingWish(on: Bool, source: StrapSharingWriteSource, why: String) {
         guard !on else {
-            log("Broadcast HR: \(why) — the ON was not sent [\(source.rawValue)]; it is re-applied on the next connect.")
+            // Say only what is true. "It is re-applied on the next connect" holds while the opt-in is on,
+            // and the one branch that refuses an ON is the opt-in being OFF — so the old wording promised
+            // a retry exactly where there would be none.
+            let retry = PuffinExperiment.broadcastHrEnabled
+                ? "it is re-applied on the next connect."
+                : "it is NOT retried — the sharing switch is off."
+            log("Broadcast HR: \(why) — the ON was not sent [\(source.rawValue)]; \(retry)")
             return
         }
         guard let deviceId = activeSharingDeviceId else {
@@ -4192,6 +4198,14 @@ public final class BLEManager: NSObject, ObservableObject {
         }
         guard selectedModel.deviceFamily == .whoop5 else {
             log("Sharing: only a 5/MG keeps this as a readable setting — nothing was read."); return
+        }
+        // Never alongside a device-config WRITE being verified. Both would be waiting on a reply to the
+        // same 121 opcode, and each handler would take the first one as the answer to its own request —
+        // the cross-contamination the single-flight guard in `applyStrapSharing` exists to prevent, which
+        // this read walked straight around when it was added. A write carries its own read-back anyway, and
+        // `finishBroadcastHrWrite` records the state from it, so nothing is lost by standing aside.
+        guard broadcastHrGateReport == nil, ecgGateReport == nil else {
+            log("Sharing: a device-config write is being verified — its own read-back answers this."); return
         }
         guard !sharingReadInFlight else { return }
         sharingReadInFlight = true
@@ -7829,11 +7843,12 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // Re-apply the Broadcast-HR device-config flag if the user opted in (#181), and — the half
                 // that was missing until 2026-11-15 — send an OFF this strap is still owed. Only ever
                 // re-asserting the ON is how a strap ends up broadcasting behind a switch that reads off.
-                if PuffinExperiment.broadcastHrEnabled {
-                    setBroadcastHr(true)
-                } else {
-                    applyPendingSharingWishIfAny()
-                }
+                // The replay runs UNCONDITIONALLY rather than as an else: the two are expected never to
+                // coexist (an ON clears the wish), but nothing enforces that, and a wish stranded behind an
+                // opt-in that came back from a defaults restore would sit unread for ever. Its own
+                // device-id check is what decides whether anything is sent.
+                if PuffinExperiment.broadcastHrEnabled { setBroadcastHr(true) }
+                applyPendingSharingWishIfAny()
                 // Clock the strap BEFORE history: an un-clocked WHOOP 5 discards sensor data ("RTC
                 // timestamp … is invalid; not saving data to flash") and history offloads "succeed"
                 // with metadata only. Same 8-byte payload as the WHOOP4 handshake, puffin-framed;
@@ -7938,12 +7953,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         startBackfillTimer()   // re-offload the type-47 store every backfillIntervalSeconds
         startKeepAlive()       // always-ping: re-arm realtime, poll battery, watchdog the link
         // WHOOP 4's broadcast mode is link/runtime state, so restore an opted-in mode after reconnect.
-        // The else is the 2026-11-15 other half: an OFF that could not go out when it was asked for.
-        if PuffinExperiment.broadcastHrEnabled {
-            setBroadcastHr(true)
-        } else {
-            applyPendingSharingWishIfAny()
-        }
+        // The second line is the 2026-11-15 other half: an OFF that could not go out when it was asked
+        // for. Unconditional for the reason given at the 5/MG site — the wish's own device-id check is
+        // what decides whether anything is sent.
+        if PuffinExperiment.broadcastHrEnabled { setBroadcastHr(true) }
+        applyPendingSharingWishIfAny()
         enableLiveNotifications(reason: "post-bond")   // includes 0x2A37 standard HR — the fallback path
         // #927: RE-DERIVE the want at arm time (same reasoning as the 5/MG branch above): a reconnect
         // outside the overnight window must not arm the flood from a stale precomputed `wantsRealtime`

@@ -58,16 +58,28 @@ struct HeartRateSharingView: View {
             broadcastLogSink.live = live
             hrBroadcaster.bind(to: live)
             if phoneBroadcastEnabled { hrBroadcaster.start() }
-            // Ask the strap what it is actually doing, once, here. Deliberately not on every connect: the
-            // decision was that NOOP sends an unasked strap nothing, and this is the moment somebody wants
-            // the answer. A read changes no setting.
-            if strapCanBroadcast { model.ble.readStrapSharingState() }
+            // Ask the strap what it is actually doing, here and when the link comes up. Deliberately not on
+            // every connect: the decision was that NOOP sends an unasked strap nothing, and this is the
+            // moment somebody wants the answer. A read changes no setting.
+            readSharingWhenPossible()
         }
+        .onChangeCompat(of: live.bonded) { _ in readSharingWhenPossible() }
         .onDisappear {
             // A foreground convenience tied to this screen's owned object: release the radio when the
             // screen goes away; revisiting with the switch on starts it again.
             hrBroadcaster.stop()
         }
+    }
+
+    /// Ask the strap, when there is a strap to ask.
+    ///
+    /// Called on appear AND when the bond lands, because the usual way into this page is to open it while
+    /// the app is still reconnecting: the first attempt then finds nothing, and keyed on appear alone the
+    /// card would keep saying "unknown" and telling the wearer to connect a strap that connected two
+    /// seconds ago — on the one page whose job is to answer that question.
+    private func readSharingWhenPossible() {
+        guard strapCanBroadcast, live.connected, live.bonded else { return }
+        model.ble.readStrapSharingState()
     }
 
     private var phoneCard: some View {
@@ -188,10 +200,13 @@ struct HeartRateSharingView: View {
     @ViewBuilder private var strapStopButton: some View {
         if live.strapSharingOn != false {
             VStack(alignment: .leading, spacing: 6) {
+                // Deliberately NOT followed by a read: the write runs its own 121 read-back and
+                // `finishBroadcastHrWrite` records the state from it. A second read here would put two
+                // requests for the same key on the wire at once, and each handler would take the first
+                // reply as the answer to its own.
                 NoopButton("Stop sharing on the strap", systemImage: "antenna.radiowaves.left.and.right.slash",
                            kind: .secondary) {
                     model.ble.stopStrapSharingOnStrap()
-                    model.ble.readStrapSharingState()
                 }
                 Text("Sends the off command again, even if the switch above already looks off. Your live heart rate in NOOP is not affected.")
                     .font(StrandFont.caption)

@@ -9658,13 +9658,14 @@ class WhoopBleClient(
         startBackfillTimer()
         startKeepAlive()
         // WHOOP 4's broadcast mode is link/runtime state, so restore an opted-in mode after reconnect.
-        // The else is the 2026-11-15 other half: an OFF that could not go out when it was asked for. Only
-        // ever re-asserting the ON is how a strap ends up broadcasting behind a switch that reads off.
-        if (PuffinExperiment.from(context).broadcastHr) {
-            setBroadcastHr(true)
-        } else {
-            applyPendingSharingWishIfAny()
-        }
+        // The second line is the 2026-11-15 other half: an OFF that could not go out when it was asked
+        // for. Only ever re-asserting the ON is how a strap ends up broadcasting behind a switch that
+        // reads off. Unconditional rather than an else: the two are expected never to coexist (an ON
+        // clears the wish), but nothing enforces that, and a wish stranded behind an opt-in that came back
+        // from a restore would sit unread for ever. The wish's own device-id check decides whether
+        // anything is sent.
+        if (PuffinExperiment.from(context).broadcastHr) setBroadcastHr(true)
+        applyPendingSharingWishIfAny()
         // Arm realtime HR now if a screen already wants it (Live/Health Monitor opened before the bond
         // completed) OR the continuous-capture preference wants it — otherwise the stream would only
         // start at the next keep-alive tick (issue #18). Mark it armed so reconcileRealtime() tracks the
@@ -10190,7 +10191,15 @@ class WhoopBleClient(
      */
     private fun noteUnsentSharingWish(on: Boolean, source: StrapSharingWriteSource, why: String) {
         if (on) {
-            log("Broadcast HR: $why — the ON was not sent [${source.label}]; it is re-applied on the next connect.")
+            // Say only what is true. "It is re-applied on the next connect" holds while the opt-in is on,
+            // and the one branch that refuses an ON is the opt-in being OFF — so the old wording promised
+            // a retry exactly where there would be none.
+            val retry = if (puffinExperiment.broadcastHr) {
+                "it is re-applied on the next connect."
+            } else {
+                "it is NOT retried — the sharing switch is off."
+            }
+            log("Broadcast HR: $why — the ON was not sent [${source.label}]; $retry")
             return
         }
         runCatching { NoopPrefs.of(context).edit().putString(pendingSharingOffKey, deviceId).apply() }
@@ -10246,6 +10255,13 @@ class WhoopBleClient(
     /** True while a standalone sharing READ is waiting for its reply; the send allowlist consults it. */
     @Volatile
     private var sharingReadInFlight = false
+
+    /** @Volatile like the flag beside it, and for the same reason: [readStrapSharingState] runs on the
+     *  main thread (the screen, the button) while the timeout closure runs on the BLE handler thread. A
+     *  stale read of this counter there would make a live timeout mistake itself for a cancelled one, skip
+     *  clearing the flag, and strand every later read behind its own in-flight guard until the process
+     *  restarts. The Swift twin needs no equivalent: both of its sides run on the main queue. */
+    @Volatile
     private var sharingReadStep = 0
 
     /**
@@ -10262,6 +10278,14 @@ class WhoopBleClient(
         }
         if (connectedFamily != DeviceFamily.WHOOP5) {
             log("Sharing: only a 5/MG keeps this as a readable setting — nothing was read."); return
+        }
+        // Never alongside a device-config WRITE being verified. Both would be waiting on a reply to the
+        // same 121 opcode, and each handler would take the first one as the answer to its own request —
+        // the cross-contamination the single-flight guard in applyStrapSharing exists to prevent, which
+        // this read walked straight around when it was added. A write carries its own read-back anyway,
+        // and finishBroadcastHrWrite records the state from it, so nothing is lost by standing aside.
+        if (broadcastHrGateReport != null || ecgGateReport != null) {
+            log("Sharing: a device-config write is being verified — its own read-back answers this."); return
         }
         if (sharingReadInFlight) return
         sharingReadInFlight = true

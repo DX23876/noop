@@ -205,9 +205,15 @@ object AndroidDiagnostics {
             // app that believes sharing is off, so its belief is the one thing that must not be printed.
             val sharingPrefs = com.noop.ui.NoopPrefs.of(context)
             val sharingReadAt = sharingPrefs.getLong("ble.sharingLastKnownAt", 0L)
+            val sharingStored =
+                if (sharingPrefs.contains("ble.sharingLastKnownOn")) {
+                    sharingPrefs.getBoolean("ble.sharingLastKnownOn", false)
+                } else {
+                    null
+                }
             add(
                 com.noop.protocol.StrapSharing.headerLine(
-                    if (sharingReadAt > 0L) sharingPrefs.getBoolean("ble.sharingLastKnownOn", false) else null,
+                    com.noop.protocol.StrapSharing.lastKnownState(sharingStored, sharingReadAt / 1000.0),
                     if (sharingReadAt > 0L) relTime(System.currentTimeMillis() - sharingReadAt) else null,
                 ),
             )

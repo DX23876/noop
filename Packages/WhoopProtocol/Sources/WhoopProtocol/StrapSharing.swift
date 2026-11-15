@@ -80,6 +80,19 @@ public enum StrapSharing {
 
     // MARK: - What a reader is told
 
+    /// What is known about sharing, from the two values a platform stores: the state the strap last
+    /// claimed and when it was read.
+    ///
+    /// Here rather than at each caller, because the two platforms decided it differently the first time —
+    /// Apple from the stored flag being absent, Android from the timestamp being zero — and the same pair
+    /// of values could then print two different header lines on two phones. Both halves are required:
+    /// a state with no reading time, or a time with no state, is a half-written record and reads as
+    /// UNKNOWN rather than as one of the two answers.
+    public static func lastKnownState(storedOn: Bool?, readAtEpochSeconds: Double) -> Bool? {
+        guard readAtEpochSeconds > 0, let on = storedOn else { return nil }
+        return on
+    }
+
     /// The strap-log header line for what is known about sharing, in the padded shape of its neighbours
     /// ("Model:", "Firmware:", "Last sync:").
     ///

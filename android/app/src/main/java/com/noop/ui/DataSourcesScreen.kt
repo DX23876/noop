@@ -126,10 +126,16 @@ fun DataSourcesScreen(vm: AppViewModel) {
     val hcLastSync by vm.hcLastSync.collectAsStateWithLifecycle()
     val hcWriteback by vm.hcWriteback.collectAsStateWithLifecycle()
     val hcWbStatus by vm.hcWritebackStatus.collectAsStateWithLifecycle()
-    // Ask the strap what it is actually doing, once, here. Deliberately not on every connect: the decision
-    // was that NOOP sends an unasked strap nothing, and this is the moment somebody wants the answer. A
-    // read changes no setting.
-    LaunchedEffect(Unit) { vm.ble.readStrapSharingState() }
+    // Ask the strap what it is actually doing, here and again when the bond lands. Deliberately not on
+    // every connect: the decision was that NOOP sends an unasked strap nothing, and this is the moment
+    // somebody wants the answer. A read changes no setting.
+    //
+    // Keyed on the bond rather than on Unit, because the usual way into this screen is to open it while
+    // the app is still reconnecting: a single attempt then finds nothing, and the card would keep saying
+    // "unknown" and telling the wearer to connect a strap that connected two seconds ago.
+    LaunchedEffect(live.bonded, live.connected) {
+        if (live.connected && live.bonded) vm.ble.readStrapSharingState()
+    }
     DisposableEffect(Unit) {
         val prefs = context.getSharedPreferences(PuffinExperiment.PREFS, Context.MODE_PRIVATE)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -1074,13 +1080,14 @@ fun DataSourcesScreen(vm: AppViewModel) {
             // button stays, because "we have not asked" is the state a stranded strap sits in and the one
             // where a wearer most needs something to press.
             if (strapSharing != false) {
+                // Deliberately NOT followed by a read: the write runs its own 121 read-back and
+                // finishBroadcastHrWrite records the state from it. A second read here would put two
+                // requests for the same key on the wire at once, and each handler would take the first
+                // reply as the answer to its own.
                 NoopButton(
                     uiString(R.string.strap_sharing_stop_button),
                     kind = NoopButtonKind.Secondary,
-                    onClick = {
-                        vm.ble.stopStrapSharingOnStrap()
-                        vm.ble.readStrapSharingState()
-                    },
+                    onClick = { vm.ble.stopStrapSharingOnStrap() },
                 )
                 Text(
                     uiString(R.string.strap_sharing_stop_caption),

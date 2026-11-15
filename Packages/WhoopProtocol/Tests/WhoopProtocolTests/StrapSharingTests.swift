@@ -54,6 +54,18 @@ final class StrapSharingTests: XCTestCase {
         XCTAssertEqual(StrapSharing.headerLine(stateOn: false, age: nil), "Sharing:     off")
     }
 
+    /// Both halves of the stored record are required. The two platforms first decided this differently —
+    /// Apple from the flag being absent, Android from the timestamp being zero — so the same pair of
+    /// values could print two different header lines on two phones.
+    func testLastKnownStateNeedsBothHalves() {
+        XCTAssertEqual(StrapSharing.lastKnownState(storedOn: true, readAtEpochSeconds: 1_794_000_000), true)
+        XCTAssertEqual(StrapSharing.lastKnownState(storedOn: false, readAtEpochSeconds: 1_794_000_000), false)
+        XCTAssertNil(StrapSharing.lastKnownState(storedOn: true, readAtEpochSeconds: 0))
+        XCTAssertNil(StrapSharing.lastKnownState(storedOn: false, readAtEpochSeconds: 0))
+        XCTAssertNil(StrapSharing.lastKnownState(storedOn: nil, readAtEpochSeconds: 1_794_000_000))
+        XCTAssertNil(StrapSharing.lastKnownState(storedOn: nil, readAtEpochSeconds: 0))
+    }
+
     /// The label is padded to the same 13 columns as "Model:", "Firmware:" and "Last sync:", so the block
     /// still reads as a column rather than as a ragged list.
     func testHeaderLabelMatchesItsNeighbours() {

@@ -102,10 +102,11 @@ enum DebugDataDiagnostics {
         // ("BLE: HR adv update skipped") because this line did not exist. Prefs-only like its neighbours,
         // and UNKNOWN until the strap has actually been asked: the whole failure mode is an app that
         // believes sharing is off, so its belief is the one thing that must not be printed here.
-        let sharingStored = d.object(forKey: BLEManager.lastSharingStateKey) as? Bool
         let sharingReadAt = d.double(forKey: BLEManager.lastSharingReadAtKey)
         lines.append(StrapSharing.headerLine(
-            stateOn: sharingStored,
+            stateOn: StrapSharing.lastKnownState(
+                storedOn: d.object(forKey: BLEManager.lastSharingStateKey) as? Bool,
+                readAtEpochSeconds: sharingReadAt),
             age: sharingReadAt > 0 ? relTime(Date().timeIntervalSince1970 - sharingReadAt) : nil))
         // #57: write-health. "Last sync" fires even on an empty/failed offload, so distinguish "rows
 
