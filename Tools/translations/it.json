@@ -4756,5 +4756,9 @@
   "It is fixed.": "È risolto.",
   "Somebody is working on it.": "Ci sta lavorando qualcuno.",
   "It will not be changed.": "Non verrà cambiato.",
-  "It has been read.": "È stato letto."
+  "It has been read.": "È stato letto.",
+  "A picture, if it helps": "Un'immagine, se aiuta",
+  "Add a picture": "Aggiungi un'immagine",
+  "A screenshot of what went wrong says more than a log": "Una schermata di ciò che non ha funzionato dice più di un registro",
+  "Remove the picture": "Rimuovi l'immagine"
 }

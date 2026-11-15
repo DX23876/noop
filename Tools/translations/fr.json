@@ -4663,5 +4663,9 @@
   "It is fixed.": "C'est corrigé.",
   "Somebody is working on it.": "Quelqu'un y travaille.",
   "It will not be changed.": "Cela ne sera pas changé.",
-  "It has been read.": "Cela a été lu."
+  "It has been read.": "Cela a été lu.",
+  "A picture, if it helps": "Une image, si elle aide",
+  "Add a picture": "Ajouter une image",
+  "A screenshot of what went wrong says more than a log": "Une capture de ce qui a mal tourné en dit plus qu'un journal",
+  "Remove the picture": "Retirer l'image"
 }

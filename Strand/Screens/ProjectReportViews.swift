@@ -1,6 +1,9 @@
 import SwiftUI
 import StrandCore
 import StrandDesign
+#if os(iOS)
+import PhotosUI
+#endif
 
 // ProjectReportViews.swift — reporting a problem from inside the app, and following what became of it.
 //
@@ -35,6 +38,9 @@ final class ProjectReportModel: ObservableObject {
     /// outlive exactly that.
     @Published var staged: ReportReviewGate?
     @Published var isPreparing = false
+    /// A picture the wearer chose, already scaled and compressed. Most of what gets reported is seen
+    /// rather than described, and a log says nothing about a wrong label or a chart drawn badly.
+    @Published var picture: Data?
 
     private let store = ProjectReportStore.standard
     private var service: ProjectService?
@@ -145,6 +151,9 @@ final class ProjectReportModel: ObservableObject {
 /// The form: what happened, whether questions may come back, and whether the log rides along.
 struct ReportProblemView: View {
     @ObservedObject var model: ProjectReportModel
+    #if os(iOS)
+    @State private var picked: PhotosPickerItem?
+    #endif
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var live: LiveState
     @Environment(\.dismiss) private var dismiss
@@ -192,6 +201,8 @@ struct ReportProblemView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
             }
 
+            pictureCard
+
             ForgeListGroup("How it is sent") {
                 ForgeToggleRow(title: "Allow questions back",
                                subtitle: "You get a code, and a notification when there is an answer",
@@ -231,6 +242,62 @@ struct ReportProblemView: View {
         return model.isSending ? "Sending…" : "Send"
     }
 
+    /// Choosing a picture. The system's own picker, so the app needs no access to the photo library
+    /// and sees nothing but the one image that was handed to it.
+    @ViewBuilder
+    private var pictureCard: some View {
+        #if os(iOS)
+        ForgeListGroup("A picture, if it helps") {
+            if let data = model.picture, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius,
+                                                style: .continuous))
+                ForgeActionRow(title: "Remove the picture", role: .destructive) {
+                    model.picture = nil
+                    picked = nil
+                }
+            } else {
+                PhotosPicker(selection: $picked, matching: .images, photoLibrary: .shared()) {
+                    ForgeActionLabel(title: "Add a picture",
+                                     subtitle: "A screenshot of what went wrong says more than a log")
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .onChange(of: picked) { _, item in
+            guard let item else { return }
+            Task { @MainActor in
+                guard let raw = try? await item.loadTransferable(type: Data.self) else { return }
+                model.picture = ReportProblemView.scaled(raw)
+            }
+        }
+        #endif
+    }
+
+    /// Scaled to something a report can carry: the long edge at 1600 points and JPEG, which turns a
+    /// twelve-megapixel screenshot into a couple of hundred kilobytes. The ceiling for the whole
+    /// bundle is 4 MiB and the log already fills most of it.
+    static func scaled(_ raw: Data, longEdge: CGFloat = 1600, quality: CGFloat = 0.7) -> Data? {
+        #if os(iOS)
+        guard let image = UIImage(data: raw) else { return nil }
+        let side = max(image.size.width, image.size.height)
+        guard side > longEdge else { return image.jpegData(compressionQuality: quality) ?? raw }
+        let scale = longEdge / side
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let smaller = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return smaller.jpegData(compressionQuality: quality)
+        #else
+        return raw
+        #endif
+    }
+
     private func sentCard(code: String) -> some View {
         ForgeListGroup("Sent") {
             Text("Keep this code. It is the only way back to this report, and it works on any device.")
@@ -255,15 +322,22 @@ struct ReportProblemView: View {
     /// With a log: build it, show it, and send only on an explicit press. Without: straight out.
     private func startSending() {
         guard model.attachLog else {
-            Task { await model.send(log: nil) }
+            // A picture without a log is still worth sending, and it needs no probe and no assembler.
+            let picture = model.picture.map {
+                [FileExport.BundleEntry(name: "picture.jpg", data: $0)]
+            }
+            Task { await model.send(log: picture.flatMap(ReportProblemView.zip)) }
             return
         }
         model.isPreparing = true
         Task { @MainActor in
             let storage = await ReportProblemView.storageWithinReach(repo: app.repo, live: live)
             let strap = UserDefaults.standard.string(forKey: "selectedWhoopModel")
-            let entries = TestBundleAssembler.assemble(profile: .master, live: live,
+            var entries = TestBundleAssembler.assemble(profile: .master, live: live,
                                                        storage: storage, strapModel: strap)
+            if let picture = model.picture {
+                entries.append(FileExport.BundleEntry(name: "picture.jpg", data: picture))
+            }
             model.isPreparing = false
             // Nothing to show means nothing to attach. The report still goes, rather than opening an
             // empty sheet and asking somebody to confirm a bundle that is not there.

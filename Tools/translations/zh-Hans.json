@@ -4763,5 +4763,9 @@
   "It is fixed.": "已经修复了。",
   "Somebody is working on it.": "有人正在处理。",
   "It will not be changed.": "不会更改。",
-  "It has been read.": "已被阅读。"
+  "It has been read.": "已被阅读。",
+  "A picture, if it helps": "一张图，如果有帮助",
+  "Add a picture": "添加图片",
+  "A screenshot of what went wrong says more than a log": "一张出错时的截图胜过一份日志",
+  "Remove the picture": "移除图片"
 }

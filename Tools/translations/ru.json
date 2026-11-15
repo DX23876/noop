@@ -4639,5 +4639,9 @@
   "It is fixed.": "Это исправлено.",
   "Somebody is working on it.": "Над этим работают.",
   "It will not be changed.": "Это не будут менять.",
-  "It has been read.": "Это прочитано."
+  "It has been read.": "Это прочитано.",
+  "A picture, if it helps": "Картинка, если она помогает",
+  "Add a picture": "Добавить картинку",
+  "A screenshot of what went wrong says more than a log": "Снимок экрана говорит больше, чем журнал",
+  "Remove the picture": "Убрать картинку"
 }

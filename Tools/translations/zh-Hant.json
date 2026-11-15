@@ -4817,5 +4817,9 @@
   "It is fixed.": "已經修復了。",
   "Somebody is working on it.": "有人正在處理。",
   "It will not be changed.": "不會更改。",
-  "It has been read.": "已被閱讀。"
+  "It has been read.": "已被閱讀。",
+  "A picture, if it helps": "一張圖，如果有幫助",
+  "Add a picture": "新增圖片",
+  "A screenshot of what went wrong says more than a log": "一張出錯時的截圖勝過一份日誌",
+  "Remove the picture": "移除圖片"
 }
