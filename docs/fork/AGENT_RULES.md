@@ -105,6 +105,10 @@ changes app code, a package or `project.yml` without a passing run for exactly t
   runs at all; when it shows none, look for that banner first, say so, and rely on the local run, the
   `Tools/` Python tests (`cd Tools && python3 -m unittest discover -p 'test_*.py'`) and
   `python3 Tools/i18n_audit.py --ci origin/main`.
+  **They run again since 2026-11-14** (checked 2026-11-15: Android CI, Tools Python CI, i18n Coverage and
+  Source Hygiene all completed on `ca89d48b5`). The rule above stands unchanged, because GitHub disabled
+  them once without notice and can do it again: a push is green when runs exist and they passed, never
+  because a push happened.
 
 ## Readout and CI invariants
 

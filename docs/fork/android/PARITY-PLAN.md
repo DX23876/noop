@@ -105,6 +105,10 @@ Jeweils Logik und Speicher, ohne Oberfläche:
   before the live swap, including recovery of a legacy WAL. The arm64 native build passes; the focused
   backup/model block and the additional snapshot-isolation test pass. This is not the completed Goals feature:
   data-reader integration, operations, Android screens and bundled native/app/device acceptance remain open.
+  **Checked 2026-11-15:** the first three landed on 2026-10-27 and 2026-10-28 (STATUS, "Goals on Android":
+  `ForgeGoalsPage`, the `goals.*` operations through `CoreCall`, the widget, milestones, journey, badges and
+  notifications). Only device acceptance is still open, so read this paragraph as history, not as a list of
+  work waiting.
   Analysis migration required: no; extraction preserves the existing rules and user inputs.
 - **Momentum:** `MomentumBuilder`, `MomentumResolver`, `MomentumStore`.
 - **Sonstige Rechnungen:** `StressDayCurve`, `SkinTempBackfillWalker`, `WorkoutElevationSeries` und den Rest von
@@ -189,6 +193,15 @@ the core (habit and hydration goals, Today & Trends cards). Device delete/forget
 (workouts, health days, lab markers, live sessions, imported series/days/nights, sleep edits, day ownership)
 are adopted once and mirrored on every write (2026-10-28). Moving the classic screens' reads to the core and
 ending Room writes remain; the strap path among them waits for hardware evidence.
+
+**Checked 2026-11-15: both of those are done, and this sentence sent a whole session's planning the wrong
+way.** `WhoopDatabase` builds no Room database at all; it supplies one DAO, `private val dao: WhoopDao =
+CoreWhoopDao()`, and `Room.databaseBuilder` appears nowhere in `android/app/src/main`. So every read and
+write in `WhoopRepository`, the hosted classic screens' among them, is already a core call: the sleep lane
+asks `CoreSleepSessions.union` and falls back to `dao`, which is the core as well, and `deleteSleepSession`
+writes its tombstone and delete through `dao`. The old Room file is only looked for by `CoreRoomAdoption`
+and the Test Centre, which is what adoption needs. What is left is a fallback branch that cannot fire and
+comments that still say "Room reads"; the strap path's hardware evidence is unaffected and still open.
 Analysis migration required: no for this ownership move; raw values are preserved.
 
 - **Eingebettete Bildschirme:** Die Datenschicht jedes eingebetteten Klassik-Bildschirms, der abgeleitete

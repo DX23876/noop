@@ -1992,17 +1992,24 @@ class WhoopRepository(
     }
 
     /**
-     * Parity plan 1.3: with the Lab switch on, a source the input lanes mirror is read back from the core; null
-     * (Room reads) for a computed source and in every case [coreLaneRead] falls back.
+     * Parity plan 1.3: with the Lab switch on, a source the input lanes mirror is read back from the core's
+     * INPUT LANES; null for a computed source, and in every case [coreLaneRead] falls back.
+     *
+     * Corrected 2026-11-15: "Room reads" is what the fallback used to mean and no longer does. Since
+     * 2026-11-01 the app builds no Room database ([WhoopDatabase] supplies `CoreWhoopDao()` as its only
+     * DAO), so falling back to `dao` is a different read of the SAME core store, not a second store. The
+     * branch is kept as a net, not because anything else can answer.
      */
     private suspend fun <T> storedInput(deviceId: String, read: () -> T?): T? =
         // The switch and the lanes first: `owns` loads the core, which a repository without one must never touch.
         if (inputLanes != null && coreReads() && com.noop.core.CoreStoredInputs.owns(deviceId)) coreLaneRead(read) else null
 
     /**
-     * A read the shared core answers from its input lanes, with the Lab switch on: off the main thread, since the
-     * core call blocks where Room's DAO suspends, and only once the lanes hold Room's rows. Null (Room reads)
-     * without a core or lanes, while the lanes are not adopted or wait for a repair, and when the core read fails.
+     * A read the shared core answers from its input lanes, with the Lab switch on: off the main thread, since
+     * the core call blocks where a suspending DAO would not, and only once the lanes hold the adopted rows.
+     * Null without a core or lanes, while the lanes are not adopted or wait for a repair, and when the core
+     * read fails; the caller then takes its `dao` path, which since 2026-11-01 is the core as well
+     * (`CoreWhoopDao`), so the fallback is a plainer read of one store rather than a fall back to Room.
      */
     private suspend fun <T> coreLaneRead(read: () -> T?): T? {
         val lanes = inputLanes ?: return null

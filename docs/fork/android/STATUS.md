@@ -1,7 +1,7 @@
 # Android on a shared Swift core: status
 
 Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLAN.md) · core-only step:
-[`CORE-ONLY-PLAN.md`](CORE-ONLY-PLAN.md) · last updated 2026-11-08
+[`CORE-ONLY-PLAN.md`](CORE-ONLY-PLAN.md) · last updated 2026-11-15
 
 > **Since 2026-11-01 Room is out of the app** ([`CORE-ONLY-PLAN.md`](CORE-ONLY-PLAN.md), its own "Status"
 > section is the current record for that step). Rows below dated before it that mention Room as a fallback, a
@@ -71,6 +71,10 @@ Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLA
 
 | Step | Date | Evidence |
 |---|---|---|
+| Parity 2.3: Training plans and the routine editor | 2026-11-14 | Android has the whole plan surface and a routine editor with depth (`17e0b718e`), a plan that can be seen and a routine started from nothing (`3a94c027f`), what a plan amounts to in a week (`cd82d26ab`) and the coach reading a plan where the coach is on (`f76053c09`). The plan itself is a stored object since GRDB v90, so both platforms read one plan through one resolver. Checked on the emulator; the long press that carries a set's numbers down is NOT verified on a device (see Untested). Analysis migration required: no; prescriptions are not derived values. |
+| Health Connect: per-type choice and what was actually granted | 2026-11-14 | The import now reads the types the wearer did grant instead of giving up on a partial grant, and each type can be picked (`41c7101ae`), the categories a log asks for are named (`890cba5ce`), past data is requested (`b381731a9`) and `READ_DISTANCE` / `WRITE_VO2_MAX` are declared (`a3829912a`). Analysis migration required: no; an import boundary. |
+| Onboarding, the terms gate and What's New in the Forge colours | 2026-11-14 | `66c716a60`. The three screens a new install sees first no longer carry the old palette while the rest of the app is in the new one. Analysis migration required: no. |
+| Parity gate: the dashboard styles are checked against the offered list | 2026-11-15 | `Tools/test_android_ios_parity.py` passes (5 tests). `test_dashboard_styles` now reads `DashboardStylePrefs.STYLES` rather than the whole file, because every section raw is a string in there too, and it carries Overview as `STYLE_APPLE_ONLY` with a loop that fails if Android offers it again. Proven by putting the style back: the gate fails with the reason. Analysis migration required: no. |
 | Parity 1.2 and 2.3: Complete offline lifting import | 2026-10-27 | `LiftingHistoryImport` shares the existing Apple Hevy CSV / Liftosaur parser and transcript projection with Android. The Training import page and classic Data Sources host both write through the core, including warmups, bodyweight sets and set RPE. A Swift-produced compatibility projection is also copied to Room until parity 1.3 migrates the classic list and source-count reads; Kotlin does not reparse or recalculate the import. The list projection and full transcript now commit atomically on both platforms. Reimports and renamed workouts reuse the established source-scoped replacement policy; zoneless CSV times use the supplied device time zone. Three core tests, the exact Android operation test, two Kotlin contract tests and the store failure-injection regression cover the path. All nine Android languages are supplied. Focused Swift checks passed; the complete acceptance run was stopped at the owner's request to bundle checks across larger packages. Android contract execution and the disposable emulator import remain pending with that bundled validation. Optional Hevy API sync and routine import remain open. Analysis migration required: no; deliberate user imports and output-identical Apple extraction, no derived recipe change. |
 | Parity 2.3: Session transcripts, physiology and ratings | 2026-10-27 | One Android detail page serves the hub, records, Strength and Cardio, using canonical session ids. It shows the exact source log, warmups, supersets, each side, duration/distance, notes, measured bodyweight coverage and per-set estimates. `WorkoutPhysiology` now serves Apple and Android curve/zone reads and preserves the recording-device resolver; average HR alone never supplies a curve or zone split. Shared whole-session rating preparation keeps rating timing and load separate from set RPE. Source-scoped canonical replacements/removals are atomic and guard unrelated id collisions. Android completion now writes the explicit rating into the table Training Load reads, matching Apple. Six core detail tests, two physiology tests, four rating-store tests and six Android fixture tests cover these seams; bundled app/package checks and emulator verification are used for acceptance. Nine-language strings. All work remains local. Analysis migration required: no; presentation and deliberate user inputs, no scoring recipe change. |
 | Parity 2.3: Long-range Training History | 2026-10-27 | `TrainingHistoryPreparation` is shared by the Apple observable model and the Android core. Android exposes separate Strength, Cardio and Session Load histories for three months, one year, five years and all recorded history, with date jumps, up to three chosen lifts, period bands, usual-load lines, measured/estimated/unmeasured coverage and separate NOOP/Apple Watch VO2max series. Entry points are in the hub, Strength, Cardio and Training Load; Strength also displays its prepared year heatmap. Unrated sessions before the first rating now remain visible as unknown days on both platforms. Four new core tests and four Kotlin tests cover the shared documents, store reads, old adaptations, nulls, quotas and heatmap units; the existing Apple model tests retain the shared preparation boundary and add the unrated-session regression. Validation is recorded in the local committed-tree gate and emulator artifacts. All changes remain local. Analysis migration required: no; read models and presentation only. |
@@ -155,9 +159,18 @@ functions and Android screens before the single testing release.
   muscle mapping and feedback are wired into the Training tab. The long-range Training History destination and Strength-page year heatmap are implemented. The common session detail now includes physiology and deliberate whole-session ratings.
 - **Rest of Training.** Built and checked on the emulator, the media pack download included, except what needs the wearer's own key: the ExerciseDB source and a Hevy sync. Then continue parity 1.2's
   goals, Momentum, body and stress computations, ECG and Coach, followed by the remaining Android screens.
-- **E-4's second half (1.3).** Kotlin keeps writing Room while the hosted classic screens still read it. Move their
-  derived-data reads to the core before stopping those writes. Audit older native `sessionRPE` inputs saved before the canonical rating table was populated, and route the native completion summary through the same rating/duration resolver before retiring those reads. The adopted destinations are listed in
-  `PARITY-PLAN.md`.
+- **E-4's second half (1.3).** The Room half of this is DONE and the sentence that stood here was stale
+  (checked 2026-11-15): `WhoopDatabase` supplies exactly one DAO, `private val dao: WhoopDao =
+  CoreWhoopDao()`, so every `dao.…` read and write in `WhoopRepository` is a core call, the hosted classic
+  screens included. The sleep lane shows the shape: `sleepSessionsUnion` and `computedSleepSessionsUnion`
+  ask `CoreSleepSessions.union` first and fall back to `dao`, which is the core as well, and
+  `deleteSleepSession` writes the tombstone and the delete through `dao` and then mirrors. There is no Room
+  path left to move. What remains is cosmetic and was what made this read as open work: fallback branches
+  that cannot fire since 2026-11-01, and comments that still speak of "Room reads". Per the owner's call
+  (2026-11-15) the branches stay as a net and the comments get corrected.
+  Genuinely still open here: audit older native `sessionRPE` inputs saved before the canonical rating table
+  was populated, and route the native completion summary through the same rating/duration resolver. The
+  adopted destinations are listed in `PARITY-PLAN.md`.
 - **Hardware evidence.** A tester still needs to enable "Shared core confirms history" and send a real strap log
   with a full overnight offload: each chunk acknowledged after the core stored it, no held acknowledgement.
   Forge pairing, live heart rate and BLE behavior remain unverified on hardware.
@@ -242,6 +255,16 @@ Compares the build before a restructuring with the build after it on a copy of t
 ## Untested (needs a device or a tester's strap log)
 
 Everything on Bluetooth, background sync and real hardware. Phase A ran on an emulator only.
+
+Open since 2026-11-15, not yet run anywhere:
+
+- **The Overview style removal.** `DashboardStylePrefsTest` is written (a stored "overview" reads as
+  Liquid) but has NOT been executed: it needs the Gradle unit-test run, which is bundled into the final
+  `Tools/local-tests.sh` pass. Nothing about it was seen on an emulator either.
+- **#43's third part**, no way back out of "All settings". Reading the code shows the back row is drawn
+  (`Hosted` provides the chrome, `ScreenScaffold` draws `hosted.header`, `PageTitle` always draws the
+  arrow), so whatever loses it is not visible in the source. It needs the three entries walked on an
+  emulator: More, the profile button, settings search.
 
 Cold start (2026-11-12, emulator `noop-spike`, demo debug build). The "isn't responding" seen on every cold start had
 two causes. One was NOOP's: the core's resources were compared byte for byte on each start under the lock the
