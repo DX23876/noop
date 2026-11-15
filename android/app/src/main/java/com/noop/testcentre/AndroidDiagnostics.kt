@@ -197,6 +197,20 @@ object AndroidDiagnostics {
             ) ?: 0L
             add("Last sync:   ${if (syncSec > 0L) relTime(System.currentTimeMillis() - syncSec * 1000L)
                 else "never (this strap)"}")
+            // Whether the strap broadcasts its heart rate to anything in range — the single most expensive
+            // thing it can be doing, and until 2026-11-15 an exported log said nothing about it at all. One
+            // wearer's three-day battery took two hours to explain from raw firmware passthrough lines
+            // ("BLE: HR adv update skipped") because this line did not exist. Prefs-only like its
+            // neighbours, and UNKNOWN until the strap has actually been asked: the whole failure mode is an
+            // app that believes sharing is off, so its belief is the one thing that must not be printed.
+            val sharingPrefs = com.noop.ui.NoopPrefs.of(context)
+            val sharingReadAt = sharingPrefs.getLong("ble.sharingLastKnownAt", 0L)
+            add(
+                com.noop.protocol.StrapSharing.headerLine(
+                    if (sharingReadAt > 0L) sharingPrefs.getBoolean("ble.sharingLastKnownOn", false) else null,
+                    if (sharingReadAt > 0L) relTime(System.currentTimeMillis() - sharingReadAt) else null,
+                ),
+            )
             // #57: write-health. "Last sync" fires even on an empty/failed offload, so distinguish "rows
             // actually landed" from "an offload STALLED on a persist failure" (history won't persist —
             // usually a backup restored without an app restart, the closed-DB class).

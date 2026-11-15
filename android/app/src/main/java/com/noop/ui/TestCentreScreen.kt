@@ -103,6 +103,7 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
     var passiveRawCapture by remember { mutableStateOf(puffinExperiment.isCaptureEnabled) }
     var deepData by remember { mutableStateOf(puffinExperiment.isDeepDataEnabled) }
     var broadcastHr by remember { mutableStateOf(puffinExperiment.broadcastHr) }
+    var standardHrService by remember { mutableStateOf(puffinExperiment.standardHrService) }
     var explicitBond by remember { mutableStateOf(puffinExperiment.explicitBond) }
     var unbondedOffload by remember { mutableStateOf(puffinExperiment.unbondedOffload) }
     var clearStaleBond by remember { mutableStateOf(puffinExperiment.clearStaleBond) }
@@ -271,6 +272,20 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
                             broadcastHr = it
                             puffinExperiment.broadcastHr = it
                             vm.ble.setBroadcastHr(it)
+                        },
+                    )
+                    DeveloperToggleRow(
+                        title = stringResource(R.string.raw_diag_hr_service),
+                        detail = "The strap's own switch for the channel a connected device reads (0x180D). " +
+                            "NOOP's live heart rate, its R-R intervals and its link watchdog all ride it, so " +
+                            "switching it off takes those away. It is here because the sharing switch above no " +
+                            "longer turns it off for you, and what this app can switch on it must be able to " +
+                            "switch back.",
+                        checked = standardHrService,
+                        onCheckedChange = {
+                            standardHrService = it
+                            puffinExperiment.standardHrService = it
+                            vm.ble.setStandardHrService(it)
                         },
                     )
                     DeveloperToggleRow(

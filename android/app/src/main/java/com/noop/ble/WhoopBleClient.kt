@@ -52,6 +52,7 @@ import com.noop.protocol.DeviceConfigReadProbe
 import com.noop.protocol.DeviceConfigReadProbeReport
 import com.noop.protocol.DeviceConfigWriteGate
 import com.noop.protocol.GenericHrProfileGate
+import com.noop.protocol.StrapSharing
 import com.noop.protocol.BroadcastHrGateReport
 import com.noop.protocol.EcgRawDataGateReport
 import com.noop.protocol.FeatureFlagProbe
@@ -4845,7 +4846,12 @@ class WhoopBleClient(
                 // verified — same discipline as the R22 read-back above. The write ack is never the proof.
                 // Both the ECG gate (#891) and the Broadcast-HR gate (#1061) read themselves back over this.
                 !(DeviceConfigWriteGate.isReadBackOpcode(cmd.rawValue) &&
-                    (ecgGateReport != null || broadcastHrGateReport != null))) {
+                    (ecgGateReport != null || broadcastHrGateReport != null)) &&
+                // The SAME read verb, standing on its own: "is this strap sharing right now". A read cannot
+                // change a setting, which is why DeviceConfigReadProbe is a separate and safer class from
+                // the write gate above, and the #103 probe already rides the identical in-flight shape. It
+                // is what lets a wearer be told the truth about a strap the app's own switch is wrong about.
+                !(DeviceConfigWriteGate.isReadBackOpcode(cmd.rawValue) && sharingReadInFlight)) {
                 log("send(${cmd.name}) skipped — no WHOOP 5/MG framing for this command yet")
                 return
             }
@@ -8606,6 +8612,9 @@ class WhoopBleClient(
                         } else if (op == CommandNumber.GET_DEVICE_CONFIG_VALUE.rawValue) {
                             handleEcgGateReadBack(frame, connectedFamily == DeviceFamily.WHOOP5)
                             handleBroadcastHrGateReadBack(frame, connectedFamily == DeviceFamily.WHOOP5)
+                            // The standalone sharing read, guarded on its own flag like the two above, so
+                            // exactly one of the three ever acts on a given reply.
+                            handleStrapSharingRead(frame, connectedFamily == DeviceFamily.WHOOP5)
                         }
                     }
                     // WHAT IS AND IS NOT GATED HERE (standing risk, recorded rather than fixed).
@@ -9649,7 +9658,13 @@ class WhoopBleClient(
         startBackfillTimer()
         startKeepAlive()
         // WHOOP 4's broadcast mode is link/runtime state, so restore an opted-in mode after reconnect.
-        if (PuffinExperiment.from(context).broadcastHr) setBroadcastHr(true)
+        // The else is the 2026-11-15 other half: an OFF that could not go out when it was asked for. Only
+        // ever re-asserting the ON is how a strap ends up broadcasting behind a switch that reads off.
+        if (PuffinExperiment.from(context).broadcastHr) {
+            setBroadcastHr(true)
+        } else {
+            applyPendingSharingWishIfAny()
+        }
         // Arm realtime HR now if a screen already wants it (Live/Health Monitor opened before the bond
         // completed) OR the continuous-capture preference wants it — otherwise the stream would only
         // start at the next keep-alive tick (issue #18). Mark it armed so reconcileRealtime() tracks the
@@ -9975,51 +9990,109 @@ class WhoopBleClient(
     /** Make the strap advertise as a standard BLE HR sensor. WHOOP 4 uses its reversible
      * TOGGLE_GENERIC_HR_PROFILE command; WHOOP 5/MG keeps the existing device-config path. */
     fun setBroadcastHr(on: Boolean) {
+        applyStrapSharing(on, StrapSharingWriteSource.USER_SWITCH)
+    }
+
+    /**
+     * "Stop sharing on the strap" — the Data sources card's button, which sends the OFF write whatever the
+     * stored switch says.
+     *
+     * The switch alone cannot reach a strap that is already stranded: the flag lives ON THE STRAP and
+     * survives a reinstall, a new phone, cleared app data, or an OFF that was dropped because the strap was
+     * out of range. In every one of those the app's switch already reads off, so there is nothing left to
+     * flip while the strap keeps broadcasting a heart rate once a second, for days. This is that missing
+     * verb: user-initiated, idempotent, and OFF-only, so it can never start anything.
+     */
+    fun stopStrapSharingOnStrap() {
+        applyStrapSharing(false, StrapSharingWriteSource.STOP_BUTTON)
+    }
+
+    /** Where a sharing write came from. Log and bookkeeping only; never widens what may be written. */
+    enum class StrapSharingWriteSource(val label: String) {
+        USER_SWITCH("switch"),
+        STOP_BUTTON("stop button"),
+        PENDING_WISH("remembered wish"),
+        DEFERRED_WISH("held wish"),
+    }
+
+    /** The one funnel every sharing write goes through, so the two directions cannot drift apart again. */
+    private fun applyStrapSharing(on: Boolean, source: StrapSharingWriteSource) {
+        // The wearer's latest intent wins over anything remembered, and it wins BEFORE the write is even
+        // attempted: a stale OFF left over from last week must not be replayed at the next connect against
+        // somebody who has since switched sharing back on.
+        if (on) clearPendingSharingOff()
         val s = _state.value
         if (!s.connected || !s.bonded) {
-            log("Broadcast HR: connect and bond the strap first — ignored."); return
+            noteUnsentSharingWish(on, source, "connect and bond the strap first"); return
         }
         if (connectedFamily == DeviceFamily.WHOOP4) {
+            // NOT split on a 4.0: there is no advertising key on that family, so opcode 14 IS the broadcast
+            // switch there (#181, the Garmin path). Splitting it would leave a 4.0 with no off switch at
+            // all, which is the very fault this change exists to remove.
             send(CommandNumber.TOGGLE_GENERIC_HR_PROFILE, byteArrayOf(if (on) 1.toByte() else 0.toByte()))
-            log("Broadcast HR: WHOOP 4 ${if (on) "enable" else "disable"} command sent (14); effect not confirmed.")
+            log(
+                "Broadcast HR: WHOOP 4 ${if (on) "enable" else "disable"} command sent (14) " +
+                    "[${source.label}]; effect not confirmed.",
+            )
+            if (!on) clearPendingSharingOff()
             return
         }
         if (connectedFamily != DeviceFamily.WHOOP5) {
-            log("Broadcast HR: strap family is not known yet — ignored."); return
-        }
-        // Opcode 14 goes FIRST, and outside the single-flight guard below: that guard exists because two
-        // device-config writes would collide on the shared 121 read-back opcode, and this command uses no
-        // read-back at all. Its outcome is the strap's event 24/25, so nothing is claimed here beyond the
-        // send. Consult the same gate send() consults, so a refusal is logged rather than silent (#1061's
-        // lesson, applied to the new clause).
-        val hrProfileBody = GenericHrProfileGate.body(on)
-        if (GenericHrProfileGate.admitsSend(
-                opcode = GenericHrProfileGate.TOGGLE_GENERIC_HR_PROFILE_CMD,
-                payload = hrProfileBody,
-                broadcastHrOptIn = puffinExperiment.broadcastHr,
-            )
-        ) {
-            send(CommandNumber.TOGGLE_GENERIC_HR_PROFILE, hrProfileBody)
-            log(
-                "Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) ${if (on) "01" else "00"} sent to the 5/MG " +
-                    "(experimental, untried on this family); the ack proves nothing — waiting for the " +
-                    "strap's own ${GenericHrProfileGate.ENABLED_EVENT}/" +
-                    "${GenericHrProfileGate.DISABLED_EVENT} event.",
-            )
-        } else {
-            // "strap unchanged" would be FALSE here: the device-config write below runs either way, so only
-            // this command's own effect can be denied. The off direction can no longer land here at all
-            // (the gate admits it unconditionally), so this is the opt-in-off ON write and nothing else.
-            log(
-                "Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — the standard " +
-                    "heart-rate service was not touched by this command; the device-config write still runs.",
-            )
+            noteUnsentSharingWish(on, source, "strap family is not known yet"); return
         }
         // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
         // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's
         // verdict (its key isn't echoed → a spurious notClaimed). Only one device-config write verifies at once.
+        //
+        // MOVED AHEAD of the opcode-14 send (2026-11-15). It used to sit after it, on the reasoning that
+        // opcode 14 needs no read-back and so cannot collide — true of the collision, but it made the two
+        // writes separable: a toggle landing inside another verification switched the SERVICE and returned
+        // before the advertising flag, leaving the strap half-applied with nothing to repair it and a
+        // switch claiming one state for two settings. Both writes now live or die together, and a wish that
+        // arrives mid-verification is held rather than half-applied.
         if (broadcastHrGateReport != null || ecgGateReport != null) {
-            log("Broadcast HR: a device-config write is already being verified — ignored."); return
+            deferredSharingWish = on
+            log(
+                "Broadcast HR: a device-config write is already being verified — holding this " +
+                    "${if (on) "ON" else "OFF"} [${source.label}] until it finishes.",
+            )
+            return
+        }
+        // The asymmetry, resolved once in the pure twin rather than by an `if (on)` here: ON may write both
+        // settings, OFF writes the advertising flag and never the service.
+        val plan = StrapSharing.plan(on)
+        if (plan.writesService) {
+            // Consult the same gate send() consults, so a refusal is logged rather than silent (#1061's
+            // lesson, applied to the new clause).
+            val hrProfileBody = GenericHrProfileGate.body(on)
+            if (GenericHrProfileGate.admitsSend(
+                    opcode = GenericHrProfileGate.TOGGLE_GENERIC_HR_PROFILE_CMD,
+                    payload = hrProfileBody,
+                    broadcastHrOptIn = puffinExperiment.broadcastHr,
+                    serviceOptIn = puffinExperiment.standardHrService,
+                )
+            ) {
+                send(CommandNumber.TOGGLE_GENERIC_HR_PROFILE, hrProfileBody)
+                log(
+                    "Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) ${if (on) "01" else "00"} sent to the 5/MG " +
+                        "(experimental, untried on this family); the ack proves nothing — waiting for the " +
+                        "strap's own ${GenericHrProfileGate.ENABLED_EVENT}/" +
+                        "${GenericHrProfileGate.DISABLED_EVENT} event.",
+                )
+            } else {
+                // "strap unchanged" would be FALSE here: the device-config write below runs either way, so
+                // only this command's own effect can be denied. Only the ON direction can reach this branch.
+                log(
+                    "Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — the standard " +
+                        "heart-rate service was not touched by this command; the device-config write still runs.",
+                )
+            }
+        } else {
+            log(
+                "Broadcast HR: the standard heart-rate service is deliberately left alone on an OFF — it is " +
+                    "what NOOP's own live heart rate, R-R stream and link watchdog read, and stopping a " +
+                    "broadcast is not a request to lose those.",
+            )
         }
         val payload = byteArrayOf(0x01) +
             Whoop5Config.deviceConfigBody(DeviceConfigWriteGate.BROADCAST_HR_KEY, DeviceConfigWriteGate.value(on))
@@ -10036,8 +10109,13 @@ class WhoopBleClient(
         ) {
             log("Broadcast HR: write whoop_live_hr_in_adv_ind_pkt=" + (if (on) "1" else "0") +
                 " REFUSED by the 5/MG send gate — strap unchanged.")
+            noteUnsentSharingWish(on, source, "the send gate refused the write")
             return
         }
+        // The wish is spent the moment its write is on the wire. Not when the read-back confirms: a
+        // remembered wish that survived its own successful send would be replayed on the next connect, and
+        // a wearer who had since switched sharing back ON would have it cleared under them.
+        if (!on) clearPendingSharingOff()
         // #1061: write, then READ IT BACK — the ack is not the proof. A reporter on FW 50.36.2.0 saw the
         // flag written yet the strap never advertised 0x180D, with no way to tell "accepted but not
         // advertised" from "write ignored". The 121 read-back settles that, same discipline as the ECG gate.
@@ -10063,6 +10141,220 @@ class WhoopBleClient(
         }, ecgGateSettleMs)
     }
 
+    // region Strap sharing: a wish that could not be sent, and the strap's own answer
+
+    /**
+     * Prefs key: the device id an unsent OFF is waiting for, or absent when none waits.
+     *
+     * Stored rather than held in memory, because the case that creates these wishes is exactly the one that
+     * loses memory: a wearer switches sharing off in the evening with the strap out of range and closes the
+     * app. An in-memory wish would be gone before the strap is ever seen again, which is the same silent
+     * loss this whole change exists to remove, moved one step later.
+     */
+    private val pendingSharingOffKey = "ble.sharingPendingOffDeviceId"
+
+    /** Prefs key: the last sharing state READ BACK from the strap, absent when it was never read. */
+    private val lastSharingStateKey = "ble.sharingLastKnownOn"
+
+    /** Prefs key: when that reading was taken (epoch millis). */
+    private val lastSharingReadAtKey = "ble.sharingLastKnownAt"
+
+    /**
+     * A wish that arrived while another device-config write was being verified, replayed when that one
+     * finishes. In memory only: it is seconds old by construction, and the stored wish above covers the
+     * case that outlives the process.
+     */
+    @Volatile
+    private var deferredSharingWish: Boolean? = null
+
+    private val _strapSharingOn = MutableStateFlow<Boolean?>(null)
+
+    /**
+     * Whether the strap is broadcasting its heart rate to anything in range — the strap's OWN answer, not
+     * what the app's switch says.
+     *
+     * Three states, and the third is the point: null means nobody has asked this strap, which is NOT "off".
+     * Twin of Swift `LiveState.strapSharingOn`.
+     */
+    val strapSharingOn: StateFlow<Boolean?> = _strapSharingOn.asStateFlow()
+
+    /**
+     * A sharing write that did not reach the strap. An OFF is REMEMBERED, an ON is only logged.
+     *
+     * The asymmetry matches the one in [StrapSharing]: an unsent ON is harmless and the connect path
+     * re-asserts it anyway, while an unsent OFF is the defect — the stored switch has already flipped, so
+     * without this the wearer is left with a control that reads off and a strap that broadcasts for ever.
+     *
+     * Keyed on [deviceId], the client's own resolved active strap, which is the synchronous twin of what
+     * the Swift side reads out of the registry.
+     */
+    private fun noteUnsentSharingWish(on: Boolean, source: StrapSharingWriteSource, why: String) {
+        if (on) {
+            log("Broadcast HR: $why — the ON was not sent [${source.label}]; it is re-applied on the next connect.")
+            return
+        }
+        runCatching { NoopPrefs.of(context).edit().putString(pendingSharingOffKey, deviceId).apply() }
+        log(
+            "Broadcast HR: $why — the OFF was not sent [${source.label}]; remembered for $deviceId and " +
+                "sent the next time that strap connects.",
+        )
+    }
+
+    /** Forget a remembered OFF. Called when its write goes out, and when sharing is switched back on. */
+    private fun clearPendingSharingOff() {
+        runCatching { NoopPrefs.of(context).edit().remove(pendingSharingOffKey).apply() }
+    }
+
+    /**
+     * Replay a remembered OFF on the strap it was made for. Called once per connect, after the bond.
+     *
+     * This is NOT the automatic reconciliation that was deliberately rejected: nothing is written to a
+     * strap whose wearer did not ask for it. The wish exists only because somebody pressed the switch and
+     * the write could not go out at that moment.
+     */
+    fun applyPendingSharingWishIfAny() {
+        val pending = runCatching { NoopPrefs.of(context).getString(pendingSharingOffKey, null) }.getOrNull()
+        if (!StrapSharing.pendingApplies(pending, deviceId)) return
+        log("Broadcast HR: replaying the OFF this strap was waiting for.")
+        applyStrapSharing(false, StrapSharingWriteSource.PENDING_WISH)
+    }
+
+    /** Replay a wish that was held while another device-config write was being verified. */
+    private fun applyDeferredSharingWishIfAny() {
+        val wish = deferredSharingWish ?: return
+        deferredSharingWish = null
+        log("Broadcast HR: the held ${if (wish) "ON" else "OFF"} can go out now.")
+        applyStrapSharing(wish, StrapSharingWriteSource.DEFERRED_WISH)
+    }
+
+    /**
+     * Record what the strap said about sharing: the only statement this app treats as the state.
+     *
+     * Never inferred from the stored switch, and never from a write's acknowledgement. Both have been wrong
+     * in the field, which is how a strap ends up broadcasting for days behind a control that reads off.
+     */
+    private fun noteStrapSharingState(on: Boolean) {
+        runCatching {
+            NoopPrefs.of(context).edit()
+                .putBoolean(lastSharingStateKey, on)
+                .putLong(lastSharingReadAtKey, System.currentTimeMillis())
+                .apply()
+        }
+        _strapSharingOn.value = on
+    }
+
+    /** True while a standalone sharing READ is waiting for its reply; the send allowlist consults it. */
+    @Volatile
+    private var sharingReadInFlight = false
+    private var sharingReadStep = 0
+
+    /**
+     * Ask the strap whether it is sharing — a READ, which changes nothing on it.
+     *
+     * Deliberately NOT on every connect. The decision was that NOOP sends the strap nothing unasked, and
+     * while a read cannot alter a setting it is still traffic every wearer would pay for. This runs when
+     * somebody opens the sharing card or presses its button, which is exactly when the answer is wanted.
+     */
+    fun readStrapSharingState() {
+        val s = _state.value
+        if (!s.connected || !s.bonded) {
+            log("Sharing: connect the strap first — nothing was read."); return
+        }
+        if (connectedFamily != DeviceFamily.WHOOP5) {
+            log("Sharing: only a 5/MG keeps this as a readable setting — nothing was read."); return
+        }
+        if (sharingReadInFlight) return
+        sharingReadInFlight = true
+        sharingReadStep += 1
+        val armed = sharingReadStep
+        send(
+            CommandNumber.GET_DEVICE_CONFIG_VALUE,
+            DeviceConfigReadProbe.requestBody(DeviceConfigWriteGate.BROADCAST_HR_KEY),
+        )
+        handler.postDelayed({
+            if (!sharingReadInFlight || sharingReadStep != armed) return@postDelayed
+            sharingReadInFlight = false
+            // Silence leaves the stored state untouched: "we did not hear" is not "it is off", and writing
+            // an answer we never got is the readout this change exists to stop.
+            log(
+                "Sharing: the strap did not answer the read inside " +
+                    "${ecgGateReadBackTimeoutMs / 1000}s — what is known about it is unchanged.",
+            )
+        }, ecgGateReadBackTimeoutMs)
+    }
+
+    /**
+     * A 121 reply that belongs to the standalone sharing read. In-flight-guarded, so it no-ops on every
+     * other frame and never competes with the write gates' own read-backs.
+     */
+    private fun handleStrapSharingRead(frame: ByteArray, isWhoop5: Boolean) {
+        if (!sharingReadInFlight) return
+        val family = if (isWhoop5) DeviceFamily.WHOOP5 else DeviceFamily.WHOOP4
+        val parsed = DeviceConfigReadProbe.parse(frame, family, DeviceConfigWriteGate.GET_DEVICE_CONFIG_VALUE_CMD)
+        val response = parsed.value
+        sharingReadInFlight = false
+        if (response == null) {
+            log("Sharing: the read could not be decoded (${parsed.failure}) — what is known about it is unchanged.")
+            return
+        }
+        // The strap must have echoed OUR key with a value. A refusal, a failure result or a reply that
+        // claims neither is not an answer about sharing, and recording it as one would be the
+        // "not claimed read as off" trap this whole change exists to close.
+        val stored = response.valueFor(DeviceConfigWriteGate.BROADCAST_HR_KEY)
+        if (response.isUnsupported || response.isFailure || stored == null) {
+            log(
+                "Sharing: the strap answered the read without claiming " +
+                    "${DeviceConfigWriteGate.BROADCAST_HR_KEY} — nothing can be said about it.",
+            )
+            return
+        }
+        val on = stored == DeviceConfigWriteGate.ENABLED_VALUE
+        noteStrapSharingState(on)
+        log(
+            "Sharing: the strap says ${DeviceConfigWriteGate.BROADCAST_HR_KEY}='${stored.toChar()}' — " +
+                "it is ${if (on) "BROADCASTING its heart rate continuously" else "not sharing"}.",
+        )
+    }
+
+    /**
+     * The Test Centre's own control for the standard heart-rate service (0x180D/0x2A37), separate from
+     * sharing.
+     *
+     * It exists because [StrapSharing] stopped the OFF direction of the sharing switch from touching the
+     * service: the ON direction can still switch it on, so without a control of its own this app would be
+     * able to set something on a wearer's strap that nothing could set back. That is the reversibility test
+     * the BLE safety contract applies, and it is not met by "the vendor app can" — that app pulls a
+     * firmware update and locks the strap out of NOOP.
+     *
+     * Switching the service OFF takes away this app's own live heart rate and its link watchdog, so this
+     * belongs in the Test Centre behind its own switch rather than beside a wearer-facing one.
+     */
+    fun setStandardHrService(on: Boolean) {
+        val s = _state.value
+        if (!s.connected || !s.bonded) {
+            log("HR service: connect and bond the strap first — ignored."); return
+        }
+        val body = GenericHrProfileGate.body(on)
+        if (!GenericHrProfileGate.admitsSend(
+                opcode = GenericHrProfileGate.TOGGLE_GENERIC_HR_PROFILE_CMD,
+                payload = body,
+                broadcastHrOptIn = puffinExperiment.broadcastHr,
+                serviceOptIn = puffinExperiment.standardHrService,
+            )
+        ) {
+            log("HR service: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the send gate — the strap was not touched.")
+            return
+        }
+        send(CommandNumber.TOGGLE_GENERIC_HR_PROFILE, body)
+        log(
+            "HR service: TOGGLE_GENERIC_HR_PROFILE(14) ${if (on) "01" else "00"} sent; the ack proves " +
+                "nothing — waiting for the strap's own ${GenericHrProfileGate.ENABLED_EVENT}/" +
+                "${GenericHrProfileGate.DISABLED_EVENT} event.",
+        )
+    }
+
+    // endregion
+
     /** Non-null only while a Broadcast-HR write is being verified (#1061) — same single-flight discipline
      *  as the ECG gate. The send allowlist consults it so the 121 read-back can go out; the frame router
      *  routes the ack + read-back replies here. Log-surfaced only (no LiveState). */
@@ -10073,6 +10365,14 @@ class WhoopBleClient(
         val report = broadcastHrGateReport ?: return
         broadcastHrGateReport = null
         log("Broadcast HR (#1061):\n${report.render()}")
+        // A CONFIRMED read-back is the strap stating its own value, which is the one thing this app may
+        // record as the state. Every other verdict — unchanged, notClaimed, refused, silent — leaves what
+        // is known untouched rather than writing an assumption over it.
+        val stored = report.storedValue
+        if (report.verdict == BroadcastHrGateReport.Verdict.CONFIRMED && stored != null) {
+            noteStrapSharingState(stored == DeviceConfigWriteGate.valueString(true))
+        }
+        applyDeferredSharingWishIfAny()
     }
 
     /** The write's own COMMAND_RESPONSE — recorded, never the proof. Routed here when a 119 reply lands
@@ -10183,6 +10483,9 @@ class WhoopBleClient(
         ecgGateReport = null
         _ecgRawDataGate.value = report
         log("ECG gate (#891):\n${report.render()}")
+        // This gate shares the single-flight slot with the sharing write, so a sharing wish may have been
+        // held behind it. Replayed here rather than dropped, which is what the old code did.
+        applyDeferredSharingWishIfAny()
     }
 
     /** Clear the #891 result (Settings row dismissed / disconnect). Twin of Swift clearEcgRawDataGate(). */

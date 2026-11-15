@@ -50,6 +50,7 @@ struct TestCentreView: View {
     @AppStorage(PuffinFrameRecorder.enabledKey) private var puffinCapture = false
     @AppStorage(PuffinExperiment.deepDataKey) private var deepDataEnabled = false
     @AppStorage(PuffinExperiment.broadcastHrKey) private var broadcastHrEnabled = false
+    @AppStorage(PuffinExperiment.standardHrServiceKey) private var standardHrServiceEnabled = false
     @AppStorage(PuffinExperiment.ecgRawDataKey) private var ecgRawDataEnabled = false
 
     /// The strap model the user last picked, the same key SettingsView's showFiveMGControls gate reads.
@@ -289,6 +290,13 @@ struct TestCentreView: View {
                     .toggleStyle(.switch).tint(StrandPalette.accent)
                     .onChangeCompat(of: broadcastHrEnabled) { model.ble.setBroadcastHr($0) }
                 Text("Writes the reversible 5/MG advertising flag for Garmin, Zwift, and compatible gym equipment.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+
+                Divider().overlay(StrandPalette.hairline)
+                Toggle("Standard heart-rate service on the strap", isOn: $standardHrServiceEnabled)
+                    .toggleStyle(.switch).tint(StrandPalette.accent)
+                    .onChangeCompat(of: standardHrServiceEnabled) { model.ble.setStandardHrService($0) }
+                Text("The strap's own switch for the channel a connected device reads (0x180D). NOOP's live heart rate, its R-R intervals and its link watchdog all ride it, so switching it off takes those away. It is here because the sharing switch above no longer turns it off for you, and what this app can switch on it must be able to switch back.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
 
                 Divider().overlay(StrandPalette.hairline)

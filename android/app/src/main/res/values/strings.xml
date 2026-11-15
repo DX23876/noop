@@ -2742,6 +2742,12 @@
     <string name="raw_diag_title">5/MG protocol diagnostics</string>
     <string name="raw_diag_protocol_probes">Protocol probes</string>
     <string name="raw_diag_broadcast_hr">Broadcast heart rate from the strap</string>
+    <string name="raw_diag_hr_service">Standard heart-rate service on the strap</string>
+    <string name="strap_sharing_status_on">Your strap is sending its heart rate right now, to anything in range, even with your phone away. That drains it much faster. Turn it off when no other device needs it.</string>
+    <string name="strap_sharing_status_off">Your strap says it is not sharing.</string>
+    <string name="strap_sharing_status_unknown">Connect your strap to see whether it is sharing. This is a setting on the strap itself, so it can be on even when this switch is off.</string>
+    <string name="strap_sharing_stop_button">Stop sharing on the strap</string>
+    <string name="strap_sharing_stop_caption">Sends the off command again, even if the switch above already looks off. Your live heart rate in NOOP is not affected.</string>
     <string name="raw_diag_pair">Ask Android to pair</string>
     <string name="raw_diag_unbonded_offload">Try history sync without pairing</string>
     <string name="raw_diag_clear_stale_bond">Clear a stale phone pairing</string>

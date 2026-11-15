@@ -1,6 +1,412 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "The strap's own switch for the channel a connected device reads (0x180D). NOOP's live heart rate, its R-R intervals and its link watchdog all ride it, so switching it off takes those away. It is here because the sharing switch above no longer turns it off for you, and what this app can switch on it must be able to switch back." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der eigene Schalter des Straps für den Kanal, den ein verbundenes Gerät liest (0x180D). NOOPs Live-Herzfrequenz, die Schlagabstände und die Verbindungsüberwachung hängen alle daran, Ausschalten nimmt sie also weg. Er steht hier, weil der Teilen-Schalter oben ihn nicht mehr für dich ausschaltet, und was diese App anschalten kann, muss sie auch zurückschalten können."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El propio interruptor de la pulsera para el canal que lee un dispositivo conectado (0x180D). La frecuencia cardíaca en directo de NOOP, sus intervalos R-R y su vigilancia de la conexión dependen de él, así que apagarlo se los lleva. Está aquí porque el interruptor de compartir de arriba ya no lo apaga por ti, y lo que esta app puede encender debe poder volver a apagarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'interrupteur propre au bracelet pour le canal que lit un appareil connecté (0x180D). La fréquence cardiaque en direct de NOOP, ses intervalles R-R et sa surveillance du lien en dépendent tous, donc l'éteindre les supprime. Il est ici parce que l'interrupteur de partage ci-dessus ne l'éteint plus pour vous, et ce que cette app peut activer, elle doit pouvoir le désactiver."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'interruttore della fascia stessa per il canale che legge un dispositivo connesso (0x180D). La frequenza cardiaca dal vivo di NOOP, i suoi intervalli R-R e il controllo del collegamento dipendono tutti da esso, quindi spegnerlo li toglie. È qui perché l'interruttore di condivisione sopra non lo spegne più per te, e ciò che questa app può accendere deve poterlo rispegnere."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Własny przełącznik opaski dla kanału, który czyta połączone urządzenie (0x180D). Tętno na żywo w NOOP, odstępy R-R i nadzór połączenia opierają się na nim, więc wyłączenie go je zabiera. Jest tutaj, bo przełącznik udostępniania powyżej już go za ciebie nie wyłącza, a to, co ta aplikacja potrafi włączyć, musi też umieć wyłączyć."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O interruptor da própria bracelete para o canal que um aparelho ligado lê (0x180D). A frequência cardíaca em direto do NOOP, os seus intervalos R-R e a vigilância da ligação dependem todos dele, por isso desligá-lo leva-os embora. Está aqui porque o interruptor de partilha acima já não o desliga por ti, e o que esta app consegue ligar tem de conseguir desligar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Собственный переключатель браслета для канала, который читает подключённое устройство (0x180D). Живой пульс NOOP, интервалы R-R и наблюдение за связью держатся на нём, поэтому его выключение забирает их. Он здесь потому, что переключатель передачи выше больше не выключает его за вас, а то, что это приложение может включить, оно должно уметь и выключить."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环自身的开关，用于已连接设备读取的通道（0x180D）。NOOP 的实时心率、R-R 间期和连接看护都依赖它，关掉它就会一起失去。它放在这里，是因为上面的共享开关不再替你关闭它，而这个应用能打开的东西，也必须能关回去。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環自身的開關，用於已連線裝置讀取的通道（0x180D）。NOOP 的即時心率、R-R 間期和連線看護都依賴它，關掉它就會一起失去。它放在這裡，是因為上面的共用開關不再替你關閉它，而這個應用能打開的東西，也必須能關回去。"
+          }
+        }
+      }
+    },
+    "Standard heart-rate service on the strap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard-Herzfrequenzdienst auf dem Strap"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servicio estándar de frecuencia cardíaca en la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service de fréquence cardiaque standard sur le bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servizio standard di frequenza cardiaca sulla fascia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standardowa usługa tętna na opasce"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serviço padrão de frequência cardíaca na bracelete"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стандартная служба пульса на браслете"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环上的标准心率服务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環上的標準心率服務"
+          }
+        }
+      }
+    },
+    "Sends the off command again, even if the switch above already looks off. Your live heart rate in NOOP is not affected." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sendet den Aus-Befehl noch einmal, auch wenn der Schalter oben schon aus aussieht. Deine Live-Herzfrequenz in NOOP bleibt unberührt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envía la orden de apagado otra vez, aunque el interruptor de arriba ya parezca apagado. Tu frecuencia cardíaca en directo en NOOP no se ve afectada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renvoie la commande d'arrêt, même si l'interrupteur ci-dessus semble déjà éteint. Votre fréquence cardiaque en direct dans NOOP n'est pas affectée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invia di nuovo il comando di spegnimento, anche se l'interruttore sopra sembra già spento. La frequenza cardiaca dal vivo in NOOP non viene toccata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysyła polecenie wyłączenia jeszcze raz, nawet jeśli przełącznik powyżej już wygląda na wyłączony. Tętno na żywo w NOOP pozostaje bez zmian."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envia de novo o comando para desligar, mesmo que o interruptor acima já pareça desligado. A frequência cardíaca em direto no NOOP não é afetada."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправляет команду выключения ещё раз, даже если переключатель выше уже выглядит выключенным. Живой пульс в NOOP это не затрагивает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再发送一次关闭指令，即使上面的开关看起来已经关闭。NOOP 中的实时心率不受影响。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再傳送一次關閉指令，即使上面的開關看起來已經關閉。NOOP 中的即時心率不受影響。"
+          }
+        }
+      }
+    },
+    "Stop sharing on the strap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teilen auf dem Strap beenden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dejar de compartir en la pulsera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter le partage sur le bracelet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interrompi la condivisione sulla fascia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zatrzymaj udostępnianie na opasce"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parar a partilha na bracelete"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выключить передачу на браслете"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在手环上停止共享"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在手環上停止共用"
+          }
+        }
+      }
+    },
+    "Connect your strap to see whether it is sharing. This is a setting on the strap itself, so it can be on even when this switch is off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinde deinen Strap, um zu sehen, ob er teilt. Das ist eine Einstellung auf dem Strap selbst, sie kann also an sein, obwohl dieser Schalter aus ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conecta tu pulsera para ver si está compartiendo. Es un ajuste de la propia pulsera, así que puede estar activo aunque este interruptor esté apagado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez votre bracelet pour voir s'il partage. C'est un réglage du bracelet lui-même, il peut donc être actif même si cet interrupteur est éteint."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collega la fascia per vedere se sta condividendo. È un'impostazione della fascia stessa, quindi può essere attiva anche se questo interruttore è spento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Połącz opaskę, aby zobaczyć, czy udostępnia. To ustawienie samej opaski, więc może być włączone, nawet gdy ten przełącznik jest wyłączony."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liga a tua bracelete para veres se está a partilhar. É uma definição da própria bracelete, por isso pode estar ligada mesmo com este interruptor desligado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключите браслет, чтобы узнать, передаёт ли он пульс. Это настройка самого браслета, поэтому она может быть включена, даже если этот переключатель выключен."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接手环后才能看到它是否在共享。这是手环自身的设置，所以即使这个开关是关的，它也可能是开的。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連線手環後才能看到它是否在共用。這是手環自身的設定，所以即使這個開關是關的，它也可能是開的。"
+          }
+        }
+      }
+    },
+    "Your strap says it is not sharing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Strap sagt, dass er nicht teilt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pulsera dice que no está compartiendo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre bracelet indique qu'il ne partage pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua fascia dice che non sta condividendo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja opaska mówi, że nie udostępnia."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua bracelete diz que não está a partilhar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет сообщает, что не передаёт пульс."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环表示它没有在共享。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環表示它沒有在共用。"
+          }
+        }
+      }
+    },
+    "Your strap is sending its heart rate right now, to anything in range, even when nothing is connected to it. That drains it much faster. Turn it off when no other device needs it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Strap sendet gerade seine Herzfrequenz an alles in Reichweite, auch wenn nichts mit ihm verbunden ist. Das leert ihn deutlich schneller. Schalte es aus, wenn kein anderes Gerät es braucht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pulsera está enviando ahora mismo su frecuencia cardíaca a cualquier dispositivo cercano, incluso sin nada conectado. Eso gasta mucha más batería. Desactívalo cuando ningún otro dispositivo lo necesite."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre bracelet envoie sa fréquence cardiaque en ce moment, à tout appareil à portée, même si rien n'y est connecté. Cela le vide beaucoup plus vite. Désactivez-le quand aucun autre appareil n'en a besoin."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua fascia sta inviando la frequenza cardiaca in questo momento, a qualsiasi dispositivo nel raggio, anche se non è connessa a nulla. Questo la scarica molto più in fretta. Disattivalo quando nessun altro dispositivo ne ha bisogno."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoja opaska właśnie wysyła tętno do wszystkiego w zasięgu, nawet gdy nic nie jest z nią połączone. To zużywa baterię dużo szybciej. Wyłącz to, gdy żadne inne urządzenie tego nie potrzebuje."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua bracelete está a enviar a frequência cardíaca neste momento, para qualquer aparelho ao alcance, mesmo sem nada ligado. Isso gasta a bateria muito mais depressa. Desliga quando mais nenhum aparelho precisar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш браслет прямо сейчас передаёт пульс всем устройствам поблизости, даже когда к нему ничего не подключено. Батарея садится намного быстрее. Выключите, когда это больше никому не нужно."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手环正在向附近任何设备发送心率，即使没有任何设备与它连接。这会让电量消耗快得多。当没有其他设备需要时请关闭。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的手環正在向附近任何裝置傳送心率，即使沒有任何裝置與它連線。這會讓電量消耗快得多。當沒有其他裝置需要時請關閉。"
+          }
+        }
+      }
+    },
     "Automatic takes the strap's count first, then the phone's." : {
       "localizations" : {
         "de" : {

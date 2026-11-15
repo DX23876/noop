@@ -126,6 +126,10 @@ fun DataSourcesScreen(vm: AppViewModel) {
     val hcLastSync by vm.hcLastSync.collectAsStateWithLifecycle()
     val hcWriteback by vm.hcWriteback.collectAsStateWithLifecycle()
     val hcWbStatus by vm.hcWritebackStatus.collectAsStateWithLifecycle()
+    // Ask the strap what it is actually doing, once, here. Deliberately not on every connect: the decision
+    // was that NOOP sends an unasked strap nothing, and this is the moment somebody wants the answer. A
+    // read changes no setting.
+    LaunchedEffect(Unit) { vm.ble.readStrapSharingState() }
     DisposableEffect(Unit) {
         val prefs = context.getSharedPreferences(PuffinExperiment.PREFS, Context.MODE_PRIVATE)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -1051,6 +1055,37 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     modifier = Modifier.semantics {
                         contentDescription = strapBroadcastTitle
                     },
+                )
+            }
+            // What the STRAP says, never what the switch above says. The two are different facts and this
+            // is the one that matters: the flag lives on the strap and survives a reinstall, a new phone,
+            // or an off that never reached it, so a switch reading off is no evidence at all.
+            val strapSharing by vm.ble.strapSharingOn.collectAsStateWithLifecycle()
+            Text(
+                when (strapSharing) {
+                    true -> uiString(R.string.strap_sharing_status_on)
+                    false -> uiString(R.string.strap_sharing_status_off)
+                    null -> uiString(R.string.strap_sharing_status_unknown)
+                },
+                style = NoopType.footnote,
+                color = if (strapSharing == true) Palette.statusWarning else Palette.textTertiary,
+            )
+            // Hidden only once the strap itself has said it is not sharing. While that is unknown the
+            // button stays, because "we have not asked" is the state a stranded strap sits in and the one
+            // where a wearer most needs something to press.
+            if (strapSharing != false) {
+                NoopButton(
+                    uiString(R.string.strap_sharing_stop_button),
+                    kind = NoopButtonKind.Secondary,
+                    onClick = {
+                        vm.ble.stopStrapSharingOnStrap()
+                        vm.ble.readStrapSharingState()
+                    },
+                )
+                Text(
+                    uiString(R.string.strap_sharing_stop_caption),
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
                 )
             }
         }

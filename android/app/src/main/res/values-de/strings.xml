@@ -2720,6 +2720,12 @@
     <string name="raw_diag_title">5/MG-Protokolldiagnose</string>
     <string name="raw_diag_protocol_probes">Protokolltests</string>
     <string name="raw_diag_broadcast_hr">Herzfrequenz vom Band übertragen</string>
+    <string name="raw_diag_hr_service">Standard-Herzfrequenzdienst auf dem Strap</string>
+    <string name="strap_sharing_status_on">Dein Strap sendet gerade seine Herzfrequenz an alles in Reichweite, auch ohne Handy in der Nähe. Das leert ihn deutlich schneller. Schalte es aus, wenn kein anderes Gerät es braucht.</string>
+    <string name="strap_sharing_status_off">Dein Strap sagt, dass er nicht teilt.</string>
+    <string name="strap_sharing_status_unknown">Verbinde deinen Strap, um zu sehen, ob er teilt. Das ist eine Einstellung auf dem Strap selbst, sie kann also an sein, obwohl dieser Schalter aus ist.</string>
+    <string name="strap_sharing_stop_button">Teilen auf dem Strap beenden</string>
+    <string name="strap_sharing_stop_caption">Sendet den Aus-Befehl noch einmal, auch wenn der Schalter oben schon aus aussieht. Deine Live-Herzfrequenz in NOOP bleibt unberührt.</string>
     <string name="raw_diag_pair">Android um Kopplung bitten</string>
     <string name="raw_diag_unbonded_offload">Verlaufssynchronisierung ohne Kopplung versuchen</string>
     <string name="raw_diag_clear_stale_bond">Veraltete Kopplung entfernen</string>

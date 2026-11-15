@@ -58,6 +58,10 @@ struct HeartRateSharingView: View {
             broadcastLogSink.live = live
             hrBroadcaster.bind(to: live)
             if phoneBroadcastEnabled { hrBroadcaster.start() }
+            // Ask the strap what it is actually doing, once, here. Deliberately not on every connect: the
+            // decision was that NOOP sends an unasked strap nothing, and this is the moment somebody wants
+            // the answer. A read changes no setting.
+            if strapCanBroadcast { model.ble.readStrapSharingState() }
         }
         .onDisappear {
             // A foreground convenience tied to this screen's owned object: release the radio when the
@@ -135,20 +139,64 @@ struct HeartRateSharingView: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
-                // #573: leaving it on keeps the strap radio advertising continuously.
-                if strapBroadcastEnabled {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "battery.25")
-                            .foregroundStyle(StrandPalette.statusWarningForeground)
-                            .accessibilityHidden(true)
-                        Text("Your strap is sending its heart rate right now and drains its battery faster. Turn this off when no other device needs it.")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.statusWarningForeground)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityElement(children: .combine)
+                strapStatus
+                strapStopButton
+            }
+        }
+    }
+
+    /// What the STRAP says, never what the switch above says.
+    ///
+    /// The two are different facts and this is the one that matters: the flag lives on the strap and
+    /// survives a reinstall, a new phone, or an off that never reached it, so a switch reading off is no
+    /// evidence at all. A wearer whose strap drains in three days instead of ten needs to be able to see
+    /// which of the two they are in, and until 2026-11-15 the warning below was keyed on the switch — so
+    /// it appeared only when the app already knew, and stayed hidden in exactly the case it exists for.
+    @ViewBuilder private var strapStatus: some View {
+        switch live.strapSharingOn {
+        case true?:
+            // #573: leaving it on keeps the strap radio advertising continuously.
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "battery.25")
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+                    .accessibilityHidden(true)
+                Text("Your strap is sending its heart rate right now, to anything in range, even when nothing is connected to it. That drains it much faster. Turn it off when no other device needs it.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+        case false?:
+            Text("Your strap says it is not sharing.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        case nil:
+            Text("Connect your strap to see whether it is sharing. This is a setting on the strap itself, so it can be on even when this switch is off.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The way back for a strap that is sharing although nothing in the app asked it to.
+    ///
+    /// Hidden only when the strap itself has said it is not sharing. While that is unknown the button
+    /// stays, because "we have not asked" is the state a stranded strap sits in and the one where a wearer
+    /// most needs something to press.
+    @ViewBuilder private var strapStopButton: some View {
+        if live.strapSharingOn != false {
+            VStack(alignment: .leading, spacing: 6) {
+                NoopButton("Stop sharing on the strap", systemImage: "antenna.radiowaves.left.and.right.slash",
+                           kind: .secondary) {
+                    model.ble.stopStrapSharingOnStrap()
+                    model.ble.readStrapSharingState()
                 }
+                Text("Sends the off command again, even if the switch above already looks off. Your live heart rate in NOOP is not affected.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

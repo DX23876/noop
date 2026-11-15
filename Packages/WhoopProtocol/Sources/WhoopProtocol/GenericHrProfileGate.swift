@@ -117,9 +117,19 @@ public enum GenericHrProfileGate {
     /// sibling gates record the same lesson from having shipped it — `DeviceConfigWriteGate.admitsSend`
     /// (#1061, "gating the OFF write on it made the toggle-off path DEAD") and the #174 R22 disable clause.
     /// Admitting it costs nothing: `00` cannot enable anything, and the strap's own event reports the result.
-    public static func admitsSend(opcode: UInt8, payload: [UInt8], broadcastHrOptIn: Bool) -> Bool {
+    ///
+    /// TWO opt-ins may authorise the ON, because two deliberate switches legitimately want this one
+    /// command: sharing, which needs the service as its prerequisite, and the service's own control, which
+    /// exists because `StrapSharing` stopped the OFF direction of sharing from touching the service and
+    /// what this app can switch on it must be able to switch off. Each is bound to a visible switch, so
+    /// neither rides in on consent given for something else. [serviceOptIn] defaults to false and so fails
+    /// CLOSED: a caller that forgets it gets a refusal, logged by the call site, never a silent widening.
+    public static func admitsSend(opcode: UInt8,
+                                  payload: [UInt8],
+                                  broadcastHrOptIn: Bool,
+                                  serviceOptIn: Bool = false) -> Bool {
         guard opcode == toggleGenericHrProfileCmd else { return false }
         guard let on = requestedState(inSendPayload: payload) else { return false }
-        return on ? broadcastHrOptIn : true
+        return on ? (broadcastHrOptIn || serviceOptIn) : true
     }
 }

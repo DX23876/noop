@@ -52,6 +52,18 @@ class PuffinExperiment(
         get() = prefs.getBoolean(KEY_BROADCAST_HR, false)
         set(v) = prefs.edit().putBoolean(KEY_BROADCAST_HR, v).apply()
 
+    /** True if the user opted in to the strap's own STANDARD heart-rate service switch
+     *  (`TOGGLE_GENERIC_HR_PROFILE`), which is a different setting from sharing and has its own control.
+     *
+     *  Its own key rather than riding on [KEY_BROADCAST_HR], for the reason this repo gives every
+     *  persistent strap write its own: since 2026-11-15 the sharing switch's OFF direction deliberately
+     *  leaves the service alone, so the service needs a switch that can put it back — and consent to share
+     *  a heart rate is not consent to turn off the channel this app reads its own live heart rate on.
+     *  Default false. Mirrors the macOS `PuffinExperiment.standardHrServiceKey`. */
+    var standardHrService: Boolean
+        get() = prefs.getBoolean(KEY_STANDARD_HR_SERVICE, false)
+        set(v) = prefs.edit().putBoolean(KEY_STANDARD_HR_SERVICE, v).apply()
+
     /** True if the user opted in to the "ECG raw-data gate" (#891): NOOP writes the device-config key
      *  `enable_raw_data_w_ecg` — the key the strap's own 115/116 enumeration listed, which reads '0' on a
      *  subscription-free WHOOP MG whose three TOGGLE_LABRADOR commands all ack SUCCESS and emit nothing.
@@ -303,6 +315,10 @@ class PuffinExperiment(
 
         /** "Broadcast heart rate" opt-in (mirrors macOS `PuffinExperiment.broadcastHrKey`). */
         const val KEY_BROADCAST_HR = "noopBroadcastHr"
+
+        /** The strap's own standard heart-rate SERVICE switch, separate from sharing since 2026-11-15
+         *  (mirrors macOS `PuffinExperiment.standardHrServiceKey`). */
+        const val KEY_STANDARD_HR_SERVICE = "noopStandardHrService"
 
         /**
          * Opt-in "MG ECG probe" — the Kotlin twin of Apple's `PuffinExperiment.ecgKey`.

@@ -2686,6 +2686,12 @@
     <string name="raw_diag_title">Diagnostica protocollo 5/MG</string>
     <string name="raw_diag_protocol_probes">Sonde di protocollo</string>
     <string name="raw_diag_broadcast_hr">Trasmetti la frequenza cardiaca dalla fascia</string>
+    <string name="raw_diag_hr_service">Servizio standard di frequenza cardiaca sulla fascia</string>
+    <string name="strap_sharing_status_on">La tua fascia sta inviando la frequenza cardiaca in questo momento, a qualsiasi dispositivo nel raggio, anche senza il telefono vicino. Questo la scarica molto più in fretta. Disattivalo quando nessun altro dispositivo ne ha bisogno.</string>
+    <string name="strap_sharing_status_off">La tua fascia dice che non sta condividendo.</string>
+    <string name="strap_sharing_status_unknown">Collega la fascia per vedere se sta condividendo. È un\'impostazione della fascia stessa, quindi può essere attiva anche se questo interruttore è spento.</string>
+    <string name="strap_sharing_stop_button">Interrompi la condivisione sulla fascia</string>
+    <string name="strap_sharing_stop_caption">Invia di nuovo il comando di spegnimento, anche se l\'interruttore sopra sembra già spento. La frequenza cardiaca dal vivo in NOOP non viene toccata.</string>
     <string name="raw_diag_pair">Chiedi ad Android di abbinare</string>
     <string name="raw_diag_unbonded_offload">Prova la sincronizzazione della cronologia senza abbinamento</string>
     <string name="raw_diag_clear_stale_bond">Rimuovi un abbinamento obsoleta del telefono</string>

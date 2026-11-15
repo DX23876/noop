@@ -36,6 +36,20 @@ enum PuffinExperiment {
 
     static var broadcastHrEnabled: Bool { UserDefaults.standard.bool(forKey: broadcastHrKey) }
 
+    /// Opt-in for the strap's own STANDARD heart-rate service switch (`TOGGLE_GENERIC_HR_PROFILE`), which
+    /// is a different setting from sharing and now has a different control (Test Centre).
+    ///
+    /// Its own key rather than riding on `broadcastHrKey`, for the reason this repo gives every persistent
+    /// strap write its own: since 2026-11-15 the sharing switch's OFF direction deliberately leaves the
+    /// service alone, so the service needs a switch that can put it back — and consent to share a heart
+    /// rate is not consent to turn off the channel this app reads its own live heart rate on. Default off.
+    /// Mirrors the Android `PuffinExperiment.KEY_STANDARD_HR_SERVICE`.
+    static let standardHrServiceKey = "noopStandardHrService"
+
+    static var standardHrServiceEnabled: Bool {
+        UserDefaults.standard.bool(forKey: standardHrServiceKey)
+    }
+
     /// Opt-in "ECG raw-data gate" (#891): writes the device-config key `enable_raw_data_w_ecg` — the key
     /// the strap's own 115/116 enumeration listed, and which reads `'0'` on a subscription-free WHOOP MG
     /// whose three TOGGLE_LABRADOR commands all ack SUCCESS and emit nothing.

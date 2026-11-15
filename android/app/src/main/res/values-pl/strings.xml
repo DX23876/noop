@@ -2715,6 +2715,12 @@
     <string name="raw_diag_title">Diagnostyka protokołu 5/MG</string>
     <string name="raw_diag_protocol_probes">Testy protokołu</string>
     <string name="raw_diag_broadcast_hr">Transmituj tętno z opaski</string>
+    <string name="raw_diag_hr_service">Standardowa usługa tętna na opasce</string>
+    <string name="strap_sharing_status_on">Twoja opaska właśnie wysyła tętno do wszystkiego w zasięgu, nawet bez telefonu w pobliżu. To zużywa baterię dużo szybciej. Wyłącz to, gdy żadne inne urządzenie tego nie potrzebuje.</string>
+    <string name="strap_sharing_status_off">Twoja opaska mówi, że nie udostępnia.</string>
+    <string name="strap_sharing_status_unknown">Połącz opaskę, aby zobaczyć, czy udostępnia. To ustawienie samej opaski, więc może być włączone, nawet gdy ten przełącznik jest wyłączony.</string>
+    <string name="strap_sharing_stop_button">Zatrzymaj udostępnianie na opasce</string>
+    <string name="strap_sharing_stop_caption">Wysyła polecenie wyłączenia jeszcze raz, nawet jeśli przełącznik powyżej już wygląda na wyłączony. Tętno na żywo w NOOP pozostaje bez zmian.</string>
     <string name="raw_diag_pair">Poproś Androida o sparowanie</string>
     <string name="raw_diag_unbonded_offload">Spróbuj synchronizacji historii bez parowania</string>
     <string name="raw_diag_clear_stale_bond">Usuń nieaktualne parowanie</string>

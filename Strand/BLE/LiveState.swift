@@ -642,6 +642,15 @@ public final class LiveState: ObservableObject {
     /// looped forever. Informational note for the Live screen; cleared on a clean reconnect or Live re-open.
     @Published public var standardHRMode: String? = nil
 
+    /// Whether the strap is broadcasting its heart rate to anything in range — the strap's OWN answer, not
+    /// what the app's switch says.
+    ///
+    /// Three states, and the third is the point: nil means nobody has asked this strap, which is NOT "off".
+    /// The setting lives on the strap and survives a reinstall, a new phone or an off that never reached
+    /// it, so a wearer can hold a strap that broadcasts around the clock while every switch in the app
+    /// reads off. Written only by a read-back the strap answered (`BLEManager.noteStrapSharingState`).
+    @Published public var strapSharingOn: Bool? = nil
+
     public init() {}
 
     /// Single funnel for battery readings — updates the published value AND notifies the hook,

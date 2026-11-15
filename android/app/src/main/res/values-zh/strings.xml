@@ -2611,6 +2611,12 @@
     <string name="raw_diag_title">5/MG 协议诊断</string>
     <string name="raw_diag_protocol_probes">协议探测</string>
     <string name="raw_diag_broadcast_hr">从手环广播心率</string>
+    <string name="raw_diag_hr_service">手环上的标准心率服务</string>
+    <string name="strap_sharing_status_on">你的手环正在向附近任何设备发送心率，即使手机不在身边。这会让电量消耗快得多。当没有其他设备需要时请关闭。</string>
+    <string name="strap_sharing_status_off">手环表示它没有在共享。</string>
+    <string name="strap_sharing_status_unknown">连接手环后才能看到它是否在共享。这是手环自身的设置，所以即使这个开关是关的，它也可能是开的。</string>
+    <string name="strap_sharing_stop_button">在手环上停止共享</string>
+    <string name="strap_sharing_stop_caption">再发送一次关闭指令，即使上面的开关看起来已经关闭。NOOP 中的实时心率不受影响。</string>
     <string name="raw_diag_pair">请求 Android 配对</string>
     <string name="raw_diag_unbonded_offload">尝试在未配对状态下同步历史数据</string>
     <string name="raw_diag_clear_stale_bond">清除过期配对</string>

@@ -2644,6 +2644,12 @@ public final class BLEManager: NSObject, ObservableObject {
                 // ECG gate (#891) and the Broadcast-HR gate (#1061) read themselves back over this opcode.
                 || (DeviceConfigWriteGate.isReadBackOpcode(command.rawValue)
                     && (ecgGateReport != nil || broadcastHrGateReport != nil))
+                // The SAME read verb, standing on its own: "is this strap sharing right now". A read
+                // cannot change a setting, which is why `DeviceConfigReadProbe` is a separate and safer
+                // class from the write gate above, and the #103 probe already rides the identical
+                // in-flight shape one clause up. It is what lets a wearer be told the truth about a strap
+                // the app's own switch is wrong about, instead of being read out of raw firmware lines.
+                || (DeviceConfigWriteGate.isReadBackOpcode(command.rawValue) && sharingReadInFlight)
                 // The WHOOP MG ECG ("Labrador") family — allowed ONLY when BOTH gates hold: the
                 // Experimental opt-in is on AND the strap has POSITIVELY attested itself an MG over the
                 // Device Information Service. A plain 5.0 has no electrodes and an unidentified strap
@@ -3934,56 +3940,110 @@ public final class BLEManager: NSObject, ObservableObject {
         finishR22Disable()
     }
 
-    /// Make a bonded strap serve its heart rate as a standard BLE HR sensor. WHOOP 4 uses the reversible
-    /// TOGGLE_GENERIC_HR_PROFILE command; a WHOOP 5/MG now gets BOTH that command and the device-config
-    /// key, because they are two different strap settings and only one of them was ever reachable here.
+    /// Make a bonded strap serve its heart rate as a standard BLE HR sensor — the Settings switch's own
+    /// entry point, both directions.
     ///
     /// The device-config key (`whoop_live_hr_in_adv_ind_pkt`) is the ADVERTISING preference, hardware
     /// validated in #181 when a Garmin Edge 840 paired to a strap. Opcode 14 is the switch for the
     /// standard heart-rate SERVICE itself, which a field log showed a 5.0 holding off all day while
-    /// reporting `Previously Saved HRS State OFF` at boot — a state nothing here could read or move. See
-    /// `GenericHrProfileGate` for the evidence and for why the vendor app is not an alternative.
+    /// reporting `Previously Saved HRS State OFF` at boot. See `GenericHrProfileGate` for the evidence and
+    /// for why the vendor app is not an alternative.
+    ///
+    /// Which of the two a direction may write is `StrapSharing.plan(on:)`, not an `if` here: OFF touches
+    /// the advertising flag ONLY, because the service is what this app's own live heart rate, R-R stream
+    /// and liveness watchdog ride on, and nobody switching off a broadcast is asking to lose those.
     ///
     /// The two report separately and must not be collapsed into one verdict: the key's proof is its 121
     /// read-back, the command's proof is the strap's own event 24/25. Neither command response is proof of
     /// anything, and whether a 5/MG serves opcode 14 at all is still a hardware check.
     public func setBroadcastHr(_ on: Bool) {
+        applyStrapSharing(on: on, source: .userSwitch)
+    }
+
+    /// "Stop sharing on the strap" — the Heart rate sharing card's button, which sends the OFF write
+    /// whatever the stored switch says.
+    ///
+    /// The switch alone cannot reach a strap that is already stranded: the flag lives ON THE STRAP and
+    /// survives a reinstall, a new phone, cleared app data, or an OFF that was dropped because the strap
+    /// was out of range. In every one of those the app's switch already reads off, so there is nothing
+    /// left to flip while the strap keeps broadcasting a heart rate once a second, for days. This is that
+    /// missing verb: user-initiated, idempotent, and OFF-only, so it can never start anything.
+    public func stopStrapSharingOnStrap() {
+        applyStrapSharing(on: false, source: .stopButton)
+    }
+
+    /// Where a sharing write came from. Only used for the log line and for whether an unsent wish is worth
+    /// remembering, never to widen what may be written.
+    enum StrapSharingWriteSource: String {
+        case userSwitch = "switch"
+        case stopButton = "stop button"
+        case pendingWish = "remembered wish"
+        case deferredWish = "held wish"
+    }
+
+    /// The one funnel every sharing write goes through, so the two directions cannot drift apart again.
+    private func applyStrapSharing(on: Bool, source: StrapSharingWriteSource) {
+        // The wearer's latest intent wins over anything remembered, and it wins BEFORE the write is even
+        // attempted: a stale OFF left over from last week must not be replayed at the next connect against
+        // somebody who has since switched sharing back on.
+        if on { clearPendingSharingOff() }
         guard state.connected, state.bonded else {
-            log("Broadcast HR: connect and bond the strap first — ignored."); return
+            noteUnsentSharingWish(on: on, source: source, why: "connect and bond the strap first")
+            return
         }
         if selectedModel.deviceFamily == .whoop4 {
+            // NOT split on a 4.0: there is no advertising key on that family, so opcode 14 IS the
+            // broadcast switch there (#181, the Garmin path). Splitting it would leave a 4.0 with no off
+            // switch at all, which is the very fault this change exists to remove.
             send(.toggleGenericHRProfile, payload: [on ? 0x01 : 0x00])
-            log("Broadcast HR: WHOOP 4 \(on ? "enable" : "disable") command sent (14); effect not confirmed.")
+            log("Broadcast HR: WHOOP 4 \(on ? "enable" : "disable") command sent (14) [\(source.rawValue)]; effect not confirmed.")
+            if !on { clearPendingSharingOff() }
             return
         }
         guard selectedModel.deviceFamily == .whoop5 else {
-            log("Broadcast HR: strap family is not known yet — ignored."); return
-        }
-        // Opcode 14 goes FIRST, and outside the single-flight guard below: that guard exists because two
-        // device-config writes would collide on the shared 121 read-back opcode, and this command uses no
-        // read-back at all. Its outcome is the strap's event 24/25, so nothing is claimed here beyond the
-        // send. Consult the same gate `send` consults, so a refusal is logged rather than silent (#1061's
-        // lesson, applied to the new clause).
-        let hrProfileBody = GenericHrProfileGate.body(on: on)
-        if GenericHrProfileGate.admitsSend(opcode: GenericHrProfileGate.toggleGenericHrProfileCmd,
-                                           payload: hrProfileBody,
-                                           broadcastHrOptIn: PuffinExperiment.broadcastHrEnabled) {
-            send(.toggleGenericHRProfile, payload: hrProfileBody)
-            log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) \(on ? "01" : "00") sent to the 5/MG "
-                + "(experimental, untried on this family); the ack proves nothing — waiting for the strap's "
-                + "own \(GenericHrProfileGate.enabledEvent)/\(GenericHrProfileGate.disabledEvent) event.")
-        } else {
-            // "strap unchanged" would be FALSE here: the device-config write below runs either way, so only
-            // this command's own effect can be denied. The off direction can no longer land here at all
-            // (the gate admits it unconditionally), so this is the opt-in-off ON write and nothing else.
-            log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — the standard "
-                + "heart-rate service was not touched by this command; the device-config write still runs.")
+            noteUnsentSharingWish(on: on, source: source, why: "strap family is not known yet")
+            return
         }
         // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
         // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's
         // verdict (its key isn't echoed → a spurious notClaimed). Only one device-config write verifies at once.
+        //
+        // MOVED AHEAD of the opcode-14 send (2026-11-15). It used to sit after it, on the reasoning that
+        // opcode 14 needs no read-back and so cannot collide — true of the collision, but it made the two
+        // writes separable: a toggle landing inside another verification switched the SERVICE and returned
+        // before the advertising flag, leaving the strap half-applied with nothing to repair it and a
+        // switch claiming one state for two settings. Both writes now live or die together, and a wish
+        // that arrives mid-verification is held rather than half-applied.
         guard broadcastHrGateReport == nil, ecgGateReport == nil else {
-            log("Broadcast HR: a device-config write is already being verified — ignored."); return
+            deferredSharingWish = on
+            log("Broadcast HR: a device-config write is already being verified — holding this "
+                + "\(on ? "ON" : "OFF") [\(source.rawValue)] until it finishes.")
+            return
+        }
+        // The asymmetry, resolved once in the pure twin rather than by an `if on` here: ON may write both
+        // settings, OFF writes the advertising flag and never the service.
+        let plan = StrapSharing.plan(on: on)
+        if plan.writesService {
+            // Consult the same gate `send` consults, so a refusal is logged rather than silent (#1061's
+            // lesson, applied to the new clause).
+            let hrProfileBody = GenericHrProfileGate.body(on: on)
+            if GenericHrProfileGate.admitsSend(opcode: GenericHrProfileGate.toggleGenericHrProfileCmd,
+                                               payload: hrProfileBody,
+                                               broadcastHrOptIn: PuffinExperiment.broadcastHrEnabled) {
+                send(.toggleGenericHRProfile, payload: hrProfileBody)
+                log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) \(on ? "01" : "00") sent to the 5/MG "
+                    + "(experimental, untried on this family); the ack proves nothing — waiting for the strap's "
+                    + "own \(GenericHrProfileGate.enabledEvent)/\(GenericHrProfileGate.disabledEvent) event.")
+            } else {
+                // "strap unchanged" would be FALSE here: the device-config write below runs either way, so
+                // only this command's own effect can be denied. Only the ON direction can reach this branch.
+                log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — the standard "
+                    + "heart-rate service was not touched by this command; the device-config write still runs.")
+            }
+        } else {
+            log("Broadcast HR: the standard heart-rate service is deliberately left alone on an OFF — it is "
+                + "what NOOP's own live heart rate, R-R stream and link watchdog read, and stopping a "
+                + "broadcast is not a request to lose those.")
         }
         let payload = [0x01] + Whoop5Config.deviceConfigBody(name: DeviceConfigWriteGate.broadcastHrKey,
                                                              value: DeviceConfigWriteGate.value(on: on))
@@ -3996,8 +4056,13 @@ public final class BLEManager: NSObject, ObservableObject {
                                                isMG: isWhoop5MG,
                                                broadcastHrOptIn: PuffinExperiment.broadcastHrEnabled) else {
             log("Broadcast HR: write whoop_live_hr_in_adv_ind_pkt=\(on ? "1" : "0") REFUSED by the 5/MG send gate — strap unchanged.")
+            noteUnsentSharingWish(on: on, source: source, why: "the send gate refused the write")
             return
         }
+        // The wish is spent the moment its write is on the wire. Not when the read-back confirms: a
+        // remembered wish that survived its own successful send would be replayed on the next connect, and
+        // a wearer who had since switched sharing back ON would have it cleared under them.
+        if !on { clearPendingSharingOff() }
         // #1061: write, then READ IT BACK — the ack is not the proof. A reporter on FW 50.36.2.0 saw the
         // flag written yet the strap never advertised 0x180D, with no way to tell "accepted but not
         // advertised" from "write ignored". The 121 read-back settles that, same discipline as the ECG gate.
@@ -4019,6 +4084,189 @@ public final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Strap sharing: a wish that could not be sent, and the strap's own answer
+
+    /// Defaults key: the device id an unsent OFF is waiting for, or absent when none waits.
+    ///
+    /// Stored rather than held in memory, because the case that creates these wishes is exactly the one
+    /// that loses memory: a wearer switches sharing off in the evening with the strap out of range and
+    /// closes the app. An in-memory wish would be gone before the strap is ever seen again, which is the
+    /// same silent loss this whole change exists to remove, moved one step later.
+    static let pendingSharingOffKey = "noop.sharing.pendingOffDeviceId"
+
+    /// Defaults key: the last sharing state READ BACK from the strap, absent when it was never read.
+    static let lastSharingStateKey = "noop.sharing.lastKnownOn"
+
+    /// Defaults key: when that reading was taken (epoch seconds).
+    static let lastSharingReadAtKey = "noop.sharing.lastKnownAt"
+
+    /// A wish that arrived while another device-config write was being verified, replayed when that one
+    /// finishes. In memory only: it is seconds old by construction, and the stored wish above covers the
+    /// case that outlives the process.
+    private var deferredSharingWish: Bool?
+
+    /// The registry's active device id, which is what a remembered wish is keyed on. Nil when the registry
+    /// is not wired yet, and a nil id can never match, so an unattributable wish is never replayed.
+    private var activeSharingDeviceId: String? {
+        guard let registry = registryStore, let id = try? registry.activeDeviceId(), !id.isEmpty else {
+            return nil
+        }
+        return id
+    }
+
+    /// A sharing write that did not reach the strap. An OFF is REMEMBERED, an ON is only logged.
+    ///
+    /// The asymmetry matches the one in `StrapSharing`: an unsent ON is harmless and the connect path
+    /// re-asserts it anyway, while an unsent OFF is the defect — the stored switch has already flipped, so
+    /// without this the wearer is left with a control that reads off and a strap that broadcasts for ever.
+    private func noteUnsentSharingWish(on: Bool, source: StrapSharingWriteSource, why: String) {
+        guard !on else {
+            log("Broadcast HR: \(why) — the ON was not sent [\(source.rawValue)]; it is re-applied on the next connect.")
+            return
+        }
+        guard let deviceId = activeSharingDeviceId else {
+            log("Broadcast HR: \(why) — the OFF was not sent [\(source.rawValue)] and cannot be remembered: "
+                + "no active device to attribute it to. Use the button on Heart rate sharing once connected.")
+            return
+        }
+        UserDefaults.standard.set(deviceId, forKey: BLEManager.pendingSharingOffKey)
+        log("Broadcast HR: \(why) — the OFF was not sent [\(source.rawValue)]; remembered for \(deviceId) "
+            + "and sent the next time that strap connects.")
+    }
+
+    /// Forget a remembered OFF. Called when its write goes out, and when sharing is switched back on.
+    private func clearPendingSharingOff() {
+        guard UserDefaults.standard.string(forKey: BLEManager.pendingSharingOffKey) != nil else { return }
+        UserDefaults.standard.removeObject(forKey: BLEManager.pendingSharingOffKey)
+    }
+
+    /// Replay a remembered OFF on the strap it was made for. Called once per connect, after the bond.
+    ///
+    /// This is NOT the automatic reconciliation that was deliberately rejected: nothing is written to a
+    /// strap whose wearer did not ask for it. The wish exists only because somebody pressed the switch and
+    /// the write could not go out at that moment.
+    func applyPendingSharingWishIfAny() {
+        let pending = UserDefaults.standard.string(forKey: BLEManager.pendingSharingOffKey)
+        guard StrapSharing.pendingApplies(pendingDeviceId: pending, activeDeviceId: activeSharingDeviceId) else {
+            return
+        }
+        log("Broadcast HR: replaying the OFF this strap was waiting for.")
+        applyStrapSharing(on: false, source: .pendingWish)
+    }
+
+    /// Replay a wish that was held while another device-config write was being verified.
+    private func applyDeferredSharingWishIfAny() {
+        guard let wish = deferredSharingWish else { return }
+        deferredSharingWish = nil
+        log("Broadcast HR: the held \(wish ? "ON" : "OFF") can go out now.")
+        applyStrapSharing(on: wish, source: .deferredWish)
+    }
+
+    /// Record what the strap said about sharing: the only statement this app treats as the state.
+    ///
+    /// Never inferred from the stored switch, and never from a write's acknowledgement. Both have been
+    /// wrong in the field, which is how a strap ends up broadcasting for days behind a control that reads
+    /// off.
+    private func noteStrapSharingState(on: Bool) {
+        UserDefaults.standard.set(on, forKey: BLEManager.lastSharingStateKey)
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: BLEManager.lastSharingReadAtKey)
+        state.strapSharingOn = on
+    }
+
+    /// True while a standalone sharing READ is waiting for its reply. The send allowlist consults it so
+    /// the 121 read can go out outside a write verification, exactly as `deviceConfigReport` does for the
+    /// #103 read probe.
+    private var sharingReadInFlight = false
+    private var sharingReadStep = 0
+
+    /// Ask the strap whether it is sharing — a READ, which changes nothing on it.
+    ///
+    /// Deliberately NOT on every connect. The decision was that NOOP sends the strap nothing unasked, and
+    /// while a read cannot alter a setting it is still traffic every wearer would pay for. This runs when
+    /// somebody opens Heart rate sharing or presses its button, which is exactly when the answer is wanted
+    /// and when a wearer with a suspect strap can get a truthful one in a second instead of in two hours of
+    /// reading raw firmware lines.
+    public func readStrapSharingState() {
+        guard state.connected, state.bonded else {
+            log("Sharing: connect the strap first — nothing was read."); return
+        }
+        guard selectedModel.deviceFamily == .whoop5 else {
+            log("Sharing: only a 5/MG keeps this as a readable setting — nothing was read."); return
+        }
+        guard !sharingReadInFlight else { return }
+        sharingReadInFlight = true
+        sharingReadStep &+= 1
+        let armed = sharingReadStep
+        send(.getDeviceConfigValue,
+             payload: DeviceConfigReadProbe.requestBody(key: DeviceConfigWriteGate.broadcastHrKey))
+        DispatchQueue.main.asyncAfter(deadline: .now() + BLEManager.ecgGateReadBackTimeout) { [weak self] in
+            guard let self, self.sharingReadInFlight, self.sharingReadStep == armed else { return }
+            self.sharingReadInFlight = false
+            // Silence leaves the stored state untouched: "we did not hear" is not "it is off", and writing
+            // an answer we never got is the readout this change exists to stop.
+            self.log("Sharing: the strap did not answer the read inside "
+                     + "\(Int(BLEManager.ecgGateReadBackTimeout))s — what is known about it is unchanged.")
+        }
+    }
+
+    /// A 121 reply that belongs to the standalone sharing read. In-flight-guarded, so it no-ops on every
+    /// other frame and never competes with the write gates' own read-backs.
+    private func handleStrapSharingRead(_ frame: [UInt8], isWhoop5: Bool) {
+        guard sharingReadInFlight else { return }
+        let family: DeviceFamily = isWhoop5 ? .whoop5 : .whoop4
+        switch DeviceConfigReadProbe.parse(frame: frame, family: family,
+                                           expecting: DeviceConfigWriteGate.getDeviceConfigValueCmd) {
+        case .success(let response):
+            sharingReadInFlight = false
+            // The strap must have echoed OUR key with a value. A refusal, a failure result or a reply that
+            // claims neither is not an answer about sharing, and recording it as one would be the
+            // "not claimed read as off" trap this whole change exists to close.
+            guard !response.isUnsupported, !response.isFailure,
+                  let value = response.value(for: DeviceConfigWriteGate.broadcastHrKey) else {
+                log("Sharing: the strap answered the read without claiming "
+                    + "\(DeviceConfigWriteGate.broadcastHrKey) — nothing can be said about it.")
+                return
+            }
+            let on = value == DeviceConfigWriteGate.enabledValue
+            noteStrapSharingState(on: on)
+            log("Sharing: the strap says \(DeviceConfigWriteGate.broadcastHrKey)="
+                + "'\(String(UnicodeScalar(value)))' — it is "
+                + "\(on ? "BROADCASTING its heart rate continuously" : "not sharing").")
+        case .failure(let failure):
+            sharingReadInFlight = false
+            log("Sharing: the read could not be decoded (\(failure)) — what is known about it is unchanged.")
+        }
+    }
+
+    /// The Test Centre's own control for the standard heart-rate service (0x180D/0x2A37), separate from
+    /// sharing.
+    ///
+    /// It exists because `StrapSharing` stopped the OFF direction of the sharing switch from touching the
+    /// service: the ON direction can still switch it on, so without a control of its own this app would be
+    /// able to set something on a wearer's strap that nothing could set back. That is the reversibility
+    /// test the BLE safety contract applies, and it is not met by "the vendor app can" — that app pulls a
+    /// firmware update and locks the strap out of NOOP.
+    ///
+    /// Switching the service OFF takes away this app's own live heart rate and its link watchdog, so this
+    /// belongs in the Test Centre behind its own switch rather than beside a wearer-facing one.
+    public func setStandardHrService(_ on: Bool) {
+        guard state.connected, state.bonded else {
+            log("HR service: connect and bond the strap first — ignored."); return
+        }
+        let body = GenericHrProfileGate.body(on: on)
+        guard GenericHrProfileGate.admitsSend(opcode: GenericHrProfileGate.toggleGenericHrProfileCmd,
+                                              payload: body,
+                                              broadcastHrOptIn: PuffinExperiment.broadcastHrEnabled,
+                                              serviceOptIn: PuffinExperiment.standardHrServiceEnabled) else {
+            log("HR service: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the send gate — the strap was not touched.")
+            return
+        }
+        send(.toggleGenericHRProfile, payload: body)
+        log("HR service: TOGGLE_GENERIC_HR_PROFILE(14) \(on ? "01" : "00") sent; the ack proves nothing — "
+            + "waiting for the strap's own \(GenericHrProfileGate.enabledEvent)/"
+            + "\(GenericHrProfileGate.disabledEvent) event.")
+    }
+
     /// Non-nil only while a Broadcast-HR write is being verified (#1061) — same single-flight discipline as
     /// the ECG gate. The send allowlist consults it so the 121 read-back can go out; the frame router routes
     /// the ack + read-back replies here.
@@ -4029,6 +4277,13 @@ public final class BLEManager: NSObject, ObservableObject {
         guard let report = broadcastHrGateReport else { return }
         broadcastHrGateReport = nil
         log("Broadcast HR (#1061):\n\(report.render())")
+        // A CONFIRMED read-back is the strap stating its own value, which is the one thing this app may
+        // record as the state. Every other verdict — unchanged, notClaimed, refused, silent — leaves what
+        // is known untouched rather than writing an assumption over it.
+        if report.verdict == .confirmed, let stored = report.storedValue {
+            noteStrapSharingState(on: stored == DeviceConfigWriteGate.valueString(on: true))
+        }
+        applyDeferredSharingWishIfAny()
     }
 
     /// The write's own COMMAND_RESPONSE — recorded, never treated as proof. Routed here when a 119 reply
@@ -4112,6 +4367,9 @@ public final class BLEManager: NSObject, ObservableObject {
         ecgGateReport = nil
         state.ecgRawDataGate = report
         log("ECG gate (#891):\n\(report.render())")
+        // This gate shares the single-flight slot with the sharing write, so a sharing wish may have been
+        // held behind it. Replayed here rather than dropped, which is what the old code did.
+        applyDeferredSharingWishIfAny()
     }
 
     /// Clear the #891 result (Settings row dismissed / disconnect). Twin of Android clearEcgRawDataGate().
@@ -7568,8 +7826,14 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 state.historyReady = true       // and the sync controls, which must not offer what it declines
                 log("WHOOP 5/MG: connect handshake done — backfill unblocked")
                 noteRebootReconnectIfNeeded()
-                // Re-apply the Broadcast-HR device-config flag if the user opted in (#181).
-                if PuffinExperiment.broadcastHrEnabled { setBroadcastHr(true) }
+                // Re-apply the Broadcast-HR device-config flag if the user opted in (#181), and — the half
+                // that was missing until 2026-11-15 — send an OFF this strap is still owed. Only ever
+                // re-asserting the ON is how a strap ends up broadcasting behind a switch that reads off.
+                if PuffinExperiment.broadcastHrEnabled {
+                    setBroadcastHr(true)
+                } else {
+                    applyPendingSharingWishIfAny()
+                }
                 // Clock the strap BEFORE history: an un-clocked WHOOP 5 discards sensor data ("RTC
                 // timestamp … is invalid; not saving data to flash") and history offloads "succeed"
                 // with metadata only. Same 8-byte payload as the WHOOP4 handshake, puffin-framed;
@@ -7674,7 +7938,12 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         startBackfillTimer()   // re-offload the type-47 store every backfillIntervalSeconds
         startKeepAlive()       // always-ping: re-arm realtime, poll battery, watchdog the link
         // WHOOP 4's broadcast mode is link/runtime state, so restore an opted-in mode after reconnect.
-        if PuffinExperiment.broadcastHrEnabled { setBroadcastHr(true) }
+        // The else is the 2026-11-15 other half: an OFF that could not go out when it was asked for.
+        if PuffinExperiment.broadcastHrEnabled {
+            setBroadcastHr(true)
+        } else {
+            applyPendingSharingWishIfAny()
+        }
         enableLiveNotifications(reason: "post-bond")   // includes 0x2A37 standard HR — the fallback path
         // #927: RE-DERIVE the want at arm time (same reasoning as the 5/MG branch above): a reconnect
         // outside the overnight window must not arm the flood from a stale precomputed `wantsRealtime`
@@ -8225,6 +8494,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                         } else if frame[10] == WhoopCommand.getDeviceConfigValue.rawValue {
                             handleEcgGateReadBack(frame, isWhoop5: true)
                             handleBroadcastHrGateReadBack(frame, isWhoop5: true)
+                            // The standalone sharing read, guarded on its own flag like the two above, so
+                            // exactly one of the three ever acts on a given reply.
+                            handleStrapSharingRead(frame, isWhoop5: true)
                         }
                     }
                     // #695: a 5/MG GET_DATA_RANGE COMMAND_RESPONSE (puffin envelope: type @8, cmd @10). Feeds

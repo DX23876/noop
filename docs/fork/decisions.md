@@ -1555,3 +1555,64 @@ measurement is still owed, on a real strap.
 
 Analysis migration required: no. Recording and sending; no stored derived value, no scoring, no
 analysis window.
+
+## 2026-11-15 — Sharing a heart rate from the strap is one switch over two settings, and only one of them may be switched off
+
+A tester's WHOOP 5.0 was draining in three to four days against the nine to eleven the owner's MG
+manages on the same build. Her strap log answered it, but only in the firmware's own passthrough lines:
+`BLE: Started advertising with unrecognized interval: 1`, then `BLE: HR adv update skipped - prior
+update pending` once a second, then `BLE: Advertising update watchdog timeout - controller
+unresponsive` and a controller reset, three times in 22 hours. Her strap was writing a fresh heart rate
+into its advertisement every second, for anything in range, with no phone connected. Nothing in the app
+said so, and nothing in the exported log said so either.
+
+**The feature is not the fault.** A strap that advertises its heart rate is how a treadmill or Zwift
+reads it without pairing (#181), and the card says plainly that it costs battery. The fault is that the
+switch only worked in one direction.
+
+**One switch, two strap settings.** `whoop_live_hr_in_adv_ind_pkt` is the advertising flag, the one that
+costs battery around the clock. `TOGGLE_GENERIC_HR_PROFILE`(14) is the standard heart-rate SERVICE, the
+channel a connected device reads — and the channel NOOP's own live heart rate, R-R stream and link
+watchdog all ride. Since 65dde355f both directions wrote both. So switching sharing off also switched
+off the service the app itself lives on, for a wearer who had only asked to stop broadcasting.
+`StrapSharing.plan(on:)` now resolves that in one pure place on both platforms: **ON may write both,
+OFF writes the advertising flag and never the service.** The asymmetry is the safety, and it is a type
+rather than an `if` so a later edit cannot quietly make it symmetric again.
+
+**What this app can switch on, it must be able to switch back.** The sharing switch is no longer the
+service's reversal path, so the service gets its own control in the Test Centre, behind its own opt-in.
+`GenericHrProfileGate.admitsSend` takes a second opt-in for it, defaulting false so a caller that
+forgets it is refused rather than silently widened.
+
+**An OFF that could not be sent is remembered.** `setBroadcastHr` returned early when the strap was not
+connected and bonded — and the switch's own stored value had already flipped, so a wearer who switched
+sharing off with the strap out of range was left with a control reading off and a strap broadcasting
+for ever. The connect path only ever re-asserted the ON. Now an unsent OFF is stored against the device
+id it was made for and replayed on that strap's next connect; an unsent ON is still only logged, since
+the connect path re-applies it anyway.
+
+**Not reconciled automatically, deliberately.** Writing the app's belief to every strap on every connect
+would repair stranded straps silently, and was rejected: NOOP sends an unasked strap nothing, and
+opcode 14 has never been verified on a 5/MG. A stranded strap is reached by a button the wearer presses
+("Stop sharing on the strap"), which sends the OFF whatever the switch says.
+
+**The strap is asked, and its answer is the state.** `GET_DEVICE_CONFIG_VALUE(121)` reads the flag back
+on demand — when the sharing page opens or the button is pressed, not on every connect. The answer
+drives the card and a new `Sharing:` line in the strap-log header, and it keeps three states: a strap
+nobody has asked is UNKNOWN, never "off". The warning about battery used to be keyed on the app's own
+switch, so it appeared only when the app already knew and stayed hidden in exactly the case it exists
+for.
+
+**Both writes now live or die together.** The single-flight guard moved ahead of the opcode-14 send. It
+used to sit after it, on the reasoning that a command with no read-back cannot collide — true, but it
+made the two writes separable, so a toggle landing inside another device-config verification moved the
+service and returned before the advertising flag. A wish that arrives mid-verification is now held and
+replayed when the slot frees.
+
+**Unverified.** Whether the advertising flag does anything with the service off is a hardware question;
+it bears only on the ON direction. Whether a 5/MG serves opcode 14 at all is still unproven. And whether
+this is what has been draining the tester's strap is hers to show, over days, on the build this ships
+in.
+
+Analysis migration required: no. A strap setting, a readout and a button; no stored derived value, no
+scoring, no analysis window.

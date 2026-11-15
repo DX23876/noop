@@ -2697,6 +2697,12 @@
     <string name="raw_diag_title">Diagnóstico do protocolo 5/MG</string>
     <string name="raw_diag_protocol_probes">Sondas de protocolo</string>
     <string name="raw_diag_broadcast_hr">Transmitir frequência cardíaca da bracelete</string>
+    <string name="raw_diag_hr_service">Serviço padrão de frequência cardíaca na bracelete</string>
+    <string name="strap_sharing_status_on">A tua bracelete está a enviar a frequência cardíaca neste momento, para qualquer aparelho ao alcance, mesmo sem o telemóvel por perto. Isso gasta a bateria muito mais depressa. Desliga quando mais nenhum aparelho precisar.</string>
+    <string name="strap_sharing_status_off">A tua bracelete diz que não está a partilhar.</string>
+    <string name="strap_sharing_status_unknown">Liga a tua bracelete para veres se está a partilhar. É uma definição da própria bracelete, por isso pode estar ligada mesmo com este interruptor desligado.</string>
+    <string name="strap_sharing_stop_button">Parar a partilha na bracelete</string>
+    <string name="strap_sharing_stop_caption">Envia de novo o comando para desligar, mesmo que o interruptor acima já pareça desligado. A frequência cardíaca em direto no NOOP não é afetada.</string>
     <string name="raw_diag_pair">Pedir ao Android para emparelhar</string>
     <string name="raw_diag_unbonded_offload">Tentar sincronizar o histórico sem emparelhamento</string>
     <string name="raw_diag_clear_stale_bond">Limpar emparelhamento obsoleto</string>

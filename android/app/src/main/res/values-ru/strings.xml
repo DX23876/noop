@@ -2543,6 +2543,12 @@
     <string name="raw_diag_title">ДИАГНОСТИКА ПРОТОКОЛА 5/MG</string>
     <string name="raw_diag_protocol_probes">Пробы протокола</string>
     <string name="raw_diag_broadcast_hr">Транслировать пульс с браслета</string>
+    <string name="raw_diag_hr_service">Стандартная служба пульса на браслете</string>
+    <string name="strap_sharing_status_on">Ваш браслет прямо сейчас передаёт пульс всем устройствам поблизости, даже без телефона рядом. Батарея садится намного быстрее. Выключите, когда это больше никому не нужно.</string>
+    <string name="strap_sharing_status_off">Браслет сообщает, что не передаёт пульс.</string>
+    <string name="strap_sharing_status_unknown">Подключите браслет, чтобы узнать, передаёт ли он пульс. Это настройка самого браслета, поэтому она может быть включена, даже если этот переключатель выключен.</string>
+    <string name="strap_sharing_stop_button">Выключить передачу на браслете</string>
+    <string name="strap_sharing_stop_caption">Отправляет команду выключения ещё раз, даже если переключатель выше уже выглядит выключенным. Живой пульс в NOOP это не затрагивает.</string>
     <string name="raw_diag_pair">Попросить Android выполнить сопряжение</string>
     <string name="raw_diag_unbonded_offload">Пробовать синхронизацию истории без сопряжения</string>
     <string name="raw_diag_clear_stale_bond">Удалить устаревшее сопряжение телефона</string>

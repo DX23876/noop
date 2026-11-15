@@ -2705,6 +2705,12 @@
     <string name="raw_diag_title">Diagnóstico del protocolo 5/MG</string>
     <string name="raw_diag_protocol_probes">Sondas de protocolo</string>
     <string name="raw_diag_broadcast_hr">Transmitir frecuencia cardíaca desde la pulsera</string>
+    <string name="raw_diag_hr_service">Servicio estándar de frecuencia cardíaca en la pulsera</string>
+    <string name="strap_sharing_status_on">Tu pulsera está enviando ahora mismo su frecuencia cardíaca a cualquier dispositivo cercano, incluso sin el teléfono al lado. Eso gasta mucha más batería. Desactívalo cuando ningún otro dispositivo lo necesite.</string>
+    <string name="strap_sharing_status_off">Tu pulsera dice que no está compartiendo.</string>
+    <string name="strap_sharing_status_unknown">Conecta tu pulsera para ver si está compartiendo. Es un ajuste de la propia pulsera, así que puede estar activo aunque este interruptor esté apagado.</string>
+    <string name="strap_sharing_stop_button">Dejar de compartir en la pulsera</string>
+    <string name="strap_sharing_stop_caption">Envía la orden de apagado otra vez, aunque el interruptor de arriba ya parezca apagado. Tu frecuencia cardíaca en directo en NOOP no se ve afectada.</string>
     <string name="raw_diag_pair">Pedir a Android que vincule</string>
     <string name="raw_diag_unbonded_offload">Probar la sincronización del historial sin vinculación</string>
     <string name="raw_diag_clear_stale_bond">Borrar vinculación obsoleta</string>

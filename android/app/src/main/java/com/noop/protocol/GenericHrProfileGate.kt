@@ -122,10 +122,22 @@ object GenericHrProfileGate {
      * sibling gates record the same lesson from having shipped it — [DeviceConfigWriteGate.admitsSend]
      * (#1061, "gating the OFF write on it made the toggle-off path DEAD") and the #174 R22 disable clause.
      * Admitting it costs nothing: `00` cannot enable anything, and the strap's own event reports the result.
+     *
+     * TWO opt-ins may authorise the ON, because two deliberate switches legitimately want this one command:
+     * sharing, which needs the service as its prerequisite, and the service's own control, which exists
+     * because [StrapSharing] stopped the OFF direction of sharing from touching the service and what this
+     * app can switch on it must be able to switch off. Each is bound to a visible switch, so neither rides
+     * in on consent given for something else. [serviceOptIn] defaults to false and so fails CLOSED: a
+     * caller that forgets it gets a refusal, logged by the call site, never a silent widening.
      */
-    fun admitsSend(opcode: Int, payload: ByteArray, broadcastHrOptIn: Boolean): Boolean {
+    fun admitsSend(
+        opcode: Int,
+        payload: ByteArray,
+        broadcastHrOptIn: Boolean,
+        serviceOptIn: Boolean = false,
+    ): Boolean {
         if (opcode != TOGGLE_GENERIC_HR_PROFILE_CMD) return false
         val on = requestedState(payload) ?: return false
-        return if (on) broadcastHrOptIn else true
+        return if (on) (broadcastHrOptIn || serviceOptIn) else true
     }
 }

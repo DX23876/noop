@@ -2704,6 +2704,12 @@
     <string name="raw_diag_title">Diagnostics du protocole 5/MG</string>
     <string name="raw_diag_protocol_probes">Sondes de protocole</string>
     <string name="raw_diag_broadcast_hr">Diffuser la fréquence cardiaque du bracelet</string>
+    <string name="raw_diag_hr_service">Service de fréquence cardiaque standard sur le bracelet</string>
+    <string name="strap_sharing_status_on">Votre bracelet envoie sa fréquence cardiaque en ce moment, à tout appareil à portée, même sans votre téléphone. Cela le vide beaucoup plus vite. Désactivez-le quand aucun autre appareil n\'en a besoin.</string>
+    <string name="strap_sharing_status_off">Votre bracelet indique qu\'il ne partage pas.</string>
+    <string name="strap_sharing_status_unknown">Connectez votre bracelet pour voir s\'il partage. C\'est un réglage du bracelet lui-même, il peut donc être actif même si cet interrupteur est éteint.</string>
+    <string name="strap_sharing_stop_button">Arrêter le partage sur le bracelet</string>
+    <string name="strap_sharing_stop_caption">Renvoie la commande d\'arrêt, même si l\'interrupteur ci-dessus semble déjà éteint. Votre fréquence cardiaque en direct dans NOOP n\'est pas affectée.</string>
     <string name="raw_diag_pair">Demander l’appairage à Android</string>
     <string name="raw_diag_unbonded_offload">Essayer la synchronisation de l\'historique sans appairage</string>
     <string name="raw_diag_clear_stale_bond">Supprimer un appairage obsolète</string>
