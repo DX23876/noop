@@ -41,7 +41,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case automation = "Automations"
     case smartAlarm = "Smart Alarm"
     case powerSaving = "Power saving"
-    case roadmap = "Roadmap"
+    case roadmap = "Project"
     case settings = "Settings"
     case testCentre = "Test Centre"
 
@@ -91,7 +91,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         // The case name and rawValue stay `smartAlarm`/"Smart Alarm" as the in-memory nav identifier only.
         case .smartAlarm: return "Alarms"
         case .powerSaving: return "Battery & Recording"
-        case .roadmap: return "Roadmap"
+        case .roadmap: return "Project"
         case .settings: return "Settings"
         case .testCentre: return "Test Centre"
         }
@@ -143,7 +143,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         // Mirrors the `titleKey` remap above (#766): the row reads "Alarms", not the raw "Smart Alarm".
         case .smartAlarm: return String(localized: "Alarms")
         case .powerSaving: return String(localized: "Battery & Recording")
-        case .roadmap: return String(localized: "Roadmap")
+        case .roadmap: return String(localized: "Project")
         case .settings: return String(localized: "Settings")
         case .testCentre: return String(localized: "Test Centre")
         }
@@ -554,7 +554,7 @@ struct RootView: View {
         case .automation: AutomationsView()
         case .smartAlarm: SmartAlarmView()
         case .powerSaving: PowerSavingView()
-        case .roadmap: RoadmapView()
+        case .roadmap: ProjectHubView()
         case .settings: settingsDetail
         case .testCentre: TestCentreView()
         }

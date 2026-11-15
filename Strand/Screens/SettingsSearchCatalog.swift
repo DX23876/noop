@@ -58,7 +58,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var title: LocalizedStringResource {
         switch self {
-        case .roadmap: return "Roadmap"
+        case .roadmap: return "Project"
         case .profile: return "Profile"
         case .goals: return "Goals"
         case .strap: return "Strap"
@@ -82,7 +82,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
     /// A short list of nouns, never a sentence: it names what is on the page.
     var subtitle: LocalizedStringResource {
         switch self {
-        case .roadmap: return "What is being built, and what is known"
+        case .roadmap: return "The plan, reported problems, wishes, and how to help"
         case .profile: return "Body, heart rate and fitness"
         case .goals: return "Number of goals, rest days and step goal"
         case .strap: return "Connection, steps and heart rate sharing"
@@ -219,9 +219,11 @@ enum SettingsSearchCatalog {
     static let entries: [SettingsSearchEntry] = [
         SettingsSearchEntry(
             id: .roadmap,
-            title: "Roadmap",
+            title: "Project",
             keywords: ["roadmap", "plan", "planned", "what's next", "coming", "issues", "bugs",
-                       "known problems", "reported", "fixed", "changelog of plans", "project"]
+                       "known problems", "reported", "fixed", "changelog of plans", "project",
+                       "wish", "wishes", "suggestion", "suggest", "idea", "feature request", "vote",
+                       "help build", "donate data", "teach a sport"]
         ),
         SettingsSearchEntry(
             id: .profile,

@@ -4100,7 +4100,7 @@ struct SettingsPageDestination: View {
     var body: some View {
         switch page {
         case .roadmap:
-            RoadmapView()
+            ProjectHubView()
         case .goals:
             GoalsSettingsView()
         case .batteryRecording:

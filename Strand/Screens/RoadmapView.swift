@@ -2,7 +2,7 @@ import SwiftUI
 import StrandCore
 import StrandDesign
 
-// RoadmapView.swift — the project page: what is being built, what people reported, what was fixed.
+// RoadmapView.swift — the Roadmap page and the pieces the four project pages share.
 //
 // Two static files from the repository (`docs/roadmap.json`, `docs/app-feed.json`) are read when this
 // screen opens, and at no other time: no background poll, no account, nothing about the reader sent.
@@ -93,35 +93,40 @@ final class RoadmapModel: ObservableObject {
     }
 }
 
+/// The plan: what is being built now, what comes next, what is further out. Nothing else. Opened from
+/// `ProjectHubView`, which owns the model and does the one read.
 struct RoadmapView: View {
-    @StateObject private var model = RoadmapModel()
-    @State private var showAllReported = false
+    @ObservedObject var model: RoadmapModel
 
     var body: some View {
         ScreenScaffold(
             title: "Roadmap",
-            subtitle: "What is being built, and what is already known",
+            subtitle: "What is being built, and what comes after",
             onRefresh: { await model.refresh() }
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                ProjectScene(name: "scene_roadmap")
                 phaseSection(.now, title: "In progress", icon: "hammer.fill")
                 phaseSection(.next, title: "Next", icon: "arrow.forward.circle.fill")
                 phaseSection(.later, title: "Later", icon: "clock.fill")
-                suggestionsSection
-                suggestBox
-                reportedSection
-                fixedSection
-                decidedSection
-                footer
-                stamp
+                emptyNote
             }
         }
-        // The stored copy shows at once, then one read refreshes it. Opening the page is the ONLY thing
-        // that reads: there is no background poll and no refresh on returning from a pushed screen.
-        .task { await model.load() }
     }
 
-    // MARK: - Roadmap
+    /// Said only after a read actually happened, so an empty page is never mistaken for an empty plan.
+    @ViewBuilder
+    private var emptyNote: some View {
+        if model.hasLoaded && model.page.items(.now).isEmpty && model.page.items(.next).isEmpty
+            && model.page.items(.later).isEmpty {
+            ForgeListGroup("Nothing listed") {
+                Text("The plan could not be read, or there is none right now.")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
 
     @ViewBuilder
     private func phaseSection(_ phase: ProjectPhase, title: LocalizedStringKey,
@@ -136,163 +141,11 @@ struct RoadmapView: View {
             }
         }
     }
-
-    // MARK: - Suggestions
-
-    @ViewBuilder
-    private var suggestionsSection: some View {
-        if !model.page.suggestions.isEmpty {
-            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                RoadmapSectionHeader(title: "Suggestions", icon: "lightbulb.fill")
-                ForEach(model.page.suggestions) { suggestion in
-                    SuggestionCard(suggestion: suggestion,
-                                   voted: model.myVotes.contains(suggestion.id),
-                                   count: model.counts[suggestion.id],
-                                   canVote: model.canWrite) {
-                        Task { await model.vote(suggestion) }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Hidden entirely without a service address, rather than offered and then failing.
-    @ViewBuilder
-    private var suggestBox: some View {
-        if model.canWrite {
-            ForgeListGroup("Suggest something",
-                           note: "It reaches the developer, not the other people using NOOP. Nothing becomes visible until it is released.") {
-                TextField("What would you like NOOP to do?", text: $model.draft, axis: .vertical)
-                    .lineLimit(1...4)
-                    .font(StrandFont.subhead)
-                    .textFieldStyle(.plain)
-                HStack {
-                    Text("\(max(0, ProjectService.maximumSuggestion - model.draft.count)) characters left")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                    Spacer()
-                    Button("Send") { Task { await model.send() } }
-                        .buttonStyle(.plain)
-                        .font(StrandFont.subhead.weight(.semibold))
-                        .foregroundStyle(canSend ? StrandPalette.accent : StrandPalette.textTertiary)
-                        .disabled(!canSend)
-                }
-                if model.sentConfirmation {
-                    Text("Arrived. There is no promise about when, or whether, it gets built.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                } else if model.sendFailed {
-                    Text("That did not go out. Try again later.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-            }
-        }
-    }
-
-    private var canSend: Bool {
-        !model.isSending
-            && !model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && model.draft.count <= ProjectService.maximumSuggestion
-    }
-
-    // MARK: - Reported problems
-
-    @ViewBuilder
-    private var reportedSection: some View {
-        if !model.page.reported.isEmpty {
-            ForgeListGroup("Reported problems", note: "Open reports on the project's issue tracker.") {
-                Text(reportedSummary)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                // The label says what a tap does, like the Android twin: a chevron alone leaves the
-                // two platforms describing the same control with different words.
-                DisclosureGroup(isExpanded: $showAllReported) {
-                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                        ForEach(model.page.reported) { issue in
-                            RoadmapIssueRow(issue: issue)
-                        }
-                    }
-                    .padding(.top, NoopMetrics.space2)
-                } label: {
-                    Text(showAllReported ? "Show less" : "Show all")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.accent)
-                }
-                .tint(StrandPalette.accent)
-            }
-        }
-    }
-
-    /// One line instead of a number on a card: "8 reported, 1 being worked on". A count that reads as
-    /// an alarm is the thing this page is not for.
-    private var reportedSummary: String {
-        let reported = model.page.reportedCount
-        let working = model.page.workingCount
-        if working > 0 {
-            return String(localized: "\(reported) reported, \(working) being worked on")
-        }
-        return String(localized: "\(reported) reported")
-    }
-
-    @ViewBuilder
-    private var fixedSection: some View {
-        if !model.page.fixed.isEmpty {
-            ForgeListGroup("Recently fixed") {
-                ForEach(model.page.fixed) { issue in
-                    RoadmapIssueRow(issue: issue)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var decidedSection: some View {
-        if !model.page.decided.isEmpty {
-            ForgeListGroup("Recently decided",
-                           note: "Reports closed without a change. They stay here for a month.") {
-                ForEach(model.page.decided) { issue in
-                    RoadmapIssueRow(issue: issue)
-                }
-            }
-        }
-    }
-
-    // MARK: - Footer
-
-    private var footer: some View {
-        ForgeListGroup {
-            ForgeLinkRow(title: "Report a problem",
-                         subtitle: "Builds a log you can attach, nothing is sent on its own") {
-                TestCentreView()
-            }
-            Divider().overlay(StrandPalette.hairline)
-            Link(destination: ProjectLinks.issues) {
-                ForgeActionLabel(title: "Open the issue tracker",
-                                 subtitle: "Reading and writing there happens in your browser")
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    @ViewBuilder
-    private var stamp: some View {
-        if model.page.isEmpty && model.hasLoaded {
-            Text("Nothing could be loaded. The page needs the internet once, then it keeps the last copy.")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        } else if let fetched = model.page.fetchedAt {
-            Text("Last checked \(fetched.formatted(date: .abbreviated, time: .shortened))")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
-        }
-    }
 }
 
 /// A section heading with its own symbol. The slot is where the drawn section pictures go once they
 /// exist; until then it is a tinted symbol rather than a placeholder box.
-private struct RoadmapSectionHeader: View {
+struct RoadmapSectionHeader: View {
     let title: LocalizedStringKey
     let icon: String
 
@@ -312,7 +165,7 @@ private struct RoadmapSectionHeader: View {
 
 /// One planned piece of work. Tinted from its measure, never from a colour of its own, so the page
 /// stays inside the wearer's chosen profile instead of turning into a rainbow.
-private struct RoadmapCard: View {
+struct RoadmapCard: View {
     let item: ProjectRoadmapItem
 
     var body: some View {
@@ -367,7 +220,7 @@ private struct RoadmapCard: View {
 ///
 /// The count appears only after you voted: a number beside an unvoted card steers the vote, which is the
 /// opposite of what it is for. There is no ranking badge and no "top" marker for the same reason.
-private struct SuggestionCard: View {
+struct SuggestionCard: View {
     let suggestion: ProjectSuggestion
     let voted: Bool
     let count: Int?
@@ -439,7 +292,7 @@ private struct SuggestionCard: View {
 
 /// One reported problem: number, title, state. No body, no author, no avatar — the feed carries none of
 /// that on purpose, and the row cannot invent it.
-private struct RoadmapIssueRow: View {
+struct RoadmapIssueRow: View {
     let issue: ProjectIssue
 
     var body: some View {

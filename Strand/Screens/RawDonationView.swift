@@ -19,9 +19,21 @@ struct RawDonationView: View {
     @State private var failed: String?
     @State private var revision = 0
 
-    /// The sports a strap-worn recording is actually useful for. Strength is left out on purpose: the
-    /// arm barely moves the way a detector would need, and a set of curls looks like nothing else.
-    private static let sports = ["Walking", "Running", "Cycling", "Hiking", "Rowing"]
+    /// The sports a strap-worn recording is actually useful for: the arm repeats a cadence a detector
+    /// could learn. Every name here is spelled as `WorkoutCatalog` spells it, because the recorder
+    /// matches a running workout against these by `WorkoutSource.sportKey`, and a name the catalogue
+    /// does not know would simply never match.
+    ///
+    /// Strength is left out on purpose, and stays out: the arm moves differently in every exercise,
+    /// so a set of curls looks like nothing else and teaches a detector nothing.
+    private static let outdoorSports = ["Walking", "Nordic walking", "Hiking", "Running", "Rucking",
+                                        "Cycling", "Mountain biking", "Rowing"]
+
+    /// Indoors matters more than it looks: there is no GPS to fall back on, so how the arm moves is the
+    /// only thing that could tell a treadmill from a bike from a rowing machine.
+    private static let indoorSports = ["Treadmill walk", "Treadmill run", "Indoor cycle", "Spinning",
+                                       "Elliptical", "Row machine", "Stair climber", "Jump rope",
+                                       "Pool swim"]
 
     /// The service address, read from the same cached feed the Roadmap page uses. No address means no
     /// send button at all, rather than one that fails.
@@ -31,6 +43,7 @@ struct RawDonationView: View {
         ScreenScaffold(title: "Help teach the app",
                        subtitle: "Short recordings of how you move, so NOOP can learn to spot a workout") {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                ProjectScene(name: "scene_helping")
                 explainer
                 sportsCard
                 recordingsCard
@@ -85,19 +98,31 @@ struct RawDonationView: View {
     // MARK: Ticks
 
     private var sportsCard: some View {
-        ForgeListGroup("Record during these sports",
-                       note: "Nothing is ticked to begin with. A recording still waits for you to send it.") {
-            ForEach(Self.sports, id: \.self) { sport in
-                ForgeToggleRow(title: LocalizedStringKey(sport), isOn: Binding(
-                    get: { _ = revision; return settings.isOn(sport) },
-                    set: { settings.set(sport, on: $0); revision += 1 }
-                ))
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            ForgeListGroup("Outdoors",
+                           note: "Nothing is ticked to begin with. A recording still waits for you to send it.") {
+                sportToggles(Self.outdoorSports)
             }
-            Divider().overlay(StrandPalette.hairline)
-            ForgeToggleRow(title: "Keep my own copy after sending",
-                           subtitle: "Raw motion is the heaviest thing NOOP can store",
-                           isOn: Binding(get: { _ = revision; return settings.keepsLocalCopy },
-                                         set: { settings.keepsLocalCopy = $0; revision += 1 }))
+            ForgeListGroup("Indoors",
+                           note: "The most useful of the lot: indoors there is no GPS, so how your arm moves is all there is to go on.") {
+                sportToggles(Self.indoorSports)
+            }
+            ForgeListGroup {
+                ForgeToggleRow(title: "Keep my own copy after sending",
+                               subtitle: "Raw motion is the heaviest thing NOOP can store",
+                               isOn: Binding(get: { _ = revision; return settings.keepsLocalCopy },
+                                             set: { settings.keepsLocalCopy = $0; revision += 1 }))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sportToggles(_ sports: [String]) -> some View {
+        ForEach(sports, id: \.self) { sport in
+            ForgeToggleRow(title: LocalizedStringKey(sport), isOn: Binding(
+                get: { _ = revision; return settings.isOn(sport) },
+                set: { settings.set(sport, on: $0); revision += 1 }
+            ))
         }
     }
 
