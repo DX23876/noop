@@ -236,6 +236,13 @@ struct NotificationSettingsView: View {
                               help: String(localized: "Skip alerts when the strap is off your wrist."),
                               isOn: $store.onlyWhenWorn)
                 rowDivider
+                // The one carve-out from the project page's no-bell rule, and it is about something
+                // the reader wrote themselves. Never fires for somebody else's report or a release.
+                FormToggleRow(label: String(localized: "Answers to my reports"),
+                              help: String(localized: "A notice when a problem you reported is answered or fixed."),
+                              isOn: Binding(get: { ProjectReportWatcher.isOn() },
+                                            set: { ProjectReportWatcher.setOn($0) }))
+                rowDivider
                 FormToggleRow(label: String(localized: "Quiet hours"),
                               help: String(localized: "Mute wrist alerts overnight."),
                               isOn: $store.quietHoursEnabled)

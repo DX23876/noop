@@ -4756,5 +4756,12 @@
   "Fixed.": "已修复。",
   "Not planned.": "不计划处理。",
   "The plan could not be read, or there is none right now.": "无法读取计划，或者目前没有计划。",
-  "The report arrived. The log did not: it was too large, or the service refused it.": "报告已送达，日志没有：它太大，或者服务拒绝了它。"
+  "The report arrived. The log did not: it was too large, or the service refused it.": "报告已送达，日志没有：它太大，或者服务拒绝了它。",
+  "Answers to my reports": "对我的报告的回复",
+  "A notice when a problem you reported is answered or fixed.": "当你报告的问题收到回复或被修复时通知你。",
+  "The developer answered you.": "开发者回复了你。",
+  "It is fixed.": "已经修复了。",
+  "Somebody is working on it.": "有人正在处理。",
+  "It will not be changed.": "不会更改。",
+  "It has been read.": "已被阅读。"
 }

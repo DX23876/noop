@@ -449,6 +449,14 @@ struct StrandiOSApp: App {
                 // silently skipping whenever the system declined the wake. `catchUpIfDue` owns the
                 // once-a-day gate; this is a no-op when the brief is off, already generated, or not yet
                 // due. It also re-arms the next request, which a system reboot would otherwise drop.
+                // A reported problem that moved. Looks at most every six hours and only at this
+                // device's own reports; with none stored it does not even build a client.
+                Task { @MainActor in
+                    let page = await ProjectPageStore(directory: RoadmapModel.cacheDirectory).cached()
+                    let changes = await ProjectReportWatcher.checkIfDue(
+                        service: ProjectService(service: page.service))
+                    await ProjectReportWatcher.announce(changes)
+                }
                 Task { @MainActor in
                     _ = await CoachBriefScheduler.catchUpIfDue { await model.coach.generateBriefText() }
                     CoachBriefScheduler.activateIfEnabled { await model.coach.generateBriefText() }

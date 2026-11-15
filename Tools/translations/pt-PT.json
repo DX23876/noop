@@ -4654,5 +4654,12 @@
   "Fixed.": "Corrigido.",
   "Not planned.": "Não planeado.",
   "The plan could not be read, or there is none right now.": "Não foi possível ler o plano, ou não existe nenhum neste momento.",
-  "The report arrived. The log did not: it was too large, or the service refused it.": "A comunicação chegou, o registo não: era demasiado grande ou o serviço recusou-o."
+  "The report arrived. The log did not: it was too large, or the service refused it.": "A comunicação chegou, o registo não: era demasiado grande ou o serviço recusou-o.",
+  "Answers to my reports": "Respostas às minhas comunicações",
+  "A notice when a problem you reported is answered or fixed.": "Um aviso quando um problema que comunicou recebe resposta ou é corrigido.",
+  "The developer answered you.": "O programador respondeu-lhe.",
+  "It is fixed.": "Está corrigido.",
+  "Somebody is working on it.": "Alguém está a trabalhar nisso.",
+  "It will not be changed.": "Não vai ser alterado.",
+  "It has been read.": "Foi lido."
 }

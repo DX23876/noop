@@ -4632,5 +4632,12 @@
   "Fixed.": "Исправлено.",
   "Not planned.": "Не планируется.",
   "The plan could not be read, or there is none right now.": "План не удалось прочитать, или его сейчас нет.",
-  "The report arrived. The log did not: it was too large, or the service refused it.": "Сообщение дошло, журнал нет: он был слишком большим или служба его отклонила."
+  "The report arrived. The log did not: it was too large, or the service refused it.": "Сообщение дошло, журнал нет: он был слишком большим или служба его отклонила.",
+  "Answers to my reports": "Ответы на мои сообщения",
+  "A notice when a problem you reported is answered or fixed.": "Уведомление, когда на сообщённую вами проблему ответили или её исправили.",
+  "The developer answered you.": "Разработчик вам ответил.",
+  "It is fixed.": "Это исправлено.",
+  "Somebody is working on it.": "Над этим работают.",
+  "It will not be changed.": "Это не будут менять.",
+  "It has been read.": "Это прочитано."
 }

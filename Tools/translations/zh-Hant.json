@@ -4810,5 +4810,12 @@
   "Fixed.": "已修復。",
   "Not planned.": "不計畫處理。",
   "The plan could not be read, or there is none right now.": "無法讀取計畫，或者目前沒有計畫。",
-  "The report arrived. The log did not: it was too large, or the service refused it.": "報告已送達，日誌沒有：它太大，或者服務拒絕了它。"
+  "The report arrived. The log did not: it was too large, or the service refused it.": "報告已送達，日誌沒有：它太大，或者服務拒絕了它。",
+  "Answers to my reports": "對我的報告的回覆",
+  "A notice when a problem you reported is answered or fixed.": "當你報告的問題收到回覆或被修復時通知你。",
+  "The developer answered you.": "開發者回覆了你。",
+  "It is fixed.": "已經修復了。",
+  "Somebody is working on it.": "有人正在處理。",
+  "It will not be changed.": "不會更改。",
+  "It has been read.": "已被閱讀。"
 }
