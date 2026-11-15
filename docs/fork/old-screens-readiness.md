@@ -104,6 +104,23 @@ settings from the hub (expect: arrow back to the hub), from More's profile row t
 and Back leaving settings by design). Note which design is on: the old one draws `Hub`, the new one
 `NewDesignHub`, and only one of them is what the reporter saw.
 
+**The walk ran on 2026-11-15** (emulator `noop-spike`, android-35 arm64, demo debug build, the tree at
+`5ef323b4d`). It does NOT reproduce, in either design:
+
+| Entry | Arrow drawn | Arrow leads to | System Back leads to |
+|---|---|---|---|
+| New design, profile button → Settings → All settings | yes | the Settings index | the Settings index |
+| New design, the same after `am kill` while All settings was open | yes, restored into the page | not retried | the Settings index |
+| New design, settings search | — | — | "all settings" gives "No matches"; All settings is not a searchable page, and a page found by search (Appearance) returns to More on Back, by design |
+| New design, More | — | — | More has no Settings row at all; its Tools category holds Breathe, Intervals and Live |
+| Old design, More → Settings → All settings | yes | not retried | the Settings index |
+
+So the third entry of the three in the report does not exist in the new design, and the two that do
+both come back. Either one of the 34 commits since the tester's build closed it on the way (`f704b0e28`,
+`567804133` and `9993665e5` all touched these screens), or it needs a state this walk did not reach, a
+rotation or a specific gesture-navigation case among them. What would settle it is which row the
+reporter came in through, and whether the arrow was missing or the gesture did nothing.
+
 ## What this round did not check
 
 - The other old screens (Sleep, Training, Health, Workouts, Insights and the rest of `Strand/Screens`).
