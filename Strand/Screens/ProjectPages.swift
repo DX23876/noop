@@ -287,6 +287,9 @@ struct ProjectProblemsView: View {
 struct ProjectWishesView: View {
     @ObservedObject var model: RoadmapModel
 
+    /// This screen's first appearance, so the last wish's confirmation does not greet the next one.
+    @State private var opened = false
+
     var body: some View {
         ScreenScaffold(
             title: "Wishes",
@@ -299,6 +302,14 @@ struct ProjectWishesView: View {
                 suggestBox
                 suggestionsSection
             }
+        }
+        .task {
+            guard !opened else { return }
+            opened = true
+            // The model outlives this screen, so "Arrived" from a wish sent an hour ago would stand
+            // under an empty box as though it had just been sent again.
+            model.sentConfirmation = false
+            model.sendFailed = false
         }
     }
 

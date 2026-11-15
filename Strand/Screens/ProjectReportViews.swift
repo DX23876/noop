@@ -561,7 +561,11 @@ struct MyReportsSection: View {
         }
         .alert("Your code", isPresented: $showingCodeEntry) {
             codeField
+            // Disabled rather than silent: a mistyped code used to be dropped on the floor, and a
+            // button that does nothing is indistinguishable from an app that is broken.
             Button("Add") { model.adopt(code: typed); typed = "" }
+                .disabled(!ProjectService.isReportCode(typed.uppercased()
+                    .trimmingCharacters(in: .whitespaces)))
             Button("Cancel", role: .cancel) { typed = "" }
         } message: {
             Text("Four groups of four, from the report you sent.")
