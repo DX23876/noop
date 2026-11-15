@@ -1143,8 +1143,8 @@ private fun DashboardStyleSection(change: (() -> Unit) -> Unit) {
     val context = LocalContext.current
     var style by remember { mutableStateOf(DashboardStylePrefs.style(context)) }
     val ids = DashboardStylePrefs.STYLES
-    val labels = listOf(stringResource(R.string.forge_db_style_classic), stringResource(R.string.forge_db_style_liquid),
-                        stringResource(R.string.forge_db_style_trends))
+    // One list names the styles; the labels come from it, so a reorder cannot label a style wrongly.
+    val labels = ids.map { stringResource(DashboardStylePrefs.labelRes(it)) }
     SettingsCard(title = stringResource(R.string.forge_db_style), blurb = null) {
         SettingRow(stringResource(R.string.forge_db_style)) {
             ReportPicker(labels[ids.indexOf(style).coerceAtLeast(0)], labels) { i ->

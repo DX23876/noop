@@ -115,6 +115,61 @@ internal object DashboardStylePrefs {
     fun resolve(raw: String?): String = raw?.takeIf { it in STYLES } ?: DEFAULT
     fun style(c: Context): String = resolve(NoopPrefs.of(c).getString(KEY, DEFAULT))
     fun set(c: Context, style: String) = NoopPrefs.of(c).edit().putString(KEY, style).apply()
+
+    /**
+     * The row a style is shown as, by its stored name. The picker builds its labels from [STYLES]
+     * through this, so the ids and their labels cannot drift apart: before this they were two
+     * hand-ordered lists paired by index, and reordering one of them would have shown a wearer the
+     * wrong name and stored the wrong style. The fallback is [DEFAULT]'s label, as [resolve]'s is.
+     */
+    fun labelRes(style: String): Int = when (style) {
+        "classic" -> R.string.forge_db_style_classic
+        "trends" -> R.string.forge_db_style_trends
+        else -> R.string.forge_db_style_liquid
+    }
+
+    /** What [migrateRetiredStyle] is about to do: null when there is nothing to carry over. */
+    data class CarryOver(val from: String, val to: String, val order: Boolean, val hidden: Boolean)
+
+    /**
+     * A style this build no longer offers must take its ARRANGEMENT with it, not only its name.
+     * [DashboardLayoutPrefs] keys the saved order and hidden set by the style name
+     * (`"$d.dashboard.sectionOrder"`), so resolving a stored "overview" to Liquid reads Liquid's keys and
+     * would leave what the wearer arranged behind in preferences, unreachable and invisible. Liquid and
+     * Overview share one default order (`DashboardSection.defaultOrder`, the non-trends branch), so the
+     * carry-over keeps exactly the screen they had.
+     *
+     * Pure, so the rule is testable without a `Context`. An arrangement the target style ALREADY has is
+     * never overwritten; then only the stored name moves.
+     */
+    fun carryOver(stored: String?, targetOrder: String?, targetHidden: String?): CarryOver? {
+        if (stored == null || stored in STYLES) return null
+        return CarryOver(from = stored, to = resolve(stored),
+                         order = targetOrder.isNullOrEmpty(), hidden = targetHidden.isNullOrEmpty())
+    }
+
+    /**
+     * Apply [carryOver] at launch. Self-guarding rather than flag-guarded: it rewrites the stored style to
+     * one this build offers, so the second call finds nothing to do. A later restore that brings back a
+     * retired name (an Apple backup, where Overview is a real screen) is carried over on the next launch.
+     */
+    fun migrateRetiredStyle(c: Context) {
+        val p = NoopPrefs.of(c)
+        val stored = p.getString(KEY, null)
+        val to = resolve(stored)
+        val move = carryOver(stored, p.getString(DashboardLayoutPrefs.orderKey(to), null),
+                             p.getString(DashboardLayoutPrefs.hiddenKey(to), null)) ?: return
+        val edit = p.edit()
+        if (move.order) {
+            p.getString(DashboardLayoutPrefs.orderKey(move.from), null)
+                ?.let { edit.putString(DashboardLayoutPrefs.orderKey(move.to), it) }
+        }
+        if (move.hidden) {
+            p.getString(DashboardLayoutPrefs.hiddenKey(move.from), null)
+                ?.let { edit.putString(DashboardLayoutPrefs.hiddenKey(move.to), it) }
+        }
+        edit.putString(KEY, move.to).apply()
+    }
 }
 
 /** iOS `DashboardLayoutSection`: each dashboard's blocks, then the opt-in extras, which start hidden. */

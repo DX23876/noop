@@ -46,6 +46,8 @@ fun ForgeRoot(viewModel: AppViewModel) {
     val context = LocalContext.current
     remember { ForgeBackground.load(context) }
     remember { ForgeDesign.load(context, (context as? android.app.Activity)?.intent) }
+    // A dashboard style this build dropped hands its arrangement to the style it resolves to, once.
+    remember { DashboardStylePrefs.migrateRetiredStyle(context) }
     // The workout list Today's timeline, its latest-workout card, the dashboards and Training's count read: the view
     // model filled it only when the Workouts page, Insights or Data Sources opened, so those stayed empty until then.
     // Loaded at start and again after each analysis pass, when a synced workout can have arrived.
