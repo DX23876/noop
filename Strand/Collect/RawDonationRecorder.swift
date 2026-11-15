@@ -32,7 +32,15 @@ final class RawDonationRecorder: ObservableObject {
     private var sport = ""
     private var sessionID: String?
     private var captureStart: Date?
+    /// The in-flight stop. Kept rather than dropped so `finish` and a test can wait for it: a stop that
+    /// is still running when the next window opens would leave the strap's producer in a state neither
+    /// side agreed on.
+    private(set) var pendingStop: Task<Void, Never>?
     private var recordedSeconds: TimeInterval = 0
+
+    /// The clock, injected so a test can drive a whole workout without waiting one. Everything that
+    /// measures how long a window actually ran reads this and nothing else.
+    var now: () -> Date = Date.init
 
     /// Set by the host so this file never reaches into `AppModel`: start, stop, and the bytes.
     var startCapture: ((String) -> Bool)?
@@ -61,7 +69,7 @@ final class RawDonationRecorder: ObservableObject {
         let wants = strapConnected && RawDonationPlan.isRecording(at: elapsed, windows: windows)
         if wants, !isRecordingWindow {
             guard startCapture?(sessionID) == true else { return }
-            captureStart = Date()
+            captureStart = now()
             isRecordingWindow = true
         } else if !wants, isRecordingWindow {
             closeWindow()
@@ -72,6 +80,7 @@ final class RawDonationRecorder: ObservableObject {
     func finish() async {
         guard let sessionID, !windows.isEmpty else { return reset() }
         if isRecordingWindow { closeWindow() }
+        await pendingStop?.value
         await stopCapture?()
         let seconds = Int(recordedSeconds.rounded())
         guard seconds >= 30 else { return reset() }
@@ -79,7 +88,7 @@ final class RawDonationRecorder: ObservableObject {
         let bytes = RawDonationPlan.approximateBytes(windows)
         let donation = PendingDonation(id: sessionID, sport: sport, recordedSeconds: seconds,
                                        bytes: bytes, strapFamily: identity.family,
-                                       firmware: identity.firmware)
+                                       firmware: identity.firmware, recordedAt: now())
         store.add(donation)
         pending = store.load()
         reset()
@@ -106,10 +115,11 @@ final class RawDonationRecorder: ObservableObject {
     }
 
     private func closeWindow() {
-        if let start = captureStart { recordedSeconds += Date().timeIntervalSince(start) }
+        if let start = captureStart { recordedSeconds += now().timeIntervalSince(start) }
         captureStart = nil
         isRecordingWindow = false
-        Task { await stopCapture?() }
+        let stop = stopCapture
+        pendingStop = Task { await stop?() }
     }
 
     private func reset() {
