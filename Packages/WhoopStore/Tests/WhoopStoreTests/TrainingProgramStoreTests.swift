@@ -269,4 +269,120 @@ extension TrainingProgramStoreTests {
         XCTAssertEqual(runs.count, 1)
         XCTAssertNotNil(runs[0].endedOn, "a plan with no block has no run to still be in")
     }
+
+    /// The progression blob a routine written before v90 carries, verbatim from the v61 schema.
+    private static let legacyProgressionJSON = """
+        {"policy":"off","weightIncrementKg":2.5,"durationIncrementS":5,"repsMin":6,"repsMax":10,
+         "failuresBeforeDeload":3,"deloadFactor":0.9,"bodyweightMaxSets":6}
+        """
+
+    /// 12.2.1's last migration is `v78-workout-elevation`, so a backup from that release enters v90
+    /// through twelve migrations, not one. Start where a real old backup starts, and carry what a real
+    /// week holds: several routines, two slots on one weekday, a second weekday, and both kinds of day
+    /// exception. The v89-only test above cannot see a rebuild that an intervening migration broke.
+    func testAStoreFromV78KeepsEveryRoutineSlotAndException() throws {
+        let queue = try DatabaseQueue()
+        let migrator = WhoopStore.makeMigrator()
+        try migrator.migrate(queue, upTo: "v78-workout-elevation")
+        let push = UUID().uuidString, pull = UUID().uuidString, legs = UUID().uuidString
+        try queue.write { db in
+            for (id, title) in [(push, "Push"), (pull, "Pull"), (legs, "Legs")] {
+                try db.execute(sql: """
+                    INSERT INTO trainingRoutineNative
+                      (id, title, notes, defaultProgressionJSON, excludeFromProgression, createdAtTs, updatedAtTs)
+                    VALUES (?, ?, NULL, ?, 0, 100, 200)
+                    """, arguments: [id, title, Self.legacyProgressionJSON])
+            }
+            try db.execute(sql: "INSERT INTO trainingSchedule (weekday, idx, routineId) VALUES (1, 0, ?)",
+                           arguments: [push])
+            try db.execute(sql: "INSERT INTO trainingSchedule (weekday, idx, routineId) VALUES (1, 1, ?)",
+                           arguments: [pull])
+            try db.execute(sql: "INSERT INTO trainingSchedule (weekday, idx, routineId) VALUES (4, 0, ?)",
+                           arguments: [legs])
+            try db.execute(sql: """
+                INSERT INTO trainingDayOverride (day, idx, routineId, isRest) VALUES ('2026-11-20', 0, ?, 0)
+                """, arguments: [legs])
+            try db.execute(sql: """
+                INSERT INTO trainingDayOverride (day, idx, routineId, isRest) VALUES ('2026-11-21', 0, NULL, 1)
+                """)
+        }
+
+        try migrator.migrate(queue)
+
+        try queue.read { db in
+            let programs = try Row.fetchAll(db, sql: "SELECT * FROM trainingProgram")
+            XCTAssertEqual(programs.count, 1, "every routine from before plans existed belongs to ONE plan")
+            let programId: String = programs[0]["id"]
+            XCTAssertEqual(programs[0]["kind"] as String, "strength")
+            XCTAssertEqual(programs[0]["isActive"] as Bool, true)
+
+            let owners = try String.fetchAll(db, sql: """
+                SELECT DISTINCT programId FROM trainingRoutineNative
+                """)
+            XCTAssertEqual(owners, [programId], "all three routines joined that one plan")
+
+            let week = try Row.fetchAll(db, sql: "SELECT * FROM trainingSchedule ORDER BY weekday, idx")
+            let slots: [String] = week.map { row in
+                let weekday: Int = row["weekday"]
+                let idx: Int = row["idx"]
+                let routineId: String = row["routineId"]
+                let program: String = row["programId"]
+                return "\(program)/\(weekday)/\(idx)/\(routineId)"
+            }
+            XCTAssertEqual(slots, ["\(programId)/1/0/\(push)",
+                                   "\(programId)/1/1/\(pull)",
+                                   "\(programId)/4/0/\(legs)"],
+                           "the rebuilt table keeps every slot, its order and its routine")
+
+            let exceptions = try Row.fetchAll(db, sql: "SELECT * FROM trainingDayOverride ORDER BY day")
+            XCTAssertEqual(exceptions.count, 2, "an exception belongs to a date, so v90 leaves it alone")
+            XCTAssertEqual(exceptions[0]["day"] as String, "2026-11-20")
+            XCTAssertEqual(exceptions[0]["routineId"] as String?, legs)
+            XCTAssertEqual(exceptions[0]["isRest"] as Bool, false)
+            XCTAssertEqual(exceptions[1]["day"] as String, "2026-11-21")
+            XCTAssertNil(exceptions[1]["routineId"] as String?)
+            XCTAssertEqual(exceptions[1]["isRest"] as Bool, true)
+        }
+    }
+
+    /// A restore is a FILE the app opens, and `WhoopStore(path:)` is where the quarantine probe, the
+    /// upstream bridge and the migrator run in that order. Migrating an in-memory queue skips all three,
+    /// so this opens a v78 file the way a restored backup is opened and reads the week back through the
+    /// store's own API rather than out of the tables.
+    func testARestoredV78FileOpensWithItsRoutineAndWeekIntact() async throws {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let path = dir.appendingPathComponent("restored.sqlite").path
+
+        let routineId = UUID()
+        try Self.writeV78Store(at: path, routineId: routineId)
+
+        let store = try await WhoopStore(path: path)
+        let programs = try await store.trainingPrograms()
+        XCTAssertEqual(programs.count, 1, "the restored store opens with one plan, not none and not two")
+        XCTAssertTrue(programs[0].isActive)
+        let plan = try await store.trainingPlan()
+        XCTAssertEqual(plan.routines.map(\.title), ["Legacy push"])
+        XCTAssertEqual(plan.routines.first?.programId, programs[0].id)
+        XCTAssertEqual(plan.schedule[.monday], [routineId], "the week survives the restore, not just the routine")
+    }
+
+    /// Write a 12.2.1-stage store to `path` and close it, the way a restored backup file arrives.
+    /// Synchronous on purpose: inside an async test `DatabaseQueue.write` resolves to GRDB's async
+    /// overload, and the file must be finished and closed before the store opens it.
+    private static func writeV78Store(at path: String, routineId: UUID) throws {
+        let old = try DatabaseQueue(path: path)
+        try WhoopStore.makeMigrator().migrate(old, upTo: "v78-workout-elevation")
+        try old.write { db in
+            try db.execute(sql: """
+                INSERT INTO trainingRoutineNative
+                  (id, title, notes, defaultProgressionJSON, excludeFromProgression, createdAtTs, updatedAtTs)
+                VALUES (?, 'Legacy push', NULL, ?, 0, 100, 200)
+                """, arguments: [routineId.uuidString, legacyProgressionJSON])
+            try db.execute(sql: "INSERT INTO trainingSchedule (weekday, idx, routineId) VALUES (1, 0, ?)",
+                           arguments: [routineId.uuidString])
+        }
+        try old.close()
+    }
 }
