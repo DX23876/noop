@@ -264,8 +264,13 @@ struct ProjectProblemsView: View {
 
     private var footer: some View {
         ForgeListGroup {
+            // "The long way" only makes sense beside the short one. Without a service address the
+            // short way is hidden, and a subtitle implying a quicker route that is nowhere on the
+            // screen reads as a fault in the app rather than as a feature that is switched off.
             ForgeLinkRow(title: "Build a log myself",
-                         subtitle: "The long way: a redacted file you carry wherever you like") {
+                         subtitle: reports.canWrite
+                             ? "The long way: a redacted file you carry wherever you like"
+                             : "A redacted file you can attach wherever you report it") {
                 TestCentreView()
             }
             Divider().overlay(StrandPalette.hairline)
