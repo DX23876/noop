@@ -171,7 +171,13 @@ enum FileExport {
         try? FileManager.default.removeItem(at: url)
         guard let archive = try? Archive(url: url, accessMode: .create, pathEncoding: nil) else { return nil }
         for entry in entries {
-            try? archive.addEntry(with: entry.name, type: .file, uncompressedSize: Int64(entry.data.count)) { position, size in
+            // `.deflate`, not ZIPFoundation's `.none` default: these bundles are almost entirely log
+            // text, and a measured strap log of 2,229,782 bytes stores as 287,177 compressed, an
+            // eighth. It decides whether a report fits under the service's 4 MiB ceiling at all, and
+            // the share sheet hands over a smaller file for the same reason.
+            try? archive.addEntry(with: entry.name, type: .file,
+                                  uncompressedSize: Int64(entry.data.count),
+                                  compressionMethod: .deflate) { position, size in
                 let start = Int(position)
                 let end = min(start + size, entry.data.count)
                 return entry.data.subdata(in: start..<end)

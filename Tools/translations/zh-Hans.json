@@ -4755,5 +4755,6 @@
   "Being worked on.": "正在处理。",
   "Fixed.": "已修复。",
   "Not planned.": "不计划处理。",
-  "The plan could not be read, or there is none right now.": "无法读取计划，或者目前没有计划。"
+  "The plan could not be read, or there is none right now.": "无法读取计划，或者目前没有计划。",
+  "The report arrived. The log did not: it was too large, or the service refused it.": "报告已送达，日志没有：它太大，或者服务拒绝了它。"
 }

@@ -4654,5 +4654,6 @@
   "Being worked on.": "En curso.",
   "Fixed.": "Corregido.",
   "Not planned.": "No planeado.",
-  "The plan could not be read, or there is none right now.": "No se pudo leer el plan, o ahora mismo no hay ninguno."
+  "The plan could not be read, or there is none right now.": "No se pudo leer el plan, o ahora mismo no hay ninguno.",
+  "The report arrived. The log did not: it was too large, or the service refused it.": "El informe llegó, el registro no: era demasiado grande o el servicio lo rechazó."
 }

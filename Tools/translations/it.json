@@ -4748,5 +4748,6 @@
   "Being worked on.": "In lavorazione.",
   "Fixed.": "Risolto.",
   "Not planned.": "Non in programma.",
-  "The plan could not be read, or there is none right now.": "Il piano non è stato letto, oppure al momento non ce n'è uno."
+  "The plan could not be read, or there is none right now.": "Il piano non è stato letto, oppure al momento non ce n'è uno.",
+  "The report arrived. The log did not: it was too large, or the service refused it.": "La segnalazione è arrivata, il registro no: era troppo grande, oppure il servizio l'ha rifiutato."
 }
