@@ -20,7 +20,8 @@ on:
 
 permissions:
   contents: write
-  issues: read
+  # write, not read: the publishing step opens the public issue a report becomes, in THIS repository.
+  issues: write
 
 concurrency:
   group: app-feed
@@ -77,6 +78,29 @@ jobs:
             --repo "${REPO}" --apply
           gh issue list -R "${REPO}" --state all --limit 200 \
             --json number,title,body,labels,comments > suggestions.json
+
+      # Reported problems: propose a public title and summary for the ones that have none, and open the
+      # public issue for the ones the owner labelled. Never on arrival, only on that label, because
+      # this is the one point where something a stranger wrote becomes public. Fails closed.
+      - name: Reported problems, proposed and published
+        env:
+          GH_TOKEN: ${{ secrets.SUGGESTIONS_TOKEN }}
+          REPO: ${{ vars.SUGGESTIONS_REPO }}
+          NOOP_MODERATION_KEY: ${{ secrets.NOOP_MODERATION_KEY }}
+          PUBLIC_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN}" ] || [ -z "${REPO}" ]; then
+            echo "no suggestions repository configured, nothing to publish"
+            exit 0
+          fi
+          gh issue list -R "${REPO}" --state open --limit 100 \
+            --json number,title,body,labels,comments > reports.json
+          # The private repository is read with the suggestions token; the public issue is created with
+          # this workflow's own, which is the only one that may write here.
+          GH_TOKEN="${PUBLIC_TOKEN}" SUGGESTIONS_TOKEN="${GH_TOKEN}" \
+            python3 Tools/publish_reports.py --issues-file reports.json \
+              --repo "${REPO}" --public "${GITHUB_REPOSITORY}" --apply || true
+          rm -f reports.json
 
       # The service address comes from a repository VARIABLE, never from the committed file: this job
       # rewrites docs/app-feed.json whenever an issue moves, so an address pasted into the file by hand
