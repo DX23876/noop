@@ -4631,5 +4631,6 @@
   "Being worked on.": "В работе.",
   "Fixed.": "Исправлено.",
   "Not planned.": "Не планируется.",
-  "The plan could not be read, or there is none right now.": "План не удалось прочитать, или его сейчас нет."
+  "The plan could not be read, or there is none right now.": "План не удалось прочитать, или его сейчас нет.",
+  "The report arrived. The log did not: it was too large, or the service refused it.": "Сообщение дошло, журнал нет: он был слишком большим или служба его отклонила."
 }

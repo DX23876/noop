@@ -5853,5 +5853,6 @@
   "Being worked on.": "W trakcie prac.",
   "Fixed.": "Naprawione.",
   "Not planned.": "Nieplanowane.",
-  "The plan could not be read, or there is none right now.": "Nie udało się odczytać planu albo właśnie go nie ma."
+  "The plan could not be read, or there is none right now.": "Nie udało się odczytać planu albo właśnie go nie ma.",
+  "The report arrived. The log did not: it was too large, or the service refused it.": "Zgłoszenie dotarło, dziennik nie: był za duży albo usługa go odrzuciła."
 }

@@ -4655,5 +4655,6 @@
   "Being worked on.": "En cours de traitement.",
   "Fixed.": "Corrigé.",
   "Not planned.": "Non prévu.",
-  "The plan could not be read, or there is none right now.": "Le plan n'a pas pu être lu, ou il n'y en a pas pour le moment."
+  "The plan could not be read, or there is none right now.": "Le plan n'a pas pu être lu, ou il n'y en a pas pour le moment.",
+  "The report arrived. The log did not: it was too large, or the service refused it.": "Le signalement est arrivé, pas le journal : il était trop volumineux, ou le service l'a refusé."
 }

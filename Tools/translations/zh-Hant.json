@@ -4809,5 +4809,6 @@
   "Being worked on.": "正在處理。",
   "Fixed.": "已修復。",
   "Not planned.": "不計畫處理。",
-  "The plan could not be read, or there is none right now.": "無法讀取計畫，或者目前沒有計畫。"
+  "The plan could not be read, or there is none right now.": "無法讀取計畫，或者目前沒有計畫。",
+  "The report arrived. The log did not: it was too large, or the service refused it.": "報告已送達，日誌沒有：它太大，或者服務拒絕了它。"
 }

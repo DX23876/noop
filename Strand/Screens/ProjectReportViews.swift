@@ -25,6 +25,10 @@ final class ProjectReportModel: ObservableObject {
     @Published var sentCode: String?
     @Published var sentWithoutThread = false
     @Published var failed = false
+    /// The report went, the log did not. Said out loud rather than left to be noticed: the wearer saw
+    /// the whole bundle and pressed send with it, so silence here would be the screen quietly dropping
+    /// the half they looked hardest at.
+    @Published var logFailed = false
     @Published var mine: [ProjectReportStore.Entry] = []
     /// The assembled bundle, waiting for the wearer to confirm or refuse it. Here rather than in the
     /// view: a pushed screen's `@State` does not survive its parent re-rendering, and this one has to
@@ -58,12 +62,18 @@ final class ProjectReportModel: ObservableObject {
         guard let service else { return }
         isSending = true
         failed = false
-        let result = await service.report(text: draft, wantsThread: wantsThread)
+        logFailed = false
+        let result = await service.report(text: draft, wantsThread: wantsThread,
+                                          language: ProjectReportModel.language())
         switch result {
         case .sent(let code):
             if let code {
                 store.add(.init(code: code, title: ProjectReportModel.firstLine(draft), sent: Date()))
-                if let log { _ = await service.sendLog(code: code, data: log) }
+                if let log {
+                    if case .sent = await service.sendLog(code: code, data: log) {} else {
+                        logFailed = true
+                    }
+                }
                 sentCode = code
             } else {
                 sentWithoutThread = true
@@ -112,6 +122,18 @@ final class ProjectReportModel: ObservableObject {
         store.add(.init(code: cleaned, title: String(localized: "A report you sent earlier"),
                         sent: Date()))
         mine = store.all()
+    }
+
+    /// The language the app talks to this person in. `AppLanguage` is what they chose in Settings; only
+    /// when they left it on System does the phone's own language decide. Taking the phone's language
+    /// outright is how an answer comes back in a language somebody does not read: the owner's own first
+    /// report arrived marked `en` from a phone set to English, written in German.
+    static func language() -> String {
+        let chosen = UserDefaults.standard.string(forKey: AppLanguage.storageKey)
+        if let chosen, let language = AppLanguage(rawValue: chosen), language != .system {
+            return language.rawValue
+        }
+        return ProjectService.currentLanguage
     }
 
     static func firstLine(_ text: String) -> String {
@@ -215,6 +237,12 @@ struct ReportProblemView: View {
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if model.logFailed {
+                Text("The report arrived. The log did not: it was too large, or the service refused it.")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Text(verbatim: code)
                 .font(StrandFont.title2.monospaced())
                 .foregroundStyle(StrandPalette.textPrimary)
@@ -232,7 +260,7 @@ struct ReportProblemView: View {
         }
         model.isPreparing = true
         Task { @MainActor in
-            let storage = await TestCentreReport.storageProbe(repo: app.repo, live: live)
+            let storage = await ReportProblemView.storageWithinReach(repo: app.repo, live: live)
             let strap = UserDefaults.standard.string(forKey: "selectedWhoopModel")
             let entries = TestBundleAssembler.assemble(profile: .master, live: live,
                                                        storage: storage, strapModel: strap)
@@ -247,6 +275,46 @@ struct ReportProblemView: View {
         }
     }
 
+    /// The storage block: the part that is free always, the part that is expensive only if it is quick.
+    ///
+    /// `storageProbe` does two different things under one name. Reading file sizes is a stat call and
+    /// costs nothing. Counting rows walks every accumulating table, waveform blobs included, which on a
+    /// store with years of history is minutes on the phone. Both hung on the same deadline, so missing
+    /// the deadline threw away the database size too, and that is the number somebody usually wants.
+    ///
+    /// So the sizes are read here and kept whatever happens, and the full probe is raced against a
+    /// deadline on top. Its answer is a superset, so when it arrives it wins. What is not read stays
+    /// zero, which is what meta.json already means by zero: not measured, never a claim that it is
+    /// empty.
+    static func storageWithinReach(repo: Repository?, live: LiveState,
+                                   seconds: Double = 6) async -> TestBundleMeta.Storage? {
+        let quick = ReportProblemView.fileSizesOnly()
+        let full = await withTaskGroup(of: TestBundleMeta.Storage?.self) { group in
+            group.addTask { await TestCentreReport.storageProbe(repo: repo, live: live) }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+        return full ?? quick
+    }
+
+    /// Database and raw-capture sizes off the filesystem. No query, no scan, no store handle.
+    static func fileSizesOnly() -> TestBundleMeta.Storage? {
+        let fm = FileManager.default
+        var dbBytes = 0
+        if let path = try? StorePaths.defaultDatabasePath() {
+            for suffix in ["", "-wal", "-shm"] {
+                dbBytes += (try? fm.attributesOfItem(atPath: path + suffix))?[.size] as? Int ?? 0
+            }
+        }
+        guard dbBytes > 0 else { return nil }
+        return TestBundleMeta.Storage(dbBytes: dbBytes, rows: [:], rawCaptureBytes: 0, rowBytes: [:])
+    }
+
     /// The staged bundle as bytes. Nil when it cannot be written, and then the report goes without it
     /// rather than silently waiting for something that will not come.
     static func zip(_ entries: [FileExport.BundleEntry]) -> Data? {
@@ -256,34 +324,95 @@ struct ReportProblemView: View {
     }
 }
 
-/// The exact bundle, before anything leaves. The same gate the Test Centre share has always used.
+/// The exact bundle, before anything leaves, and this time all of it.
+///
+/// `ReportReviewGate.previewText` stops inlining a file at 1 MiB and names it instead, which is right
+/// for its own sheet: a SwiftUI `Text` of megabytes pins the main thread in glyph layout, and a 12 MB
+/// one once allocated over a gigabyte. But a strap log is two megabytes, so the file the wearer most
+/// needs to see was the one they never saw, under a screen that said they saw everything.
+///
+/// So the text is whole, and it is handed to the platform's own text view, which was built for
+/// exactly this and lays out long documents lazily. Binary entries are still named: there is nothing
+/// to read in a PNG, and the name is the honest statement about it.
 private struct ReportLogReviewSheet: View {
     let gate: ReportReviewGate
     let finish: (Bool) -> Void
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                Text(gate.previewText)
-                    .font(StrandFont.caption.monospaced())
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(NoopMetrics.space4)
-            }
-            .background(StrandPalette.surfaceBase.ignoresSafeArea())
-            .navigationTitle("What you are about to send")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Without the log") { finish(false) }
+            ReportBundleText(text: ReportLogReviewSheet.wholeBundle(gate.entries))
+                .background(StrandPalette.surfaceBase.ignoresSafeArea())
+                .navigationTitle("What you are about to send")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Without the log") { finish(false) }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Send with the log") { finish(true) }
+                    }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Send with the log") { finish(true) }
-                }
-            }
         }
     }
+
+    /// Every text file in full, each under its own header, and the binary ones named. No cap: the cap
+    /// is what hid the log.
+    static func wholeBundle(_ entries: [FileExport.BundleEntry]) -> String {
+        var parts: [String] = []
+        var named: [String] = []
+        for entry in entries {
+            if let text = String(data: entry.data, encoding: .utf8) {
+                parts.append("=== \(entry.name) (\(entry.data.count) bytes) ===\n\(text)")
+            } else {
+                named.append("\(entry.name) (\(entry.data.count) bytes)")
+            }
+        }
+        if !named.isEmpty {
+            parts.append("=== attached, nothing to read in it ===\n" + named.joined(separator: "\n"))
+        }
+        return parts.joined(separator: "\n\n")
+    }
 }
+
+/// The platform's own text view. SwiftUI's `Text` lays a whole string out at once, which is why the
+/// gate caps what it inlines; this one lays out what is on screen.
+private struct ReportBundleText: View {
+    let text: String
+
+    var body: some View {
+        #if os(iOS)
+        ReportBundleTextView(text: text)
+        #else
+        ScrollView {
+            Text(text)
+                .font(StrandFont.caption.monospaced())
+                .foregroundStyle(StrandPalette.textSecondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(NoopMetrics.space4)
+        }
+        #endif
+    }
+}
+
+#if os(iOS)
+private struct ReportBundleTextView: UIViewRepresentable {
+    let text: String
+
+    func makeUIView(context: Context) -> UITextView {
+        let view = UITextView()
+        view.isEditable = false
+        view.isSelectable = true
+        view.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        view.backgroundColor = .clear
+        view.textContainerInset = UIEdgeInsets(top: 16, left: 12, bottom: 16, right: 12)
+        return view
+    }
+
+    func updateUIView(_ view: UITextView, context: Context) {
+        if view.text != text { view.text = text }
+    }
+}
+#endif
 
 /// What this device has reported, with where each one stands.
 struct MyReportsSection: View {
