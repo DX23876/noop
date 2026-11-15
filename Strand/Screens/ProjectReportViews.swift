@@ -92,6 +92,20 @@ final class ProjectReportModel: ObservableObject {
         isSending = false
     }
 
+    /// Everything that belongs to ONE report, cleared. The model outlives the screen on purpose, which
+    /// is what kept the review sheet alive, but it means the last report's confirmation, its code and
+    /// its picture would otherwise greet whoever opens the form again, and the picture would ride out
+    /// on the next one.
+    func startFresh() {
+        sentCode = nil
+        sentWithoutThread = false
+        failed = false
+        logFailed = false
+        picture = nil
+        staged = nil
+        isPreparing = false
+    }
+
     func forget(code: String) {
         store.remove(code: code)
         mine = store.all()
@@ -154,6 +168,9 @@ struct ReportProblemView: View {
     #if os(iOS)
     @State private var picked: PhotosPickerItem?
     #endif
+    /// This screen's own first appearance. A new push gets a new one, which is exactly when the last
+    /// report's leftovers have to go; after sending, the same instance keeps showing its card.
+    @State private var opened = false
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var live: LiveState
     @Environment(\.dismiss) private var dismiss
@@ -178,6 +195,11 @@ struct ReportProblemView: View {
             }
         }
         // Driven off the model, so the sheet cannot be lost when this screen is rebuilt.
+        .task {
+            guard !opened else { return }
+            opened = true
+            model.startFresh()
+        }
         .sheet(isPresented: Binding(get: { model.staged != nil },
                                     set: { if !$0 { model.staged = nil } })) {
             if let gate = model.staged {
