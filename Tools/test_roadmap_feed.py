@@ -266,6 +266,25 @@ class AppFeedTest(unittest.TestCase):
         self.assertEqual(feed.build([issue()], now=NOW, service="https://x.workers.dev")["service"],
                          "https://x.workers.dev")
 
+    def test_an_unusable_service_address_fails_the_run_instead_of_shipping(self):
+        """The app drops a bad address without a word, so the generator is where it must be noticed."""
+        self.assertIsNone(feed.service_url(None))
+        self.assertIsNone(feed.service_url("   "))
+        self.assertEqual(feed.service_url(" https://x.workers.dev/ "), "https://x.workers.dev")
+        for bad in ("http://x.workers.dev", "x.workers.dev", "https:///v1",
+                    "https://user:pw@x.workers.dev", "https://x.workers.dev?k=1",
+                    "https://x.workers.dev#f"):
+            with self.subTest(bad=bad), self.assertRaises(SystemExit):
+                feed.service_url(bad)
+
+    def test_the_workflow_hands_the_service_address_to_the_generator(self):
+        """PRODUCT source: the job rewrites the feed on every issue event, so an address that only sat
+        in the committed file would be dropped at the next run. Losing this argument is exactly the
+        change that invalidates the service field, and nothing else in the suite would see it."""
+        workflow = (ROOT / ".github" / "workflows" / "app-feed.yml").read_text(encoding="utf-8")
+        self.assertIn("--service \"${NOOP_SERVICE}\"", workflow)
+        self.assertIn("NOOP_SERVICE: ${{ vars.NOOP_SERVICE }}", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

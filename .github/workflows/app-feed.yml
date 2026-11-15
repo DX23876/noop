@@ -78,8 +78,16 @@ jobs:
           gh issue list -R "${REPO}" --state all --limit 200 \
             --json number,title,body,labels,comments > suggestions.json
 
+      # The service address comes from a repository VARIABLE, never from the committed file: this job
+      # rewrites docs/app-feed.json whenever an issue moves, so an address pasted into the file by hand
+      # would disappear at the next run and voting would go quiet for everyone, with no commit saying so.
+      # An unset variable means there is no service, which is also how the feature is switched off again.
       - name: Build the feed
-        run: python3 Tools/build_app_feed.py --issues-file issues.json --suggestions-file suggestions.json
+        env:
+          NOOP_SERVICE: ${{ vars.NOOP_SERVICE }}
+        run: |
+          python3 Tools/build_app_feed.py --issues-file issues.json \
+            --suggestions-file suggestions.json --service "${NOOP_SERVICE}"
 
       # The hand-written half of the page. It is checked on every push by tools-python as well; here it
       # guards the pair, so the page's two files are never validated apart from each other.

@@ -25,6 +25,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "app-feed.json"
@@ -142,6 +143,25 @@ def sanitise_block(text: str, limit: int) -> str:
     return cleaned
 
 
+def service_url(value: str | None) -> str | None:
+    """Judge the service address here, by the same rule the core applies in `ProjectFeedParser.service`.
+
+    The app keeps an address only when it is https with a host and carries no credentials, and discards
+    anything else without a word, on every device at once. Refusing it here as well means a typo in the
+    repository variable fails the job that wrote it, instead of publishing a feed on which voting simply
+    never appears. Empty means there is no service, which is the kill switch, not an error.
+    """
+    text = (value or "").strip()
+    if not text:
+        return None
+    parsed = urlparse(text)
+    if parsed.scheme.lower() != "https" or not parsed.hostname:
+        raise SystemExit(f"FAIL service {text!r}: an https address with a host, or nothing at all")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise SystemExit(f"FAIL service {text!r}: no credentials, no query, no fragment")
+    return text.rstrip("/")
+
+
 def build(issues: list[dict], now: datetime, service: str | None = None,
           released: list[dict] | None = None, owner: str = "DX23876") -> dict:
     open_items: list[dict] = []
@@ -238,7 +258,7 @@ def main() -> int:
     issues = json.loads(Path(args.issues_file).read_text(encoding="utf-8"))
     now = (datetime.fromisoformat(args.now.replace("Z", "+00:00")) if args.now
            else datetime.now(timezone.utc))
-    service = args.service or None
+    service = service_url(args.service)
     released = (json.loads(Path(args.suggestions_file).read_text(encoding="utf-8"))
                 if args.suggestions_file else [])
     payload = build(issues, now=now, service=service, released=released, owner=args.owner)
