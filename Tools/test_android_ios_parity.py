@@ -102,7 +102,7 @@ MORE_GAPS: dict[str, str] = {}
 
 # iOS `SettingsPage` (Strand/Screens/SettingsSearchCatalog.swift).
 SETTINGS_WITNESS = {
-    "profile": "Profile(", "goals": "Goals(", "strap": "Strap(", "batteryRecording": "BatteryRecording(",
+    "roadmap": "Roadmap(", "profile": "Profile(", "goals": "Goals(", "strap": "Strap(", "batteryRecording": "BatteryRecording(",
     "strapActions": "StrapActions(", "training": "Training(", "todayTrends": "TodayTrends(",
     "notifications": "Notifications(", "coach": "Coach(", "languageUnits": "LanguageUnits(",
     "appearance": "Appearance(", "calculations": "Calculations(", "dataBackup": "DataBackup(", "help": "Help(",

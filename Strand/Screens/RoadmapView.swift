@@ -1,0 +1,496 @@
+import SwiftUI
+import StrandCore
+import StrandDesign
+
+// RoadmapView.swift — the project page: what is being built, what people reported, what was fixed.
+//
+// Two static files from the repository (`docs/roadmap.json`, `docs/app-feed.json`) are read when this
+// screen opens, and at no other time: no background poll, no account, nothing about the reader sent.
+// The whole reading, clamping and grouping lives in `StrandCore.ProjectPageStore`, so the Android twin
+// shows the same words from the same bytes.
+//
+// Deliberately quiet: no badge on the Settings row, no bell, no unread dot, no "new" markers, no
+// ranking of reported problems. Someone who never opens this page never notices it exists.
+
+/// The screen's state. Shows the cached copy at once, then refreshes in the background, so opening the
+/// page is never a spinner on a plain canvas.
+@MainActor
+final class RoadmapModel: ObservableObject {
+    @Published var page: ProjectPage = .empty
+    @Published var isRefreshing = false
+    /// True once a read has been attempted, so "nothing here" is only said after actually looking.
+    @Published var hasLoaded = false
+    /// This device's own thumbs, from preferences: the screen must know them with no network.
+    @Published var myVotes: Set<String> = []
+    /// Totals, asked for only once this device has voted at all — a number before that would steer the
+    /// vote, and an untouched page makes no request.
+    @Published var counts: [String: Int] = [:]
+    @Published var draft = ""
+    @Published var isSending = false
+    @Published var sentConfirmation = false
+    @Published var sendFailed = false
+
+    private let store: ProjectPageStore
+    private let keys: ProjectDeviceKeyStore
+    private var service: ProjectService?
+
+    init(store: ProjectPageStore? = nil, keys: ProjectDeviceKeyStore = .standard) {
+        self.store = store ?? ProjectPageStore(directory: RoadmapModel.cacheDirectory)
+        self.keys = keys
+    }
+
+    /// True only when the feed carries a service address. No address, no voting and no suggestion field:
+    /// an installed copy from before the service existed stays quiet instead of failing at a dead URL.
+    var canWrite: Bool { page.service != nil }
+
+    func vote(_ suggestion: ProjectSuggestion) async {
+        guard let service else { return }
+        let wants = !myVotes.contains(suggestion.id)
+        let result = await service.vote(id: suggestion.id, on: wants)
+        guard case .sent(let count) = result else { return }
+        myVotes = keys.votedItems()
+        if let count { counts[suggestion.id] = count }
+    }
+
+    func send() async {
+        guard let service, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        isSending = true
+        sendFailed = false
+        let result = await service.suggest(text: draft)
+        isSending = false
+        if case .sent = result {
+            draft = ""
+            sentConfirmation = true
+        } else {
+            sendFailed = true
+        }
+    }
+
+    static var cacheDirectory: URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent("ProjectPage", isDirectory: true)
+    }
+
+    func load() async {
+        if page.isEmpty {
+            page = await store.cached()
+        }
+        await refresh()
+    }
+
+    func refresh() async {
+        isRefreshing = true
+        let fresh = await store.refresh()
+        page = fresh
+        myVotes = keys.votedItems()
+        service = ProjectService(service: fresh.service, keyStore: keys)
+        if let service, !myVotes.isEmpty {
+            counts = await service.counts()
+        }
+        hasLoaded = true
+        isRefreshing = false
+    }
+}
+
+struct RoadmapView: View {
+    @StateObject private var model = RoadmapModel()
+    @State private var showAllReported = false
+
+    var body: some View {
+        ScreenScaffold(
+            title: "Roadmap",
+            subtitle: "What is being built, and what is already known",
+            onRefresh: { await model.refresh() }
+        ) {
+            VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                phaseSection(.now, title: "In progress", icon: "hammer.fill")
+                phaseSection(.next, title: "Next", icon: "arrow.forward.circle.fill")
+                phaseSection(.later, title: "Later", icon: "clock.fill")
+                suggestionsSection
+                suggestBox
+                reportedSection
+                fixedSection
+                decidedSection
+                footer
+                stamp
+            }
+        }
+        // The stored copy shows at once, then one read refreshes it. Opening the page is the ONLY thing
+        // that reads: there is no background poll and no refresh on returning from a pushed screen.
+        .task { await model.load() }
+    }
+
+    // MARK: - Roadmap
+
+    @ViewBuilder
+    private func phaseSection(_ phase: ProjectPhase, title: LocalizedStringKey,
+                              icon: String) -> some View {
+        let items = model.page.items(phase)
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                RoadmapSectionHeader(title: title, icon: icon)
+                ForEach(items) { item in
+                    RoadmapCard(item: item)
+                }
+            }
+        }
+    }
+
+    // MARK: - Suggestions
+
+    @ViewBuilder
+    private var suggestionsSection: some View {
+        if !model.page.suggestions.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                RoadmapSectionHeader(title: "Suggestions", icon: "lightbulb.fill")
+                ForEach(model.page.suggestions) { suggestion in
+                    SuggestionCard(suggestion: suggestion,
+                                   voted: model.myVotes.contains(suggestion.id),
+                                   count: model.counts[suggestion.id],
+                                   canVote: model.canWrite) {
+                        Task { await model.vote(suggestion) }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Hidden entirely without a service address, rather than offered and then failing.
+    @ViewBuilder
+    private var suggestBox: some View {
+        if model.canWrite {
+            ForgeListGroup("Suggest something",
+                           note: "It reaches the developer, not the other people using NOOP. Nothing becomes visible until it is released.") {
+                TextField("What would you like NOOP to do?", text: $model.draft, axis: .vertical)
+                    .lineLimit(1...4)
+                    .font(StrandFont.subhead)
+                    .textFieldStyle(.plain)
+                HStack {
+                    Text("\(max(0, ProjectService.maximumSuggestion - model.draft.count)) characters left")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                    Spacer()
+                    Button("Send") { Task { await model.send() } }
+                        .buttonStyle(.plain)
+                        .font(StrandFont.subhead.weight(.semibold))
+                        .foregroundStyle(canSend ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .disabled(!canSend)
+                }
+                if model.sentConfirmation {
+                    Text("Arrived. There is no promise about when, or whether, it gets built.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                } else if model.sendFailed {
+                    Text("That did not go out. Try again later.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            }
+        }
+    }
+
+    private var canSend: Bool {
+        !model.isSending
+            && !model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && model.draft.count <= ProjectService.maximumSuggestion
+    }
+
+    // MARK: - Reported problems
+
+    @ViewBuilder
+    private var reportedSection: some View {
+        if !model.page.reported.isEmpty {
+            ForgeListGroup("Reported problems", note: "Open reports on the project's issue tracker.") {
+                Text(reportedSummary)
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                // The label says what a tap does, like the Android twin: a chevron alone leaves the
+                // two platforms describing the same control with different words.
+                DisclosureGroup(isExpanded: $showAllReported) {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        ForEach(model.page.reported) { issue in
+                            RoadmapIssueRow(issue: issue)
+                        }
+                    }
+                    .padding(.top, NoopMetrics.space2)
+                } label: {
+                    Text(showAllReported ? "Show less" : "Show all")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.accent)
+                }
+                .tint(StrandPalette.accent)
+            }
+        }
+    }
+
+    /// One line instead of a number on a card: "8 reported, 1 being worked on". A count that reads as
+    /// an alarm is the thing this page is not for.
+    private var reportedSummary: String {
+        let reported = model.page.reportedCount
+        let working = model.page.workingCount
+        if working > 0 {
+            return String(localized: "\(reported) reported, \(working) being worked on")
+        }
+        return String(localized: "\(reported) reported")
+    }
+
+    @ViewBuilder
+    private var fixedSection: some View {
+        if !model.page.fixed.isEmpty {
+            ForgeListGroup("Recently fixed") {
+                ForEach(model.page.fixed) { issue in
+                    RoadmapIssueRow(issue: issue)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var decidedSection: some View {
+        if !model.page.decided.isEmpty {
+            ForgeListGroup("Recently decided",
+                           note: "Reports closed without a change. They stay here for a month.") {
+                ForEach(model.page.decided) { issue in
+                    RoadmapIssueRow(issue: issue)
+                }
+            }
+        }
+    }
+
+    // MARK: - Footer
+
+    private var footer: some View {
+        ForgeListGroup {
+            ForgeLinkRow(title: "Report a problem",
+                         subtitle: "Builds a log you can attach, nothing is sent on its own") {
+                TestCentreView()
+            }
+            Divider().overlay(StrandPalette.hairline)
+            Link(destination: ProjectLinks.issues) {
+                ForgeActionLabel(title: "Open the issue tracker",
+                                 subtitle: "Reading and writing there happens in your browser")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private var stamp: some View {
+        if model.page.isEmpty && model.hasLoaded {
+            Text("Nothing could be loaded. The page needs the internet once, then it keeps the last copy.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } else if let fetched = model.page.fetchedAt {
+            Text("Last checked \(fetched.formatted(date: .abbreviated, time: .shortened))")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+        }
+    }
+}
+
+/// A section heading with its own symbol. The slot is where the drawn section pictures go once they
+/// exist; until then it is a tinted symbol rather than a placeholder box.
+private struct RoadmapSectionHeader: View {
+    let title: LocalizedStringKey
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: NoopMetrics.space2) {
+            Image(systemName: icon)
+                .font(StrandFont.subhead.weight(.semibold))
+                .foregroundStyle(StrandPalette.accent)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(StrandFont.footnote.weight(.semibold))
+                .foregroundStyle(StrandPalette.textSecondary)
+                .accessibilityAddTraits(.isHeader)
+        }
+    }
+}
+
+/// One planned piece of work. Tinted from its measure, never from a colour of its own, so the page
+/// stays inside the wearer's chosen profile instead of turning into a rainbow.
+private struct RoadmapCard: View {
+    let item: ProjectRoadmapItem
+
+    var body: some View {
+        NoopCard(padding: NoopMetrics.space3) {
+            HStack(alignment: .top, spacing: NoopMetrics.space3) {
+                Image(systemName: item.icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(RoadmapCard.tint(item.area))
+                    .frame(width: 28, alignment: .center)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !item.line.isEmpty {
+                        Text(item.line)
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let since = RoadmapCard.sinceText(item.since) {
+                        Text("Started \(since)")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    static func tint(_ area: ProjectArea) -> Color {
+        switch area {
+        case .sleep: return StrandPalette.restColor
+        case .cardio: return StrandPalette.cardioColor
+        case .strength: return StrandPalette.strengthColor
+        case .body: return StrandPalette.metricCyan
+        case .app: return StrandPalette.accent
+        }
+    }
+
+    /// `yyyy-MM-dd` from the file, rendered in the reader's locale. Nil when the file has no date or
+    /// one this app cannot read, because a half-parsed date is worse than none.
+    static func sinceText(_ raw: String?) -> String? {
+        guard let raw, let date = RoadmapDates.day(raw) else { return nil }
+        return date.formatted(date: .abbreviated, time: .omitted)
+    }
+}
+
+/// One suggestion somebody sent in, with the owner's answer and this device's thumb.
+///
+/// The count appears only after you voted: a number beside an unvoted card steers the vote, which is the
+/// opposite of what it is for. There is no ranking badge and no "top" marker for the same reason.
+private struct SuggestionCard: View {
+    let suggestion: ProjectSuggestion
+    let voted: Bool
+    let count: Int?
+    let canVote: Bool
+    let toggle: () -> Void
+
+    var body: some View {
+        NoopCard(padding: NoopMetrics.space3) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(suggestion.title)
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !suggestion.detail.isEmpty {
+                    Text(suggestion.detail)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let reply = suggestion.reply {
+                    Text(reply)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .padding(.leading, NoopMetrics.space2)
+                        .overlay(alignment: .leading) {
+                            Rectangle().fill(StrandPalette.accent).frame(width: 2)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: NoopMetrics.space2) {
+                    if let status = SuggestionCard.statusText(suggestion) {
+                        Text(status)
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    Spacer(minLength: 0)
+                    if canVote {
+                        Button(action: toggle) {
+                            HStack(spacing: 4) {
+                                Image(systemName: voted ? "hand.thumbsup.fill" : "hand.thumbsup")
+                                if let count, voted {
+                                    Text("\(count)").font(StrandFont.caption)
+                                }
+                            }
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(voted ? StrandPalette.accent : StrandPalette.textSecondary)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(voted ? Text("Remove your vote") : Text("Vote for this"))
+                    }
+                }
+            }
+        }
+    }
+
+    static func statusText(_ suggestion: ProjectSuggestion) -> String? {
+        if suggestion.roadmapID != nil { return String(localized: "On the roadmap") }
+        switch suggestion.status {
+        case .open: return nil
+        case .planned: return String(localized: "Planned")
+        case .maybe: return String(localized: "Maybe")
+        case .notPlanned: return String(localized: "Not planned")
+        case .done: return String(localized: "Done")
+        }
+    }
+}
+
+/// One reported problem: number, title, state. No body, no author, no avatar — the feed carries none of
+/// that on purpose, and the row cannot invent it.
+private struct RoadmapIssueRow: View {
+    let issue: ProjectIssue
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(issue.title)
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(detail)
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var detail: String {
+        var parts: [String] = ["#\(issue.number)", status]
+        if let day = RoadmapDates.day(issue.opened ?? issue.closed)?
+            .formatted(date: .abbreviated, time: .omitted) {
+            parts.append(day)
+        }
+        if let version = issue.fixedIn {
+            parts.append(String(localized: "in \(version)"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var status: String {
+        switch issue.status {
+        case .reported: return String(localized: "Reported")
+        case .working: return String(localized: "Being worked on")
+        case .fixed: return String(localized: "Fixed")
+        case .notPlanned: return String(localized: "Not planned")
+        }
+    }
+}
+
+/// The one place `yyyy-MM-dd` from the files turns into a date. Shared so a card and a row cannot
+/// disagree about what a day string means.
+enum RoadmapDates {
+    private static let parser: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    static func day(_ raw: String?) -> Date? {
+        guard let raw, !raw.isEmpty else { return nil }
+        return parser.date(from: raw)
+    }
+}

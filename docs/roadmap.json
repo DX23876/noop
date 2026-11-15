@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "items": [
+    {
+      "id": "forge-ui",
+      "phase": "now",
+      "title": "The new Forge screens",
+      "line": "Finish the rebuilt Today, Sleep and Trends screens, page by page.",
+      "icon": "square.grid.2x2.fill",
+      "area": "app",
+      "since": "2026-11-01"
+    },
+    {
+      "id": "android-parity",
+      "phase": "now",
+      "title": "Android catches up",
+      "line": "Every screen the iPhone has, with the same numbers from the shared core.",
+      "icon": "iphone",
+      "area": "app"
+    },
+    {
+      "id": "sport-detection",
+      "phase": "next",
+      "title": "Workouts recognised on their own",
+      "line": "Walking, running and cycling found in strap motion, without starting a session.",
+      "icon": "figure.run",
+      "area": "cardio"
+    },
+    {
+      "id": "onboarding",
+      "phase": "next",
+      "title": "A shorter first start",
+      "line": "Pick what matters to you, and the app arrives set up for it.",
+      "icon": "sparkles",
+      "area": "app"
+    },
+    {
+      "id": "effort-scale",
+      "phase": "next",
+      "title": "Effort that matches how hard it felt",
+      "line": "Recalibrate the effort scale so a hard session reads as one.",
+      "icon": "flame.fill",
+      "area": "cardio"
+    },
+    {
+      "id": "training-history",
+      "phase": "later",
+      "title": "Years of training history",
+      "line": "Five and ten year views of strength and cardio load, and a jump to any date.",
+      "icon": "chart.xyaxis.line",
+      "area": "strength"
+    },
+    {
+      "id": "healthspan",
+      "phase": "later",
+      "title": "Healthspan, further",
+      "line": "More of what moves your body's age, and goals that follow from it.",
+      "icon": "heart.text.square.fill",
+      "area": "body"
+    }
+  ]
+}

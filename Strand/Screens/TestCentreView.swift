@@ -170,7 +170,11 @@ struct TestCentreView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 domainModesCard.staggeredAppear(index: 0)
                 diagnosticToolsCard.staggeredAppear(index: 1)
-                if is5MG { rawDataCollectorCard.staggeredAppear(index: 2) }
+                // Shown for every family since 2026-11-15: the 4.0's raw-data variant is decoded
+                // (`Whoop5RawImu`, the 1917-byte REALTIME_RAW_DATA shape) but has never been seen on
+                // real 4.0 hardware, and a card nobody can reach is a decoder nobody can confirm.
+                // The card says so rather than implying it works.
+                rawDataCollectorCard.staggeredAppear(index: 2)
                 if is5MG { fiveMGProtocolDiagnosticsCard.staggeredAppear(index: 3) }
                 if ouraPaired { ouraCard.staggeredAppear(index: 2) }
                 exportCard.staggeredAppear(index: 2)
@@ -236,13 +240,20 @@ struct TestCentreView: View {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 if NoopVisualStyle.skin != .forge {
-                    Text("5/MG RAW DATA COLLECTOR")
+                    Text("RAW DATA COLLECTOR")
                         .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
                 Text("Record, review, export, and delete bounded 100 Hz motion sessions. Normal sync is unchanged.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+                if !is5MG {
+                    // Attribute what we know and no more: the command sequence for a 4.0 is in the
+                    // code, the decoder knows its frame shape, and nobody here owns one to try it on.
+                    Text("On a WHOOP 4.0 this has never been confirmed on real hardware. If nothing records, that result is worth a bug report with your strap log. That is how the 4.0 side gets fixed.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 NavigationLink {
                     RawDataCollectorView()
                 } label: {
@@ -756,9 +767,12 @@ struct TestCentreView: View {
             ForgeLinkRow(title: "Test modes", subtitle: "Per area: strap, sleep, workouts and more") {
                 ScreenScaffold(title: "Test modes") { domainModesCard }
             }
+            Divider().overlay(StrandPalette.hairline)
+            ForgeLinkRow(title: "Raw-data collector",
+                         subtitle: is5MG ? "5.0 and MG" : "4.0, unconfirmed on real hardware") {
+                RawDataCollectorView()
+            }
             if is5MG {
-                Divider().overlay(StrandPalette.hairline)
-                ForgeLinkRow(title: "Raw-data collector", subtitle: "5.0 and MG") { RawDataCollectorView() }
                 Divider().overlay(StrandPalette.hairline)
                 ForgeLinkRow(title: "Protocol diagnostics", subtitle: "5.0 and MG") {
                     ScreenScaffold(title: "Protocol diagnostics") { fiveMGProtocolDiagnosticsCard }

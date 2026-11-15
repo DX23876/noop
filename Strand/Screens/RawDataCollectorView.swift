@@ -30,7 +30,7 @@ struct RawDataCollectorView: View {
 
     var body: some View {
         ScreenScaffold(
-            title: "5/MG Raw Data Collector",
+            title: "Raw Data Collector",
             subtitle: "Record a bounded 100 Hz motion session and export its complete timeline."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {

@@ -620,7 +620,7 @@ private struct SettingsPageContent: View, Equatable {
         case .labWhoop5:
             if showFiveMGControls { fiveMGCard }
         case .about: aboutCard
-        case .goals, .batteryRecording, .strapActions, .notifications, .coach, .siri:
+        case .roadmap, .goals, .batteryRecording, .strapActions, .notifications, .coach, .siri:
             EmptyView()
         }
     }
@@ -3571,6 +3571,25 @@ private struct SettingsPageContent: View, Equatable {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                rowDivider
+
+                // The donation page. Named for what it does for the wearer, not for the data it moves,
+                // and reached from the sport settings because that is where the ticks apply.
+                NavigationLink {
+                    RawDonationView()
+                } label: {
+                    FormRow(label: "Help teach the app") {
+                        Image(systemName: "chevron.right")
+                            .font(StrandFont.caption.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+                Text("Record short stretches of how you move during a workout, and send them so NOOP can learn to recognise sports on its own. Off until you tick a sport.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
                 if autoDetectWorkoutsEnabled {
                     let noSteps = selectedWhoopModelRaw == WhoopModel.whoop4.rawValue
                     Toggle(isOn: noSteps ? .constant(false) : $activityWalks) {
@@ -4080,6 +4099,8 @@ struct SettingsPageDestination: View {
 
     var body: some View {
         switch page {
+        case .roadmap:
+            RoadmapView()
         case .goals:
             GoalsSettingsView()
         case .batteryRecording:

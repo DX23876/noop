@@ -62,6 +62,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Battery5Bar
 import androidx.compose.material.icons.rounded.Functions
 import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.SettingsInputAntenna
 import androidx.compose.material.icons.rounded.Storage
@@ -72,6 +73,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.UnfoldMore
@@ -170,6 +172,7 @@ private val SEX_CHOICES = listOf("male" to R.string.onboarding_male, "female" to
                                  "nonbinary" to R.string.onboarding_other)
 
 private const val SOURCE_URL = "https://github.com/DX23876/noop"
+private const val ISSUES_URL = "https://github.com/DX23876/noop/issues"
 
 /**
  * The Forge Settings pages, as the iOS hub lists them (`SettingsPage`): title, subtitle and icon. [hosted] marks the
@@ -177,6 +180,7 @@ private const val SOURCE_URL = "https://github.com/DX23876/noop"
  * card, which keeps its Bluetooth controls in one place).
  */
 enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: ImageVector, val hosted: Boolean = false) {
+    Roadmap(R.string.forge_roadmap_title, R.string.forge_roadmap_subtitle, Icons.Rounded.Map),
     Profile(R.string.l10n_settings_screen_profile_ff4fc027, R.string.forge_settings_profile_subtitle, Icons.Rounded.AccountCircle),
     Goals(R.string.forge_goals_more_title, R.string.forge_sg_goals_subtitle, Icons.Rounded.TrackChanges),
     Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna, hosted = true),
@@ -197,6 +201,8 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
 
 /** Search words for each page, after iOS `SettingsSearchCatalog.entries` (English, as iOS keeps them). */
 internal val SETTINGS_SEARCH_WORDS: Map<ForgeSettingsPage, List<String>> = mapOf(
+    ForgeSettingsPage.Roadmap to listOf("roadmap", "plan", "planned", "what's next", "coming", "issues", "bugs",
+                                        "known problems", "reported", "fixed", "project"),
     ForgeSettingsPage.Profile to listOf("photo", "picture", "avatar", "name", "date of birth", "age", "sex", "weight",
                                         "height", "waist", "max heart rate", "heart-rate zones"),
     ForgeSettingsPage.Goals to listOf("goal", "rest days", "step goal", "daily steps", "streak", "badges", "records",
@@ -230,6 +236,8 @@ internal val SETTINGS_SEARCH_WORDS: Map<ForgeSettingsPage, List<String>> = mapOf
  * Today & Trends carries only its cards.
  */
 internal val HUB_GROUPS = listOf(
+    // Its own card above everything else, with no heading: the quickest reach in Settings, as on iOS.
+    0 to listOf(ForgeSettingsPage.Roadmap),
     R.string.forge_settings_group_you to listOf(ForgeSettingsPage.Profile, ForgeSettingsPage.Goals),
     R.string.forge_settings_group_strap to listOf(ForgeSettingsPage.Strap, ForgeSettingsPage.BatteryRecording,
                                                   ForgeSettingsPage.StrapActions),
@@ -260,6 +268,7 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
     Acknowledgements(R.string.forge_provider_acknowledgements),
     ExerciseMedia(R.string.forge_st_manage_media),
+    RawDonation(R.string.donation_title, closes = false),
     AllSettings(R.string.forge_settings_all),
 }
 
@@ -297,7 +306,7 @@ internal fun ForgeSettingsPage.tint(): Color {
         ForgeSettingsPage.StrapActions, ForgeSettingsPage.Notifications, ForgeSettingsPage.Coach,
         ForgeSettingsPage.Appearance -> ForgeTokens.Color.systemPurple
         ForgeSettingsPage.LanguageUnits -> ForgeTokens.Color.systemOrange
-        ForgeSettingsPage.Calculations, ForgeSettingsPage.Lab -> ForgeTokens.Color.systemIndigo
+        ForgeSettingsPage.Roadmap, ForgeSettingsPage.Calculations, ForgeSettingsPage.Lab -> ForgeTokens.Color.systemIndigo
         ForgeSettingsPage.Help -> ForgeTokens.Color.systemTeal
         ForgeSettingsPage.TodayTrends -> ForgeTokens.Color.systemCyan
         ForgeSettingsPage.About -> ForgeTokens.Color.systemGray
@@ -370,7 +379,7 @@ private fun Hub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Unit, onAll:
             }
         }
         HUB_GROUPS.forEach { (titleRes, pages) ->
-            SectionHeader(stringResource(titleRes))
+            if (titleRes != 0) SectionHeader(stringResource(titleRes))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
                 pages.forEachIndexed { i, p ->
                     HubRow(p.icon, p.tint(), stringResource(p.titleRes), stringResource(p.subtitleRes)) { onOpen(p) }
@@ -433,6 +442,9 @@ private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Uni
                 Text(stringResource(R.string.forge_set_search), style = Forge.type.body, color = colors.textSecondary)
             }
         }
+        // One card above the groups, without a heading: one tap from the top, and quiet enough that
+        // someone who does not care never notices it.
+        group(null, listOf(page(ForgeSettingsPage.Roadmap)))
         group(R.string.forge_settings_group_you, listOf(page(ForgeSettingsPage.Goals)))
         group(R.string.forge_set_strap_devices, listOf(
             page(ForgeSettingsPage.Strap), page(ForgeSettingsPage.BatteryRecording), page(ForgeSettingsPage.StrapActions),
@@ -486,9 +498,22 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
         PageTitle(stringResource(page.titleRes), onBack)
         key(revision) {
             when (page) {
+                ForgeSettingsPage.Roadmap -> RoadmapSection(
+                    onOpenTestCentre = { onOpen(ForgeSettingsSub.TestCentre) },
+                    onOpenTracker = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ISSUES_URL))) },
+                )
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen, profileEditing) { profileEditing = it }
                 ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
-                ForgeSettingsPage.Training -> TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
+                ForgeSettingsPage.Training -> {
+                    TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
+                    // The donation page, reached from the sport settings because that is where the
+                    // ticks apply. Named for what it does for the wearer, not for the data it moves.
+                    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                        HubRow(Icons.Rounded.School, ForgeTokens.Color.systemTeal.resolve(),
+                               stringResource(R.string.donation_title),
+                               stringResource(R.string.donation_subtitle)) { onOpen(ForgeSettingsSub.RawDonation) }
+                    }
+                }
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
                 ForgeSettingsPage.TodayTrends -> { DashboardStyleSection(::change); TodayCardsSection(::change) }
@@ -679,6 +704,10 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
         ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
+        ForgeSettingsSub.RawDonation -> SettingsColumn {
+            PageTitle(stringResource(R.string.donation_title), onBack)
+            RawDonationSection()
+        }
         ForgeSettingsSub.AllSettings -> Hosted(stringResource(sub.titleRes), onBack) {
             SettingsScreen(
                 viewModel,

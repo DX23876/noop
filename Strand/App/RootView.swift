@@ -41,6 +41,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case automation = "Automations"
     case smartAlarm = "Smart Alarm"
     case powerSaving = "Power saving"
+    case roadmap = "Roadmap"
     case settings = "Settings"
     case testCentre = "Test Centre"
 
@@ -90,6 +91,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         // The case name and rawValue stay `smartAlarm`/"Smart Alarm" as the in-memory nav identifier only.
         case .smartAlarm: return "Alarms"
         case .powerSaving: return "Battery & Recording"
+        case .roadmap: return "Roadmap"
         case .settings: return "Settings"
         case .testCentre: return "Test Centre"
         }
@@ -141,6 +143,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         // Mirrors the `titleKey` remap above (#766): the row reads "Alarms", not the raw "Smart Alarm".
         case .smartAlarm: return String(localized: "Alarms")
         case .powerSaving: return String(localized: "Battery & Recording")
+        case .roadmap: return String(localized: "Roadmap")
         case .settings: return String(localized: "Settings")
         case .testCentre: return String(localized: "Test Centre")
         }
@@ -185,6 +188,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .automation: return "wand.and.stars"
         case .smartAlarm: return "alarm.fill"
         case .powerSaving: return "battery.25"
+        case .roadmap: return "map"
         case .settings: return "gearshape.fill"
         case .testCentre: return "stethoscope"
         }
@@ -225,7 +229,7 @@ struct NavGroup: Identifiable {
         ]),
         NavGroup(title: "Data & App", id: "data_app", items: [
             .devices, .noopLimitations, .dataSources, .appleHealth, .miBand, .backupSync, .fusedRecord,
-            .notifications, .automation, .smartAlarm, .powerSaving, .settings, .testCentre,
+            .notifications, .automation, .smartAlarm, .powerSaving, .roadmap, .settings, .testCentre,
         ]),
     ]
 
@@ -550,6 +554,7 @@ struct RootView: View {
         case .automation: AutomationsView()
         case .smartAlarm: SmartAlarmView()
         case .powerSaving: PowerSavingView()
+        case .roadmap: RoadmapView()
         case .settings: settingsDetail
         case .testCentre: TestCentreView()
         }

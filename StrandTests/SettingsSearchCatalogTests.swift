@@ -29,6 +29,7 @@ final class SettingsSearchCatalogTests: XCTestCase {
 
     func testSettingsHubListsEveryPageExactlyOnceInStableOrder() {
         XCTAssertEqual(SettingsHubLayout.allPages, [
+            .roadmap,
             .profile, .goals,
             .strap, .batteryRecording, .strapActions,
             .training, .todayTrends, .notifications, .coach, .siri,
@@ -39,11 +40,12 @@ final class SettingsSearchCatalogTests: XCTestCase {
         XCTAssertEqual(Set(SettingsHubLayout.allPages), Set(SettingsPage.allCases))
     }
 
-    /// The six pages that are complete screens of their own carry exactly one section each, so a search
+    /// The pages that are complete screens of their own carry exactly one section each, so a search
     /// hit on them names the screen it opens and never a card that page does not draw.
-    func testStandaloneScreensAreExactlyTheSixScreenPages() {
+    func testStandaloneScreensAreExactlyTheSevenScreenPages() {
         let standalone = SettingsPage.allCases.filter(\.isStandaloneScreen)
-        XCTAssertEqual(standalone, [.goals, .batteryRecording, .strapActions, .notifications, .coach, .siri])
+        XCTAssertEqual(standalone, [.roadmap, .goals, .batteryRecording, .strapActions, .notifications,
+                                    .coach, .siri])
         for page in standalone {
             XCTAssertEqual(page.sectionIDs.count, 1, "\(page.rawValue) is one screen, so one section")
         }

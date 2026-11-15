@@ -1,0 +1,82 @@
+{
+  "counts": {
+    "fixed": 3,
+    "reported": 8,
+    "working": 0
+  },
+  "decided": [],
+  "fixed": [
+    {
+      "closed": "2026-11-15",
+      "n": 44,
+      "status": "fixed",
+      "title": "testing data on Whoop mg and Android 16"
+    },
+    {
+      "closed": "2026-11-15",
+      "n": 43,
+      "status": "fixed",
+      "title": "Android Strap log and some issues"
+    },
+    {
+      "closed": "2026-11-01",
+      "n": 39,
+      "status": "fixed",
+      "title": "Package appears to be invalid while installing"
+    }
+  ],
+  "generated": "2026-11-15T15:43:43Z",
+  "issues": [
+    {
+      "n": 49,
+      "opened": "2026-11-14",
+      "status": "reported",
+      "title": "Nap algorithm"
+    },
+    {
+      "n": 48,
+      "opened": "2026-11-13",
+      "status": "reported",
+      "title": "UI: Syncing bar stops working if I switch to other views"
+    },
+    {
+      "n": 47,
+      "opened": "2026-11-13",
+      "status": "reported",
+      "title": "Still some problem in workouts"
+    },
+    {
+      "n": 46,
+      "opened": "2026-11-09",
+      "status": "reported",
+      "title": "Sync loop"
+    },
+    {
+      "n": 45,
+      "opened": "2026-11-07",
+      "status": "reported",
+      "title": "No charge after 5 nights"
+    },
+    {
+      "n": 42,
+      "opened": "2026-11-04",
+      "status": "reported",
+      "title": "Sync, sleep and visual issue"
+    },
+    {
+      "n": 41,
+      "opened": "2026-11-02",
+      "status": "reported",
+      "title": "Effort shows different numbers on different type of dashboard styles"
+    },
+    {
+      "n": 40,
+      "opened": "2026-11-01",
+      "status": "reported",
+      "title": "In your card section when all card redirect to same page"
+    }
+  ],
+  "schema": 1,
+  "service": null,
+  "suggestions": []
+}

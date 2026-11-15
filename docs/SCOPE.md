@@ -14,8 +14,9 @@ and **not a medical device** (see the [Disclaimer](../DISCLAIMER.md#5-not-a-medi
 user-controlled exceptions are narrow: Coach requests go directly to the configured provider, a
 source-built Oura lane imports data from the user's own account, an opt-in Hevy lane imports the user's
 own strength training from theirs, an explicit download fetches the optional exercise media pack or
-exercise definitions from a source the user picks, and the update checker reads public GitHub release
-metadata manually or, when enabled, at most once per day. The Android app (in testing) adds the
+exercise definitions from a source the user picks, the update checker reads public GitHub release
+metadata manually or, when enabled, at most once per day, and the in-app Roadmap page reads two public
+files from this repository while it is open (`docs/roadmap.json`, `docs/app-feed.json`). The Android app (in testing) adds the
 default-off Experimental self-hosted push from #1314. These are hard boundaries, not permission to add
 general cloud features. The food log adds one more, default off: after the wearer chooses, branded products
 come either from Open Food Facts' public search (search words and barcodes only, no account) or from country

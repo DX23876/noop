@@ -26,10 +26,11 @@ local SQLite — has no network layer at all: no phone-home, no analytics, no ac
 no login, no cloud sync, and no telemetry. Everything NOOP computes about you lives in a
 single SQLite file on your own device.
 
-There are six user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
+There are seven user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
 history import** (§1.1b), the metadata-only **update check** (§1.1c), the **Hevy strength sync**
-(§1.1d), and two training downloads, the optional **exercise media pack** and a personal **ExerciseDB
-source** (§1.1e). The AI Coach is off
+(§1.1d), two training downloads, the optional **exercise media pack** and a personal **ExerciseDB
+source** (§1.1e), and the **Roadmap page**, which reads two public files from this repository while it
+is open (§1.1f). The AI Coach is off
 until you turn it on with your own API key; when you
 ask it a question it sends a short text summary of your recent metrics to the provider you
 choose. The Oura history import is **not even compiled into a default build** — the code
@@ -50,6 +51,7 @@ access CLI:
 | Oura history import (opt-in build flag, §1.1b) | HTTPS OAuth + REST, `api.ouraring.com` → device | Read-only from your own Oura account |
 | Apple Health export, incl. iOS "Export for Shortcuts" | On-device, user-initiated | NOOP → your Apple Health, on your device only (§1.3) |
 | Check for updates (§1.1c) | HTTPS GET to GitHub's public Releases API | Public version metadata → device; no health payload |
+| Roadmap page (§1.1f) | HTTPS GET to two public files in this repository | Public roadmap and issue titles → device, when you open the page; no health payload |
 | Hevy strength sync (opt-in, §1.1d) | HTTPS REST, `api.hevyapp.com` → device | Your own Hevy workouts, exercises and routines in; one confirmed routine write out |
 | Exercise media pack and ExerciseDB source (on request, §1.1e) | HTTPS download / GET | Public media archive or exercise definitions → device; no health payload |
 | Optional local access CLI (§1.4) | Local MCP over standard input/output | Bounded, read-only summaries from SQLite → the local client you launch |
@@ -59,7 +61,7 @@ the public release check, the opt-in Hevy strength sync and the two training dow
 biometric pipeline produces no network traffic of any kind. The Apple Health export above is
 an **on-device** hand-off, not a network upload — see §1.3.
 
-### 1.1 Network code: six controlled paths
+### 1.1 Network code: seven controlled paths
 
 The biometric pipeline and reusable Swift packages
 (`WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, `StrandDesign`, `OuraProtocol`,
@@ -71,11 +73,14 @@ gained only pure, network-free parsers for Oura's payload shapes. The released m
 share these implementations. App-target networking is isolated to the AI Coach (`Strand/AI/`), the
 compile-time Oura cloud lane (`Strand/Oura/`), the Hevy strength lane (`Strand/Hevy/`), the exercise
 media download (`Strand/Data/ExerciseMediaDownloader.swift`), and the release reader
-(`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`). The Hevy lane
+(`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`). The Roadmap page's
+two reads are the one exception to that list: they sit in `StrandCore` (`ProjectFeed.swift`), because
+Android reads the same two files through the same code rather than reimplementing the parsing. The Hevy lane
 follows the same split as Oura: its HTTP lives in the app target, and `StrandImport` gained only a pure,
 network-free parser for Hevy's payload shapes.
 Two packages that the list above leaves out do hold network code, both shared with the Android app:
-`StrandCore` has the ExerciseDB request client (`ExerciseDBProviderClient`) and `streamedBytes(for:)`, the
+`StrandCore` has the ExerciseDB request client (`ExerciseDBProviderClient`), the Roadmap page's file
+reader (`ProjectPageStore`) and `streamedBytes(for:)`, the
 data-task stand-in the Coach providers stream through on Android; `NoopCoreJNI` has Android's read-only
 Hevy client (`CoreHevyClient`) and compiles the `Strand/AI/` Coach sources for Android.
 The package manifests reference dependency *download* URLs that Swift Package Manager
@@ -215,6 +220,28 @@ history; a separate, confirmed action removes both.
   key; redirects are rejected, the response is size-bounded, and no workout or health data is sent.
   Only the definitions you select are saved. The key stays in the Keychain on Apple
   (`ExerciseDBCredentials`, this device only) and in encrypted storage on Android.
+
+### 1.1f The Roadmap page (public files, read when you open it)
+
+Settings › **Roadmap** shows what is being built and which problems are already reported. It reads two
+static files from this repository over HTTPS:
+
+- `https://raw.githubusercontent.com/DX23876/noop/main/docs/roadmap.json`, written by hand;
+- `https://raw.githubusercontent.com/DX23876/noop/main/docs/app-feed.json`, generated from the public
+  issues by `Tools/build_app_feed.py`.
+
+Both reads happen **only while the page is open** — no background poll, no check on launch, nothing on
+returning to the screen. The requests are unauthenticated GETs that carry no health data, no database
+content, no device identifier, no account (none exists) and no telemetry. There is no NOOP server in
+the path: the files sit next to the source code, like the sideload manifest and the release metadata the
+update check reads. The last copy is cached on the device so the page still renders offline, and a
+failed read shows that copy with the date it was fetched rather than an error screen.
+
+The generated file carries issue NUMBERS and TITLES only, never a body, a handle or an avatar: a bug
+report may contain logs, device details and sometimes an address, while a title is the part written to
+be read by other people. The parsing, clamping and sanitising live once in
+`Packages/StrandCore/ProjectFeed.swift` for both platforms, and the app re-clamps what it reads rather
+than trusting a file written by a later version of the generator.
 
 ### 1.2 The macOS sandbox (and what it means for the controlled network paths)
 

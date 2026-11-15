@@ -1439,3 +1439,119 @@ already refusing to make.
 
 Analysis migration required: no. Presentation only: no stored value, no scoring and no analysis window
 changes, and the report's own statistic is untouched.
+
+## 2026-11-15 — The in-app Roadmap page, and why its roadmap is a hand-written file
+
+Settings has a card above Profile, **Roadmap**: what is being built (`now`, `next`, `later`), which
+problems are reported, what was fixed and what was closed without a change. It reads two static files
+from this repository and nothing else — `docs/roadmap.json`, written by hand, and `docs/app-feed.json`,
+generated from the public issues by `Tools/build_app_feed.py` — and only while the page is open.
+
+**Why files and not the GitHub API.** 60 unauthenticated requests an hour are shared by everyone behind
+one address, issue titles would arrive in the app unfiltered, and the page has to keep working when
+GitHub switches this fork's Actions off again, as it did on 2026-11-02. So the generator is
+deterministic and runnable by hand: a dead runner costs freshness, not the feature. The app caches the
+last copy and shows it with the date it was fetched, which is also what it does with no network at all.
+
+**Why the roadmap is hand-written and not a Projects board.** The owner writes the text that readers
+see, re-sorting is a text edit, and an agent can do it on request. A board would need a GraphQL
+exporter, a token and a field mapping for a convenience nobody needs at a dozen items, and moving cards
+is exactly where a stable `id` gets lost — and votes will hang on those ids. **The order in the file is
+the order on the screen**: no rank, no weight, no sorting logic in the app, so nothing can contradict
+the file. A board can still be put in front of it later, because the file stays the interface.
+
+**What the generated file may carry.** Issue number, sanitised title, state, dates, version. Never a
+body, a handle or an avatar: a bug report holds logs, device details and sometimes an address, while a
+title is the part written to be read by others. `hide-in-app` drops an issue entirely.
+
+**Two gates that can see what invalidates them.** `Tools/check_roadmap.py` fails on a malformed or
+over-long entry, on a duplicate id, and on an `id` that has disappeared since the previous revision
+(votes hang on ids, so a removal has to be deliberate). It also fails when an icon used in the file has
+no entry in the Android icon map, because the alternative is a card that draws nothing on Android while
+it looks right on the iPhone. Both run in `tools-python`, which has no path filter.
+
+**What is deliberately not here yet.** No announcements in the Updates inbox, no bell, no badge, no
+background read: the page is quiet, and someone who never opens it never notices it. Voting (one thumb,
+on user suggestions only) and submitting a suggestion need the project's own small service, and that is
+one scope decision together with the raw-data donation, not two. Until that service exists, the app
+reads no `service` field and the page shows neither.
+
+Analysis migration required: no. Presentation and two new reads; no stored value, no scoring, no
+analysis window and no derived table changes.
+
+### 2026-11-15, later the same day: the writes, and the 4.0 collector
+
+The read-only page above is S1. What follows was built in the same session, up to the point where only
+an account the owner has to create is missing.
+
+**The service exists as source, outside this repository.** `AGENTS.md` forbids shipping a receiver here,
+so the Worker lives in its own public repository (its source is in `backlog/noop-relay/` until it is
+pushed there). Three routes, nothing else: a thumb, a suggestion, and the totals. No health data, no
+address stored, no account, no cookie, no logging of bodies. A fine-grained token with `issues:write` on
+the PRIVATE suggestions repository is its only secret.
+
+**The app finds the service through the feed, not through its binary.** `docs/app-feed.json` carries a
+`service` field; without it the screens hide voting and the suggestion field entirely. That is both the
+pre-service state and the kill switch: remove the field and every installed copy, however old, goes quiet
+without an update. A non-https address is discarded rather than honoured.
+
+**The device key is not an identity.** 128 random bits made on first use, sent only so a second thumb on
+the same item can be refused, and the thumb can be taken back. Which items this device voted for lives in
+preferences, so the screen draws its own thumbs offline; the totals are asked for only once it has voted
+at all, because a count beside an unvoted card steers the vote.
+
+**Suggestions publish themselves, after a machine reads them.** A manual release label was rejected as
+work that stops getting done. `Tools/moderate_suggestions.py` asks a cheap model four questions
+(insulting, personal data, spam, off topic) and merges obvious duplicates; clean ones get the release
+label and appear at the next build of the feed. **It fails closed**: no key, no answer, a malformed
+answer, a timeout, all of it holds the suggestion and assigns the issue to the owner. The owner's own
+latest comment on the issue becomes the reply shown in the app, and nobody else's.
+
+**The 4.0 raw-data collector is no longer hidden.** The command sequence for a 4.0 is in `BLEManager`
+and the 1917-byte frame shape is in the decoder, but neither has ever been seen on real 4.0 hardware,
+and a card nobody can open is a decoder nobody can confirm. Both platforms now show it, and both say in
+the card that this is unconfirmed on a 4.0 and that a capture which records nothing is itself worth a
+report. That is the fork's rule for an unproven derivation applied to a protocol path: ship it as
+instrumentation that states what it does not know.
+
+Analysis migration required: no. Presentation, two writes and one gate; no stored value, no scoring and
+no analysis window changes.
+
+### 2026-11-15, the raw-motion donation as built
+
+Settings › Training › **Help teach the app**. Short windows of 100 Hz six-axis motion during a workout,
+sent by hand so a sport detector can one day be built. Both platforms, the same core.
+
+**Three windows of two minutes, not the whole session.** `RawDonationPlan` lays them out from the
+session's expected length and the first one never starts at zero. Many clean examples teach a detector
+more than one long recording, the strap and the battery barely notice, and the package stays around
+430 kB however long the ride.
+
+**Nothing arms itself.** The ticked sports start as an empty set, `plan(for:)` answers nil for anything
+else, and the recorder returns without touching the strap. **Nothing is sent by itself** either: a
+finished recording becomes a pending donation that waits for a press on the page, and without a
+`service` address in the feed there is no send button at all.
+
+**The package carries no identity.** Sport, strap family, firmware layout, app version, sample rate,
+times counted from the start of the recording, a withdrawal code, and the day it was made. Explicitly
+not the `device_id` the collector's own export writes, which would link every donation of one person;
+`RawDonationPackage.forbiddenKeys` is that promise as a list a test reads.
+
+**A donation can be withdrawn.** Each one shows a code like `R-4K8T` from an alphabet without the
+characters people misread. Without it a withdrawal would be impossible, because nothing links a file to
+a person, which is the point.
+
+**What the page claims, and what it does not.** It lists what is not in a recording rather than saying
+"nobody can be identified": 100 Hz motion is personally identifying material in the research
+literature, and an unprovable sentence is the one someone would later be right to attack. It names the
+manufacturer's millions without naming the brand, says a finished detector helps everyone including
+people who sent nothing, promises no date, and states the retention (24 months, enforced by a lifecycle
+rule on the bucket rather than by good intentions).
+
+**The open hardware question is on the page.** Whether a 100 Hz stream during a workout disturbs live
+heart rate or the history offload is unmeasured. That is why nothing is ticked by default, why the
+windows are short, and why the card asks the first person who tries it to report anything odd. The
+measurement is still owed, on a real strap.
+
+Analysis migration required: no. Recording and sending; no stored derived value, no scoring, no
+analysis window.

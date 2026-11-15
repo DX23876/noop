@@ -30,6 +30,14 @@ struct SettingsHubView: View {
             if isSearching {
                 searchResults
             } else {
+                // One card above the groups, without a heading of its own: the quickest reach in
+                // Settings, and quiet enough that nobody who does not care ever notices it.
+                NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
+                    ForEach(SettingsHubLayout.project) { page in
+                        SettingsHubRow(page: page)
+                    }
+                    .clipShape(.rect(cornerRadius: NoopMetrics.groupedRadius))
+                }
                 SettingsHubGroup(title: "You", pages: SettingsHubLayout.you)
                 SettingsHubGroup(title: "Strap & Devices", pages: SettingsHubLayout.strapAndDevices)
                 SettingsHubGroup(title: "Training & Everyday", pages: SettingsHubLayout.trainingAndEveryday)

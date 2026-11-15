@@ -7,6 +7,7 @@ import Foundation
 /// result row in the More tab's index search — without matching on its display title, which is
 /// translated and therefore not a key.
 enum SettingsSectionID: String, CaseIterable, Hashable, Sendable {
+    case roadmap
     case profile
     case goals
     case strap
@@ -45,6 +46,7 @@ enum SettingsSectionID: String, CaseIterable, Hashable, Sendable {
 /// Six pages are complete screens of their own (`isStandaloneScreen`); the rest are built from cards
 /// inside `SettingsView`.
 enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case roadmap
     case profile, goals
     case strap, batteryRecording, strapActions
     case training, todayTrends, notifications, coach, siri
@@ -56,6 +58,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var title: LocalizedStringResource {
         switch self {
+        case .roadmap: return "Roadmap"
         case .profile: return "Profile"
         case .goals: return "Goals"
         case .strap: return "Strap"
@@ -79,6 +82,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
     /// A short list of nouns, never a sentence: it names what is on the page.
     var subtitle: LocalizedStringResource {
         switch self {
+        case .roadmap: return "What is being built, and what is known"
         case .profile: return "Body, heart rate and fitness"
         case .goals: return "Number of goals, rest days and step goal"
         case .strap: return "Connection, steps and heart rate sharing"
@@ -101,6 +105,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var icon: String {
         switch self {
+        case .roadmap: return "map"
         case .profile: return "person.crop.circle"
         case .goals: return "target"
         case .strap: return "antenna.radiowaves.left.and.right"
@@ -123,6 +128,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var colorKey: String {
         switch self {
+        case .roadmap: return "settings.features"
         case .profile: return "settings.profile"
         case .goals: return "goalJourney"
         case .strap: return "settings.strap"
@@ -147,13 +153,14 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
     /// `SettingsView`. `SettingsPageDestination` routes them.
     var isStandaloneScreen: Bool {
         switch self {
-        case .goals, .batteryRecording, .strapActions, .notifications, .coach, .siri: return true
+        case .roadmap, .goals, .batteryRecording, .strapActions, .notifications, .coach, .siri: return true
         default: return false
         }
     }
 
     var sectionIDs: [SettingsSectionID] {
         switch self {
+        case .roadmap: return [.roadmap]
         case .profile: return [.profile]
         case .goals: return [.goals]
         case .strap: return [.strap, .steps, .heartRateSharing]
@@ -210,6 +217,12 @@ struct SettingsSearchEntry: Identifiable, Sendable {
 enum SettingsSearchCatalog {
 
     static let entries: [SettingsSearchEntry] = [
+        SettingsSearchEntry(
+            id: .roadmap,
+            title: "Roadmap",
+            keywords: ["roadmap", "plan", "planned", "what's next", "coming", "issues", "bugs",
+                       "known problems", "reported", "fixed", "changelog of plans", "project"]
+        ),
         SettingsSearchEntry(
             id: .profile,
             title: "Profile",

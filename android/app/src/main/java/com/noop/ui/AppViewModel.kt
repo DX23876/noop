@@ -1807,6 +1807,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _activeWorkout.value = ActiveWorkout(startMs = startMs, sport = sport, gpsEnabled = gpsEnabled,
                                              targetZone = targetZone?.takeIf { it in 1..5 })
         runCatching { activeWorkoutStore.saveTargetZone(targetZone) }
+        // Raw-motion donation, if the wearer ticked THIS sport. The core answers null otherwise.
+        runCatching { RawDonationRecorder.begin(sport.name) }
         buzz(1, HapticPrefs.WORKOUT)
         startWorkoutVoice()
         // Workouts & GPS test mode (Test Centre): one session-start line tagged .workouts. Zero-cost when off.
@@ -1857,6 +1859,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 kotlinx.coroutines.delay(1_000)
                 val w = _activeWorkout.value ?: break
                 workoutVoice.tick(workoutVoiceSnapshot(w, System.currentTimeMillis()))
+                runCatching {
+                    RawDonationRecorder.tick((System.currentTimeMillis() - w.startMs) / 1000.0,
+                                             ble, live.value.connected)
+                }
                 // GPS auto-pause, decided in the core as on iOS; a manual pause never resumes by itself.
                 when (workoutVoice.autoPauseAction(w.sport.name, w.gpsEnabled, w.pausedAtMs != null, w.autoPaused)) {
                     "pause" -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { setWorkoutPaused(true, automatically = true) }
@@ -1978,6 +1984,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  WorkoutRow, and (opt-in) write it to Health Connect. A session with no HR AND no track is
      *  discarded quietly. Double-buzz confirms the save. */
     fun endWorkout() {
+        // Leaves a pending donation when a window recorded; sending is a separate press on the page.
+        runCatching {
+            RawDonationRecorder.finish(appContext, ble,
+                                       if (live.value.whoop5Detected) "whoop5" else "whoop4", null)
+        }
         val w = _activeWorkout.value ?: return
         _activeWorkout.value = null
         voiceJob?.cancel(); voiceJob = null

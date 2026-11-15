@@ -1,0 +1,102 @@
+# Publishes docs/app-feed.json, the file the in-app Roadmap page reads for reported problems.
+#
+# The app reads one static file instead of calling the GitHub API: no shared rate limit, no third-party
+# text arriving unfiltered, and a page that still renders when the Actions on this fork are switched off
+# again (docs/fork/AGENT_RULES.md). For that last reason the generator is deterministic and runnable by
+# hand: `gh issue list … > issues.json && python3 Tools/build_app_feed.py --issues-file issues.json`
+# produces the same bytes this job does, so a dead runner costs freshness, not the feature.
+#
+# Only the issue NUMBER, a sanitised TITLE, state and dates cross into the file. Never a body, a handle
+# or an avatar: a bug report carries logs and device details, a title is the part written to be read.
+name: App feed
+
+on:
+  issues:
+    types: [opened, closed, reopened, edited, labeled, unlabeled, deleted, transferred]
+  schedule:
+    # 06:12 UTC, off the hour: a safety net for an event this job missed.
+    - cron: '12 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+
+concurrency:
+  group: app-feed
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue list -R "${GITHUB_REPOSITORY}" --state all --limit 300 \
+            --json number,title,labels,state,stateReason,createdAt,closedAt > issues.json
+          python3 -c "import json;print(len(json.load(open('issues.json'))),'issues read')"
+
+      # The suggestions people sent from the app. They live in a PRIVATE repository and only the ones
+      # carrying the release label cross into the file, so nothing a stranger wrote is public before it
+      # was looked at. Without the token this step writes an empty list and the section stays absent.
+      - name: Read the released suggestions
+        env:
+          GH_TOKEN: ${{ secrets.SUGGESTIONS_TOKEN }}
+          REPO: ${{ vars.SUGGESTIONS_REPO }}
+        run: |
+          if [ -z "${GH_TOKEN}" ] || [ -z "${REPO}" ]; then
+            echo "[]" > suggestions.json
+            echo "no suggestions repository configured"
+            exit 0
+          fi
+          gh issue list -R "${REPO}" --state all --limit 200 \
+            --json number,title,body,labels,comments > suggestions.json
+          python3 -c "import json;print(len(json.load(open('suggestions.json'))),'suggestions read')"
+
+      # Releasing is automatic, and it fails closed: no key, no answer or a malformed one holds the
+      # suggestion back and assigns it to the owner instead of publishing it.
+      - name: Let the filter decide about the new ones
+        env:
+          GH_TOKEN: ${{ secrets.SUGGESTIONS_TOKEN }}
+          REPO: ${{ vars.SUGGESTIONS_REPO }}
+          NOOP_MODERATION_KEY: ${{ secrets.NOOP_MODERATION_KEY }}
+        run: |
+          if [ -z "${GH_TOKEN}" ] || [ -z "${REPO}" ] || [ -z "${NOOP_MODERATION_KEY}" ]; then
+            echo "filter not configured, nothing released automatically"
+            exit 0
+          fi
+          gh issue list -R "${REPO}" --state open --limit 100 \
+            --json number,title,body,labels \
+            --jq '[.[] | select((.labels | map(.name) | index("public") | not) and
+                                (.labels | map(.name) | index("needs-you") | not))]' > new.json
+          python3 Tools/moderate_suggestions.py --new new.json --released suggestions.json \
+            --repo "${REPO}" --apply
+          gh issue list -R "${REPO}" --state all --limit 200 \
+            --json number,title,body,labels,comments > suggestions.json
+
+      - name: Build the feed
+        run: python3 Tools/build_app_feed.py --issues-file issues.json --suggestions-file suggestions.json
+
+      # The hand-written half of the page. It is checked on every push by tools-python as well; here it
+      # guards the pair, so the page's two files are never validated apart from each other.
+      - name: Check the roadmap
+        run: python3 Tools/check_roadmap.py
+
+      - name: Commit when something moved
+        env:
+          BOT_NAME: 'github-actions[bot]'
+          BOT_MAIL: 'github-actions[bot]@users.noreply.github.com'
+        run: |
+          rm -f issues.json suggestions.json new.json
+          if git diff --quiet -- docs/app-feed.json; then
+            echo "nothing changed"
+            exit 0
+          fi
+          git add docs/app-feed.json
+          git -c "user.name=${BOT_NAME}" -c "user.email=${BOT_MAIL}" \
+            commit -m "chore(feed): refresh the in-app Roadmap feed"
+          git push

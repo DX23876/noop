@@ -233,6 +233,12 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
             title = stringResource(R.string.ground_truth_title),
             blurb = stringResource(R.string.ground_truth_test_centre_desc),
         ) {
+            // The 4.0's raw-data variant is decoded but has never been seen on real 4.0 hardware. The
+            // iOS card says the same since 2026-11-15; a tester's first capture is what confirms it.
+            if (!is5MG) {
+                Text(stringResource(R.string.ground_truth_40_unconfirmed),
+                     style = NoopType.caption, color = Palette.statusWarning)
+            }
             NoopButton(
                 text = stringResource(R.string.ground_truth_open),
                 kind = NoopButtonKind.Secondary,

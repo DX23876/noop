@@ -55,6 +55,11 @@ struct ForgeSettingsView<DeviceRow: View>: View {
                 }
                 .buttonStyle(.plain)
 
+                // Its own card above everything: one tap from the top of Settings, with no heading,
+                // no badge and no count. Someone who does not care never notices it.
+                section(nil) {
+                    pageRow(.roadmap)
+                }
                 group("You", [.goals])
                 section("Strap and devices") {
                     NavigationLink(value: ForgeSettingsRoute.strap) {
@@ -145,7 +150,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
         switch page {
         case .profile, .goals, .batteryRecording, .todayTrends, .calculations: return .green
         case .strapActions, .notifications, .siri, .help, .training: return .orange
-        case .coach, .strap, .appearance, .languageUnits, .dataBackup, .lab, .about: return .indigo
+        case .roadmap, .coach, .strap, .appearance, .languageUnits, .dataBackup, .lab, .about: return .indigo
         }
     }
 }

@@ -603,7 +603,9 @@ final class AppModel: ObservableObject {
         voiceCoach.onTick = { [weak self] date in
             self?.maintainWorkoutAutoPause(at: date)
             self?.advanceWorkoutGuidance(at: date)
+            self?.advanceRawDonation(at: date)
         }
+        wireRawDonationRecorder()
         gpsRecorder.onAcceptedPoint = { [weak self] point, meters in
             guard let self, let workout = self.activeWorkout, !workout.isPaused,
                   let seconds = point.activeSeconds, let segment = point.segment else { return }
@@ -1147,6 +1149,9 @@ final class AppModel: ObservableObject {
         let started = Date()
         let validatedTarget = targetZone.flatMap { (1...5).contains($0) ? $0 : nil }
         activeWorkout = ActiveWorkout(start: started, sport: resolved, targetZone: validatedTarget)
+        // Raw-motion donation, if the wearer ticked THIS sport. The expectation is only a hint for
+        // spreading the windows; a session that ends early simply stops where it is.
+        RawDonationRecorder.shared.begin(sport: resolved, expected: Self.donationExpectedSeconds)
         workoutWarning = nil
         WorkoutWarningNotifier.clear()
         workoutAutomaticallyPaused = false
@@ -1403,8 +1408,44 @@ final class AppModel: ObservableObject {
         elapsedSeconds < minimumWorkoutSeconds
     }
 
+
+    /// A workout's assumed length when the donation windows are laid out. Not a limit and not a
+    /// promise: a longer session keeps the plan it started with, a shorter one stops early.
+    static let donationExpectedSeconds: TimeInterval = 2700
+
+    /// The donation recorder reaches the strap and the stored IMU through these, so the recorder itself
+    /// stays free of BLE and of this model.
+    private func wireRawDonationRecorder() {
+        let recorder = RawDonationRecorder.shared
+        recorder.startCapture = { [weak self] id in self?.ble.startGroundTruthRawCapture(sessionId: id) ?? false }
+        recorder.stopCapture = { [weak self] in await self?.ble.stopGroundTruthRawCapture() }
+        recorder.strapFamily = { [weak self] in
+            // The decoded firmware LAYOUT, which is what the app actually knows; it is not the
+            // version string the strap would print, and the field name says so.
+            (family: self?.ble.isWhoop5 == true ? "whoop5" : "whoop4",
+             firmware: self?.live.strapRange?.firmwareLayout.map(String.init))
+        }
+        recorder.collectPayload = { id, from, to in
+            // The recording's own files, nothing else: the same segments the collector exports.
+            let segments = ImuSessionFileStore.shared.exportSegments(id, from: Int(from.timeIntervalSince1970),
+                                                                     to: Int(to.timeIntervalSince1970))
+            var payload = Data()
+            for segment in segments { payload.append(segment.data) }
+            return payload
+        }
+    }
+
+    /// One tick of the donation windows. Stops at once when the strap is gone rather than waiting.
+    private func advanceRawDonation(at date: Date) {
+        guard let workout = activeWorkout, !workout.isPaused else { return }
+        RawDonationRecorder.shared.tick(elapsed: workout.elapsed(at: date), strapConnected: live.bonded)
+    }
+
     func endWorkout() {
         guard let w = activeWorkout else { return }
+        // Leaves a pending donation when a window actually recorded; it is sent only if the wearer
+        // presses send on the donation page, never from here.
+        Task { await RawDonationRecorder.shared.finish() }
         let wasGps = activeWorkoutIsGps
         let route = wasGps ? gpsRecorder.capturedRoute() : nil
         let samples = w.samples
