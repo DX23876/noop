@@ -153,18 +153,27 @@ struct TrendsView: View {
         return pts.map(\.value).reduce(0, +) / Double(pts.count)
     }
 
-    /// The window's trend as a signed mean-of-recent-half minus mean-of-earlier-half. Drives a
-    /// TrendChip so the card reads its direction at a glance, like Today's deltas. nil for a window
-    /// too short to split. `higherIsBetter == nil` (e.g. Effort) keeps the chip neutral.
+    /// The window's move: the later half's mean minus the earlier half's, in the metric's own units.
+    /// Drives a TrendChip so the card reads its direction at a glance, like Today's deltas. Nil for a
+    /// window too thin to compare. `higherIsBetter == nil` (e.g. Effort) keeps the chip neutral.
+    ///
+    /// Through `TrendWindow`, the same resolver the change summary further down this screen reads. The
+    /// two were answering one question by two different rules: this one split the POINTS down the
+    /// middle by count, which with gaps in the data puts both halves inside the same recent stretch and
+    /// reports a move that covers neither half of the window. Split by DAY now, with the resolver's
+    /// coverage rule, so a half with almost no readings shows no chip instead of a figure the summary
+    /// beside it refuses to produce. The points' own dates are the key: they were parsed from the
+    /// stored UTC day strings, and turning them back into local day keys shifts every point by a day
+    /// west of UTC.
     private func periodChange(_ pts: [TrendPoint]) -> Double? {
-        guard pts.count >= 4 else { return nil }
-        let mid = pts.count / 2
-        let earlier = pts.prefix(mid).map(\.value)
-        let recent = pts.suffix(pts.count - mid).map(\.value)
-        guard !earlier.isEmpty, !recent.isEmpty else { return nil }
-        let e = earlier.reduce(0, +) / Double(earlier.count)
-        let r = recent.reduce(0, +) / Double(recent.count)
-        return r - e
+        let dates = pts.map(\.date)
+        guard let first = dates.min(), let last = dates.max(), first < last else { return nil }
+        let middle = first.addingTimeInterval(last.timeIntervalSince(first) / 2)
+        let spanDays = Swift.max(1, Int(last.timeIntervalSince(first) / 86_400))
+        return TrendWindow.change(of: pts.map { (key: $0.date, value: $0.value) },
+                                  after: nil, cut: middle,
+                                  minimumReadings: TrendWindow.minimumReadings(forSpan: spanDays))?
+            .absolute
     }
 
     /// A TrendChip for a window's period change, coloured green/rose by whether the move is good for

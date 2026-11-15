@@ -1367,3 +1367,37 @@ move on today's file, not as the branch's 3 248-line rearrangement with the fixe
 
 Analysis migration required: no. No scoring, no analysis window, no stored derived value and no
 provenance changes.
+
+### 2026-11-15 — The Trends tab had three answers to "did it move", and now the two on one screen agree
+
+The check that was supposed to come before any rebuild, and it found a real disagreement rather than a
+tidy-up:
+
+- the chip beside a metric's chart (`TrendsView.periodChange`) split the POINTS down the middle by
+  count, reported an absolute difference, and required nothing of either half beyond four points in all;
+- the change summary further down the same screen (`TrendsChangeSummary.row`) split by DATE, the window
+  against the window before it, reported a relative change, and refused a half holding fewer than a
+  third of the span's days;
+- the range report (`StrandAnalytics.RangeReport`) splits by position for its means but takes its
+  DIRECTION from an OLS slope against a per-metric threshold.
+
+With gaps in the data a count-split puts both halves inside the same recent stretch, so the chip could
+report a move that covered neither half of the window the summary was judging, and a slope and a
+half-delta can differ in sign. Three readouts of one fact, two of them on the same screen.
+
+`TrendWindow` in `StrandAnalytics` is now the one resolver for half-over-half change: split by key, a
+coverage rule of a third of the span and never fewer than two readings, and both the absolute move and
+the share, with no share at all where the earlier half was zero. It is generic over the key because the
+two readers already order their data differently, and re-deriving one from the other is its own bug: the
+chart's dates were parsed from the stored UTC day strings, and turning them back into local day keys
+shifts every point by a day west of UTC. The chip and the summary both read it.
+
+Two differences are deliberate and stay. The report's slope answers a different question, across the
+whole range rather than half against half, and it is shown on its own screen. And a chart card may widen
+its window when the selected one holds too little, which its own caption states, so its chip can cover a
+longer stretch than the summary's verdict. The visible consequence of the change is that a chip no
+longer appears where a half holds almost no readings, which is the figure the summary beside it was
+already refusing to make.
+
+Analysis migration required: no. Presentation only: no stored value, no scoring and no analysis window
+changes, and the report's own statistic is untouched.

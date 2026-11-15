@@ -1,4 +1,5 @@
 import SwiftUI
+import StrandAnalytics
 import StrandDesign
 
 /// Trends' "What changed": every key measure's mean over the last 7, 30 or 90 days against the same span
@@ -317,17 +318,18 @@ struct TrendsChangeSummary: View {
               let start = cal.date(byAdding: .day, value: -2 * span, to: today) else { return nil }
         let key = { (d: Date) in Repository.localDayKey(d) }
         let cutKey = key(cut), startKey = key(start)
-        let recent = series.filter { $0.day > cutKey }.map(\.value)
-        let earlier = series.filter { $0.day > startKey && $0.day <= cutKey }.map(\.value)
-        // A third of each span, at least two days: a mean of one reading is that reading.
-        let minimum = max(2, span / 3)
-        guard recent.count >= minimum, earlier.count >= minimum else { return nil }
+        // Through the one resolver (`TrendWindow`), so this verdict and the chip beside the metric's own
+        // chart cannot answer the same question differently. It owns the split and the coverage rule;
+        // the deadband and the wording stay here, where they are shown.
+        guard let moved = TrendWindow.change(of: series.map { (key: $0.day, value: $0.value) },
+                                             after: startKey, cut: cutKey,
+                                             minimumReadings: TrendWindow.minimumReadings(forSpan: span)),
+              let change = moved.relative
+        else { return nil }
         let ordered = series.filter { $0.day > startKey }.sorted { $0.day < $1.day }
         let split = ordered.firstIndex { $0.day > cutKey } ?? ordered.count
-        let now = recent.reduce(0, +) / Double(recent.count)
-        let before = earlier.reduce(0, +) / Double(earlier.count)
-        guard before != 0 else { return nil }
-        let change = (now - before) / abs(before)
+        let now = moved.nowMean
+        let before = moved.beforeMean
         let verdict: Verdict
         if abs(change) < deadband { verdict = .steady }
         else if let up = measure.higherIsBetter { verdict = (change > 0) == up ? .better : .worse }
