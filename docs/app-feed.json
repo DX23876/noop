@@ -25,7 +25,7 @@
       "title": "Package appears to be invalid while installing"
     }
   ],
-  "generated": "2026-11-15T15:43:43Z",
+  "generated": "2026-11-15T22:27:52Z",
   "issues": [
     {
       "n": 49,
@@ -77,6 +77,6 @@
     }
   ],
   "schema": 1,
-  "service": null,
+  "service": "https://noop-relay.noop-relay.workers.dev",
   "suggestions": []
 }
