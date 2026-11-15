@@ -7098,4 +7098,16 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_report_no_thread_note">Without questions back nothing is stored about this report, and nobody can ask you for the detail that would have made it fixable. Say as much as you can in the text.</string>
     <string name="project_report_withdraw_note">The log is deleted and the code stops working. What was already fixed stays fixed.</string>
     <string name="project_report_code_example" translatable="false">ABCD-EFGH-JKLM-NPQR</string>
+    <string name="report_notice_title">Your report</string>
+    <string name="report_notice_answered">The developer answered you.</string>
+    <string name="report_notice_fixed">It is fixed.</string>
+    <string name="report_notice_working">Somebody is working on it.</string>
+    <string name="report_notice_not_planned">It will not be changed.</string>
+    <string name="report_notice_read">It has been read.</string>
+    <string name="report_notice_switch">Answers to my reports</string>
+    <string name="report_notice_switch_detail">A notice when a problem you reported is answered or fixed.</string>
+    <string name="project_report_picture">A picture, if it helps</string>
+    <string name="project_report_picture_add">Add a picture</string>
+    <string name="project_report_picture_detail">A screenshot of what went wrong says more than a log</string>
+    <string name="project_report_picture_remove">Remove the picture</string>
 </resources>

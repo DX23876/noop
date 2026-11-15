@@ -7057,4 +7057,16 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="project_report_nothing_said">Aún no se ha dicho nada. Si llega una pregunta, aparecerá aquí.</string>
     <string name="project_report_no_thread_note">Sin preguntas de vuelta no se guarda nada sobre este informe y nadie puede pedirte el detalle que lo habría hecho solucionable. Cuenta todo lo que puedas en el texto.</string>
     <string name="project_report_withdraw_note">El registro se borra y el código deja de funcionar. Lo que ya se corrigió sigue corregido.</string>
+    <string name="report_notice_title">Tu informe</string>
+    <string name="report_notice_answered">El desarrollador te ha respondido.</string>
+    <string name="report_notice_fixed">Está corregido.</string>
+    <string name="report_notice_working">Alguien está trabajando en ello.</string>
+    <string name="report_notice_not_planned">No se va a cambiar.</string>
+    <string name="report_notice_read">Se ha leído.</string>
+    <string name="report_notice_switch">Respuestas a mis informes</string>
+    <string name="report_notice_switch_detail">Un aviso cuando un problema que informaste recibe respuesta o se corrige.</string>
+    <string name="project_report_picture">Una imagen, si ayuda</string>
+    <string name="project_report_picture_add">Añadir una imagen</string>
+    <string name="project_report_picture_detail">Una captura de lo que falló dice más que un registro</string>
+    <string name="project_report_picture_remove">Quitar la imagen</string>
 </resources>

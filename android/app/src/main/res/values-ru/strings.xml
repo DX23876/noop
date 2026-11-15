@@ -7030,4 +7030,16 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_report_nothing_said">Пока ничего не сказано. Если придёт вопрос, он появится здесь.</string>
     <string name="project_report_no_thread_note">Без обратных вопросов об этом сообщении ничего не сохраняется, и никто не сможет спросить деталь, которая помогла бы это исправить. Опишите как можно подробнее.</string>
     <string name="project_report_withdraw_note">Журнал удаляется, а код перестаёт работать. Что уже исправлено, остаётся исправленным.</string>
+    <string name="report_notice_title">Ваше сообщение</string>
+    <string name="report_notice_answered">Разработчик вам ответил.</string>
+    <string name="report_notice_fixed">Это исправлено.</string>
+    <string name="report_notice_working">Над этим работают.</string>
+    <string name="report_notice_not_planned">Это не будут менять.</string>
+    <string name="report_notice_read">Это прочитано.</string>
+    <string name="report_notice_switch">Ответы на мои сообщения</string>
+    <string name="report_notice_switch_detail">Уведомление, когда на сообщённую вами проблему ответили или её исправили.</string>
+    <string name="project_report_picture">Картинка, если она помогает</string>
+    <string name="project_report_picture_add">Добавить картинку</string>
+    <string name="project_report_picture_detail">Снимок экрана говорит больше, чем журнал</string>
+    <string name="project_report_picture_remove">Убрать картинку</string>
 </resources>

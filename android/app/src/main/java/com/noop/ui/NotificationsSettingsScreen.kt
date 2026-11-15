@@ -173,6 +173,12 @@ internal object NotifPrefs {
     fun setBool(ctx: Context, key: String, value: Boolean) =
         prefs(ctx).edit().putBoolean(key, value).apply()
 
+    fun getLong(ctx: Context, key: String, default: Long) =
+        prefs(ctx).getLong(key, default)
+
+    fun setLong(ctx: Context, key: String, value: Long) =
+        prefs(ctx).edit().putLong(key, value).apply()
+
     fun getInt(ctx: Context, key: String, default: Int) =
         prefs(ctx).getInt(key, default)
 
@@ -235,6 +241,9 @@ fun NotificationsSettingsScreen(vm: AppViewModel) {
     var onlyWhenWorn by remember { mutableStateOf(NotifPrefs.getBool(context, NotifPrefs.WORN, true)) }
     var allOtherApps by remember { mutableStateOf(NotifPrefs.getBool(context, NotifPrefs.ALL_OTHER, false)) }
     var quietHoursEnabled by remember { mutableStateOf(NotifPrefs.getBool(context, NotifPrefs.QUIET, false)) }
+    var reportNotices by remember {
+        mutableStateOf(com.noop.notif.ReportAnswerNotifier.isOn(context))
+    }
     var quietStartMinutes by remember { mutableStateOf(NotifPrefs.getInt(context, NotifPrefs.QUIET_START, 22 * 60)) }
     var quietEndMinutes by remember { mutableStateOf(NotifPrefs.getInt(context, NotifPrefs.QUIET_END, 7 * 60)) }
     var callsEnabled by remember { mutableStateOf(NotifPrefs.getBool(context, NotifPrefs.CALLS_MASTER, false)) }
@@ -423,6 +432,18 @@ fun NotificationsSettingsScreen(vm: AppViewModel) {
                 onChange = {
                     onlyWhenWorn = it
                     NotifPrefs.setBool(context, NotifPrefs.WORN, it)
+                },
+            )
+            RowDivider()
+            // The one carve-out from the project page's no-bell rule, and it is about something the
+            // reader wrote themselves. Never fires for somebody else's report or for a release.
+            FormToggleRow(
+                label = uiString(R.string.report_notice_switch),
+                help = uiString(R.string.report_notice_switch_detail),
+                checked = reportNotices,
+                onChange = {
+                    reportNotices = it
+                    com.noop.notif.ReportAnswerNotifier.setOn(context, it)
                 },
             )
             RowDivider()

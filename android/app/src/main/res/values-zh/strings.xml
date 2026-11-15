@@ -7026,4 +7026,16 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="project_report_nothing_said">还没有任何对话。如果有问题，会出现在这里。</string>
     <string name="project_report_no_thread_note">不允许回问时，这条报告不会保存任何信息，也没有人能向你索取那个关键细节。请在正文里尽量写清楚。</string>
     <string name="project_report_withdraw_note">日志会被删除，代码也会失效。已经修复的仍然是修复的。</string>
+    <string name="report_notice_title">你的报告</string>
+    <string name="report_notice_answered">开发者回复了你。</string>
+    <string name="report_notice_fixed">已经修复了。</string>
+    <string name="report_notice_working">有人正在处理。</string>
+    <string name="report_notice_not_planned">不会更改。</string>
+    <string name="report_notice_read">已被阅读。</string>
+    <string name="report_notice_switch">对我的报告的回复</string>
+    <string name="report_notice_switch_detail">当你报告的问题收到回复或被修复时通知你。</string>
+    <string name="project_report_picture">一张图，如果有帮助</string>
+    <string name="project_report_picture_add">添加图片</string>
+    <string name="project_report_picture_detail">一张出错时的截图胜过一份日志</string>
+    <string name="project_report_picture_remove">移除图片</string>
 </resources>

@@ -1,6 +1,17 @@
 package com.noop.ui.forge
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import java.io.ByteArrayOutputStream
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -174,7 +185,16 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
     var code by remember { mutableStateOf<String?>(null) }
     var sentWithoutThread by remember { mutableStateOf(false) }
     var staged by remember { mutableStateOf<com.noop.ui.PendingReport?>(null) }
+    var picture by remember { mutableStateOf<ByteArray?>(null) }
     val scope = rememberCoroutineScope()
+    val pick = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            picture = withContext(Dispatchers.IO) { ReportPicture.scaled(context, uri) }
+        }
+    }
 
     suspend fun send(log: ByteArray?) {
         sending = true
@@ -242,6 +262,45 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
              style = Forge.type.caption, color = Forge.colors.textTertiary)
     }
 
+    SectionHeader(stringResource(R.string.project_report_picture))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        val shot = picture
+        if (shot != null) {
+            val bitmap = remember(shot) { BitmapFactory.decodeByteArray(shot, 0, shot.size) }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(), contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                )
+            }
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                    .clickable(role = Role.Button) { picture = null },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.project_report_picture_remove),
+                     style = Forge.type.body, color = ForgeTokens.Color.systemRed.resolve())
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                    .clickable(role = Role.Button) {
+                        pick.launch(PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.project_report_picture_add),
+                         style = Forge.type.body, color = Forge.colors.accent)
+                    Text(stringResource(R.string.project_report_picture_detail),
+                         style = Forge.type.caption, color = Forge.colors.textSecondary)
+                }
+            }
+        }
+    }
+
     SectionHeader(stringResource(R.string.project_report_how))
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
         ToggleRow(stringResource(R.string.project_report_thread),
@@ -261,7 +320,14 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
             Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
                 .clickable(enabled = draft.isNotBlank() && !sending, role = Role.Button) {
                     scope.launch {
-                        if (!attachLog) { send(null); return@launch }
+                        if (!attachLog) {
+                            // A picture without a log is still worth sending.
+                            val shot = picture
+                            send(if (shot == null) null else withContext(Dispatchers.IO) {
+                                LogExport.zipEntries(listOf("picture.jpg" to shot))
+                            })
+                            return@launch
+                        }
                         // With a log: build it, show it, and send only on an explicit press.
                         val pending = buildPending(context, MASTER_REPORT_MODE,
                                                    viewModel.ble.exportLogText(), viewModel)
@@ -296,7 +362,10 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
                 TextButton(onClick = {
                     staged = null
                     scope.launch {
-                        send(withContext(Dispatchers.IO) { LogExport.zipEntries(pending.entries) })
+                        val shot = picture
+                        val entries = if (shot == null) pending.entries
+                                      else pending.entries + ("picture.jpg" to shot)
+                        send(withContext(Dispatchers.IO) { LogExport.zipEntries(entries) })
                     }
                 }) { Text(stringResource(R.string.project_report_review_with)) }
             },

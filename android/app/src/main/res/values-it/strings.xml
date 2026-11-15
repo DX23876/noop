@@ -7025,4 +7025,16 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_nothing_said">Ancora nulla. Se arriva una domanda, compare qui.</string>
     <string name="project_report_no_thread_note">Senza domande di ritorno non viene memorizzato nulla su questa segnalazione e nessuno può chiederti il dettaglio che l\'avrebbe resa risolvibile. Scrivi tutto quello che puoi.</string>
     <string name="project_report_withdraw_note">Il registro viene eliminato e il codice smette di funzionare. Ciò che è già risolto resta risolto.</string>
+    <string name="report_notice_title">La tua segnalazione</string>
+    <string name="report_notice_answered">Lo sviluppatore ti ha risposto.</string>
+    <string name="report_notice_fixed">È risolto.</string>
+    <string name="report_notice_working">Ci sta lavorando qualcuno.</string>
+    <string name="report_notice_not_planned">Non verrà cambiato.</string>
+    <string name="report_notice_read">È stato letto.</string>
+    <string name="report_notice_switch">Risposte alle mie segnalazioni</string>
+    <string name="report_notice_switch_detail">Un avviso quando un problema che hai segnalato riceve risposta o viene risolto.</string>
+    <string name="project_report_picture">Un\'immagine, se aiuta</string>
+    <string name="project_report_picture_add">Aggiungi un\'immagine</string>
+    <string name="project_report_picture_detail">Una schermata di ciò che non ha funzionato dice più di un registro</string>
+    <string name="project_report_picture_remove">Rimuovi l\'immagine</string>
 </resources>

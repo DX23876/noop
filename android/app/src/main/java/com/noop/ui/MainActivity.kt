@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -1677,6 +1678,12 @@ fun NoopRoot() {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 appViewModel.ble.onForeground()
+                // A reported problem that moved, at most every six hours, and only this device's own.
+                // With nothing reported it never calls the service at all.
+                appViewModel.viewModelScope.launch {
+                    val changes = com.noop.notif.ReportAnswerNotifier.checkIfDue(context)
+                    com.noop.notif.ReportAnswerNotifier.announce(context, changes)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

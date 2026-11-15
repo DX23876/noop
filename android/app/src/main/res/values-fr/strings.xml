@@ -7056,4 +7056,16 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="project_report_nothing_said">Rien n\'a encore été dit. Si une question arrive, elle s\'affiche ici.</string>
     <string name="project_report_no_thread_note">Sans questions en retour, rien n\'est conservé sur ce signalement, et personne ne peut vous demander le détail qui l\'aurait rendu réparable. Dites-en autant que possible dans le texte.</string>
     <string name="project_report_withdraw_note">Le journal est supprimé et le code cesse de fonctionner. Ce qui est déjà corrigé le reste.</string>
+    <string name="report_notice_title">Votre signalement</string>
+    <string name="report_notice_answered">Le développeur vous a répondu.</string>
+    <string name="report_notice_fixed">C\'est corrigé.</string>
+    <string name="report_notice_working">Quelqu\'un y travaille.</string>
+    <string name="report_notice_not_planned">Cela ne sera pas changé.</string>
+    <string name="report_notice_read">Cela a été lu.</string>
+    <string name="report_notice_switch">Réponses à mes signalements</string>
+    <string name="report_notice_switch_detail">Un avis quand un problème que vous avez signalé reçoit une réponse ou est corrigé.</string>
+    <string name="project_report_picture">Une image, si elle aide</string>
+    <string name="project_report_picture_add">Ajouter une image</string>
+    <string name="project_report_picture_detail">Une capture de ce qui a mal tourné en dit plus qu\'un journal</string>
+    <string name="project_report_picture_remove">Retirer l\'image</string>
 </resources>

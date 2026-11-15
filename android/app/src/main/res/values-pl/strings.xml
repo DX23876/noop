@@ -7077,4 +7077,16 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_nothing_said">Jeszcze nic nie powiedziano. Jeśli przyjdzie pytanie, pojawi się tutaj.</string>
     <string name="project_report_no_thread_note">Bez pytań zwrotnych nic o tym zgłoszeniu nie jest zapisywane i nikt nie może zapytać o szczegół, który pozwoliłby to naprawić. Napisz w tekście tyle, ile możesz.</string>
     <string name="project_report_withdraw_note">Dziennik zostaje usunięty, a kod przestaje działać. To, co już naprawiono, zostaje naprawione.</string>
+    <string name="report_notice_title">Twoje zgłoszenie</string>
+    <string name="report_notice_answered">Deweloper ci odpowiedział.</string>
+    <string name="report_notice_fixed">Zostało naprawione.</string>
+    <string name="report_notice_working">Ktoś nad tym pracuje.</string>
+    <string name="report_notice_not_planned">Nic nie zostanie zmienione.</string>
+    <string name="report_notice_read">Zostało przeczytane.</string>
+    <string name="report_notice_switch">Odpowiedzi na moje zgłoszenia</string>
+    <string name="report_notice_switch_detail">Powiadomienie, gdy zgłoszony przez ciebie problem dostanie odpowiedź albo zostanie naprawiony.</string>
+    <string name="project_report_picture">Obraz, jeśli pomoże</string>
+    <string name="project_report_picture_add">Dodaj obraz</string>
+    <string name="project_report_picture_detail">Zrzut ekranu tego, co poszło źle, mówi więcej niż dziennik</string>
+    <string name="project_report_picture_remove">Usuń obraz</string>
 </resources>
