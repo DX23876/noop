@@ -124,6 +124,11 @@ struct ReportProblemView: View {
 
     @State private var gate: ReportReviewGate?
     @State private var showingReview = false
+    /// True while the bundle is being assembled. Without it the press on Send does nothing visible:
+    /// the storage probe reads row counts across the whole store, which on a real phone with years of
+    /// history takes long enough to look like a dead button, and `isSending` is still false because
+    /// nothing has been sent yet.
+    @State private var isPreparing = false
 
     var body: some View {
         ScreenScaffold(title: "Report a problem",
@@ -185,8 +190,8 @@ struct ReportProblemView: View {
             }
 
             ForgeListGroup {
-                ForgeActionRow(title: model.isSending ? "Sending…" : "Send") { startSending() }
-                    .disabled(!model.canSend)
+                ForgeActionRow(title: sendTitle) { startSending() }
+                    .disabled(!model.canSend || isPreparing)
                 if model.failed {
                     Text("That did not go out. Try again later.")
                         .font(StrandFont.caption)
@@ -194,6 +199,14 @@ struct ReportProblemView: View {
                 }
             }
         }
+    }
+
+    /// Says which of the three things is happening, never the wrong one: preparing the log is not
+    /// sending, and saying "Sending…" while nothing has left would be a line that claims more than
+    /// it observes.
+    private var sendTitle: LocalizedStringKey {
+        if isPreparing { return "Preparing…" }
+        return model.isSending ? "Sending…" : "Send"
     }
 
     private func sentCard(code: String) -> some View {
@@ -217,11 +230,20 @@ struct ReportProblemView: View {
             Task { await model.send(log: nil) }
             return
         }
+        isPreparing = true
         Task { @MainActor in
             let storage = await TestCentreReport.storageProbe(repo: app.repo, live: live)
-            let model = UserDefaults.standard.string(forKey: "selectedWhoopModel")
-            gate = ReportReviewGate(entries: TestBundleAssembler.assemble(
-                profile: .master, live: live, storage: storage, strapModel: model))
+            let strap = UserDefaults.standard.string(forKey: "selectedWhoopModel")
+            let entries = TestBundleAssembler.assemble(profile: .master, live: live,
+                                                       storage: storage, strapModel: strap)
+            isPreparing = false
+            // Nothing to show means nothing to attach. The report still goes, rather than opening an
+            // empty sheet and asking somebody to confirm a bundle that is not there.
+            guard !entries.isEmpty else {
+                await model.send(log: nil)
+                return
+            }
+            gate = ReportReviewGate(entries: entries)
             showingReview = true
         }
     }
