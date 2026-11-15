@@ -13,6 +13,8 @@
     "sevenDayTotal" : 0,
     "sevenDayWorkingSets" : 0
   },
+  "loadReadout" : "noHeartRate",
+  "loadReadsLow" : false,
   "loadShares" : [
 
   ],
