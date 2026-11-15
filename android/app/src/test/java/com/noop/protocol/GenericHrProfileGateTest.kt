@@ -30,14 +30,38 @@ class GenericHrProfileGateTest {
     }
 
     @Test
-    fun `refuses everything without the opt-in`() {
-        for (on in listOf(true, false)) {
-            assertFalse(
-                GenericHrProfileGate.admitsSend(
-                    GenericHrProfileGate.TOGGLE_GENERIC_HR_PROFILE_CMD,
-                    GenericHrProfileGate.body(on),
-                    broadcastHrOptIn = false,
-                ),
+    fun `without the opt-in the on write is refused and the off write is not`() {
+        // The asymmetry IS the fix. The opt-in is bound straight to the Settings switch, so it is already
+        // false by the time setBroadcastHr(false) runs: gating the off direction on it refuses the one
+        // write that stops the strap serving its heart rate, which is the dead undo path #1061 and #174
+        // each shipped once already.
+        assertFalse(
+            "the ON write needs the opt-in",
+            GenericHrProfileGate.admitsSend(
+                GenericHrProfileGate.TOGGLE_GENERIC_HR_PROFILE_CMD,
+                GenericHrProfileGate.body(true),
+                broadcastHrOptIn = false,
+            ),
+        )
+        assertTrue(
+            "the OFF write is the undo and must never need the opt-in",
+            GenericHrProfileGate.admitsSend(
+                GenericHrProfileGate.TOGGLE_GENERIC_HR_PROFILE_CMD,
+                GenericHrProfileGate.body(false),
+                broadcastHrOptIn = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `a replayed event is not the current state`() {
+        // A strap banks these events, so an offload hands over an old one. Reporting that as the present
+        // state prints the opposite of the truth for a service switched since.
+        for (event in listOf(GenericHrProfileGate.ENABLED_EVENT, GenericHrProfileGate.DISABLED_EVENT)) {
+            assertNull(GenericHrProfileGate.liveStateFromEvent(event, replayedOffload = true))
+            assertEquals(
+                GenericHrProfileGate.stateFromEvent(event),
+                GenericHrProfileGate.liveStateFromEvent(event, replayedOffload = false),
             )
         }
     }

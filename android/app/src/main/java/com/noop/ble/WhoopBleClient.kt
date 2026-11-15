@@ -9333,7 +9333,7 @@ class WhoopBleClient(
                     // at all, and this line plus the `Previously Saved HRS State` boot line are the only
                     // two places that say so. It costs nothing when nothing happens, which is the
                     // rare-event rule. Twin of the Swift FrameRouter line.
-                    GenericHrProfileGate.stateFromEvent(ev)?.let { hrProfileOn ->
+                    GenericHrProfileGate.liveStateFromEvent(ev, replayedOffload)?.let { hrProfileOn ->
                         log(
                             "Strap: standard heart-rate service is now " +
                                 (if (hrProfileOn) "ON" else "OFF") + " (strap event $ev)",
@@ -10007,7 +10007,13 @@ class WhoopBleClient(
                     "${GenericHrProfileGate.DISABLED_EVENT} event.",
             )
         } else {
-            log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — strap unchanged.")
+            // "strap unchanged" would be FALSE here: the device-config write below runs either way, so only
+            // this command's own effect can be denied. The off direction can no longer land here at all
+            // (the gate admits it unconditionally), so this is the opt-in-off ON write and nothing else.
+            log(
+                "Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — the standard " +
+                    "heart-rate service was not touched by this command; the device-config write still runs.",
+            )
         }
         // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
         // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's

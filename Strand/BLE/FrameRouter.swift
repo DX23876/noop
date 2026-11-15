@@ -220,9 +220,24 @@ public final class FrameRouter {
             if family == .whoop5, let cmd = parsed.cmdName, cmd.hasPrefix("TOGGLE_GENERIC_HR_PROFILE") {
                 let r = Self.commandResultByte(in: frame, family: family)
                 let rhex = r.map { String(format: "0x%02x", UInt8(truncatingIfNeeded: $0)) } ?? "none"
+                // JUDGE the result, don't print it and then claim support anyway. The 5/MG CommandResult
+                // table is the one the reboot ack above reads: 1 SUCCESS, 2 PENDING, 0 FAILURE,
+                // 3 UNSUPPORTED. Only 3 answers "this family does not serve the opcode"; 0 means served and
+                // refused; 1/2 mean accepted. An earlier draft said "the opcode is served" for EVERY reply,
+                // so a strap answering UNSUPPORTED — the exact shape a real MG gave for haptics opcode 79 —
+                // would have been reported as supporting it, with that being the one question this line
+                // exists to answer.
+                let verdict: String
+                switch r {
+                case 1, 2: verdict = "accepted, so this family serves the opcode"
+                case 0: verdict = "served but REFUSED"
+                case 3: verdict = "UNSUPPORTED on this family"
+                case nil: verdict = "no result byte, which says nothing about support"
+                default: verdict = "a result outside the CommandResult table, meaning unmapped"
+                }
                 state.append(log: "Broadcast HR: the 5/MG answered TOGGLE_GENERIC_HR_PROFILE(14) "
-                             + "resultByte=\(rhex), so the opcode is served on this family; the effect is "
-                             + "the \(GenericHrProfileGate.enabledEvent)/\(GenericHrProfileGate.disabledEvent) "
+                             + "resultByte=\(rhex) (\(verdict)); the effect is still the "
+                             + "\(GenericHrProfileGate.enabledEvent)/\(GenericHrProfileGate.disabledEvent) "
                              + "event, not this reply frame=\(Self.fullFrameHex(frame))")
             }
             if family == .whoop4, let cmd = parsed.cmdName {
@@ -497,7 +512,11 @@ public final class FrameRouter {
                 // test mode — a strap that holds this service off delivers no live heart rate at all, and
                 // this line plus the `Previously Saved HRS State` boot line are the only two places that
                 // say so. It costs nothing when nothing happens, which is the rare-event rule.
-                if let hrProfileOn = GenericHrProfileGate.stateFromEvent(ev) {
+                // `replayedOffload: false` is a FACT here, not an assumption: the backfill drain does not
+                // route through `handle(frame:)` at all, which is the same reason the BATTERY_LEVEL flag
+                // below needs no freshness gate. The parameter is passed anyway so this reads as the twin
+                // of the Android line, which does see replayed events and must pass its own flag.
+                if let hrProfileOn = GenericHrProfileGate.liveStateFromEvent(ev, replayedOffload: false) {
                     state.append(log: "Strap: standard heart-rate service is now "
                                  + (hrProfileOn ? "ON" : "OFF") + " (strap event \(ev))")
                 }

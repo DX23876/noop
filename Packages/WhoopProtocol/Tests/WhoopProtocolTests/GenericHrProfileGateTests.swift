@@ -17,12 +17,28 @@ final class GenericHrProfileGateTests: XCTestCase {
         }
     }
 
-    func testRefusesEverythingWithoutTheOptIn() {
-        for on in [true, false] {
-            XCTAssertFalse(GenericHrProfileGate.admitsSend(
-                opcode: GenericHrProfileGate.toggleGenericHrProfileCmd,
-                payload: GenericHrProfileGate.body(on: on),
-                broadcastHrOptIn: false))
+    func testWithoutTheOptInTheOnWriteIsRefusedAndTheOffWriteIsNot() {
+        // The asymmetry IS the fix. The opt-in is bound straight to the Settings switch, so it is already
+        // false by the time `setBroadcastHr(false)` runs: gating the off direction on it refuses the one
+        // write that stops the strap serving its heart rate, which is the dead undo path #1061 and #174
+        // each shipped once already.
+        XCTAssertFalse(GenericHrProfileGate.admitsSend(
+            opcode: GenericHrProfileGate.toggleGenericHrProfileCmd,
+            payload: GenericHrProfileGate.body(on: true),
+            broadcastHrOptIn: false), "the ON write needs the opt-in")
+        XCTAssertTrue(GenericHrProfileGate.admitsSend(
+            opcode: GenericHrProfileGate.toggleGenericHrProfileCmd,
+            payload: GenericHrProfileGate.body(on: false),
+            broadcastHrOptIn: false), "the OFF write is the undo and must never need the opt-in")
+    }
+
+    func testAReplayedEventIsNotTheCurrentState() {
+        // A strap banks these events, so an offload hands over an old one. Reporting that as the present
+        // state prints the opposite of the truth for a service switched since.
+        for event in [GenericHrProfileGate.enabledEvent, GenericHrProfileGate.disabledEvent] {
+            XCTAssertNil(GenericHrProfileGate.liveStateFromEvent(event, replayedOffload: true))
+            XCTAssertEqual(GenericHrProfileGate.liveStateFromEvent(event, replayedOffload: false),
+                           GenericHrProfileGate.stateFromEvent(event))
         }
     }
 

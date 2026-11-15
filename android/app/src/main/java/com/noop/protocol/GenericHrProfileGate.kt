@@ -63,12 +63,29 @@ object GenericHrProfileGate {
     /**
      * The state an event name reports, or null when the name is neither of the two. Prefix-matched because
      * the decoder appends the raw number to an event name.
+     *
+     * This is the NAME's meaning only. A caller that states the CURRENT service state must use
+     * [liveStateFromEvent] instead, or it will report a banked event as the present.
      */
     fun stateFromEvent(event: String): Boolean? = when {
         event.startsWith(ENABLED_EVENT) -> true
         event.startsWith(DISABLED_EVENT) -> false
         else -> null
     }
+
+    /**
+     * The state an event may be reported as RIGHT NOW: [stateFromEvent], except null for an event replayed
+     * out of the strap's banked event log during an offload.
+     *
+     * A strap banks these events like any other, so an offload hands over an old one. Reporting that as the
+     * present state prints the OPPOSITE of the truth for a service that has been switched since — in the
+     * one always-on line someone reads when diagnosing a silent 0x2A37. The same discriminator the charging
+     * flag and the strap-driven-alarm event already consult ([shouldApplyChargingFromBatteryEvent],
+     * [smartAlarmFiredForEvent] in WhoopBleClient), as a rule rather than an inline `if`, so both platforms
+     * answer alike.
+     */
+    fun liveStateFromEvent(event: String, replayedOffload: Boolean): Boolean? =
+        if (replayedOffload) null else stateFromEvent(event)
 
     /**
      * The one-byte request body: `01` on, `00` off. Same form the WHOOP 4.0 takes; whether a 5/MG takes it
@@ -97,10 +114,18 @@ object GenericHrProfileGate {
      *
      * Every other opcode is false, explicitly including `SET_DEVICE_CONFIG_VALUE(119)`, which keeps its own
      * key-aware clause in [DeviceConfigWriteGate] and must never be reachable from here.
+     *
+     * The OFF write is admitted UNCONDITIONALLY, and that is not a loophole but the whole undo path. The
+     * opt-in is bound straight to the Settings switch, so it is already `false` by the time
+     * `setBroadcastHr(false)` runs: gating the off direction on it refuses the one write that stops the
+     * strap serving its heart rate, leaving the switch off, the service on, and no way to clear it. Both
+     * sibling gates record the same lesson from having shipped it — [DeviceConfigWriteGate.admitsSend]
+     * (#1061, "gating the OFF write on it made the toggle-off path DEAD") and the #174 R22 disable clause.
+     * Admitting it costs nothing: `00` cannot enable anything, and the strap's own event reports the result.
      */
     fun admitsSend(opcode: Int, payload: ByteArray, broadcastHrOptIn: Boolean): Boolean {
-        if (!broadcastHrOptIn) return false
         if (opcode != TOGGLE_GENERIC_HR_PROFILE_CMD) return false
-        return requestedState(payload) != null
+        val on = requestedState(payload) ?: return false
+        return if (on) broadcastHrOptIn else true
     }
 }

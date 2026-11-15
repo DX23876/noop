@@ -3973,7 +3973,11 @@ public final class BLEManager: NSObject, ObservableObject {
                 + "(experimental, untried on this family); the ack proves nothing — waiting for the strap's "
                 + "own \(GenericHrProfileGate.enabledEvent)/\(GenericHrProfileGate.disabledEvent) event.")
         } else {
-            log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — strap unchanged.")
+            // "strap unchanged" would be FALSE here: the device-config write below runs either way, so only
+            // this command's own effect can be denied. The off direction can no longer land here at all
+            // (the gate admits it unconditionally), so this is the opt-in-off ON write and nothing else.
+            log("Broadcast HR: TOGGLE_GENERIC_HR_PROFILE(14) REFUSED by the 5/MG send gate — the standard "
+                + "heart-rate service was not touched by this command; the device-config write still runs.")
         }
         // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
         // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's

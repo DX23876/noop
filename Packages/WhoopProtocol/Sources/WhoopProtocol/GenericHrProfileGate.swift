@@ -63,10 +63,26 @@ public enum GenericHrProfileGate {
 
     /// The state an event name reports, or nil when the name is neither of the two. Prefix-matched because
     /// the decoder appends the raw number to an event name.
+    ///
+    /// This is the NAME's meaning only. A caller that states the CURRENT service state must use
+    /// `liveStateFromEvent(_:replayedOffload:)` instead, or it will report a banked event as the present.
     public static func stateFromEvent(_ event: String) -> Bool? {
         if event.hasPrefix(enabledEvent) { return true }
         if event.hasPrefix(disabledEvent) { return false }
         return nil
+    }
+
+    /// The state an event may be reported as RIGHT NOW: `stateFromEvent`, except nil for an event replayed
+    /// out of the strap's banked event log during an offload.
+    ///
+    /// A strap banks these events like any other, so an offload hands over an old one. Reporting that as
+    /// the present state prints the OPPOSITE of the truth for a service that has been switched since —
+    /// in the one always-on line someone reads when diagnosing a silent 0x2A37. The same discriminator the
+    /// charging flag and the strap-driven-alarm event already consult (`shouldApplyChargingFromBatteryEvent`,
+    /// `smartAlarmFiredForEvent`), as a rule rather than an inline `if`, so both platforms answer alike.
+    public static func liveStateFromEvent(_ event: String, replayedOffload: Bool) -> Bool? {
+        guard !replayedOffload else { return nil }
+        return stateFromEvent(event)
     }
 
     // MARK: - Body
@@ -93,9 +109,17 @@ public enum GenericHrProfileGate {
     ///
     /// Every other opcode is false, explicitly including `SET_DEVICE_CONFIG_VALUE(119)`, which keeps its
     /// own key-aware clause in `DeviceConfigWriteGate` and must never be reachable from here.
+    ///
+    /// The OFF write is admitted UNCONDITIONALLY, and that is not a loophole but the whole undo path. The
+    /// opt-in is bound straight to the Settings switch, so it is already `false` by the time
+    /// `setBroadcastHr(false)` runs: gating the off direction on it refuses the one write that stops the
+    /// strap serving its heart rate, leaving the switch off, the service on, and no way to clear it. Both
+    /// sibling gates record the same lesson from having shipped it — `DeviceConfigWriteGate.admitsSend`
+    /// (#1061, "gating the OFF write on it made the toggle-off path DEAD") and the #174 R22 disable clause.
+    /// Admitting it costs nothing: `00` cannot enable anything, and the strap's own event reports the result.
     public static func admitsSend(opcode: UInt8, payload: [UInt8], broadcastHrOptIn: Bool) -> Bool {
-        guard broadcastHrOptIn else { return false }
         guard opcode == toggleGenericHrProfileCmd else { return false }
-        return requestedState(inSendPayload: payload) != nil
+        guard let on = requestedState(inSendPayload: payload) else { return false }
+        return on ? broadcastHrOptIn : true
     }
 }
