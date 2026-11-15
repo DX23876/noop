@@ -71,6 +71,39 @@ nothing to tap and nothing to judge. Bar (b) is therefore **open**, and it is th
 finding 1: whichever way the style is honoured, every destination an old dashboard pushes must resolve in
 the shell that is showing it.
 
+## Appendix: #43's back path, traced in the source (2026-11-15)
+
+Recorded because the trace came out empty, and the next person should not repeat it blind. The report
+is "All settings with no way back"; the owner's own comment on the issue says the page sits on a stack
+that handles the back gesture and the code does not show how it loses it. It still does not. What the
+source does say:
+
+- `ForgeSettings` (`ForgeSettings.kt:319`) keeps its own route stack in `rememberSaveable`, with
+  `BackHandler(enabled = stack.isNotEmpty()) { pop() }` (line 331) and `pop()` at line 328.
+- Both hubs carry the row and both push the same route: the old-design `Hub` through `onAll`
+  (line 347, drawn at ~381) and `NewDesignHub` through `onSub(ForgeSettingsSub.AllSettings)`
+  (line 453). Either way the stack was empty, so it becomes size 1.
+- `AllSettings` is hosted as `Hosted(title, onBack) { SettingsScreen(…) }` (line 681). `Hosted`
+  (line 507) does not draw the bar itself: it provides `LocalHostedChrome`, whose header slot draws
+  `PageTitle(title ?: pageTitle, onBack, trailing)`, and `PageTitle` (line 459) draws the arrow
+  unconditionally. `SettingsScreen` renders through `ScreenScaffold`, which takes the hosted branch and
+  calls `hosted.header(...)` (`Components.kt:1352`). So the arrow is drawn, and `SettingsScreen` has no
+  `BackHandler` of its own to swallow the gesture.
+- The three entries differ in exactly one respect: `pop()` calls `onClose()` when
+  `initialPage != null && stack.size == 1`. A sheet opened directly on a page closes on Back instead of
+  showing the hub, which is intended ("Opened on one page … Back from it closes") but is also the one
+  thing a wearer can reasonably describe as having no way back. That shape is reachable from More's
+  profile row (`ForgeMore.kt:135`), from a More row (`ForgeMore.kt:140`) and from settings search, which
+  closes the sheet and reopens More with the search focused (`ForgeRoot.kt:100`) so a result lands on a
+  PAGE. It is not reachable for All settings itself, which is a `ForgeSettingsSub`, never an
+  `initialPage`.
+
+So the walk on an emulator should test the GESTURE and the arrow separately, in this order: open All
+settings from the hub (expect: arrow back to the hub), from More's profile row then into All settings
+(expect: arrow back one step, not out of settings), and from settings search (expect: the result page,
+and Back leaving settings by design). Note which design is on: the old one draws `Hub`, the new one
+`NewDesignHub`, and only one of them is what the reporter saw.
+
 ## What this round did not check
 
 - The other old screens (Sleep, Training, Health, Workouts, Insights and the rest of `Strand/Screens`).
