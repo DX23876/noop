@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * #1635: the per-link banked line, split by PATH.
+ * #1635: the per-link decoded line, split by PATH.
  *
  * The case it exists for: an unbonded 5/MG streams heart rate and R-R over the standard profile while the
  * offload never runs, and the epitaph reports that link as hundreds of healthy inbound frames.
@@ -14,6 +14,11 @@ import org.junit.Test
  * — gravity, respiratory, skin temperature, SpO2 and steps arrive solely through the offload. An earlier
  * live-only version named those five as "nothing banked live for" on EVERY link, bonded or not, which is a
  * constant rather than a finding. These pin the distinction.
+ *
+ * The line says DECODED, not banked, since 2026-11-15: on Android the shared core is the only writer and
+ * the counts reaching this formatter are what a batch offered it, so "banked" claimed an outcome this line
+ * never observes. These cases pin the wording as well as the split, because the wording is the bug that was
+ * found in the field (a tester's log read as 1949 lost heart rates that were never lost).
  */
 class LinkBankedSummaryTest {
 
@@ -31,7 +36,7 @@ class LinkBankedSummaryTest {
     fun `an unbonded strap reads live traffic with an offload that never ran`() {
         // The whole point: HR flowing while the offload banks nothing is the bond split, in one line.
         assertEquals(
-            "banked this link: live hr=12 rr=7 | offload none",
+            "decoded this link: live hr=12 rr=7 | offload none",
             line(liveHr = 12, liveRr = 7, chunks = 0),
         )
     }
@@ -43,17 +48,17 @@ class LinkBankedSummaryTest {
         val healthy = line(liveHr = 3, liveRr = 2, chunks = 9, oHr = 1200, oRr = 2400, oGrav = 8000,
             oResp = 8000, oSkin = 8000, oSpo2 = 8000, oSteps = 40)
         assertEquals(
-            "banked this link: live hr=3 rr=2 | offload hr=1200 rr=2400 gravity=8000 resp=8000" +
+            "decoded this link: live hr=3 rr=2 | offload hr=1200 rr=2400 gravity=8000 resp=8000" +
                 " skinTemp=8000 spo2=8000 steps=40",
             healthy,
         )
-        assertTrue("a full sync carries no zero call-out", !healthy.contains("nothing banked"))
+        assertTrue("a full sync carries no zero call-out", !healthy.contains("nothing decoded"))
     }
 
     @Test
     fun `a partial offload names only the streams that stayed empty`() {
         val l = line(liveHr = 1, chunks = 4, oHr = 500, oRr = 900, oGrav = 0, oResp = 0, oSkin = 700, oSpo2 = 700)
-        assertTrue(l.contains("nothing banked from the offload for: gravity, resp, steps"))
+        assertTrue(l.contains("nothing decoded from the offload for: gravity, resp, steps"))
     }
 
     @Test
@@ -83,12 +88,13 @@ class LinkBankedSummaryTest {
     }
 
     @Test
-    fun `an offload that ran with nothing new is not the same finding as one that never ran`() {
-        // Rows are ACCEPTED counts, so a reconnect re-offloading already-stored records banks zero while
-        // the strap plainly handed its history over. classifyCompletedOffload already treats that as
-        // bankedSensorRecords rather than a fault, and this line must not contradict it.
+    fun `an offload that decoded nothing is not the same finding as one that never ran`() {
+        // Chunks that carried no records of these kinds: an empty END, a console-only exchange. Not a
+        // judgement on the store, which this line cannot see; classifyCompletedOffload treats a re-offload
+        // of already-stored records as bankedSensorRecords rather than a fault, and this must not
+        // contradict it.
         assertEquals(
-            "banked this link: live hr=1 rr=1 | offload ran 6 chunk(s), no new rows",
+            "decoded this link: live hr=1 rr=1 | offload ran 6 chunk(s), nothing decoded",
             line(liveHr = 1, liveRr = 1, chunks = 6),
         )
         // And the bond signal stays distinct.

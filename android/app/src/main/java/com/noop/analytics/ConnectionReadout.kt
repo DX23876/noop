@@ -213,16 +213,22 @@ object ConnectionReadout {
         return null
     }
 
-    /** #990: parse the Backfiller session summary ("Backfill: session persisted N rows (...) across K
-     *  night(s).") back into its row count so the log sink can fold each session into the persisted
-     *  ALL-TIME drained-rows tally. That summary is emitted UNCONDITIONALLY whenever rows landed (the
-     *  #150 win-rate line), so the cumulative counter accrues on every session, not only while the
-     *  Connection test mode is on. null for any other line. Twin of the Swift parser. */
+    /** #990: parse the Backfiller session summary ("Backfill: session decoded N rows (...) across K
+     *  night(s).", "persisted" on Apple) back into its row count so a log sink can fold each session into
+     *  the stored ALL-TIME drained-rows tally. That summary is emitted UNCONDITIONALLY whenever rows were
+     *  decoded (the #150 win-rate line), so the cumulative counter accrues on every session, not only
+     *  while the Connection test mode is on. null for any other line. Twin of the Swift parser.
+     *
+     *  Both verbs are accepted because the emitters differ by platform, not by format: Android says decoded
+     *  since 2026-11-15 (the shared core is the only writer, so the count is what a batch offered it) while
+     *  the Swift line still says persisted. This parser is the one reader of that sentence, so a log
+     *  exported from either platform, or from an older Android build, resolves through it. Android's own
+     *  counter does not go through here at all: it folds `Backfiller.sessionRowsPersisted` directly. */
     fun drainedRowsFromSummary(line: String): Int? {
-        val marker = "session persisted "
-        val i = line.indexOf(marker)
-        if (i < 0) return null
-        val rest = line.substring(i + marker.length)
+        val i = listOf("session decoded ", "session persisted ")
+            .map { it to line.indexOf(it) }.firstOrNull { it.second >= 0 } ?: return null
+        val (marker, start) = i
+        val rest = line.substring(start + marker.length)
         val digits = rest.takeWhile { it.isDigit() }
         if (digits.isEmpty() || !rest.substring(digits.length).startsWith(" rows")) return null
         return digits.toIntOrNull()
@@ -366,7 +372,7 @@ object ConnectionReadout {
     }
 
     /**
-     * #1635: what a finished link actually stored, split by PATH.
+     * #1635: what a finished link DECODED, split by PATH.
      *
      * The epitaph counts frames. That is right for a silent strap and wrong for one talking over only part
      * of its surface: an unbonded 5/MG streams heart rate and R-R all night while nothing bond-gated
@@ -385,9 +391,18 @@ object ConnectionReadout {
      * bond and answers nothing here. [offloadSteps] is nullable for the same reason it is on Apple: a
      * platform that cannot measure a stream omits it rather than reporting a zero that reads as a fault.
      *
-     * Counts are rows ACCEPTED, so a re-offload of already-stored records reads zero — correct, since the
-     * question is what the database gained. Pure, total and clamped: it runs on the teardown path, where
-     * throwing would cost the report it exists to produce. Twin of the Swift formatter.
+     * The counts are rows the decoders HANDED TO THE STORE, not rows the store gained, and the wording says
+     * so. On Apple they are the same number, because the app writes and `insert` returns what it inserted;
+     * that twin still says "banked". On Android they are not: the shared core is the only writer
+     * (CORE-ONLY-PLAN) and `WhoopRepository.insert` returns the batch's offered sizes, so a second the live
+     * stream had already stored is counted here all the same. Saying "banked" over those numbers is what
+     * made a tester's log read as lost history on 2026-11-14, and it would hide the opposite failure too: a
+     * core that stores nothing leaves these numbers untouched. What was new in the store is the core's own
+     * tally, which no per-link readout can resolve in time, so this line does not claim it.
+     *
+     * "Nothing decoded" therefore means the link carried no records of that kind, which is the one thing
+     * this line can attribute. Pure, total and clamped: it runs on the teardown path, where throwing would
+     * cost the report it exists to produce.
      */
     fun linkBankedSummary(
         liveHr: Int, liveRr: Int, offloadChunks: Int,
@@ -407,20 +422,21 @@ object ConnectionReadout {
         // link" — reads as an accusation on a healthy 16-second connect. The epitaph above supplies the
         // uptime a reader needs to weigh it.
         //
-        // "Never ran" and "ran with nothing new" are still DIFFERENT and must not share a sentence.
-        // Rows are counted as ACCEPTED, so a reconnect that re-offloads already-stored records banks zero
-        // while the strap plainly handed its history over — `classifyCompletedOffload` already treats that
-        // as `bankedSensorRecords`, not a fault. Only the first case speaks to the bond.
+        // "Never ran" and "ran and decoded nothing" are still DIFFERENT and must not share a sentence.
+        // The second is a chunk that carried no records of these kinds — an empty END, a console-only
+        // exchange — not a judgement on the store; `classifyCompletedOffload` treats a re-offload of
+        // already-stored records as `bankedSensorRecords`, not a fault. Only the first case speaks to
+        // the bond.
         if (maxOf(0, offloadChunks) == 0) {
-            return "banked this link: $live | offload none"
+            return "decoded this link: $live | offload none"
         }
         if (offloadTotal == 0) {
-            return "banked this link: $live | offload ran ${maxOf(0, offloadChunks)} chunk(s), no new rows"
+            return "decoded this link: $live | offload ran ${maxOf(0, offloadChunks)} chunk(s), nothing decoded"
         }
         val body = offload.joinToString(" ") { (k, v) -> "$k=$v" }
         val empty = offload.filter { it.second == 0 }.map { it.first }
-        if (empty.isEmpty()) return "banked this link: $live | offload $body"
-        return "banked this link: $live | offload $body - nothing banked from the offload for: " +
+        if (empty.isEmpty()) return "decoded this link: $live | offload $body"
+        return "decoded this link: $live | offload $body - nothing decoded from the offload for: " +
             empty.joinToString(", ")
     }
 

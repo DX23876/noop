@@ -192,6 +192,19 @@ class ConnectionReadoutTest {
         assertNull(ConnectionReadout.drainedRowsFromSummary("session persisted garbage rows"))
     }
 
+    /** The verb differs by platform, so a log exported from either resolves through the one parser: this
+     *  app's own line says "decoded" since 2026-11-15, the Swift twin's still says "persisted", and an
+     *  Android log from an earlier build carries the old word. */
+    @Test fun drainedRowsReadsEitherVerb() {
+        assertEquals(
+            5_397,
+            ConnectionReadout.drainedRowsFromSummary(
+                "Backfill: session decoded 5397 rows (5211 with motion, 5211 skin-temp) across 2 night(s).",
+            ),
+        )
+        assertNull(ConnectionReadout.drainedRowsFromSummary("session decoded garbage rows"))
+    }
+
     // #987 clock latch + last frame - twins of the Swift vectors.
 
     @Test fun clockCorrelatedDeviceParsesNewest() {

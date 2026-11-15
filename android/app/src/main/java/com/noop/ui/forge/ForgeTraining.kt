@@ -1089,23 +1089,56 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     var noteRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
     var confirmingDiscard by remember { mutableStateOf(false) }
     /**
-     * Save the workout and, when it does not save, say why. The reason is the core's; a failure that is not
-     * about the sets is also written to the strap log, because it is rare, costs nothing when it never
-     * happens, and is what a report like "the workout refuses to finish" otherwise leaves us guessing at.
+     * What the draft held when a finish was attempted, which is all this screen can attribute about one.
+     * It names the sets rather than the outcome, so a log line carrying it says why a refusal was right
+     * ("0 ticked") or that it was not ("9 ticked" against the core finding no completed work).
      */
-    suspend fun finishWorkout(rpe: Double?) {
-        val outcome = core(context) { CoreTraining.finish(rpe) } ?: CoreTraining.Finish.NO_CORE
-        if (outcome == CoreTraining.Finish.SAVED) { onClose(); return }
-        finishing = false
-        finishProblem = outcome
-        if (outcome != CoreTraining.Finish.NO_COMPLETED_WORK) {
-            (context.applicationContext as NoopApplication).ble.externalLog("Training: the workout did not save — $outcome")
-        }
+    fun draftShape(): String {
+        val exercises = d?.exercises ?: emptyList()
+        val sets = exercises.sumOf { it.sets.size }
+        val ticked = exercises.sumOf { e -> e.sets.count { it.done } }
+        return "${exercises.size} exercise(s), $sets set(s), $ticked ticked"
     }
 
+    /**
+     * Save the workout and, when it does not save, say why. The reason is the core's, and every attempt is
+     * written to the strap log with the draft's shape, the save included.
+     *
+     * Until 2026-11-15 only a failure that was not about the sets was logged, on the grounds that an empty
+     * workout is the wearer's own doing and not worth a line. The effect was a log that could not answer
+     * the one report this screen produces. A tester wrote on 2026-11-14 that a routine finished once and
+     * then never again, and his strap log held nothing at all about either: not the save, not the refusals,
+     * because the common refusal was the excluded one and the save was never logged in the first place. A
+     * workout finish happens a handful of times a day, so the cost of saying so is nothing.
+     */
+    suspend fun finishWorkout(rpe: Double?) {
+        val shape = draftShape()
+        val outcome = core(context) { CoreTraining.finish(rpe) } ?: CoreTraining.Finish.NO_CORE
+        val ble = (context.applicationContext as NoopApplication).ble
+        if (outcome == CoreTraining.Finish.SAVED) {
+            ble.externalLog("Training: workout saved — $shape")
+            onClose()
+            return
+        }
+        finishing = false
+        finishProblem = outcome
+        ble.externalLog("Training: the workout did not save — $outcome ($shape)")
+    }
+
+    /**
+     * The finish button's own guard: without a ticked set there is nothing to save, so the core is never
+     * asked and it reports the same reason the core would have. That short-circuit is why the refusal has
+     * to be logged HERE as well — a log written only where the core answers stays silent on the most
+     * common refusal of all, and says nothing about what the draft held when it happened.
+     */
     fun requestFinish() {
-        if (d?.exercises?.any { e -> e.sets.any { it.done } } == true) finishing = true
-        else finishProblem = CoreTraining.Finish.NO_COMPLETED_WORK
+        if (d?.exercises?.any { e -> e.sets.any { it.done } } == true) {
+            finishing = true
+            return
+        }
+        finishProblem = CoreTraining.Finish.NO_COMPLETED_WORK
+        (context.applicationContext as NoopApplication).ble
+            .externalLog("Training: finish refused before the core was asked — ${draftShape()}")
     }
 
     @Composable

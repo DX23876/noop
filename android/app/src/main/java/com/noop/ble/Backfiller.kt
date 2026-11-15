@@ -997,12 +997,18 @@ class Backfiller(
 
         /**
          * The one-line session success summary (#150) — the success-side log that never existed. Null
-         * when nothing persisted, so a console-only / caught-up session stays quiet and the existing
-         * empty-banking diagnostics speak instead.
+         * when the session decoded nothing, so a console-only / caught-up session stays quiet and the
+         * existing empty-banking diagnostics speak instead.
+         *
+         * It says DECODED, where the Swift twin says persisted, and the two are not interchangeable here:
+         * [chunkTally] adds up `InsertCounts`, which on Android is what a batch OFFERED the store, because
+         * the shared core is its only writer (CORE-ONLY-PLAN). A row the store already held is counted all
+         * the same, so claiming it was persisted would overstate a caught-up resync and, worse, would read
+         * healthy while a core that stores nothing is the actual fault.
          */
         fun sessionSummaryLine(rows: Int, motion: Int, skinTemp: Int, nights: Int): String? =
             if (rows <= 0) null
-            else "Backfill: session persisted $rows rows ($motion with motion, $skinTemp skin-temp) across $nights night(s)."
+            else "Backfill: session decoded $rows rows ($motion with motion, $skinTemp skin-temp) across $nights night(s)."
 
         /**
          * The trim=0xFFFFFFFF sentinel line (#783). 0xFFFFFFFF means two different things depending on

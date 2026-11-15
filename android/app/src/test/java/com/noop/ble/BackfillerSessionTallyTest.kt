@@ -12,8 +12,9 @@ import org.junit.Test
  * Pins the success-side observability the log forensics flagged as the blind spot (#150): NOOP logged
  * FAILURES (decoded-to-0) but never SUCCESSES, so a strap log couldn't tell a banking strap from a
  * broken one. Covers the pure tally + summary helpers driving the new
- * "Backfill: session persisted N rows (M with motion) across K night(s)" line. Mirrors the Swift
- * BackfillerSessionTallyTests.
+ * "Backfill: session decoded N rows (M with motion) across K night(s)" line. Mirrors the Swift
+ * BackfillerSessionTallyTests, whose line says "persisted" because on Apple the app writes the rows
+ * itself and the count is what the store accepted.
  */
 class BackfillerSessionTallyTest {
 
@@ -45,7 +46,7 @@ class BackfillerSessionTallyTest {
 
     @Test fun sessionSummaryFormat() {
         assertEquals(
-            "Backfill: session persisted 240 rows (180 with motion, 12 skin-temp) across 3 night(s).",
+            "Backfill: session decoded 240 rows (180 with motion, 12 skin-temp) across 3 night(s).",
             Backfiller.sessionSummaryLine(240, 180, 12, 3),
         )
     }
@@ -54,7 +55,7 @@ class BackfillerSessionTallyTest {
     // so the line surfaces that 0 and "skin temp never appears" reports are self-diagnosing from the log.
     @Test fun sessionSummaryShowsZeroSkinTemp() {
         assertEquals(
-            "Backfill: session persisted 872 rows (172 with motion, 0 skin-temp) across 1 night(s).",
+            "Backfill: session decoded 872 rows (172 with motion, 0 skin-temp) across 1 night(s).",
             Backfiller.sessionSummaryLine(872, 172, 0, 1),
         )
     }

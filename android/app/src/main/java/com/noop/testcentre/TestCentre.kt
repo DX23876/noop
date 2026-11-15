@@ -63,8 +63,8 @@ class TestCentre internal constructor(private val prefs: SharedPreferences) {
     // reconnect, so a strap stuck in a pull-restart loop looked like it never progressed even when rows
     // were landing.
 
-    /** Fold one session's drained rows into the persisted all-time tally. Called from the log sink when
-     *  the Backfiller's "session persisted N rows" summary lands (the single emit point). */
+    /** Fold one session's drained rows into the stored all-time tally. Called where the Backfiller's
+     *  "session decoded N rows" summary is emitted (the single emit point). */
     fun noteDrainedRows(rows: Int) {
         if (rows <= 0) return
         prefs.edit().putLong(CUMULATIVE_DRAINED_KEY, cumulativeDrainedRows() + rows).apply()
